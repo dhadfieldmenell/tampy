@@ -1,0 +1,23 @@
+"""
+Generic classes to interface with a high level solver
+"""
+
+class AbstractSolver(object):
+    
+    """
+    Should be subclassed in domain spec
+    """
+
+    def __init__(self):
+        raise NotImplemented
+
+    def translate(self, prob):
+        """
+        return an abstract problem
+        """
+        raise NotImplemented
+
+    def solve
+
+
+

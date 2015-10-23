@@ -1,0 +1,9 @@
+This folder should contain all of the domain specific files needed to run the NAMO domain.
+
+In our case this should specify:
+
+   -- A solver that subclasses AbsSolver to solve abstract problems
+   -- A solver that subclasses LLSolver to solve concrete problems
+      --> potentially a pointer to a solver defined in the solvers folder
+   -- A domain file that specifies actions and predicates
+   -- A problem file that specifies objects, an initial state, and a goal
