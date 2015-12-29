@@ -1,0 +1,57 @@
+# Configuration file for can domain. Blank lines and lines beginning with # are filtered out.
+# Match this format for all created configuration files that use PDDL (FFSolver or FDSolver).
+
+# First line: which HLSolver subclass to use for solving task plans.
+FFSolver
+
+-----
+# Second line: which LLSolver subclass to use for plan refinement and solving motion plans.
+TrajoptRandomized
+
+-----
+# Next come parameter types: comma- or line-separated.
+Movable
+Manip
+Pose
+Location
+
+-----
+# Next come predicates: first word is predicate name, followed by parameter types of arguments. Comma- or line-separated.
+At Movable Location
+RobotAt Pose
+IsGP Pose Movable Manip
+Empty Manip
+Obstructs Pose Movable Movable
+InGripper Movable Manip
+IsAccessPointFor Pose Movable Location Manip
+
+-----
+# Next come constants.
+lgripper - Manip rgripper - Manip
+
+-----
+# Next come movable objects. Comma- or line-separated.
+object1,object2,object3,object4,object5,object6,object7,object8,object9,object10
+
+-----
+# Next come other objects. Comma- or line-separated. "pr2" spawns a PR2 robot and any name with "table"
+# in it spawns a table with that name.
+pr2,table
+
+-----
+# Now we specify the initial arrangement of movable objects on the table.
+# "random" makes them spawn at random positions.
+random
+
+-----
+# Next come putdown locations. Comma- or line-separated.
+object1_table,object2_table,object3_table,object4_table,object5_table,
+object6_table,object7_table,object8_table,object9_table,object10_table
+
+-----
+# Next come actions.
+TODO
+
+-----
+# Next comes the goal.
+(and (InGripper object1 lgripper))
