@@ -1,9 +1,9 @@
-from core import parse_config_to_py
+from core import parse_config_to_problem
 import parse_config_to_solvers
 
 def p_mod_abs(domain_file, problem_file, max_iter=100):
     # returns Problem instance
-    problem = parse_config_to_py.parse(domain_file, problem_file)
+    problem = parse_config_to_problem.parse(domain_file, problem_file)
     # returns objects that set up abstract and concrete
     # problems to solve
     hl_solver, ll_solver = parse_config_to_solvers.parse(domain_file, problem_file)
@@ -33,7 +33,7 @@ def p_mod_abs(domain_file, problem_file, max_iter=100):
                 # satisfied in the current plan
                 i, fail = n.get_failed_pred()
                 n_problem = n.get_problem(i, fail)
-                c = HLSearchNode(hl_solve.translate(n_problem), n_problem, prefix=n.plan.prefix(i))
+                c = HLSearchNode(hl_solver.translate(n_problem), n_problem, prefix=n.plan.prefix(i))
                 Q.push(c, c.heuristic())
         else:
             raise NotImplemented
@@ -66,20 +66,20 @@ class HLSearchNode(SearchNode):
         return True
 
     def plan(self, solver):
-        """
-        generate a plan to solve this problem
-        """
         return self.prefix + solver.solve(self.abs_prob, self.concr_prob)
 
 class LLSearchNode(SearchNode):    
     def __init__(self, plan, concr_prob):
+        """
+        This function should spawn all relevant Python objects based on the task plan passed in.
+        """
         self.plan = plan
         self.problem = concr_prob
 
     def get_problem(self, i, failed_pred):
         """
-        return a representation of the search problem which
-        starts from the end state of step i and goes to the same goal        
+        Return a representation of the search problem which
+        starts from the end state of step i and goes to the same goal.
         """
         raise NotImplemented
 
@@ -91,9 +91,8 @@ class LLSearchNode(SearchNode):
 
     def plan(self, solver):
         """
-        use solver to spend computation optimizing the plan
-        should also increment any state tracking the optimization
-        history
+        Use solver to spend computation optimizing the plan.
+        Should also increment any state tracking the optimization history.
         """
         solver.solve(self.plan)
 

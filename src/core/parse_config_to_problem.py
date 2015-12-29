@@ -1,11 +1,10 @@
 """
-Read a configuration file and spawn Python objects representing
-the domain and problem.
+Read a configuration file and spawn Problem object storing initial state and goal.
 """
 
 import internal_rep
 
-class ParseConfigToPy:
+class ParseConfigToProblem:
     def __init__(self, domain_file, problem_file):
         self.domain_file = domain_file
         self.problem_file = problem_file
