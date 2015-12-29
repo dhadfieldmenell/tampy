@@ -1,43 +1,39 @@
-from __future__ import division
-
-from core import parsers
-import pma_parser
+from core import parse_config_to_py
+import parse_config_to_solvers
 
 def p_mod_abs(domain_file, problem_file, max_iter=100):
-    ## returns core.Problem class
-    problem = parsers.parse(domain_file, problem_file)
-    ## returns objects that set up abstract and concrete
-    ## problems to solve
-    hl_solver, ll_solver = pma_parser.parse(
-        domain_file, problem_file)
-    ## search nodes are keyed by high-level rep
-    n0 = AbsSearchNode(hl_solver.tranlate(problem), problem)
+    # returns Problem instance
+    problem = parse_config_to_py.parse(domain_file, problem_file)
+    # returns objects that set up abstract and concrete
+    # problems to solve
+    hl_solver, ll_solver = parse_config_to_solvers.parse(domain_file, problem_file)
+    # search nodes are keyed by high-level rep
+    n0 = HLSearchNode(hl_solver.translate(problem), problem)
 
     Q = PriorityQueue()
     Q.push(n0, 0)
     for _ in range(max_iter):
         n = Q.pop()
-        ## is this an HL node
+        # is this an HL node
         if n.is_abs():
             p_c = n.plan(hl_solver)
-            c = LLSearchNode(p_c, n.problem)
+            c = LLSearchNode(p_c, n.concr_prob)
             Q.push(n, n.heuristic())
             Q.push(c, c.heuristic())
-        ## is this an LL node
+        # is this an LL node
         elif n.is_concrete():
-            ## updates n.plan
+            # updates n.plan
             n.plan(ll_solver)
             if n.solved():
                 return n.extract_plan()
-            ## push back onto queue
+            # push back onto queue
             Q.push(n, n.heuristic())
             if n.gen_child():
-                ## returns timestep and a predicate that isn't
-                ## satisfied in the current plan
+                # returns timestep and a predicate that isn't
+                # satisfied in the current plan
                 i, fail = n.get_failed_pred()
                 n_problem = n.get_problem(i, fail)
-                c = AbsSearchNode(hl_solve.translate(n_problem), n_problem, 
-                                  prefix=n.plan.prefix(i))
+                c = HLSearchNode(hl_solve.translate(n_problem), n_problem, prefix=n.plan.prefix(i))
                 Q.push(c, c.heuristic())
         else:
             raise NotImplemented
@@ -45,7 +41,6 @@ def p_mod_abs(domain_file, problem_file, max_iter=100):
     return False
 
 class SearchNode(object):
-    
     def __init__(self):
         raise NotImplemented
 
@@ -60,10 +55,8 @@ class SearchNode(object):
 
     def plan(self, solver):
         raise NotImplemented
-
     
-class AbsSearchNode(SearchNode):
-
+class HLSearchNode(SearchNode):
     def __init__(self, abs_prob, concr_prob, prefix=None):
         self.prefix = None
         self.abs_prob = abs_prob
@@ -78,13 +71,11 @@ class AbsSearchNode(SearchNode):
         """
         return self.prefix + solver.solve(self.abs_prob)
 
-
-class LLSearchNode(SearchNode):
-    
+class LLSearchNode(SearchNode):    
     def __init__(self, plan, concr_prob):
         self.plan = plan
-        self.problem = problem
-    
+        self.problem = concr_prob
+
     def get_problem(self, i, failed_pred):
         """
         return a representation of the search problem which
@@ -94,7 +85,7 @@ class LLSearchNode(SearchNode):
 
     def solved(self):
         raise NotImplemented
-    
+
     def is_concrete(self):
         return True
 
