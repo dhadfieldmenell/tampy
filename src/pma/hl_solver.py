@@ -4,5 +4,5 @@ translating to PDDL if using FF/FD.
 """
 
 class HLSolver:
-    def translate(self, prob):
+    def translate(self, abs_prob, concr_prob):
         raise NotImplemented

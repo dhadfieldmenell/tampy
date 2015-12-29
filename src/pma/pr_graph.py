@@ -69,7 +69,7 @@ class HLSearchNode(SearchNode):
         """
         generate a plan to solve this problem
         """
-        return self.prefix + solver.solve(self.abs_prob)
+        return self.prefix + solver.solve(self.abs_prob, self.concr_prob)
 
 class LLSearchNode(SearchNode):    
     def __init__(self, plan, concr_prob):
