@@ -5,9 +5,8 @@ Read a configuration file and spawn Problem object storing initial state and goa
 import internal_rep
 
 class ParseConfigToProblem:
-    def __init__(self, domain_file, problem_file):
-        self.domain_file = domain_file
-        self.problem_file = problem_file
+    def __init__(self, config_file):
+        self.config_file = config_file
 
     def _parse_domain(self):
         raise NotImplemented

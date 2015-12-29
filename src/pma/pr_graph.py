@@ -1,14 +1,14 @@
 from core import parse_config_to_problem
 import parse_config_to_solvers
 
-def p_mod_abs(domain_file, problem_file, max_iter=100):
+def p_mod_abs(config_file, max_iter=100):
     # returns Problem instance
-    problem = parse_config_to_problem.parse(domain_file, problem_file)
+    problem = parse_config_to_problem.parse(config_file)
     # returns objects that set up abstract and concrete
     # problems to solve
-    hl_solver, ll_solver = parse_config_to_solvers.parse(domain_file, problem_file)
+    hl_solver, ll_solver = parse_config_to_solvers.parse(config_file)
     # search nodes are keyed by high-level rep
-    n0 = HLSearchNode(hl_solver.translate(problem), problem)
+    n0 = HLSearchNode(hl_solver.translate(problem, config_file), problem)
 
     Q = PriorityQueue()
     Q.push(n0, 0)
@@ -33,7 +33,7 @@ def p_mod_abs(domain_file, problem_file, max_iter=100):
                 # satisfied in the current plan
                 i, fail = n.get_failed_pred()
                 n_problem = n.get_problem(i, fail)
-                c = HLSearchNode(hl_solver.translate(n_problem), n_problem, prefix=n.plan.prefix(i))
+                c = HLSearchNode(hl_solver.translate(n_problem, config_file), n_problem, prefix=n.plan.prefix(i))
                 Q.push(c, c.heuristic())
         else:
             raise NotImplemented
