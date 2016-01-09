@@ -7,7 +7,8 @@ class HLSolver:
     def translate(self, concr_prob, config_file):
         """
         Translates concrete (instantiated) problem to representation required for task planner.
-        Also has access to the configuration file in case it's necessary.
+        Also has access to the configuration file in case it's necessary. Initial state should be based
+        on concr_prob initial state, NOT initial state from config_file (which may be outdated).
         E.g. for an FFsolver this would return a PDDL domain (only generated once) and problem file.
         """
         raise NotImplementedError("Override this.")
