@@ -1,60 +1,53 @@
 from core import parse_config_to_problem
 import parse_config_to_solvers
 
+"""
+Many methods called in this class have documentation.
+"""
 def p_mod_abs(config_file, max_iter=100):
-    # returns Problem instance
     problem = parse_config_to_problem.parse(config_file)
-    # returns objects that set up abstract and concrete
-    # problems to solve
     hl_solver, ll_solver = parse_config_to_solvers.parse(config_file)
-    # search nodes are keyed by high-level rep
     n0 = HLSearchNode(hl_solver.translate(problem, config_file), problem)
 
     Q = PriorityQueue()
     Q.push(n0, 0)
     for _ in range(max_iter):
         n = Q.pop()
-        # is this an HL node
-        if n.is_abs():
+        if n.is_hl_node():
             p_c = n.plan(hl_solver)
             c = LLSearchNode(p_c, n.concr_prob)
             Q.push(n, n.heuristic())
             Q.push(c, c.heuristic())
-        # is this an LL node
-        elif n.is_concrete():
-            # updates n.plan
+        elif n.is_ll_node():
             n.plan(ll_solver)
             if n.solved():
                 return n.extract_plan()
-            # push back onto queue
             Q.push(n, n.heuristic())
             if n.gen_child():
-                # returns timestep and a predicate that isn't
-                # satisfied in the current plan
-                i, fail = n.get_failed_pred()
-                n_problem = n.get_problem(i, fail)
-                c = HLSearchNode(hl_solver.translate(n_problem, config_file), n_problem, prefix=n.plan.prefix(i))
+                fail_step, fail_pred = n.get_failed_pred()
+                n_problem = n.get_problem(fail_step, fail_pred)
+                c = HLSearchNode(hl_solver.translate(n_problem, config_file), n_problem, prefix=n.plan.prefix(fail_step))
                 Q.push(c, c.heuristic())
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
     return False
 
 class SearchNode(object):
-    def __init__(self):
-        raise NotImplemented
+    def __init__(self, *args):
+        raise NotImplementedError("Must instantiate either HL or LL search node.")
 
     def heuristic(self):
         return 0
 
-    def is_concrete(self):
+    def is_hl_node(self):
         return False
     
-    def is_abs(self):
+    def is_ll_node(self):
         return False
 
     def plan(self, solver):
-        raise NotImplemented
+        raise NotImplementedError("Call plan() for HL or LL search node.")
     
 class HLSearchNode(SearchNode):
     def __init__(self, abs_prob, concr_prob, prefix=None):
@@ -62,7 +55,7 @@ class HLSearchNode(SearchNode):
         self.abs_prob = abs_prob
         self.concr_prob = concr_prob
 
-    def is_abs(self):
+    def is_hl_node(self):
         return True
 
     def plan(self, solver):
@@ -71,28 +64,26 @@ class HLSearchNode(SearchNode):
 class LLSearchNode(SearchNode):    
     def __init__(self, plan, concr_prob):
         """
-        This function should spawn all relevant Python objects based on the task plan passed in.
+        Instantiates skeleton Plan object by retaining relevant data from the Problem instance stored at the HL search node.
         """
         self.plan = plan
         self.problem = concr_prob
 
     def get_problem(self, i, failed_pred):
         """
-        Return a representation of the search problem which
-        starts from the end state of step i and goes to the same goal.
+        Returns a representation of the search problem which starts from the end state of step i and goes to the same goal.
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def solved(self):
-        raise NotImplemented
+        raise NotImplementedError
 
-    def is_concrete(self):
+    def is_ll_node(self):
         return True
 
     def plan(self, solver):
         """
-        Use solver to spend computation optimizing the plan.
-        Should also increment any state tracking the optimization history.
+        Uses solver to spend computation optimizing the plan.
         """
         solver.solve(self.plan)
 

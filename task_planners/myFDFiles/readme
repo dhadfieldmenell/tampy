@@ -1,0 +1,19 @@
+#installing fd 
+
+#necessary packages:
+$ sudo apt-get install mercurial g++ make python flex bison gawk
+$ sudo apt-get install g++-multilib
+
+#obtaining fd
+$ hg clone http://hg.fast-downward.org/ FD 
+$ cd FD
+$ hg update cdc3cf12644a
+$ cd ..
+$ cp myFDFiles/search_space.cc myFDFiles/state.cc myFDFiles/state.h myFDFiles/globals.cc FD/src/search/
+$ cp myFDFiles/translate.py FD/src/translate/
+
+
+
+# compiling:
+$ cd FD/src
+$ ./build_all
