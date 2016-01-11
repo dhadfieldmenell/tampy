@@ -30,13 +30,10 @@ class TestParameter(unittest.TestCase):
       # cannot instantiate Parameter directly
       with self.assertRaises(NotImplementedError) as cm:
           parameter.Parameter("can1")
-      e = cm.exception
-      self.assertEqual(e.message, "Must instantiate either Object or Symbol.")
+      self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
       with self.assertRaises(NotImplementedError) as cm:
           parameter.Parameter("can2", 4, 76, 1)
-      e = cm.exception
-      self.assertEqual(e.message, "Must instantiate either Object or Symbol.")
+      self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
       with self.assertRaises(NotImplementedError) as cm:
           parameter.Parameter()
-      e = cm.exception
-      self.assertEqual(e.message, "Must instantiate either Object or Symbol.")
+      self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
