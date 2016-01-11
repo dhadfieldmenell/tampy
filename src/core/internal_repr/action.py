@@ -1,3 +1,5 @@
+from IPython import embed as shell
+
 class Action:
     """
     An action is comprised of parameters, preconditions, and effects.

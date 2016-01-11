@@ -6,7 +6,9 @@ LLSolver: NAMOSolver
 
 Viewer: GridWorldViewer
 
-Environment: namo_simple.namo
+Environment File: namo_simple.namo
+
+Environment Initializer: InitNAMOEnv
 
 Types: Can, Target, Symbol, Robot
 
