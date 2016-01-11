@@ -3,7 +3,8 @@ import argparse
 from pma import pr_graph
 
 """
-Entry-level script.
+Entry-level script. Calls pr_graph.p_mod_abs() to plan, then runs the plans in
+simulation using the chosen viewer.
 """
 
 def parse_config_file_to_dict(config_file):
