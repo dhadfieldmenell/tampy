@@ -12,13 +12,13 @@ Environment Initializer: InitNAMOEnv
 
 Types: Can, Target, Symbol, Robot
 
-Predicates: At, Can, Target; RobotAt, Robot, Symbol; InGripper, Can; IsGP, Symbol, Can; IsPDP, Symbol, Target; Obstructs, Robot, Can
+Predicates: At, Can, Target; RobotAt, Robot, Symbol; InGripper, Can; IsGP, Symbol, Can; IsPDP, Symbol, Target; Obstructs, Robot, Symbol, Can
 
-Action moveto: (?robot - Robot ?start - Symbol ?end - Symbol) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end))
+Action moveto: (?robot - Robot ?start - Symbol ?end - Symbol) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end))
 
-Action grasp: (?robot - Robot ?can - Can ?target - Target ?gp - Symbol) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?gp ?can) (forall (?obj - Can) (not (InGripper ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?obj)))) (and (not (At ?can ?target)) (InGripper ?can) (not (Obstructs ?robot ?can)))
+Action grasp: (?robot - Robot ?can - Can ?target - Target ?gp - Symbol) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?gp ?can) (forall (?obj - Can) (not (InGripper ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?can) (forall (?sym - Symbol) (not (Obstructs ?robot ?sym ?can))))
 
-Action putdown: (?robot - Robot ?can - Can ?target - Target ?pdp - Symbol) (and (RobotAt ?robot ?pdp) (IsPDP ?pdp ?target) (InGripper ?can) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (Obstructs ?robot ?obj)))) (and (At ?can ?target) (not (InGripper ?can)))
+Action putdown: (?robot - Robot ?can - Can ?target - Target ?pdp - Symbol) (and (RobotAt ?robot ?pdp) (IsPDP ?pdp ?target) (InGripper ?can) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))) (and (At ?can ?target) (not (InGripper ?can)))
 
 Objects: can1 - Can, can2 - Can, target1 - Target, target2 - Target, target3 - Target, robot_init_pose - Symbol, gp_can1 - Symbol, gp_can2 - Symbol, pdp_target1 - Symbol, pdp_target2 - Symbol, pdp_target3 - Symbol, pr2 - Robot
 

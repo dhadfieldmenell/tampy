@@ -41,3 +41,15 @@ class InitNAMOEnv(InitEnv):
 
         env_data = {"w": w, "h": h}
         return env_data
+
+class InitCanEnv(InitEnv):
+    def construct_env_and_init_params(self, env_file, params, preds):
+        # TODO: read file to spawn things like table
+        env_data = {}
+        params["pr2"].pose = 0
+        params["can1"].pose = 0
+        params["can2"].pose = 0
+        params["can3"].pose = 0
+        params["lgripper"].pose = 0
+        params["rgripper"].pose = 0
+        return env_data

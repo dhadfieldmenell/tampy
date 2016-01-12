@@ -49,3 +49,6 @@ class Target(Object):
 
 class Robot(Object):
     pass
+
+class Manip(Object):
+    pass

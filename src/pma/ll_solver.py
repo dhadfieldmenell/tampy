@@ -12,6 +12,9 @@ class LLSolver:
 class NAMOSolver(LLSolver):
     pass
 
+class CanSolver(LLSolver):
+    pass
+
 class DummyLLSolver(LLSolver):
     def solve(self, plan):
         return "solve"

@@ -53,6 +53,12 @@ class IsPDP(Predicate):
     def test(self, start_time, end_time):
         return True
 
+class InGripper(Predicate):
+    def test(self, start_time, end_time):
+        # TODO
+        return False
+
 class Obstructs(Predicate):
     def test(self, start_time, end_time):
-        raise NotImplementedError
+        # TODO
+        return True
