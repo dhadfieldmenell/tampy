@@ -44,11 +44,15 @@ class FFSolver(HLSolver):
             f.write(dom)
         with open("%sprob.pddl"%FFSolver.FILE_PREFIX, "w") as f:
             f.write(prob)
-        with open(os.devnull, "w") as devnull:
-            subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%FFSolver.FILE_PREFIX, "-f", "%sprob.pddl"%FFSolver.FILE_PREFIX], stdout=devnull)
-        with open("%sprob.pddl.soln"%FFSolver.FILE_PREFIX, "r") as f:
-            plan = [s.strip() for s in f.readlines()[1:]]
-        subprocess.call(["rm", "%sdom.pddl"%FFSolver.FILE_PREFIX, "%sprob.pddl"%FFSolver.FILE_PREFIX, "%sprob.pddl.soln"%FFSolver.FILE_PREFIX])
+        with open("%sprob.output"%FFSolver.FILE_PREFIX, "w") as f:
+            subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%FFSolver.FILE_PREFIX, "-f", "%sprob.pddl"%FFSolver.FILE_PREFIX], stdout=f)
+        with open("%sprob.output"%FFSolver.FILE_PREFIX, "r") as f:
+            s = f.read()
+        plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
+        subprocess.call(["rm", "%sdom.pddl"%FFSolver.FILE_PREFIX,
+                         "%sprob.pddl"%FFSolver.FILE_PREFIX,
+                         "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
+                         "%sprob.output"%FFSolver.FILE_PREFIX])
         return plan
 
     def _construct_domain_str(self, config):
