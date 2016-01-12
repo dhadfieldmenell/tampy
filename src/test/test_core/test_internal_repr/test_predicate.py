@@ -10,6 +10,12 @@ class TestPredicate(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             predicate.At("errorpred", [p1, p2], ["Target", "Can"])
         self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred'.")
+        with self.assertRaises(Exception) as cm:
+            predicate.At("errorpred", [p1, p2], ["Can"])
+        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred'.")
+        with self.assertRaises(Exception) as cm:
+            predicate.At("errorpred", [p1, p2], ["Can", "Target", "Target"])
+        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred'.")
 
     def test_at(self):
         p1 = parameter.Can("can")

@@ -27,6 +27,8 @@ class Predicate:
         raise NotImplementedError("Override this.")
 
     def validate_params(self, expected_param_types):
+        if len(self.params) != len(expected_param_types):
+            raise Exception("Parameter type validation failed for predicate '%s'."%self.name)
         for i, p in enumerate(self.params):
             if not p.get_type() == expected_param_types[i]:
                 raise Exception("Parameter type validation failed for predicate '%s'."%self.name)
