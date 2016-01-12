@@ -24,7 +24,7 @@ class ParseConfigToProblem:
             p_name, p_type = map(str.strip, param.split("-"))
             if not hasattr(parameter, p_type):
                 raise Exception("Parameter type '%s' not defined!"%p_type)
-            params[p_name] = getattr(parameter, p_type)(p_name)
+            params[p_name] = getattr(parameter, p_type)("hl_" + p_name)
 
         # create initial state predicate objects
         preds_to_param_types = {}
