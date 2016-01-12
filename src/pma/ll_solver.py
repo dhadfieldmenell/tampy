@@ -6,7 +6,12 @@ class LLSolver:
     (e.g. backtracking, randomized), different motion planners, and different optimization strategies (global, sequential)
     are handled.
     """
+    def solve(self, plan):
+        raise NotImplementedError("Override this.")
+
+class NAMOSolver(LLSolver):
     pass
 
-class NAMOSolver:
-    pass
+class DummyLLSolver(LLSolver):
+    def solve(self, plan):
+        return "solve"

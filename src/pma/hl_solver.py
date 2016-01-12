@@ -100,3 +100,10 @@ class FFSolver(HLSolver):
             prob_str += ") "
         prob_str += ")\n)\n)"
         return prob_str
+
+class DummyHLSolver(HLSolver):
+    def translate(self, concr_prob, config):
+        return "translate"
+
+    def solve(self, abs_prob, concr_prob):
+        return "solve"
