@@ -37,7 +37,7 @@ class ParseConfigToProblem:
             p_name, p_args = spl[0], spl[1:]
             if not hasattr(predicate, p_name):
                 raise Exception("Predicate type '%s' not defined!"%p_name)
-            init_preds.add(getattr(predicate, p_name)(name="initpred%d"%i,
+            init_preds.add(getattr(predicate, p_name)(name="hlinitpred%d"%i,
                                                       params=[params[n] for n in p_args],
                                                       expected_param_types=preds_to_param_types[p_name]))
 
@@ -54,7 +54,7 @@ class ParseConfigToProblem:
             p_name, p_args = spl[0], spl[1:]
             if not hasattr(predicate, p_name):
                 raise Exception("Predicate type '%s' not defined!"%p_name)
-            goal_preds.add(getattr(predicate, p_name)(name="goalpred%d"%i,
+            goal_preds.add(getattr(predicate, p_name)(name="hlgoalpred%d"%i,
                                                       params=[params[n] for n in p_args],
                                                       expected_param_types=preds_to_param_types[p_name]))
 
