@@ -5,7 +5,7 @@ class InitEnv:
     """
     Read the domain-specific environment file(s) and use it to spawn relevant data. Also, use
     it to set the parameter trajectory tables for HL search nodes (which works because these tables
-    only hold the first timestep of data). The subclasses in this file are used by parse_config_to_problem.
+    only hold the first timestep of data). This method is used by parse_config_to_problem.
     """
     def construct_env_and_init_params(self, env_file, params, preds):
         raise NotImplementedError("Override this.")
@@ -18,7 +18,7 @@ class InitNAMOEnv(InitEnv):
             for line in f:
                 grid.append(list(line.strip()))
         grid = np.array(grid)
-        w, h = grid.shape
+        h, w = grid.shape
 
         # initialize target and robot locations
         def is_int(s):
@@ -27,8 +27,8 @@ class InitNAMOEnv(InitEnv):
                 return True
             except ValueError:
                 return False
-        for i in range(w):
-            for j in range(h):
+        for i in range(h):
+            for j in range(w):
                 if is_int(grid[i, j]):
                     params["target%s"%grid[i, j]].pose = np.array([i, j]).reshape(2, 1)
                 elif grid[i, j] == "R":
