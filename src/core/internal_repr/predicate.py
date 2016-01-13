@@ -28,13 +28,13 @@ class Predicate(object):
 
     def validate_params(self, expected_param_types):
         if len(self.params) != len(expected_param_types):
-            raise Exception("Parameter type validation failed for predicate '%s'."%self.name)
+            raise Exception("Parameter type validation failed for predicate '%s'."%self)
         for i, p in enumerate(self.params):
             if not p.get_type() == expected_param_types[i]:
-                raise Exception("Parameter type validation failed for predicate '%s'."%self.name)
+                raise Exception("Parameter type validation failed for predicate '%s'."%self)
 
     def __repr__(self):
-        s = "(%s "%self.get_type()
+        s = "%s: (%s "%(self.name, self.get_type())
         for param in self.params[:-1]:
             s += param.name + " "
         s += self.params[-1].name + ")"
@@ -47,7 +47,7 @@ class At(Predicate):
         # verify start and end times are valid
         T = self.params[0].pose.shape[1]
         if start_time > end_time or start_time < 0 or end_time > T - 1:
-            raise Exception("Out of range start or end time for predicate '%s'."%self.name)
+            raise Exception("Out of range start or end time for predicate '%s'."%self)
         return np.array_equal(self.params[0].pose[:, start_time:end_time+1], self.params[1].pose[:, start_time:end_time+1])
 
 class RobotAt(Predicate):
