@@ -14,6 +14,9 @@ class Parameter:
     def is_symbol(self):
         return False
 
+    def __repr__(self):
+        return "%s - %s"%(self.name, self.get_type())
+
 class Object(Parameter):
     """
     Objects have a name and a pose in the world at each timestep (pose is a d-by-T table, which

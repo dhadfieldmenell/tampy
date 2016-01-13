@@ -33,6 +33,13 @@ class Predicate:
             if not p.get_type() == expected_param_types[i]:
                 raise Exception("Parameter type validation failed for predicate '%s'."%self.name)
 
+    def __repr__(self):
+        s = "(%s "%self.get_type()
+        for param in self.params[:-1]:
+            s += param.name + " "
+        s += self.params[-1].name + ")"
+        return s
+
 class At(Predicate):
     def test(self, start_time, end_time):
         if not self.is_concrete():
