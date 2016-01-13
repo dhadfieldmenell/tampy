@@ -8,14 +8,10 @@ class State:
     NOTE: Currently, we only use this class in conjunction with Problem objects' concrete initial states, for
     HL search nodes. At the low level, states are implicit in the parameter trajectory tables.
     """
-    def __init__(self, name, preds, timestep):
+    def __init__(self, name, params, preds=None, timestep=0):
         self.name = name
-        self.preds = preds
-        # add all parameters used into a set, for convenience in case it's ever needed
-        self.params = set()
-        for pred in self.preds:
-            for param in pred.params:
-                self.params.add(param)
+        self.params = set(params)
+        self.preds = preds if preds else []
         self.timestep = timestep
 
     def is_concrete(self):

@@ -12,7 +12,7 @@ class TestProblem(unittest.TestCase):
         self.gp = parameter.Symbol("gp")
         self.at = predicate.At("at", [self.can, self.target], ["Can", "Target"])
         self.isgp = predicate.IsGP("isgp", [self.gp, self.can], ["Symbol", "Can"])
-        self.init_state = state.State("state", [self.at, self.isgp], timestep=0)
+        self.init_state = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
 
     def test_init_state(self):
         with self.assertRaises(Exception) as cm:

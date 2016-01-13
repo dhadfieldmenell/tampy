@@ -34,7 +34,7 @@ class InitNAMOEnv(InitEnv):
                 elif grid[i, j] == "R":
                     params["pr2"].pose = np.array([i, j]).reshape(2, 1)
 
-        # initialize can locations to start at target, as defined by At predicates
+        # initialize can locations to start at targets as defined by At predicates
         for pred in preds:
             if pred.get_type() == "At":
                 pred.params[0].pose = pred.params[1].pose

@@ -11,9 +11,12 @@ class TestState(unittest.TestCase):
         self.gp = parameter.Symbol("gp")
         self.at = predicate.At("at", [self.can, self.target], ["Can", "Target"])
         self.isgp = predicate.IsGP("isgp", [self.gp, self.can], ["Symbol", "Can"])
-        self.s = state.State("state", [self.at, self.isgp], timestep=0)
+        self.s = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
         self.assertEqual(self.s.name, "state")
         self.assertEqual(self.s.params, set([self.can, self.target, self.gp]))
+        other_state = state.State("state", [self.can, self.target, self.gp], preds=None, timestep=0)
+        self.assertEqual(other_state.params, set([self.can, self.target, self.gp]))
+        self.assertEqual(other_state.preds, [])
 
     def test_concrete(self):
         self.assertFalse(self.s.is_concrete())

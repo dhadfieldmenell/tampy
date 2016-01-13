@@ -37,7 +37,7 @@ class ParseConfigToProblem:
             p_name, p_args = spl[0], spl[1:]
             if not hasattr(predicate, p_name):
                 raise Exception("Predicate type '%s' not defined!"%p_name)
-            init_preds.add(getattr(predicate, p_name)(name="hlinitpred%d"%i,
+            init_preds.add(getattr(predicate, p_name)(name="initpred%d"%i,
                                                       params=[params[n] for n in p_args],
                                                       expected_param_types=preds_to_param_types[p_name]))
 
@@ -45,7 +45,7 @@ class ParseConfigToProblem:
         env_data = initer.construct_env_and_init_params(self.config["Environment File"], params, init_preds)
 
         # use preds and their params to create an initial State object
-        initial_state = state.State("initstate", init_preds, timestep=0)
+        initial_state = state.State("initstate", params.values(), init_preds, timestep=0)
 
         # create goal predicate objects
         goal_preds = set()
@@ -54,7 +54,7 @@ class ParseConfigToProblem:
             p_name, p_args = spl[0], spl[1:]
             if not hasattr(predicate, p_name):
                 raise Exception("Predicate type '%s' not defined!"%p_name)
-            goal_preds.add(getattr(predicate, p_name)(name="hlgoalpred%d"%i,
+            goal_preds.add(getattr(predicate, p_name)(name="goalpred%d"%i,
                                                       params=[params[n] for n in p_args],
                                                       expected_param_types=preds_to_param_types[p_name]))
 
