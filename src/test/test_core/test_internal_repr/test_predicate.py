@@ -23,14 +23,15 @@ class TestPredicate(unittest.TestCase):
         pred = predicate.At("testpred", [p1, p2], ["Can", "Target"])
         p1.pose = np.array([[3, 4, 5], [6, 5, 7], [8, 9, 0]])
         # p2 doesn't have a value yet
-        self.assertFalse(pred.test(start_time=0, end_time=400))
+        self.assertFalse(pred.test(time=400))
 
         p2.pose = np.array([[3, 4, 5], [6, 5, 8], [8, 9, 1]])
         with self.assertRaises(Exception) as cm:
-            pred.test(start_time=0, end_time=3)
-        self.assertEqual(cm.exception.message, "Out of range start or end time for predicate 'testpred: (At can target)'.")
+            pred.test(time=3)
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can target)'.")
         with self.assertRaises(Exception) as cm:
-            pred.test(start_time=-1, end_time=2)
-        self.assertEqual(cm.exception.message, "Out of range start or end time for predicate 'testpred: (At can target)'.")
-        self.assertFalse(pred.test(start_time=0, end_time=2))
-        self.assertTrue(pred.test(start_time=0, end_time=1))
+            pred.test(time=-1)
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can target)'.")
+        self.assertTrue(pred.test(time=0))
+        self.assertTrue(pred.test(time=1))
+        self.assertFalse(pred.test(time=2))

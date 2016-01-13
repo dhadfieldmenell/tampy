@@ -59,5 +59,5 @@ class ParseConfigToProblem(object):
                                                       expected_param_types=preds_to_param_types[p_name]))
 
         # use initial state to create Problem object
-        initial_problem = problem.Problem(initial_state, goal_preds, env_data, time_horizon=0)
+        initial_problem = problem.Problem(initial_state, goal_preds, env_data)
         return initial_problem

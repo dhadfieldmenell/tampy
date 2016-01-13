@@ -18,4 +18,4 @@ class State(object):
         return all(pred.is_concrete() for pred in self.preds)
 
     def is_consistent(self):
-        return all(pred.test(start_time=self.timestep, end_time=self.timestep) for pred in self.preds)
+        return all(pred.test(time=self.timestep) for pred in self.preds)

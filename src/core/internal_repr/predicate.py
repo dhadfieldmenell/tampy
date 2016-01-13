@@ -4,7 +4,7 @@ import numpy as np
 class Predicate(object):
     """
     Predicates hold a set of parameters (see Parameter class) and represent testable relationships among
-    these parameters. The test occurs for a particular time slice (0-indexed). A concrete predicate is one in which all
+    these parameters. The test occurs for a particular time (0-indexed). A concrete predicate is one in which all
     the non-symbol parameters have values.
     """
     def __init__(self, name, params, expected_param_types):
@@ -21,7 +21,7 @@ class Predicate(object):
                 return False
         return True
 
-    def test(self, start_time, end_time):
+    def test(self, time):
         if not self.is_concrete():
             return False
         raise NotImplementedError("Override this.")
@@ -41,33 +41,33 @@ class Predicate(object):
         return s
 
 class At(Predicate):
-    def test(self, start_time, end_time):
+    def test(self, time):
         if not self.is_concrete():
             return False
-        # verify start and end times are valid
+        # verify time is valid
         T = self.params[0].pose.shape[1]
-        if start_time > end_time or start_time < 0 or end_time > T - 1:
-            raise Exception("Out of range start or end time for predicate '%s'."%self)
-        return np.array_equal(self.params[0].pose[:, start_time:end_time+1], self.params[1].pose[:, start_time:end_time+1])
+        if time < 0 or time > T - 1:
+            raise Exception("Out of range time for predicate '%s'."%self)
+        return np.array_equal(self.params[0].pose[:, time], self.params[1].pose[:, time])
 
 class RobotAt(Predicate):
-    def test(self, start_time, end_time):
+    def test(self, time):
         return True
 
 class IsGP(Predicate):
-    def test(self, start_time, end_time):
+    def test(self, time):
         return True
 
 class IsPDP(Predicate):
-    def test(self, start_time, end_time):
+    def test(self, time):
         return True
 
 class InGripper(Predicate):
-    def test(self, start_time, end_time):
+    def test(self, time):
         # TODO
         return False
 
 class Obstructs(Predicate):
-    def test(self, start_time, end_time):
+    def test(self, time):
         # TODO
         return True

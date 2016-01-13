@@ -16,18 +16,18 @@ class TestProblem(unittest.TestCase):
 
     def test_init_state(self):
         with self.assertRaises(Exception) as cm:
-            problem.Problem(self.init_state, None, None, None)
+            problem.Problem(self.init_state, None, None)
         self.assertEqual(cm.exception.message, "Initial state is not concrete. Have all non-symbol parameters been instantiated with a value?")
         self.can.pose = np.array([[3, 0], [4, 2]])
         self.target.pose = np.array([[3, 1], [3, 2]])
         with self.assertRaises(Exception) as cm:
-            problem.Problem(self.init_state, None, None, None)
+            problem.Problem(self.init_state, None, None)
         self.assertEqual(cm.exception.message, "Initial state is not consistent (predicates are violated).")
 
     def test_goal_test(self):
         self.can.pose = np.array([[3, 0, 5], [4, 2, 1]])
         self.target.pose = np.array([[3, 0, 4], [4, 2, 0]])
-        p = problem.Problem(self.init_state, [self.at], None, time_horizon=1)
+        p = problem.Problem(self.init_state, [self.at], None)
+        # problems only consider timestep 0 in their goal test,
+        # so this will be True even though the poses become different at timestep 2
         self.assertTrue(p.goal_test())
-        p = problem.Problem(self.init_state, [self.at], None, time_horizon=2)
-        self.assertFalse(p.goal_test())
