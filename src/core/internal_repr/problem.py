@@ -1,6 +1,6 @@
 from IPython import embed as shell
 
-class Problem:
+class Problem(object):
     """
     Problem objects are associated with HL search nodes only. Problem objects contain a concrete initial state (see State class)
     and a set of goal predicates (which must hold true in the goal state). Each time an LL search node

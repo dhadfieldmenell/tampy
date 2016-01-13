@@ -1,6 +1,6 @@
 from IPython import embed as shell
 
-class SearchNode:
+class SearchNode(object):
     """
     There are two types of nodes in the plan refinement graph (PR Graph). High-level search
     nodes store abstract and concrete representations of the problem (concrete is an instance

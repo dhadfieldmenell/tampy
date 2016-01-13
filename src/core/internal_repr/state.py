@@ -1,6 +1,6 @@
 from IPython import embed as shell
 
-class State:
+class State(object):
     """
     A state is parametrized by a 0-indexed timestep and predicates (see Predicate class). It maintains the
     predicates that hold true at that timestep. A concrete state is one in which all the predicates are concrete.

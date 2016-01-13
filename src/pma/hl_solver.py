@@ -2,7 +2,7 @@ from IPython import embed as shell
 import subprocess
 import os
 
-class HLSolver:
+class HLSolver(object):
     """
     HLSolver deals with interfacing to the chosen task planner, e.g. methods for
     translating to PDDL if using FF/FD.

@@ -1,7 +1,7 @@
 from IPython import embed as shell
 import numpy as np
 
-class InitEnv:
+class InitEnv(object):
     """
     Read the domain-specific environment file(s) and use it to spawn relevant data. Also, use
     it to set the parameter trajectory tables for HL search nodes (which works because these tables

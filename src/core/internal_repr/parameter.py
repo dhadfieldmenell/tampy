@@ -1,6 +1,6 @@
 from IPython import embed as shell
 
-class Parameter:
+class Parameter(object):
     """
     Parameters fall into one of two categories: objects or symbols. Objects are things that
     exist in the environment with some pose, and symbols are symbolic references.

@@ -1,7 +1,7 @@
 from IPython import embed as shell
 import numpy as np
 
-class Predicate:
+class Predicate(object):
     """
     Predicates hold a set of parameters (see Parameter class) and represent testable relationships among
     these parameters. The test occurs for a particular time slice (0-indexed). A concrete predicate is one in which all

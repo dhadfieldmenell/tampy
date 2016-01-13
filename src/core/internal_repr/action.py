@@ -1,6 +1,6 @@
 from IPython import embed as shell
 
-class Action:
+class Action(object):
     """
     An action is comprised of parameters, preconditions, and effects.
     """

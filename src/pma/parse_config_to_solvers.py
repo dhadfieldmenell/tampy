@@ -2,7 +2,7 @@ from IPython import embed as shell
 import hl_solver
 import ll_solver
 
-class ParseConfigToSolvers:
+class ParseConfigToSolvers(object):
     """
     Read the configuration data and spawn HLSolver and LLSolver objects.
     """

@@ -5,7 +5,7 @@ from internal_repr import predicate
 from internal_repr import state
 from internal_repr import problem
 
-class ParseConfigToProblem:
+class ParseConfigToProblem(object):
     """
     Read the configuration data and spawn the corresponding initial Problem object (see Problem class).
     """
