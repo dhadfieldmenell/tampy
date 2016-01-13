@@ -48,8 +48,11 @@ class FFSolver(HLSolver):
             subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%FFSolver.FILE_PREFIX, "-f", "%sprob.pddl"%FFSolver.FILE_PREFIX], stdout=f)
         with open("%sprob.output"%FFSolver.FILE_PREFIX, "r") as f:
             s = f.read()
-        plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
-        subprocess.call(["rm", "%sdom.pddl"%FFSolver.FILE_PREFIX,
+        if "goal can be simplified to FALSE" in s:
+            plan = "impossible"
+        else:
+            plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
+        subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
                          "%sprob.pddl"%FFSolver.FILE_PREFIX,
                          "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
                          "%sprob.output"%FFSolver.FILE_PREFIX])
