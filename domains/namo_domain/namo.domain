@@ -4,7 +4,7 @@ HLSolver: FFSolver
 
 LLSolver: NAMOSolver
 
-Types: Can (name str. geom RedCircle. pose Vector2d); Target (name str. geom BlueCircle. pose Vector2d); Symbol (name str. value Vector2d); Robot (name str. geom GreenCircle. pose Vector2d); Workspace (name str. w int. h int. size int. viewer GridWorldViewer)
+Types: Can (name str. geom RedCircle. pose Vector2d); Target (name str. geom BlueCircle. pose Vector2d); Symbol (name str. value Vector2d); Robot (name str. geom GreenCircle. pose Vector2d); Workspace (name str. pose Vector2d. w int. h int. size int. viewer GridWorldViewer)
 
 # define the class location of each non-standard attribute type used in the above parameter type descriptions
 Attribute Import Paths: RedCircle core.internal_repr.circle, BlueCircle core.internal_repr.circle, GreenCircle core.internal_repr.circle, Vector2d core.internal_repr.matrix, GridWorldViewer core.internal_repr.viewer

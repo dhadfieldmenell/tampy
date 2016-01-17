@@ -2,9 +2,10 @@ from IPython import embed as shell
 
 class Parameter(object):
     """
-    Parameters fall into one of three categories: objects, symbols, or the workspace. Objects are things that
-    exist in the environment with some pose, and symbols are symbolic references. The workspace parameter
-    holds information about the environment that's useful for planning.
+    Parameters fall into one of two categories: objects and symbols. Objects are things that
+    exist in the environment with some pose, and symbols are symbolic references.
+    To store information about the environment that's useful for planning, we often spawn a workspace
+    Object (but this is not necessary).
     """
     def __init__(self, *args):
         raise NotImplementedError("Must instantiate either Object or Symbol.")
@@ -32,7 +33,10 @@ class Object(Parameter):
             if attr_name == "pose" and arg == "undefined":
                 self.pose = "undefined"
             else:
-                setattr(self, attr_name, attr_types[attr_name](arg))
+                try:
+                    setattr(self, attr_name, attr_types[attr_name](arg))
+                except KeyError:
+                    raise Exception("Attribute '%s' for parameter '%s' not defined in domain file."%(attr_name, attrs["name"]))
 
     def is_defined(self):
         return self.pose != "undefined"
@@ -71,7 +75,5 @@ class Robot(Object):
 class Manip(Object):
     pass
 
-class Workspace(Parameter):
-    def __init__(self, attrs, attr_types):
-        for attr_name, arg in attrs.items():
-            setattr(self, attr_name, attr_types[attr_name](arg))
+class Workspace(Object):
+    pass

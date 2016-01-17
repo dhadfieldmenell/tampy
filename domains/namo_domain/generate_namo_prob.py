@@ -28,7 +28,7 @@ def main():
                 s += "Symbol (name gp_can%d. value undefined); "%i
         s += "Robot (name %s. geom 1. pose %s); "%("pr2", coords[NUM_TARGETS])
         s += "Symbol (name %s. value %s); "%("robot_init_pose", coords[NUM_TARGETS])
-        s += "Workspace (name ws. w %d. h %d. size %d. viewer TODO)\n\n"%(WIDTH, HEIGHT, SIZE)
+        s += "Workspace (name ws. pose (0, 0). w %d. h %d. size %d. viewer TODO)\n\n"%(WIDTH, HEIGHT, SIZE)
 
         s += "Init: "
         for i in range(NUM_CANS):

@@ -2,7 +2,7 @@
 # Configuration file for NAMO problem instance. Blank lines and lines beginning with # are filtered out.
 
 # The values after each attribute name are the values that get passed into the __init__ method for that attribute's class defined in the domain configuration.
-Objects: Target (name target0. geom 1. pose (3, 5)); Symbol (name pdp_target0. value undefined); Can (name can0. geom 1. pose (3, 5)); Symbol (name gp_can0. value undefined); Target (name target1. geom 1. pose (3, 6)); Symbol (name pdp_target1. value undefined); Can (name can1. geom 1. pose (3, 6)); Symbol (name gp_can1. value undefined); Target (name target2. geom 1. pose (5, 3)); Symbol (name pdp_target2. value undefined); Robot (name pr2. geom 1. pose (0, 7)); Symbol (name robot_init_pose. value (0, 7)); Workspace (name ws. w 8. h 9. size 1. viewer TODO)
+Objects: Target (name target0. geom 1. pose (3, 5)); Symbol (name pdp_target0. value undefined); Can (name can0. geom 1. pose (3, 5)); Symbol (name gp_can0. value undefined); Target (name target1. geom 1. pose (3, 6)); Symbol (name pdp_target1. value undefined); Can (name can1. geom 1. pose (3, 6)); Symbol (name gp_can1. value undefined); Target (name target2. geom 1. pose (5, 3)); Symbol (name pdp_target2. value undefined); Robot (name pr2. geom 1. pose (0, 7)); Symbol (name robot_init_pose. value (0, 7)); Workspace (name ws. pose (0, 0). w 8. h 9. size 1. viewer TODO)
 
 Init: (At can0 target0), (IsGP gp_can0 can0), (At can1 target1), (IsGP gp_can1 can1), (IsPDP pdp_target0 target0), (IsPDP pdp_target1 target1), (IsPDP pdp_target2 target2), (RobotAt pr2 robot_init_pose)
 
