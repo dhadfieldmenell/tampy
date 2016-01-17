@@ -1,6 +1,6 @@
 from IPython import embed as shell
-import hl_solver
-import ll_solver
+from pma import hl_solver
+from pma import ll_solver
 import importlib
 from core.internal_repr import parameter
 from core.internal_repr import predicate

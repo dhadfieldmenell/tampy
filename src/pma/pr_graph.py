@@ -1,6 +1,6 @@
 from IPython import embed as shell
-from parse_config_to_domain import ParseConfigToDomain
-from parse_config_to_problem import ParseConfigToProblem
+from core.parse_config_to_domain import ParseConfigToDomain
+from core.parse_config_to_problem import ParseConfigToProblem
 from Queue import PriorityQueue
 from prg_search_node import HLSearchNode, LLSearchNode
 
