@@ -22,12 +22,12 @@ def main():
         s += "Objects: "
         for i in range(NUM_TARGETS):
             s += "Target (name target%d. geom 1. pose %s); "%(i, coords[i])
-            s += "Symbol (name pdp_target%d. value undefined); "%i
+            s += "RobotPose (name pdp_target%d. value undefined); "%i
             if i < NUM_CANS:
                 s += "Can (name can%d. geom 1. pose %s); "%(i, coords[i])
-                s += "Symbol (name gp_can%d. value undefined); "%i
+                s += "RobotPose (name gp_can%d. value undefined); "%i
         s += "Robot (name %s. geom 1. pose %s); "%("pr2", coords[NUM_TARGETS])
-        s += "Symbol (name %s. value %s); "%("robot_init_pose", coords[NUM_TARGETS])
+        s += "RobotPose (name %s. value %s); "%("robot_init_pose", coords[NUM_TARGETS])
         s += "Workspace (name ws. pose (0, 0). w %d. h %d. size %d. viewer TODO)\n\n"%(WIDTH, HEIGHT, SIZE)
 
         s += "Init: "

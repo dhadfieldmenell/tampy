@@ -18,8 +18,12 @@ class ParseConfigToProblem(object):
         for t in self.problem_config["Objects"].split(";"):
             o_type, attrs = map(str.strip, t.strip(" )").split("(", 1))
             attr_dict = dict([l.split(" ", 1) for l in map(str.strip, attrs.split("."))])
-            params[attr_dict["name"]] = self.domain.param_schema[o_type][0](attrs=attr_dict,
-                                                                            attr_types=self.domain.param_schema[o_type][1])
+            attr_dict["_type"] = o_type
+            try:
+                params[attr_dict["name"]] = self.domain.param_schema[o_type][0](attrs=attr_dict,
+                                                                                attr_types=self.domain.param_schema[o_type][1])
+            except KeyError:
+                raise Exception("Parameter '%s' not defined in domain file."%o_type)
 
         # create initial state predicate objects
         init_preds = set()
@@ -30,7 +34,7 @@ class ParseConfigToProblem(object):
                                                               params=[params[n] for n in p_args],
                                                               expected_param_types=self.domain.pred_schema[p_name][1]))
 
-        # use preds and initial params to create an initial State object
+        # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params.values(), init_preds, timestep=0)
 
         # create goal predicate objects

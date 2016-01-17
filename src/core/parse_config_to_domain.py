@@ -34,9 +34,9 @@ class ParseConfigToDomain(object):
         param_schema = {}
         for t in self.domain_config["Types"].split(";"):
             type_name, attrs = map(str.strip, t.strip(" )").split("("))
-            if not hasattr(parameter, type_name):
-                raise Exception("Parameter type '%s' not defined!"%type_name)
             attr_dict = dict([l.split() for l in map(str.strip, attrs.split("."))])
+            attr_dict["_type"] = "str"
+            assert "name" in attr_dict and ("pose" in attr_dict or "value" in attr_dict)
             for k, v in attr_dict.items():
                 if v in attr_paths:
                     if not hasattr(attr_paths[v], v):
@@ -44,7 +44,8 @@ class ParseConfigToDomain(object):
                     attr_dict[k] = getattr(attr_paths[v], v)
                 else:
                     attr_dict[k] = eval(v)
-            param_schema[type_name] = (getattr(parameter, type_name), attr_dict)
+            obj_or_symbol = self._dispatch_obj_or_symbol(attr_dict)
+            param_schema[type_name] = (getattr(parameter, obj_or_symbol), attr_dict)
 
         # create predicate schema mapping
         pred_schema = {}
@@ -58,3 +59,13 @@ class ParseConfigToDomain(object):
         action_schema = {}
 
         return domain.Domain(hls, lls, hls.translate_domain(self.domain_config), param_schema, pred_schema, action_schema)
+
+    def _dispatch_obj_or_symbol(self, attr_dict):
+        # decide whether this parameter is an Object or Symbol by looking at whether
+        # it has an instance attribute named "pose" or one named "value" in the config file
+        if "pose" in attr_dict:
+            return "Object"
+        elif "value" in attr_dict:
+            return "Symbol"
+        else:
+            raise Exception("Can never reach here.")
