@@ -17,17 +17,17 @@ class Vector2d(Matrix):
             if not vec.endswith(")"):
                 vec += ")"
             vec = eval(vec)
-        self.vec = np.array(vec).reshape((2, 1))
-        assert len(self.vec) == 2
+        self._vec = np.array(vec).reshape((2, 1))
+        assert len(self._vec) == 2
 
     def shape(self):
-        return self.vec.shape
+        return self._vec.shape
 
     def __getitem__(self, i):
-        return Vector2d(self.vec[i])
+        return Vector2d(self._vec[i])
 
     def __eq__(self, other):
-        return np.array_equal(self.vec, other.vec)
+        return np.array_equal(self._vec, other._vec)
 
     def __repr__(self):
-        return repr(self.vec)
+        return repr(self._vec)
