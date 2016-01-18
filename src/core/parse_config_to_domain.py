@@ -1,6 +1,4 @@
 from IPython import embed as shell
-from pma import hl_solver
-from pma import ll_solver
 import importlib
 from core.internal_repr import parameter
 from core.internal_repr import predicate
@@ -14,18 +12,6 @@ class ParseConfigToDomain(object):
         self.domain_config = domain_config
 
     def parse(self):
-        # parse out the HLSolver and LLSolver
-        if "HLSolver" not in self.domain_config or "LLSolver" not in self.domain_config:
-            raise Exception("Must define both HL solver and LL solver in domain config file.")
-        s = self.domain_config["HLSolver"]
-        if not hasattr(hl_solver, s):
-            raise Exception("HLSolver '%s' not defined!"%s)
-        hls = getattr(hl_solver, s)()
-        s = self.domain_config["LLSolver"]
-        if not hasattr(ll_solver, s):
-            raise Exception("LLSolver '%s' not defined!"%s)
-        lls = getattr(ll_solver, s)()
-
         # create parameter schema mapping
         attr_paths = self.domain_config["Attribute Import Paths"]
         attr_paths = dict([l.split() for l in map(str.strip, attr_paths.split(","))])
@@ -58,7 +44,7 @@ class ParseConfigToDomain(object):
         # create action schema mapping
         action_schema = {}
 
-        return domain.Domain(hls, lls, hls.translate_domain(self.domain_config), param_schema, pred_schema, action_schema)
+        return domain.Domain(param_schema, pred_schema, action_schema)
 
     def _dispatch_obj_or_symbol(self, attr_dict):
         # decide whether this parameter is an Object or Symbol by looking at whether

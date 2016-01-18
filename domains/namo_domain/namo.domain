@@ -1,9 +1,5 @@
 # Configuration file for NAMO domain. Blank lines and lines beginning with # are filtered out.
 
-HLSolver: FFSolver
-
-LLSolver: NAMOSolver
-
 Types: Can (name str. geom RedCircle. pose Vector2d); Target (name str. geom BlueCircle. pose Vector2d); RobotPose (name str. value Vector2d); Robot (name str. geom GreenCircle. pose Vector2d); Workspace (name str. pose Vector2d. w int. h int. size int. viewer GridWorldViewer)
 
 # define the class location of each non-standard attribute type used in the above parameter type descriptions
