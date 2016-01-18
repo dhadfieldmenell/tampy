@@ -5,8 +5,8 @@ from core.internal_repr import problem
 class ParseProblemConfig(object):
     """
     Read the problem configuration data and spawn the corresponding initial Problem object (see Problem class).
-    This is only done for spawning the very first Problem object, from the initial state in the problem configuration file.
-    The domain is passed in for validation against the schema.
+    This is only done for spawning the very first Problem object, from the initial state specified in the problem configuration file.
+    Validation is performed against the schema stored in the Domain object self.domain.
     """
     def __init__(self, problem_config, domain):
         self.problem_config = problem_config

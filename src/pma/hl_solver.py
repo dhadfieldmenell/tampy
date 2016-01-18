@@ -1,11 +1,9 @@
 from IPython import embed as shell
 import subprocess
-import os
 
 class HLSolver(object):
     """
-    HLSolver deals with interfacing to the chosen task planner, e.g. methods for
-    translating to PDDL if using FF/FD.
+    HLSolver provides an interface to the chosen task planner.
     """
     def __init__(self, domain_config):
         self.abs_domain = self._translate_domain(domain_config)
@@ -13,14 +11,14 @@ class HLSolver(object):
     def _translate_domain(self, domain_config):
         """
         Translates domain configuration file to representation required for task planner.
-        E.g. for an FFSolver this would return a PDDL domain file. Only called once
-        when an HLSolver object is created.
+        E.g. for an FFSolver this would return a PDDL domain file. Only called once,
+        upon creation of an HLSolver object.
         """
         raise NotImplementedError("Override this.")
 
     def translate_problem(self, concr_prob):
         """
-        Translates concrete (instantiated) problem (a Problem object) to representation required for task planner.
+        Translates concrete (instantiated) problem, a Problem object, to representation required for task planner.
         E.g. for an FFSolver this would return a PDDL problem file.
         """
         raise NotImplementedError("Override this.")
@@ -28,7 +26,7 @@ class HLSolver(object):
     def solve(self, abs_domain, abs_prob, concr_prob):
         """
         Solves the problem and returns a Plan object. The abs_* arguments
-        are what got returned by each of the translate_* methods.
+        are what got returned by each of the self.translate_* methods.
         """
         raise NotImplementedError("Override this.")
 

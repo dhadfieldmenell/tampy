@@ -2,9 +2,9 @@ from IPython import embed as shell
 
 class LLSolver(object):
     """
-    LLSolver solves the underlying motion planning problem. This is where different refinement strategies
+    LLSolver solves the underlying optimization problem using motion planning. This is where different refinement strategies
     (e.g. backtracking, randomized), different motion planners, and different optimization strategies (global, sequential)
-    are handled.
+    are implemented.
     """
     def solve(self, plan):
         raise NotImplementedError("Override this.")

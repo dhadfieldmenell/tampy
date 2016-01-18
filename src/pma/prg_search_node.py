@@ -2,10 +2,10 @@ from IPython import embed as shell
 
 class SearchNode(object):
     """
-    There are two types of nodes in the plan refinement graph (PR Graph). High-level search
+    There are two types of nodes in the plan refinement graph (PRGraph). High-level search
     nodes store abstract and concrete representations of the problem (concrete is an instance
-    of the Problem class), and they interface to running the chosen HLSolver. Low-level search
-    nodes store the Plan object for refinement, and they interface to running the chosen LLSolver.
+    of the Problem class), and they interface to planning with the chosen HLSolver. Low-level search
+    nodes store the Plan object for refinement, and they interface to planning with the chosen LLSolver.
     """
     def __init__(self, *args):
         raise NotImplementedError("Must instantiate either HL or LL search node.")

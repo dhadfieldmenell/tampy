@@ -4,7 +4,7 @@ class Predicate(object):
     """
     Predicates hold a set of parameters (see Parameter class) and represent testable relationships among
     these parameters. The test occurs for a particular time (0-indexed). A concrete predicate is one in which all
-    the non-symbol parameters have values. Commonly used predicates can be found in the util_classes folder.
+    the non-symbol parameters have values. Commonly used predicates can be found in the core/util_classes/ folder.
     """
     def __init__(self, name, params, expected_param_types):
         self.name = name

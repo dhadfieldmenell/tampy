@@ -2,11 +2,11 @@ from IPython import embed as shell
 
 class Parameter(object):
     """
-    Parameters fall into one of two categories: objects and symbols. Objects are things that
-    exist in the environment with some pose, and symbols are symbolic references.
+    Parameters fall into one of two categories: Objects and Symbols. Objects are things that
+    exist in the environment with some pose, and Symbols are symbolic references.
     To store information about the environment that's useful for planning, we often spawn a workspace
-    Object (but this is not necessary). Objects and symbols are distinguished in the config file parsing
-    as follows: objects have a "pose" instance attribute while symbols have a "value" instance attribute.
+    Object (but this is not necessary). Objects and Symbols are distinguished in the config file parsing
+    as follows: Objects have a "pose" instance attribute while Symbols have a "value" instance attribute.
     """
     def __init__(self, *args):
         raise NotImplementedError("Must instantiate either Object or Symbol.")

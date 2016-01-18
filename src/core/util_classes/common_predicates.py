@@ -1,6 +1,11 @@
 from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
 
+"""
+This file implements the classes for commonly used predicates that are useful in a wide variety of
+typical domains.
+"""
+
 class At(Predicate):
     def test(self, time):
         if not self.is_concrete():

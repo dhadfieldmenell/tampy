@@ -6,7 +6,7 @@ class State(object):
     predicates that hold true at that timestep. A concrete state is one in which all the predicates are concrete.
 
     NOTE: Currently, we only use this class in conjunction with Problem objects' concrete initial states, for
-    HL search nodes. At the low level, states are implicit in the parameter trajectory tables.
+    HL search nodes. At the low level, the state at each timestep is implicit in the parameter trajectory tables.
     """
     def __init__(self, name, params, preds=None, timestep=0):
         self.name = name
