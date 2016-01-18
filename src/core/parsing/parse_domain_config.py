@@ -13,8 +13,11 @@ class ParseDomainConfig(object):
 
     def parse(self):
         # create parameter schema mapping
-        attr_paths = self.domain_config["Attribute Import Paths"]
-        attr_paths = dict([l.split() for l in map(str.strip, attr_paths.split(","))])
+        try:
+            attr_paths = self.domain_config["Attribute Import Paths"]
+            attr_paths = dict([l.split() for l in map(str.strip, attr_paths.split(","))])
+        except KeyError:
+            attr_paths = {}
         for k, v in attr_paths.items():
             attr_paths[k] = importlib.import_module(v)
         param_schema = {}
@@ -29,7 +32,10 @@ class ParseDomainConfig(object):
                         raise Exception("%s not found in module %s!"%(v, attr_paths[v]))
                     attr_dict[k] = getattr(attr_paths[v], v)
                 else:
-                    attr_dict[k] = eval(v)
+                    try:
+                        attr_dict[k] = eval(v)
+                    except NameError as e:
+                        raise Exception("Need to provide attribute import path for non-primitive %s."%v)
             obj_or_symbol = self._dispatch_obj_or_symbol(attr_dict)
             param_schema[type_name] = (getattr(parameter, obj_or_symbol), attr_dict)
 

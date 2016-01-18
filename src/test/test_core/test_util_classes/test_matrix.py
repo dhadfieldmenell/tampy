@@ -1,0 +1,21 @@
+import unittest
+from core.util_classes import matrix
+
+class TestMatrix(unittest.TestCase):
+    def test_abstract(self):
+        with self.assertRaises(NotImplementedError) as cm:
+            matrix.Matrix()
+        self.assertEqual(cm.exception.message, "Override this.")
+
+    def test_vector2d(self):
+        with self.assertRaises(AssertionError) as cm:
+            matrix.Vector2d("(3, 4, 5)")
+        with self.assertRaises(AssertionError) as cm:
+            matrix.Vector2d("(3, )")
+        v1 = matrix.Vector2d("(7, 8)")
+        v2 = matrix.Vector2d((7, 8))
+        v3 = matrix.Vector2d("(7, 8")
+        self.assertEqual(v1, v2)
+        self.assertEqual(v1, v3)
+        self.assertEqual(v1.shape(), (2, 1))
+        self.assertEqual(v1[1][0], 8)

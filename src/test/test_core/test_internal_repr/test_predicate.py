@@ -4,6 +4,7 @@ from core.internal_repr import parameter
 import numpy as np
 
 class TestPredicate(unittest.TestCase):
+    # TODO
     def test_param_validation(self):
         p1 = parameter.Can("can")
         p2 = parameter.Target("target")

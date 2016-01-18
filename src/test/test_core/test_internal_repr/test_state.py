@@ -5,6 +5,7 @@ from core.internal_repr import parameter
 import numpy as np
 
 class TestState(unittest.TestCase):
+    # TODO
     def setUp(self):
         self.can = parameter.Can("can")
         self.target = parameter.Target("target")

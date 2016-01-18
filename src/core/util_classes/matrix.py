@@ -6,7 +6,7 @@ class Matrix(object):
     The matrix class is useful for tracking object poses.
     """
     def __init__(self, *args):
-        raise NotImplementedError
+        raise NotImplementedError("Override this.")
 
 class Vector2d(Matrix):
     """
@@ -17,14 +17,20 @@ class Vector2d(Matrix):
             if not vec.endswith(")"):
                 vec += ")"
             vec = eval(vec)
-        self._vec = np.array(vec).reshape((2, 1))
+        self._vec = np.array(vec)
         assert len(self._vec) == 2
+        self._vec = self._vec.reshape((2, 1))
 
     def shape(self):
         return self._vec.shape
 
     def __getitem__(self, i):
-        return Vector2d(self._vec[i])
+        e = self._vec[i]
+        if not isinstance(e, np.ndarray):
+            return e
+        if len(e) != 2:
+            return e
+        return Vector2d(e)
 
     def __eq__(self, other):
         return np.array_equal(self._vec, other._vec)
