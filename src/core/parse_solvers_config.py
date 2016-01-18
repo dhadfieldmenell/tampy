@@ -2,7 +2,7 @@ from IPython import embed as shell
 from pma import hl_solver
 from pma import ll_solver
 
-class ParseConfigToSolvers(object):
+class ParseSolversConfig(object):
     """
     Read the solver configuration data and spawn the corresponding HLSolver and LLSolver objects.
     """

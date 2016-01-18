@@ -1,7 +1,7 @@
 from IPython import embed as shell
-from core.parse_config_to_solvers import ParseConfigToSolvers
-from core.parse_config_to_domain import ParseConfigToDomain
-from core.parse_config_to_problem import ParseConfigToProblem
+from core.parse_solvers_config import ParseSolversConfig
+from core.parse_domain_config import ParseDomainConfig
+from core.parse_problem_config import ParseProblemConfig
 from Queue import PriorityQueue
 from prg_search_node import HLSearchNode, LLSearchNode
 
@@ -9,9 +9,9 @@ from prg_search_node import HLSearchNode, LLSearchNode
 Many methods called in p_mod_abs have detailed documentation.
 """
 def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100):
-    hl_solver, ll_solver = ParseConfigToSolvers(solvers_config, domain_config).parse()
-    domain = ParseConfigToDomain(domain_config).parse()
-    problem = ParseConfigToProblem(problem_config, domain).parse()
+    hl_solver, ll_solver = ParseSolversConfig(solvers_config, domain_config).parse()
+    domain = ParseDomainConfig(domain_config).parse()
+    problem = ParseProblemConfig(problem_config, domain).parse()
     if problem.goal_test():
         print "Goal is already satisfied. No planning done."
         return False

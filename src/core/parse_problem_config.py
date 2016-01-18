@@ -2,7 +2,7 @@ from IPython import embed as shell
 from core.internal_repr import state
 from core.internal_repr import problem
 
-class ParseConfigToProblem(object):
+class ParseProblemConfig(object):
     """
     Read the problem configuration data and spawn the corresponding initial Problem object (see Problem class).
     This is only done for spawning the very first Problem object, from the initial state in the problem configuration file.

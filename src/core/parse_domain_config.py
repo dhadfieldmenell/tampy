@@ -4,7 +4,7 @@ from core.internal_repr import parameter
 from core.internal_repr import predicate
 from core.internal_repr import domain
 
-class ParseConfigToDomain(object):
+class ParseDomainConfig(object):
     """
     Read the domain configuration data and spawn the corresponding Domain object (see Domain class).
     """
