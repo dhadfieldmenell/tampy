@@ -1,7 +1,7 @@
 from IPython import embed as shell
 import importlib
 from core.internal_repr import parameter
-from core.internal_repr import predicate
+from core.util_classes import common_predicates
 from core.internal_repr import domain
 
 class ParseDomainConfig(object):
@@ -37,9 +37,9 @@ class ParseDomainConfig(object):
         pred_schema = {}
         for p_defn in self.domain_config["Predicates"].split(";"):
             p_name, p_type = map(str.strip, p_defn.split(",", 1))
-            if not hasattr(predicate, p_name):
+            if not hasattr(common_predicates, p_name):
                 raise Exception("Predicate type '%s' not defined!"%p_name)
-            pred_schema[p_name] = (getattr(predicate, p_name), [s.strip() for s in p_type.split(",")])
+            pred_schema[p_name] = (getattr(common_predicates, p_name), [s.strip() for s in p_type.split(",")])
 
         # create action schema mapping
         action_schema = {}

@@ -4,7 +4,7 @@ class Predicate(object):
     """
     Predicates hold a set of parameters (see Parameter class) and represent testable relationships among
     these parameters. The test occurs for a particular time (0-indexed). A concrete predicate is one in which all
-    the non-symbol parameters have values.
+    the non-symbol parameters have values. Commonly used predicates can be found in the util_classes folder.
     """
     def __init__(self, name, params, expected_param_types):
         self.name = name
@@ -38,35 +38,3 @@ class Predicate(object):
             s += param.name + " "
         s += self.params[-1].name + ")"
         return s
-
-class At(Predicate):
-    def test(self, time):
-        if not self.is_concrete():
-            return False
-        # verify time is valid
-        T = self.params[0].pose.shape()[1]
-        if time < 0 or time > T - 1:
-            raise Exception("Out of range time for predicate '%s'."%self)
-        return self.params[0].pose[:, time] == self.params[1].pose[:, time]
-
-class RobotAt(Predicate):
-    def test(self, time):
-        return True
-
-class IsGP(Predicate):
-    def test(self, time):
-        return True
-
-class IsPDP(Predicate):
-    def test(self, time):
-        return True
-
-class InGripper(Predicate):
-    def test(self, time):
-        # TODO
-        return False
-
-class Obstructs(Predicate):
-    def test(self, time):
-        # TODO
-        return True

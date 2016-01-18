@@ -1,7 +1,7 @@
 from IPython import embed as shell
-from core.parse_solvers_config import ParseSolversConfig
-from core.parse_domain_config import ParseDomainConfig
-from core.parse_problem_config import ParseProblemConfig
+from core.parsing.parse_solvers_config import ParseSolversConfig
+from core.parsing.parse_domain_config import ParseDomainConfig
+from core.parsing.parse_problem_config import ParseProblemConfig
 from Queue import PriorityQueue
 from prg_search_node import HLSearchNode, LLSearchNode
 
