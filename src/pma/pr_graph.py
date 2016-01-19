@@ -13,8 +13,7 @@ def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100):
     domain = ParseDomainConfig(domain_config).parse()
     problem = ParseProblemConfig(problem_config, domain).parse()
     if problem.goal_test():
-        print "Goal is already satisfied. No planning done."
-        return False
+        return False, "Goal is already satisfied. No planning done."
     n0 = HLSearchNode(hl_solver.translate_problem(problem), problem)
 
     Q = PriorityQueue()
@@ -29,7 +28,7 @@ def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100):
         elif n.is_ll_node():
             n.plan(ll_solver)
             if n.solved():
-                return n.curr_plan
+                return n.curr_plan, None
             Q.put((-n.heuristic(), n))
             if n.gen_child():
                 fail_step, fail_pred = n.get_failed_pred()
@@ -37,4 +36,4 @@ def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100):
                 c = HLSearchNode(hl_solver.translate_problem(n_problem), n_problem, prefix=n.curr_plan.prefix(fail_step))
                 Q.put((-c.heuristic(), c))
 
-    return False
+    return False, "Hit iteration limit, aborting."

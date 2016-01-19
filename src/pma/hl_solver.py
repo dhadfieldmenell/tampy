@@ -87,6 +87,7 @@ class FFSolver(HLSolver):
     def solve(self, abs_prob, concr_prob):
         plan_str = self._run_planner(self.abs_domain, abs_prob)
         # TODO: construct Plan object
+        return plan_str
 
     def _run_planner(self, abs_domain, abs_prob):
         with open("%sdom.pddl"%FFSolver.FILE_PREFIX, "w") as f:

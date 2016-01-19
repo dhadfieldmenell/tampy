@@ -21,12 +21,12 @@ def main(domain_file, problem_file, solvers_file):
     domain_config = parse_file_to_dict(domain_file)
     problem_config = parse_file_to_dict(problem_file)
     solvers_config = parse_file_to_dict(solvers_file)
-    plan = pr_graph.p_mod_abs(domain_config, problem_config, solvers_config)
+    plan, msg = pr_graph.p_mod_abs(domain_config, problem_config, solvers_config)
     if plan:
         print "Executing plan!"
         plan.execute()
     else:
-        print "Unable to find valid plan."
+        print msg
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run tampy.")
