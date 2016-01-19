@@ -2,6 +2,7 @@ import unittest
 from pma import hl_solver
 from core.parsing import parse_domain_config
 from core.parsing import parse_problem_config
+from core.internal_repr.plan import Plan
 
 class TestHLSolver(unittest.TestCase):
     # TODO: fix when solve() is completed
@@ -28,11 +29,11 @@ class TestHLSolver(unittest.TestCase):
         p2["Init"] += ", (Obstructs pr2 gp_can0 can1), (Obstructs pr2 gp_can1 can0)"
         problem = parse_problem_config.ParseProblemConfig(p2, self.domain).parse()
         plan = self.hls.solve(self.hls.translate_problem(problem), problem)
-        self.assertEqual(plan, "impossible")
+        self.assertEqual(plan, Plan.IMPOSSIBLE)
 
     def test_impossible_goal(self):
         p2 = self.p_c.copy()
         p2["Goal"] += ", (At can1 target1)"
         problem = parse_problem_config.ParseProblemConfig(p2, self.domain).parse()
         plan = self.hls.solve(self.hls.translate_problem(problem), problem)
-        self.assertEqual(plan, "impossible")
+        self.assertEqual(plan, Plan.IMPOSSIBLE)

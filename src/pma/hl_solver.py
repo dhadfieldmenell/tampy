@@ -1,5 +1,6 @@
 from IPython import embed as shell
 import subprocess
+from core.internal_repr.plan import Plan
 
 class HLSolver(object):
     """
@@ -86,6 +87,8 @@ class FFSolver(HLSolver):
 
     def solve(self, abs_prob, concr_prob):
         plan_str = self._run_planner(self.abs_domain, abs_prob)
+        if plan_str != Plan.IMPOSSIBLE:
+            plan_str = self._patch_redundancy(plan_str)
         # TODO: construct Plan object
         return plan_str
 
@@ -99,7 +102,7 @@ class FFSolver(HLSolver):
         with open("%sprob.output"%FFSolver.FILE_PREFIX, "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
-            plan = "impossible"
+            plan = Plan.IMPOSSIBLE
         else:
             plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
         subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
@@ -107,6 +110,22 @@ class FFSolver(HLSolver):
                          "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
                          "%sprob.output"%FFSolver.FILE_PREFIX])
         return plan
+
+    def _patch_redundancy(self, plan_str):
+        i = 0
+        while i < len(plan_str)-1:
+            if "MOVETO" in plan_str[i] and "MOVETO" in plan_str[i+1]:
+                pose = plan_str[i+1].split()[-1]
+                del plan_str[i+1]
+                spl = plan_str[i].split()
+                spl[-1] = pose
+                plan_str[i] = " ".join(spl)
+            else:
+                i += 1
+        for i in range(len(plan_str)):
+            spl = plan_str[i].split(":", 1)
+            plan_str[i] = "%s:%s"%(i, spl[1])
+        return plan_str
 
 class DummyHLSolver(HLSolver):
     def _translate_domain(self, domain_config):
