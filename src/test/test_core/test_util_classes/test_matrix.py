@@ -1,5 +1,6 @@
 import unittest
 from core.util_classes import matrix
+import numpy as np
 
 class TestMatrix(unittest.TestCase):
     def test_abstract(self):
@@ -15,7 +16,7 @@ class TestMatrix(unittest.TestCase):
         v1 = matrix.Vector2d("(7, 8)")
         v2 = matrix.Vector2d((7, 8))
         v3 = matrix.Vector2d("(7, 8")
-        self.assertEqual(v1, v2)
-        self.assertEqual(v1, v3)
-        self.assertEqual(v1.shape(), (2, 1))
-        self.assertEqual(v1[1][0], 8)
+        self.assertTrue(np.array_equal(v1, v2))
+        self.assertTrue(np.array_equal(v1, v3))
+        self.assertEqual(v1.shape, (2, 1))
+        self.assertEqual(v1[1][0], [8])

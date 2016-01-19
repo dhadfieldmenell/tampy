@@ -1,33 +1,57 @@
 import unittest
 from core.internal_repr import parameter
+from core.util_classes import circle
+from core.util_classes import matrix
 
 class TestParameter(unittest.TestCase):
-    # TODO
     def test_object(self):
-        can = parameter.Can("can1")
-        self.assertEqual(can.name, "can1")
-        self.assertFalse(can.is_symbol())
-        self.assertFalse(can.is_defined())
-        can.pose = [3, 3]
-        self.assertFalse(can.is_symbol())
-        self.assertTrue(can.is_defined())
-        self.assertEqual(can.get_type(), "Can")
-        self.assertTrue(isinstance(can, parameter.Object))
-        self.assertTrue(isinstance(can, parameter.Parameter))
+        attrs = {"circ": 1, "test": 3.7, "test2": 5.3, "test3": 6.5, "pose": "undefined", "_type": "Can"}
+        attr_types = {"test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "pose": matrix.Vector2d, "_type": str}
+        with self.assertRaises(AssertionError) as cm:
+            parameter.Object(attrs, attr_types)
+        attrs["name"] = "param"
+        with self.assertRaises(Exception) as cm:
+            parameter.Object(attrs, attr_types)
+        self.assertEqual(cm.exception.message, "Attribute 'name' for Object 'param' not defined in domain file.")
+        attr_types["name"] = str
+        param = parameter.Object(attrs, attr_types)
+        self.assertEqual(param.name, "param")
+        self.assertEqual(param.get_type(), "Can")
+        self.assertFalse(param.is_symbol())
+        self.assertFalse(param.is_defined())
+        self.assertEqual(param.test, 3.7)
+        self.assertEqual(param.test2, 5)
+        self.assertEqual(param.test3, "6.5")
+        self.assertEqual(param.circ.radius, 1)
+        param.pose = matrix.Vector2d([2, 3])
+        self.assertTrue(param.is_defined())
+        self.assertEqual(param.pose.shape, (2, 1))
 
     def test_symbol(self):
-        sym = parameter.Symbol("sym1")
-        self.assertEqual(sym.name, "sym1")
-        self.assertTrue(sym.is_symbol())
-        self.assertFalse(sym.is_defined())
-        sym.value = [3, 3]
-        self.assertTrue(sym.is_symbol())
-        self.assertTrue(sym.is_defined())
-        self.assertEqual(sym.get_type(), "Symbol")
-        self.assertFalse(isinstance(sym, parameter.Object))
-        self.assertTrue(isinstance(sym, parameter.Parameter))
+        attrs = {"circ": 1, "test": 3.7, "test2": 5.3, "test3": 6.5, "pose": (3, 5), "_type": "CanSym", "name": "sym"}
+        attr_types = {"test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "pose": matrix.Vector2d, "_type": str, "name": str}
+        with self.assertRaises(AssertionError) as cm:
+            parameter.Symbol(attrs, attr_types)
+        attrs["value"] = (4, 6)
+        with self.assertRaises(Exception) as cm:
+            parameter.Symbol(attrs, attr_types)
+        self.assertEqual(cm.exception.message, "Attribute 'value' for Symbol 'sym' not defined in domain file.")
+        attr_types["value"] = matrix.Vector2d
+        param = parameter.Symbol(attrs, attr_types)
+        self.assertEqual(param.name, "sym")
+        self.assertEqual(param.get_type(), "CanSym")
+        self.assertTrue(param.is_symbol())
+        self.assertTrue(param.is_defined())
+        self.assertEqual(param.test, 3.7)
+        self.assertEqual(param.test2, 5)
+        self.assertEqual(param.test3, "6.5")
+        self.assertEqual(param.circ.radius, 1)
+        param.pose = "undefined"
+        self.assertTrue(param.is_defined())
+        param.value = "undefined"
+        self.assertFalse(param.is_defined())
 
-    def test_errors(self):
+    def test_abstract(self):
         # cannot instantiate Parameter directly
         with self.assertRaises(NotImplementedError) as cm:
             parameter.Parameter("can1")

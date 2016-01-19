@@ -1,5 +1,6 @@
 from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
+import numpy as np
 
 """
 This file implements the classes for commonly used predicates that are useful in a wide variety of
@@ -11,10 +12,10 @@ class At(Predicate):
         if not self.is_concrete():
             return False
         # verify time is valid
-        T = self.params[0].pose.shape()[1]
+        T = self.params[0].pose.shape[1]
         if time < 0 or time > T - 1:
             raise Exception("Out of range time for predicate '%s'."%self)
-        return self.params[0].pose[:, time] == self.params[1].pose[:, time]
+        return np.array_equal(self.params[0].pose[:, time], self.params[1].pose[:, time])
 
 class RobotAt(Predicate):
     def test(self, time):

@@ -4,35 +4,25 @@ from core.internal_repr import parameter
 import numpy as np
 
 class TestPredicate(unittest.TestCase):
-    # TODO
     def test_param_validation(self):
-        p1 = parameter.Can("can")
-        p2 = parameter.Target("target")
+        attrs = {"name": "can", "pose": "undefined", "_type": "Can"}
+        attr_types = {"name": str, "pose": int, "_type": str}
+        p1 = parameter.Object(attrs, attr_types)
+        attrs = {"name": "target", "pose": "undefined", "_type": "Target"}
+        attr_types = {"name": str, "pose": int, "_type": str}
+        p2 = parameter.Object(attrs, attr_types)
+        attrs = {"name": "sym", "value": "undefined", "_type": "Sym"}
+        attr_types = {"name": str, "value": int, "_type": str}
+        p3 = parameter.Symbol(attrs, attr_types)
+        # this one should work
+        pred = predicate.Predicate("errorpred", [p1, p2, p3], ["Can", "Target", "Sym"])
+        self.assertEqual(pred.get_type(), "Predicate")
         with self.assertRaises(Exception) as cm:
-            predicate.At("errorpred", [p1, p2], ["Target", "Can"])
-        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (At can target)'.")
+            predicate.Predicate("errorpred", [p1, p2, p3], ["Target", "Can", "Sym"])
+        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (Predicate can target sym)'.")
         with self.assertRaises(Exception) as cm:
-            predicate.At("errorpred", [p1, p2], ["Can"])
-        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (At can target)'.")
+            predicate.Predicate("errorpred", [p1, p2, p3], ["Can", "Target"])
+        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (Predicate can target sym)'.")
         with self.assertRaises(Exception) as cm:
-            predicate.At("errorpred", [p1, p2], ["Can", "Target", "Target"])
-        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (At can target)'.")
-
-    def test_at(self):
-        p1 = parameter.Can("can")
-        p2 = parameter.Target("target")
-        pred = predicate.At("testpred", [p1, p2], ["Can", "Target"])
-        p1.pose = np.array([[3, 4, 5], [6, 5, 7], [8, 9, 0]])
-        # p2 doesn't have a value yet
-        self.assertFalse(pred.test(time=400))
-
-        p2.pose = np.array([[3, 4, 5], [6, 5, 8], [8, 9, 1]])
-        with self.assertRaises(Exception) as cm:
-            pred.test(time=3)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can target)'.")
-        with self.assertRaises(Exception) as cm:
-            pred.test(time=-1)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can target)'.")
-        self.assertTrue(pred.test(time=0))
-        self.assertTrue(pred.test(time=1))
-        self.assertFalse(pred.test(time=2))
+            predicate.Predicate("errorpred", [p1, p2, p3], ["Can", "Target", "Target", "Sym"])
+        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (Predicate can target sym)'.")

@@ -1,5 +1,5 @@
 import unittest
-from core import plan
+from core.internal_repr import plan
 
 class TestPlan(unittest.TestCase):
     # TODO
