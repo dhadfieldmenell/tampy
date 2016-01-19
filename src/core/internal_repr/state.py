@@ -11,7 +11,7 @@ class State(object):
     def __init__(self, name, params, preds=None, timestep=0):
         self.name = name
         self.params = set(params)
-        self.preds = preds if preds else []
+        self.preds = set(preds) if preds else set()
         self.timestep = timestep
 
     def is_concrete(self):
