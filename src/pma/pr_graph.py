@@ -9,9 +9,9 @@ from prg_search_node import HLSearchNode, LLSearchNode
 Many methods called in p_mod_abs have detailed documentation.
 """
 def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100):
-    hl_solver, ll_solver = ParseSolversConfig(solvers_config, domain_config).parse()
-    domain = ParseDomainConfig(domain_config).parse()
-    problem = ParseProblemConfig(problem_config, domain).parse()
+    hl_solver, ll_solver = ParseSolversConfig.parse(solvers_config, domain_config)
+    domain = ParseDomainConfig.parse(domain_config)
+    problem = ParseProblemConfig.parse(problem_config, domain)
     if problem.goal_test():
         return False, "Goal is already satisfied. No planning done."
     n0 = HLSearchNode(hl_solver.translate_problem(problem), problem)

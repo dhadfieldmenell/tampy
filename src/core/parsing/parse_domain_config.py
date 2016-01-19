@@ -8,20 +8,18 @@ class ParseDomainConfig(object):
     """
     Read the domain configuration data and spawn the corresponding Domain object (see Domain class).
     """
-    def __init__(self, domain_config):
-        self.domain_config = domain_config
-
-    def parse(self):
+    @staticmethod
+    def parse(domain_config):
         # create parameter schema mapping
         try:
-            attr_paths = self.domain_config["Attribute Import Paths"]
+            attr_paths = domain_config["Attribute Import Paths"]
             attr_paths = dict([l.split() for l in map(str.strip, attr_paths.split(","))])
         except KeyError:
             attr_paths = {}
         for k, v in attr_paths.items():
             attr_paths[k] = importlib.import_module(v)
         param_schema = {}
-        for t in self.domain_config["Types"].split(";"):
+        for t in domain_config["Types"].split(";"):
             type_name, attrs = map(str.strip, t.strip(" )").split("("))
             attr_dict = dict([l.split() for l in map(str.strip, attrs.split("."))])
             attr_dict["_type"] = "str"
@@ -36,12 +34,12 @@ class ParseDomainConfig(object):
                         attr_dict[k] = eval(v)
                     except NameError as e:
                         raise Exception("Need to provide attribute import path for non-primitive %s."%v)
-            obj_or_symbol = self._dispatch_obj_or_symbol(attr_dict)
+            obj_or_symbol = ParseDomainConfig._dispatch_obj_or_symbol(attr_dict)
             param_schema[type_name] = (getattr(parameter, obj_or_symbol), attr_dict)
 
         # create predicate schema mapping
         pred_schema = {}
-        for p_defn in self.domain_config["Predicates"].split(";"):
+        for p_defn in domain_config["Predicates"].split(";"):
             p_name, p_type = map(str.strip, p_defn.split(",", 1))
             if not hasattr(common_predicates, p_name):
                 raise Exception("Predicate type '%s' not defined!"%p_name)
@@ -52,7 +50,8 @@ class ParseDomainConfig(object):
 
         return domain.Domain(param_schema, pred_schema, action_schema)
 
-    def _dispatch_obj_or_symbol(self, attr_dict):
+    @staticmethod
+    def _dispatch_obj_or_symbol(attr_dict):
         # decide whether this parameter is an Object or Symbol by looking at whether
         # it has an instance attribute named "pose" or one named "value" in the config file
         if "pose" in attr_dict:
