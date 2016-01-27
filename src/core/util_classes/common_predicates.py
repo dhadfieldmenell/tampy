@@ -1,5 +1,6 @@
 from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
+from errors_exceptions import PredicateException
 import numpy as np
 
 """
@@ -14,7 +15,7 @@ class At(Predicate):
         # verify time is valid
         T = self.params[0].pose.shape[1]
         if time < 0 or time > T - 1:
-            raise Exception("Out of range time for predicate '%s'."%self)
+            raise PredicateException("Out of range time for predicate '%s'."%self)
         return np.array_equal(self.params[0].pose[:, time], self.params[1].pose[:, time])
 
 class RobotAt(Predicate):

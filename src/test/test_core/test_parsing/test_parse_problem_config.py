@@ -2,6 +2,7 @@ import unittest
 from core.parsing import parse_domain_config
 from core.parsing import parse_problem_config
 from core.util_classes import matrix
+from errors_exceptions import ProblemConfigException, ParamValidationException
 
 class TestParseProblemConfig(unittest.TestCase):
     def setUp(self):
@@ -44,7 +45,7 @@ class TestParseProblemConfig(unittest.TestCase):
         self.assertEqual(problem.init_state.preds, set())
         p2["Objects"] += "; Workspace (name ws. pose (0, 0). w 8. h nine. size 1)"
         # type of h is wrong
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ProblemConfigException) as cm:
             problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         self.assertEqual(cm.exception.message, "Some attribute type in parameter 'ws' is incorrect.")
 
@@ -55,24 +56,24 @@ class TestParseProblemConfig(unittest.TestCase):
 
         p2 = self.p_c.copy()
         p2["Objects"] += "; Test (name testname. value (3, 5))"
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ProblemConfigException) as cm:
             problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         self.assertEqual(cm.exception.message, "Parameter 'testname' not defined in domain file.")
 
         p2 = self.p_c.copy()
         p2["Init"] = "(At target0 can0), (IsGP gp_can0 can0)"
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ParamValidationException) as cm:
             problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'initpred0: (At target0 can0)'.")
 
         p2 = self.p_c.copy()
         p2["Init"] = "(At can0 target2), (IsGP gp_can0 can0)"
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ProblemConfigException) as cm:
             problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         self.assertEqual(cm.exception.message, "Parameter 'target2' for predicate type 'At' not defined in domain file.")
 
         p2 = self.p_c.copy()
         p2["Goal"] = "(At can0 target3)"
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ProblemConfigException) as cm:
             problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         self.assertEqual(cm.exception.message, "Parameter 'target3' for predicate type 'At' not defined in domain file.")

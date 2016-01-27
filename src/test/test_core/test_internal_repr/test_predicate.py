@@ -1,6 +1,7 @@
 import unittest
 from core.internal_repr import predicate
 from core.internal_repr import parameter
+from errors_exceptions import ParamValidationException
 import numpy as np
 
 class TestPredicate(unittest.TestCase):
@@ -17,12 +18,12 @@ class TestPredicate(unittest.TestCase):
         # this one should work
         pred = predicate.Predicate("errorpred", [p1, p2, p3], ["Can", "Target", "Sym"])
         self.assertEqual(pred.get_type(), "Predicate")
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ParamValidationException) as cm:
             predicate.Predicate("errorpred", [p1, p2, p3], ["Target", "Can", "Sym"])
         self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (Predicate can target sym)'.")
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ParamValidationException) as cm:
             predicate.Predicate("errorpred", [p1, p2, p3], ["Can", "Target"])
         self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (Predicate can target sym)'.")
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ParamValidationException) as cm:
             predicate.Predicate("errorpred", [p1, p2, p3], ["Can", "Target", "Target", "Sym"])
         self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'errorpred: (Predicate can target sym)'.")

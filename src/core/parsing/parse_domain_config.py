@@ -3,6 +3,7 @@ import importlib
 from core.internal_repr import parameter
 from core.util_classes import common_predicates
 from core.internal_repr import domain
+from errors_exceptions import DomainConfigException, PredicateException, ImpossibleException
 
 class ParseDomainConfig(object):
     """
@@ -27,13 +28,13 @@ class ParseDomainConfig(object):
             for k, v in attr_dict.items():
                 if v in attr_paths:
                     if not hasattr(attr_paths[v], v):
-                        raise Exception("%s not found in module %s!"%(v, attr_paths[v]))
+                        raise DomainConfigException("%s not found in module %s!"%(v, attr_paths[v]))
                     attr_dict[k] = getattr(attr_paths[v], v)
                 else:
                     try:
                         attr_dict[k] = eval(v)
                     except NameError as e:
-                        raise Exception("Need to provide attribute import path for non-primitive %s."%v)
+                        raise DomainConfigException("Need to provide attribute import path for non-primitive %s."%v)
             obj_or_symbol = ParseDomainConfig._dispatch_obj_or_symbol(attr_dict)
             param_schema[type_name] = (getattr(parameter, obj_or_symbol), attr_dict)
 
@@ -42,7 +43,7 @@ class ParseDomainConfig(object):
         for p_defn in domain_config["Predicates"].split(";"):
             p_name, p_type = map(str.strip, p_defn.split(",", 1))
             if not hasattr(common_predicates, p_name):
-                raise Exception("Predicate type '%s' not defined!"%p_name)
+                raise PredicateException("Predicate type '%s' not defined!"%p_name)
             pred_schema[p_name] = (getattr(common_predicates, p_name), [s.strip() for s in p_type.split(",")])
 
         # create action schema mapping
@@ -59,4 +60,4 @@ class ParseDomainConfig(object):
         elif "value" in attr_dict:
             return "Symbol"
         else:
-            raise Exception("Can never reach here.")
+            raise ImpossibleException("Can never reach here.")

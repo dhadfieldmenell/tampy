@@ -1,6 +1,7 @@
 from IPython import embed as shell
 from core.internal_repr import state
 from core.internal_repr import problem
+from errors_exceptions import ProblemConfigException
 
 class ParseProblemConfig(object):
     """
@@ -21,9 +22,9 @@ class ParseProblemConfig(object):
                 params[attr_dict["name"]] = domain.param_schema[o_type][0](attrs=attr_dict,
                                                                                 attr_types=domain.param_schema[o_type][1])
             except KeyError:
-                raise Exception("Parameter '%s' not defined in domain file."%attr_dict["name"])
+                raise ProblemConfigException("Parameter '%s' not defined in domain file."%attr_dict["name"])
             except ValueError:
-                raise Exception("Some attribute type in parameter '%s' is incorrect."%attr_dict["name"])
+                raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%attr_dict["name"])
 
         # create initial state predicate objects
         init_preds = set()
@@ -36,7 +37,7 @@ class ParseProblemConfig(object):
                     try:
                         p_objs.append(params[n])
                     except KeyError:
-                        raise Exception("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
+                        raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
                 init_preds.add(domain.pred_schema[p_name][0](name="initpred%d"%i,
                                                                   params=p_objs,
                                                                   expected_param_types=domain.pred_schema[p_name][1]))
@@ -54,7 +55,7 @@ class ParseProblemConfig(object):
                 try:
                     p_objs.append(params[n])
                 except KeyError:
-                    raise Exception("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
+                    raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
             goal_preds.add(domain.pred_schema[p_name][0](name="goalpred%d"%i,
                                                               params=p_objs,
                                                               expected_param_types=domain.pred_schema[p_name][1]))

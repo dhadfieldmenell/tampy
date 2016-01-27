@@ -1,5 +1,6 @@
 import unittest
 from core.parsing import parse_domain_config
+from errors_exceptions import DomainConfigException, PredicateException
 
 class TestParseDomainConfig(unittest.TestCase):
     def setUp(self):
@@ -24,17 +25,17 @@ class TestParseDomainConfig(unittest.TestCase):
     def test_param_schema_failure(self):
         new_c = self.c.copy()
         new_c["Attribute Import Paths"] = "RedCircle core.util_classes.circle"
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(DomainConfigException) as cm:
             parse_domain_config.ParseDomainConfig.parse(new_c)
         self.assertEqual(cm.exception.message, "Need to provide attribute import path for non-primitive Vector2d.")
 
         del new_c["Attribute Import Paths"]
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(DomainConfigException) as cm:
             parse_domain_config.ParseDomainConfig.parse(new_c)
         self.assertTrue(cm.exception.message.startswith("Need to provide attribute import path for"))
 
         new_c["Attribute Import Paths"] = "RedCircle core.internal_repr, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer"
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(DomainConfigException) as cm:
             parse_domain_config.ParseDomainConfig.parse(new_c)
         self.assertTrue(cm.exception.message.startswith("RedCircle not found in module"))
 
@@ -47,7 +48,7 @@ class TestParseDomainConfig(unittest.TestCase):
     def test_pred_schema_failure(self):
         new_c = self.c.copy()
         new_c["Predicates"] = "Inside, Can, Target, RPose, Robot, Workspace"
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(PredicateException) as cm:
             parse_domain_config.ParseDomainConfig.parse(new_c)
         self.assertEqual(cm.exception.message, "Predicate type 'Inside' not defined!")
 

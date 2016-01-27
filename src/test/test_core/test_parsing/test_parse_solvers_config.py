@@ -1,5 +1,6 @@
 import unittest
 from core.parsing import parse_solvers_config
+from errors_exceptions import SolversConfigException, HLException, LLException
 
 class TestParseSolversConfig(unittest.TestCase):
     def test(self):
@@ -17,21 +18,21 @@ class TestParseSolversConfig(unittest.TestCase):
         self.assertEqual(cm.exception.message, "Override this.")
 
         config = {"LLSolver": "DummyLLSolver"}
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(SolversConfigException) as cm:
             parse_solvers_config.ParseSolversConfig.parse(config, None)
         self.assertEqual(cm.exception.message, "Must define both HL solver and LL solver in solvers config file.")
 
         config = {"HLSolver": "DummyHLSolver"}
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(SolversConfigException) as cm:
             parse_solvers_config.ParseSolversConfig.parse(config, None)
         self.assertEqual(cm.exception.message, "Must define both HL solver and LL solver in solvers config file.")
 
         config = {"HLSolver": "foo", "LLSolver": "DummyLLSolver"}
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(HLException) as cm:
             parse_solvers_config.ParseSolversConfig.parse(config, None)
         self.assertEqual(cm.exception.message, "HLSolver 'foo' not defined!")
 
         config = {"HLSolver": "DummyHLSolver", "LLSolver": "bar"}
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(LLException) as cm:
             parse_solvers_config.ParseSolversConfig.parse(config, None)
         self.assertEqual(cm.exception.message, "LLSolver 'bar' not defined!")
