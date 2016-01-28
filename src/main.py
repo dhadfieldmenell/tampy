@@ -1,5 +1,6 @@
 from IPython import embed as shell
-import argparse
+import argparse, traceback
+from errors_exceptions import TampyException
 from pma import pr_graph
 
 """
@@ -18,15 +19,20 @@ def parse_file_to_dict(f_name):
     return d
 
 def main(domain_file, problem_file, solvers_file):
-    domain_config = parse_file_to_dict(domain_file)
-    problem_config = parse_file_to_dict(problem_file)
-    solvers_config = parse_file_to_dict(solvers_file)
-    plan, msg = pr_graph.p_mod_abs(domain_config, problem_config, solvers_config)
-    if plan:
-        print "Executing plan!"
-        plan.execute()
-    else:
-        print msg
+    try:
+        domain_config = parse_file_to_dict(domain_file)
+        problem_config = parse_file_to_dict(problem_file)
+        solvers_config = parse_file_to_dict(solvers_file)
+        plan, msg = pr_graph.p_mod_abs(domain_config, problem_config, solvers_config)
+        if plan:
+            print "Executing plan!"
+            plan.execute()
+        else:
+            print msg
+    except TampyException as e:
+        print "Caught an exception in Tampy:"
+        traceback.print_exc()
+        print "Terminating..."
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run tampy.")

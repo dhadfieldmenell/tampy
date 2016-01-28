@@ -1,31 +1,34 @@
-class ProblemConfigException(Exception):
+class TampyException(Exception):
+    """ A generic exception for Tampy """
+
+class ProblemConfigException(TampyException):
     """ Either config not found or config format incorrect """
     pass
 
-class DomainConfigException(Exception):
+class DomainConfigException(TampyException):
     """ Either config not found or config format incorrect """
     pass
 
-class SolversConfigException(Exception):
+class SolversConfigException(TampyException):
     """ Either config not found or config format incorrect """
     pass
 
-class ParamValidationException(Exception):
+class ParamValidationException(TampyException):
     """ Check validate_params functions """
     pass
 
-class PredicateException(Exception):
+class PredicateException(TampyException):
     """ Predicate type mismatch, not defined, or parameter range violation """
     pass
 
-class HLException(Exception):
+class HLException(TampyException):
     """ An issue with the high level solver (hl_solver) """
     pass
 
-class LLException(Exception):
+class LLException(TampyException):
     """ An issue with the low level solver (ll_solver) """
     pass
 
-class ImpossibleException(Exception):
+class ImpossibleException(TampyException):
     """ This exception should never be raised """
     pass
