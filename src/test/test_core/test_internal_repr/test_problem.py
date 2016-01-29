@@ -3,6 +3,7 @@ from core.internal_repr import problem
 from core.internal_repr import parameter
 from core.util_classes import common_predicates
 from core.internal_repr import state
+from errors_exceptions import ProblemConfigException
 import numpy as np
 
 class TestProblem(unittest.TestCase):
@@ -21,12 +22,12 @@ class TestProblem(unittest.TestCase):
         self.init_state = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
 
     def test_init_state(self):
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ProblemConfigException) as cm:
             problem.Problem(self.init_state, None)
         self.assertEqual(cm.exception.message, "Initial state is not concrete. Have all non-symbol parameters been instantiated with a value?")
         self.can.pose = np.array([[3, 0], [4, 2]])
         self.target.pose = np.array([[3, 1], [3, 2]])
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(ProblemConfigException) as cm:
             problem.Problem(self.init_state, None)
         self.assertEqual(cm.exception.message, "Initial state is not consistent (predicates are violated).")
         self.target.pose = np.array([[3, 1], [4, 2]])

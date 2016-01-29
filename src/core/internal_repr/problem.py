@@ -1,4 +1,5 @@
 from IPython import embed as shell
+from errors_exceptions import ProblemConfigException
 
 class Problem(object):
     """
@@ -8,9 +9,9 @@ class Problem(object):
     """
     def __init__(self, init_state, goal_preds):
         if not init_state.is_concrete():
-            raise Exception("Initial state is not concrete. Have all non-symbol parameters been instantiated with a value?")
+            raise ProblemConfigException("Initial state is not concrete. Have all non-symbol parameters been instantiated with a value?")
         if not init_state.is_consistent():
-            raise Exception("Initial state is not consistent (predicates are violated).")
+            raise ProblemConfigException("Initial state is not consistent (predicates are violated).")
         self.init_state = init_state
         self.goal_preds = goal_preds
 

@@ -1,4 +1,5 @@
 from IPython import embed as shell
+from errors_exceptions import ParamValidationException
 
 class Predicate(object):
     """
@@ -27,10 +28,10 @@ class Predicate(object):
 
     def validate_params(self, expected_param_types):
         if len(self.params) != len(expected_param_types):
-            raise Exception("Parameter type validation failed for predicate '%s'."%self)
+            raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
         for i, p in enumerate(self.params):
             if not p.get_type() == expected_param_types[i]:
-                raise Exception("Parameter type validation failed for predicate '%s'."%self)
+                raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
 
     def __repr__(self):
         s = "%s: (%s "%(self.name, self.get_type())

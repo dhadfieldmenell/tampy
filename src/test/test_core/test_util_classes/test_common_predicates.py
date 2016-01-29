@@ -1,6 +1,7 @@
 import unittest
 from core.internal_repr import parameter
 from core.util_classes import common_predicates
+from errors_exceptions import PredicateException
 import numpy as np
 
 class TestCommonPredicates(unittest.TestCase):
@@ -23,10 +24,10 @@ class TestCommonPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time=400))
         p2.pose = np.array([[3, 4, 5], [6, 5, 8], [8, 9, 1]])
         self.assertTrue(pred.is_concrete())
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(PredicateException) as cm:
             pred.test(time=3)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can target sym)'.")
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(PredicateException) as cm:
             pred.test(time=-1)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can target sym)'.")
         self.assertTrue(pred.test(time=0))

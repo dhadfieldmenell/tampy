@@ -1,4 +1,5 @@
 from IPython import embed as shell
+from errors_exceptions import DomainConfigException
 
 class Parameter(object):
     """
@@ -37,7 +38,7 @@ class Object(Parameter):
                 try:
                     setattr(self, attr_name, attr_types[attr_name](arg))
                 except KeyError:
-                    raise Exception("Attribute '%s' for Object '%s' not defined in domain file."%(attr_name, attrs["name"]))
+                    raise DomainConfigException("Attribute '%s' for Object '%s' not defined in domain file."%(attr_name, attrs["name"]))
 
     def is_defined(self):
         return self.pose != "undefined"
@@ -59,7 +60,7 @@ class Symbol(Parameter):
                 try:
                     setattr(self, attr_name, attr_types[attr_name](arg))
                 except KeyError:
-                    raise Exception("Attribute '%s' for Symbol '%s' not defined in domain file."%(attr_name, attrs["name"]))
+                    raise DomainConfigException("Attribute '%s' for Symbol '%s' not defined in domain file."%(attr_name, attrs["name"]))
 
     def is_defined(self):
         return self.value != "undefined"

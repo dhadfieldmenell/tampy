@@ -1,7 +1,9 @@
 import unittest
+from IPython import embed as shell
 from core.internal_repr import parameter
 from core.util_classes import circle
 from core.util_classes import matrix
+from errors_exceptions import DomainConfigException
 
 class TestParameter(unittest.TestCase):
     def test_object(self):
@@ -10,7 +12,7 @@ class TestParameter(unittest.TestCase):
         with self.assertRaises(AssertionError) as cm:
             parameter.Object(attrs, attr_types)
         attrs["name"] = "param"
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(DomainConfigException) as cm:
             parameter.Object(attrs, attr_types)
         self.assertEqual(cm.exception.message, "Attribute 'name' for Object 'param' not defined in domain file.")
         attr_types["name"] = str
@@ -33,7 +35,7 @@ class TestParameter(unittest.TestCase):
         with self.assertRaises(AssertionError) as cm:
             parameter.Symbol(attrs, attr_types)
         attrs["value"] = (4, 6)
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(DomainConfigException) as cm:
             parameter.Symbol(attrs, attr_types)
         self.assertEqual(cm.exception.message, "Attribute 'value' for Symbol 'sym' not defined in domain file.")
         attr_types["value"] = matrix.Vector2d
