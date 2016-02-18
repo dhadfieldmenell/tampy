@@ -7,7 +7,7 @@ class ParseProblemConfig(object):
     """
     Read the problem configuration data and spawn the corresponding initial Problem object (see Problem class).
     This is only done for spawning the very first Problem object, from the initial state specified in the problem configuration file.
-    Validation is performed against the schema stored in the Domain object self.domain.
+    Validation is performed against the schemas stored in the Domain object self.domain.
     """
     @staticmethod
     def parse(problem_config, domain):
@@ -19,8 +19,8 @@ class ParseProblemConfig(object):
             assert "name" in attr_dict and ("pose" in attr_dict or "value" in attr_dict)
             attr_dict["_type"] = o_type
             try:
-                params[attr_dict["name"]] = domain.param_schema[o_type][0](attrs=attr_dict,
-                                                                                attr_types=domain.param_schema[o_type][1])
+                params[attr_dict["name"]] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
+                                                                                     attr_types=domain.param_schemas[o_type].attr_dict)
             except KeyError:
                 raise ProblemConfigException("Parameter '%s' not defined in domain file."%attr_dict["name"])
             except ValueError:
@@ -38,9 +38,9 @@ class ParseProblemConfig(object):
                         p_objs.append(params[n])
                     except KeyError:
                         raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
-                init_preds.add(domain.pred_schema[p_name][0](name="initpred%d"%i,
-                                                                  params=p_objs,
-                                                                  expected_param_types=domain.pred_schema[p_name][1]))
+                init_preds.add(domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
+                                                                      params=p_objs,
+                                                                      expected_param_types=domain.pred_schemas[p_name].expected_params))
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params.values(), init_preds, timestep=0)
@@ -56,9 +56,9 @@ class ParseProblemConfig(object):
                     p_objs.append(params[n])
                 except KeyError:
                     raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
-            goal_preds.add(domain.pred_schema[p_name][0](name="goalpred%d"%i,
-                                                              params=p_objs,
-                                                              expected_param_types=domain.pred_schema[p_name][1]))
+            goal_preds.add(domain.pred_schemas[p_name].pred_class(name="goalpred%d"%i,
+                                                                  params=p_objs,
+                                                                  expected_param_types=domain.pred_schemas[p_name].expected_params))
 
         # use initial state to create Problem object
         initial_problem = problem.Problem(initial_state, goal_preds)

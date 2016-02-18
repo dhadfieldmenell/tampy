@@ -89,7 +89,7 @@ class FFSolver(HLSolver):
         plan_str = self._run_planner(self.abs_domain, abs_prob)
         if plan_str != Plan.IMPOSSIBLE:
             plan_str = self._patch_redundancy(plan_str)
-        # TODO: construct Plan object
+        # TODO: construct Plan object using concr_prob
         return plan_str
 
     def _run_planner(self, abs_domain, abs_prob):
