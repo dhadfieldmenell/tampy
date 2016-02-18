@@ -94,8 +94,7 @@ class ParseDomainConfig(object):
                         if count == 0:
                             pred_strs.append(p_s[prev_i:i+1].strip())
                             prev_i = i + 1
-                all_active_timesteps = v[inds[3]:].strip()
-                all_active_timesteps = [tuple(map(int, s.split(":"))) for s in all_active_timesteps.split()]
+                all_active_timesteps = [tuple(map(int, s.split(":"))) for s in v[inds[3]:].strip().split()]
                 # build list of params
                 params = []
                 for p in params_str.strip("()").split("?"):
