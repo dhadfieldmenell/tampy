@@ -2,8 +2,8 @@
 # Configuration file for NAMO problem instance. Blank lines and lines beginning with # are filtered out.
 
 # The values after each attribute name are the values that get passed into the __init__ method for that attribute's class defined in the domain configuration.
-Objects: Target (name target0. geom 1. pose (2, 3)); RobotPose (name pdp_target0. value undefined); Can (name can0. geom 1. pose (2, 3)); RobotPose (name gp_can0. value undefined); Target (name target1. geom 1. pose (7, 6)); RobotPose (name pdp_target1. value undefined); Can (name can1. geom 1. pose (7, 6)); RobotPose (name gp_can1. value undefined); Target (name target2. geom 1. pose (7, 2)); RobotPose (name pdp_target2. value undefined); Robot (name pr2. geom 1. pose (8, 1)); RobotPose (name robot_init_pose. value (8, 1)); Workspace (name ws. pose (0, 0). w 8. h 9. size 1. viewer TODO)
+Objects: Target (name target0); RobotPose (name pdp_target0); Can (name can0); RobotPose (name gp_can0); Target (name target1); RobotPose (name pdp_target1); Can (name can1); RobotPose (name gp_can1); Target (name target2); RobotPose (name pdp_target2); Robot (name pr2); RobotPose (name robot_init_pose); Workspace (name ws)
 
-Init: (At can0 target0), (IsGP gp_can0 can0), (At can1 target1), (IsGP gp_can1 can1), (IsPDP pdp_target0 target0), (IsPDP pdp_target1 target1), (IsPDP pdp_target2 target2), (RobotAt pr2 robot_init_pose)
+Init: (geom target0 1), (pose target0 (2, 3)), (value pdp_target0 undefined), (geom target1 1), (pose target1 (7, 6)), (value pdp_target1 undefined), (geom target2 1), (pose target2 (7, 2)), (value pdp_target2 undefined), (geom can0 1), (pose can0 (2, 3)), (value gp_can0 undefined), (geom can1 1), (pose can1 (7, 6)), (value gp_can1 undefined), (geom pr2 1), (pose pr2 (8, 1)), (value robot_init_pose (8, 1)), (pose ws (0, 0)), (w wd 8), (h wd 9), (size wd 1), (viewer wd TODO), (At can0 target0), (IsGP gp_can0 can0), (At can1 target1), (IsGP gp_can1 can1), (IsPDP pdp_target0 target0), (IsPDP pdp_target1 target1), (IsPDP pdp_target2 target2), (RobotAt pr2 robot_init_pose)
 
 Goal: (At can0 target1), (At can1 target0)
