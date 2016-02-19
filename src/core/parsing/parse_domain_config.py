@@ -9,8 +9,6 @@ from core.internal_repr.action_schema import ActionSchema
 from errors_exceptions import DomainConfigException, PredicateException, ImpossibleException
 import re
 
-import logging as log
-
 class ParseDomainConfig(object):
     """
     Read the domain configuration data and spawn the corresponding Domain object (see Domain class).
@@ -34,7 +32,6 @@ class ParseDomainConfig(object):
         for t in map(str.strip, domain_config["Types"].split(",")):
             param_schemas[t] = {"_type" : eval("str"), "name" : eval("str")} # name added by default
         for prim_preds in domain_config["Primitive Predicates"].split(";"):
-            log.debug(prim_preds)
             k, type_name, v = map(str.strip, prim_preds.split(","))
             param_schemas[type_name][k] = v
             if v in attr_paths:
