@@ -32,7 +32,7 @@ class Object(Parameter):
     """
     def __init__(self, attrs=None, attr_types=None):
         if attrs is not None:
-            assert "name" in attrs and "_type" in attrs and "pose" in attrs
+            assert "name" in attrs and "_type" in attrs
             for attr_name, arg in attrs.items():
                 if attr_name == "pose" and arg == "undefined":
                     self.pose = "undefined"

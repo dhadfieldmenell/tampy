@@ -16,20 +16,30 @@ class ParseProblemConfig(object):
         for t in problem_config["Objects"].split(";"):
             o_type, attrs = map(str.strip, t.strip(" )").split("(", 1))
             attr_dict = dict([l.split(" ", 1) for l in map(str.strip, attrs.split("."))])
-            assert "name" in attr_dict and ("pose" in attr_dict or "value" in attr_dict)
+            assert "name" in attr_dict
             attr_dict["_type"] = o_type
-            try:
-                params[attr_dict["name"]] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
-                                                                                     attr_types=domain.param_schemas[o_type].attr_dict)
-            except KeyError:
-                raise ProblemConfigException("Parameter '%s' not defined in domain file."%attr_dict["name"])
-            except ValueError:
-                raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%attr_dict["name"])
+            params[attr_dict["name"]] = attr_dict
 
-        # create initial state predicate objects
-        init_preds = set()
         if problem_config["Init"]:
-            for i, pred in enumerate(problem_config["Init"].split(",")):
+            prim_preds, deriv_preds = map(str.strip, problem_config["Init"].split(";"))
+        if prim_preds:
+            for pred in map(str.strip, prim_preds.split(")")):
+                if pred:
+                    k, obj_name, v = map(str.strip, pred.strip(",() ").split())
+                    params[obj_name][k] = v.replace("[", "(").replace("]", ")")
+            for obj_name, attr_dict in params.items():
+                assert "pose" in attr_dict or "value" in attr_dict
+                o_type = attr_dict["_type"]
+                try:
+                    params[obj_name] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
+                                                                                         attr_types=domain.param_schemas[o_type].attr_dict)
+                except KeyError:
+                    raise ProblemConfigException("Parameter '%s' not defined in domain file."%attr_dict["name"])
+                except ValueError:
+                    raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%attr_dict["name"])
+        init_preds = set()
+        if deriv_preds:
+            for i, pred in enumerate(deriv_preds.split(",")):
                 spl = map(str.strip, pred.strip("() ").split())
                 p_name, p_args = spl[0], spl[1:]
                 p_objs = []

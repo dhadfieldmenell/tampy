@@ -29,21 +29,22 @@ class ParseDomainConfig(object):
         for k, v in attr_paths.items():
             attr_paths[k] = importlib.import_module(v)
         param_schemas = {}
-        for t in domain_config["Types"].split(";"):
-            type_name, attrs = map(str.strip, t.strip(" )").split("("))
-            attr_dict = dict([l.split() for l in map(str.strip, attrs.split("."))])
-            attr_dict["_type"] = "str"
-            assert "name" in attr_dict and ("pose" in attr_dict or "value" in attr_dict)
-            for k, v in attr_dict.items():
-                if v in attr_paths:
-                    if not hasattr(attr_paths[v], v):
-                        raise DomainConfigException("%s not found in module %s!"%(v, attr_paths[v]))
-                    attr_dict[k] = getattr(attr_paths[v], v)
-                else:
-                    try:
-                        attr_dict[k] = eval(v)
-                    except NameError as e:
-                        raise DomainConfigException("Need to provide attribute import path for non-primitive %s."%v)
+        for t in map(str.strip, domain_config["Types"].split(",")):
+            param_schemas[t] = {"_type" : eval("str"), "name" : eval("str")} # name added by default
+        for prim_preds in domain_config["Primitive Predicates"].split(";"):
+            k, type_name, v = map(str.strip, prim_preds.split(","))
+            param_schemas[type_name][k] = v
+            if v in attr_paths:
+                if not hasattr(attr_paths[v], v):
+                    raise DomainConfigException("%s not found in module %s!"%(v, attr_paths[v]))
+                param_schemas[type_name][k] = getattr(attr_paths[v], v)
+            else:
+                try:
+                    param_schemas[type_name][k] = eval(v)
+                except NameError as e:
+                    raise DomainConfigException("Need to provide attribute import path for non-primitive %s."%v)
+        for type_name, attr_dict in param_schemas.items():
+            assert "pose" in attr_dict or "value" in attr_dict
             obj_or_symbol = ParseDomainConfig._dispatch_obj_or_symbol(attr_dict)
             param_schemas[type_name] = ParameterSchema(type_name, getattr(parameter, obj_or_symbol), attr_dict)
         return param_schemas
@@ -51,7 +52,7 @@ class ParseDomainConfig(object):
     @staticmethod
     def _create_pred_schemas(domain_config):
         pred_schemas = {}
-        for p_defn in domain_config["Predicates"].split(";"):
+        for p_defn in domain_config["Derived Predicates"].split(";"):
             p_type, exp_types = map(str.strip, p_defn.split(",", 1))
             if not hasattr(common_predicates, p_type):
                 raise PredicateException("Predicate type '%s' not defined!"%p_type)

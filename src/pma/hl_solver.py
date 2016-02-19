@@ -44,7 +44,7 @@ class FFSolver(HLSolver):
         for t in domain_config["Types"].split(";"):
             dom_str += t.strip().split("(")[0].strip() + " "
         dom_str += ")\n\n(:predicates\n"
-        for p_defn in domain_config["Predicates"].split(";"):
+        for p_defn in domain_config["Derived Predicates"].split(";"):
             p_name, p_params = map(str.strip, p_defn.split(",", 1))
             p_params = [s.strip() for s in p_params.split(",")]
             dom_str += "(%s "%p_name
