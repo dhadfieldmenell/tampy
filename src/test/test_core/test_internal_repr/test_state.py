@@ -18,11 +18,13 @@ class TestState(unittest.TestCase):
         self.at = common_predicates.At("at", [self.can, self.target], ["Can", "Target"])
         self.isgp = common_predicates.IsGP("isgp", [self.gp, self.can], ["Sym", "Can"])
         self.s = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
+
+    def test(self):
         self.assertEqual(self.s.name, "state")
-        self.assertEqual(self.s.params, set([self.can, self.target, self.gp]))
+        self.assertEqual(self.s.params, [self.can, self.target, self.gp])
         self.assertEqual(self.s.preds, set([self.at, self.isgp]))
         other_state = state.State("state", [self.can, self.target, self.gp])
-        self.assertEqual(other_state.params, set([self.can, self.target, self.gp]))
+        self.assertEqual(other_state.params, [self.can, self.target, self.gp])
         self.assertEqual(other_state.preds, set())
         self.assertEqual(other_state.timestep, 0)
 

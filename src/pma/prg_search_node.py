@@ -36,7 +36,11 @@ class HLSearchNode(SearchNode):
         return True
 
     def plan(self, solver):
-        return self.prefix + solver.solve(self.abs_prob, self.domain, self.concr_prob)
+        plan_obj = solver.solve(self.abs_prob, self.domain, self.concr_prob)
+        if self.prefix:
+            return self.prefix + plan_obj
+        else:
+            return plan_obj
 
 class LLSearchNode(SearchNode):
     def __init__(self, plan):
