@@ -30,7 +30,7 @@ class Object(Parameter):
     for the class stored in the corresponding entry of attr_types. attrs must have, at minimum, the keys "name", "_type", and "pose".
     """
     def __init__(self, attrs, attr_types):
-        assert "name" in attrs and "_type" in attrs and "pose" in attrs
+        assert "name" in attrs and "_type" in attrs
         for attr_name, arg in attrs.items():
             if attr_name == "pose" and arg == "undefined":
                 self.pose = "undefined"

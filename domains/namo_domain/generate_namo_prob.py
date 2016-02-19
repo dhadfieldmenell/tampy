@@ -21,18 +21,11 @@ def main():
         s += "# The values after each attribute name are the values that get passed into the __init__ method for that attribute's class defined in the domain configuration.\n"
         s += "Objects: "
         for i in range(NUM_TARGETS):
-            #s += "Target (name target%d. geom 1. pose %s); "%(i, coords[i])
             s += "Target (name target%d); "%(i)
-            # s += "RobotPose (name pdp_target%d. value undefined); "%i
             s += "RobotPose (name pdp_target%d); "%i
             if i < NUM_CANS:
-                # s += "Can (name can%d. geom 1. pose %s); "%(i, coords[i])
                 s += "Can (name can%d); "%i
-                # s += "RobotPose (name gp_can%d. value undefined); "%i
                 s += "RobotPose (name gp_can%d); "%i
-        # s += "Robot (name %s. geom 1. pose %s); "%("pr2", coords[NUM_TARGETS])
-        # s += "RobotPose (name %s. value %s); "%("robot_init_pose", coords[NUM_TARGETS])
-        # s += "Workspace (name ws. pose (0, 0). w %d. h %d. size %d. viewer TODO)\n\n"%(WIDTH, HEIGHT, SIZE)
         s += "Robot (name %s); "%"pr2"
         s += "RobotPose (name %s); "%"robot_init_pose"
         s += "Workspace (name ws)\n\n"
@@ -46,7 +39,7 @@ def main():
             s += "(value gp_can%d undefined), "%i
         s += "(geom %s 1), (pose %s %s), "%("pr2", "pr2", coords[NUM_TARGETS])
         s += "(value %s %s), "%("robot_init_pose", coords[NUM_TARGETS])
-        s += "(pose ws (0, 0)), (w wd %d), (h wd %d), (size wd %d), (viewer wd TODO), "%(WIDTH, HEIGHT, SIZE)
+        s += "(pose ws (0, 0)), (w wd %d), (h wd %d), (size wd %d), (viewer wd TODO); "%(WIDTH, HEIGHT, SIZE)
         for i in range(NUM_CANS):
             s += "(At can%d target%d), "%(i, i)
             s += "(IsGP gp_can%d can%d), "%(i, i)
