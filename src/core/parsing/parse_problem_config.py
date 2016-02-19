@@ -53,7 +53,7 @@ class ParseProblemConfig(object):
                                                                       expected_param_types=domain.pred_schemas[p_name].expected_params))
 
         # use params and initial preds to create an initial State object
-        initial_state = state.State("initstate", params.values(), init_preds, timestep=0)
+        initial_state = state.State("initstate", params, init_preds, timestep=0)
 
         # create goal predicate objects
         goal_preds = set()

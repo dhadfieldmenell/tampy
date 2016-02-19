@@ -4,6 +4,7 @@ from core.internal_repr import parameter
 from core.util_classes import circle
 from core.util_classes import matrix
 from errors_exceptions import DomainConfigException
+import numpy as np
 
 class TestParameter(unittest.TestCase):
     def test_object(self):
@@ -64,3 +65,37 @@ class TestParameter(unittest.TestCase):
         with self.assertRaises(NotImplementedError) as cm:
             parameter.Parameter()
         self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
+
+    def test_copy_object(self):
+        attrs = {"name": "param", "circ": 1, "test": 3.7, "test2": 5.3, "test3": 6.5, "pose": [[3, 4, 5, 0], [6, 2, 1, 5], [1, 1, 1, 1]], "_type": "Can"}
+        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "pose": np.array, "_type": str}
+        p = parameter.Object(attrs, attr_types)
+        p2 = p.copy(new_horizon=7)
+        self.assertEqual(p2.name, "param")
+        self.assertEqual(p2.test, 3.7)
+        self.assertTrue(np.array_equal(p2.pose, [[3, 4, 5, 0, 0, 0, 0], [6, 2, 1, 5, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0]]))
+        p2 = p.copy(new_horizon=2)
+        self.assertTrue(np.array_equal(p2.pose, [[3, 4], [6, 2], [1, 1]]))
+        attrs["pose"] = "undefined"
+        p = parameter.Object(attrs, attr_types)
+        p2 = p.copy(new_horizon=7)
+        self.assertEqual(p2.name, "param")
+        self.assertEqual(p2.test, 3.7)
+        self.assertEqual(p2.pose, "undefined")
+
+    def test_copy_symbol(self):
+        attrs = {"name": "param", "circ": 1, "test": 3.7, "test2": 5.3, "test3": 6.5, "value": [[3, 4, 5, 0], [6, 2, 1, 5], [1, 1, 1, 1]], "_type": "Can"}
+        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": np.array, "_type": str}
+        p = parameter.Symbol(attrs, attr_types)
+        p2 = p.copy(new_horizon=7)
+        self.assertEqual(p2.name, "param")
+        self.assertEqual(p2.test, 3.7)
+        self.assertTrue(np.array_equal(p2.value, [[3, 4, 5, 0, 0, 0, 0], [6, 2, 1, 5, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0]]))
+        p2 = p.copy(new_horizon=2)
+        self.assertTrue(np.array_equal(p2.value, [[3, 4], [6, 2], [1, 1]]))
+        attrs["value"] = "undefined"
+        p = parameter.Symbol(attrs, attr_types)
+        p2 = p.copy(new_horizon=7)
+        self.assertEqual(p2.name, "param")
+        self.assertEqual(p2.test, 3.7)
+        self.assertEqual(p2.value, "undefined")

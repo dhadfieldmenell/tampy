@@ -14,11 +14,11 @@ class TestParseProblemConfig(unittest.TestCase):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
         self.assertEqual(len(problem.init_state.params), 4)
         self.assertEqual(len(problem.init_state.preds), 2)
-        self.assertEqual(sum(1 for p in problem.init_state.params if p.get_type() == "Can"), 1)
-        self.assertEqual(sum(1 for p in problem.init_state.params if p.get_type() == "Target"), 2)
-        self.assertEqual(sum(1 for p in problem.init_state.params if not p.is_symbol()), 3)
-        self.assertEqual(sum(1 for p in problem.init_state.params if p.name.startswith("gp")), 1)
-        for p in problem.init_state.params:
+        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.get_type() == "Can"), 1)
+        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.get_type() == "Target"), 2)
+        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if not p.is_symbol()), 3)
+        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.name.startswith("gp")), 1)
+        for k, p in problem.init_state.params.items():
             if p.is_symbol():
                 break
         self.assertEqual(p.name, "gp_can0")
@@ -28,8 +28,8 @@ class TestParseProblemConfig(unittest.TestCase):
     def test_goal_test(self):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
         self.assertFalse(problem.goal_test())
-        for p in problem.init_state.params:
-            if p.name == "target1":
+        for k, p in problem.init_state.params.items():
+            if k == "target1":
                 break
         p.pose = matrix.Vector2d((3, 6))
         self.assertFalse(problem.goal_test())
