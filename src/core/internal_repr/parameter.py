@@ -32,7 +32,7 @@ class Object(Parameter):
     """
     def __init__(self, attrs=None, attr_types=None):
         if attrs is not None:
-            assert "name" in attrs and "_type" in attrs
+            assert "name" in attrs and "_type" in attrs and "pose" in attrs
             for attr_name, arg in attrs.items():
                 if attr_name == "pose" and arg == "undefined":
                     self.pose = "undefined"
@@ -43,7 +43,7 @@ class Object(Parameter):
                         raise DomainConfigException("Attribute '%s' for Object '%s' not defined in domain file."%(attr_name, attrs["name"]))
 
     def is_defined(self):
-        return self.pose != "undefined"
+        return self.pose is not "undefined"
 
     def copy(self, new_horizon):
         new = Object()
@@ -76,7 +76,7 @@ class Symbol(Parameter):
                         raise DomainConfigException("Attribute '%s' for Symbol '%s' not defined in domain file."%(attr_name, attrs["name"]))
 
     def is_defined(self):
-        return self.value != "undefined"
+        return self.value is not "undefined"
 
     def is_symbol(self):
         return True
