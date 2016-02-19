@@ -3,12 +3,14 @@
 # implicity, all types require a name
 Types: Can, Target, RobotPose, Robot, Workspace
 
-# define the class location of each non-standard attribute type used in the above parameter type descriptions
+# Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 Attribute Import Paths: RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer
 
 Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer
 
 Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, RobotPose, Can; IsPDP, RobotPose, Target; Obstructs, Robot, RobotPose, Can
+
+# The first set of parentheses after the colon contains the parameters. The second contains preconditions and the third contains effects. This split between preconditions and effects is only used for task planning purposes. Our system treats all predicates similarly, using the numbers at the end, which specify active timesteps during which each predicate must hold.
 
 Action moveto 20: (?robot - Robot ?start - RobotPose ?end - RobotPose) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 0:19 19:19 19:19
 

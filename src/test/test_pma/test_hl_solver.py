@@ -14,26 +14,26 @@ class TestHLSolver(unittest.TestCase):
 
     def test_basic(self):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
-        plan = self.hls.solve(self.hls.translate_problem(problem), problem)
+        plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
         self.assertEqual(plan, ['0: MOVETO PR2 ROBOT_INIT_POSE GP_CAN1', '1: GRASP PR2 CAN1 TARGET1 GP_CAN1', '2: MOVETO PR2 GP_CAN1 PDP_TARGET2', '3: PUTDOWN PR2 CAN1 TARGET2 PDP_TARGET2', '4: MOVETO PR2 PDP_TARGET2 GP_CAN0', '5: GRASP PR2 CAN0 TARGET0 GP_CAN0', '6: MOVETO PR2 GP_CAN0 PDP_TARGET1', '7: PUTDOWN PR2 CAN0 TARGET1 PDP_TARGET1'])
 
     def test_obstr(self):
         p2 = self.p_c.copy()
         p2["Init"] += ", (Obstructs pr2 gp_can1 can0)"
         problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
-        plan = self.hls.solve(self.hls.translate_problem(problem), problem)
+        plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
         self.assertEqual(plan[0:2], ['0: MOVETO PR2 ROBOT_INIT_POSE GP_CAN0', '1: GRASP PR2 CAN0 TARGET0 GP_CAN0'])
 
     def test_impossible_obstr(self):
         p2 = self.p_c.copy()
         p2["Init"] += ", (Obstructs pr2 gp_can0 can1), (Obstructs pr2 gp_can1 can0)"
         problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
-        plan = self.hls.solve(self.hls.translate_problem(problem), problem)
+        plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
         self.assertEqual(plan, Plan.IMPOSSIBLE)
 
     def test_impossible_goal(self):
         p2 = self.p_c.copy()
         p2["Goal"] += ", (At can1 target1)"
         problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
-        plan = self.hls.solve(self.hls.translate_problem(problem), problem)
+        plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
         self.assertEqual(plan, Plan.IMPOSSIBLE)

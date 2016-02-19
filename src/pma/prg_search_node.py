@@ -26,8 +26,9 @@ class SearchNode(object):
         raise NotImplementedError("Override this.")
 
 class HLSearchNode(SearchNode):
-    def __init__(self, abs_prob, concr_prob, prefix=None):
+    def __init__(self, abs_prob, domain, concr_prob, prefix=None):
         self.abs_prob = abs_prob
+        self.domain = domain
         self.concr_prob = concr_prob
         self.prefix = prefix if prefix else []
 
@@ -35,7 +36,7 @@ class HLSearchNode(SearchNode):
         return True
 
     def plan(self, solver):
-        return self.prefix + solver.solve(self.abs_prob, self.concr_prob)
+        return self.prefix + solver.solve(self.abs_prob, self.domain, self.concr_prob)
 
 class LLSearchNode(SearchNode):
     def __init__(self, plan):

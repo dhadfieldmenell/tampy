@@ -24,10 +24,13 @@ class HLSolver(object):
         """
         raise NotImplementedError("Override this.")
 
-    def solve(self, abs_domain, abs_prob, concr_prob):
+    def solve(self, abs_prob, domain, concr_prob):
         """
-        Solves the problem and returns a Plan object. The abs_* arguments
-        are what got returned by each of the self.translate_* methods.
+        Solves the problem and returns a Plan object.
+
+        abs_prob: what got returned by self.translate_problem()
+        domain: Domain object
+        concr_prob: Problem object
         """
         raise NotImplementedError("Override this.")
 
@@ -85,11 +88,9 @@ class FFSolver(HLSolver):
         prob_str += ")\n)\n)"
         return prob_str
 
-    def solve(self, abs_prob, concr_prob):
+    def solve(self, abs_prob, domain, concr_prob):
         plan_str = self._run_planner(self.abs_domain, abs_prob)
-        if plan_str != Plan.IMPOSSIBLE:
-            plan_str = self._patch_redundancy(plan_str)
-        # TODO: construct Plan object
+        # TODO: construct Plan object using concr_prob
         return plan_str
 
     def _run_planner(self, abs_domain, abs_prob):
@@ -109,6 +110,8 @@ class FFSolver(HLSolver):
                          "%sprob.pddl"%FFSolver.FILE_PREFIX,
                          "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
                          "%sprob.output"%FFSolver.FILE_PREFIX])
+        if plan != Plan.IMPOSSIBLE:
+            plan = self._patch_redundancy(plan)
         return plan
 
     def _patch_redundancy(self, plan_str):
@@ -134,5 +137,5 @@ class DummyHLSolver(HLSolver):
     def translate_problem(self, concr_prob):
         return "translate problem"
 
-    def solve(self, abs_domain, abs_prob, concr_prob):
+    def solve(self, abs_prob, domain, concr_prob):
         return "solve"
