@@ -42,6 +42,9 @@ class HLSearchNode(SearchNode):
         else:
             return plan_obj
 
+    def heuristic(self):
+        return -1
+
 class LLSearchNode(SearchNode):
     def __init__(self, plan):
         self.curr_plan = plan

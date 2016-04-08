@@ -8,13 +8,13 @@ import numpy as np
 
 class TestProblem(unittest.TestCase):
     def setUp(self):
-        attrs = {"name": "can", "pose": "undefined", "_type": "Can"}
+        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
         attr_types = {"name": str, "pose": int, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
-        attrs = {"name": "target", "pose": "undefined", "_type": "Target"}
+        attrs = {"name": ["target"], "pose": ["undefined"], "_type": ["Target"]}
         attr_types = {"name": str, "pose": int, "_type": str}
         self.target = parameter.Object(attrs, attr_types)
-        attrs = {"name": "gp", "value": "undefined", "_type": "Sym"}
+        attrs = {"name": ["gp"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": int, "_type": str}
         self.gp = parameter.Symbol(attrs, attr_types)
         self.at = common_predicates.At("at", [self.can, self.target], ["Can", "Target"])

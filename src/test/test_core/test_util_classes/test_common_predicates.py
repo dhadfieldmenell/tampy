@@ -6,13 +6,13 @@ import numpy as np
 
 class TestCommonPredicates(unittest.TestCase):
     def test_at(self):
-        attrs = {"name": "can", "pose": "undefined", "_type": "Can"}
+        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
         attr_types = {"name": str, "pose": int, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
-        attrs = {"name": "target", "pose": "undefined", "_type": "Target"}
+        attrs = {"name": ["target"], "pose": ["undefined"], "_type": ["Target"]}
         attr_types = {"name": str, "pose": int, "_type": str}
         p2 = parameter.Object(attrs, attr_types)
-        attrs = {"name": "sym", "value": "undefined", "_type": "Sym"}
+        attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": int, "_type": str}
         p3 = parameter.Symbol(attrs, attr_types)
 

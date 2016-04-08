@@ -4,8 +4,9 @@ class Viewer(object):
     """
     Defines viewers for visualizing execution.
     """
-    def __init__(self, temp):
+    def __init__(self):
         pass
 
 class GridWorldViewer(Viewer):
-    pass
+    def initialize_from_workspace(self, workspace):
+        pass

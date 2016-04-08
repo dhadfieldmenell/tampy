@@ -10,7 +10,8 @@ class LLSolver(object):
         raise NotImplementedError("Override this.")
 
 class NAMOSolver(LLSolver):
-    pass
+    def solve(self, plan):
+        raise NotImplementedError
 
 class CanSolver(LLSolver):
     pass

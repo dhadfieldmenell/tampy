@@ -17,10 +17,15 @@ class ParseProblemConfig(object):
             raise ProblemConfigException("Problem file needs objects.")
         for t in problem_config["Objects"].split(";"):
             o_type, attrs = map(str.strip, t.strip(" )").split("(", 1))
-            attr_dict = dict([l.split(" ", 1) for l in map(str.strip, attrs.split("."))])
+            attr_dict = {}
+            for l in map(str.strip, attrs.split(".")):
+                lst = l.split(" ", 1)
+                k, v = lst[0], lst[1:]
+                attr_dict[k] = v
             assert "name" in attr_dict
-            attr_dict["_type"] = o_type
-            params[attr_dict["name"]] = attr_dict
+            name = attr_dict["name"][0]
+            attr_dict["_type"] = [o_type]
+            params[name] = attr_dict
 
         if "Init" not in problem_config or not problem_config["Init"]:
             raise ProblemConfigException("Problem file needs init.")
@@ -32,20 +37,24 @@ class ParseProblemConfig(object):
                     if a != -1:
                         new_s = "".join(pred[a:b].split())
                         pred = pred.replace(pred[a:b], new_s)
-                    k, obj_name, v = map(str.strip, pred.strip(",() ").split())
+                    lst = map(str.strip, pred.strip(",() ").split())
+                    k = lst[0]
+                    obj_name = lst[1]
+                    v = lst[2:]
                     if obj_name not in params:
                         raise ProblemConfigException("'%s' is not an object in problem file."%obj_name)
-                    params[obj_name][k] = v.replace("[", "(").replace("]", ")")
+                    params[obj_name][k] = [x.replace("[", "(").replace("]", ")") for x in v]
             for obj_name, attr_dict in params.items():
                 assert "pose" in attr_dict or "value" in attr_dict
-                o_type = attr_dict["_type"]
+                o_type = attr_dict["_type"][0]
+                name = attr_dict["name"][0]
                 try:
                     params[obj_name] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
                                                                                 attr_types=domain.param_schemas[o_type].attr_dict)
                 except KeyError:
-                    raise ProblemConfigException("Parameter '%s' not defined in domain file."%attr_dict["name"])
+                    raise ProblemConfigException("Parameter '%s' not defined in domain file."%name)
                 except ValueError:
-                    raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%attr_dict["name"])
+                    raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%name)
         for k, v in params.items():
             if type(v) is dict:
                 raise ProblemConfigException("Problem file has no primitive predicates for object '%s'."%k)

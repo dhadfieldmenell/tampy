@@ -34,13 +34,14 @@ class Object(Parameter):
         if attrs is not None:
             assert "name" in attrs and "_type" in attrs and "pose" in attrs
             for attr_name, arg in attrs.items():
-                if attr_name == "pose" and arg == "undefined":
+                if attr_name == "pose" and "undefined" in arg:
                     self.pose = "undefined"
                 else:
                     try:
-                        setattr(self, attr_name, attr_types[attr_name](arg))
+                        setattr(self, attr_name, attr_types[attr_name](*arg))
                     except KeyError:
-                        raise DomainConfigException("Attribute '%s' for Object '%s' not defined in domain file."%(attr_name, attrs["name"]))
+                        name = attrs["name"][0]
+                        raise DomainConfigException("Attribute '%s' for Object '%s' not defined in domain file."%(attr_name, name))
 
     def is_defined(self):
         return self.pose is not "undefined"
@@ -67,13 +68,14 @@ class Symbol(Parameter):
         if attrs is not None:
             assert "name" in attrs and "_type" in attrs and "value" in attrs
             for attr_name, arg in attrs.items():
-                if attr_name == "value" and arg == "undefined":
+                if attr_name == "value" and "undefined" in arg:
                     self.value = "undefined"
                 else:
                     try:
-                        setattr(self, attr_name, attr_types[attr_name](arg))
+                        setattr(self, attr_name, attr_types[attr_name](*arg))
                     except KeyError:
-                        raise DomainConfigException("Attribute '%s' for Symbol '%s' not defined in domain file."%(attr_name, attrs["name"]))
+                        name = attrs["name"][0]
+                        raise DomainConfigException("Attribute '%s' for Symbol '%s' not defined in domain file."%(attr_name, name))
 
     def is_defined(self):
         return self.value is not "undefined"
