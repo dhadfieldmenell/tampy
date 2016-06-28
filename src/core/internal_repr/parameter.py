@@ -15,6 +15,9 @@ class Parameter(object):
     def __init__(self, *args):
         raise NotImplementedError("Must instantiate either Object or Symbol.")
 
+    def get_attr_type(self, attr_name):
+        raise NotImplementedError("get_attr_type not implemented for Parameter.")
+
     def get_type(self):
         return self._type
 
@@ -35,6 +38,10 @@ class Object(Parameter):
     at minimum, the keys "name", "_type", and "pose".
     """
     def __init__(self, attrs=None, attr_types=None):
+        if attr_types is not None:
+            self._attr_types = attr_types.copy()
+        else:
+            self._attr_types = dict()
         if attrs is not None:
             assert "name" in attrs and "_type" in attrs and "pose" in attrs
             for attr_name, arg in attrs.items():
@@ -46,6 +53,9 @@ class Object(Parameter):
                     except KeyError:
                         name = attrs["name"][0]
                         raise DomainConfigException("Attribute '%s' for Object '%s' not defined in domain file."%(attr_name, name))
+
+    def get_attr_type(self, attr_name):
+        return self._attr_types[attr_name]
 
     def is_defined(self):
         return self.pose is not "undefined"
@@ -72,6 +82,10 @@ class Symbol(Parameter):
     "value".
     """
     def __init__(self, attrs=None, attr_types=None):
+        if attr_types is not None:
+            self._attr_types = attr_types.copy()
+        else:
+            self._attr_types = dict()
         if attrs is not None:
             assert "name" in attrs and "_type" in attrs and "value" in attrs
             for attr_name, arg in attrs.items():
@@ -83,6 +97,9 @@ class Symbol(Parameter):
                     except KeyError:
                         name = attrs["name"][0]
                         raise DomainConfigException("Attribute '%s' for Symbol '%s' not defined in domain file."%(attr_name, name))
+
+    def get_attr_type(self, attr_name):
+        return self._attr_types[attr_name]
 
     def is_defined(self):
         return self.value is not "undefined"
