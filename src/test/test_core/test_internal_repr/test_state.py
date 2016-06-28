@@ -2,18 +2,19 @@ import unittest
 from core.internal_repr import state
 from core.internal_repr import parameter
 from core.util_classes import common_predicates
+from core.util_classes.matrix import Vector2d
 import numpy as np
 
 class TestState(unittest.TestCase):
     def setUp(self):
         attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": int, "_type": str}
+        attr_types = {"name": str, "pose": Vector2d, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
         attrs = {"name": ["target"], "pose": ["undefined"], "_type": ["Target"]}
-        attr_types = {"name": str, "pose": int, "_type": str}
+        attr_types = {"name": str, "pose": Vector2d, "_type": str}
         self.target = parameter.Object(attrs, attr_types)
         attrs = {"name": ["gp"], "value": ["undefined"], "_type": ["Sym"]}
-        attr_types = {"name": str, "value": int, "_type": str}
+        attr_types = {"name": str, "value": Vector2d, "_type": str}
         self.gp = parameter.Symbol(attrs, attr_types)
         self.at = common_predicates.At("at", [self.can, self.target], ["Can", "Target"])
         self.isgp = common_predicates.IsGP("isgp", [self.gp, self.can], ["Sym", "Can"])
