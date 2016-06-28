@@ -4,11 +4,13 @@ import numpy as np
 
 class Parameter(object):
     """
-    Parameters fall into one of two categories: Objects and Symbols. Objects are things that
-    exist in the environment with some pose, and Symbols are symbolic references.
-    To store information about the environment that's useful for planning, we often spawn a workspace
-    Object (but this is not necessary). Objects and Symbols are distinguished in the config file parsing
-    as follows: Objects have a "pose" instance attribute while Symbols have a "value" instance attribute.
+    Parameters fall into one of two categories: Objects and Symbols. Objects are
+    things that exist in the environment with some pose, and Symbols are
+    symbolic references. To store information about the environment that's
+    useful for planning, we often spawn a workspace Object (but this is not
+    necessary). Objects and Symbols are distinguished in the config file parsing
+    as follows: Objects have a "pose" instance attribute while Symbols have a
+    "value" instance attribute.
     """
     def __init__(self, *args):
         raise NotImplementedError("Must instantiate either Object or Symbol.")
@@ -24,11 +26,13 @@ class Parameter(object):
 
 class Object(Parameter):
     """
-    Objects must have at minimum a name, a type (a string), and a pose attribute (a d-by-T table, which we refer to as the
-    trajectory table), which is set to "undefined" if the object's pose is
-    not defined. The attributes for the objects are defined in the configuration files.
-    attrs is a dictionary from instance attribute name to the argument to pass into the __init__ method
-    for the class stored in the corresponding entry of attr_types. attrs must have, at minimum, the keys "name", "_type", and "pose".
+    Objects must have at minimum a name, a type (a string), and a pose attribute
+    (a d-by-T table, which we refer to as the trajectory table), which is set to
+    "undefined" if the object's pose is not defined. The attributes for the
+    objects are defined in the configuration files. attrs is a dictionary from
+    instance attribute name to the argument to pass into the __init__ method for
+    the class stored in the corresponding entry of attr_types. attrs must have,
+    at minimum, the keys "name", "_type", and "pose".
     """
     def __init__(self, attrs=None, attr_types=None):
         if attrs is not None:
@@ -58,11 +62,14 @@ class Object(Parameter):
 
 class Symbol(Parameter):
     """
-    Symbols must have at minimum a name, a type (a string), and a value attribute (a d-by-T table, which we refer to as the
-    trajectory table), which is set to "undefined" if the symbol's value is
-    not defined. The attributes for the symbols are defined in the configuration files.
-    attrs is a dictionary from instance attribute name to the arguments to pass into the __init__ method
-    for the class stored in the corresponding entry of attr_types. attrs must have, at minimum, the keys "name", "_type", and "value".
+    Symbols must have at minimum a name, a type (a string), and a value
+    attribute (a d-by-T table, which we refer to as the trajectory table), which
+    is set to "undefined" if the symbol's value is not defined. The attributes
+    for the symbols are defined in the configuration files. attrs is a
+    dictionary from instance attribute name to the arguments to pass into the
+    __init__ method for the class stored in the corresponding entry of
+    attr_types. attrs must have, at minimum, the keys "name", "_type", and 
+    "value".
     """
     def __init__(self, attrs=None, attr_types=None):
         if attrs is not None:
