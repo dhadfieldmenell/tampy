@@ -3,7 +3,7 @@ from core.internal_repr import parameter
 from core.util_classes.matrix import Vector2d
 from core.util_classes import common_predicates
 from errors_exceptions import PredicateException
-import expr
+from sco import expr
 import numpy as np
 
 ## exprs for testing

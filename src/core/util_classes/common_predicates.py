@@ -2,7 +2,7 @@ from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
 from core.util_classes.matrix import Vector2d
 from errors_exceptions import PredicateException
-from expr import AffExpr, EqExpr
+from sco.expr import AffExpr, EqExpr
 import numpy as np
 
 
