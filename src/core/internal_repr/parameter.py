@@ -40,8 +40,9 @@ class Object(Parameter):
     def __init__(self, attrs=None, attr_types=None):
         if attr_types is not None:
             self._attr_types = attr_types.copy()
+            self._attr_types['_attr_types'] = dict
         else:
-            self._attr_types = dict()
+            self._attr_types = {'attr_types': dict}
         if attrs is not None:
             assert "name" in attrs and "_type" in attrs and "pose" in attrs
             for attr_name, arg in attrs.items():
@@ -84,8 +85,9 @@ class Symbol(Parameter):
     def __init__(self, attrs=None, attr_types=None):
         if attr_types is not None:
             self._attr_types = attr_types.copy()
+            self._attr_types['_attr_types'] = dict
         else:
-            self._attr_types = dict()
+            self._attr_types = {'attr_types': dict}
         if attrs is not None:
             assert "name" in attrs and "_type" in attrs and "value" in attrs
             for attr_name, arg in attrs.items():

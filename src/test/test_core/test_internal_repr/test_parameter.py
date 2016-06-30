@@ -37,6 +37,7 @@ class TestParameter(unittest.TestCase):
         self.assertEqual(param.get_attr_type("circ"), circle.BlueCircle)
         self.assertEqual(param.get_attr_type("pose"), matrix.Vector2d)
         self.assertEqual(param.get_attr_type("_type"), str)
+        self.assertEqual(param.get_attr_type("_attr_types"), dict)
         with self.assertRaises(KeyError):
             param.get_attr_type("does not exist")
 
@@ -71,6 +72,7 @@ class TestParameter(unittest.TestCase):
         self.assertEqual(param.get_attr_type("circ"), circle.BlueCircle)
         self.assertEqual(param.get_attr_type("pose"), matrix.Vector2d)
         self.assertEqual(param.get_attr_type("_type"), str)
+        self.assertEqual(param.get_attr_type("_attr_types"), dict)
         with self.assertRaises(KeyError):
             param.get_attr_type("does not exist")
 
