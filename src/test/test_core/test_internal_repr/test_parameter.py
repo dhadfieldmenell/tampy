@@ -95,7 +95,7 @@ class TestParameter(unittest.TestCase):
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
-        self.assertTrue(np.array_equal(p2.pose, [[3, 4, 5, 0, 0, 0, 0], [6, 2, 1, 5, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0]]))
+        self.assertTrue(np.allclose(p2.pose, [[3, 4, 5, 0, np.NaN, np.NaN, np.NaN], [6, 2, 1, 5, np.NaN, np.NaN, np.NaN], [1, 1, 1, 1, np.NaN, np.NaN, np.NaN]], equal_nan=True))
         p2 = p.copy(new_horizon=2)
         self.assertTrue(np.array_equal(p2.pose, [[3, 4], [6, 2], [1, 1]]))
         attrs["pose"] = ["undefined"]
@@ -112,7 +112,7 @@ class TestParameter(unittest.TestCase):
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
-        self.assertTrue(np.array_equal(p2.value, [[3, 4, 5, 0, 0, 0, 0], [6, 2, 1, 5, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0]]))
+        self.assertTrue(np.allclose(p2.value, [[3, 4, 5, 0, np.NaN, np.NaN, np.NaN], [6, 2, 1, 5, np.NaN, np.NaN, np.NaN], [1, 1, 1, 1, np.NaN, np.NaN, np.NaN]], equal_nan=True))
         p2 = p.copy(new_horizon=2)
         self.assertTrue(np.array_equal(p2.value, [[3, 4], [6, 2], [1, 1]]))
         attrs["value"] = ["undefined"]

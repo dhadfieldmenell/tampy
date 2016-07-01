@@ -65,7 +65,8 @@ class Object(Parameter):
         new = Object()
         for k, v in self.__dict__.items():
             if k == "pose" and self.is_defined():
-                new.pose = np.zeros((v.shape[0], new_horizon))
+                new.pose = np.empty((v.shape[0], new_horizon))
+                new.pose[:] = np.NaN
                 new.pose[:v.shape[0], :v.shape[1]] = v[:v.shape[0], :min(v.shape[1], new_horizon)]
             else:
                 setattr(new, k, v)
@@ -79,7 +80,7 @@ class Symbol(Parameter):
     for the symbols are defined in the configuration files. attrs is a
     dictionary from instance attribute name to the arguments to pass into the
     __init__ method for the class stored in the corresponding entry of
-    attr_types. attrs must have, at minimum, the keys "name", "_type", and 
+    attr_types. attrs must have, at minimum, the keys "name", "_type", and
     "value".
     """
     def __init__(self, attrs=None, attr_types=None):
@@ -113,7 +114,8 @@ class Symbol(Parameter):
         new = Symbol()
         for k, v in self.__dict__.items():
             if k == "value" and self.is_defined():
-                new.value = np.zeros((v.shape[0], new_horizon))
+                new.value = np.empty((v.shape[0], new_horizon))
+                new.value[:] = np.NaN
                 new.value[:v.shape[0], :v.shape[1]] = v[:v.shape[0], :min(v.shape[1], new_horizon)]
             else:
                 setattr(new, k, v)
