@@ -30,6 +30,17 @@ class TestParameter(unittest.TestCase):
         self.assertTrue(param.is_defined())
         self.assertEqual(param.pose.shape, (2, 1))
 
+        # test get_attr_type
+        self.assertEqual(param.get_attr_type("test"), float)
+        self.assertEqual(param.get_attr_type("test2"), int)
+        self.assertEqual(param.get_attr_type("test3"), str)
+        self.assertEqual(param.get_attr_type("circ"), circle.BlueCircle)
+        self.assertEqual(param.get_attr_type("pose"), matrix.Vector2d)
+        self.assertEqual(param.get_attr_type("_type"), str)
+        self.assertEqual(param.get_attr_type("_attr_types"), dict)
+        with self.assertRaises(KeyError):
+            param.get_attr_type("does not exist")
+
     def test_symbol(self):
         attrs = {"circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "pose": [(3, 5)], "_type": ["CanSym"], "name": ["sym"]}
         attr_types = {"test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "pose": matrix.Vector2d, "_type": str, "name": str}
@@ -53,6 +64,17 @@ class TestParameter(unittest.TestCase):
         self.assertTrue(param.is_defined())
         param.value = "undefined"
         self.assertFalse(param.is_defined())
+
+        # test get_attr_type
+        self.assertEqual(param.get_attr_type("test"), float)
+        self.assertEqual(param.get_attr_type("test2"), int)
+        self.assertEqual(param.get_attr_type("test3"), str)
+        self.assertEqual(param.get_attr_type("circ"), circle.BlueCircle)
+        self.assertEqual(param.get_attr_type("pose"), matrix.Vector2d)
+        self.assertEqual(param.get_attr_type("_type"), str)
+        self.assertEqual(param.get_attr_type("_attr_types"), dict)
+        with self.assertRaises(KeyError):
+            param.get_attr_type("does not exist")
 
     def test_abstract(self):
         # cannot instantiate Parameter directly

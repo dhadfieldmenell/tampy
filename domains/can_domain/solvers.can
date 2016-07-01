@@ -1,0 +1,5 @@
+# This file defines the solvers to use for the NAMO domain. Blank lines and lines beginning with # are filtered out.
+
+HLSolver: FFSolver
+
+LLSolver: CanSolver
