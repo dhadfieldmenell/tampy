@@ -10,3 +10,7 @@ class Viewer(object):
 class GridWorldViewer(Viewer):
     def initialize_from_workspace(self, workspace):
         pass
+
+class OpenRAVEViewer(Viewer):
+    def initialize_from_workspace(self, workspace):
+        pass

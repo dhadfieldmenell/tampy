@@ -2,6 +2,7 @@ from IPython import embed as shell
 import importlib
 from core.internal_repr import parameter
 from core.util_classes import common_predicates
+from core.util_classes import pr2_predicates
 from core.internal_repr.domain import Domain
 from core.internal_repr.parameter_schema import ParameterSchema
 from core.internal_repr.predicate_schema import PredicateSchema
@@ -52,11 +53,18 @@ class ParseDomainConfig(object):
     @staticmethod
     def _create_pred_schemas(domain_config):
         pred_schemas = {}
+        # for p_defn in domain_config["Derived Predicates"].split(";"):
+        #     p_type, exp_types = map(str.strip, p_defn.split(",", 1))
+        #     if not hasattr(common_predicates, p_type):
+        #         raise PredicateException("Predicate type '%s' not defined!"%p_type)
+        #     pred_schemas[p_type] = PredicateSchema(p_type, getattr(common_predicates, p_type), [s.strip() for s in exp_types.split(",")])
         for p_defn in domain_config["Derived Predicates"].split(";"):
             p_type, exp_types = map(str.strip, p_defn.split(",", 1))
-            if not hasattr(common_predicates, p_type):
-                raise PredicateException("Predicate type '%s' not defined!"%p_type)
-            pred_schemas[p_type] = PredicateSchema(p_type, getattr(common_predicates, p_type), [s.strip() for s in exp_types.split(",")])
+            if not hasattr(pr2_predicates, p_type):
+                raise PredicateException("Predicate type '%s' not defined!" % p_type)
+            pred_schemas[p_type] = PredicateSchema(p_type, getattr(pr2_predicates, p_type),
+                                                   [s.strip() for s in exp_types.split(",")])
+
         return pred_schemas
 
     @staticmethod

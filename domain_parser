@@ -1,0 +1,78 @@
+from pyparsing import *
+target = """
+# Configuration file for can domain. Blank lines and lines beginning with # are filtered out.
+
+# implicity, all types require a name
+Types: Can, Location, RobotPose, Robot, Manip, Workspace
+
+# Define the class location of each non-standard attribute type used in the above parameter type descriptions.
+Attribute Import Paths: RedCan core.util_classes.can, BlueCan core.util_classes.can, PR2 core.util_classes.pr2.py, PR2PoseVector core.util_classes.matrix, Vector3d core.util_classes.matrix, OpenRAVEViewer core.util_classes.viewer
+
+Primitive Predicates: geom, Can, BlueCan; pose, Can, Vector3d; value, RobotPose, PR2PoseVector; geom, Robot, PR2; pose, Robot, PR2PoseVector; pose, Workspace, Vector3d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, OpenRAVEViewer
+
+Derived Predicates: At, Can, Location; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, RobotPose, Can; IsPDP, RobotPose, Location; Obstructs, Robot, RobotPose, Can
+
+# The first set of parentheses after the colon contains the parameters. The second contains preconditions and the third contains effects. This split between preconditions and effects is only used for task planning purposes. Our system treats all predicates similarly, using the numbers at the end, which specify active timesteps during which each predicate must hold.
+
+Action moveto 20: (?robot - Robot ?start - RobotPose ?end - RobotPose) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 0:19 19:19 19:19
+"""
+
+#These characters will be considered during parsing but will not appear in result
+COMMA = Suppress(",")
+SEMICOLON = Suppress(";")
+COLON = Suppress(":")
+LPAREN = Suppress("(")
+RPAREN = Suppress(")")
+HYPHEN = Suppress("-")
+
+
+# Simple words that may or may not contains numbers (e.g PR2PoseVector) and simple numbers
+word = Word(alphanums + "_")
+num = Word(nums)
+# Name before colon
+title = Group((Word("Attribute Import Paths") ^
+               Word("Primitive Predicates") ^
+               Word("Derived Predicates") ^
+               (Word("Action") + Group (word + num) )^
+               Word("Types")))
+# Comma separated List (a,b,c,d)
+typeList = Group(commaSeparatedList).setResultsName("param_schemas")
+
+path = Group(word + Group(word + OneOrMore("." + word)))
+importPath = Group(path + OneOrMore(COMMA + path))
+
+pred = Group(word + OneOrMore(COMMA + word))
+predicates = Group(pred + OneOrMore(SEMICOLON + pred))
+
+argument = "?" + word
+assign = Group(argument + HYPHEN + word)
+actParam = Group(LPAREN + OneOrMore(assign) + RPAREN)
+
+argExpr = Group(LPAREN + word + OneOrMore(argument) + RPAREN)
+
+statement = Forward()
+andState = Group(LPAREN + "and" + OneOrMore(statement) + RPAREN)
+forallState = Group(LPAREN + "forall" + LPAREN + assign + RPAREN + statement + RPAREN)
+notState = Group(LPAREN + "not" + statement + RPAREN)
+statement << (forallState | notState | andState | argExpr)
+
+horizon = Group(OneOrMore(Group(num + COLON + num)))
+
+action = Group(actParam + statement + statement + horizon)
+
+expr = title + COLON + (action | predicates| importPath | typeList)
+documentation = "#" + restOfLine
+expr = Dict(OneOrMore(Group(expr)))
+expr.ignore(documentation)
+result = expr.parseString(target)
+print(result)
+for k, v in result:
+    print k, "=", v
+#
+# pred_schemas = {}
+# for p_defn in domain_config["Derived Predicates"].split(";"):
+#     p_type, exp_types = map(str.strip, p_defn.split(",", 1))
+#     if not hasattr(common_predicates, p_type):
+#         raise PredicateException("Predicate type '%s' not defined!" % p_type)
+#     pred_schemas[p_type] = PredicateSchema(p_type, getattr(common_predicates, p_type),
+#                                            [s.strip() for s in exp_types.split(",")])

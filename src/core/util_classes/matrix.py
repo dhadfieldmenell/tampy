@@ -21,3 +21,20 @@ class Vector2d(Matrix):
         assert len(obj) == 2
         obj = obj.reshape((2, 1))
         return obj
+
+class Vector3d(Matrix):
+    """
+    The NAMO domain uses the Vector2d class to track poses of objects in the grid.
+    """
+    def __new__(cls, vec):
+        if type(vec) is str:
+            if not vec.endswith(")"):
+                vec += ")"
+            vec = eval(vec)
+        obj = np.array(vec)
+        assert len(obj) == 3
+        obj = obj.reshape((3, 1))
+        return obj
+
+class PR2PoseVector(Vector3d):
+    pass
