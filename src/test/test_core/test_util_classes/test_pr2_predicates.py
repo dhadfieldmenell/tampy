@@ -144,7 +144,7 @@ class TestCommonPredicates(unittest.TestCase):
         p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8]])
         # p2 doesn't have a value yet
         self.assertFalse(pred.test(time=400))
-        p2.pose = np.array([[3, 4, 5, 7], [6, 5, 8, 7]])
+        p2.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7]])
         self.assertTrue(pred.is_concrete())
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
