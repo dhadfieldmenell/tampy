@@ -10,7 +10,7 @@ HEIGHT = 9
 SIZE = 1
 NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
 NUM_TARGETS = 3
-GOAL = "(At can0 target1), (At can1 target0)"
+GOAL = "(At can0 location1), (At can1 location0)"
 
 def main():
     random.seed(SEED)
@@ -33,14 +33,15 @@ def main():
 
         s += "Init: "
         for i in range(NUM_TARGETS):
-            s += "(value location%d %s), "%(i, coords[i])
+            s += "(value location%d %s), "%(i, list(coords[i]))
             s += "(value pdp_target%d undefined), "%i
         for i in range(NUM_CANS):
-            s += "(geom can%d 1), (pose can%d %s), "%(i, i, coords[i])
+            s += "(geom can%d 1 2), (pose can%d %s), "%(i, i, list(coords[i]))
             s += "(value gp_can%d undefined), "%i
-        s += "(geom %s 1), (pose %s %s), "%("pr2", "pr2", coords[NUM_TARGETS])
-        s += "(value %s %s), "%("robot_init_pose", coords[NUM_TARGETS])
-        s += "(pose ws (0, 0, 0)), (l wd %d), (w wd %d), (h wd %d), (size wd %d), (viewer wd OpenRAVEViewer); "%(LENGTH, WIDTH, HEIGHT, SIZE)
+        #TODO need to specify the detail of PR2 Pose vector
+        s += "(geom %s 1), (pose %s %s), "%("pr2", "pr2", [1, 2, 3, 4, 5])
+        s += "(value %s %s), "%("robot_init_pose", [1, 2, 3, 4, 5])
+        s += "(pose ws [0, 0, 0]), (l ws %d), (w ws %d), (h ws %d), (size ws %d), (viewer ws OpenRAVEViewer); "%(LENGTH, WIDTH, HEIGHT, SIZE)
         for i in range(NUM_CANS):
             s += "(At can%d location%d), "%(i, i)
             s += "(IsGP gp_can%d can%d), "%(i, i)
