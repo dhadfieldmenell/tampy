@@ -6,7 +6,7 @@ Types: Can, Location, RobotPose, Robot, Workspace
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 Attribute Import Paths: RedCan core.util_classes.can, BlueCan core.util_classes.can, PR2 core.util_classes.pr2, PR2PoseVector core.util_classes.matrix, Vector3d core.util_classes.matrix, OpenRAVEViewer core.util_classes.viewer
 
-Primitive Predicates: geom, Can, BlueCan; pose, Can, Vector3d; value, Location, Vector3d; value, RobotPose, PR2PoseVector; geom, Robot, PR2; pose, Robot, PR2PoseVector; pose, Workspace, Vector3d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, OpenRAVEViewer
+Primitive Predicates: geom, Can, BlueCan; pose, Can, Vector3d; value, Location, Vector3d; value, RobotPose, PR2PoseVector; geom, Robot, PR2; pose, Robot, PR2PoseVector; pose, Workspace, Vector3d; l, Workspace, int; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, OpenRAVEViewer
 
 Derived Predicates: At, Can, Location; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, RobotPose, Can; IsPDP, RobotPose, Location; Obstructs, Robot, RobotPose, Can
 
