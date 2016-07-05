@@ -55,8 +55,8 @@ class TestCommonPredicates(unittest.TestCase):
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": float, "_type": str}
         p2 = parameter.Symbol(attrs, attr_types)
-        p2.value = np.array([[1, 2], [1, 2], [1, 2]], dtype=np.float64).T
-
+        # The [2,3] in p2's pose shouldn't be used.
+        p2.value = np.array([[1, 2], [2, 3]], dtype=np.float64).T
 
         ## pred is p1.pose[:1] = p2.value
         attr_inds = {"can": [("pose", np.array([0, 1], dtype=np.int))], "sym": [("value", np.array([0, 1], dtype=np.int))]}
@@ -92,7 +92,7 @@ class TestCommonPredicates(unittest.TestCase):
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": float, "_type": str}
         p2 = parameter.Symbol(attrs, attr_types)
-        p2.value = np.array([[1, 2], [1, 2], [1, 2]], dtype=np.float64).T
+        p2.value = np.array([[1, 2], [2, 3]], dtype=np.float64).T
 
 
         ## pred is p1.pose[:1] = p2.value
@@ -164,4 +164,13 @@ class TestCommonPredicates(unittest.TestCase):
             pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
         self.assertEqual(cm.exception.message, "attribute type not supported")
 
+        attrs = {"name": ["target"], "value": ["undefined"], "_type": ["Target"]}
+        attr_types = {"name": str, "value": Vector2d, "_type": str}
+        p3 = parameter.Symbol(attrs, attr_types)
+        p3.value = np.array([[3], [6]])
+
+        pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
+        self.assertTrue(pred.test(time=0))
+        self.assertFalse(pred.test(time=1))
+        
     # TODO: test other predicates

@@ -23,9 +23,10 @@ class TestHLSolver(unittest.TestCase):
         self.assertEqual(len(plan.params), 13)
         can0 = plan.params["can0"]
         arr = np.zeros((2, plan.horizon))
+        arr[:] = np.NaN
         arr[0, 0] = 3
         arr[1, 0] = 5
-        self.assertTrue(np.array_equal(can0.pose, arr))
+        self.assertTrue(np.allclose(can0.pose, arr, equal_nan=True))
         self.assertEqual(can0.get_type(), "Can")
         self.assertEqual(plan.params["gp_can0"].value, "undefined")
         # test action preds

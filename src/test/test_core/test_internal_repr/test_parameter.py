@@ -95,7 +95,7 @@ class TestParameter(unittest.TestCase):
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
-        self.assertTrue(np.array_equal(p2.pose, [[3, 4, 5, 0, 0, 0, 0], [6, 2, 1, 5, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0]]))
+        self.assertTrue(np.allclose(p2.pose, [[3, 4, 5, 0, np.NaN, np.NaN, np.NaN], [6, 2, 1, 5, np.NaN, np.NaN, np.NaN], [1, 1, 1, 1, np.NaN, np.NaN, np.NaN]], equal_nan=True))
         p2 = p.copy(new_horizon=2)
         self.assertTrue(np.array_equal(p2.pose, [[3, 4], [6, 2], [1, 1]]))
         attrs["pose"] = ["undefined"]
@@ -106,15 +106,15 @@ class TestParameter(unittest.TestCase):
         self.assertEqual(p2.pose, "undefined")
 
     def test_copy_symbol(self):
-        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": [[[3, 4, 5, 0], [6, 2, 1, 5], [1, 1, 1, 1]]], "_type": ["Can"]}
+        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": [[[3], [6], [1 ]]], "_type": ["Can"]}
         attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": np.array, "_type": str}
         p = parameter.Symbol(attrs, attr_types)
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
-        self.assertTrue(np.array_equal(p2.value, [[3, 4, 5, 0, 0, 0, 0], [6, 2, 1, 5, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0]]))
+        self.assertTrue(np.allclose(p2.value, [[3], [6], [1]]))
         p2 = p.copy(new_horizon=2)
-        self.assertTrue(np.array_equal(p2.value, [[3, 4], [6, 2], [1, 1]]))
+        self.assertTrue(np.allclose(p2.value, [[3], [6], [1]]))
         attrs["value"] = ["undefined"]
         p = parameter.Symbol(attrs, attr_types)
         p2 = p.copy(new_horizon=7)

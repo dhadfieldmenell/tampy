@@ -29,6 +29,10 @@ class LLException(TampyException):
     """ An issue with the low level solver (ll_solver) """
     pass
 
+class OpenRAVEException(TampyException):
+    """ An OpenRAVE related issue"""
+    pass
 class ImpossibleException(TampyException):
+
     """ This exception should never be raised """
     pass
