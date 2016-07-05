@@ -141,10 +141,44 @@ class TestCommonPredicates(unittest.TestCase):
         pred = pr2_predicates.At("testpred", [p1, p2], ["Can", "Location"])
         self.assertEqual(pred.get_type(), "At")
         self.assertFalse(pred.test(time=400))
-        p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8]])
-        # p2 doesn't have a value yet
+        p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8], [6, 3, 4, 2]])
+        # p2 is a symbol and doesn't have a value yet
+        self.assertRaises(PredicateException, pred.test, time = 400)
+        p2.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7], [6, 3, 4, 2]])
+        self.assertTrue(pred.is_concrete())
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=4)
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can location)'.")
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=-1)
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can location)'.")
+        self.assertTrue(pred.test(time=0))
+        self.assertTrue(pred.test(time=1))
+        self.assertFalse(pred.test(time=2))
+        self.assertFalse(pred.test(time=3))
+
+        attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
+        attr_types = {"name": str, "value": str, "_type": str}
+        p3 = parameter.Symbol(attrs, attr_types)
+        with self.assertRaises(PredicateException) as cm:
+            pred = pr2_predicates.At("testpred", [p1, p3], ["Can", "Location"])
+        self.assertEqual(cm.exception.message, "attribute type not supported")
+
+    def test_expr_robot_at(self): #TODO currently the same as test_expr_at()
+        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "pose": Vector3d, "_type": str}
+        p1 = parameter.Object(attrs, attr_types)
+        attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
+        attr_types = {"name": str, "value": Vector3d, "_type": str}
+        p2 = parameter.Symbol(attrs, attr_types)
+
+        pred = pr2_predicates.At("testpred", [p1, p2], ["Can", "Location"])
+        self.assertEqual(pred.get_type(), "At")
         self.assertFalse(pred.test(time=400))
-        p2.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7]])
+        p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8], [6, 3, 4, 2]])
+        # p2 is a symbol and doesn't have a value yet
+        self.assertRaises(PredicateException, pred.test, time=400)
+        p2.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7], [6, 3, 4, 2]])
         self.assertTrue(pred.is_concrete())
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)

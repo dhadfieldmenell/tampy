@@ -1,6 +1,6 @@
 class Can(object):
     """
-    Defines geometry used in the NAMO domain.
+    Defines geometry used in the CAN domain.
     """
     def __init__(self, radius, height):
         self.radius = float(radius)

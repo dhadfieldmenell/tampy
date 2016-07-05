@@ -24,7 +24,7 @@ class Vector2d(Matrix):
 
 class Vector3d(Matrix):
     """
-    The NAMO domain uses the Vector2d class to track poses of objects in the grid.
+    The PR2 domain uses the Vector2d class to track poses of objects in the grid.
     """
     def __new__(cls, vec):
         if type(vec) is str:
@@ -37,4 +37,14 @@ class Vector3d(Matrix):
         return obj
 
 class PR2PoseVector(Vector3d):
-    pass
+    def __new__(cls, vec):
+        if type(vec) is str:
+            if not vec.endswith(")"):
+                vec += ")"
+            vec = eval(vec)
+        obj = np.array(vec)
+        #TODO check the shape of PR2 pose vector
+        # assert len(obj) >= 3
+        dim = len(vec)
+        obj = obj.reshape((dim, 1))
+        return obj

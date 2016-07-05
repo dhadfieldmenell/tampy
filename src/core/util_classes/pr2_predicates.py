@@ -1,6 +1,6 @@
 from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
-from core.util_classes.matrix import Vector3d
+from core.util_classes.matrix import Vector3d, PR2PoseVector
 from errors_exceptions import PredicateException
 from sco.expr import AffExpr, EqExpr
 import numpy as np
@@ -94,7 +94,7 @@ class At(ExprPredicate):
                     cur_dim = getattr(p, attr).shape[0]
                 else:
                     if p.get_attr_type(attr) is Vector3d:
-                        cur_dim = 2
+                        cur_dim = 3
                     else:
                         raise PredicateException("attribute type not supported")
                 p_inds.append((attr, np.array(range(cur_dim))))
@@ -114,7 +114,41 @@ class At(ExprPredicate):
         super(At, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
 
 class RobotAt(At):
-    pass
+    def __init__(self, name, params, expected_param_types):
+        assert len(params) == 2
+        dims = -1
+        attr_inds = {}
+        for p in params:
+            p_inds = []
+            attr = None
+            if hasattr(p, "pose"):
+                attr = "pose"
+            elif hasattr(p, "value"):
+                attr = "value"
+            if attr is not None:
+                if p.is_defined():
+                    cur_dim = getattr(p, attr).shape[0]
+                else:
+                    if p.get_attr_type(attr) is PR2PoseVector:
+                        #TODO figure out the dimentionality of PR2 Pose Vector
+                        cur_dim = 5
+                    else:
+                        raise PredicateException("attribute type not supported")
+                p_inds.append((attr, np.array(range(cur_dim))))
+
+            if dims == -1:
+                dims = cur_dim
+            else:
+                assert dims == cur_dim
+            attr_inds[p.name] = p_inds
+        A = np.c_[np.eye(dims), -np.eye(dims)]
+        b = np.zeros((dims, 1))
+        val = np.zeros((dims, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        tol = DEFAULT_TOL
+
+        super(At, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
 
 class IsGP(Predicate):
     def test(self, time):
