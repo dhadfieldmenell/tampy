@@ -41,7 +41,10 @@ class ExprPredicate(Predicate):
         for p in self.params:
             for attr, ind_arr in self.attr_inds[p.name]:
                 n_vals = len(ind_arr)
-                self.x[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
+                if p.is_symbol():
+                    self.x[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
+                else:
+                    self.x[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
                 i += n_vals
         return self.x
 

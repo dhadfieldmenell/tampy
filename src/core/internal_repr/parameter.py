@@ -75,11 +75,11 @@ class Object(Parameter):
 class Symbol(Parameter):
     """
     Symbols must have at minimum a name, a type (a string), and a value
-    attribute (a d-by-T table, which we refer to as the trajectory table), which
-    is set to "undefined" if the symbol's value is not defined. The attributes
-    for the symbols are defined in the configuration files. attrs is a
-    dictionary from instance attribute name to the arguments to pass into the
-    __init__ method for the class stored in the corresponding entry of
+    attribute, which is set to "undefined" if the symbol's value is not defined.
+    Symbols are static, which means that it's value does not depend on time.
+    The attributes for the symbols are defined in the configuration files. attrs
+    is a dictionary from instance attribute name to the arguments to pass into
+    the __init__ method for the class stored in the corresponding entry of
     attr_types. attrs must have, at minimum, the keys "name", "_type", and
     "value".
     """
@@ -113,10 +113,5 @@ class Symbol(Parameter):
     def copy(self, new_horizon):
         new = Symbol()
         for k, v in self.__dict__.items():
-            if k == "value" and self.is_defined():
-                new.value = np.empty((v.shape[0], new_horizon))
-                new.value[:] = np.NaN
-                new.value[:v.shape[0], :v.shape[1]] = v[:v.shape[0], :min(v.shape[1], new_horizon)]
-            else:
-                setattr(new, k, v)
+            setattr(new, k, v)
         return new
