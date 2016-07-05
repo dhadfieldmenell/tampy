@@ -16,6 +16,7 @@ class ParseDomainConfig(object):
     """
     @staticmethod
     def parse(domain_config):
+
         return Domain(ParseDomainConfig._create_param_schemas(domain_config),
                       ParseDomainConfig._create_pred_schemas(domain_config),
                       ParseDomainConfig._create_action_schemas(domain_config))
@@ -29,6 +30,7 @@ class ParseDomainConfig(object):
             attr_paths = {}
         for k, v in attr_paths.items():
             attr_paths[k] = importlib.import_module(v)
+
         param_schemas = {}
         for t in map(str.strip, domain_config["Types"].split(",")):
             param_schemas[t] = {"_type" : eval("str"), "name" : eval("str")} # name added by default
@@ -52,6 +54,11 @@ class ParseDomainConfig(object):
 
     @staticmethod
     def _create_pred_schemas(domain_config):
+        try:
+            pred_path = importlib.import_module(domain_config["Predicates Import Path"])
+        except KeyError:
+            pred_path = common_predicates
+
         pred_schemas = {}
         # for p_defn in domain_config["Derived Predicates"].split(";"):
         #     p_type, exp_types = map(str.strip, p_defn.split(",", 1))
@@ -60,9 +67,9 @@ class ParseDomainConfig(object):
         #     pred_schemas[p_type] = PredicateSchema(p_type, getattr(common_predicates, p_type), [s.strip() for s in exp_types.split(",")])
         for p_defn in domain_config["Derived Predicates"].split(";"):
             p_type, exp_types = map(str.strip, p_defn.split(",", 1))
-            if not hasattr(pr2_predicates, p_type):
+            if not hasattr(pred_path, p_type):
                 raise PredicateException("Predicate type '%s' not defined!" % p_type)
-            pred_schemas[p_type] = PredicateSchema(p_type, getattr(pr2_predicates, p_type),
+            pred_schemas[p_type] = PredicateSchema(p_type, getattr(pred_path, p_type),
                                                    [s.strip() for s in exp_types.split(",")])
 
         return pred_schemas
