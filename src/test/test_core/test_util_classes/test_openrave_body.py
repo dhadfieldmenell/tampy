@@ -13,6 +13,13 @@ class DummyGeom(object):
     pass
 
 class TestOpenRAVEBody(unittest.TestCase):
+    def test_2D_base_pose_mat_trans(self):
+        for i in range(N):
+            pose = np.random.rand(2)
+            mat = OpenRAVEBody.base_pose_2D_to_mat(pose)
+            pose2 = OpenRAVEBody.mat_to_base_pose_2D(mat)
+            self.assertTrue(np.allclose(pose, pose2))
+
     def test_base_pose_mat_trans(self):
         for i in range(N):
             pose = np.random.rand(3)
@@ -49,11 +56,11 @@ class TestOpenRAVEBody(unittest.TestCase):
         green_body = OpenRAVEBody(env, "can0", green_can.geom)
         blue_body = OpenRAVEBody(env, "can1", blue_can.geom)
 
-        green_body.set_pose([2,0,0])
+        green_body.set_pose([2,0])
         arr = np.eye(4)
         arr[0,3] = 2
-        self.assertTrue(np.allclose(green_body._env_body.GetTransform(), arr))
-        blue_body.set_pose(np.array([0,-1,0]))
+        self.assertTrue(np.allclose(green_body.env_body.GetTransform(), arr))
+        blue_body.set_pose(np.array([0,-1]))
         arr = np.eye(4)
         arr[1,3] = -1
-        self.assertTrue(np.allclose(blue_body._env_body.GetTransform(), arr))
+        self.assertTrue(np.allclose(blue_body.env_body.GetTransform(), arr))

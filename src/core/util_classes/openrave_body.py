@@ -24,14 +24,14 @@ class OpenRAVEBody(object):
             color = [0, 1, 0]
         elif isinstance(geom, RedCircle):
             color = [1, 0, 0]
-        self._env_body = self.create_cylinder(self._env, self.name, np.eye(4),
+        self.env_body = self.create_cylinder(self._env, self.name, np.eye(4),
                 [geom.radius, 2], color)
-        self._env.AddRobot(self._env_body)
+        self._env.AddRobot(self.env_body)
 
     def set_pose(self, x):
         if isinstance(self._geom, Circle):
-            trans = OpenRAVEBody.base_pose_to_mat(x)
-            self._env_body.SetTransform(trans)
+            trans = OpenRAVEBody.base_pose_2D_to_mat(x)
+            self.env_body.SetTransform(trans)
 
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
@@ -50,8 +50,29 @@ class OpenRAVEBody(object):
         return cylinder
 
     @staticmethod
+    def base_pose_2D_to_mat(pose):
+        # x, y = pose
+        assert len(pose) == 2
+        x = pose[0]
+        y = pose[1]
+        rot = 0
+        q = quatFromAxisAngle((0, 0, rot)).tolist()
+        pos = [x, y, 0]
+        # pos = np.vstack((x,y,np.zeros(1)))
+        matrix = matrixFromPose(q + pos)
+        return matrix
+
+    @staticmethod
+    def mat_to_base_pose_2D(mat):
+        pose = poseFromMatrix(mat)
+        x = pose[4]
+        y = pose[5]
+        return np.array([x,y])
+
+    @staticmethod
     def base_pose_to_mat(pose):
         # x, y, rot = pose
+        assert len(pose) == 3
         x = pose[0]
         y = pose[1]
         rot = pose[2]
