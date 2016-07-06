@@ -1,8 +1,10 @@
 import numpy as np
 from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
-axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot
+axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
+RaveCreateKinBody, TriMesh
 from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
+from core.util_classes.obstacle import Obstacle
 
 
 class OpenRAVEBody(object):
@@ -12,6 +14,8 @@ class OpenRAVEBody(object):
         self._geom = geom
         if isinstance(geom, Circle):
             self._add_circle(geom)
+        elif isinstance(geom, Obstacle):
+            self._add_obstacle()
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
 
@@ -28,10 +32,36 @@ class OpenRAVEBody(object):
                 [geom.radius, 2], color)
         self._env.AddRobot(self.env_body)
 
+    def _add_obstacle(self):
+        obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
+                        -0.806451612903226,-1.07017543859649, 1;\
+                        1.01843317972350,-0.988304093567252, 1;\
+                        0.640552995391705,0.906432748538011, 1;\
+                        -0.576036866359447, 0.918128654970760, -1;\
+                        -0.806451612903226,-1.07017543859649, -1;\
+                        1.01843317972350,-0.988304093567252, -1;\
+                        0.640552995391705,0.906432748538011, -1')
+
+        body = RaveCreateKinBody(self._env, '')
+        vertices = np.array(obstacles)
+        indices = np.array([[0, 1, 2], [2, 3, 0], [4, 5, 6], [6, 7, 4], [0, 4, 5],
+                            [0, 1, 5], [1, 2, 5], [5, 6, 2], [2, 3, 6], [6, 7, 3],
+                            [0, 3, 7], [0, 4, 7]])
+        body.InitFromTrimesh(trimesh=TriMesh(vertices, indices), draw=True)
+        body.SetName(self.name)
+        for link in body.GetLinks():
+            for geom in link.GetGeometries():
+                geom.SetDiffuseColor((.9, .9, .9))
+        self.env_body = body
+        self._env.AddKinBody(body)
+
     def set_pose(self, x):
+        trans = None
         if isinstance(self._geom, Circle):
             trans = OpenRAVEBody.base_pose_2D_to_mat(x)
-            self.env_body.SetTransform(trans)
+        elif isinstance(self._geom, Obstacle):
+            trans = OpenRAVEBody.base_pose_2D_to_mat(x)
+        self.env_body.SetTransform(trans)
 
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):

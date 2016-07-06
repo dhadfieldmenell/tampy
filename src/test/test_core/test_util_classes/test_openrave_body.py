@@ -3,7 +3,8 @@ import unittest
 from openravepy import Environment
 from core.internal_repr import parameter
 from core.util_classes import circle
-from core.util_classes import matrix
+from core.util_classes.matrix import Vector2d
+from core.util_classes.obstacle import Obstacle
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import OpenRAVEException
 
@@ -30,7 +31,7 @@ class TestOpenRAVEBody(unittest.TestCase):
     def test_exception(self):
         env = Environment()
         attrs = {"geom": [], "pose": [(3, 5)], "_type": ["Can"], "name": ["can0"]}
-        attr_types = {"geom": DummyGeom, "pose": matrix.Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": DummyGeom, "pose": Vector2d, "_type": str, "name": str}
         green_can = parameter.Object(attrs, attr_types)
         with self.assertRaises(OpenRAVEException) as cm:
             green_body = OpenRAVEBody(env, "can0", green_can.geom)
@@ -39,11 +40,11 @@ class TestOpenRAVEBody(unittest.TestCase):
 
     def test_add_circle(self):
         attrs = {"geom": [1], "pose": [(3, 5)], "_type": ["Can"], "name": ["can0"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": matrix.Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         green_can = parameter.Object(attrs, attr_types)
 
         attrs = {"geom": [1], "pose": [(3, 5)], "_type": ["Can"], "name": ["can0"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": matrix.Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         blue_can = parameter.Object(attrs, attr_types)
 
         env = Environment()
@@ -64,3 +65,21 @@ class TestOpenRAVEBody(unittest.TestCase):
         arr = np.eye(4)
         arr[1,3] = -1
         self.assertTrue(np.allclose(blue_body.env_body.GetTransform(), arr))
+
+    def test_add_obstacle(self):
+        attrs = {"geom": [], "pose": [(3, 5)], "_type": ["Obstacle"], "name": ["obstacle"]}
+        attr_types = {"geom": Obstacle, "pose": Vector2d, "_type": str, "name": str}
+        obstacle = parameter.Object(attrs, attr_types)
+
+        env = Environment()
+        """
+        to ensure the _add_obstacle is working, uncomment the line below to make
+        sure the obstacle is being created
+        """
+        # env.SetViewer('qtcoin')
+
+        obstacle_body = OpenRAVEBody(env, obstacle.name, obstacle.geom)
+        obstacle_body.set_pose([2,0])
+        arr = np.eye(4)
+        arr[0,3] = 2
+        self.assertTrue(np.allclose(obstacle_body.env_body.GetTransform(), arr))
