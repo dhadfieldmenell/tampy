@@ -20,7 +20,7 @@ class OpenRAVEViewer(Viewer):
     def __init__(self):
         self.env = Environment()
         self.env.SetViewer('qtcoin')
-        self.param_to_rave_body = {}
+        self.name_to_rave_body = {}
 
     def initialize_from_workspace(self, workspace):
         pass
@@ -33,10 +33,7 @@ class OpenRAVEViewer(Viewer):
         t       : timestep of the trajectory
         """
         for obj in objList:
-            assert isinstance(obj, Object)
-            if obj not in self.param_to_rave_body:
-                self.param_to_rave_body[obj] = OpenRAVEBody(self.env, obj.name, obj.geom)
-            self.param_to_rave_body[obj].set_pose(obj.pose[:, t])
+            self._draw_rave_body(obj, obj.name, t)
 
     def draw_traj(self, objList, t_range):
         """
@@ -47,5 +44,11 @@ class OpenRAVEViewer(Viewer):
         """
         for t in t_range:
             for obj in objList:
-                rave_body = OpenRAVEBody(self.env, "{0}-{1}".format(obj.name, t), obj.geom)
-                rave_body.set_pose(obj.pose[:, t])
+                name = "{0}-{1}".format(obj.name, t)
+                self._draw_rave_body(obj, name, t)
+
+    def _draw_rave_body(self, obj, name, t):
+        assert isinstance(obj, Object)
+        if name not in self.name_to_rave_body:
+            self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
+        self.name_to_rave_body[name].set_pose(obj.pose[:, t])
