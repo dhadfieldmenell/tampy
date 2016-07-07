@@ -1,6 +1,6 @@
 import unittest
 from core.internal_repr import parameter
-from core.util_classes.matrix import Vector3d
+from core.util_classes.matrix import Vector3d, PR2PoseVector
 from core.util_classes import pr2_predicates
 from errors_exceptions import PredicateException
 from sco import expr
@@ -10,125 +10,7 @@ import numpy as np
 e1 = expr.Expr(lambda x: np.array([x]))
 e2 = expr.Expr(lambda x: np.power(x, 2))
 
-class TestCommonPredicates(unittest.TestCase):
-
-    def test_expr_pred(self):
-        ## test initialization: x_dim computed correctly
-        ## test
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": int, "_type": str}
-        p1 = parameter.Object(attrs, attr_types)
-        p1.pose = np.array([[1, 2, 3], [2, 3, 1], [3, 1, 2]])
-        attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
-        attr_types = {"name": str, "value": int, "_type": str}
-        p2 = parameter.Symbol(attrs, attr_types)
-        p2.value = np.array([2, 2, 2])
-
-        ## ExprPred Construction
-        attr_inds = {"can": [("pose", np.array([0], dtype=np.int))], "sym": []}## sym not used
-        e = expr.EqExpr(e1, np.array([2]))
-        pred = pr2_predicates.ExprPredicate("expr_pred", e, attr_inds, 1e-6, [p1, p2], ["Can", "Sym"])
-
-        ## get_param_vector
-        self.assertEqual(pred.x_dim, 1)
-        self.assertTrue(np.allclose(pred.get_param_vector(0), [1]))
-        self.assertTrue(np.allclose(pred.get_param_vector(1), [2]))
-        self.assertTrue(np.allclose(pred.get_param_vector(2), [3]))
-
-        ## unpacking
-        unpacked = pred.unpack([10])
-        self.assertTrue("can" in unpacked)
-        self.assertTrue("sym" in unpacked)
-        self.assertEqual(len(unpacked["can"]), 1)
-        self.assertEqual(len(unpacked["sym"]), 0)
-        self.assertEqual(("pose", [10]), unpacked["can"][0])
-
-    def test_expr_pred_eq(self):
-        ## test (multiple tols)
-        ## grad
-        tols = [1e-8, 1e-4, 1e-2]
-
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": float, "_type": str}
-        p1 = parameter.Object(attrs, attr_types)
-        p1.pose = np.array([[1, 2, 3], [1 + tols[0], 2 + tols[0], 3], [1 + tols[1], 2 + tols[1], 3]]).T
-        attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
-        attr_types = {"name": str, "value": float, "_type": str}
-        p2 = parameter.Symbol(attrs, attr_types)
-        p2.value = np.array([[1, 2], [1, 2], [1, 2]], dtype=np.float64).T
-
-
-        ## pred is p1.pose[:1] = p2.value
-        attr_inds = {"can": [("pose", np.array([0, 1], dtype=np.int))], "sym": [("value", np.array([0, 1], dtype=np.int))]}
-        A = np.array([[1, 1, -1, -1]])
-        b = np.array([0])
-
-        aff_e = expr.AffExpr(A, b)
-        e = expr.EqExpr(aff_e, np.array([[0.]]))
-        pred0 = pr2_predicates.ExprPredicate("eq_expr_pred", e, attr_inds, tols[0], [p1, p2], ["Can", "Sym"])
-        self.assertTrue(pred0.test(0))
-        self.assertFalse(pred0.test(1))
-        self.assertFalse(pred0.test(2))
-
-        pred1 = pr2_predicates.ExprPredicate("eq_expr_pred", e, attr_inds, tols[1], [p1, p2], ["Can", "Sym"])
-        self.assertTrue(pred1.test(0))
-        self.assertTrue(pred1.test(1))
-        self.assertFalse(pred1.test(2))
-
-        pred2 = pr2_predicates.ExprPredicate("eq_expr_pred", e, attr_inds, tols[2], [p1, p2], ["Can", "Sym"])
-        self.assertTrue(pred2.test(0))
-        self.assertTrue(pred2.test(1))
-        self.assertTrue(pred2.test(2))
-
-    def test_expr_pred_leq(self):
-        ## test (multiple tols)
-        ## grad
-        tols = [1e-8, 1e-4, 1e-2]
-
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": float, "_type": str}
-        p1 = parameter.Object(attrs, attr_types)
-        p1.pose = np.array([[1, 2, 3], [1 + tols[0], 2 + tols[0], 3], [1 + tols[1], 2 + tols[1], 3]]).T
-        attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
-        attr_types = {"name": str, "value": float, "_type": str}
-        p2 = parameter.Symbol(attrs, attr_types)
-        p2.value = np.array([[1, 2], [1, 2], [1, 2]], dtype=np.float64).T
-
-
-        ## pred is p1.pose[:1] = p2.value
-        attr_inds = {"can": [("pose", np.array([0, 1], dtype=np.int))], "sym": [("value", np.array([0, 1], dtype=np.int))]}
-        A = np.array([[1, 1, -1, -1]])
-        b = np.array([0])
-
-        aff_e = expr.AffExpr(A, b)
-        e = expr.LEqExpr(aff_e, np.array([[0.]]))
-        pred0 = pr2_predicates.ExprPredicate("leq_pred", e, attr_inds, tols[0], [p1, p2], ["Can", "Sym"])
-        self.assertTrue(pred0.test(0))
-        self.assertFalse(pred0.test(1))
-        self.assertFalse(pred0.test(2))
-
-        pred1 = pr2_predicates.ExprPredicate("leq_pred", e, attr_inds, tols[1], [p1, p2], ["Can", "Sym"])
-        self.assertTrue(pred1.test(0))
-        self.assertTrue(pred1.test(1))
-        self.assertFalse(pred1.test(2))
-
-        pred2 = pr2_predicates.ExprPredicate("leq_pred", e, attr_inds, tols[2], [p1, p2], ["Can", "Sym"])
-        self.assertTrue(pred2.test(0))
-        self.assertTrue(pred2.test(1))
-        self.assertTrue(pred2.test(2))
-
-        ## its LEq, so increasing value for sym should make everything work
-        p2.value += 5
-        self.assertTrue(pred0.test(0))
-        self.assertTrue(pred0.test(1))
-        self.assertTrue(pred0.test(2))
-        self.assertTrue(pred1.test(0))
-        self.assertTrue(pred1.test(1))
-        self.assertTrue(pred1.test(2))
-        self.assertTrue(pred2.test(0))
-        self.assertTrue(pred2.test(1))
-        self.assertTrue(pred2.test(2))
-
+class TestPR2Predicates(unittest.TestCase):
 
     def test_expr_at(self):
         attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
@@ -164,38 +46,78 @@ class TestCommonPredicates(unittest.TestCase):
             pred = pr2_predicates.At("testpred", [p1, p3], ["Can", "Location"])
         self.assertEqual(cm.exception.message, "attribute type not supported")
 
-    def test_expr_robot_at(self): #TODO currently the same as test_expr_at()
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": Vector3d, "_type": str}
+
+    def test_expr_robot_at(self):
+        attrs = {"name": ["pr2"], "pose": ["undefined"], "_type": ["Robot"]}
+        attr_types = {"name": str, "pose": PR2PoseVector, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
-        attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
-        attr_types = {"name": str, "value": Vector3d, "_type": str}
+        attrs = {"name": ["funnyPose"], "value": ["undefined"], "_type": ["RobotPose"]}
+        attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
         p2 = parameter.Symbol(attrs, attr_types)
 
-        pred = pr2_predicates.At("testpred", [p1, p2], ["Can", "Location"])
-        self.assertEqual(pred.get_type(), "At")
+        pred = pr2_predicates.RobotAt("testRobotAt", [p1, p2], ["Robot", "RobotPose"])
+        self.assertEqual(pred.get_type(), "RobotAt")
         self.assertFalse(pred.test(time=400))
-        p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8], [6, 3, 4, 2]])
+        p1.pose = np.array([[3, 4, 5, 6],
+                            [6, 5, 7, 8],
+                            [6, 3, 4, 2],
+                            [7, 2, 4, 5],
+                            [1, 4, 9, 4]])
         # p2 is a symbol and doesn't have a value yet
         self.assertRaises(PredicateException, pred.test, time=400)
-        p2.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7], [6, 3, 4, 2]])
+        p2.value = np.array([[3, 4, 5, 6],
+                            [6, 5, 7, 1],
+                            [6, 3, 9, 2],
+                            [7, 2, 4, 5],
+                            [1, 4, 9, 4]])
         self.assertTrue(pred.is_concrete())
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can location)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 funnyPose)'.")
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=-1)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can location)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 funnyPose)'.")
         self.assertTrue(pred.test(time=0))
         self.assertTrue(pred.test(time=1))
         self.assertFalse(pred.test(time=2))
         self.assertFalse(pred.test(time=3))
 
-        attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
+        attrs = {"name": ["loc"], "value": ["undefined"], "_type": ["Location"]}
         attr_types = {"name": str, "value": str, "_type": str}
         p3 = parameter.Symbol(attrs, attr_types)
         with self.assertRaises(PredicateException) as cm:
-            pred = pr2_predicates.At("testpred", [p1, p3], ["Can", "Location"])
+            pred = pr2_predicates.At("testpred", [p1, p3], ["Robot", "Location"])
         self.assertEqual(cm.exception.message, "attribute type not supported")
+
+    def test_expr_is_gp(self):
+        attrs = {"name": ["rPose"], "value": ["undefined"], "_type": ["RobotPose"]}
+        attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
+        rPose = parameter.Symbol(attrs, attr_types)
+
+        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "pose": Vector3d, "_type": str}
+        can = parameter.Object(attrs, attr_types)
+
+        pred = pr2_predicates.IsGP("testgp", [rPose, can], ["RobotPose", "Can"])
+        self.assertEqual(pred.get_type(), "IsGP")
+        self.assertFalse(pred.test(time=400))
+
+        rPose.value = np.array([[3, 4, 5],
+                                [2, 5, 7],
+                                [6, 3, 4]])
+        self.assertFalse(pred.test(time=400))
+        can.pose = np.array([[1, 2, 5],
+                             [2, 4, 3],
+                             [5, 3, 4]])
+        self.assertTrue(pred.test(time=0))
+
+    def test_expr_is_pdp(self):
+        pass
+
+
+
+    def test_expr_is_in_gripper(self):
+        pass
+
 
     # TODO: test other predicates
