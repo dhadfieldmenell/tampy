@@ -2,9 +2,14 @@ import unittest
 from core.internal_repr import parameter
 from core.util_classes.matrix import Vector2d
 from core.util_classes import common_predicates
+from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes import circle
 from errors_exceptions import PredicateException
 from sco import expr
 import numpy as np
+from openravepy import Environment
+
+N = 10
 
 ## exprs for testing
 e1 = expr.Expr(lambda x: np.array([x]))
@@ -172,5 +177,42 @@ class TestCommonPredicates(unittest.TestCase):
         pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
         self.assertTrue(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
-        
+
+    def test_not_obstructs(self):
+        radius = 1
+        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can0"]}
+        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        green_can = parameter.Object(attrs, attr_types)
+
+        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        blue_can = parameter.Object(attrs, attr_types)
+
+        pred = common_predicates.NotObstructs("obstructs", [green_can, blue_can], ["Can", "Can"])
+        val, jac = pred.f(np.array([1.9,0,0,0]))
+        self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
+        jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
+        self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
+
+        green_can.pose = np.zeros((2,4))
+        blue_can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
+                                  [0, 2*(radius+pred.dsafe), 0, 0]])
+        self.assertTrue(pred.test(time=0))
+        self.assertTrue(pred.test(time=1))
+        self.assertFalse(pred.test(time=2))
+        self.assertFalse(pred.test(time=3))
+
+        """
+        test below for checking gradient doesn't work well because the normal
+        returned by the collision can be off by quite a bit
+        """
+        # le_expr = pred.expr
+        # col_expr = le_expr.expr
+        # for i in range(N):
+        #     x = np.random.rand(4)
+        #     print x[0:2] - x[2:4]
+        #     print "x: ", x
+        #     col_expr.grad(x, num_check=True, atol=1e-1)
+
+
     # TODO: test other predicates
