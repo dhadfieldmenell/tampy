@@ -2,6 +2,7 @@ from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
 from core.util_classes.matrix import Vector3d, PR2PoseVector
 from errors_exceptions import PredicateException
+from core.util_classes.pr2 import PR2
 from sco.expr import AffExpr, EqExpr
 import numpy as np
 
@@ -89,14 +90,15 @@ class At(ExprPredicate):
                 attr = "pose"
             elif hasattr(p, "value"):
                 attr = "value"
+
             if attr is not None:
+                if p.get_attr_type(attr) is not Vector3d:
+                    raise PredicateException("attribute type not supported")
+
                 if p.is_defined():
                     cur_dim = getattr(p, attr).shape[0]
                 else:
-                    if p.get_attr_type(attr) is Vector3d:
-                        cur_dim = 3
-                    else:
-                        raise PredicateException("attribute type not supported")
+                    cur_dim = 3
                 p_inds.append((attr, np.array(range(cur_dim))))
 
             if dims == -1:
@@ -104,6 +106,7 @@ class At(ExprPredicate):
             else:
                 assert dims == cur_dim
             attr_inds[p.name] = p_inds
+
         A = np.c_[np.eye(dims), -np.eye(dims)]
         b = np.zeros((dims, 1))
         val = np.zeros((dims, 1))
@@ -112,6 +115,7 @@ class At(ExprPredicate):
         tol=DEFAULT_TOL
 
         super(At, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
+
 
 class RobotAt(At):
     def __init__(self, name, params, expected_param_types):
@@ -125,15 +129,14 @@ class RobotAt(At):
                 attr = "pose"
             elif hasattr(p, "value"):
                 attr = "value"
+
             if attr is not None:
+                if p.get_attr_type(attr) is not PR2PoseVector:
+                    raise PredicateException("attribute type not supported")
                 if p.is_defined():
                     cur_dim = getattr(p, attr).shape[0]
                 else:
-                    if p.get_attr_type(attr) is PR2PoseVector:
-                        #TODO figure out the dimentionality of PR2 Pose Vector
-                        cur_dim = 5
-                    else:
-                        raise PredicateException("attribute type not supported")
+                    cur_dim = 5
                 p_inds.append((attr, np.array(range(cur_dim))))
 
             if dims == -1:
@@ -141,6 +144,7 @@ class RobotAt(At):
             else:
                 assert dims == cur_dim
             attr_inds[p.name] = p_inds
+
         A = np.c_[np.eye(dims), -np.eye(dims)]
         b = np.zeros((dims, 1))
         val = np.zeros((dims, 1))
@@ -150,17 +154,71 @@ class RobotAt(At):
 
         super(At, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
 
+
 class IsGP(Predicate):
+    def __init__(self, name, params, expected_param_types):
+        # IsGP, RobotPose, Can
+        assert len(params) == 2
+        for p in params:
+            attr = None
+            if hasattr(p, "pose"):
+                attr = "pose"
+            elif hasattr(p, "value"):
+                attr = "value"
+            if attr is not None:
+                type = p.get_attr_type(attr)
+                if type is not PR2PoseVector and type is not Vector3d:
+                    raise PredicateException("attribute type not supported")
+            else:
+                raise PredicateException("attribute type not supported")
+        super(IsGP, self).__init__(name, params, expected_param_types)
+
+
+
     def test(self, time):
+        if not self.is_concrete():
+            return False
+        #TODO how to check whether this predicate is true?
         return True
+
 
 class IsPDP(Predicate):
-    def test(self, time):
-        return True
+    def __init__(self, name, params, expected_param_types):
+        # IsPDP, RobotPose, Location (Both params are symbol)
+        assert len(params) == 2
+        for p in params:
+            attr = None
+            if hasattr(p, "value"):
+                attr = "value"
+            if attr is not None:
+                type = p.get_attr_type(attr)
+                if type is not PR2PoseVector and type is not Vector3d:
+                    raise PredicateException("attribute type not supported")
+            else:
+                raise PredicateException("attribute type not supported")
+        super(IsPDP, self).__init__(name, params, expected_param_types)
+
 
 class InGripper(Predicate):
+    def __init__(self, name, params, expected_param_types):
+        # InGripper, Can
+        assert len(params) == 1
+        for p in params:
+            attr = None
+            if hasattr(p, "pose"):
+                attr = "pose"
+            if attr is not None:
+                type = p.get_attr_type(attr)
+                if type is Vector3d:
+                    raise PredicateException("attribute type not supported")
+            else:
+                raise PredicateException("attribute type not supported")
+        super(InGripper, self).__init__(name, params, expected_param_types)
+
 
     def test(self, time):
+        if not self.is_concrete():
+            return False
         # TODO
         return False
 
