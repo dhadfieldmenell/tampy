@@ -214,5 +214,27 @@ class TestCommonPredicates(unittest.TestCase):
         #     print "x: ", x
         #     col_expr.grad(x, num_check=True, atol=1e-1)
 
+def test_is_gp(self):
+    radius = 1
 
-    # TODO: test other predicates
+    attrs = {"geom": [radius], "pose": [(2, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
+    attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+    robotPose = parameter.Symbol(attrs, attr_types)
+
+
+    attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
+    attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+    blue_can = parameter.Object(attrs, attr_types)
+
+    attrs = {"geom": [radius], "pose": [(1, 0)], "_type": ["Can"], "name": ["can2"]}
+    attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+    blue_can2 = parameter.Object(attrs, attr_types)
+
+    pred1 = common_predicates.IsGP("is_gp", [robotPose, blue_can], ["RobotPose", "Can"])
+    pred2 = common_predicates.IsGP("is_gp", [robotPose, blue_can2], ["RobotPose", "Can"])
+    
+    self.assertTrue(pred1.test(time=0))
+    self.assertFalse(pred2.test(time=0))
+
+if __name__ is "__main__":
+    unittest.main()

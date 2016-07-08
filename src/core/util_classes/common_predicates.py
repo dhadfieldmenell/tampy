@@ -121,13 +121,66 @@ class At(ExprPredicate):
 class RobotAt(At):
     pass
 
-class IsGP(Predicate):
-    def test(self, time):
-        return True
+class IsGP(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, debug=False):
+        #IsGP, RobotPose, Can
+        assert len(params) == 2
+        self._env = Environment()
+        self._cc = ctrajoptpy.GetCollisionChecker(self._env)
+
+        self._debug = debug
+        if self._debug:
+            self._env.SetViewer("qtcoin")
+
+        self._params = params
+        self._param_to_body = {}
+        self.gp = 0.05
+
+        attr_inds = {}
+        for p in params:
+            if hasattr(p, "value"):
+                attr_inds[p.name] = [("value", np.array([0, 1], dtype=np.int))]
+            elif hasattr(p, "pose"):
+                attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
+                self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
+            else:
+                raise PredicateException("attribute type not supported")
+            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
+
+        h = lambda x: self.distance_from_obj(x)[0]
+
+        col_expr = Expr(h)
+        val = np.zeros((1, 1))
+        e = EqExpr(col_expr, val)
+        tol = DEFAULT_TOL
+        super(IsGP, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
+
+    def distance_from_obj(self, x):
+        p0 = self._params[0]
+        p1 = self._params[1]
+        b0 = self._param_to_body[p0]
+        b1 = self._param_to_body[p1]
+        pose0 = x[0:2]
+        pose1 = x[2:4]
+        b0.set_pose(pose0)
+        b1.set_pose(pose1)
+
+        collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
+
+        distance = collisions.GetDistance()
+        normal = collisions.GetNormal()
+
+        col_val = self.dsafe - distance
+        jac0 = -1 * normal[0:2]
+        jac1 = normal[0:2]
+
+        val = np.array([col_val])
+        jac = np.r_[jac0, jac1].reshape((1, 4))
+        return val, jac
+
 
 class IsPDP(Predicate):
-    def test(self, time):
-        return True
+    pass
 
 class InGripper(Predicate):
     def test(self, time):
