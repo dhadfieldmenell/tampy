@@ -39,6 +39,12 @@ class ExprPredicate(Predicate):
                          for (_, active_inds) in p_attrs)
         self.x = np.zeros(self.x_dim)
 
+    def get_expr(self, negated):
+        if negated:
+            return None
+        else:
+            return self.expr
+
     def get_param_vector(self, t):
         i = 0
         for p in self.params:

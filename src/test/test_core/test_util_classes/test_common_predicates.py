@@ -34,6 +34,9 @@ class TestCommonPredicates(unittest.TestCase):
         e = expr.EqExpr(e1, np.array([2]))
         pred = common_predicates.ExprPredicate("expr_pred", e, attr_inds, 1e-6, [p1, p2], ["Can", "Sym"])
 
+        self.assertTrue(pred.get_expr(True) is None)
+        self.assertTrue(pred.get_expr(False) == e)
+
         ## get_param_vector
         self.assertEqual(pred.x_dim, 1)
         self.assertTrue(np.allclose(pred.get_param_vector(0), [1]))
