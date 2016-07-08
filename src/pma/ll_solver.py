@@ -1,6 +1,6 @@
 from sco.prob import Prob
 from sco.variable import Variable
-from sco.expr import BoundExpr
+from sco.expr import BoundExpr, QuadExpr
 from sco.solver import Solver
 
 from core.util_classes import common_predicates
@@ -104,14 +104,21 @@ class LLParam(object):
 class NAMOSolver(LLSolver):
     def solve(self, plan):
         model = grb.Model()
+        model.params.OutputFlag = 0
         self._prob = Prob(model)
 
         self._spawn_parameter_to_ll_mapping(model, plan)
         model.update()
         self._add_actions_to_sco_prob(plan)
+        self._add_obj(plan)
 
         solv = Solver()
-        solv.solve(prob, method='penalty_sqp')
+        solv.solve(self._prob, method='penalty_sqp')
+        self._update_ll_params()
+
+    def _update_ll_params(self):
+        for ll_param in self._param_to_ll.values():
+            ll_param.update_param()
 
     def _spawn_parameter_to_ll_mapping(self, model, plan):
         horizon = plan.horizon
@@ -124,10 +131,29 @@ class NAMOSolver(LLSolver):
         for ll_param in self._param_to_ll.values():
             ll_param.batch_add_cnts()
 
+    def _add_obj(self, plan):
+        for param in plan.params.values():
+            if param._type == 'Robot':
+                T = plan.horizon
+                K = 2
+                pose = param.pose
+                assert (K, T) == pose.shape
+                KT = K*T
+                v = -1 * np.ones((KT - K, 1))
+                d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+                # [:,0] allows numpy to see v and d as one-dimensional so
+                # that numpy will create a diagonal matrix with v and d as a diagonal
+                P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+                Q = np.dot(np.transpose(P), P)
+
+                quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
+                robot_ll = self._param_to_ll[param]
+                robot_ll_grb_vars = robot_ll.pose.reshape((KT, 1), order='F')
+                bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars))
+                self._prob.add_obj_expr(bexpr)
+
     def _add_actions_to_sco_prob(self, plan):
         for action in plan.actions:
-            # TODO: add action's cost function to the optimization problem
-
             for pred_dict in action.preds:
                 self._add_pred_to_sco_prob(pred_dict)
 

@@ -9,6 +9,23 @@ from sco.prob import Prob
 from sco.solver import Solver
 from sco.variable import Variable
 from sco import expr
+from core.util_classes.viewer import OpenRAVEViewer
+import time
+
+d_c = {'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) \
+            (and (RobotAt ?robot ?start)\
+                (forall (?obj - Obstacle) (not (Obstructs ?robot ?start ?obj)))\
+            ) \
+            (and (not (RobotAt ?robot ?start)) \
+                (RobotAt ?robot ?end)\
+            ) 0:0 0:19 19:19 19:19',
+    'Derived Predicates': 'RobotAt, Robot, RobotPose; Obstructs, Robot, RobotPose, Obstacle',
+    'Attribute Import Paths': 'GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer, Obstacle core.util_classes.obstacle',
+    'Primitive Predicates': 'value, RobotPose, Vector2d; \
+        geom, Robot, GreenCircle; pose, Robot, Vector2d; \
+        geom, Obstacle, Obstacle; pose, Obstacle, Vector2d; \
+        pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer',
+    'Types': 'RobotPose, Robot, Obstacle, Workspace'}
 
 class TestLLSolver(unittest.TestCase):
     def setUp(self):
@@ -22,22 +39,41 @@ class TestLLSolver(unittest.TestCase):
         'Types': 'Can, Target, RobotPose, Robot, Workspace'}
         self.domain = parse_domain_config.ParseDomainConfig.parse(self.d_c)
         """
-        d_c = {'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 0:19 19:19 19:19',
-            'Derived Predicates': 'RobotAt, Robot, RobotPose; Obstructs, Robot, RobotPose',
-            'Attribute Import Paths': 'GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer',
-            'Primitive Predicates': 'value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer',
-            'Types': 'RobotPose, Robot, Workspace'}
+
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         p_c = {'Init': '(geom pr2 1), (pose pr2 [0,7]), (value robot_init_pose [0,7]), (value target [0,0]), (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws); (RobotAt pr2 robot_init_pose)',
         'Objects': 'RobotPose (name target); Robot (name pr2); RobotPose (name robot_init_pose); RobotPose (name target); Workspace (name ws)',
         'Goal': '(RobotAt pr2 target)'}
+
+        p_c = {'Init': '(geom pr2 1), (pose pr2 [0,7]),\
+                (pose obstacle [10,10]),\
+                (value robot_init_pose [0,7]),\
+                (value target [0,0]),\
+                (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws);\
+                (RobotAt pr2 robot_init_pose)',
+                'Objects': 'RobotPose (name target); Robot (name pr2); Obstacle (name obstacle); RobotPose (name robot_init_pose); RobotPose (name target); Workspace (name ws)',
+                'Goal': '(RobotAt pr2 target)'}
+
         hls = hl_solver.FFSolver(d_c)
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        self.one_move_plan = hls.solve(hls.translate_problem(problem), domain, problem)
+        self.move_no_obs = hls.solve(hls.translate_problem(problem), domain, problem)
+
+        p_c = {'Init': '(geom pr2 1), (pose pr2 [-2,0]),\
+                (pose obstacle [0,0]),\
+                (value robot_init_pose [-2,0]),\
+                (value target [2,0]),\
+                (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws);\
+                (RobotAt pr2 robot_init_pose)',
+                'Objects': 'RobotPose (name target); Robot (name pr2); Obstacle (name obstacle); RobotPose (name robot_init_pose); RobotPose (name target); Workspace (name ws)',
+                'Goal': '(RobotAt pr2 target)'}
+        hls = hl_solver.FFSolver(d_c)
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        self.move_w_obs = hls.solve(hls.translate_problem(problem), domain, problem)
+        # import ipdb; ipdb.set_trace()
 
     def test_llparam(self):
         # TODO: tests for undefined, partially defined and fully defined params
-        plan = self.one_move_plan
+        plan = self.move_no_obs
         horizon = plan.horizon
         move = plan.actions[0]
         pr2 = move.params[0]
@@ -96,7 +132,7 @@ class TestLLSolver(unittest.TestCase):
             pr2_ll.geom
 
     def test_namo_solver_one_move_plan(self):
-        plan = self.one_move_plan
+        plan = self.move_no_obs
         move = plan.actions[0]
         pr2 = move.params[0]
         start = move.params[1]
@@ -115,9 +151,7 @@ class TestLLSolver(unittest.TestCase):
         end_ll = namo_solver._param_to_ll[end]
         # optimize without trajopt objective
         model.optimize()
-        pr2_ll.update_param()
-        start_ll.update_param()
-        end_ll.update_param()
+        namo_solver._update_ll_params()
         arr = np.zeros((2, plan.horizon))
         arr[:,0] = [0., 7.]
         self.assertTrue(np.allclose(pr2.pose, arr))
@@ -142,9 +176,7 @@ class TestLLSolver(unittest.TestCase):
         namo_solver._prob.add_obj_expr(bexpr)
         sco_solver = Solver()
         sco_solver.solve(namo_solver._prob, method='penalty_sqp')
-        pr2_ll.update_param()
-        start_ll.update_param()
-        end_ll.update_param()
+        namo_solver._update_ll_params()
 
         arr1 = np.zeros(plan.horizon)
         arr2 = np.linspace(7,0, num=20)
@@ -152,6 +184,31 @@ class TestLLSolver(unittest.TestCase):
         self.assertTrue(np.allclose(pr2.pose, arr))
         self.assertTrue(np.allclose(start.value, np.array([[0.],[7.]])))
         self.assertTrue(np.allclose(end.value, np.array([[0.],[0.]])))
+
+    def test_namo_solver_one_move_plan_solve(self):
+        plan = self.move_no_obs
+        move = plan.actions[0]
+        pr2 = move.params[0]
+        start = move.params[1]
+        end = move.params[2]
+
+        namo_solver = ll_solver.NAMOSolver()
+        namo_solver.solve(plan)
+
+        arr1 = np.zeros(plan.horizon)
+        arr2 = np.linspace(7,0, num=20)
+        arr = np.c_[arr1, arr2].T
+        self.assertTrue(np.allclose(pr2.pose, arr))
+        self.assertTrue(np.allclose(start.value, np.array([[0.],[7.]])))
+        self.assertTrue(np.allclose(end.value, np.array([[0.],[0.]])))
+
+        """
+        Uncomment following three lines to view trajectory
+        """
+        # viewer = OpenRAVEViewer()
+        # viewer.draw_traj([pr2], range(20))
+        # time.sleep(3)
+
 
     def test(self):
         plan = self.one_move_plan
