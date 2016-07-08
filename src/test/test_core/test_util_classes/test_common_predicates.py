@@ -191,7 +191,7 @@ class TestCommonPredicates(unittest.TestCase):
         blue_can = parameter.Object(attrs, attr_types)
 
         pred = common_predicates.NotObstructs("obstructs", [green_can, blue_can], ["Can", "Can"])
-        val, jac = pred.f(np.array([1.9,0,0,0]))
+        val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
@@ -216,50 +216,60 @@ class TestCommonPredicates(unittest.TestCase):
         #     print "x: ", x
         #     col_expr.grad(x, num_check=True, atol=1e-1)
 
-def test_is_gp():
-    radius = 1
+    def test_is_gp(self):
+        radius = 1
+        attrs = {"geom": [radius], "pose": [(2, 0)], "_type": ["Robot"], "name": ["robot"]}
+        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        robot = parameter.Object(attrs, attr_types)
 
+        attrs = {"pose": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
+        attr_types = {"pose": Vector2d, "_type": str, "name": str}
+        robotPose = parameter.Symbol(attrs, attr_types)
+
+        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        blue_can = parameter.Object(attrs, attr_types)
+
+        pred = common_predicates.IsGP("isGp", [robot, robotPose, blue_can], ["Robot", "Can", "Can"])
+        val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
+        self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
+        jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
+        self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
+
+        blue_can.pose = np.zeros((2, 4))
+        robotPose.value = np.array([[2 * (radius + pred.dsafe), 0, .1, 2 * radius - pred.dsafe],
+                                    [0, 2 * radius + pred.dsafe, 0, 0]])
+
+        self.assertFalse(pred.test(time=0))
+        self.assertTrue(pred.test(time=1))
+        self.assertFalse(pred.test(time=2))
+        self.assertFalse(pred.test(time=3))
+
+if __name__ is "__main__":
+    radius = 1
     attrs = {"geom": [radius], "pose": [(2, 0)], "_type": ["Robot"], "name": ["robot"]}
     attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
     robot = parameter.Object(attrs, attr_types)
 
-    attrs = {"pose": [(2, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
-    attr_types = {"pose": Vector2d, "_type": str, "name": str}
+    attrs = {"value": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
+    attr_types = {"value": Vector2d, "_type": str, "name": str}
     robotPose = parameter.Symbol(attrs, attr_types)
-
 
     attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
     attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
     blue_can = parameter.Object(attrs, attr_types)
 
-    attrs = {"geom": [radius], "pose": [(1, 0)], "_type": ["Can"], "name": ["can2"]}
-    attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
-    blue_can2 = parameter.Object(attrs, attr_types)
+    pred = common_predicates.IsGP("isGp", [robot, robotPose, blue_can], ["Robot", "RobotPose", "Can"])
+    val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
+    assert True == np.allclose(np.array(val), .15, atol=1e-2)
+    jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
+    assert True == np.allclose(jac, jac2, atol=1e-2)
 
-    pred1 = common_predicates.IsGP("is_gp", [robot, robotPose, blue_can], ["Robot", "RobotPose", "Can"])
-    
-    self.assertTrue(pred1.test(time=0))
-    
-if __name__ is "__main__":
-	radius = 1
-	attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can0"]}
-	attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
-	green_can = parameter.Object(attrs, attr_types)
+    blue_can.pose = np.zeros((2, 4))
+    robotPose.value = np.array([[2 * (radius + pred.dsafe), 0, .1, 2 * radius - pred.dsafe],
+                              [0, 2 * radius + pred.dsafe, 0, 0]])
 
-	attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
-	attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
-	blue_can = parameter.Object(attrs, attr_types)
-
-	pred = common_predicates.NotObstructs("obstructs", [green_can, blue_can], ["Can", "Can"])
-	val, jac = pred.f(np.array([1.9,0,0,0]))
-	self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
-	jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
-	self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
-
-	green_can.pose = np.zeros((2,4))
-	blue_can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
-                                  [0, 2*(radius+pred.dsafe), 0, 0]])
-	self.assertTrue(pred.test(time=0))
-	self.assertTrue(pred.test(time=1))
-	self.assertFalse(pred.test(time=2))
-	self.assertFalse(pred.test(time=3))
+    assert False == pred.test(time=0)
+    assert True == pred.test(time=1)
+    assert False == pred.test(time=2)
+    assert False == pred.test(time=3)

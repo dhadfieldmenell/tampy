@@ -82,42 +82,38 @@ class ExprPredicate(Predicate):
     def _grad(self, t):
         return self.expr.grad(self.get_param_vector(t))
 
-
 class CollisionPredicate(ExprPredicate):
-	
-	def __init__(self, name, e, attr_inds, tol, params, expected_param_types, dsafe = 0.05, debug=False):
+	def __init__(self, name, e, attr_inds, tol, params, expected_param_types, dsafe = 0.05, debug = False):
 		self._env = Environment()
-		self._debug = debug
- 		if self._debug:
-			self._env.SetViewer("qtcoin")
-		self._cc = ctrajoptpy.GetCollisionChecker(self._env)
-		self._params = params
+        self._debug = debug
+        if self._debug:
+            self._env.SetViewer("qtcoin")
+        self._cc = ctrajoptpy.GetCollisionChecker(self._env)
 		self.dsafe = dsafe
-		
 		super(CollisionPredicate, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
 
-	def distance_from_obj(self, x):
+    def distance_from_obj(self, x):
         # self._cc.SetContactDistance(self.dsafe + .1)
-		self._cc.SetContactDistance(np.Inf)
-		p0 = self._params[0]
-		p1 = self._params[1]
-		b0 = self._param_to_body[p0]
-		b1 = self._param_to_body[p1]
-		pose0 = x[0:2]
-		pose1 = x[2:4]
-		b0.set_pose(pose0)
-		b1.set_pose(pose1)
+        self._cc.SetContactDistance(np.Inf)
+        p0 = self._params[0]
+        p1 = self._params[1]
+        b0 = self._param_to_body[p0]
+        b1 = self._param_to_body[p1]
+        pose0 = x[0:2]
+        pose1 = x[2:4]
+        b0.set_pose(pose0)
+        b1.set_pose(pose1)
 
-		collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
+        collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
 
         col_val, jac0, jac1 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
         val = np.array([col_val])
-        jac = np.r_[jac0, jac1].reshape((1,4))
-		return val, jac
-	
-	def _calc_grad_and_val(self, name0, name1, pose0, pose1, collisions):
-		val = -1*float("inf")
-		jac0 = None
+        jac = np.r_[jac0, jac1].reshape((1, 4))
+        return val, jac
+
+    def _calc_grad_and_val(self, name0, name1, pose0, pose1, collisions):
+        val = -1 * float("inf")
+        jac0 = None
         jac1 = None
         for c in collisions:
             linkA = c.GetLinkAParentName()
@@ -152,13 +148,13 @@ class CollisionPredicate(ExprPredicate):
 
         return val, jac0, jac1
 
-	def _plot_collision(self, ptA, ptB, distance):
-		self.handles = []
+    def _plot_collision(self, ptA, ptB, distance):
+        self.handles = []
         if not np.allclose(ptA, ptB, atol=1e-3):
             if distance < 0:
-                self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01,color=(1,0,0)))
+                self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(1, 0, 0)))
             else:
-                self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01,color=(0,0,0)))
+                self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(0, 0, 0)))
 
 
 class At(ExprPredicate):
@@ -200,69 +196,36 @@ class At(ExprPredicate):
 class RobotAt(At):
     pass
 
-class IsGP(ExprPredicate):
-    def test(self, time):
-        return True
+class IsGP(CollisionPredicate):
+
     def __init__(self, name, params, expected_param_types, debug=False):
         #IsGP, Robot, RobotPose, Can
-        assert len(params) == 3
-        self._env = Environment()
-        self._cc = ctrajoptpy.GetCollisionChecker(self._env)
-
-        self._debug = debug
-        if self._debug:
-            self._env.SetViewer("qtcoin")
-
-        self._params = params
+		assert len(params) == 3
         self._param_to_body = {}
-        self.gp = 0.05
-
+        self.robot = params[0]
+        gp_params = params[1:]
+		expected_gp_param_types = expected_param_types[1:]
+		self._params = gp_params
         attr_inds = {}
-        RobotShape = GreenCircle(1)
-
-
-
-        for p in params:
-            if hasattr(p, "value"):
-                attr_inds[p.name] = [("value", np.array([0, 1], dtype=np.int))]
-                self._param_to_body[p] = OpenRAVEBody(self._env, p.name, RobotShape)
-            elif hasattr(p, "pose"):
+        for p in gp_params:
+            if not p.is_symbol():
+                assert hasattr(p, "geom")
+                assert p.get_attr_type("pose") is Vector2d
                 attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
                 self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
             else:
-                raise PredicateException("attribute type not supported")
+                assert p.get_attr_type("value") is Vector2d
+                attr_inds[p.name] = [("value", np.array([0, 1], dtype=np.int))]
+                self._param_to_body[p] = OpenRAVEBody(self._env, p.name, self.robot.geom)
 
+        f = lambda x: self.distance_from_obj(x)[0]
+        grad = lambda x: self.distance_from_obj(x)[1]
 
-        h = lambda x: self.distance_from_obj(x)[0]
-
-        col_expr = Expr(h)
+        col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
         tol = DEFAULT_TOL
-        super(IsGP, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
-
-    def distance_from_obj(self, x):
-        p0 = self._params[0]
-        p1 = self._params[1]
-        b0 = self._param_to_body[p0]
-        b1 = self._param_to_body[p1]
-        pose0 = x[0:2]
-        pose1 = x[2:4]
-        b0.set_pose(pose0)
-        b1.set_pose(pose1)
-
-        collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-
-        distance = collisions.GetDistance()
-        normal = collisions.GetNormal()
-
-        col_val = self.dsafe - distance
-        jac0 = -1 * normal[0:2]
-        jac1 = normal[0:2]
-
-        val = np.array([col_val])
-        jac = np.r_[jac0, jac1].reshape((1, 4))
-        return val, jac
+        super(IsGP, self).__init__(name, e, attr_inds, tol, gp_params, expected_gp_param_types)
 
 
 class IsPDP(Predicate):
@@ -279,17 +242,11 @@ class Obstructs(Predicate):
         # TODO
         return True
 
-class NotObstructs(ExprPredicate):
+class NotObstructs(CollisionPredicate):
     def __init__(self, name, params, expected_param_types, debug=False):
         assert len(params) == 2
-        self._env = Environment()
-        self._debug = debug
-        if self._debug:
-            self._env.SetViewer("qtcoin")
-        self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self._params = params
         self._param_to_body = {}
-        self.dsafe = 0.05
 
         attr_inds = {}
         for p in params:
@@ -299,75 +256,11 @@ class NotObstructs(ExprPredicate):
             attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
             self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
 
-        f = lambda x: self.f(x)[0]
-        grad = lambda x: self.f(x)[1]
+        f = lambda x: self.distance_from_obj(x)[0]
+        grad = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
         tol = DEFAULT_TOL
         super(NotObstructs, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
-
-    def f(self, x):
-        # self._cc.SetContactDistance(self.dsafe + .1)
-        self._cc.SetContactDistance(np.Inf)
-        p0 = self._params[0]
-        p1 = self._params[1]
-        b0 = self._param_to_body[p0]
-        b1 = self._param_to_body[p1]
-        pose0 = x[0:2]
-        pose1 = x[2:4]
-        b0.set_pose(pose0)
-        b1.set_pose(pose1)
-
-        collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-
-        col_val, jac0, jac1 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
-        val = np.array([col_val])
-        jac = np.r_[jac0, jac1].reshape((1,4))
-        return val, jac
-
-    def _calc_grad_and_val(self, name0, name1, pose0, pose1, collisions):
-        val = -1*float("inf")
-        jac0 = None
-        jac1 = None
-        for c in collisions:
-            linkA = c.GetLinkAParentName()
-            linkB = c.GetLinkBParentName()
-
-            if linkA == name0 and linkB == name1:
-                pt0 = c.GetPtA()
-                pt1 = c.GetPtB()
-            elif linkB == name0 and linkA == name1:
-                pt0 = c.GetPtB()
-                pt1 = c.GetPtA()
-            else:
-                continue
-
-            distance = c.GetDistance()
-            normal = c.GetNormal()
-
-            # plotting
-            if self._debug:
-                pt0[2] = 1.01
-                pt1[2] = 1.01
-                self._plot_collision(pt0, pt1, distance)
-                print "pt0 = ", pt0
-                print "pt1 = ", pt1
-                print "distance = ", distance
-
-            # if there are multiple collisions, use the one with the greatest penetration distance
-            if self.dsafe - distance > val:
-                val = self.dsafe - distance
-                jac0 = -1 * normal[0:2]
-                jac1 = normal[0:2]
-
-        return val, jac0, jac1
-
-    def _plot_collision(self, ptA, ptB, distance):
-        self.handles = []
-        if not np.allclose(ptA, ptB, atol=1e-3):
-            if distance < 0:
-                self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01,color=(1,0,0)))
-            else:
-                self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01,color=(0,0,0)))
