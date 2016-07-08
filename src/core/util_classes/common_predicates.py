@@ -44,6 +44,7 @@ class ExprPredicate(Predicate):
         for p in self.params:
             for attr, ind_arr in self.attr_inds[p.name]:
                 n_vals = len(ind_arr)
+
                 if p.is_symbol():
                     self.x[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
                 else:
@@ -122,6 +123,8 @@ class RobotAt(At):
     pass
 
 class IsGP(ExprPredicate):
+    def test(self, time):
+        return True
     def __init__(self, name, params, expected_param_types, debug=False):
         #IsGP, Robot, RobotPose, Can
         assert len(params) == 2
@@ -185,7 +188,8 @@ class IsGP(ExprPredicate):
 
 
 class IsPDP(Predicate):
-    pass
+    def test(sself, time):
+        return True
 
 class InGripper(Predicate):
     def test(self, time):

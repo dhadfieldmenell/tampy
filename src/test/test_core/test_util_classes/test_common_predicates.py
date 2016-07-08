@@ -174,7 +174,7 @@ class TestCommonPredicates(unittest.TestCase):
         attrs = {"name": ["target"], "geom": [radius], "pose": ["undefined"], "_type": ["Target"]}
         attr_types = {"name": str, "geom": circle.BlueCircle, "pose": Vector2d, "_type": str}
         p3 = parameter.Object(attrs, attr_types)
-        p3.value = np.array([[3], [6]])
+        p3.pose = np.array([[3, 2], [6, 4]])
 
         pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
         self.assertTrue(pred.test(time=0))
