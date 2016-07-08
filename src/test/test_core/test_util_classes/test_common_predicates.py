@@ -216,7 +216,7 @@ class TestCommonPredicates(unittest.TestCase):
         #     print "x: ", x
         #     col_expr.grad(x, num_check=True, atol=1e-1)
 
-def test_is_gp(self):
+def test_is_gp():
     radius = 1
 
     attrs = {"geom": [radius], "pose": [(2, 0)], "_type": ["Robot"], "name": ["robot"]}
@@ -241,5 +241,25 @@ def test_is_gp(self):
     self.assertTrue(pred1.test(time=0))
     
 if __name__ is "__main__":
-    test = TestCommonPredicates()
-    test.test_is_gp()
+	radius = 1
+	attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can0"]}
+	attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+	green_can = parameter.Object(attrs, attr_types)
+
+	attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
+	attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+	blue_can = parameter.Object(attrs, attr_types)
+
+	pred = common_predicates.NotObstructs("obstructs", [green_can, blue_can], ["Can", "Can"])
+	val, jac = pred.f(np.array([1.9,0,0,0]))
+	self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
+	jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
+	self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
+
+	green_can.pose = np.zeros((2,4))
+	blue_can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
+                                  [0, 2*(radius+pred.dsafe), 0, 0]])
+	self.assertTrue(pred.test(time=0))
+	self.assertTrue(pred.test(time=1))
+	self.assertFalse(pred.test(time=2))
+	self.assertFalse(pred.test(time=3))
