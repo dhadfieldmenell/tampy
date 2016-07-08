@@ -7,7 +7,7 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
 from openravepy import Environment
 import ctrajoptpy
-
+from core.util_classes.circle import GreenCircle
 
 """
 This file implements the classes for commonly used predicates that are useful in a wide variety of
@@ -123,7 +123,7 @@ class RobotAt(At):
 
 class IsGP(ExprPredicate):
     def __init__(self, name, params, expected_param_types, debug=False):
-        #IsGP, RobotPose, Can
+        #IsGP, Robot, RobotPose, Can
         assert len(params) == 2
         self._env = Environment()
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
@@ -137,15 +137,20 @@ class IsGP(ExprPredicate):
         self.gp = 0.05
 
         attr_inds = {}
+        RobotShape = GreenCircle(1)
+
+
+
         for p in params:
             if hasattr(p, "value"):
                 attr_inds[p.name] = [("value", np.array([0, 1], dtype=np.int))]
+                self._param_to_body[p] = OpenRAVEBody(self._env, p.name, RobotShape)
             elif hasattr(p, "pose"):
                 attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
                 self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
             else:
                 raise PredicateException("attribute type not supported")
-            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
+
 
         h = lambda x: self.distance_from_obj(x)[0]
 

@@ -3,6 +3,8 @@ from core.internal_repr import parameter
 from core.util_classes.matrix import Vector3d, PR2PoseVector
 from core.util_classes import pr2_predicates
 from errors_exceptions import PredicateException
+from core.util_classes.can import BlueCan
+from core.util_classes.pr2 import PR2
 from sco import expr
 import numpy as np
 
@@ -13,8 +15,8 @@ e2 = expr.Expr(lambda x: np.power(x, 2))
 class TestPR2Predicates(unittest.TestCase):
 
     def test_expr_at(self):
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": Vector3d, "_type": str}
+        attrs = {"name": ["can"], "geom": (1,1), "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": BlueCan, "pose": Vector3d, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
         attr_types = {"name": str, "value": Vector3d, "_type": str}
@@ -48,8 +50,8 @@ class TestPR2Predicates(unittest.TestCase):
 
 
     def test_expr_robot_at(self):
-        attrs = {"name": ["pr2"], "pose": ["undefined"], "_type": ["Robot"]}
-        attr_types = {"name": str, "pose": PR2PoseVector, "_type": str}
+        attrs = {"name": ["pr2"], "geom": [1], "pose": ["undefined"], "_type": ["Robot"]}
+        attr_types = {"name": str, "geom": PR2, "pose": PR2PoseVector, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         attrs = {"name": ["funnyPose"], "value": ["undefined"], "_type": ["RobotPose"]}
         attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
@@ -94,8 +96,8 @@ class TestPR2Predicates(unittest.TestCase):
         attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
         rPose = parameter.Symbol(attrs, attr_types)
 
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": Vector3d, "_type": str}
+        attrs = {"name": ["can"], "geom": (1, 2), "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": BlueCan, "pose": Vector3d, "_type": str}
         can = parameter.Object(attrs, attr_types)
 
         pred = pr2_predicates.IsGP("testgp", [rPose, can], ["RobotPose", "Can"])

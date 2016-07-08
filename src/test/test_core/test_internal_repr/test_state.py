@@ -3,15 +3,16 @@ from core.internal_repr import state
 from core.internal_repr import parameter
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector2d
+from core.util_classes.circle import RedCircle, BlueCircle, GreenCircle
 import numpy as np
 
 class TestState(unittest.TestCase):
     def setUp(self):
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": Vector2d, "_type": str}
+        attrs = {"name": ["can"], "geom": [1], "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str,"geom": RedCircle, "pose": Vector2d, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
-        attrs = {"name": ["target"], "pose": ["undefined"], "_type": ["Target"]}
-        attr_types = {"name": str, "pose": Vector2d, "_type": str}
+        attrs = {"name": ["target"], "geom": [1], "pose": ["undefined"], "_type": ["Target"]}
+        attr_types = {"name": str, "geom": BlueCircle, "pose": Vector2d, "_type": str}
         self.target = parameter.Object(attrs, attr_types)
         attrs = {"name": ["gp"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": Vector2d, "_type": str}

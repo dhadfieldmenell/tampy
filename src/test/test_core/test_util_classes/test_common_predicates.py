@@ -20,8 +20,9 @@ class TestCommonPredicates(unittest.TestCase):
     def test_expr_pred(self):
         ## test initialization: x_dim computed correctly
         ## test
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": int, "_type": str}
+        radius = 1
+        attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": circle.RedCircle, "pose": int, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         p1.pose = np.array([[1, 2, 3], [2, 3, 1], [3, 1, 2]])
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
@@ -52,9 +53,9 @@ class TestCommonPredicates(unittest.TestCase):
         ## test (multiple tols)
         ## grad
         tols = [1e-8, 1e-4, 1e-2]
-
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": float, "_type": str}
+        radius = 1
+        attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": circle.RedCircle, "pose": float, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         p1.pose = np.array([[1, 2, 3], [1 + tols[0], 2 + tols[0], 3], [1 + tols[1], 2 + tols[1], 3]]).T
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
@@ -89,9 +90,9 @@ class TestCommonPredicates(unittest.TestCase):
         ## test (multiple tols)
         ## grad
         tols = [1e-8, 1e-4, 1e-2]
-
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": float, "_type": str}
+        radius = 1
+        attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": circle.RedCircle, "pose": float, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         p1.pose = np.array([[1, 2, 3], [1 + tols[0], 2 + tols[0], 3], [1 + tols[1], 2 + tols[1], 3]]).T
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
@@ -136,11 +137,12 @@ class TestCommonPredicates(unittest.TestCase):
 
 
     def test_expr_at(self):
-        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "pose": Vector2d, "_type": str}
+        radius = 1
+        attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": circle.RedCircle, "pose": Vector2d, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
-        attrs = {"name": ["target"], "pose": ["undefined"], "_type": ["Target"]}
-        attr_types = {"name": str, "pose": Vector2d, "_type": str}
+        attrs = {"name": ["target"], "geom": [radius], "pose": ["undefined"], "_type": ["Target"]}
+        attr_types = {"name": str, "geom": circle.BlueCircle, "pose": Vector2d, "_type": str}
         p2 = parameter.Object(attrs, attr_types)
 
         pred = common_predicates.At("testpred", [p1, p2], ["Can", "Target"])
@@ -169,9 +171,9 @@ class TestCommonPredicates(unittest.TestCase):
             pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
         self.assertEqual(cm.exception.message, "attribute type not supported")
 
-        attrs = {"name": ["target"], "value": ["undefined"], "_type": ["Target"]}
-        attr_types = {"name": str, "value": Vector2d, "_type": str}
-        p3 = parameter.Symbol(attrs, attr_types)
+        attrs = {"name": ["target"], "geom": [radius], "pose": ["undefined"], "_type": ["Target"]}
+        attr_types = {"name": str, "geom": circle.BlueCircle, "pose": Vector2d, "_type": str}
+        p3 = parameter.Object(attrs, attr_types)
         p3.value = np.array([[3], [6]])
 
         pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
