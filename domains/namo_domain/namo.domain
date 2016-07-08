@@ -10,7 +10,7 @@ Predicates Import Path: core.util_classes.common_predicates
 
 Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer
 
-Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, RobotPose, Can; IsPDP, RobotPose, Target; Obstructs, Robot, RobotPose, Can
+Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, Robot, RobotPose, Can; IsPDP, Robot, RobotPose, Target; Obstructs, Robot, RobotPose, Can
 
 # The first set of parentheses after the colon contains the parameters. The second contains preconditions and the third contains effects. This split between preconditions and effects is only used for task planning purposes. Our system treats all predicates similarly, using the numbers at the end, which specify active timesteps during which each predicate must hold.
 

@@ -127,7 +127,7 @@ class IsGP(ExprPredicate):
         return True
     def __init__(self, name, params, expected_param_types, debug=False):
         #IsGP, Robot, RobotPose, Can
-        assert len(params) == 2
+        assert len(params) == 3
         self._env = Environment()
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
 
