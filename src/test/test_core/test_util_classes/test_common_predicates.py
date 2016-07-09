@@ -222,8 +222,8 @@ class TestCommonPredicates(unittest.TestCase):
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
-        attrs = {"pose": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
-        attr_types = {"pose": Vector2d, "_type": str, "name": str}
+        attrs = {"value": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
+        attr_types = {"value": Vector2d, "_type": str, "name": str}
         robotPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
@@ -231,15 +231,15 @@ class TestCommonPredicates(unittest.TestCase):
         blue_can = parameter.Object(attrs, attr_types)
 
         pred = common_predicates.IsGP("isGp", [robot, robotPose, blue_can], ["Robot", "Can", "Can"])
+        self.assertTrue(np.allclose(pred.grasp(0), 0, atol = 1e-2))
         val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
-        blue_can.pose = np.zeros((2, 4))
-        robotPose.value = np.array([[2 * (radius + pred.dsafe), 0, .1, 2 * radius - pred.dsafe],
-                                    [0, 2 * radius + pred.dsafe, 0, 0]])
-
+        robotPose.value = np.zeros((2, 4))
+        blue_can.pose = np.array([[2 * (radius + pred.dsafe), 0, .1, 2 * radius - pred.dsafe],
+                              [0, 2 * radius + pred.dsafe, 0, 0]])
         self.assertFalse(pred.test(time=0))
         self.assertTrue(pred.test(time=1))
         self.assertFalse(pred.test(time=2))
@@ -260,13 +260,14 @@ if __name__ is "__main__":
     blue_can = parameter.Object(attrs, attr_types)
 
     pred = common_predicates.IsGP("isGp", [robot, robotPose, blue_can], ["Robot", "RobotPose", "Can"])
+    assert True == (np.allclose(pred.grasp(0), 0, atol = 1e-2))
     val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
     assert True == np.allclose(np.array(val), .15, atol=1e-2)
     jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
     assert True == np.allclose(jac, jac2, atol=1e-2)
 
-    blue_can.pose = np.zeros((2, 4))
-    robotPose.value = np.array([[2 * (radius + pred.dsafe), 0, .1, 2 * radius - pred.dsafe],
+    robotPose.value = np.zeros((2, 4))
+    blue_can.pose = np.array([[2 * (radius + pred.dsafe), 0, .1, 2 * radius - pred.dsafe],
                               [0, 2 * radius + pred.dsafe, 0, 0]])
 
     assert False == pred.test(time=0)

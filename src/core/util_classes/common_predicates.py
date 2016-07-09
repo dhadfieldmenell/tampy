@@ -14,7 +14,7 @@ This file implements the classes for commonly used predicates that are useful in
 typical domains.
 """
 
-DEFAULT_TOL=1e-8
+DEFAULT_TOL=1e-6
 
 class ExprPredicate(Predicate):
 
@@ -83,14 +83,14 @@ class ExprPredicate(Predicate):
         return self.expr.grad(self.get_param_vector(t))
 
 class CollisionPredicate(ExprPredicate):
-	def __init__(self, name, e, attr_inds, tol, params, expected_param_types, dsafe = 0.05, debug = False):
-		self._env = Environment()
+    def __init__(self, name, e, attr_inds, tol, params, expected_param_types, dsafe = 0.05, debug = False):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
-		self.dsafe = dsafe
-		super(CollisionPredicate, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
+        self._params = params
+        self.dsafe = dsafe
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
 
     def distance_from_obj(self, x):
         # self._cc.SetContactDistance(self.dsafe + .1)
@@ -200,13 +200,13 @@ class IsGP(CollisionPredicate):
 
     def __init__(self, name, params, expected_param_types, debug=False):
         #IsGP, Robot, RobotPose, Can
-		assert len(params) == 3
-        self._param_to_body = {}
+        assert len(params) == 3
+        self._env = Environment()
         self.robot = params[0]
         gp_params = params[1:]
-		expected_gp_param_types = expected_param_types[1:]
-		self._params = gp_params
+        expected_gp_param_types = expected_param_types[1:]
         attr_inds = {}
+        self._param_to_body = {}
         for p in gp_params:
             if not p.is_symbol():
                 assert hasattr(p, "geom")
@@ -220,13 +220,14 @@ class IsGP(CollisionPredicate):
 
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]
-
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
         tol = DEFAULT_TOL
         super(IsGP, self).__init__(name, e, attr_inds, tol, gp_params, expected_gp_param_types)
-
+     
+    def grasp(self, time):
+        return (np.array(self.params[1].pose) - np.array(self.params[0].value))[:,time]
 
 class IsPDP(Predicate):
     def test(sself, time):
@@ -245,10 +246,9 @@ class Obstructs(Predicate):
 class NotObstructs(CollisionPredicate):
     def __init__(self, name, params, expected_param_types, debug=False):
         assert len(params) == 2
-        self._params = params
-        self._param_to_body = {}
-
+        self._env = Environment()
         attr_inds = {}
+        self._param_to_body = {}
         for p in params:
             assert not p.is_symbol()
             assert hasattr(p, "geom")
@@ -259,7 +259,7 @@ class NotObstructs(CollisionPredicate):
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]
 
-        col_expr = Expr(f, grad)
+        col_expr = Expr(f, grad) 
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
         tol = DEFAULT_TOL
