@@ -114,7 +114,7 @@ class TestHLSolver(unittest.TestCase):
 
         # testing preconditions, they shouldn't effect the HLState
         pre_robotat_init = moveto_preds[0]
-        self.assertTrue(hl_state._get_rep(pre_robotat_init['pred'])
+        self.assertTrue(hl_state.get_rep(pre_robotat_init['pred'])
                         in hl_state._pred_dict)
         hl_state.add_pred_from_dict(pre_robotat_init)
         self.assertTrue(pre_robotat_init['pred'] not in hl_state.get_preds())
@@ -127,20 +127,75 @@ class TestHLSolver(unittest.TestCase):
         # since the robot isn't at robot_init_pose anymore, this pred should be
         # removed from the state
         post_robotat_init = moveto_preds[3]
-        self.assertTrue(hl_state._get_rep(post_robotat_init['pred'])
+        self.assertTrue(hl_state.get_rep(post_robotat_init['pred'])
                         in hl_state._pred_dict)
         hl_state.add_pred_from_dict(post_robotat_init)
-        self.assertTrue(hl_state._get_rep(post_robotat_init['pred'])
+        self.assertTrue(hl_state.get_rep(post_robotat_init['pred'])
                         not in hl_state._pred_dict)
 
         # since the robot is now at gp_can1, this pred should be added to the
         # state
         post_robotat_gpcan1 = moveto_preds[4]
-        self.assertTrue(hl_state._get_rep(post_robotat_gpcan1['pred'])
+        self.assertTrue(hl_state.get_rep(post_robotat_gpcan1['pred'])
                         not in hl_state._pred_dict)
         hl_state.add_pred_from_dict(post_robotat_gpcan1)
-        self.assertTrue(hl_state._get_rep(post_robotat_gpcan1['pred'])
+        self.assertTrue(hl_state.get_rep(post_robotat_gpcan1['pred'])
                         in hl_state._pred_dict)
+
+    def test_preds_creation_in_spawn_action(self):
+        p_c = self.p_c.copy()
+        p_c['Goal'] = '(InGripper can0), (RobotAt pr2 robot_init_pose)'
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, self.domain)
+        plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
+        HLState = hl_solver.HLState
+        init_pred_rep_list = [HLState.get_rep(pred) for pred in problem.init_state.preds]
+
+        def extract_pred_reps_from_pred_dicts(pred_dicts):
+            pred_rep_list = []
+            for pred_dict in pred_dicts:
+                pred = pred_dict['pred']
+                pred_rep_list.append(HLState.get_rep(pred))
+            return pred_rep_list
+
+        def test_hl_info(pred_dicts, pred_rep, hl_info):
+            for pred_dict in pred_dicts:
+                pred = pred_dict['pred']
+                if HLState.get_rep(pred) == pred_rep:
+                    if pred_dict["hl_info"] == hl_info:
+                        return True
+            return False
+
+        moveto = plan.actions[0]
+        moveto_pred_rep_list = extract_pred_reps_from_pred_dicts(moveto.preds)
+        self.assertTrue('(IsGP gp_can1 can1)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(IsGP gp_can1 can1)', "hl_state"))
+        self.assertTrue('(RobotAt pr2 robot_init_pose)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 robot_init_pose)', "pre"))
+        self.assertTrue('(RobotAt pr2 gp_can0)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 gp_can0)', "eff"))
+
+        grasp = plan.actions[1]
+        grasp_pred_rep_list = extract_pred_reps_from_pred_dicts(grasp.preds)
+        self.assertTrue('(RobotAt pr2 robot_init_pose)' not in grasp_pred_rep_list)
+        self.assertTrue('(IsGP gp_can0 can0)' in grasp_pred_rep_list)
+        self.assertTrue(test_hl_info(grasp.preds, '(IsGP gp_can0 can0)', "pre"))
+        self.assertTrue('(IsGP gp_can1 can1)' in grasp_pred_rep_list)
+        self.assertTrue(test_hl_info(grasp.preds, '(IsGP gp_can1 can1)', "hl_state"))
+        self.assertTrue('(InGripper can0)' in grasp_pred_rep_list)
+        self.assertTrue(test_hl_info(grasp.preds, '(InGripper can0)', "eff"))
+
+        moveto2 = plan.actions[2]
+        moveto2_pred_rep_list = extract_pred_reps_from_pred_dicts(moveto2.preds)
+        self.assertTrue('(RobotAt pr2 gp_can0)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 gp_can0)', "pre"))
+        self.assertTrue('(RobotAt pr2 robot_init_pose)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 robot_init_pose)', "eff"))
+        self.assertTrue('(InGripper can0)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(InGripper can0)', "hl_state"))
+        self.assertTrue('(IsGP gp_can0 can0)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(IsGP gp_can0 can0)', "hl_state"))
+        self.assertTrue('(IsGP gp_can1 can1)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(IsGP gp_can1 can1)', "hl_state"))
 
     def test_basic(self):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)

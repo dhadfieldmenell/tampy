@@ -43,23 +43,32 @@ class HLState(object):
     def __init__(self, init_preds):
         self._pred_dict = {}
         for pred in init_preds:
-            rep = self._get_rep(pred)
+            rep = HLState.get_rep(pred)
             self._pred_dict[rep] = pred
 
     def get_preds(self):
         return self._pred_dict.values()
 
+    def in_state(self, pred):
+        rep = HLState.get_rep(pred)
+        return rep in self._pred_dict
+
+    def update(self, pred_dict_list):
+        for pred_dict in pred_dict_list:
+            self.add_pred_from_dict(pred_dict)
+
     def add_pred_from_dict(self, pred_dict):
         if pred_dict["hl_info"] is "eff":
             negated = pred_dict["negated"]
             pred = pred_dict["pred"]
-            rep = self._get_rep(pred)
-            if negated and rep in self._pred_dict:
+            rep = HLState.get_rep(pred)
+            if negated and self.in_state(pred):
                 del self._pred_dict[rep]
-            elif not negated and rep not in self._pred_dict:
+            elif not negated and not self.in_state(pred):
                 self._pred_dict[rep] = pred
 
-    def _get_rep(self, pred):
+    @staticmethod
+    def get_rep(pred):
         s = "(%s "%(pred.get_type())
         for param in pred.params[:-1]:
             s += param.name + " "
@@ -126,7 +135,7 @@ class FFSolver(HLSolver):
             return plan_str
         plan_horizon = self._extract_horizon(plan_str, domain)
         params = self._spawn_plan_params(concr_prob, plan_horizon)
-        actions = self._spawn_actions(plan_str, domain, params, plan_horizon)
+        actions = self._spawn_actions(plan_str, domain, params, plan_horizon, concr_prob)
         return Plan(params, actions, plan_horizon)
 
     def _extract_horizon(self, plan_str, domain):
@@ -143,9 +152,10 @@ class FFSolver(HLSolver):
             params[p_name] = p.copy(plan_horizon)
         return params
 
-    def _spawn_actions(self, plan_str, domain, params, plan_horizon):
+    def _spawn_actions(self, plan_str, domain, params, plan_horizon, concr_prob):
         actions = []
         curr_h = 0
+        hl_state = HLState(concr_prob.init_state.preds)
         for action_str in plan_str:
             spl = action_str.split()
             step = int(spl[0].split(":")[0])
@@ -173,6 +183,13 @@ class FFSolver(HLSolver):
                     pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
+            # adding predicates from the hl state to action's preds
+            action_pred_rep = [HLState.get_rep(pred_dict["pred"]) for pred_dict in preds]
+            for pred in hl_state.get_preds():
+                if HLState.get_rep(pred) not in action_pred_rep:
+                    preds.append({"negated": False, "hl_info": "hl_state", "active_timesteps": (curr_h, curr_h + a_schema.horizon - 1), "pred": pred})
+            # updating hl_state
+            hl_state.update(preds)
             actions.append(Action(step, a_name, (curr_h, curr_h + a_schema.horizon - 1), [params[arg] for arg in a_args], preds))
             curr_h += a_schema.horizon
         return actions
