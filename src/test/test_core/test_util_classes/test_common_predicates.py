@@ -34,8 +34,8 @@ class TestCommonPredicates(unittest.TestCase):
         e = expr.EqExpr(e1, np.array([2]))
         pred = common_predicates.ExprPredicate("expr_pred", e, attr_inds, 1e-6, [p1, p2], ["Can", "Sym"])
 
-        self.assertTrue(pred.get_expr(True) is None)
-        self.assertTrue(pred.get_expr(False) == e)
+        with self.assertRaises(NotImplementedError):
+            pred.get_expr(None, None)
 
         ## get_param_vector
         self.assertEqual(pred.x_dim, 1)
@@ -180,6 +180,16 @@ class TestCommonPredicates(unittest.TestCase):
         pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
         self.assertTrue(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
+
+        # testing get_expr
+        pred_dict = {"negated": False, "hl_info": "pre", "active_timesteps": (0,0), "pred": pred}
+        self.assertTrue(isinstance(pred.get_expr(pred_dict, None), expr.EqExpr))
+        pred_dict['hl_info'] = "hl_state"
+        self.assertTrue(isinstance(pred.get_expr(pred_dict, None), expr.EqExpr))
+        pred_dict['negated'] = True
+        self.assertTrue(pred.get_expr(pred_dict, None) is None)
+        pred_dict['hl_info'] = "pre"
+        self.assertTrue(pred.get_expr(pred_dict, None) is None)
 
     def test_not_obstructs(self):
         radius = 1
