@@ -8,9 +8,99 @@ import numpy as np
 
 class TestHLSolver(unittest.TestCase):
     def setUp(self):
-        self.d_c = {'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 0:19 19:19 19:19', 'Action putdown 20': '(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose) (and (RobotAt ?robot ?pdp) (IsPDP ?pdp ?target) (InGripper ?can) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))) (and (At ?can ?target) (not (InGripper ?can))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19', 'Derived Predicates': 'At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, RobotPose, Can; IsPDP, RobotPose, Target; Obstructs, Robot, RobotPose, Can', 'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer', 'Primitive Predicates': 'geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer', 'Action grasp 20': '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?gp ?can) (forall (?obj - Can) (not (InGripper ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?can) (forall (?sym - RobotPose) (not (Obstructs ?robot ?sym ?can)))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19', 'Types': 'Can, Target, RobotPose, Robot, Workspace'}
+        self.d_c = {
+            'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) \
+                (and \
+                    (RobotAt ?robot ?start) \
+                    (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj))) \
+                ) \
+                (and \
+                    (not (RobotAt ?robot ?start)) \
+                    (RobotAt ?robot ?end) \
+                ) \
+                0:0 0:19 19:19 19:19',
+            'Action putdown 20': '(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose) \
+                (and \
+                    (RobotAt ?robot ?pdp) \
+                    (IsPDP ?pdp ?target) \
+                    (InGripper ?can) \
+                    (forall (?obj - Can) (not (At ?obj ?target))) \
+                    (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))\
+                ) \
+                (and \
+                    (At ?can ?target) \
+                    (not (InGripper ?can)) \
+                ) \
+                0:0 0:0 0:0 0:0 0:19 19:19 19:19',
+            'Derived Predicates': \
+                'At, Can, Target; \
+                RobotAt, Robot, RobotPose; \
+                InGripper, Can; \
+                IsGP, RobotPose, Can; \
+                IsPDP, RobotPose, Target; \
+                Obstructs, Robot, RobotPose, Can', \
+            'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer',
+            'Primitive Predicates': \
+                'geom, Can, RedCircle; pose, Can, Vector2d; \
+                geom, Target, BlueCircle; pose, Target, Vector2d; \
+                value, RobotPose, Vector2d; \
+                geom, Robot, GreenCircle; pose, Robot, Vector2d; \
+                pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer', \
+            'Action grasp 20': '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) \
+                (and \
+                    (At ?can ?target) \
+                    (RobotAt ?robot ?gp) \
+                    (IsGP ?gp ?can) \
+                    (forall (?obj - Can) (not (InGripper ?obj))) \
+                    (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj))) \
+                ) \
+                (and \
+                    (not (At ?can ?target)) \
+                    (InGripper ?can) \
+                    (forall (?sym - RobotPose) (not (Obstructs ?robot ?sym ?can)))\
+                ) \
+                0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19', \
+            'Types': 'Can, Target, RobotPose, Robot, Workspace'}
         self.domain = parse_domain_config.ParseDomainConfig.parse(self.d_c)
-        self.p_c = {'Init': '(geom target0 1), (pose target0 [3,5]), (value pdp_target0 undefined), (geom target1 1), (pose target1 [3,6]), (value pdp_target1 undefined), (geom target2 1), (pose target2 [5,3]), (value pdp_target2 undefined), (geom can0 1), (pose can0 [3,5]), (value gp_can0 undefined), (geom can1 1), (pose can1 [3,6]), (value gp_can1 undefined), (geom pr2 1), (pose pr2 [0,7]), (value robot_init_pose [0,7]), (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws); (At can0 target0), (IsGP gp_can0 can0), (At can1 target1), (IsGP gp_can1 can1), (IsPDP pdp_target0 target0), (IsPDP pdp_target1 target1), (IsPDP pdp_target2 target2), (RobotAt pr2 robot_init_pose)', 'Objects': 'Target (name target0); RobotPose (name pdp_target0); Can (name can0); RobotPose (name gp_can0); Target (name target1); RobotPose (name pdp_target1); Can (name can1); RobotPose (name gp_can1); Target (name target2); RobotPose (name pdp_target2); Robot (name pr2); RobotPose (name robot_init_pose); Workspace (name ws)', 'Goal': '(At can0 target1)'}
+        self.p_c = {
+            'Init': \
+                '(geom target0 1), (pose target0 [3,5]), \
+                (value pdp_target0 undefined), \
+                (geom target1 1), (pose target1 [3,6]), \
+                (value pdp_target1 undefined), \
+                (geom target2 1), (pose target2 [5,3]), \
+                (value pdp_target2 undefined), \
+                (geom can0 1), (pose can0 [3,5]), \
+                (value gp_can0 undefined), \
+                (geom can1 1), (pose can1 [3,6]), \
+                (value gp_can1 undefined), \
+                (geom pr2 1), (pose pr2 [0,7]), \
+                (value robot_init_pose [0,7]), \
+                (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws); \
+                (At can0 target0), \
+                (IsGP gp_can0 can0), \
+                (At can1 target1), \
+                (IsGP gp_can1 can1), \
+                (IsPDP pdp_target0 target0), \
+                (IsPDP pdp_target1 target1), \
+                (IsPDP pdp_target2 target2), \
+                (RobotAt pr2 robot_init_pose)',
+            'Objects': \
+                'Target (name target0); \
+                RobotPose (name pdp_target0); \
+                Can (name can0); \
+                RobotPose (name gp_can0); \
+                Target (name target1); \
+                RobotPose (name pdp_target1); \
+                Can (name can1); \
+                RobotPose (name gp_can1); \
+                Target (name target2); \
+                RobotPose (name pdp_target2); \
+                Robot (name pr2); \
+                RobotPose (name robot_init_pose); \
+                Workspace (name ws)', \
+            'Goal': '(At can0 target1)'}
+
         self.hls = hl_solver.FFSolver(self.d_c)
 
     def test_basic(self):
