@@ -8,9 +8,13 @@ class Action(object):
     name: name of this action
     active_timesteps: (start_time, end_time) for this action
     params: ordered list of Parameter objects
-    preds: list containing, for each predicate,
+    preds: list of dictionaries where each dictionary contains information about
+    a predicate. each dictionary contains
     - the Predicate object
     - negated (Boolean)
+    - hl_info (string) which is "pre", "post" and "hl_state" if the predicate is
+      a precondition, postcondition, or neither and part of the high level state
+      respectively
     - active_timesteps (tuple of (start_time, end_time))
     """
     def __init__(self, step_num, name, active_timesteps, params, preds):
