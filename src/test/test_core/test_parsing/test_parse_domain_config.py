@@ -130,6 +130,5 @@ class TestParseDomainConfig(unittest.TestCase):
         s = parse_domain_config.ParseDomainConfig.parse(new_c).action_schemas["grasp"]
         self.assertEqual(s.params, [("?robot", "Robot")])
         self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RPose", "?sym1": "RPose"})
-        import ipdb; ipdb.set_trace()
         self.assertEqual(s.preds, [{"type": "RobotAt", "hl_info": "pre", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?sym"]},
                                    {"type": "Obstructs", "hl_info": "eff", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym1", "?obj"]}])
