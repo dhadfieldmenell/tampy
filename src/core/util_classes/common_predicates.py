@@ -39,6 +39,23 @@ class ExprPredicate(Predicate):
                          for (_, active_inds) in p_attrs)
         self.x = np.zeros(self.x_dim)
 
+    def get_expr(self, pred_dict, action_preds):
+        """
+        Returns an expr or None
+
+        pred_dict is a dictionary containing
+        - the Predicate object (self)
+        - negated (Boolean): whether the predicated is negated
+        - hl_info (string) which is "pre", "post" and "hl_state" if the
+          predicate is a precondition, postcondition, or neither and part of the
+          high level state respectively
+        - active_timesteps (tuple of (start_time, end_time))
+
+        action_preds is a list containing all the predicate dictionaries for
+            the action get_expr is being called from.
+        """
+        raise NotImplementedError
+
     def get_param_vector(self, t):
         i = 0
         for p in self.params:
@@ -192,6 +209,12 @@ class At(ExprPredicate):
         tol=DEFAULT_TOL
 
         super(At, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
+
+    def get_expr(self, pred_dict, action_preds):
+        if pred_dict['negated']:
+            return None
+        else:
+            return self.expr
 
 class RobotAt(At):
     pass
