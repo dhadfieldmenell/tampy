@@ -35,6 +35,37 @@ class HLSolver(object):
         """
         raise NotImplementedError("Override this.")
 
+class HLState(object):
+    """
+    Tracks the HL state so that HL state information can be added to preds dict
+    attribute in the Action class. For HLSolver use only.
+    """
+    def __init__(self, init_preds):
+        self._pred_dict = {}
+        for pred in init_preds:
+            rep = self._get_rep(pred)
+            self._pred_dict[rep] = pred
+
+    def get_preds(self):
+        return self._pred_dict.values()
+
+    def add_pred_from_dict(self, pred_dict):
+        if pred_dict["hl_info"] is "eff":
+            negated = pred_dict["negated"]
+            pred = pred_dict["pred"]
+            rep = self._get_rep(pred)
+            if negated and rep in self._pred_dict:
+                del self._pred_dict[rep]
+            elif not negated and rep not in self._pred_dict:
+                self._pred_dict[rep] = pred
+
+    def _get_rep(self, pred):
+        s = "(%s "%(pred.get_type())
+        for param in pred.params[:-1]:
+            s += param.name + " "
+        s += pred.params[-1].name + ")"
+        return s
+
 class FFSolver(HLSolver):
     FF_EXEC = "../task_planners/FF-v2.3/ff"
     FILE_PREFIX = "temp_"
@@ -141,7 +172,7 @@ class FFSolver(HLSolver):
                     assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
                     pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
-                    preds.append({"negated": p_d["negated"], "active_timesteps": ts, "pred": pred})
+                    preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
             actions.append(Action(step, a_name, (curr_h, curr_h + a_schema.horizon - 1), [params[arg] for arg in a_args], preds))
             curr_h += a_schema.horizon
         return actions

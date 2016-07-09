@@ -103,6 +103,45 @@ class TestHLSolver(unittest.TestCase):
 
         self.hls = hl_solver.FFSolver(self.d_c)
 
+    def test_hl_state(self):
+        problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
+        plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
+        preds = problem.init_state.preds
+        hl_state = hl_solver.HLState(preds)
+        for pred in preds:
+            self.assertTrue(pred in hl_state._pred_dict.values())
+        moveto_preds = plan.actions[0].preds
+
+        # testing preconditions, they shouldn't effect the HLState
+        pre_robotat_init = moveto_preds[0]
+        self.assertTrue(hl_state._get_rep(pre_robotat_init['pred'])
+                        in hl_state._pred_dict)
+        hl_state.add_pred_from_dict(pre_robotat_init)
+        self.assertTrue(pre_robotat_init['pred'] not in hl_state.get_preds())
+
+        pre_obstructs_can1 = moveto_preds[1]
+        hl_state.add_pred_from_dict(pre_obstructs_can1)
+        self.assertTrue(pre_obstructs_can1['pred'] not in hl_state.get_preds())
+
+        # testing effects, these will effect the HLState
+        # since the robot isn't at robot_init_pose anymore, this pred should be
+        # removed from the state
+        post_robotat_init = moveto_preds[3]
+        self.assertTrue(hl_state._get_rep(post_robotat_init['pred'])
+                        in hl_state._pred_dict)
+        hl_state.add_pred_from_dict(post_robotat_init)
+        self.assertTrue(hl_state._get_rep(post_robotat_init['pred'])
+                        not in hl_state._pred_dict)
+
+        # since the robot is now at gp_can1, this pred should be added to the
+        # state
+        post_robotat_gpcan1 = moveto_preds[4]
+        self.assertTrue(hl_state._get_rep(post_robotat_gpcan1['pred'])
+                        not in hl_state._pred_dict)
+        hl_state.add_pred_from_dict(post_robotat_gpcan1)
+        self.assertTrue(hl_state._get_rep(post_robotat_gpcan1['pred'])
+                        in hl_state._pred_dict)
+
     def test_basic(self):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
         plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
