@@ -106,14 +106,14 @@ class TestParseDomainConfig(unittest.TestCase):
         self.assertEqual(s.horizon, 20)
         self.assertEqual(s.params, [("?robot", "Robot"), ("?can", "Can"), ("?target", "Target"), ("?gp", "RPose")])
         self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RPose", "?obj1": "Can"})
-        self.assertTrue({"type": "Obstructs", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?gp", "?obj1"]} in s.preds)
+        self.assertTrue({"type": "Obstructs", "hl_info": "pre", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?gp", "?obj1"]} in s.preds)
         s = self.domain.action_schemas["moveto"]
         self.assertEqual(s.name, "moveto")
         self.assertEqual(s.horizon, 20)
         self.assertEqual(s.params, [("?robot", "Robot"), ("?start", "RPose"), ("?end", "RPose")])
-        self.assertTrue({"type": "RobotAt", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?start"]} in s.preds)
-        self.assertTrue({"type": "RobotAt", "active_timesteps": (19, 19), "negated": True, "args": ["?robot", "?start"]} in s.preds)
-        self.assertTrue({"type": "RobotAt", "active_timesteps": (19, 19), "negated": False, "args": ["?robot", "?end"]} in s.preds)
+        self.assertTrue({"type": "RobotAt", "hl_info": "pre", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?start"]} in s.preds)
+        self.assertTrue({"type": "RobotAt", "hl_info": "eff", "active_timesteps": (19, 19), "negated": True, "args": ["?robot", "?start"]} in s.preds)
+        self.assertTrue({"type": "RobotAt", "hl_info": "eff", "active_timesteps": (19, 19), "negated": False, "args": ["?robot", "?end"]} in s.preds)
 
     def test_action_schemas_nested_forall(self):
         new_c = self.c.copy()
@@ -121,8 +121,8 @@ class TestParseDomainConfig(unittest.TestCase):
         s = parse_domain_config.ParseDomainConfig.parse(new_c).action_schemas["grasp"]
         self.assertEqual(s.params, [("?robot", "Robot")])
         self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RPose", "?sym1": "RPose"})
-        self.assertEqual(s.preds, [{"type": "RobotAt", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?sym"]},
-                                   {"type": "Obstructs", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym1", "?obj"]}])
+        self.assertEqual(s.preds, [{"type": "RobotAt", "hl_info": "pre", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?sym"]},
+                                   {"type": "Obstructs", "hl_info": "eff", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym1", "?obj"]}])
 
     def test_action_schemas_formatting(self):
         new_c = self.c.copy()
@@ -130,5 +130,6 @@ class TestParseDomainConfig(unittest.TestCase):
         s = parse_domain_config.ParseDomainConfig.parse(new_c).action_schemas["grasp"]
         self.assertEqual(s.params, [("?robot", "Robot")])
         self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RPose", "?sym1": "RPose"})
-        self.assertEqual(s.preds, [{"type": "RobotAt", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?sym"]},
-                                   {"type": "Obstructs", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym1", "?obj"]}])
+        import ipdb; ipdb.set_trace()
+        self.assertEqual(s.preds, [{"type": "RobotAt", "hl_info": "pre", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?sym"]},
+                                   {"type": "Obstructs", "hl_info": "eff", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym1", "?obj"]}])

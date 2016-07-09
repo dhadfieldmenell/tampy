@@ -75,6 +75,20 @@ class ParseDomainConfig(object):
         return pred_schemas
 
     @staticmethod
+    def _build_predicate_str(p_s):
+        pred_strs = []
+        count, prev_i = 0, 0
+        for i, token in enumerate(p_s):
+            if token == "(":
+                count += 1
+            if token == ")":
+                count -= 1
+                if count == 0:
+                    pred_strs.append(p_s[prev_i:i+1].strip())
+                    prev_i = i + 1
+        return pred_strs
+
+    @staticmethod
     def _create_action_schemas(domain_config):
         action_schemas = {}
         for k, v in domain_config.items():
@@ -99,17 +113,11 @@ class ParseDomainConfig(object):
                 m = re.match("\(\s*and", eff)
                 if m:
                     eff = eff[m.span()[1]:-1].strip()
-                pred_strs = []
-                count, prev_i = 0, 0
-                p_s = pre + eff
-                for i, token in enumerate(p_s):
-                    if token == "(":
-                        count += 1
-                    if token == ")":
-                        count -= 1
-                        if count == 0:
-                            pred_strs.append(p_s[prev_i:i+1].strip())
-                            prev_i = i + 1
+
+                pre_pred_strs = ParseDomainConfig._build_predicate_str(pre)
+                eff_pred_strs = ParseDomainConfig._build_predicate_str(eff)
+                pred_strs = pre_pred_strs + eff_pred_strs
+
                 all_active_timesteps = [tuple(map(int, s.split(":"))) for s in v[inds[3]:].strip().split()]
                 # build list of params
                 params = []
@@ -147,7 +155,12 @@ class ParseDomainConfig(object):
                     # parse out predicate type and args
                     spl = pred.strip("() ").split()
                     pred_type, args = spl[0], spl[1:]
-                    preds.append({"type": pred_type, "args": args, "negated": negated,
+                    hl_info = None
+                    if i < len(pre_pred_strs):
+                        hl_info = "pre"
+                    else:
+                        hl_info = "eff"
+                    preds.append({"type": pred_type, "hl_info": hl_info, "args": args, "negated": negated,
                                   "active_timesteps": all_active_timesteps[i]})
                 action_schemas[a_name] = ActionSchema(a_name, int(horizon), params, univ_params, preds)
         return action_schemas
