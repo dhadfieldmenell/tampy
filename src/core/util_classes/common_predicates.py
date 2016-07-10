@@ -14,7 +14,7 @@ This file implements the classes for commonly used predicates that are useful in
 typical domains.
 """
 
-DEFAULT_TOL=1e-6
+DEFAULT_TOL=1e-4
 
 class ExprPredicate(Predicate):
 
@@ -22,7 +22,7 @@ class ExprPredicate(Predicate):
     Predicates which are defined by a target value for a set expression.
     """
 
-    def __init__(self, name, expr, attr_inds, params, expected_param_types):
+    def __init__(self, name, expr, attr_inds, tol, params, expected_param_types):
         """
         attr2inds is a dictionary that maps each parameter name to a
         list of (attr, active_inds) pairs. This defines the mapping
@@ -32,7 +32,7 @@ class ExprPredicate(Predicate):
         super(ExprPredicate, self).__init__(name, params, expected_param_types)
         self.expr = expr
         self.attr_inds = attr_inds
-        self.tol = DEFAULT_TOL
+        self.tol = tol
 
         self.x_dim = sum(len(active_inds)
                          for p_attrs in attr_inds.values()
@@ -107,7 +107,8 @@ class CollisionPredicate(ExprPredicate):
             self._env.SetViewer("qtcoin")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
+        tol = DEFAULT_TOL
+        super(CollisionPredicate, self).__init__(name, e, attr_inds,tol, params, expected_param_types)
 
     def grasp(self, time):
         return (np.array(self.params[1].pose) - np.array(self.params[0].value))[:,time]
@@ -209,7 +210,8 @@ class At(ExprPredicate):
         val = np.zeros((dims, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+        tol = DEFAULT_TOL
+        super(At, self).__init__(name, e, attr_inds,tol, params, expected_param_types)
 
     def get_expr(self, pred_dict, action_preds):
         if pred_dict['negated']:
@@ -253,33 +255,34 @@ class IsGP(CollisionPredicate):
 
 
 class IsPDP(CollisionPredicate):
-    #IsGP, Robot, RobotPose, Target
-    assert len(params) == 3
-    self._env = Environment()
-    self.robot = params[0]
-    self.target_object = params[2]
-    pdp_params = params[1:]#Select 2nd and 4th element
-    expected_pdp_param_types = expected_param_types[1:]
-    attr_inds = {}
-    self._param_to_body = {}
-    for p in gp_params:
-        if not p.is_symbol():
-            assert hasattr(p, "geom")
-            assert p.get_attr_type("pose") is Vector2d
-            attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
-            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
-        else:
-            assert p.get_attr_type("value") is Vector2d
-            attr_inds[p.name] = [("value", np.array([0, 1], dtype=np.int))]
-            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, self.robot.geom)
+    def __init__(self, name, params, expected_param_types, debug=False):
+        #IsGP, Robot, RobotPose, Target
+        assert len(params) == 3
+        self._env = Environment()
+        self.robot = params[0]
+        self.target_object = params[2]
+        pdp_params = params[1:]#Select 2nd and 4th element
+        expected_pdp_param_types = expected_param_types[1:]
+        attr_inds = {}
+        self._param_to_body = {}
+        for p in pdp_params:
+            if not p.is_symbol():
+                assert hasattr(p, "geom")
+                assert p.get_attr_type("pose") is Vector2d
+                attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
+                self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
+            else:
+                assert p.get_attr_type("value") is Vector2d
+                attr_inds[p.name] = [("value", np.array([0, 1], dtype=np.int))]
+                self._param_to_body[p] = OpenRAVEBody(self._env, p.name, self.robot.geom)
 
-    f = lambda x: self.distance_from_obj(x)[0]
-    grad = lambda x: self.distance_from_obj(x)[1]
+        f = lambda x: self.distance_from_obj(x)[0]
+        grad = lambda x: self.distance_from_obj(x)[1]
 
-    col_expr = Expr(f, grad)
-    val = np.zeros((1, 1))
-    e = EqExpr(col_expr, val)
-    super(IsGP, self).__init__(name, e, attr_inds, gp_params, expected_gp_param_types)
+        col_expr = Expr(f, grad)
+        val = np.zeros((1, 1))
+        e = EqExpr(col_expr, val)
+        super(IsPDP, self).__init__(name, e, attr_inds, pdp_params, expected_pdp_param_types)
 
 class InGripper(Predicate):
     def test(self, time):

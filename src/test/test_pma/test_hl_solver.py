@@ -40,6 +40,7 @@ class TestHLSolver(unittest.TestCase):
                 IsPDP, Robot, RobotPose, Target; \
                 Obstructs, Robot, RobotPose, Can', \
             'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer',
+            'Predicates Import Path': 'core.util_classes.common_predicates',\
             'Primitive Predicates': \
                 'geom, Can, RedCircle; pose, Can, Vector2d; \
                 geom, Target, BlueCircle; pose, Target, Vector2d; \
@@ -65,15 +66,15 @@ class TestHLSolver(unittest.TestCase):
         self.p_c = {
             'Init': \
                 '(geom target0 1), (pose target0 [3,5]), \
-                (value pdp_target0 undefined), \
+                (value pdp_target0 [3,7.05]), \
                 (geom target1 1), (pose target1 [3,6]), \
-                (value pdp_target1 undefined), \
+                (value pdp_target1 [3,8.05]), \
                 (geom target2 1), (pose target2 [5,3]), \
-                (value pdp_target2 undefined), \
+                (value pdp_target2 [5,5.05]), \
                 (geom can0 1), (pose can0 [3,5]), \
-                (value gp_can0 undefined), \
+                (value gp_can0 [3,7.05]), \
                 (geom can1 1), (pose can1 [3,6]), \
-                (value gp_can1 undefined), \
+                (value gp_can1 [3,8.05]), \
                 (geom pr2 1), (pose pr2 [0,7]), \
                 (value robot_init_pose [0,7]), \
                 (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws); \
@@ -100,7 +101,6 @@ class TestHLSolver(unittest.TestCase):
                 RobotPose (name robot_init_pose); \
                 Workspace (name ws)', \
             'Goal': '(At can0 target1)'}
-
         self.hls = hl_solver.FFSolver(self.d_c)
 
     def test_hl_state(self):
@@ -273,3 +273,7 @@ class TestHLSolver(unittest.TestCase):
         problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
         self.assertEqual(plan, Plan.IMPOSSIBLE)
+
+if __name__ == '__main__':
+    unittest.main()
+

@@ -32,6 +32,7 @@ class TestParseDomainConfig(unittest.TestCase):
                 0:0 0:0 0:0 0:0 0:19 19:19 19:19', \
             'Derived Predicates': 'At, Can, Target, RPose, Robot, Workspace', \
             'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer', \
+            'Predicates Import Path': 'core.util_classes.common_predicates',\
             'Primitive Predicates': \
                 'geom, Can, RedCircle; pose, Can, Vector2d; \
                 geom, Target, BlueCircle; pose, Target, Vector2d; \

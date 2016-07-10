@@ -21,6 +21,7 @@ d_c = {'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose)
             ) 0:0 0:19 19:19 19:19',
     'Derived Predicates': 'RobotAt, Robot, RobotPose; Obstructs, Robot, RobotPose, Obstacle',
     'Attribute Import Paths': 'GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer, Obstacle core.util_classes.obstacle',
+    'Predicates Import Path': 'core.util_classes.common_predicates',\
     'Primitive Predicates': 'value, RobotPose, Vector2d; \
         geom, Robot, GreenCircle; pose, Robot, Vector2d; \
         geom, Obstacle, Obstacle; pose, Obstacle, Vector2d; \
@@ -34,7 +35,8 @@ class TestLLSolver(unittest.TestCase):
         'Action putdown 20': '(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose) (and (RobotAt ?robot ?pdp) (IsPDP ?robot ?pdp  ?target) (InGripper ?can) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))) (and (At ?can ?target) (not (InGripper ?can))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19',
         'Derived Predicates': 'At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, Robot, RobotPose, Can; IsPDP, Robot, RobotPose, Target; Obstructs, Robot, RobotPose, Can',
         'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer',
-        'Primitive Predicates': 'geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer',
+        'Predicates Import Path': 'core.util_classes.common_predicates',
+	'Primitive Predicates': 'geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer',
         'Action grasp 20': '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?robot ?gp ?can) (forall (?obj - Can) (not (InGripper ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?can) (forall (?sym - RobotPose) (not (Obstructs ?robot ?sym ?can)))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19',
         'Types': 'Can, Target, RobotPose, Robot, Workspace'}
         self.domain = parse_domain_config.ParseDomainConfig.parse(self.d_c)
@@ -210,7 +212,7 @@ class TestLLSolver(unittest.TestCase):
         # time.sleep(3)
 
 
-    def test(self):
-        plan = self.one_move_plan
-        horizon = plan.horizon
-        self.assertEqual(True, True)
+ #   def test(self):
+ #       plan = self.one_move_plan
+ #       horizon = plan.horizon
+ #       self.assertEqual(True, True)
