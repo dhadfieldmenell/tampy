@@ -92,6 +92,11 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertEqual(cm.exception.message, "attribute type not supported")
 
     def test_expr_is_gp(self):
+        radius = 1
+        attrs = {"geom": [radius], "pose": [(2, 0)], "_type": ["Robot"], "name": ["robot"]}
+        attr_types = {"geom": PR2, "pose": PR2PoseVector, "_type": str, "name": str}
+        robot = parameter.Object(attrs, attr_types)
+
         attrs = {"name": ["rPose"], "value": ["undefined"], "_type": ["RobotPose"]}
         attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
         rPose = parameter.Symbol(attrs, attr_types)

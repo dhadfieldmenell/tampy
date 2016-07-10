@@ -22,7 +22,7 @@ class ExprPredicate(Predicate):
     Predicates which are defined by a target value for a set expression.
     """
 
-    def __init__(self, name, expr, attr_inds, tol, params, expected_param_types):
+    def __init__(self, name, expr, attr_inds, params, expected_param_types):
         """
         attr2inds is a dictionary that maps each parameter name to a
         list of (attr, active_inds) pairs. This defines the mapping
@@ -32,12 +32,13 @@ class ExprPredicate(Predicate):
         super(ExprPredicate, self).__init__(name, params, expected_param_types)
         self.expr = expr
         self.attr_inds = attr_inds
-        self.tol = tol
+        self.tol = DEFAULT_TOL
 
         self.x_dim = sum(len(active_inds)
                          for p_attrs in attr_inds.values()
                          for (_, active_inds) in p_attrs)
         self.x = np.zeros(self.x_dim)
+
 
     def get_expr(self, pred_dict, action_preds):
         """
@@ -100,20 +101,22 @@ class ExprPredicate(Predicate):
         return self.expr.grad(self.get_param_vector(t))
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, tol, params, expected_param_types, dsafe = 0.05, debug = False):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
-        self._params = params
         self.dsafe = dsafe
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def grasp(self, time):
+        return (np.array(self.params[1].pose) - np.array(self.params[0].value))[:,time]
 
     def distance_from_obj(self, x):
         # self._cc.SetContactDistance(self.dsafe + .1)
         self._cc.SetContactDistance(np.Inf)
-        p0 = self._params[0]
-        p1 = self._params[1]
+        p0 = self.params[0]
+        p1 = self.params[1]
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         pose0 = x[0:2]
@@ -206,9 +209,7 @@ class At(ExprPredicate):
         val = np.zeros((dims, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        tol=DEFAULT_TOL
-
-        super(At, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
     def get_expr(self, pred_dict, action_preds):
         if pred_dict['negated']:
@@ -243,18 +244,42 @@ class IsGP(CollisionPredicate):
 
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]
+
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        tol = DEFAULT_TOL
-        super(IsGP, self).__init__(name, e, attr_inds, tol, gp_params, expected_gp_param_types)
-     
-    def grasp(self, time):
-        return (np.array(self.params[1].pose) - np.array(self.params[0].value))[:,time]
+        super(IsGP, self).__init__(name, e, attr_inds, gp_params, expected_gp_param_types)
 
-class IsPDP(Predicate):
-    def test(sself, time):
-        return True
+
+
+class IsPDP(CollisionPredicate):
+    #IsGP, Robot, RobotPose, Target
+    assert len(params) == 3
+    self._env = Environment()
+    self.robot = params[0]
+    self.target_object = params[2]
+    pdp_params = params[1:]#Select 2nd and 4th element
+    expected_pdp_param_types = expected_param_types[1:]
+    attr_inds = {}
+    self._param_to_body = {}
+    for p in gp_params:
+        if not p.is_symbol():
+            assert hasattr(p, "geom")
+            assert p.get_attr_type("pose") is Vector2d
+            attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
+            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
+        else:
+            assert p.get_attr_type("value") is Vector2d
+            attr_inds[p.name] = [("value", np.array([0, 1], dtype=np.int))]
+            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, self.robot.geom)
+
+    f = lambda x: self.distance_from_obj(x)[0]
+    grad = lambda x: self.distance_from_obj(x)[1]
+
+    col_expr = Expr(f, grad)
+    val = np.zeros((1, 1))
+    e = EqExpr(col_expr, val)
+    super(IsGP, self).__init__(name, e, attr_inds, gp_params, expected_gp_param_types)
 
 class InGripper(Predicate):
     def test(self, time):
@@ -282,8 +307,7 @@ class NotObstructs(CollisionPredicate):
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]
 
-        col_expr = Expr(f, grad) 
+        col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
-        tol = DEFAULT_TOL
-        super(NotObstructs, self).__init__(name, e, attr_inds, tol, params, expected_param_types)
+        super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types)

@@ -22,7 +22,7 @@ class TestHLSolver(unittest.TestCase):
             'Action putdown 20': '(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose) \
                 (and \
                     (RobotAt ?robot ?pdp) \
-                    (IsPDP ?robot ?pdp ?can ?target) \
+                    (IsPDP ?robot ?pdp ?target) \
                     (InGripper ?can) \
                     (forall (?obj - Can) (not (At ?obj ?target))) \
                     (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))\
@@ -37,7 +37,7 @@ class TestHLSolver(unittest.TestCase):
                 RobotAt, Robot, RobotPose; \
                 InGripper, Can; \
                 IsGP, Robot, RobotPose, Can; \
-                IsPDP, Robot, RobotPose, Can, Target; \
+                IsPDP, Robot, RobotPose, Target; \
                 Obstructs, Robot, RobotPose, Can', \
             'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer',
             'Primitive Predicates': \
@@ -81,9 +81,9 @@ class TestHLSolver(unittest.TestCase):
                 (IsGP pr2 gp_can0 can0), \
                 (At can1 target1), \
                 (IsGP pr2 gp_can1 can1), \
-                (IsPDP pr2 pdp_target0 can0 target0), \
-                (IsPDP pr2 pdp_target1 can1 target1), \
-                (IsPDP pr2 pdp_target2 can2 target2), \
+                (IsPDP pr2 pdp_target0 target0), \
+                (IsPDP pr2 pdp_target1 target1), \
+                (IsPDP pr2 pdp_target2 target2), \
                 (RobotAt pr2 robot_init_pose)',
             'Objects': \
                 'Target (name target0); \
@@ -167,8 +167,8 @@ class TestHLSolver(unittest.TestCase):
 
         moveto = plan.actions[0]
         moveto_pred_rep_list = extract_pred_reps_from_pred_dicts(moveto.preds)
-        self.assertTrue('(IsGP gp_can1 can1)' in moveto_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto.preds, '(IsGP gp_can1 can1)', "hl_state"))
+        self.assertTrue('(IsGP pr2 gp_can1 can1)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(IsGP pr2 gp_can1 can1)', "hl_state"))
         self.assertTrue('(RobotAt pr2 robot_init_pose)' in moveto_pred_rep_list)
         self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 robot_init_pose)', "pre"))
         self.assertTrue('(RobotAt pr2 gp_can0)' in moveto_pred_rep_list)
@@ -177,10 +177,10 @@ class TestHLSolver(unittest.TestCase):
         grasp = plan.actions[1]
         grasp_pred_rep_list = extract_pred_reps_from_pred_dicts(grasp.preds)
         self.assertTrue('(RobotAt pr2 robot_init_pose)' not in grasp_pred_rep_list)
-        self.assertTrue('(IsGP gp_can0 can0)' in grasp_pred_rep_list)
-        self.assertTrue(test_hl_info(grasp.preds, '(IsGP gp_can0 can0)', "pre"))
-        self.assertTrue('(IsGP gp_can1 can1)' in grasp_pred_rep_list)
-        self.assertTrue(test_hl_info(grasp.preds, '(IsGP gp_can1 can1)', "hl_state"))
+        self.assertTrue('(IsGP pr2 gp_can0 can0)' in grasp_pred_rep_list)
+        self.assertTrue(test_hl_info(grasp.preds, '(IsGP pr2 gp_can0 can0)', "pre"))
+        self.assertTrue('(IsGP pr2 gp_can1 can1)' in grasp_pred_rep_list)
+        self.assertTrue(test_hl_info(grasp.preds, '(IsGP pr2 gp_can1 can1)', "hl_state"))
         self.assertTrue('(InGripper can0)' in grasp_pred_rep_list)
         self.assertTrue(test_hl_info(grasp.preds, '(InGripper can0)', "eff"))
 
@@ -192,10 +192,10 @@ class TestHLSolver(unittest.TestCase):
         self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 robot_init_pose)', "eff"))
         self.assertTrue('(InGripper can0)' in moveto2_pred_rep_list)
         self.assertTrue(test_hl_info(moveto2.preds, '(InGripper can0)', "hl_state"))
-        self.assertTrue('(IsGP gp_can0 can0)' in moveto2_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto2.preds, '(IsGP gp_can0 can0)', "hl_state"))
-        self.assertTrue('(IsGP gp_can1 can1)' in moveto2_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto2.preds, '(IsGP gp_can1 can1)', "hl_state"))
+        self.assertTrue('(IsGP pr2 gp_can0 can0)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(IsGP pr2 gp_can0 can0)', "hl_state"))
+        self.assertTrue('(IsGP pr2 gp_can1 can1)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(IsGP pr2 gp_can1 can1)', "hl_state"))
 
     def test_basic(self):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)

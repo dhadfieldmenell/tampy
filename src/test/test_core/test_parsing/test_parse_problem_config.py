@@ -6,7 +6,7 @@ from errors_exceptions import ProblemConfigException, ParamValidationException
 
 class TestParseProblemConfig(unittest.TestCase):
     def setUp(self):
-        d_c = {'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 0:19 19:19 19:19', 'Action putdown 20': '(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose) (and (RobotAt ?robot ?pdp) (IsPDP ?pdp ?target) (InGripper ?can) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))) (and (At ?can ?target) (not (InGripper ?can))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19', 'Derived Predicates': 'At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, Robot, RobotPose, Can; IsPDP, RobotPose, Target; Obstructs, Robot, RobotPose, Can', 'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer', 'Primitive Predicates': 'geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer', 'Action grasp 20': '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?robot ?gp ?can) (forall (?obj - Can) (not (InGripper ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?can) (forall (?sym - RobotPose) (not (Obstructs ?robot ?sym ?can)))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19', 'Types': 'Can, Target, RobotPose, Robot, Workspace'}
+        d_c = {'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 0:19 19:19 19:19', 'Action putdown 20': '(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose) (and (RobotAt ?robot ?pdp) (IsPDP ?robot ?pdp ?target) (InGripper ?can) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))) (and (At ?can ?target) (not (InGripper ?can))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19', 'Derived Predicates': 'At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, Robot, RobotPose, Can; IsPDP Robot, RobotPose, Target; Obstructs, Robot, RobotPose, Can', 'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer', 'Primitive Predicates': 'geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer', 'Action grasp 20': '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?robot ?gp ?can) (forall (?obj - Can) (not (InGripper ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?can) (forall (?sym - RobotPose) (not (Obstructs ?robot ?sym ?can)))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19', 'Types': 'Can, Target, RobotPose, Robot, Workspace'}
         self.domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         self.p_c = {'Objects': 'Robot (name pr2); Target (name target0); Target (name target1); Can (name can0); RobotPose (name gp_can0)', 'Init': '(geom target0 1), (pose target0 [3, 5]), (geom target1 1), (pose pr2 [1, 2]), (geom pr2 1), (pose target1 [4,6]), (geom can0 1), (pose can0 [3, 5]), (value gp_can0 undefined); (At can0 target0), (IsGP pr2 gp_can0 can0)', 'Goal': '(At can0 target1)'}
 
@@ -53,10 +53,10 @@ class TestParseProblemConfig(unittest.TestCase):
 
     def test_missing_prim_preds(self):
 	p2 = self.p_c.copy()
-        p2["Init"] = ";(At can0 target0), (IsGP gp_can0 can0)"
+        p2["Init"] = ";(At can0 target0), (IsGP pr2 gp_can0 can0)"
         with self.assertRaises(ProblemConfigException) as cm:
             problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
-        self.assertEqual(cm.exception.message, "Problem file has no primitive predicates for object 'target1'.")	
+        self.assertEqual(cm.exception.message, "Problem file has no primitive predicates for object 'target1'.")
 
 
     def test_missing_derived_preds(self):
@@ -115,5 +115,3 @@ class TestParseProblemConfig(unittest.TestCase):
 
 if __name__ == "__main__":
 	unittest.main()
-
-

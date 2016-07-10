@@ -20,7 +20,7 @@ class TestParseDomainConfig(unittest.TestCase):
             'Action putdown 20': '(?robot - Robot ?can - Can ?target - Target ?pdp - RPose) \
                 (and \
                     (RobotAt ?robot ?pdp) \
-                    (IsPDP ?pdp ?target) \
+                    (IsPDP ?robot ?pdp  ?target) \
                     (InGripper ?can) \
                     (forall (?obj - Can) (not (At ?obj ?target))) \
                     (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj))) \
@@ -42,7 +42,7 @@ class TestParseDomainConfig(unittest.TestCase):
                 (and \
                     (At ?can ?target) \
                     (RobotAt ?robot ?gp) \
-                    (IsGP ?gp ?can) \
+                    (IsGP ?robot ?gp ?can) \
                     (forall (?obj - Can) (not (InGripper ?obj))) \
                     (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj))) \
                 ) \
