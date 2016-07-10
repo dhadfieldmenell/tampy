@@ -1,14 +1,14 @@
 import unittest
 from core.internal_repr import state
 from core.internal_repr import parameter
-from core.util_classes import common_predicates
+from core.util_classes import common_predicates, namo_predicates
 from core.util_classes.matrix import Vector2d
 from core.util_classes import circle
 import numpy as np
 
 class TestState(unittest.TestCase):
     def setUp(self):
-    	
+
 	attrs = {"name": ["robot"], "geom": [1], "pose": [(0,0)], "_type": ["Robot"]}
         attr_types = {"name": str, "geom": circle.RedCircle,"pose": Vector2d, "_type": str}
         self.robot = parameter.Object(attrs, attr_types)
@@ -21,8 +21,8 @@ class TestState(unittest.TestCase):
         attrs = {"name": ["gp"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": Vector2d, "_type": str}
         self.gp = parameter.Symbol(attrs, attr_types)
-        self.at = common_predicates.At("at", [self.can, self.target], ["Can", "Target"])
-        self.isgp = common_predicates.IsGP("isgp", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
+        self.at = namo_predicates.At("at", [self.can, self.target], ["Can", "Target"])
+        self.isgp = namo_predicates.IsGP("isgp", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
         self.s = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
 
     def test(self):

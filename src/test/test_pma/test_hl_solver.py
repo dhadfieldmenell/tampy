@@ -12,7 +12,8 @@ class TestHLSolver(unittest.TestCase):
             'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) \
                 (and \
                     (RobotAt ?robot ?start) \
-                    (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj))) \
+                    (forall (?obj - Can) \
+                        (not (Obstructs ?robot ?start ?obj))) \
                 ) \
                 (and \
                     (not (RobotAt ?robot ?start)) \
@@ -24,8 +25,12 @@ class TestHLSolver(unittest.TestCase):
                     (RobotAt ?robot ?pdp) \
                     (IsPDP ?robot ?pdp ?target) \
                     (InGripper ?can) \
-                    (forall (?obj - Can) (not (At ?obj ?target))) \
-                    (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))\
+                    (forall (?obj - Can) \
+                        (not (At ?obj ?target))\
+                    ) \
+                    (forall (?obj - Can) \
+                        (not (Obstructs ?robot ?pdp ?obj))\
+                    )\
                 ) \
                 (and \
                     (At ?can ?target) \
@@ -38,27 +43,47 @@ class TestHLSolver(unittest.TestCase):
                 InGripper, Can; \
                 IsGP, Robot, RobotPose, Can; \
                 IsPDP, Robot, RobotPose, Target; \
-                Obstructs, Robot, RobotPose, Can', \
-            'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer',
-            'Predicates Import Path': 'core.util_classes.common_predicates',\
+                Obstructs, Robot, RobotPose, Can',
+            'Attribute Import Paths':
+                'RedCircle core.util_classes.circle, \
+                BlueCircle core.util_classes.circle, \
+                GreenCircle core.util_classes.circle, \
+                Vector2d core.util_classes.matrix, \
+                GridWorldViewer core.util_classes.viewer',
+            'Predicates Import Path':
+                'core.util_classes.common_predicates',\
             'Primitive Predicates': \
-                'geom, Can, RedCircle; pose, Can, Vector2d; \
-                geom, Target, BlueCircle; pose, Target, Vector2d; \
+                'geom, Can, RedCircle; \
+                pose, Can, Vector2d; \
+                geom, Target, BlueCircle; \
+                pose, Target, Vector2d; \
                 value, RobotPose, Vector2d; \
-                geom, Robot, GreenCircle; pose, Robot, Vector2d; \
-                pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer', \
-            'Action grasp 20': '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) \
+                geom, Robot, GreenCircle; \
+                pose, Robot, Vector2d; \
+                pose, Workspace, Vector2d; \
+                w, Workspace, int; \
+                h, Workspace, int; \
+                size, Workspace, int; \
+                viewer, Workspace, GridWorldViewer',
+            'Action grasp 20':
+                '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) \
                 (and \
                     (At ?can ?target) \
                     (RobotAt ?robot ?gp) \
                     (IsGP ?robot ?gp ?can) \
-                    (forall (?obj - Can) (not (InGripper ?obj))) \
-                    (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj))) \
+                    (forall (?obj - Can) \
+                        (not (InGripper ?obj))\
+                    ) \
+                    (forall (?obj - Can) \
+                        (not (Obstructs ?robot ?gp ?obj))\
+                    ) \
                 ) \
                 (and \
                     (not (At ?can ?target)) \
                     (InGripper ?can) \
-                    (forall (?sym - RobotPose) (not (Obstructs ?robot ?sym ?can)))\
+                    (forall (?sym - RobotPose) \
+                        (not (Obstructs ?robot ?sym ?can))\
+                    )\
                 ) \
                 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19', \
             'Types': 'Can, Target, RobotPose, Robot, Workspace'}
@@ -276,4 +301,3 @@ class TestHLSolver(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

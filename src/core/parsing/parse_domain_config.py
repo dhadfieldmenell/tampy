@@ -1,7 +1,7 @@
 from IPython import embed as shell
 import importlib
 from core.internal_repr import parameter
-from core.util_classes import common_predicates
+from core.util_classes import common_predicates, namo_predicates
 from core.util_classes import pr2_predicates
 from core.internal_repr.domain import Domain
 from core.internal_repr.parameter_schema import ParameterSchema
@@ -57,7 +57,7 @@ class ParseDomainConfig(object):
         try:
             pred_path = importlib.import_module(domain_config["Predicates Import Path"])
         except KeyError:
-            pred_path = common_predicates
+            pred_path = namo_predicates
 
         pred_schemas = {}
         # for p_defn in domain_config["Derived Predicates"].split(";"):

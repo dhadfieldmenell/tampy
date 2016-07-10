@@ -12,62 +12,90 @@ from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
 import time
 
-d_c = {'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) \
-            (and (RobotAt ?robot ?start)\
-                (forall (?obj - Obstacle) (not (Obstructs ?robot ?start ?obj)))\
-            ) \
-            (and (not (RobotAt ?robot ?start)) \
-                (RobotAt ?robot ?end)\
-            ) 0:0 0:19 19:19 19:19',
-    'Derived Predicates': 'RobotAt, Robot, RobotPose; Obstructs, Robot, RobotPose, Obstacle',
-    'Attribute Import Paths': 'GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer, Obstacle core.util_classes.obstacle',
-    'Predicates Import Path': 'core.util_classes.common_predicates',\
-    'Primitive Predicates': 'value, RobotPose, Vector2d; \
-        geom, Robot, GreenCircle; pose, Robot, Vector2d; \
-        geom, Obstacle, Obstacle; pose, Obstacle, Vector2d; \
-        pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer',
-    'Types': 'RobotPose, Robot, Obstacle, Workspace'}
+d_c = {
+    'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) \
+        (and (RobotAt ?robot ?start)\
+            (forall (?obj - Obstacle) \
+                (not (Obstructs ?robot ?start ?obj))\
+            )\
+        ) \
+        (and \
+            (not (RobotAt ?robot ?start)) \
+            (RobotAt ?robot ?end)\
+        ) 0:0 0:19 19:19 19:19',
+    'Derived Predicates':
+        'RobotAt, Robot, RobotPose; \
+        Obstructs, Robot, RobotPose, Obstacle',
+    'Attribute Import Paths':
+        'GreenCircle core.util_classes.circle, \
+        Vector2d core.util_classes.matrix, \
+        GridWorldViewer core.util_classes.viewer, \
+        Obstacle core.util_classes.obstacle',
+    'Predicates Import Path':
+        'core.util_classes.common_predicates',
+    'Primitive Predicates':
+        'value, RobotPose, Vector2d; \
+        geom, Robot, GreenCircle; \
+        pose, Robot, Vector2d; \
+        geom, Obstacle, Obstacle; \
+        pose, Obstacle, Vector2d; \
+        pose, Workspace, Vector2d; \
+        w, Workspace, int; \
+        h, Workspace, int; \
+        size, Workspace, int; \
+        viewer, Workspace, GridWorldViewer',
+    'Types':
+        'RobotPose, Robot, Obstacle, Workspace'}
 
 class TestLLSolver(unittest.TestCase):
     def setUp(self):
         """
-        self.d_c = {'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) (and (RobotAt ?robot ?start) (forall (?obj - Can) (not (Obstructs ?robot ?start ?obj)))) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 0:19 19:19 19:19',
-        'Action putdown 20': '(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose) (and (RobotAt ?robot ?pdp) (IsPDP ?robot ?pdp  ?target) (InGripper ?can) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?obj)))) (and (At ?can ?target) (not (InGripper ?can))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19',
-        'Derived Predicates': 'At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Can; IsGP, Robot, RobotPose, Can; IsPDP, Robot, RobotPose, Target; Obstructs, Robot, RobotPose, Can',
-        'Attribute Import Paths': 'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer',
-        'Predicates Import Path': 'core.util_classes.common_predicates',
-	'Primitive Predicates': 'geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; pose, Workspace, Vector2d; w, Workspace, int; h, Workspace, int; size, Workspace, int; viewer, Workspace, GridWorldViewer',
-        'Action grasp 20': '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?robot ?gp ?can) (forall (?obj - Can) (not (InGripper ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?can) (forall (?sym - RobotPose) (not (Obstructs ?robot ?sym ?can)))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19',
-        'Types': 'Can, Target, RobotPose, Robot, Workspace'}
-        self.domain = parse_domain_config.ParseDomainConfig.parse(self.d_c)
+            Domain file are specified above
         """
 
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        p_c = {'Init': '(geom pr2 1), (pose pr2 [0,7]), (value robot_init_pose [0,7]), (value target [0,0]), (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws); (RobotAt pr2 robot_init_pose)',
-        'Objects': 'RobotPose (name target); Robot (name pr2); RobotPose (name robot_init_pose); RobotPose (name target); Workspace (name ws)',
-        'Goal': '(RobotAt pr2 target)'}
 
-        p_c = {'Init': '(geom pr2 1), (pose pr2 [0,7]),\
+        p_c = {
+            'Init': '(geom pr2 1), (pose pr2 [0,7]),\
                 (pose obstacle [10,10]),\
                 (value robot_init_pose [0,7]),\
                 (value target [0,0]),\
                 (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws);\
                 (RobotAt pr2 robot_init_pose)',
-                'Objects': 'RobotPose (name target); Robot (name pr2); Obstacle (name obstacle); RobotPose (name robot_init_pose); RobotPose (name target); Workspace (name ws)',
-                'Goal': '(RobotAt pr2 target)'}
+            'Objects':
+                'RobotPose (name target); \
+                Robot (name pr2); \
+                Obstacle (name obstacle); \
+                RobotPose (name robot_init_pose); \
+                RobotPose (name target); \
+                Workspace (name ws)',
+            'Goal':
+                '(RobotAt pr2 target)'}
 
         hls = hl_solver.FFSolver(d_c)
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         self.move_no_obs = hls.solve(hls.translate_problem(problem), domain, problem)
 
-        p_c = {'Init': '(geom pr2 1), (pose pr2 [-2,0]),\
+        p_c = {
+            'Init': '(geom pr2 1), (pose pr2 [-2,0]),\
                 (pose obstacle [0,0]),\
                 (value robot_init_pose [-2,0]),\
                 (value target [2,0]),\
-                (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws);\
+                (pose ws [0,0]), \
+                (w ws 8), \
+                (h ws 9), \
+                (size ws 1), \
+                (viewer ws);\
                 (RobotAt pr2 robot_init_pose)',
-                'Objects': 'RobotPose (name target); Robot (name pr2); Obstacle (name obstacle); RobotPose (name robot_init_pose); RobotPose (name target); Workspace (name ws)',
-                'Goal': '(RobotAt pr2 target)'}
+            'Objects':
+                'RobotPose (name target); \
+                Robot (name pr2); \
+                Obstacle (name obstacle); \
+                RobotPose (name robot_init_pose); \
+                RobotPose (name target); \
+                Workspace (name ws)',
+            'Goal':
+                '(RobotAt pr2 target)'}
         hls = hl_solver.FFSolver(d_c)
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         self.move_w_obs = hls.solve(hls.translate_problem(problem), domain, problem)

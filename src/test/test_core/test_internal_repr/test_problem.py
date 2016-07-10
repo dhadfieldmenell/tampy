@@ -1,7 +1,7 @@
 import unittest
 from core.internal_repr import problem
 from core.internal_repr import parameter
-from core.util_classes import common_predicates
+from core.util_classes import common_predicates, namo_predicates
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import state
 from errors_exceptions import ProblemConfigException
@@ -15,21 +15,21 @@ class TestProblem(unittest.TestCase):
         attrs = {"name": ["robot"], "geom": [raidus], "pose": [(0,0)], "_type": ["Robot"]}
         attr_types = {"name": str, "geom": circle.RedCircle,"pose": Vector2d, "_type": str}
         self.robot = parameter.Object(attrs, attr_types)
-        
+
         attrs = {"name": ["can"], "geom": [raidus], "pose": [(3,4)], "_type": ["Can"]}
         attr_types = {"name": str, "geom": circle.RedCircle,"pose": Vector2d, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
-        
+
         attrs = {"name": ["target"], "pose": ["undefined"], "_type": ["Target"]}
         attr_types = {"name": str, "pose": Vector2d, "_type": str}
         self.target = parameter.Object(attrs, attr_types)
-        
+
         attrs = {"name": ["gp"], "value": [(3,6.05)], "_type": ["Sym"]}
         attr_types = {"name": str, "value": Vector2d, "_type": str}
         self.gp = parameter.Symbol(attrs, attr_types)
-        
-        self.at = common_predicates.At("at", [self.can, self.target], ["Can", "Target"])
-        self.isgp = common_predicates.IsGP("isgp", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
+
+        self.at = namo_predicates.At("at", [self.can, self.target], ["Can", "Target"])
+        self.isgp = namo_predicates.IsGP("isgp", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
         self.init_state = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
 
     def test_init_state(self):
