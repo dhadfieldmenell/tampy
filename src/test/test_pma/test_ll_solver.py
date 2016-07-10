@@ -32,7 +32,7 @@ d_c = {
         GridWorldViewer core.util_classes.viewer, \
         Obstacle core.util_classes.obstacle',
     'Predicates Import Path':
-        'core.util_classes.common_predicates',
+        'core.util_classes.namo_predicates',
     'Primitive Predicates':
         'value, RobotPose, Vector2d; \
         geom, Robot, GreenCircle; \

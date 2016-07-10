@@ -45,7 +45,7 @@ class TestPRGraph(unittest.TestCase):
                 Vector2d core.util_classes.matrix, \
                 GridWorldViewer core.util_classes.viewer',
             'Predicates Import Path':
-                'core.util_classes.common_predicates',
+                'core.util_classes.namo_predicates',
             'Primitive Predicates':
                 'geom, Can, RedCircle; \
                 pose, Can, Vector2d; \
