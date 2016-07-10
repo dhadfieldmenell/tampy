@@ -46,6 +46,16 @@ class CollisionPredicate(ExprPredicate):
         jac = np.r_[jac0, jac1].reshape((1, 4))
         return val, jac
 
+
+    def grasp(self, time):
+        try:
+            pose = self.params[self.ind0].pose
+            targ = self.params[self.ind1].value
+        except AttributeError:
+            pose = self.params[self.ind1].pose
+            targ = self.params[self.ind0].value            
+        return (np.array(pose) - np.array(targ))[:,time]
+
     def _calc_grad_and_val(self, name0, name1, pose0, pose1, collisions):
         val = -1 * float("inf")
         jac0 = None
@@ -94,6 +104,7 @@ class CollisionPredicate(ExprPredicate):
 
 class At(ExprPredicate):
     def __init__(self, name, params, expected_param_types):
+        ## At(Can Location)
         assert len(params) == 2
         dims = -1
         attr_inds = {}
@@ -138,9 +149,10 @@ class RobotAt(At):
 
 class IsGP(CollisionPredicate):
 
+    ## IsGP, Robot, RobotPose, Target, Grasp
+
     def __init__(self, name, params, expected_param_types, debug=False):
-        #IsGP, Robot, RobotPose, Can
-        assert len(params) == 3
+        assert len(params) == 4
         self._env = Environment()
         self.robot = params[0]
         gp_params = params[1:]
@@ -164,14 +176,15 @@ class IsGP(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
 
 
 class IsPDP(CollisionPredicate):
+
+    # IsPDP, Robot, RobotPose, Target, Grasp;
     def __init__(self, name, params, expected_param_types, debug=False):
-        #IsGP, Robot, RobotPose, Target
-        assert len(params) == 3
+        assert len(params) == 4
         self._env = Environment()
         self.robot = params[0]
         self.target_object = params[2]
@@ -196,71 +209,48 @@ class IsPDP(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(IsPDP, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(IsPDP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
-class InGripper(CollisionPredicate):
+
+
+class NotObstructs(CollisionPredicate):
+  
+    # NotObstructs, Robot, RobotPose, Can; 
     def __init__(self, name, params, expected_param_types, debug=False):
-        #TODO InGripper, Can needs to be changed to InGripper Robot Can
-        assert len(params) == 2
+        assert len(params) == 3
         self._env = Environment()
-        attr_inds = {}
-        self._param_to_body = {}
-        for p in params:
-            assert not p.is_symbol()
-            assert hasattr(p, "geom")
-            assert p.get_attr_type("pose") is Vector2d
-            attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
-            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
-
+        r, rp, c = params
+        attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
+                     c: [("pose", np.array([0, 1], dtype=np.int))],
+                     rp: []}
+        self._param_to_body = {r: OpenRAVEBody(self._env, r.name, r.geom),
+                               rp: OpenRAVEBody(self._env, rp.name, r.geom),
+                               c: OpenRAVEBody(self._env, c.name, c.geom)}
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]
 
-        self.grasp = grasp(0)
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
-        e = EqExpr(col_expr, val)
-        super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types)
+        e = LEqExpr(col_expr, val)
+        super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
-    def grasp(self, time):
-        val0 = self.params[self.ind0].pose
-        val1 = self.params[self.ind1],value
-        return (np.array(val0) - np.array(val1))[:,time]
+class NotObstructsHolding(CollisionPredicate):
 
-    def test(self, time = 0):
-        if not self.is_concrete():
-            return False
-        if time < 0:
-            raise PredicateException("Out of range time for predicate '%s'."%self)
-        try:
-            if not all([grasp(t) == self.grasp for t in len(self.params[1].pose[0][0])]):
-                return False
-            return self.expr.eval(self.get_param_vector(time), tol=self.tol)
-        except IndexError:
-            ## this happens with an invalid time
-            raise PredicateException("Out of range time for predicate '%s'."%self)
-
-
-    def test(self, time):
-        # TODO
-        return False
-
-class Obstructs(Predicate):
-    def test(self, time):
-        # TODO
-        return True
-
-class NotObstructs(CollisionPredicate):
+    # NotObstructsHolding, Robot, RobotPose, Can, Can;
     def __init__(self, name, params, expected_param_types, debug=False):
-        assert len(params) == 2
+        assert len(params) == 4
         self._env = Environment()
-        attr_inds = {}
-        self._param_to_body = {}
-        for p in params:
-            assert not p.is_symbol()
-            assert hasattr(p, "geom")
-            assert p.get_attr_type("pose") is Vector2d
-            attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
-            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
+        r, rp, obstr, held = params
+        self.r = r
+        self.obstr = obstr
+        self.held = held
+        attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
+                     obstr: [("pose", np.array([0, 1], dtype=np.int))],
+                     holding: [("pose", np.array([0, 1], dtype=np.int))],
+                     rp: []}
+        self._param_to_body = {r: OpenRAVEBody(self._env, r.name, r.geom),
+                               obstr: OpenRAVEBody(self._env, obstr.name, obstr.geom),
+                               holding: OpenRAVEBody(self._env, holding.name, holding.geom)}
 
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]
@@ -268,4 +258,58 @@ class NotObstructs(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
-        super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(NotObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def distance_from_obj(self, x):
+        # x = [rp, rpy, obstrx, obstry, heldx, heldy]
+        self._cc.SetContactDistance(np.Inf)
+        b0 = self._param_to_body[self.r]
+        b1 = self._param_to_body[self.obstr]
+        b2 = self._param_to_body[self.held]
+        pose_r = x[0:2]
+        pose_obstr = x[2:4]
+        pose_held = x[4:6]
+        b0.set_pose(pose_r)
+        b1.set_pose(pose_obstr)
+        b2.set_pose(pose_held)
+
+        collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
+        col_val1, jac0, jac1 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose0, pose1, collisions1)
+        collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
+        col_val2, jac2, jac1_ = self._calc_grad_and_val(self.held.name, self.obstr.name, pose2, pose1, collisions2)
+
+        val = np.array([col_val1 + col_val2])
+        jac = np.r_[jac0, jac1 + jac1_, jac2].reshape((1, 6))
+
+        return val, jac
+
+class InGripper(ExprPredicate):
+
+    # InGripper, Robot, Can, Grasp
+
+    def __init__(self, name, params, expected_param_types, debug=False):
+        assert len(params) == 3
+        self._env = Environment()
+        self.r, self.can. self.grasp = params
+        attr_inds = {self.r: [("pose", np.array([0, 1], dtype=np.int))],
+                     self.can: [("pose", np.array([0, 1], dtype=np.int))],
+                     self.grasp: [("value", np.array([0, 1], dtype=np.int))]}
+        # want x0 - x2 = x4, x1 - x3 = x5
+        A = np.array([[1, 0, -1, 0, -1, 0],
+                      [0, 1, 0, -1, 0, -1]])
+        b = np.zeros(2, 1)
+
+        e = AffExpr(A, b)
+        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
+    def test(self, time = 0):
+        if not self.is_concrete():
+            return False
+        if time < 0:
+            raise PredicateException("Out of range time for predicate '%s'."%self)
+        try:
+            return self.expr.eval(self.get_param_vector(time))
+        except IndexError:
+            ## this happens with an invalid time
+            raise PredicateException("Out of range time for predicate '%s'."%self)

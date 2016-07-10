@@ -24,7 +24,7 @@ class TestHLSolver(unittest.TestCase):
                 (and \
                     (RobotAt ?robot ?pdp) \
                     (IsPDP ?robot ?pdp ?target) \
-                    (InGripper ?can) \
+                    (InGripper ?robot ?can) \
                     (forall (?obj - Can) \
                         (not (At ?obj ?target))\
                     ) \
@@ -34,13 +34,13 @@ class TestHLSolver(unittest.TestCase):
                 ) \
                 (and \
                     (At ?can ?target) \
-                    (not (InGripper ?can)) \
+                    (not (InGripper ?robot ?can)) \
                 ) \
                 0:0 0:0 0:0 0:0 0:19 19:19 19:19',
             'Derived Predicates': \
                 'At, Can, Target; \
                 RobotAt, Robot, RobotPose; \
-                InGripper, Can; \
+                InGripper, Robot, Can; \
                 IsGP, Robot, RobotPose, Can; \
                 IsPDP, Robot, RobotPose, Target; \
                 Obstructs, Robot, RobotPose, Can',
@@ -72,7 +72,7 @@ class TestHLSolver(unittest.TestCase):
                     (RobotAt ?robot ?gp) \
                     (IsGP ?robot ?gp ?can) \
                     (forall (?obj - Can) \
-                        (not (InGripper ?obj))\
+                        (not (InGripper ?robot ?obj))\
                     ) \
                     (forall (?obj - Can) \
                         (not (Obstructs ?robot ?gp ?obj))\
@@ -80,7 +80,7 @@ class TestHLSolver(unittest.TestCase):
                 ) \
                 (and \
                     (not (At ?can ?target)) \
-                    (InGripper ?can) \
+                    (InGripper ?robot ?can) \
                     (forall (?sym - RobotPose) \
                         (not (Obstructs ?robot ?sym ?can))\
                     )\
@@ -169,7 +169,7 @@ class TestHLSolver(unittest.TestCase):
 
     def test_preds_creation_in_spawn_action(self):
         p_c = self.p_c.copy()
-        p_c['Goal'] = '(InGripper can0), (RobotAt pr2 robot_init_pose)'
+        p_c['Goal'] = '(InGripper pr2 can0), (RobotAt pr2 robot_init_pose)'
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, self.domain)
         plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
         HLState = hl_solver.HLState
@@ -206,8 +206,8 @@ class TestHLSolver(unittest.TestCase):
         self.assertTrue(test_hl_info(grasp.preds, '(IsGP pr2 gp_can0 can0)', "pre"))
         self.assertTrue('(IsGP pr2 gp_can1 can1)' in grasp_pred_rep_list)
         self.assertTrue(test_hl_info(grasp.preds, '(IsGP pr2 gp_can1 can1)', "hl_state"))
-        self.assertTrue('(InGripper can0)' in grasp_pred_rep_list)
-        self.assertTrue(test_hl_info(grasp.preds, '(InGripper can0)', "eff"))
+        self.assertTrue('(InGripper pr2 can0)' in grasp_pred_rep_list)
+        self.assertTrue(test_hl_info(grasp.preds, '(InGripper pr2 can0)', "eff"))
 
         moveto2 = plan.actions[2]
         moveto2_pred_rep_list = extract_pred_reps_from_pred_dicts(moveto2.preds)
@@ -215,8 +215,8 @@ class TestHLSolver(unittest.TestCase):
         self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 gp_can0)', "pre"))
         self.assertTrue('(RobotAt pr2 robot_init_pose)' in moveto2_pred_rep_list)
         self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 robot_init_pose)', "eff"))
-        self.assertTrue('(InGripper can0)' in moveto2_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto2.preds, '(InGripper can0)', "hl_state"))
+        self.assertTrue('(InGripper pr2 can0)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(InGripper pr2 can0)', "hl_state"))
         self.assertTrue('(IsGP pr2 gp_can0 can0)' in moveto2_pred_rep_list)
         self.assertTrue(test_hl_info(moveto2.preds, '(IsGP pr2 gp_can0 can0)', "hl_state"))
         self.assertTrue('(IsGP pr2 gp_can1 can1)' in moveto2_pred_rep_list)
@@ -258,7 +258,7 @@ class TestHLSolver(unittest.TestCase):
 
     def test_nested_forall(self):
         d2 = self.d_c.copy()
-        d2['Action grasp 20'] = '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?robot ?gp ?can) (forall (?obj - Can) (not (InGripper ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?can) (forall (?sym - RobotPose) (forall (?obj - Can) (forall (?r - Robot) (not (Obstructs ?r ?sym ?obj)))))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19'
+        d2['Action grasp 20'] = '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose) (and (At ?can ?target) (RobotAt ?robot ?gp) (IsGP ?robot ?gp ?can) (forall (?obj - Can) (not (InGripper ?robot ?obj))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?robot ?can) (forall (?sym - RobotPose) (forall (?obj - Can) (forall (?r - Robot) (not (Obstructs ?r ?sym ?obj)))))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19'
         domain = parse_domain_config.ParseDomainConfig.parse(d2)
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, domain)
         plan = self.hls.solve(self.hls.translate_problem(problem), domain, problem)

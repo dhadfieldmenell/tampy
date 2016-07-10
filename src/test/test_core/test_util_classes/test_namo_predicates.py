@@ -166,7 +166,7 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time=3))
     def test_in_gripper(self):
         radius = 1
-        attrs = {"geom": [radius], "pose": [(2.05, 0)], "_type": ["Robot"], "name": ["robot"]}
+        attrs = {"geom": [radius], "pose": [(1.0, 0)], "_type": ["Robot"], "name": ["robot"]}
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 

@@ -61,6 +61,7 @@ class ExprPredicate(Predicate):
     def get_param_vector(self, t):
         i = 0
         for p in self.params:
+            if p.name not in self.attr_inds: continue
             for attr, ind_arr in self.attr_inds[p.name]:
                 n_vals = len(ind_arr)
 

@@ -27,8 +27,9 @@ def main():
                 s += "Can (name can%d); "%i
                 s += "RobotPose (name gp_can%d); "%i
         s += "Robot (name %s); "%"pr2"
-        s += "RobotPose (name %s); "%"robot_init_pose"
-        s += "Workspace (name ws)\n\n"
+        s += "Grasp (name {})".format("grasp0")
+        s += "RobotPose (name %s); "%"robot_init_pose\n\n"
+
 
         s += "Init: "
         for i in range(NUM_TARGETS):
@@ -37,16 +38,16 @@ def main():
         for i in range(NUM_CANS):
             s += "(geom can%d 1), (pose can%d %s), "%(i, i, coords[i])
             s += "(value gp_can%d undefined), "%i
+        s += "(value grasp0 undefined)"
         s += "(geom %s 1), (pose %s %s), "%("pr2", "pr2", coords[NUM_TARGETS])
         s += "(value %s %s), "%("robot_init_pose", coords[NUM_TARGETS])
-        s += "(pose ws (0, 0)), (w wd %d), (h wd %d), (size wd %d), (viewer wd TODO); "%(WIDTH, HEIGHT, SIZE)
         for i in range(NUM_CANS):
             s += "(At can%d target%d), "%(i, i)
-            s += "(IsGP gp_can%d can%d), "%(i, i)
+            s += "(IsGP pr2 gp_can%d can%d grasp0), "%(i, i)
         for i in range(NUM_TARGETS):
-            s += "(IsPDP pdp_target%d target%d), "%(i, i)
-        s += "(RobotAt pr2 robot_init_pose)\n\n"
+            s += "(IsPDP pr2 pdp_target%d target%d grasp0), "%(i, i)
 
+        s += "(RobotAt pr2 robot_init_pose)\n\n"
         s += "Goal: %s"%GOAL
 
         with open("namo_probs/namo_%d_%d.prob"%(SEED, iteration), "w") as f:
