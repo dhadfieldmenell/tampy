@@ -13,6 +13,8 @@ import ctrajoptpy
 This file implements the classes for commonly used predicates specifically in NAMO domains.
 """
 
+DEFAULT_TOL=1e-4
+
 class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False):
         self._debug = debug

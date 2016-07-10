@@ -102,7 +102,7 @@ class TestParseProblemConfig(unittest.TestCase):
                 (pose target1 [4,6]), \
                 (geom can0 1), \
                 (pose can0 [3, 5]), \
-                (value gp_can0 undefined); \
+                (value gp_can0 [3, 7.05]);\
                 (At can0 target0), \
                 (IsGP pr2 gp_can0 can0)',
             'Goal': '(At can0 target1)'}
@@ -117,10 +117,8 @@ class TestParseProblemConfig(unittest.TestCase):
         self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.name.startswith("gp")), 1)
         for k, p in problem.init_state.params.items():
             if p.is_symbol():
-                break
-        self.assertEqual(p.name, "gp_can0")
-        self.assertTrue(p.is_symbol())
-        self.assertFalse(p.is_defined())
+                self.assertEqual(p.name, "gp_can0")
+                self.assertTrue(p.is_defined())
 
     def test_goal_test(self):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)

@@ -26,7 +26,7 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"name": str, "geom": circle.BlueCircle, "pose": Vector2d, "_type": str}
         p2 = parameter.Object(attrs, attr_types)
 
-        pred = common_predicates.At("testpred", [p1, p2], ["Can", "Target"])
+        pred = namo_predicates.At("testpred", [p1, p2], ["Can", "Target"])
         self.assertEqual(pred.get_type(), "At")
         self.assertFalse(pred.test(time=400))
         p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8]])
@@ -49,7 +49,7 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"name": str, "value": str, "_type": str}
         p3 = parameter.Symbol(attrs, attr_types)
         with self.assertRaises(PredicateException) as cm:
-            pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
+            pred = namo_predicates.At("testpred", [p1, p3], ["Can", "Target"])
         self.assertEqual(cm.exception.message, "attribute type not supported")
 
         attrs = {"name": ["target"], "geom": [radius], "pose": ["undefined"], "_type": ["Target"]}
@@ -57,7 +57,7 @@ class TestNamoPredicates(unittest.TestCase):
         p3 = parameter.Object(attrs, attr_types)
         p3.pose = np.array([[3, 2], [6, 4]])
 
-        pred = common_predicates.At("testpred", [p1, p3], ["Can", "Target"])
+        pred = namo_predicates.At("testpred", [p1, p3], ["Can", "Target"])
         self.assertTrue(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
 
@@ -81,7 +81,7 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         blue_can = parameter.Object(attrs, attr_types)
 
-        pred = common_predicates.NotObstructs("obstructs", [green_can, blue_can], ["Can", "Can"])
+        pred = namo_predicates.NotObstructs("obstructs", [green_can, blue_can], ["Can", "Can"])
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
@@ -121,7 +121,7 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         blue_can = parameter.Object(attrs, attr_types)
 
-        pred = common_predicates.IsGP("IsGP", [robot, robotPose, blue_can], ["Robot", "RobotPose", "Can"])
+        pred = namo_predicates.IsGP("IsGP", [robot, robotPose, blue_can], ["Robot", "RobotPose", "Can"])
         self.assertTrue(np.allclose(pred.grasp(0), 0, atol = 1e-2))
         val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
@@ -150,7 +150,7 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         blue_can = parameter.Object(attrs, attr_types)
 
-        pred = common_predicates.IsPDP("IsPdP", [robot, robotPose, blue_can], ["Robot", "RobotPose", "Target"])
+        pred = namo_predicates.IsPDP("IsPdP", [robot, robotPose, blue_can], ["Robot", "RobotPose", "Target"])
         self.assertTrue(np.allclose(pred.grasp(0), 0, atol = 1e-2))
         val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))

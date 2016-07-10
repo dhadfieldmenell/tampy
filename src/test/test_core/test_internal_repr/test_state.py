@@ -12,15 +12,19 @@ class TestState(unittest.TestCase):
 	attrs = {"name": ["robot"], "geom": [1], "pose": [(0,0)], "_type": ["Robot"]}
         attr_types = {"name": str, "geom": circle.RedCircle,"pose": Vector2d, "_type": str}
         self.robot = parameter.Object(attrs, attr_types)
-        attrs = {"name": ["can"], "geom": [1], "pose": ["undefined"], "_type": ["Can"]}
+
+        attrs = {"name": ["can"], "geom": [1], "pose": [(3,4)], "_type": ["Can"]}
         attr_types = {"name": str,"geom": circle.RedCircle, "pose": Vector2d, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
+
         attrs = {"name": ["target"], "geom": [1], "pose": ["undefined"], "_type": ["Target"]}
         attr_types = {"name": str, "geom": circle.BlueCircle, "pose": Vector2d, "_type": str}
         self.target = parameter.Object(attrs, attr_types)
-        attrs = {"name": ["gp"], "value": ["undefined"], "_type": ["Sym"]}
+
+        attrs = {"name": ["gp"], "value": [(3, 6.05)], "_type": ["Sym"]}
         attr_types = {"name": str, "value": Vector2d, "_type": str}
         self.gp = parameter.Symbol(attrs, attr_types)
+
         self.at = namo_predicates.At("at", [self.can, self.target], ["Can", "Target"])
         self.isgp = namo_predicates.IsGP("isgp", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
         self.s = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
@@ -36,8 +40,8 @@ class TestState(unittest.TestCase):
 
     def test_concrete(self):
         self.assertFalse(self.s.is_concrete())
-        self.can.pose = 3
-        self.target.pose = 4
+        self.can.pose = np.array([3,4])
+        self.target.pose = np.array([4,5])
         self.assertTrue(self.s.is_concrete())
 
     def test_consistent(self):
