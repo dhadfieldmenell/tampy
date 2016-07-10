@@ -12,7 +12,7 @@ This file implements the classes for commonly used predicates that are useful in
 typical domains.
 """
 
-DEFAULT_TOL=1e-8
+DEFAULT_TOL=1e-4
 
 class ExprPredicate(Predicate):
 
