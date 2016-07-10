@@ -26,7 +26,17 @@ class CollisionPredicate(ExprPredicate):
         super(CollisionPredicate, self).__init__(name, e, attr_inds,tol, params, expected_param_types)
 
     def grasp(self, time):
-        return (np.array(self.params[1].pose) - np.array(self.params[0].value))[:,time]
+        assert len(self.params) == 2
+        vector = []
+        for p in self.params:
+            if hasattr(p, "pose"):
+                vector.append(p.pose)
+            elif hasattr(p, "value"):
+                vector.append(p.value)
+            else:
+                raise(PredicateException("missing pose or value attribute"))
+
+        return (np.array(vector[0]) - np.array(vector[1]))[:,time]
 
     def distance_from_obj(self, x):
         # self._cc.SetContactDistance(self.dsafe + .1)
@@ -199,7 +209,43 @@ class IsPDP(CollisionPredicate):
         e = EqExpr(col_expr, val)
         super(IsPDP, self).__init__(name, e, attr_inds, pdp_params, expected_pdp_param_types)
 
-class InGripper(Predicate):
+class InGripper(CollisionPredicate):
+    def __init__(self, name, params, expected_param_types, debug=False):
+        #TODO InGripper, Can needs to be changed to InGripper Robot Can
+        assert len(params) == 2
+        self._env = Environment()
+        attr_inds = {}
+        self._param_to_body = {}
+        for p in params:
+            assert not p.is_symbol()
+            assert hasattr(p, "geom")
+            assert p.get_attr_type("pose") is Vector2d
+            attr_inds[p.name] = [("pose", np.array([0, 1], dtype=np.int))]
+            self._param_to_body[p] = OpenRAVEBody(self._env, p.name, p.geom)
+
+        f = lambda x: self.distance_from_obj(x)[0]
+        grad = lambda x: self.distance_from_obj(x)[1]
+
+        self.grasp = grasp(0)
+        col_expr = Expr(f, grad)
+        val = np.zeros((1,1))
+        e = EqExpr(col_expr, val)
+        super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def test(self, time = 0):
+        if not self.is_concrete():
+            return False
+        if time < 0:
+            raise PredicateException("Out of range time for predicate '%s'."%self)
+        try:
+            if not all([grasp(t) == self.grasp for t in len(self.params[1].pose[0][0])]):
+                return False
+            return self.expr.eval(self.get_param_vector(time), tol=self.tol)
+        except IndexError:
+            ## this happens with an invalid time
+            raise PredicateException("Out of range time for predicate '%s'."%self)
+
+
     def test(self, time):
         # TODO
         return False

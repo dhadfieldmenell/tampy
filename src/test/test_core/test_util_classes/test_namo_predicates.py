@@ -164,3 +164,15 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.test(time=1))
         self.assertFalse(pred.test(time=2))
         self.assertFalse(pred.test(time=3))
+    def test_in_gripper(self):
+        radius = 1
+        attrs = {"geom": [radius], "pose": [(2.05, 0)], "_type": ["Robot"], "name": ["robot"]}
+        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        robot = parameter.Object(attrs, attr_types)
+
+        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Target"], "name": ["target1"]}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        target = parameter.Object(attrs, attr_types)
+        pred = namo_predicates.InGripper("InGripper", [robot, target], ["Robot", "Target"])
+        self.assertTrue(pred.test(time = 0))
+        #TODO more test
