@@ -16,33 +16,22 @@ This file implements the classes for commonly used predicates specifically in NA
 DEFAULT_TOL=1e-4
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
+        self.ind0 = ind0
+        self.ind1 = ind1
         tol = DEFAULT_TOL
         super(CollisionPredicate, self).__init__(name, e, attr_inds,tol, params, expected_param_types)
-
-    def grasp(self, time):
-        assert len(self.params) == 2
-        vector = []
-        for p in self.params:
-            if hasattr(p, "pose"):
-                vector.append(p.pose)
-            elif hasattr(p, "value"):
-                vector.append(p.value)
-            else:
-                raise(PredicateException("missing pose or value attribute"))
-
-        return (np.array(vector[0]) - np.array(vector[1]))[:,time]
 
     def distance_from_obj(self, x):
         # self._cc.SetContactDistance(self.dsafe + .1)
         self._cc.SetContactDistance(np.Inf)
-        p0 = self.params[0]
-        p1 = self.params[1]
+        p0 = self.params[self.ind0]
+        p1 = self.params[self.ind1]
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         pose0 = x[0:2]
@@ -175,7 +164,7 @@ class IsGP(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(IsGP, self).__init__(name, e, attr_inds, gp_params, expected_gp_param_types)
+        super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 
 
@@ -207,7 +196,7 @@ class IsPDP(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(IsPDP, self).__init__(name, e, attr_inds, pdp_params, expected_pdp_param_types)
+        super(IsPDP, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InGripper(CollisionPredicate):
     def __init__(self, name, params, expected_param_types, debug=False):
@@ -231,6 +220,11 @@ class InGripper(CollisionPredicate):
         val = np.zeros((1,1))
         e = EqExpr(col_expr, val)
         super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def grasp(self, time):
+        val0 = self.params[self.ind0].pose
+        val1 = self.params[self.ind1],value
+        return (np.array(val0) - np.array(val1))[:,time]
 
     def test(self, time = 0):
         if not self.is_concrete():
