@@ -21,7 +21,7 @@ class OpenRAVEBody(object):
             self._add_circle(geom)
         elif isinstance(geom, Obstacle):
             self._add_obstacle()
-        elif isinstance(geom, PR2)
+        elif isinstance(geom, PR2):
             self._add_circle(geom)
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)

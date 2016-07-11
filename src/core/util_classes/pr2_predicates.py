@@ -5,9 +5,9 @@ from core.util_classes.matrix import Vector3d, PR2PoseVector
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.pr2 import PR2
-from sco.expr import AffExpr, EqExpr
+from sco.expr import Expr, AffExpr, EqExpr
 import numpy as np
-
+import ctrajoptpy
 
 """
 This file implements the classes for commonly used predicates that are useful in a wide variety of
@@ -152,7 +152,7 @@ class IsGP(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+        super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
 class IsPDP(CollisionPredicate):
 
@@ -175,7 +175,7 @@ class IsPDP(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+        super(IsPDP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
 class InGripper(ExprPredicate):
 
