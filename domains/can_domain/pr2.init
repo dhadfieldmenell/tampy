@@ -1,0 +1,11 @@
+# Initial configuration file for PR2
+
+Types: PR2
+
+Attribute Import Paths: PR2 core.util_classes.pr2, PR2PoseVector core.util_classes.matrix, Value core.util_classes.matrix, Vector7d core.util_classes.matrix
+
+Predicates Import Path:
+
+Primitive Predicates: pose, PR2, PR2PoseVector; backHeight, PR2, Value; lArmPose, PR2, Vector7d; rArmPose, PR2, Vector7d
+
+Derived Predicates:

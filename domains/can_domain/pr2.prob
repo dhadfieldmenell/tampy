@@ -1,0 +1,5 @@
+Objects: PR2 (name dude)
+
+Init: (pose dude [0, 0, 4]), (backHeight dude 1), (lArmPose dude [1,2,3,4,3,2,1]), (lArmPose dude [1,2,3,4,3,2,1]), (geom dude 1 2)
+
+Goal:

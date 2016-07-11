@@ -3,6 +3,8 @@ from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
 RaveCreateKinBody, TriMesh, Environment
+from core.util_classes.pr2 import PR2
+from core.util_classes.can import Can, BlueCan, RedCan
 from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
 from core.util_classes.obstacle import Obstacle
 
@@ -15,20 +17,26 @@ class OpenRAVEBody(object):
         self._geom = geom
         if isinstance(geom, Circle):
             self._add_circle(geom)
+        elif isinstance(geom, Can):
+            self._add_circle(geom)
         elif isinstance(geom, Obstacle):
             self._add_obstacle()
+        elif isinstance(geom, PR2)
+            self._add_circle(geom)
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
 
 
     def _add_circle(self, geom):
         color = None
-        if isinstance(geom, BlueCircle):
+        if hasattr(geom, "color") and geom.color == 'blue':
             color = [0, 0, 1]
-        elif isinstance(geom, GreenCircle):
+        elif hasattr(geom, "color") and geom.color == 'green':
             color = [0, 1, 0]
-        elif isinstance(geom, RedCircle):
+        elif hasattr(geom, "color") and geom.color == 'red':
             color = [1, 0, 0]
+        else:
+            color = [1,0,0]
         self.env_body = self.create_cylinder(self._env, self.name, np.eye(4),
                 [geom.radius, 2], color)
         self._env.AddKinBody(self.env_body)
