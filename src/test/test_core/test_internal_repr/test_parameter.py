@@ -109,18 +109,20 @@ class TestParameter(unittest.TestCase):
         self.assertEqual(p2.pose, "undefined")
 
     def test_copy_symbol(self):
-        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": [[[3], [6], [1 ]]], "_type": ["Can"]}
-        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": np.array, "_type": str}
+        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": ["(3, 6)"], "_type": ["Can"]}
+        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": matrix.Vector2d, "_type": str}
         p = parameter.Symbol(attrs, attr_types)
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
-        self.assertTrue(np.allclose(p2.value, [[3], [6], [1]]))
+        self.assertTrue(np.allclose(p2.value, [[3], [6]]))
         p2 = p.copy(new_horizon=2)
-        self.assertTrue(np.allclose(p2.value, [[3], [6], [1]]))
+        self.assertTrue(np.allclose(p2.value, [[3], [6]]))
         attrs["value"] = ["undefined"]
         p = parameter.Symbol(attrs, attr_types)
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
-        self.assertEqual(p2.value, "undefined")
+        arr = np.empty((2, 1))
+        arr[:] = np.NaN
+        self.assertTrue(np.allclose(p2.value, arr, equal_nan=True))

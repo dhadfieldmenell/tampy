@@ -25,7 +25,7 @@ def main():
             s += "RobotPose (name pdp_target%d); "%i
             if i < NUM_CANS:
                 s += "Can (name can%d); "%i
-                s += "RobotPose (name gp_can%d); "%i
+                # s += "RobotPose (name gp_can%d); "%i
         s += "Robot (name %s); "%"pr2"
         s += "Grasp (name {}); ".format("grasp0")
         s += "RobotPose (name %s) \n\n"%"robot_init_pose"
@@ -37,15 +37,15 @@ def main():
             s += "(value pdp_target%d undefined), "%i
         for i in range(NUM_CANS):
             s += "(geom can%d 1), (pose can%d %s), "%(i, i, list(coords[i]))
-            s += "(value gp_can%d undefined), "%i
+            # s += "(value gp_can%d undefined), "%i
         s += "(value grasp0 undefined), "
         s += "(geom %s 1), (pose %s %s), "%("pr2", "pr2", list(coords[NUM_TARGETS]))
         s += "(pose pr2 {}), ".format(list(coords[NUM_TARGETS]))
         s += "(value %s %s); "%("robot_init_pose", list(coords[NUM_TARGETS]))
         for i in range(NUM_CANS):
             s += "(At can%d target%d), "%(i, i)
-            s += "(InContact pr2 gp_can{} target{}), ".format(i, i)
-            s += "(GraspValid gp_can{} target{} grasp0), ".format(i, i)
+            # s += "(InContact pr2 gp_can{} target{}), ".format(i, i)
+            # s += "(GraspValid gp_can{} target{} grasp0), ".format(i, i)
         for i in range(NUM_TARGETS):
             s += "(InContact pr2 pdp_target{} target{}), ".format(i, i)
             s += "(GraspValid pdp_target{} target{} grasp0), ".format(i, i)

@@ -24,7 +24,7 @@ class Vector2d(Matrix):
 
 class Vector3d(Matrix):
     """
-    The PR2 domain uses the Vector2d class to track poses of objects in the grid.
+    The PR2 domain uses the Vector3d class to track poses of objects in the grid.
     """
     def __new__(cls, vec):
         if type(vec) is str:

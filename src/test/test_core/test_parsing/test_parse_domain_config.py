@@ -41,9 +41,9 @@ class TestParseDomainConfig(unittest.TestCase):
 
     def test_pred_schemas(self):
         s = self.domain.pred_schemas
-        self.assertEqual(set(s.keys()), set(["At"]))
+        self.assertEqual(set(s.keys()), set(["At", "Obstructs", "ObstructsHolding", "GraspValid", "InGripper", "RobotAt", "InContact"]))
         self.assertEqual(s["At"].pred_class.__name__, "At")
-        self.assertEqual(s["At"].expected_params, ["Can", "Target", "RobotPose", "Robot"])
+        self.assertEqual(s["At"].expected_params, ["Can", "Target"])
 
     def test_pred_schemas_failure(self):
         new_c = self.c.copy()
@@ -56,9 +56,9 @@ class TestParseDomainConfig(unittest.TestCase):
         s = self.domain.action_schemas["grasp"]
         self.assertEqual(s.name, "grasp")
         self.assertEqual(s.horizon, 2)
-        self.assertEqual(s.params, [("?robot", "Robot"), ("?can", "Can"), ("?target", "Target"), ("?gp", "RobotPose")])
-        self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RobotPose", "?obj1": "Can"})
-        self.assertTrue({"type": "Obstructs", "hl_info": "pre", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?gp", "?obj1"]} in s.preds)
+        self.assertEqual(s.params, [('?robot', 'Robot'), ('?can', 'Can'), ('?target', 'Target'), ('?gp', 'RobotPose'), ('?g', 'Grasp')])
+        self.assertEqual(s.universally_quantified_params, {'?g': 'Grasp', '?sym': 'RobotPose', '?obj': 'Can', '?sym1': 'Robotpose', '?obj1': 'Can'})
+
         s = self.domain.action_schemas["moveto"]
         self.assertEqual(s.name, "moveto")
         self.assertEqual(s.horizon, 20)

@@ -17,6 +17,7 @@ class ParseProblemConfig(object):
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")
         for t in problem_config["Objects"].split(";"):
+            if t.strip() == '': continue
             o_type, attrs = map(str.strip, t.strip(" )").split("(", 1))
             attr_dict = {}
             for l in map(str.strip, attrs.split(".")):
@@ -46,7 +47,9 @@ class ParseProblemConfig(object):
                         raise ProblemConfigException("'%s' is not an object in problem file."%obj_name)
                     params[obj_name][k] = [x.replace("[", "(").replace("]", ")") for x in v]
             for obj_name, attr_dict in params.items():
-                assert "pose" in attr_dict or "value" in attr_dict
+                # assert "pose" in attr_dict or "value" in attr_dict
+                if "pose" not in attr_dict and "value" not in attr_dict:
+                    import pdb; pdb.set_trace()
                 o_type = attr_dict["_type"][0]
                 name = attr_dict["name"][0]
                 try:
