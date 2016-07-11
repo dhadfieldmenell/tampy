@@ -22,7 +22,7 @@ class OpenRAVEBody(object):
         elif isinstance(geom, Obstacle):
             self._add_obstacle()
         elif isinstance(geom, PR2):
-            self._add_circle(geom)
+            self._add_robot()
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
 
@@ -64,11 +64,17 @@ class OpenRAVEBody(object):
         self.env_body = body
         self._env.AddKinBody(body)
 
+    def _add_robot(self):
+        self.env_body = env.ReadRobotXMLFile("../models/pr2/pr2.zae")
+        self._env.Add(self.env_body)
+
     def set_pose(self, x):
         trans = None
         if isinstance(self._geom, Circle):
             trans = OpenRAVEBody.base_pose_2D_to_mat(x)
         elif isinstance(self._geom, Obstacle):
+            trans = OpenRAVEBody.base_pose_2D_to_mat(x)
+        elif isinstance(self._geom, PR2):
             trans = OpenRAVEBody.base_pose_2D_to_mat(x)
         self.env_body.SetTransform(trans)
 
@@ -79,16 +85,38 @@ class OpenRAVEBody(object):
         infocylinder._vGeomData = dims
         infocylinder._bVisible = True
         infocylinder._vDiffuseColor = color
-        # infocylinder._t[2, 3] = dims[1] / 2
 
         if type(env) != Environment:
             import ipdb; ipdb.set_trace()
         cylinder = RaveCreateKinBody(env, '')
-        # cylinder = RaveCreateRobot(env, '')
         cylinder.InitFromGeometries([infocylinder])
         cylinder.SetName(body_name)
         cylinder.SetTransform(t)
         return cylinder
+
+    @staticmethod
+    def create_box(self, env, name, transform, dims, color=[0,0,1]):
+        infobox = KinBody.Link.GeometryInfo()
+        infobox._type = KinBody.Link.GeomType.Box
+        infobox._vGeomData = dims
+        infobox._bVisible = True
+        infobox._fTransparency = 0
+        infobox._vDiffuseColor = color
+
+        box = RaveCreateKinBody(env,'')
+        box.InitFromGeometries([infobox])
+        box.SetName(name)
+        box.SetTransform(transform)
+        return box
+
+    def create_robot(self):
+        self.env.Load("robot.xml")
+        robot = self.env.GetRobots()[0]
+        transform = np.eye(4)
+        transform[0,3] = -3
+        robot.SetTransform(transform)
+        self.make_transparent(robot)
+        return robot
 
     @staticmethod
     def base_pose_2D_to_mat(pose):

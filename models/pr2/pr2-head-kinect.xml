@@ -1,0 +1,36 @@
+<!-- pr2 robot with simulated sensors and controllers attached -->
+<robot file="pr2-extended-wrists.dae">
+
+  <kinbody>
+    <Body name="head_kinect" type="dynamic">
+      <offsetfrom>head_plate_frame</offsetfrom>
+      <Translation>-0.2 0 0.192</Translation>
+      <Geom type="box"> <!-- Kinect Body -->
+        <Translation>0 0 0</Translation>
+        <Extents>0.015 0.077 0.01</Extents>
+        <diffuseColor>0 0 0</diffuseColor>
+      </Geom>
+    </Body>
+    <joint name="dummy_head_kinect" type="hinge">
+      <body>head_plate_frame</body>
+      <body>head_kinect</body>
+      <limitsdeg>0 0</limitsdeg>
+    </joint>
+  </kinbody>
+
+  <attachedsensor name="head_kinect_cam">
+    <link>head_kinect</link>
+    <rotationaxis>1 0 0 90</rotationaxis>
+    <rotationaxis>0 0 1 90</rotationaxis>
+    <translation>0.016 0 0</translation>
+    <sensor type="BaseCamera" args="">
+      <KK>583 583 320.5 240.5</KK>
+      <width>640</width>
+      <height>480</height>
+      <framerate>5</framerate>
+      <color>1 0.5 0</color>
+      <power>0</power>
+    </sensor>
+  </attachedsensor>
+
+</robot>
