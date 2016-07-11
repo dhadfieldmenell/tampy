@@ -26,13 +26,11 @@ class TestState(unittest.TestCase):
         self.gp = parameter.Symbol(attrs, attr_types)
 
         self.at = namo_predicates.At("at", [self.can, self.target], ["Can", "Target"])
-        self.isgp = namo_predicates.IsGP("isgp", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
-        self.s = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
+        self.in_contact = namo_predicates.InContact("incontact", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
+        self.s = state.State("state", [self.can, self.target, self.gp], [self.at, self.in_contact], timestep=0)
 
-    def test(self):
-        self.assertEqual(self.s.name, "state")
-        self.assertEqual(self.s.params, [self.can, self.target, self.gp])
-        self.assertEqual(self.s.preds, set([self.at, self.isgp]))
+
+        self.assertEqual(self.s.preds, set([self.at, self.in_contact]))
         other_state = state.State("state", [self.can, self.target, self.gp])
         self.assertEqual(other_state.params, [self.can, self.target, self.gp])
         self.assertEqual(other_state.preds, set())
@@ -50,3 +48,7 @@ class TestState(unittest.TestCase):
         self.assertFalse(self.s.is_consistent())
         self.target.pose = np.array([[3, 1], [4, 2]])
         self.assertTrue(self.s.is_consistent())
+
+if __name__ == "__main__":
+    unittest.main()
+

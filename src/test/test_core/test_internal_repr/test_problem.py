@@ -29,8 +29,8 @@ class TestProblem(unittest.TestCase):
         self.gp = parameter.Symbol(attrs, attr_types)
 
         self.at = namo_predicates.At("at", [self.can, self.target], ["Can", "Target"])
-        self.isgp = namo_predicates.IsGP("isgp", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
-        self.init_state = state.State("state", [self.can, self.target, self.gp], [self.at, self.isgp], timestep=0)
+        self.in_contact = namo_predicates.InContact("incontact", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
+        self.init_state = state.State("state", [self.can, self.target, self.gp], [self.at, self.in_contact], timestep=0)
 
     def test_init_state(self):
         with self.assertRaises(ProblemConfigException) as cm:
