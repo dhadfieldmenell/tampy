@@ -3,6 +3,7 @@ from core.internal_repr.predicate import Predicate
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.matrix import Vector3d, PR2PoseVector
 from errors_exceptions import PredicateException
+from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.pr2 import PR2
 from sco.expr import AffExpr, EqExpr
 import numpy as np
@@ -135,8 +136,9 @@ class IsGP(CollisionPredicate):
 
     # IsGP, Robot, RobotPose, Can
 
-    def __init__(self, name, params, expected_param_types):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
         assert len(params) == 3
+	self._env = env
         self.robot, self.robot_pose, self.can = params
         attr_inds = {self.robot: [("pose", np.array([0,1,2], dtype=np.int))],
                      self.robot_pose: [("value", np.array([0,1,2], dtype=np.int))],
@@ -156,8 +158,9 @@ class IsPDP(CollisionPredicate):
 
     # IsPDP, Robot, RobotPose, Can, Location
 
-    def __init__(self, name, params, expected_param_types):
-        assert len(params) == 3
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        assert len(params) == 4
+        self._env = env
         self.robot, self.robot_pose, self.can, self.location = params
         attr_inds = {self.robot: [("pose", np.array([0,1,2], dtype=np.int))],
                      self.robot_pose: [("value", np.array([0,1,2], dtype=np.int))],
