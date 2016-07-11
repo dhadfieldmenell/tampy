@@ -169,7 +169,7 @@ class TestNamoPredicates(unittest.TestCase):
         target = parameter.Object(attrs, attr_types)
 
         env = Environment()
-        pred = namo_predicates.InContact("InContact", [robot, robotPose, target], ["Robot", "RobotPose", "Target"], dsafe=dsafe, env=env)
+        pred = namo_predicates.InContact("InContact", [robot, robotPose, target], ["Robot", "RobotPose", "Target"], env=env)
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
         val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))

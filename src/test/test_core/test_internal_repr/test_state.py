@@ -4,6 +4,7 @@ from core.internal_repr import parameter
 from core.util_classes import common_predicates, namo_predicates
 from core.util_classes.matrix import Vector2d
 from core.util_classes import circle
+from openravepy import Environment
 import numpy as np
 
 class TestState(unittest.TestCase):
@@ -26,7 +27,8 @@ class TestState(unittest.TestCase):
         self.gp = parameter.Symbol(attrs, attr_types)
 
         self.at = namo_predicates.At("at", [self.can, self.target], ["Can", "Target"])
-        self.in_contact = namo_predicates.InContact("incontact", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
+        env = Environment()
+        self.in_contact = namo_predicates.InContact("incontact", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"], env=env)
         self.s = state.State("state", {self.can.name: self.can, self.target.name: self.target, self.gp.name: self.gp}, [self.at, self.in_contact], timestep=0)
 
 
@@ -51,4 +53,3 @@ class TestState(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
