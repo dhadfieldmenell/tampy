@@ -13,7 +13,6 @@ import ctrajoptpy
 This file implements the predicates for the 2D NAMO domain.
 """
 
-DEFAULT_TOL=1e-4
 
 class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1):
@@ -24,8 +23,7 @@ class CollisionPredicate(ExprPredicate):
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
-        tol = DEFAULT_TOL
-        super(CollisionPredicate, self).__init__(name, e, attr_inds,tol, params, expected_param_types)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
 
     def distance_from_obj(self, x):
         # self._cc.SetContactDistance(self.dsafe + .1)
@@ -98,15 +96,14 @@ class At(ExprPredicate):
         ## At Can Target
         self.can, self.targ = params
         attr_inds = {self.can: [("pose", np.array([0,1], dtype=np.int))],
-                     self.targ: [("value", np.array([0,1], dtype=np.int))],}
+                     self.targ: [("pose", np.array([0,1], dtype=np.int))],}
 
-        A = np.c_[np.eye(dims), -np.eye(dims)]
-        b = np.zeros((dims, 1))
-        val = np.zeros((dims, 1))
+        A = np.c_[np.eye(2), -np.eye(2)]
+        b = np.zeros((2, 1))
+        val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        tol = DEFAULT_TOL
-        super(At, self).__init__(name, e, attr_inds,tol, params, expected_param_types)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
     def get_expr(self, pred_dict, action_preds):
         if pred_dict['negated']:
@@ -124,25 +121,23 @@ class RobotAt(At):
         attr_inds = {self.r: [("pose", np.array([0,1], dtype=np.int))],
                      self.rp: [("value", np.array([0,1], dtype=np.int))],}
 
-        A = np.c_[np.eye(dims), -np.eye(dims)]
-        b = np.zeros((dims, 1))
-        val = np.zeros((dims, 1))
+        A = np.c_[np.eye(2), -np.eye(2)]
+        b = np.zeros((2, 1))
+        val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        tol = DEFAULT_TOL
-        super(At, self).__init__(name, e, attr_inds,tol, params, expected_param_types)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InContact(CollisionPredicate):
 
-    ## InContact, Robot, RobotPose, Target
+    # InContact, Robot, RobotPose, Target
 
     def __init__(self, name, params, expected_param_types, debug=False):
         self._env = Environment()
-        self.robot, rp, targ, grasp = params
-        attr_inds = {self.robot: [], 
+        self.robot, rp, targ = params
+        attr_inds = {self.robot: [],
                      rp: [("value", np.array([0,1], dtype=np.int))],
-                     targ: [("value", np.array([0,1], dtype=np.int))],
-                     grasp: [("value", np.array([0,1], dtype=np.int))]}
+                     targ: [("pose", np.array([0,1], dtype=np.int))]}
         self._param_to_body = {rp: OpenRAVEBody(self._env, rp.name, self.robot.geom),
                                targ: OpenRAVEBody(self._env, targ.name, targ.geom)}
 
@@ -152,11 +147,11 @@ class InContact(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
 class NotObstructs(CollisionPredicate):
-  
-    # NotObstructs, Robot, RobotPose, Can; 
+
+    # NotObstructs, Robot, RobotPose, Can;
     def __init__(self, name, params, expected_param_types, debug=False):
         assert len(params) == 3
         self._env = Environment()
@@ -187,11 +182,11 @@ class NotObstructsHolding(CollisionPredicate):
         self.held = held
         attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
                      obstr: [("pose", np.array([0, 1], dtype=np.int))],
-                     holding: [("pose", np.array([0, 1], dtype=np.int))],
+                     held: [("pose", np.array([0, 1], dtype=np.int))],
                      rp: []}
         self._param_to_body = {r: OpenRAVEBody(self._env, r.name, r.geom),
                                obstr: OpenRAVEBody(self._env, obstr.name, obstr.geom),
-                               holding: OpenRAVEBody(self._env, holding.name, holding.geom)}
+                               held: OpenRAVEBody(self._env, held.name, held.geom)}
 
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]
@@ -202,7 +197,7 @@ class NotObstructsHolding(CollisionPredicate):
         super(NotObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
 
     def distance_from_obj(self, x):
-        # x = [rp, rpy, obstrx, obstry, heldx, heldy]
+        # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
         self._cc.SetContactDistance(np.Inf)
         b0 = self._param_to_body[self.r]
         b1 = self._param_to_body[self.obstr]
@@ -215,9 +210,9 @@ class NotObstructsHolding(CollisionPredicate):
         b2.set_pose(pose_held)
 
         collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-        col_val1, jac0, jac1 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose0, pose1, collisions1)
+        col_val1, jac0, jac1 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1)
         collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
-        col_val2, jac2, jac1_ = self._calc_grad_and_val(self.held.name, self.obstr.name, pose2, pose1, collisions2)
+        col_val2, jac2, jac1_ = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
 
         val = np.array([col_val1 + col_val2])
         jac = np.r_[jac0, jac1 + jac1_, jac2].reshape((1, 6))
@@ -238,10 +233,10 @@ class InGripper(ExprPredicate):
         # want x0 - x2 = x4, x1 - x3 = x5
         A = np.array([[1, 0, -1, 0, -1, 0],
                       [0, 1, 0, -1, 0, -1]])
-        b = np.zeros(2, 1)
+        b = np.zeros((2, 1))
 
         e = AffExpr(A, b)
-        e = EqExpr(e, 0)
+        e = EqExpr(e, np.zeros((1,1)))
 
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
 
@@ -265,15 +260,15 @@ class GraspValid(ExprPredicate):
         self._env = Environment()
         self.rp, self.target,  self.grasp = params
         attr_inds = {self.rp: [("value", np.array([0, 1], dtype=np.int))],
-                     self.target: [("value", np.array([0, 1], dtype=np.int))],
+                     self.target: [("pose", np.array([0, 1], dtype=np.int))],
                      self.grasp: [("value", np.array([0, 1], dtype=np.int))]}
         # want x0 - x2 = x4, x1 - x3 = x5
         A = np.array([[1, 0, -1, 0, -1, 0],
                       [0, 1, 0, -1, 0, -1]])
-        b = np.zeros(2, 1)
+        b = np.zeros((2, 1))
 
         e = AffExpr(A, b)
-        e = EqExpr(e, 0)
+        e = EqExpr(e, np.zeros((1,1)))
 
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
 
@@ -288,4 +283,3 @@ class GraspValid(ExprPredicate):
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
-
