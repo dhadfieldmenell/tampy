@@ -2,6 +2,7 @@ from IPython import embed as shell
 from core.internal_repr import state
 from core.internal_repr import problem
 from errors_exceptions import ProblemConfigException
+from openravepy import Environment
 
 class ParseProblemConfig(object):
     """
@@ -71,7 +72,7 @@ class ParseProblemConfig(object):
                         raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
                 init_preds.add(domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
                                                                       params=p_objs,
-                                                                      expected_param_types=domain.pred_schemas[p_name].expected_params))
+                                                                      expected_param_types=domain.pred_schemas[p_name].expected_params, env = Environment()))
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0)

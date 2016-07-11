@@ -1,6 +1,8 @@
 from IPython import embed as shell
 from errors_exceptions import DomainConfigException
 from core.util_classes.matrix import Vector2d
+from core.util_classes.openrave_body import OpenRAVEBody
+
 import numpy as np
 
 class Parameter(object):
@@ -14,10 +16,15 @@ class Parameter(object):
     "value" instance attribute.
     """
     def __init__(self, *args):
-        raise NotImplementedError("Must instantiate either Object or Symbol.")
+        self.openrave_body = None
 
     def get_attr_type(self, attr_name):
         raise NotImplementedError("get_attr_type not implemented for Parameter.")
+
+    def get_attr_type(self, attr_name):
+        if attr_name == 'openrave_body':
+            return OpenRAVEBody
+        return self._attr_types[attr_name]
 
     def get_type(self):
         return self._type
@@ -55,9 +62,7 @@ class Object(Parameter):
                     except KeyError:
                         name = attrs["name"][0]
                         raise DomainConfigException("Attribute '%s' for Object '%s' not defined in domain file."%(attr_name, name))
-
-    def get_attr_type(self, attr_name):
-        return self._attr_types[attr_name]
+        super(Object, self).__init__()
 
     def is_defined(self):
         return self.pose is not "undefined"
@@ -101,9 +106,8 @@ class Symbol(Parameter):
                     except KeyError:
                         name = attrs["name"][0]
                         raise DomainConfigException("Attribute '%s' for Symbol '%s' not defined in domain file."%(attr_name, name))
+        super(Symbol, self).__init__()
 
-    def get_attr_type(self, attr_name):
-        return self._attr_types[attr_name]
 
     def is_defined(self):
         return self.value is not "undefined"
@@ -118,7 +122,7 @@ class Symbol(Parameter):
                 assert self.get_attr_type(k) == Vector2d
                 val = np.empty((2, 1))
                 val[:] = np.NaN
-                setattr(new, k, val) 
+                setattr(new, k, val)
             else:
                 setattr(new, k, v)
         return new

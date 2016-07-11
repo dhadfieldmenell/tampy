@@ -2,8 +2,7 @@ from IPython import embed as shell
 import subprocess
 from core.internal_repr.action import Action
 from core.internal_repr.plan import Plan
-
-import psutil, os
+from openravepy import Environment
 
 class HLSolver(object):
     """
@@ -134,10 +133,11 @@ class FFSolver(HLSolver):
         plan_str = self._run_planner(self.abs_domain, abs_prob)
         if plan_str == Plan.IMPOSSIBLE:
             return plan_str
+        openrave_env = Environment()
         plan_horizon = self._extract_horizon(plan_str, domain)
         params = self._spawn_plan_params(concr_prob, plan_horizon)
-        actions = self._spawn_actions(plan_str, domain, params, plan_horizon, concr_prob)
-        return Plan(params, actions, plan_horizon)
+        actions = self._spawn_actions(plan_str, domain, params, plan_horizon, concr_prob, openrave_env)
+        return Plan(params, actions, plan_horizon, openrave_env)
 
     def _extract_horizon(self, plan_str, domain):
         hor = 0
@@ -153,7 +153,7 @@ class FFSolver(HLSolver):
             params[p_name] = p.copy(plan_horizon)
         return params
 
-    def _spawn_actions(self, plan_str, domain, params, plan_horizon, concr_prob):
+    def _spawn_actions(self, plan_str, domain, params, plan_horizon, concr_prob, env):
         actions = []
         curr_h = 0
         hl_state = HLState(concr_prob.init_state.preds)
@@ -181,7 +181,7 @@ class FFSolver(HLSolver):
                 for val in arg_valuations:
                     val, types = zip(*val)
                     assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
-                    pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params)
+                    pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
             # adding predicates from the hl state to action's preds
@@ -198,20 +198,14 @@ class FFSolver(HLSolver):
 
 
     def _run_planner(self, abs_domain, abs_prob):
-        proc = psutil.Process()
-        print "Open Files: ", len(proc.open_files())
         with open("%sdom.pddl"%FFSolver.FILE_PREFIX, "w") as f:
             f.write(abs_domain)
-        print "Open Files 1: ", len(proc.open_files())
         with open("%sprob.pddl"%FFSolver.FILE_PREFIX, "w") as f:
             f.write(abs_prob)
-        print "Open Files 2: ", len(proc.open_files())
         with open("%sprob.output"%FFSolver.FILE_PREFIX, "w") as f:
             subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%FFSolver.FILE_PREFIX, "-f", "%sprob.pddl"%FFSolver.FILE_PREFIX], stdout=f)
-        print "Open Files 2: ", len(proc.open_files())
         with open("%sprob.output"%FFSolver.FILE_PREFIX, "r") as f:
             s = f.read()
-        print "Open Files 2: ", len(proc.open_files())
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
             plan = Plan.IMPOSSIBLE
         else:
