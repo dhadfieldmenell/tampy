@@ -16,7 +16,7 @@ This file implements the predicates for the 2D NAMO domain.
 DEFAULT_TOL=1e-4
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.00, debug = False, ind0=0, ind1=1):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
@@ -134,15 +134,14 @@ class RobotAt(At):
 
 class InContact(CollisionPredicate):
 
-    ## InContact, Robot, RobotPose, Target
+    # InContact, Robot, RobotPose, Target
 
-    def __init__(self, name, params, expected_param_types, debug=False):
+    def __init__(self, name, params, expected_param_types, dsafe = 0.00, debug=False):
         self._env = Environment()
-        self.robot, rp, targ, grasp = params
-        attr_inds = {self.robot: [], 
+        self.robot, rp, targ = params
+        attr_inds = {self.robot: [],
                      rp: [("value", np.array([0,1], dtype=np.int))],
-                     targ: [("value", np.array([0,1], dtype=np.int))],
-                     grasp: [("value", np.array([0,1], dtype=np.int))]}
+                     targ: [("pose", np.array([0,1], dtype=np.int))]}
         self._param_to_body = {rp: OpenRAVEBody(self._env, rp.name, self.robot.geom),
                                targ: OpenRAVEBody(self._env, targ.name, targ.geom)}
 
@@ -152,12 +151,12 @@ class InContact(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+        super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types, dsafe, ind0=1, ind1=2)
 
 class NotObstructs(CollisionPredicate):
-  
-    # NotObstructs, Robot, RobotPose, Can; 
-    def __init__(self, name, params, expected_param_types, debug=False):
+
+    # NotObstructs, Robot, RobotPose, Can;
+    def __init__(self, name, params, expected_param_types, dsafe = 0.00, debug=False):
         assert len(params) == 3
         self._env = Environment()
         r, rp, c = params
@@ -173,12 +172,12 @@ class NotObstructs(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
-        super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+        super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types, dsafe, ind0=1, ind1=2)
 
 class NotObstructsHolding(CollisionPredicate):
 
     # NotObstructsHolding, Robot, RobotPose, Can, Can;
-    def __init__(self, name, params, expected_param_types, debug=False):
+    def __init__(self, name, params, expected_param_types, dsafe = 0.00, debug=False):
         assert len(params) == 4
         self._env = Environment()
         r, rp, obstr, held = params
@@ -199,10 +198,10 @@ class NotObstructsHolding(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
-        super(NotObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(NotObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, dsafe)
 
     def distance_from_obj(self, x):
-        # x = [rp, rpy, obstrx, obstry, heldx, heldy]
+        # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
         self._cc.SetContactDistance(np.Inf)
         b0 = self._param_to_body[self.r]
         b1 = self._param_to_body[self.obstr]
@@ -288,4 +287,3 @@ class GraspValid(ExprPredicate):
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
-
