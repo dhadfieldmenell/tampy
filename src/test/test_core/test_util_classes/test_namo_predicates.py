@@ -72,7 +72,46 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.get_expr(pred_dict, None) is None)
 
     def test_robot_at(self):
-        pass
+        # RobotAt Robot RobotPose
+        radius = 1
+        attrs = {"name": ["robot"], "geom": [radius], "pose": ["undefined"], "_type": ["Robot"]}
+        attr_types = {"name": str, "geom": circle.RedCircle, "pose": Vector2d, "_type": str}
+        p1 = parameter.Object(attrs, attr_types)
+
+        attrs = {"name": ["r_pose"], "geom": [radius], "pose": ["undefined"], "_type": ["RobotPose"]}
+        attr_types = {"name": str, "geom": circle.BlueCircle, "pose": Vector2d, "_type": str}
+        p2 = parameter.Object(attrs, attr_types)
+
+        pred = namo_predicates.At("testpred", [p1, p2], ["Robot", "RobotPose"])
+        self.assertEqual(pred.get_type(), "At")
+        self.assertFalse(pred.test(time=400))
+        p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8]])
+        # p2 doesn't have a value yet
+        self.assertFalse(pred.test(time=400))
+        p2.pose = np.array([[3, 4, 5, 7], [6, 5, 8, 7]])
+        self.assertTrue(pred.is_concrete())
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=4)
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (RobotAt robot r_pose)'.")
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=-1)
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (RobotAt robot r_pose)'.")
+        self.assertTrue(pred.test(time=0))
+        self.assertTrue(pred.test(time=1))
+        self.assertFalse(pred.test(time=2))
+        self.assertFalse(pred.test(time=3))
+
+        attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
+        attr_types = {"name": str, "value": str, "_type": str}
+        p3 = parameter.Symbol(attrs, attr_types)
+        with self.assertRaises(ParamValidationException) as cm:
+            pred = namo_predicates.At("testpred", [p1, p3], ["Robot", "RobotPose"])
+        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'testpred: (RobotAt robot sym)'.")
+
+        pred = namo_predicates.At("testpred", [p1, p2], ["Robot", "RobotPose"])
+        self.assertTrue(pred.test(time=0))
+        self.assertFalse(pred.test(time=1))
+
 
     def test_not_obstructs(self):
         #NotObstructs, Robot, RobotPose, Can;
@@ -265,4 +304,3 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 3))
 if __name__ == "__main__":
     unittest.main()
-
