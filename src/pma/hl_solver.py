@@ -181,6 +181,8 @@ class FFSolver(HLSolver):
                 for val in arg_valuations:
                     val, types = zip(*val)
                     assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
+                    # if list(types) != pred_schema.expected_params:
+                    #     import pdb; pdb.set_trace()
                     pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
@@ -210,10 +212,10 @@ class FFSolver(HLSolver):
             plan = Plan.IMPOSSIBLE
         else:
             plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
-        subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
-                         "%sprob.pddl"%FFSolver.FILE_PREFIX,
-                         "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
-                         "%sprob.output"%FFSolver.FILE_PREFIX])
+        # subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
+        #                  "%sprob.pddl"%FFSolver.FILE_PREFIX,
+        #                  "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
+        #                  "%sprob.output"%FFSolver.FILE_PREFIX])
         if plan != Plan.IMPOSSIBLE:
             plan = self._patch_redundancy(plan)
         return plan

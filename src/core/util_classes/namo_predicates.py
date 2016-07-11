@@ -258,7 +258,6 @@ class InGripper(ExprPredicate):
     # InGripper, Robot, Can, Grasp
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        assert len(params) == 3
         self.r, self.can, self.grasp = params
         attr_inds = {self.r: [("pose", np.array([0, 1], dtype=np.int))],
                      self.can: [("pose", np.array([0, 1], dtype=np.int))],
