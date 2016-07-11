@@ -25,6 +25,14 @@ class CollisionPredicate(ExprPredicate):
         self.ind1 = ind1
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+
+    def lazy_spawn_or_body(self, param, name, geom):
+        if param.openrave_body is not None:
+            assert geom == param.openrave_body._geom
+        else:
+            param.openrave_body = OpenRAVEBody(self._env, name, geom)
+        return param.openrave_body
+
     def distance_from_obj(self, x):
         # self._cc.SetContactDistance(self.dsafe + .1)
         self._cc.SetContactDistance(np.Inf)
@@ -92,7 +100,7 @@ class CollisionPredicate(ExprPredicate):
 
 
 class At(ExprPredicate):
-    def __init__(self, name, params, expected_param_types):
+    def __init__(self, name, params, expected_param_types, env=None):
         ## At Can Target
         self.can, self.targ = params
         attr_inds = {self.can: [("pose", np.array([0,1], dtype=np.int))],
@@ -115,7 +123,7 @@ class RobotAt(At):
 
     # RobotAt Robot RobotPose
 
-    def __init__(self, name, params, expected_param_types):
+    def __init__(self, name, params, expected_param_types, env=None):
         ## At Robot RobotPose
         self.r, self.rp = params
         attr_inds = {self.r: [("pose", np.array([0,1], dtype=np.int))],
@@ -132,14 +140,14 @@ class InContact(CollisionPredicate):
 
     # InContact, Robot, RobotPose, Target
 
-    def __init__(self, name, params, expected_param_types, debug=False):
-        self._env = Environment()
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
         self.robot, rp, targ = params
         attr_inds = {self.robot: [],
                      rp: [("value", np.array([0,1], dtype=np.int))],
                      targ: [("pose", np.array([0,1], dtype=np.int))]}
-        self._param_to_body = {rp: OpenRAVEBody(self._env, rp.name, self.robot.geom),
-                               targ: OpenRAVEBody(self._env, targ.name, targ.geom)}
+        self._param_to_body = {rp: self.lazy_spawn_or_body(rp, rp.name, self.robot.geom),
+                               targ: self.lazy_spawn_or_body(targ, targ.name, targ.geom)}
 
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]
@@ -149,19 +157,20 @@ class InContact(CollisionPredicate):
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
+
 class Obstructs(CollisionPredicate):
 
     # Obstructs, Robot, RobotPose, Can;
-    def __init__(self, name, params, expected_param_types, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 3
-        self._env = Environment()
+        self._env = env
         r, rp, c = params
         attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
                      c: [("pose", np.array([0, 1], dtype=np.int))],
                      rp: []}
-        self._param_to_body = {r: OpenRAVEBody(self._env, r.name, r.geom),
-                               rp: OpenRAVEBody(self._env, rp.name, r.geom),
-                               c: OpenRAVEBody(self._env, c.name, c.geom)}
+        self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
+                               rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
+                               c: self.lazy_spawn_or_body(c, c.name, c.geom)}
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
 
@@ -173,9 +182,9 @@ class Obstructs(CollisionPredicate):
 class ObstructsHolding(CollisionPredicate):
 
     # ObstructsHolding, Robot, RobotPose, Can, Can;
-    def __init__(self, name, params, expected_param_types, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 4
-        self._env = Environment()
+        self._env = env
         r, rp, obstr, held = params
         self.r = r
         self.obstr = obstr
@@ -188,11 +197,11 @@ class ObstructsHolding(CollisionPredicate):
         if obstr == held:
             f = lambda x: np.zeros((1, 1))
             grad = lambda x: np.zeros((1, 6))
-        
+
         else:
-            self._param_to_body = {r: OpenRAVEBody(self._env, r.name, r.geom),
-                                   obstr: OpenRAVEBody(self._env, obstr.name, obstr.geom),
-                                   held: OpenRAVEBody(self._env, held.name, held.geom)}
+            self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
+                                   obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
+                                   held: self.lazy_spawn_or_body(held, held.name, held.geom)}
 
             f = lambda x: -self.distance_from_obj(x)[0]
             grad = lambda x: -self.distance_from_obj(x)[1]
@@ -229,9 +238,8 @@ class InGripper(ExprPredicate):
 
     # InGripper, Robot, Can, Grasp
 
-    def __init__(self, name, params, expected_param_types, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 3
-        self._env = Environment()
         self.r, self.can, self.grasp = params
         attr_inds = {self.r: [("pose", np.array([0, 1], dtype=np.int))],
                      self.can: [("pose", np.array([0, 1], dtype=np.int))],
@@ -262,8 +270,7 @@ class GraspValid(ExprPredicate):
 
     # GraspValid RobotPose Target Grasp
 
-    def __init__(self, name, params, expected_param_types, debug=False):
-        self._env = Environment()
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.rp, self.target,  self.grasp = params
         attr_inds = {self.rp: [("value", np.array([0, 1], dtype=np.int))],
                      self.target: [("pose", np.array([0, 1], dtype=np.int))],

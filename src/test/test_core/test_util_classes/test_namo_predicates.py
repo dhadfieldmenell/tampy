@@ -126,7 +126,8 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"])
+        env = Environment()
+        pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
@@ -167,7 +168,8 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         target = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.InContact("InContact", [robot, robotPose, target], ["Robot", "RobotPose", "Target"], dsafe)
+        env = Environment()
+        pred = namo_predicates.InContact("InContact", [robot, robotPose, target], ["Robot", "RobotPose", "Target"], dsafe=dsafe, env=env)
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
         val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
@@ -211,7 +213,8 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can2 = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.ObstructsHolding("ObstructsHolding", [robot, robotPose, can1, can2], ["Robot", "RobotPose", "Can", "Can"])
+        env = Environment()
+        pred = namo_predicates.ObstructsHolding("ObstructsHolding", [robot, robotPose, can1, can2], ["Robot", "RobotPose", "Can", "Can"], env)
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0,0,0]))

@@ -76,17 +76,20 @@ class TestParameter(unittest.TestCase):
         with self.assertRaises(KeyError):
             param.get_attr_type("does not exist")
 
-    def test_abstract(self):
-        # cannot instantiate Parameter directly
-        with self.assertRaises(NotImplementedError) as cm:
-            parameter.Parameter("can1")
-        self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
-        with self.assertRaises(NotImplementedError) as cm:
-            parameter.Parameter("can2", 4, 76, 1)
-        self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
-        with self.assertRaises(NotImplementedError) as cm:
-            parameter.Parameter()
-        self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
+    """
+    Now using the super class for saving openrave_bodies
+    """
+    # def test_abstract(self):
+    #     # cannot instantiate Parameter directly
+    #     with self.assertRaises(NotImplementedError) as cm:
+    #         parameter.Parameter("can1")
+    #     self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
+    #     with self.assertRaises(NotImplementedError) as cm:
+    #         parameter.Parameter("can2", 4, 76, 1)
+    #     self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
+    #     with self.assertRaises(NotImplementedError) as cm:
+    #         parameter.Parameter()
+    #     self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
 
     def test_copy_object(self):
         attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "pose": [[[3, 4, 5, 0], [6, 2, 1, 5], [1, 1, 1, 1]]], "_type": ["Can"]}

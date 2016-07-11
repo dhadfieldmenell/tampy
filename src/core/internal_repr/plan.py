@@ -1,5 +1,6 @@
 from IPython import embed as shell
 
+
 class Plan(object):
     """
     A plan has the following.
@@ -12,10 +13,11 @@ class Plan(object):
     """
     IMPOSSIBLE = "Impossible"
 
-    def __init__(self, params, actions, horizon):
+    def __init__(self, params, actions, horizon, env):
         self.params = params
         self.actions = actions
         self.horizon = horizon
+        self.env = env
 
     def execute(self):
         raise NotImplementedError

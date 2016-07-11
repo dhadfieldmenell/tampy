@@ -2,13 +2,14 @@ import numpy as np
 from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
-RaveCreateKinBody, TriMesh
+RaveCreateKinBody, TriMesh, Environment
 from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
 from core.util_classes.obstacle import Obstacle
 
 
 class OpenRAVEBody(object):
     def __init__(self, env, name, geom):
+        assert env is not None
         self.name = name
         self._env = env
         self._geom = geom
@@ -30,7 +31,7 @@ class OpenRAVEBody(object):
             color = [1, 0, 0]
         self.env_body = self.create_cylinder(self._env, self.name, np.eye(4),
                 [geom.radius, 2], color)
-        self._env.AddRobot(self.env_body)
+        self._env.AddKinBody(self.env_body)
 
     def _add_obstacle(self):
         obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
@@ -72,8 +73,10 @@ class OpenRAVEBody(object):
         infocylinder._vDiffuseColor = color
         # infocylinder._t[2, 3] = dims[1] / 2
 
-        # cylinder = RaveCreateKinBody(env, '')
-        cylinder = RaveCreateRobot(env, '')
+        if type(env) != Environment:
+            import ipdb; ipdb.set_trace()
+        cylinder = RaveCreateKinBody(env, '')
+        # cylinder = RaveCreateRobot(env, '')
         cylinder.InitFromGeometries([infocylinder])
         cylinder.SetName(body_name)
         cylinder.SetTransform(t)
