@@ -149,9 +149,9 @@ class InContact(CollisionPredicate):
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
-class NotObstructs(CollisionPredicate):
+class Obstructs(CollisionPredicate):
 
-    # NotObstructs, Robot, RobotPose, Can;
+    # Obstructs, Robot, RobotPose, Can;
     def __init__(self, name, params, expected_param_types, debug=False):
         assert len(params) == 3
         self._env = Environment()
@@ -162,17 +162,17 @@ class NotObstructs(CollisionPredicate):
         self._param_to_body = {r: OpenRAVEBody(self._env, r.name, r.geom),
                                rp: OpenRAVEBody(self._env, rp.name, r.geom),
                                c: OpenRAVEBody(self._env, c.name, c.geom)}
-        f = lambda x: self.distance_from_obj(x)[0]
-        grad = lambda x: self.distance_from_obj(x)[1]
+        f = lambda x: -self.distance_from_obj(x)[0]
+        grad = lambda x: -self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
-        super(NotObstructs, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+        super(Obstructs, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
-class NotObstructsHolding(CollisionPredicate):
+class ObstructsHolding(CollisionPredicate):
 
-    # NotObstructsHolding, Robot, RobotPose, Can, Can;
+    # ObstructsHolding, Robot, RobotPose, Can, Can;
     def __init__(self, name, params, expected_param_types, debug=False):
         assert len(params) == 4
         self._env = Environment()
@@ -184,17 +184,23 @@ class NotObstructsHolding(CollisionPredicate):
                      obstr: [("pose", np.array([0, 1], dtype=np.int))],
                      held: [("pose", np.array([0, 1], dtype=np.int))],
                      rp: []}
-        self._param_to_body = {r: OpenRAVEBody(self._env, r.name, r.geom),
-                               obstr: OpenRAVEBody(self._env, obstr.name, obstr.geom),
-                               held: OpenRAVEBody(self._env, held.name, held.geom)}
 
-        f = lambda x: self.distance_from_obj(x)[0]
-        grad = lambda x: self.distance_from_obj(x)[1]
+        if obstr == held:
+            f = lambda x: np.zeros((1, 1))
+            grad = lambda x: np.zeros((1, 6))
+        
+        else:
+            self._param_to_body = {r: OpenRAVEBody(self._env, r.name, r.geom),
+                                   obstr: OpenRAVEBody(self._env, obstr.name, obstr.geom),
+                                   held: OpenRAVEBody(self._env, held.name, held.geom)}
+
+            f = lambda x: -self.distance_from_obj(x)[0]
+            grad = lambda x: -self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
-        super(NotObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
 
     def distance_from_obj(self, x):
         # x = [rpx, rpy, obstrx, obstry, heldx, heldy]

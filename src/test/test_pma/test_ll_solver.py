@@ -10,97 +10,21 @@ from sco.solver import Solver
 from sco.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
-import time
-
-d_c = {
-    'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) \
-        (and (RobotAt ?robot ?start)\
-            (forall (?obj - Obstacle) \
-                (not (NotObstructs ?robot ?start ?obj))\
-            )\
-        ) \
-        (and \
-            (not (RobotAt ?robot ?start)) \
-            (RobotAt ?robot ?end)\
-        ) 0:0 0:19 19:19 19:19',
-    'Derived Predicates':
-        'RobotAt, Robot, RobotPose; \
-        NotObstructs, Robot, RobotPose, Can',
-    'Attribute Import Paths':
-        'RedCircle core.util_classes.circle,\
-        GreenCircle core.util_classes.circle, \
-        Vector2d core.util_classes.matrix, \
-        GridWorldViewer core.util_classes.viewer, \
-        Obstacle core.util_classes.obstacle',
-    'Predicates Import Path':
-        'core.util_classes.namo_predicates',
-    'Primitive Predicates':
-        'value, RobotPose, Vector2d; \
-        geom, Robot, GreenCircle; \
-        pose, Robot, Vector2d; \
-        geom, Can, RedCircle; \
-        pose, Can, Vector2d; \
-        pose, Workspace, Vector2d; \
-        w, Workspace, int; \
-        h, Workspace, int; \
-        size, Workspace, int; \
-        viewer, Workspace, GridWorldViewer',
-    'Types':
-        'RobotPose, Robot, Can, Workspace'}
+import time, main
 
 class TestLLSolver(unittest.TestCase):
     def setUp(self):
-        """
-            Domain file are specified above
-        """
+        domain_fname, problem_fname = '../domains/namo_domain/namo.domain', '../domains/namo_domain/namo_probs/namo_1234_1.prob'
 
+        d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        
 
-        p_c = {
-            'Init': '(geom pr2 1), (pose pr2 [0,7]),\
-                (pose obstacle [10,10]),\
-                (value robot_init_pose [0,7]),\
-                (value target [0,0]),\
-                (pose ws [0,0]), (w ws 8), (h ws 9), (size ws 1), (viewer ws);\
-                (RobotAt pr2 robot_init_pose)',
-            'Objects':
-                'RobotPose (name target); \
-                Robot (name pr2); \
-                Can (name obstacle); \
-                RobotPose (name robot_init_pose); \
-                RobotPose (name target); \
-                Workspace (name ws)',
-            'Goal':
-                '(RobotAt pr2 target)'}
+        p_c = main.parse_file_to_dict(problem_fname)
 
         hls = hl_solver.FFSolver(d_c)
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         self.move_no_obs = hls.solve(hls.translate_problem(problem), domain, problem)
-
-        p_c = {
-            'Init': '(geom pr2 1), (pose pr2 [-2,0]),\
-                (pose obstacle [0,0]),\
-                (value robot_init_pose [-2,0]),\
-                (value target [2,0]),\
-                (pose ws [0,0]), \
-                (w ws 8), \
-                (h ws 9), \
-                (size ws 1), \
-                (viewer ws);\
-                (RobotAt pr2 robot_init_pose)',
-            'Objects':
-                'RobotPose (name target); \
-                Robot (name pr2); \
-                Can (name obstacle); \
-                RobotPose (name robot_init_pose); \
-                RobotPose (name target); \
-                Workspace (name ws)',
-            'Goal':
-                '(RobotAt pr2 target)'}
-        hls = hl_solver.FFSolver(d_c)
-        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        self.move_w_obs = hls.solve(hls.translate_problem(problem), domain, problem)
-        # import ipdb; ipdb.set_trace()
 
     def test_llparam(self):
         # TODO: tests for undefined, partially defined and fully defined params
@@ -161,6 +85,25 @@ class TestLLSolver(unittest.TestCase):
             pr2_ll._type
         with self.assertRaises(AttributeError):
             pr2_ll.geom
+
+    def test_namo_solver_init_params(self):
+        class dummy_plan(object):
+            def __init__(self, params):
+                self.params = params
+
+        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can0"]}
+        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        green_can = parameter.Object(attrs, attr_types)
+
+        attrs = {"name": ["robot_pose"], "value": [(0,0)], "_type": ["RobotPose"]}
+        attr_types = {"name": str, "value": Vector2d, "_type": str}
+        rp = parameter.Symbol(attrs, attr_types)
+        # test random seeds
+        pass
+
+    def test_solver(self):
+        # check that parameter values don't change
+        pass
 
     def test_namo_solver_one_move_plan(self):
         plan = self.move_no_obs
@@ -240,10 +183,35 @@ class TestLLSolver(unittest.TestCase):
         # viewer.draw_traj([pr2], range(20))
         # time.sleep(3)
 
+    def test_generator_for_grasps(self):
+        pass
+
+    def test_things(self):
+        plan = self.move_no_obs
+        horizon = plan.horizon
+
+        move = plan.actions[0]
+        pr2 = move.params[0]
+        start = move.params[1]
+        end = move.params[2]
+
+        namo_solver = ll_solver.NAMOSolver()
+        namo_solver.solve(plan)
+
+    def test_initialize_params(self):
+        plan = self.move_no_obs
+        
+        namo_solver = ll_solver.NAMOSolver()
+        namo_solver._initialize_params(plan)
+
+        for p in plan.params.itervalues():
+            self.assertTrue(p in namo_solver._init_values)            
 
  #   def test(self):
  #       plan = self.one_move_plan
  #       horizon = plan.horizon
  #       self.assertEqual(True, True)
+
 if __name__ == "__main__":
     unittest.main()
+

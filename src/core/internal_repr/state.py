@@ -15,7 +15,13 @@ class State(object):
         self.timestep = timestep
 
     def is_concrete(self):
-        return all(pred.is_concrete() for pred in self.preds)
+        for p in self.params.itervalues():
+            if not p.is_symbol() and not p.is_defined():
+                return False
+        return True
 
     def is_consistent(self):
-        return all(pred.test(time=self.timestep) for pred in self.preds)
+        for p in self.preds:
+            if p.is_concrete() and not p.test(time=self.timestep):
+                return False
+        return True

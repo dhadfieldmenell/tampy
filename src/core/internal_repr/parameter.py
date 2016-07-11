@@ -1,5 +1,6 @@
 from IPython import embed as shell
 from errors_exceptions import DomainConfigException
+from core.util_classes.matrix import Vector2d
 import numpy as np
 
 class Parameter(object):
@@ -113,5 +114,11 @@ class Symbol(Parameter):
     def copy(self, new_horizon):
         new = Symbol()
         for k, v in self.__dict__.items():
-            setattr(new, k, v)
+            if v == 'undefined':
+                assert self.get_attr_type(k) == Vector2d
+                val = np.empty((2, 1))
+                val[:] = np.NaN
+                setattr(new, k, val) 
+            else:
+                setattr(new, k, v)
         return new
