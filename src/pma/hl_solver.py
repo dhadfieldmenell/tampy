@@ -212,10 +212,10 @@ class FFSolver(HLSolver):
             plan = Plan.IMPOSSIBLE
         else:
             plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
-        subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
-                         "%sprob.pddl"%FFSolver.FILE_PREFIX,
-                         "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
-                         "%sprob.output"%FFSolver.FILE_PREFIX])
+        # subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
+        #                  "%sprob.pddl"%FFSolver.FILE_PREFIX,
+        #                  "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
+        #                  "%sprob.output"%FFSolver.FILE_PREFIX])
         if plan != Plan.IMPOSSIBLE:
             plan = self._patch_redundancy(plan)
         return plan

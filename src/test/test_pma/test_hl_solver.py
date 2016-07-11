@@ -85,70 +85,67 @@ class TestHLSolver(unittest.TestCase):
         moveto = plan.actions[0]
         moveto_pred_rep_list = extract_pred_reps_from_pred_dicts(moveto.preds)
 
-        self.assertTrue('(InContact pr2 gp_can1 target1)' in moveto_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 gp_can1 target1)', "hl_state"))
+        self.assertTrue('(InContact pr2 pdp_target1 target1)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 pdp_target1 target1)', "hl_state"))
         self.assertTrue('(RobotAt pr2 robot_init_pose)' in moveto_pred_rep_list)
         self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 robot_init_pose)', "pre"))
-        self.assertTrue('(RobotAt pr2 gp_can0)' in moveto_pred_rep_list or '(RobotAt pr2 pdp_target0)' in moveto_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 gp_can0)', "eff") 
-                        or test_hl_info(moveto.preds, '(RobotAt pr2 pdp_target0)', "eff"))
+        self.assertTrue('(RobotAt pr2 pdp_target0)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 pdp_target0)', "eff"))
 
         grasp = plan.actions[1]
         grasp_pred_rep_list = extract_pred_reps_from_pred_dicts(grasp.preds)
         self.assertTrue('(RobotAt pr2 robot_init_pose)' not in grasp_pred_rep_list)
-        self.assertTrue('(InContact pr2 gp_can0 target0)' in grasp_pred_rep_list)
-        self.assertTrue(test_hl_info(grasp.preds, '(InContact pr2 gp_can0 target0)', "pre") 
-                        or test_hl_info(grasp.preds, '(InContact pr2 pdp_can0 target0)', "pre"))
-        self.assertTrue('(InContact pr2 gp_can1 target1)' in moveto_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 gp_can1 target1)', "hl_state"))
+        self.assertTrue('(InContact pr2 pdp_target0 target0)' in grasp_pred_rep_list)
+        self.assertTrue(test_hl_info(grasp.preds, '(InContact pr2 pdp_target0 target0)', "pre"))
+        self.assertTrue('(InContact pr2 pdp_target1 target1)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 pdp_target1 target1)', "hl_state"))
         self.assertTrue('(InGripper pr2 can0 grasp0)' in grasp_pred_rep_list)
         self.assertTrue(test_hl_info(grasp.preds, '(InGripper pr2 can0 grasp0)', "eff"))
 
         moveto2 = plan.actions[2]
         moveto2_pred_rep_list = extract_pred_reps_from_pred_dicts(moveto2.preds)
-        self.assertTrue('(RobotAt pr2 gp_can0)' in moveto2_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 gp_can0)', "pre"))
+        self.assertTrue('(RobotAt pr2 pdp_target0)' in moveto2_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 pdp_target0)', "pre"))
         self.assertTrue('(RobotAt pr2 robot_init_pose)' in moveto2_pred_rep_list)
         self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 robot_init_pose)', "eff"))
         self.assertTrue('(InGripper pr2 can0 grasp0)' in moveto2_pred_rep_list)
         self.assertTrue(test_hl_info(moveto2.preds, '(InGripper pr2 can0 grasp0)', "pre"))
-        self.assertTrue('(InContact pr2 gp_can0 target0)' in moveto_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 gp_can0 target0)', "hl_state"))
-        self.assertTrue('(InContact pr2 gp_can1 target1)' in moveto_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 gp_can1 target1)', "hl_state"))
+        self.assertTrue('(InContact pr2 pdp_target0 target0)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 pdp_target0 target0)', "hl_state"))
+        self.assertTrue('(InContact pr2 pdp_target1 target1)' in moveto_pred_rep_list)
+        self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 pdp_target1 target1)', "hl_state"))
 
     def test_basic(self):
+        p_c = self.p_c.copy()
+        p_c['Init'] += ', (Obstructs pr2 pdp_target0 can1)'
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
-        plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
+        abs_prob = self.hls.translate_problem(problem)
+        plan = self.hls.solve(abs_prob, self.domain, problem)
         # test plan itself
-        self.assertEqual(plan.horizon, 160)
-        self.assertEqual(repr(plan.actions), '[0: moveto (0, 19) pr2 robot_init_pose gp_can1, 1: grasp (20, 39) pr2 can1 target1 gp_can1, 2: moveto (40, 59) pr2 gp_can1 pdp_target2, 3: putdown (60, 79) pr2 can1 target2 pdp_target2, 4: moveto (80, 99) pr2 pdp_target2 gp_can0, 5: grasp (100, 119) pr2 can0 target0 gp_can0, 6: moveto (120, 139) pr2 gp_can0 pdp_target1, 7: putdown (140, 159) pr2 can0 target1 pdp_target1]')
+        self.assertEqual(plan.horizon, 132)
+        self.assertEqual(repr(plan.actions), '[0: moveto (0, 19) pr2 robot_init_pose pdp_target1, 1: grasp (20, 21) pr2 can1 target1 pdp_target1 grasp0, 2: movetoholding (22, 41) pr2 pdp_target1 pdp_target2 can1 grasp0, 3: putdown (42, 43) pr2 can1 target2 pdp_target2 grasp0, 4: moveto (44, 63) pr2 pdp_target2 pdp_target0, 5: grasp (64, 65) pr2 can0 target0 pdp_target0 grasp0, 6: movetoholding (66, 85) pr2 pdp_target0 pdp_target1 can0 grasp0, 7: putdown (86, 87) pr2 can0 target1 pdp_target1 grasp0, 8: moveto (88, 107) pr2 pdp_target1 pdp_target2, 9: grasp (108, 109) pr2 can1 target2 pdp_target2 grasp0, 10: movetoholding (110, 129) pr2 pdp_target2 pdp_target0 can1 grasp0, 11: putdown (130, 131) pr2 can1 target0 pdp_target0 grasp0]')
         # test plan params
-        self.assertEqual(len(plan.params), 13)
+        self.assertEqual(len(plan.params), 11)
         can0 = plan.params["can0"]
         arr = np.zeros((2, plan.horizon))
         arr[:] = np.NaN
-        arr[0, 0] = 3
-        arr[1, 0] = 5
+        arr[0, 0] = 2
+        arr[1, 0] = 3
         self.assertTrue(np.allclose(can0.pose, arr, equal_nan=True))
         self.assertEqual(can0.get_type(), "Can")
-        self.assertEqual(plan.params["gp_can0"].value, "undefined")
+        arr = np.empty((2, 1))
+        arr[:] = np.NaN
+        self.assertTrue(np.allclose(plan.params["pdp_target0"].value, arr, equal_nan=True))
         # test action preds
         a = plan.actions[5]
-        self.assertEqual(repr(a), "5: grasp (100, 119) pr2 can0 target0 gp_can0")
+        self.assertEqual(repr(a), "5: grasp (64, 65) pr2 can0 target0 pdp_target0 grasp0")
         obstrs = filter(lambda x: "Obstructs" in repr(x["pred"]), a.preds)
-        self.assertEqual([o["negated"] for o in obstrs], [True, True, True, True, True, True, True, True])
-        self.assertEqual([o["active_timesteps"] for o in obstrs], [(100, 119), (100, 119), (119, 119),
-                                                                   (119, 119), (119, 119), (119, 119),
-                                                                   (119, 119), (119, 119)])
+        self.assertEqual([o["negated"] for o in obstrs], [True, True, True, True])
+        self.assertEqual([o["active_timesteps"] for o in obstrs], [(65, 65),(65, 65),(65, 65),(65, 65)])
         reprs = [repr(o["pred"]) for o in obstrs]
-        self.assertEqual(reprs, ['placeholder: (Obstructs pr2 gp_can0 can1)',
-                                 'placeholder: (Obstructs pr2 gp_can0 can0)',
-                                 'placeholder: (Obstructs pr2 gp_can1 can0)',
-                                 'placeholder: (Obstructs pr2 gp_can0 can0)',
-                                 'placeholder: (Obstructs pr2 pdp_target1 can0)',
-                                 'placeholder: (Obstructs pr2 robot_init_pose can0)',
-                                 'placeholder: (Obstructs pr2 pdp_target2 can0)',
+        self.assertEqual(reprs, ['placeholder: (Obstructs pr2 robot_init_pose can0)', 
+                                 'placeholder: (Obstructs pr2 pdp_target1 can0)', 
+                                 'placeholder: (Obstructs pr2 pdp_target2 can0)', 
                                  'placeholder: (Obstructs pr2 pdp_target0 can0)'])
 
     def test_nested_forall(self):
@@ -160,29 +157,39 @@ class TestHLSolver(unittest.TestCase):
         a = plan.actions[1]
         obstrs = filter(lambda x: "Obstructs" in repr(x["pred"]) and x["active_timesteps"] == (39, 39), a.preds)
         reprs = [repr(o["pred"]) for o in obstrs]
-        self.assertEqual(reprs, ['placeholder: (Obstructs pr2 gp_can1 can1)',
-                                 'placeholder: (Obstructs pr2 gp_can0 can1)',
-                                 'placeholder: (Obstructs pr2 pdp_target1 can1)',
-                                 'placeholder: (Obstructs pr2 robot_init_pose can1)',
-                                 'placeholder: (Obstructs pr2 pdp_target2 can1)',
-                                 'placeholder: (Obstructs pr2 pdp_target0 can1)',
-                                 'placeholder: (Obstructs pr2 gp_can1 can0)',
-                                 'placeholder: (Obstructs pr2 gp_can0 can0)',
-                                 'placeholder: (Obstructs pr2 pdp_target1 can0)',
-                                 'placeholder: (Obstructs pr2 robot_init_pose can0)',
-                                 'placeholder: (Obstructs pr2 pdp_target2 can0)',
-                                 'placeholder: (Obstructs pr2 pdp_target0 can0)'])
+        expected_vals = ['placeholder: (Obstructs pr2 robot_init_pose can0)', 
+                         'placeholder: (Obstructs pr2 pdp_target1 can0)', 
+                         'placeholder: (Obstructs pr2 pdp_target2 can0)', 
+                         'placeholder: (Obstructs pr2 pdp_target0 can0)', 
+                         'placeholder: (Obstructs pr2 robot_init_pose can1)', 
+                         'placeholder: (Obstructs pr2 pdp_target1 can1)', 
+                         'placeholder: (Obstructs pr2 pdp_target2 can1)', 
+                         'placeholder: (Obstructs pr2 pdp_target0 can1)']
+        # ['placeholder: (Obstructs pr2 pdp_target1 can1)',
+        #                          'placeholder: (Obstructs pr2 pdp_target0 can1)',
+        #                          'placeholder: (Obstructs pr2 pdp_target1 can1)',
+        #                          'placeholder: (Obstructs pr2 robot_init_pose can1)',
+        #                          'placeholder: (Obstructs pr2 pdp_target2 can1)',
+        #                          'placeholder: (Obstructs pr2 pdp_target0 can1)',
+        #                          'placeholder: (Obstructs pr2 pdp_target1 can0)',
+        #                          'placeholder: (Obstructs pr2 pdp_target0 can0)',
+        #                          'placeholder: (Obstructs pr2 pdp_target1 can0)',
+        #                          'placeholder: (Obstructs pr2 robot_init_pose can0)',
+        #                          'placeholder: (Obstructs pr2 pdp_target2 can0)',
+        #                          'placeholder: (Obstructs pr2 pdp_target0 can0)']
+        self.assertEqual(sorted(reprs), sorted(expected_vals))
 
     def test_obstr(self):
         p2 = self.p_c.copy()
-        p2["Init"] += ", (Obstructs pr2 gp_can1 can0), (Obstructs pr2 pdp_can0 can0), "
+        p2["Init"] += ", (Obstructs pr2 pdp_target1 can0)"
+        p2["Goal"] = "(InGripper pr2 can0 grasp0)"
         problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
-        self.assertEqual(repr(plan.actions[0:2]), '[0: moveto (0, 19) pr2 robot_init_pose gp_can0, 1: grasp (20, 39) pr2 can0 target0 gp_can0]')
+        self.assertEqual(repr(plan.actions[0:2]), '[0: moveto (0, 19) pr2 robot_init_pose pdp_target0, 1: grasp (20, 21) pr2 can0 target0 pdp_target0 grasp0]')
 
     def test_impossible_obstr(self):
         p2 = self.p_c.copy()
-        p2["Init"] += ", (Obstructs pr2 gp_can0 can1), (Obstructs pr2 gp_can1 can0), (Obstructs pr2 pdp_can0 can1), (Obstructs pr2 pdp_can1 can0)"
+        p2["Init"] += ", (Obstructs pr2 pdp_target0 can1), (Obstructs pr2 pdp_target1 can0)"
         problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
         self.assertEqual(plan, Plan.IMPOSSIBLE)
