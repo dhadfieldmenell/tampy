@@ -15,21 +15,27 @@ e2 = expr.Expr(lambda x: np.power(x, 2))
 class TestPR2Predicates(unittest.TestCase):
 
     def test_expr_at(self):
-        attrs = {"name": ["can"], "geom": (1,1), "pose": ["undefined"], "_type": ["Can"]}
+
+        # At, Can, Location
+
+        attrs = {"name": ["can"], "geom": [(1,1)], "pose": ["undefined"], "_type": ["Can"]}
         attr_types = {"name": str, "geom": BlueCan, "pose": Vector3d, "_type": str}
-        p1 = parameter.Object(attrs, attr_types)
+        can = parameter.Object(attrs, attr_types)
+
         attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
         attr_types = {"name": str, "value": Vector3d, "_type": str}
-        p2 = parameter.Symbol(attrs, attr_types)
+        location = parameter.Symbol(attrs, attr_types)
 
-        pred = pr2_predicates.At("testpred", [p1, p2], ["Can", "Location"])
+        pred = pr2_predicates.At("testpred", [can, location], ["Can", "Location"])
         self.assertEqual(pred.get_type(), "At")
+
         self.assertFalse(pred.test(time=400))
-        p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8], [6, 3, 4, 2]])
+        can.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8], [6, 3, 4, 2]])
         # p2 is a symbol and doesn't have a value yet
         self.assertRaises(PredicateException, pred.test, time = 400)
-        p2.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7], [6, 3, 4, 2]])
+        location.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7], [6, 3, 4, 2]])
         self.assertTrue(pred.is_concrete())
+
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can location)'.")
@@ -43,22 +49,27 @@ class TestPR2Predicates(unittest.TestCase):
 
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": str, "_type": str}
-        p3 = parameter.Symbol(attrs, attr_types)
+        sym = parameter.Symbol(attrs, attr_types)
         with self.assertRaises(PredicateException) as cm:
-            pred = pr2_predicates.At("testpred", [p1, p3], ["Can", "Location"])
+            pred = pr2_predicates.At("testpred", [can, sym], ["Can", "Location"])
         self.assertEqual(cm.exception.message, "attribute type not supported")
 
 
     def test_expr_robot_at(self):
+
+        # RobotAt, Robot, RobotPose
+
         attrs = {"name": ["pr2"], "geom": [1], "pose": ["undefined"], "_type": ["Robot"]}
         attr_types = {"name": str, "geom": PR2, "pose": PR2PoseVector, "_type": str}
-        p1 = parameter.Object(attrs, attr_types)
+        robot = parameter.Object(attrs, attr_types)
+
         attrs = {"name": ["funnyPose"], "value": ["undefined"], "_type": ["RobotPose"]}
         attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
-        p2 = parameter.Symbol(attrs, attr_types)
+        robot_pose = parameter.Symbol(attrs, attr_types)
 
-        pred = pr2_predicates.RobotAt("testRobotAt", [p1, p2], ["Robot", "RobotPose"])
+        pred = pr2_predicates.RobotAt("testRobotAt", [robot, robot_pose], ["Robot", "RobotPose"])
         self.assertEqual(pred.get_type(), "RobotAt")
+
         self.assertFalse(pred.test(time=400))
         p1.pose = np.array([[3, 4, 5, 6],
                             [6, 5, 7, 8],
@@ -73,6 +84,7 @@ class TestPR2Predicates(unittest.TestCase):
                             [7, 2, 4, 5],
                             [1, 4, 9, 4]])
         self.assertTrue(pred.is_concrete())
+
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 funnyPose)'.")
@@ -84,47 +96,72 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(time=2))
         self.assertFalse(pred.test(time=3))
 
-        attrs = {"name": ["loc"], "value": ["undefined"], "_type": ["Location"]}
-        attr_types = {"name": str, "value": str, "_type": str}
-        p3 = parameter.Symbol(attrs, attr_types)
-        with self.assertRaises(PredicateException) as cm:
-            pred = pr2_predicates.At("testpred", [p1, p3], ["Robot", "Location"])
-        self.assertEqual(cm.exception.message, "attribute type not supported")
-
     def test_expr_is_gp(self):
-        radius = 1
-        attrs = {"geom": [radius], "pose": [(2, 0)], "_type": ["Robot"], "name": ["robot"]}
-        attr_types = {"geom": PR2, "pose": PR2PoseVector, "_type": str, "name": str}
+
+        # IsGP, Robot, RobotPose, Can
+
+        attrs = {"name": ["robot"], "pose": [(2, 0, 1)], "_type": ["Robot"], "geom": [1]}
+        attr_types = {"name": str, "pose": PR2PoseVector, "_type": str, "geom": PR2}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"name": ["rPose"], "value": ["undefined"], "_type": ["RobotPose"]}
         attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
         rPose = parameter.Symbol(attrs, attr_types)
 
-        attrs = {"name": ["can"], "geom": (1, 2), "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": BlueCan, "pose": Vector3d, "_type": str}
+        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"], "geom": [(1, 2)]}
+        attr_types = {"name": str, "pose": Vector3d, "_type": str, "geom": BlueCan}
         can = parameter.Object(attrs, attr_types)
 
-        pred = pr2_predicates.IsGP("testgp", [rPose, can], ["RobotPose", "Can"])
+        pred = pr2_predicates.IsGP("testgp", [robot, rPose, can], ["Robot", "RobotPose", "Can"])
         self.assertEqual(pred.get_type(), "IsGP")
         self.assertFalse(pred.test(time=400))
 
-        rPose.value = np.array([[3, 4, 5],
-                                [2, 5, 7],
-                                [6, 3, 4]])
-        self.assertFalse(pred.test(time=400))
-        can.pose = np.array([[1, 2, 5],
-                             [2, 4, 3],
-                             [5, 3, 4]])
-        self.assertTrue(pred.test(time=0))
+
 
     def test_expr_is_pdp(self):
-        pass
+
+        # IsPDP, Robot, RobotPose, Can, Location
+
+
+        attrs = {"name": ["robot"], "pose": [(2, 0, 1)], "_type": ["Robot"], "geom": [1]}
+        attr_types = {"name": str, "pose": PR2PoseVector, "_type": str, "geom": PR2}
+        robot = parameter.Object(attrs, attr_types)
+
+        attrs = {"name": ["rPose"], "value": ["undefined"], "_type": ["RobotPose"]}
+        attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
+        rPose = parameter.Symbol(attrs, attr_types)
+
+        attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"], "geom": [(1, 2)]}
+        attr_types = {"name": str, "pose": Vector3d, "_type": str, "geom": BlueCan}
+        can = parameter.Object(attrs, attr_types)
+
+        attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
+        attr_types = {"name": str, "value": Vector3d, "_type": str}
+        location = parameter.Symbol(attrs, attr_types)
+
+        pred = pr2_predicates.IsPDP("testpdp", [robot, rPose, can, location], ["Robot", "RobotPose", "Can", "Location"])
+        self.assertEqual(pred.get_type(), "IsPDP")
 
 
 
     def test_expr_is_in_gripper(self):
-        pass
+
+        # InGripper, Robot, Can, Grasp
+
+        attrs = {"geom": [1], "pose": [(0, 0, 0)], "_type": ["Robot"], "name": ["pr2"]}
+        attr_types = {"geom": PR2, "pose": Vector2d, "_type": str, "name": str}
+        robot = parameter.Object(attrs, attr_types)
+
+        attrs = {"geom": [(1, 1)], "pose": [(0, 0, 0)], "_type": ["Can"], "name": ["can1"]}
+        attr_types = {"geom": BlueCan, "pose": Vector2d, "_type": str, "name": str}
+        can = parameter.Object(attrs, attr_types)
+
+        attrs = {"value": [(0, 0, 0)], "_type": ["Grasp"], "name": ["grasp"]}
+        attr_types = {"value": Vector3d, "_type": str, "name": str}
+        grasp = parameter.Symbol(attrs, attr_types)
+
+        pred = namo_predicates.InGripper("InGripper", [robot, can, grasp], ["Robot", "Can", "Grasp"])
+        self.assertEqual(pred.get_type(), "InGripper")
 
 
     # TODO: test other predicates

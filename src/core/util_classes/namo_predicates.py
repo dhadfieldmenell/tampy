@@ -161,6 +161,7 @@ class InContact(CollisionPredicate):
 class Obstructs(CollisionPredicate):
 
     # Obstructs, Robot, RobotPose, Can;
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 3
         self._env = env
@@ -301,5 +302,3 @@ class GraspValid(ExprPredicate):
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
-class Stationary(Predicate):
-    pass
