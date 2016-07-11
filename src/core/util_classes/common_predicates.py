@@ -93,7 +93,7 @@ class ExprPredicate(Predicate):
         i = 0
         for p in self.params:
             res[p.name] = []
-            for attr, ind_arr in self.attr_inds[p.name]:
+            for attr, ind_arr in self.attr_inds[p]:
                 n_vals = len(ind_arr)
                 res[p.name].append((attr, y[i:i+n_vals]))
                 i += n_vals

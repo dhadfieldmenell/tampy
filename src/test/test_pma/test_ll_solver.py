@@ -27,7 +27,8 @@ d_c = {
         'RobotAt, Robot, RobotPose; \
         NotObstructs, Robot, RobotPose, Can',
     'Attribute Import Paths':
-        'GreenCircle core.util_classes.circle, \
+        'RedCircle core.util_classes.circle,\
+        GreenCircle core.util_classes.circle, \
         Vector2d core.util_classes.matrix, \
         GridWorldViewer core.util_classes.viewer, \
         Obstacle core.util_classes.obstacle',
@@ -244,3 +245,5 @@ class TestLLSolver(unittest.TestCase):
  #       plan = self.one_move_plan
  #       horizon = plan.horizon
  #       self.assertEqual(True, True)
+if __name__ == "__main__":
+    unittest.main()

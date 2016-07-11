@@ -103,7 +103,7 @@ class ParseDomainConfig(object):
                         count -= 1
                         if count == 0:
                             inds.append(i+1)
-                assert len(inds) == 4
+                
                 params_str = v[inds[0]:inds[1]].strip()
                 pre = v[inds[1]:inds[2]].strip()
                 m = re.match("\(\s*and", pre)
@@ -118,7 +118,7 @@ class ParseDomainConfig(object):
                 eff_pred_strs = ParseDomainConfig._build_predicate_str(eff)
                 pred_strs = pre_pred_strs + eff_pred_strs
 
-                all_active_timesteps = [tuple(map(int, s.split(":"))) for s in v[inds[3]:].strip().split()]
+                all_active_timesteps = [tuple(map(int, s.split(":"))) for s in v[inds[-1]:].strip().split()]
                 # build list of params
                 params = []
                 for p in params_str.strip("()").split("?"):

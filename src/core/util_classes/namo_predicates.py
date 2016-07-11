@@ -283,3 +283,5 @@ class GraspValid(ExprPredicate):
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
+class Stationary(Predicate):
+    pass

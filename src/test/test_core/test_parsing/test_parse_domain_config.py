@@ -5,22 +5,15 @@ from errors_exceptions import DomainConfigException, PredicateException
 class TestParseDomainConfig(unittest.TestCase):
     def setUp(self):
         self.c = {
-            'Types':' Can, Target, RobotPose, Robot, Grasp,'
+            'Types':'Can, Target, RobotPose, Robot, Grasp',
             'Attribute Import Paths':'RedCircle core.util_classes.circle, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer',
-
-            'Predicates Import Path':' core.util_classes.namo_predicates',
-
-            'Primitive Predicates':' geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; value, Grasp, Vector2D;',
-
-            'Derived Predicates':' At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; InContact, Robot, RobotPose, Target; NotObstructs, Robot, RobotPose, Can; NotObstructsHolding, Robot, RobotPose, Can, Can, Grasp; Stationary Can; GraspValid RobotPose Target Grasp;',
-
-            'Action moveto 20':' (?robot - Robot ?start - RobotPose ?end - RobotPose) (forall (?c-Can ?g-Grasp) (not (InGripper ?robot ?c ?g))) (RobotAt ?robot ?start) (forall (?obj - Can ?t - Target) (or (not (At ?obj ?t)) (not (NotObstructs ?robot ?end ?obj))))) (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) 0:0 0:0 0:19 19:19 19:19',
-
-            'Action movetoholding 20':' (?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?g - Grasp) (RobotAt ?robot ?start) (InGripper ?robot ?c ?g) (forall (?obj - Can) (or (not (At ?obj ?t)) (not (NotObstructsHolding ?robot ?end ?obj ?c)))) (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) 0:0 0:19 0:19 19:19 19:19',
-
-            'Action grasp 2':' (?robot - Robot ?can - Can ?target - Target ?gp - RobotPose ?g - Grasp) (and (At ?can ?target) (RobotAt ?robot ?gp) (InContact ?robot ?gp ?target) (GraspValid ?gp ?target ?g) (forall (?obj - Can ?g - Grasp) (not (InGripper ?robot ?obj ?g)))) (and (not (At ?can ?target)) (InGripper ?robot ?can ?g) (forall (?sym - RobotPose) (not (NotObstructs ?robot ?sym ?can))) (forall (?sym-Robotpose ?obj-Can) (not (NotObstructs ?robot ?sym ?can ?obj)))) 0:0 0:0 0:0 0:0 0:0 0:1 1:1 1:1 1:1',
-
-            'Action putdown 2':' (?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose ?g - Grasp) (and (RobotAt ?robot ?pdp) (InContact ?robot ?pdp ?target) (GraspValid ?pdp ?target ?g) (InGripper ?robot ?can ?g) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (NotObstructsHolding ?robot ?pdp ?obj ?can ?g)))) (and (At ?can ?target) (not (InGripper ?robot ?can ?g))) 0:0 0:0 0:0 0:0 0:0 0:1 1:1 1:1'}
+            'Predicates Import Path':'core.util_classes.namo_predicates',
+            'Primitive Predicates':'geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; value, Grasp, Vector2d',
+            'Derived Predicates':'At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; InContact, Robot, RobotPose, Target; NotObstructs, Robot, RobotPose, Can; NotObstructsHolding, Robot, RobotPose, Can, Can; Stationary, Can; GraspValid, RobotPose, Target, Grasp',
+            'Action moveto 20':'(?robot - Robot ?start - RobotPose ?end - RobotPose) (forall (?c-Can ?g-Grasp) (not (InGripper ?robot ?c ?g))) (and (RobotAt ?robot ?start) (forall (?obj - Can ?t - Target) (or (not (At ?obj ?t)) (not (NotObstructs ?robot ?end ?obj))))) (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) 0:0 0:0 0:19 19:19 19:19',
+            'Action movetoholding 20':'(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?g - Grasp) (RobotAt ?robot ?start) (InGripper ?robot ?c ?g) (forall (?obj - Can) (or (not (At ?obj ?t)) (not (NotObstructsHolding ?robot ?end ?obj ?c)))) (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) 0:0 0:19 0:19 19:19 19:19',
+            'Action grasp 2':'(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose ?g - Grasp) (and (At ?can ?target) (RobotAt ?robot ?gp) (InContact ?robot ?gp ?target) (GraspValid ?gp ?target ?g) (forall (?obj - Can ?g - Grasp) (not (InGripper ?robot ?obj ?g)))) (and (not (At ?can ?target)) (InGripper ?robot ?can ?g) (forall (?sym - RobotPose) (not (NotObstructs ?robot ?sym ?can))) (forall (?sym-Robotpose ?obj-Can) (not (NotObstructs ?robot ?sym ?can ?obj)))) 0:0 0:0 0:0 0:0 0:0 0:1 1:1 1:1 1:1',
+            'Action putdown 2':'(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose ?g - Grasp) (and (RobotAt ?robot ?pdp) (InContact ?robot ?pdp ?target) (GraspValid ?pdp ?target ?g) (InGripper ?robot ?can ?g) (forall (?obj - Can) (not (At ?obj ?target))) (forall (?obj - Can) (not (NotObstructsHolding ?robot ?pdp ?obj ?can ?g)))) (and (At ?can ?target) (not (InGripper ?robot ?can ?g))) 0:0 0:0 0:0 0:0 0:0 0:1 1:1 1:1'}
         self.domain = parse_domain_config.ParseDomainConfig.parse(self.c)
 
     def test_param_schemas(self):
@@ -100,3 +93,7 @@ class TestParseDomainConfig(unittest.TestCase):
         self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RPose", "?sym1": "RPose"})
         self.assertEqual(s.preds, [{"type": "RobotAt", "hl_info": "pre", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?sym"]},
                                    {"type": "Obstructs", "hl_info": "eff", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym1", "?obj"]}])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -173,7 +173,7 @@ class NAMOSolver(LLSolver):
         i = 0
         x = np.empty(pred.x_dim , dtype=object)
         for p in pred.params:
-            for attr, ind_arr in pred.attr_inds[p.name]:
+            for attr, ind_arr in pred.attr_inds[p]:
                 n_vals = len(ind_arr)
                 ll_p = self._param_to_ll[p]
                 if p.is_symbol():

@@ -1,7 +1,7 @@
 # Configuration file for NAMO domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Can, Target, RobotPose, Robot, Grasp, 
+Types: Can, Target, RobotPose, Robot, Grasp 
 
 # Define the class location of each non-standard attribute type used
 # in the above parameter type description.  
@@ -10,9 +10,9 @@ Attribute Import Paths:RedCircle core.util_classes.circle, BlueCircle core.util_
 
 Predicates Import Path: core.util_classes.namo_predicates
 
-Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; value, Grasp, Vector2D;
+Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; value, Grasp, Vector2d
 
-Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; InContact, Robot, RobotPose, Target; NotObstructs, Robot, RobotPose, Can; NotObstructsHolding, Robot, RobotPose, Can, Can, Grasp; Stationary Can; GraspValid RobotPose Target Grasp;
+Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; InContact, Robot, RobotPose, Target; NotObstructs, Robot, RobotPose, Can; NotObstructsHolding, Robot, RobotPose, Can, Can, Grasp; Stationary, Can; GraspValid, RobotPose, Target, Grasp
 
 # The first set of parentheses after the colon contains the
 # parameters. The second contains preconditions and the third contains
@@ -21,7 +21,7 @@ Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot
 # similarly, using the numbers at the end, which specify active
 # timesteps during which each predicate must hold.
 
-Action moveto 20: (?robot - Robot ?start - RobotPose ?end - RobotPose) (forall (?c-Can ?g-Grasp) (not (InGripper ?robot ?c ?g))) (RobotAt ?robot ?start) (forall (?obj - Can ?t - Target) (or (not (At ?obj ?t)) (not (NotObstructs ?robot ?end ?obj))))) (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) 0:0 0:0 0:19 19:19 19:19
+Action moveto 20: (?robot - Robot ?start - RobotPose ?end - RobotPose) (forall (?c-Can ?g-Grasp) (not (InGripper ?robot ?c ?g))) (RobotAt ?robot ?start) (forall (?obj - Can ?t - Target) (or (not (At ?obj ?t)) (not (NotObstructs ?robot ?end ?obj)))) (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) 0:0 0:0 0:19 19:19 19:19
 
 Action movetoholding 20: (?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?g - Grasp) (RobotAt ?robot ?start) (InGripper ?robot ?c ?g) (forall (?obj - Can) (or (not (At ?obj ?t)) (not (NotObstructsHolding ?robot ?end ?obj ?c)))) (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) 0:0 0:19 0:19 19:19 19:19
 

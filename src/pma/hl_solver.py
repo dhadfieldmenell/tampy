@@ -102,7 +102,6 @@ class FFSolver(HLSolver):
                         count -= 1
                         if count == 0:
                             inds.append(i+1)
-                assert len(inds) == 4
                 params = domain_config[key][inds[0]:inds[1]].strip()
                 pre = domain_config[key][inds[1]:inds[2]].strip()
                 eff = domain_config[key][inds[2]:inds[3]].strip()
