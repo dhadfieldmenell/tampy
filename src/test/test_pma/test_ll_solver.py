@@ -16,7 +16,7 @@ d_c = {
     'Action moveto 20': '(?robot - Robot ?start - RobotPose ?end - RobotPose) \
         (and (RobotAt ?robot ?start)\
             (forall (?obj - Obstacle) \
-                (not (Obstructs ?robot ?start ?obj))\
+                (not (NotObstructs ?robot ?start ?obj))\
             )\
         ) \
         (and \
@@ -25,7 +25,7 @@ d_c = {
         ) 0:0 0:19 19:19 19:19',
     'Derived Predicates':
         'RobotAt, Robot, RobotPose; \
-        Obstructs, Robot, RobotPose, Obstacle',
+        NotObstructs, Robot, RobotPose, Can',
     'Attribute Import Paths':
         'GreenCircle core.util_classes.circle, \
         Vector2d core.util_classes.matrix, \
@@ -37,15 +37,15 @@ d_c = {
         'value, RobotPose, Vector2d; \
         geom, Robot, GreenCircle; \
         pose, Robot, Vector2d; \
-        geom, Obstacle, Obstacle; \
-        pose, Obstacle, Vector2d; \
+        geom, Can, RedCircle; \
+        pose, Can, Vector2d; \
         pose, Workspace, Vector2d; \
         w, Workspace, int; \
         h, Workspace, int; \
         size, Workspace, int; \
         viewer, Workspace, GridWorldViewer',
     'Types':
-        'RobotPose, Robot, Obstacle, Workspace'}
+        'RobotPose, Robot, Can, Workspace'}
 
 class TestLLSolver(unittest.TestCase):
     def setUp(self):
@@ -65,7 +65,7 @@ class TestLLSolver(unittest.TestCase):
             'Objects':
                 'RobotPose (name target); \
                 Robot (name pr2); \
-                Obstacle (name obstacle); \
+                Can (name obstacle); \
                 RobotPose (name robot_init_pose); \
                 RobotPose (name target); \
                 Workspace (name ws)',
@@ -90,7 +90,7 @@ class TestLLSolver(unittest.TestCase):
             'Objects':
                 'RobotPose (name target); \
                 Robot (name pr2); \
-                Obstacle (name obstacle); \
+                Can (name obstacle); \
                 RobotPose (name robot_init_pose); \
                 RobotPose (name target); \
                 Workspace (name ws)',
