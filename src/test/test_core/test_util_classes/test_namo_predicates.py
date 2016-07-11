@@ -4,7 +4,7 @@ from core.util_classes.matrix import Vector2d
 from core.util_classes import common_predicates, namo_predicates
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import circle
-from errors_exceptions import PredicateException
+from errors_exceptions import PredicateException, ParamValidationException
 from sco import expr
 import numpy as np
 from openravepy import Environment
@@ -48,9 +48,9 @@ class TestNamoPredicates(unittest.TestCase):
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": str, "_type": str}
         p3 = parameter.Symbol(attrs, attr_types)
-        with self.assertRaises(PredicateException) as cm:
+        with self.assertRaises(ParamValidationException) as cm:
             pred = namo_predicates.At("testpred", [p1, p3], ["Can", "Target"])
-        self.assertEqual(cm.exception.message, "attribute type not supported")
+        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'testpred: (At can sym)'.")
 
         attrs = {"name": ["target"], "geom": [radius], "pose": ["undefined"], "_type": ["Target"]}
         attr_types = {"name": str, "geom": circle.BlueCircle, "pose": Vector2d, "_type": str}
@@ -75,23 +75,28 @@ class TestNamoPredicates(unittest.TestCase):
         pass
 
     def test_not_obstructs(self):
+        #NotObstructs, Robot, RobotPose, Can;
         radius = 1
-        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can0"]}
+        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["robot"]}
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
-        green_can = parameter.Object(attrs, attr_types)
+        robot = parameter.Object(attrs, attr_types)
+
+        attrs = {"value": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
+        attr_types = {"value": Vector2d, "_type": str, "name": str}
+        robotPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
-        blue_can = parameter.Object(attrs, attr_types)
+        can = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.NotObstructs("obstructs", [green_can, blue_can], ["Can", "Can"])
+        pred = namo_predicates.NotObstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"])
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
-        green_can.pose = np.zeros((2,4))
-        blue_can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
+        robot.pose = np.zeros((2,4))
+        can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
                                   [0, 2*(radius+pred.dsafe), 0, 0]])
         self.assertTrue(pred.test(time=0))
         self.assertTrue(pred.test(time=1))
@@ -128,7 +133,6 @@ class TestNamoPredicates(unittest.TestCase):
         pred = namo_predicates.InContact("InContact", [robot, robotPose, target], ["Robot", "RobotPose", "Target"], dsafe)
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
-        self.assertTrue(np.allclose(pred.grasp(0), 0, atol = 1e-2))
         val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
@@ -166,35 +170,26 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can1 = parameter.Object(attrs, attr_types)
 
-        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can2"]}
+        attrs = {"geom": [radius], "pose": [(0, 2)], "_type": ["Can"], "name": ["can2"]}
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can2 = parameter.Object(attrs, attr_types)
 
         pred = namo_predicates.NotObstructsHolding("NotObstructsHolding", [robot, robotPose, can1, can2], ["Robot", "RobotPose", "Can", "Can"])
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
-        val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
-        self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
-        jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
+        val, jac = pred.distance_from_obj(np.array([1.9,0,0,0,0,0]))
+        self.assertTrue(np.allclose(np.array(val), 1.35, atol=1e-2))
+        jac2 = np.array([[-0.95968306, 0, 1.53703338, 0.57735032, -0.57735032, -0.57735032]])
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
-        green_can.pose = np.zeros((2,4))
-        blue_can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
+        robot.pose = np.zeros((2,4))
+        can1.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
                                   [0, 2*(radius+pred.dsafe), 0, 0]])
-        green_can.pose = np.zeros((2,4))
-        blue_can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
-                                  [0, 2*(radius+pred.dsafe), 0, 0]])
+        can2.pose = np.zeros((2,4))
         self.assertTrue(pred.test(time=0))
         self.assertTrue(pred.test(time=1))
         self.assertFalse(pred.test(time=2))
         self.assertFalse(pred.test(time=3))
-
-
-
-
-
-
-
 
     def test_in_gripper(self):
         # InGripper, Robot, Can, Grasp
@@ -205,20 +200,20 @@ class TestNamoPredicates(unittest.TestCase):
 
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
-        can1 = parameter.Object(attrs, attr_types)
+        can = parameter.Object(attrs, attr_types)
 
         attrs = {"value": [(0, 0)], "_type": ["Grasp"], "name": ["grasp"]}
         attr_types = {"value": Vector2d, "_type": str, "name": str}
         grasp = parameter.Symbol(attrs, attr_types)
 
-        pred = namo_predicates.InGripper("InGripper", [robot, can1, grasp], ["Robot", "Can", "Grasp"])
+        pred = namo_predicates.InGripper("InGripper", [robot, can, grasp], ["Robot", "Can", "Grasp"])
+        grasp.value = np.array([[1],[2]])
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
 
-        grasp.value = np.array([[1],[2]])
         #robot.pose - can.pose = grasp.value
         robot.pose = np.zeros((2,4))
-        target.pose = np.array([[-1, 1, 3, 5],
+        can.pose = np.array([[-1, 1, 3, 5],
                                 [-2, 2, 4, 6]])
         self.assertTrue(pred.test(time = 0))
         self.assertFalse(pred.test(time = 1))
@@ -231,8 +226,6 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.test(time = 1))
         self.assertTrue(pred.test(time = 2))
         self.assertTrue(pred.test(time = 3))
-
-
 
     def test_grasp_valid(self):
         # GraspValid RobotPose Target Grasp
@@ -251,10 +244,10 @@ class TestNamoPredicates(unittest.TestCase):
         grasp = parameter.Symbol(attrs, attr_types)
 
         pred = namo_predicates.GraspValid("GraspValid", [robotPose, target, grasp], ["RobotPose", "Target", "Grasp"])
-        #First test should fail because all objects's positions are in (0,0)
-        self.assertFalse(pred.test(time = 0))
         #setting displacement to be <1, 2>
         grasp.value = np.array([[1],[2]])
+        #First test should fail because all objects's positions are in (0,0)
+        self.assertFalse(pred.test(time = 0))
         #robotPose.value - target.pose = grasp.value
         robotPose.value = np.zeros((2,4))
         target.pose = np.array([[-1, 1, 3, 5],
@@ -270,3 +263,6 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 1))
         self.assertTrue(pred.test(time = 2))
         self.assertFalse(pred.test(time = 3))
+if __name__ == "__main__":
+    unittest.main()
+

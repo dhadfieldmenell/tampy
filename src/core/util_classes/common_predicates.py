@@ -23,7 +23,7 @@ class ExprPredicate(Predicate):
     Predicates which are defined by a target value for a set expression.
     """
 
-    def __init__(self, name, expr, attr_inds, tol, params, expected_param_types):
+    def __init__(self, name, expr, attr_inds, params, expected_param_types):
         """
         attr2inds is a dictionary that maps each parameter name to a
         list of (attr, active_inds) pairs. This defines the mapping
@@ -33,7 +33,7 @@ class ExprPredicate(Predicate):
         super(ExprPredicate, self).__init__(name, params, expected_param_types)
         self.expr = expr
         self.attr_inds = attr_inds
-        self.tol = tol
+        self.tol = DEFAULT_TOL
 
         self.x_dim = sum(len(active_inds)
                          for p_attrs in attr_inds.values()
@@ -61,8 +61,8 @@ class ExprPredicate(Predicate):
     def get_param_vector(self, t):
         i = 0
         for p in self.params:
-            if p.name not in self.attr_inds: continue
-            for attr, ind_arr in self.attr_inds[p.name]:
+            if p not in self.attr_inds: continue
+            for attr, ind_arr in self.attr_inds[p]:
                 n_vals = len(ind_arr)
 
                 if p.is_symbol():
