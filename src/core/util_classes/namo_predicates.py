@@ -211,6 +211,12 @@ class ObstructsHolding(CollisionPredicate):
         e = LEqExpr(col_expr, val)
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+        if obstr == held:
+            # attr_inds only contains 3 entries because of a key conflict so
+            # x_dim and x aren't computed correctly.
+            self.x_dim = 6
+            self.x = np.zeros(self.x_dim)
+
     def distance_from_obj(self, x):
         # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
         self._cc.SetContactDistance(np.Inf)
@@ -249,7 +255,7 @@ class InGripper(ExprPredicate):
         b = np.zeros((2, 1))
 
         e = AffExpr(A, b)
-        e = EqExpr(e, np.zeros((1,1)))
+        e = EqExpr(e, np.zeros((2,1)))
 
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
 
@@ -280,7 +286,7 @@ class GraspValid(ExprPredicate):
         b = np.zeros((2, 1))
 
         e = AffExpr(A, b)
-        e = EqExpr(e, np.zeros((1,1)))
+        e = EqExpr(e, np.zeros((2,1)))
 
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
 

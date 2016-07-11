@@ -6,6 +6,7 @@ from core.util_classes.matrix import Vector2d
 from core.internal_repr import state
 from errors_exceptions import ProblemConfigException
 from core.util_classes import circle
+from openravepy import Environment
 import numpy as np
 
 class TestProblem(unittest.TestCase):
@@ -29,8 +30,9 @@ class TestProblem(unittest.TestCase):
         self.gp = parameter.Symbol(attrs, attr_types)
 
         self.at = namo_predicates.At("at", [self.can, self.target], ["Can", "Target"])
-        self.in_contact = namo_predicates.InContact("incontact", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"])
-        self.init_state = state.State("state", {self.can.name: self.can, self.target.name: self.target, self.gp.name: self.gp}, 
+        env = Environment()
+        self.in_contact = namo_predicates.InContact("incontact", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"], env=env)
+        self.init_state = state.State("state", {self.can.name: self.can, self.target.name: self.target, self.gp.name: self.gp},
                                       [self.at, self.in_contact], timestep=0)
 
     def test_init_state(self):
