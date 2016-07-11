@@ -8,15 +8,21 @@ Entry-level script. Calls pr_graph.p_mod_abs() to plan, then runs the plans in
 simulation using the chosen viewer.
 """
 
+
+cache = {}
 def parse_file_to_dict(f_name):
     d = {}
+    if f_name in cache:
+        return cache[f_name].copy()
     with open(f_name, "r") as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#"):
                 k, v = line.split(":", 1)
                 d[k.strip()] = v.strip()
-    return d
+        f.close()
+    cache[f_name] = d
+    return d.copy()
 
 def main(domain_file, problem_file, solvers_file):
     try:

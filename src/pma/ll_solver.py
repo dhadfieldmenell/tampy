@@ -164,7 +164,7 @@ class NAMOSolver(LLSolver):
                 if not pred_dict['negated']:
                     pred = pred_dict['pred']
                     assert isinstance(pred, common_predicates.ExprPredicate)
-                    expr = pred.get_expr(pred_dict)
+                    expr = pred.expr
                     if expr is not None:
                         var = self._spawn_sco_var_for_pred(pred, t)
                         bexpr = BoundExpr(expr, var)
@@ -250,7 +250,7 @@ class NAMOSolver(LLSolver):
                 start, end = pred_dict['active_timesteps']
                 for t in xrange(start, end+1):
                     assert isinstance(pred, common_predicates.ExprPredicate)
-                    expr = pred.get_expr(pred_dict, action.preds)
+                    expr = pred.expr
                     if expr is not None:
                         var = self._spawn_sco_var_for_pred(pred, t)
                         bexpr = BoundExpr(expr, var)

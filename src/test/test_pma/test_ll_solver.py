@@ -10,6 +10,9 @@ from sco.solver import Solver
 from sco.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
+from core.util_classes import circle
+from core.util_classes.matrix import Vector2d
+from core.internal_repr import parameter
 import time, main
 
 class TestLLSolver(unittest.TestCase):
@@ -90,6 +93,8 @@ class TestLLSolver(unittest.TestCase):
         class dummy_plan(object):
             def __init__(self, params):
                 self.params = params
+
+        radius = 1.0
 
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can0"]}
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}

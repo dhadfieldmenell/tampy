@@ -3,6 +3,8 @@ import subprocess
 from core.internal_repr.action import Action
 from core.internal_repr.plan import Plan
 
+import psutil, os
+
 class HLSolver(object):
     """
     HLSolver provides an interface to the chosen task planner.
@@ -193,23 +195,31 @@ class FFSolver(HLSolver):
             curr_h += a_schema.horizon
         return actions
 
+
+
     def _run_planner(self, abs_domain, abs_prob):
+        proc = psutil.Process()
+        print "Open Files: ", len(proc.open_files())
         with open("%sdom.pddl"%FFSolver.FILE_PREFIX, "w") as f:
             f.write(abs_domain)
+        print "Open Files 1: ", len(proc.open_files())
         with open("%sprob.pddl"%FFSolver.FILE_PREFIX, "w") as f:
             f.write(abs_prob)
+        print "Open Files 2: ", len(proc.open_files())
         with open("%sprob.output"%FFSolver.FILE_PREFIX, "w") as f:
             subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%FFSolver.FILE_PREFIX, "-f", "%sprob.pddl"%FFSolver.FILE_PREFIX], stdout=f)
+        print "Open Files 2: ", len(proc.open_files())
         with open("%sprob.output"%FFSolver.FILE_PREFIX, "r") as f:
             s = f.read()
+        print "Open Files 2: ", len(proc.open_files())
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
             plan = Plan.IMPOSSIBLE
         else:
             plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
-        # subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
-        #                  "%sprob.pddl"%FFSolver.FILE_PREFIX,
-        #                  "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
-        #                  "%sprob.output"%FFSolver.FILE_PREFIX])
+        subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
+                         "%sprob.pddl"%FFSolver.FILE_PREFIX,
+                         "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
+                         "%sprob.output"%FFSolver.FILE_PREFIX])
         if plan != Plan.IMPOSSIBLE:
             plan = self._patch_redundancy(plan)
         return plan

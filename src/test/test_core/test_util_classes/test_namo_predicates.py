@@ -112,7 +112,7 @@ class TestNamoPredicates(unittest.TestCase):
 
 
     def test_not_obstructs(self):
-        #NotObstructs, Robot, RobotPose, Can;
+        #Obstructs, Robot, RobotPose, Can;
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["robot"]}
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
@@ -126,7 +126,7 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.NotObstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"])
+        pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"])
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
         self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
@@ -135,10 +135,10 @@ class TestNamoPredicates(unittest.TestCase):
         robot.pose = np.zeros((2,4))
         can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
                                   [0, 2*(radius+pred.dsafe), 0, 0]])
-        self.assertTrue(pred.test(time=0))
-        self.assertTrue(pred.test(time=1))
-        self.assertFalse(pred.test(time=2))
-        self.assertFalse(pred.test(time=3))
+        self.assertFalse(pred.test(time=0))
+        self.assertFalse(pred.test(time=1))
+        self.assertTrue(pred.test(time=2))
+        self.assertTrue(pred.test(time=3))
 
         """
         test below for checking gradient doesn't work well because the normal
@@ -193,7 +193,7 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 4))
 
     def test_not_obstructs_holding(self):
-        # NotObstructsHolding, Robot, RobotPose, Can, Can;
+        # ObstructsHolding, Robot, RobotPose, Can, Can;
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
@@ -211,7 +211,7 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can2 = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.NotObstructsHolding("NotObstructsHolding", [robot, robotPose, can1, can2], ["Robot", "RobotPose", "Can", "Can"])
+        pred = namo_predicates.ObstructsHolding("ObstructsHolding", [robot, robotPose, can1, can2], ["Robot", "RobotPose", "Can", "Can"])
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0,0,0]))
@@ -223,10 +223,10 @@ class TestNamoPredicates(unittest.TestCase):
         can1.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
                                   [0, 2*(radius+pred.dsafe), 0, 0]])
         can2.pose = np.zeros((2,4))
-        self.assertTrue(pred.test(time=0))
-        self.assertTrue(pred.test(time=1))
-        self.assertFalse(pred.test(time=2))
-        self.assertFalse(pred.test(time=3))
+        self.assertFalse(pred.test(time=0))
+        self.assertFalse(pred.test(time=1))
+        self.assertTrue(pred.test(time=2))
+        self.assertTrue(pred.test(time=3))
 
     def test_in_gripper(self):
         # InGripper, Robot, Can, Grasp
