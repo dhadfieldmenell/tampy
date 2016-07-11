@@ -104,6 +104,7 @@ class LLParam(object):
 
 
 class NAMOSolver(LLSolver):
+
     def solve(self, plan):
 
         model = grb.Model()
@@ -113,7 +114,7 @@ class NAMOSolver(LLSolver):
         self._spawn_parameter_to_ll_mapping(model, plan)
         model.update()
 
-        while True: # until success
+
         self._add_actions_to_sco_prob(plan)
         self._add_obj(plan)
 

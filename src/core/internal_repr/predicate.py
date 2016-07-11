@@ -17,7 +17,7 @@ class Predicate(object):
 
     def is_concrete(self):
         for param in self.params:
-            if not param.is_symbol() and not param.is_defined():
+            if not param.is_defined():
                 return False
         return True
 
