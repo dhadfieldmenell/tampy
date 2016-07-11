@@ -78,17 +78,15 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"name": str, "geom": circle.RedCircle, "pose": Vector2d, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
 
-        attrs = {"name": ["r_pose"], "geom": [radius], "pose": ["undefined"], "_type": ["RobotPose"]}
-        attr_types = {"name": str, "geom": circle.BlueCircle, "pose": Vector2d, "_type": str}
-        p2 = parameter.Object(attrs, attr_types)
+        attrs = {"name": ["r_pose"], "value": ["undefined"], "_type": ["RobotPose"]}
+        attr_types = {"name": str, "value": Vector2d, "_type": str}
+        p2 = parameter.Symbol(attrs, attr_types)
 
-        pred = namo_predicates.At("testpred", [p1, p2], ["Robot", "RobotPose"])
-        self.assertEqual(pred.get_type(), "At")
+        pred = namo_predicates.RobotAt("testpred", [p1, p2], ["Robot", "RobotPose"])
+        self.assertEqual(pred.get_type(), "RobotAt")
         self.assertFalse(pred.test(time=400))
         p1.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8]])
-        # p2 doesn't have a value yet
-        self.assertFalse(pred.test(time=400))
-        p2.pose = np.array([[3, 4, 5, 7], [6, 5, 8, 7]])
+        p2.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7]])
         self.assertTrue(pred.is_concrete())
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
@@ -97,7 +95,7 @@ class TestNamoPredicates(unittest.TestCase):
             pred.test(time=-1)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (RobotAt robot r_pose)'.")
         self.assertTrue(pred.test(time=0))
-        self.assertTrue(pred.test(time=1))
+        self.assertFalse(pred.test(time=1))
         self.assertFalse(pred.test(time=2))
         self.assertFalse(pred.test(time=3))
 
@@ -105,10 +103,10 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"name": str, "value": str, "_type": str}
         p3 = parameter.Symbol(attrs, attr_types)
         with self.assertRaises(ParamValidationException) as cm:
-            pred = namo_predicates.At("testpred", [p1, p3], ["Robot", "RobotPose"])
+            pred = namo_predicates.RobotAt("testpred", [p1, p3], ["Robot", "RobotPose"])
         self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'testpred: (RobotAt robot sym)'.")
 
-        pred = namo_predicates.At("testpred", [p1, p2], ["Robot", "RobotPose"])
+        pred = namo_predicates.RobotAt("testpred", [p1, p2], ["Robot", "RobotPose"])
         self.assertTrue(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
 
