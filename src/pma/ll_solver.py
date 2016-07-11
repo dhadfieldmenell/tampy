@@ -105,44 +105,51 @@ class LLParam(object):
 
 class NAMOSolver(LLSolver):
 
-    def solve(self, plan):
+    # def solve(self, plan):
+    #
+    #     model = grb.Model()
+    #     # model.params.OutputFlag = 0
+    #     self._prob = Prob(model)
+    #
+    #     self._spawn_parameter_to_ll_mapping(model, plan)
+    #     model.update()
+    #
+    #     self._add_actions_to_sco_prob(plan)
+    #     obj_bexprs = self._get_trajopt_obj(plan)
+    #     self._add_obj_bexprs(obj_bexprs)
+    #
+    #     solv = Solver()
+    #     solv.solve(self._prob, method='penalty_sqp')
+    #     # self._update_ll_params()
 
+    def solve(self, plan, callback=None):
+        success = False
+        # while not success:
+            # self._solve_opt_prob(plan, priority=-1)
+        success = self._solve_opt_prob(plan, priority=1, callback=None)
+
+    def _solve_opt_prob(self, plan, priority, callback=None):
         model = grb.Model()
         model.params.OutputFlag = 0
-        self._prob = Prob(model)
-
-        self._spawn_parameter_to_ll_mapping(model, plan)
-        model.update()
-
-
-        self._add_actions_to_sco_prob(plan)
-        self._add_obj(plan)
-
-        solv = Solver()
-        solv.solve(self._prob, method='penalty_sqp')
-        # self._update_ll_params()
-
-    def _solve_opt_prob(self, plan, priority):
-        model = grb.Model()
-        model.params.OutputFlag = 0
-        self._prob = Prob(model)
+        self._prob = Prob(model, callback=callback)
         self._initialize_params(plan)
-        param_to_ll_old = self._param_to_ll.copy()
+        # param_to_ll_old = self._param_to_ll.copy()
         self._spawn_parameter_to_ll_mapping(model, plan)
         model.update()
 
         if priority == -1:
-            obj_bexprs = self._get_trajopt_obj(plan) + self.get_init_obj(plan)
+            obj_bexprs = self._get_trajopt_obj(plan) + self._get_init_obj(plan)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_first_and_last_timesteps(plan)
+            self._add_first_and_last_timesteps_of_actions(plan)
         elif priority == 1:
             obj_bexprs = self._get_trajopt_obj(plan)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps(plan)
+            self._add_all_timesteps_of_actions(plan)
 
         solv = Solver()
-        solv.solve(self._prob, method='penalty_sqp')
-        self._update_ll_params()
+        success = solv.solve(self._prob, method='penalty_sqp')
+        return success
+        # self._update_ll_params()
 
     def _initialize_params(self, plan):
         self._init_values = {}
@@ -157,31 +164,50 @@ class NAMOSolver(LLSolver):
         self._init_values[param] = np.random.rand(*shape)
 
     def _add_pred_dict(self, pred_dict, effective_timesteps):
-        start, end = pred_dict['active_timesteps']
-        active_range = range(start, end+1)
-        for t in effective_timesteps:
-            if t in active_range:
-                if not pred_dict['negated']:
+        if not pred_dict['hl_info'] == "hl_state":
+            print "pred being added: ", pred_dict
+            start, end = pred_dict['active_timesteps']
+            active_range = range(start, end+1)
+            for t in effective_timesteps:
+                if t in active_range:
+                    negated = pred_dict['negated']
                     pred = pred_dict['pred']
                     assert isinstance(pred, common_predicates.ExprPredicate)
-                    expr = pred.expr
+                    expr = pred.get_expr(negated)
                     if expr is not None:
+                        print "expr being added at time ", t
                         var = self._spawn_sco_var_for_pred(pred, t)
                         bexpr = BoundExpr(expr, var)
                         self._prob.add_cnt_expr(bexpr)
 
-    def _add_first_and_last_timesteps(self, plan):
+    def _add_first_and_last_timesteps_of_actions(self, plan):
         for action in plan.actions:
             action_start, action_end = action.active_timesteps
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, [action_start, action_end])
 
-    def _add_middle_timesteps(self, plan):
+    def _add_all_timesteps_of_actions(self, plan):
         for action in plan.actions:
             action_start, action_end = action.active_timesteps
-            timesteps = range(action_state+1, action_end-1)
+            timesteps = range(action_start, action_end+1)
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps)
+
+    # def _add_actions_to_sco_prob(self, plan):
+    #     # needs to be modified to add only first and last time steps during initialization
+    #     for action in plan.actions:
+    #         for pred_dict in action.preds:
+    #             if pred_dict['hl_info'] == "hl_state":
+    #                 continue
+    #             pred = pred_dict['pred']
+    #             start, end = pred_dict['active_timesteps']
+    #             for t in xrange(start, end+1):
+    #                 assert isinstance(pred, common_predicates.ExprPredicate)
+    #                 expr = pred.expr
+    #                 if expr is not None:
+    #                     var = self._spawn_sco_var_for_pred(pred, t)
+    #                     bexpr = BoundExpr(expr, var)
+    #                     self._prob.add_cnt_expr(bexpr)
 
     def _update_ll_params(self):
         for ll_param in self._param_to_ll.values():
@@ -201,6 +227,13 @@ class NAMOSolver(LLSolver):
     def _add_obj_bexprs(self, obj_bexprs):
         for bexpr in obj_bexprs:
             self._prob.add_obj_expr(bexpr)
+
+    # def _add_dynamic_cnts(self, plan):
+    #     for param in plan.params.values():
+    #         if param._type == 'Can':
+    #             ll_param = self._param_to_ll[param]
+    #             rows, cols = ll_param.pose.shape
+
 
     def _get_trajopt_obj(self, plan):
         traj_objs = []
@@ -229,32 +262,18 @@ class NAMOSolver(LLSolver):
         init_objs = []
         for param in plan.params.values():
             if param._type == 'Grasp':
-                value = param.value
+                value = self._init_values[param]
                 ll_param = self._param_to_ll[param]
                 g_var = ll_param.value
                 assert g_var.shape == (2,1)
                 assert value.shape == (2,1)
                 Q = np.eye(2)
-                A = -2*val.T
+                A = -2*value.T
                 b = np.zeros((1,1))
                 quad_expr = QuadExpr(Q, A, b)
                 bexpr = BoundExpr(quad_expr, Variable(g_var))
                 init_objs.append(bexpr)
         return init_objs
-
-    def _add_actions_to_sco_prob(self, plan):
-        # needs to be modified to add only first and last time steps during initialization
-        for action in plan.actions:
-            for pred_dict in action.preds:
-                pred = pred_dict['pred']
-                start, end = pred_dict['active_timesteps']
-                for t in xrange(start, end+1):
-                    assert isinstance(pred, common_predicates.ExprPredicate)
-                    expr = pred.expr
-                    if expr is not None:
-                        var = self._spawn_sco_var_for_pred(pred, t)
-                        bexpr = BoundExpr(expr, var)
-                        self._prob.add_cnt_expr(bexpr)
 
     def _spawn_sco_var_for_pred(self, pred, t):
         i = 0

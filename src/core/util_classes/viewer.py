@@ -2,6 +2,7 @@ from IPython import embed as shell
 from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
+import time
 
 
 class Viewer(object):
@@ -52,3 +53,22 @@ class OpenRAVEViewer(Viewer):
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         self.name_to_rave_body[name].set_pose(obj.pose[:, t])
+
+    def animate_plan(self, plan):
+        obj_list = []
+        horizon = plan.horizon
+        for p in plan.params.itervalues():
+            if not p.is_symbol():
+                obj_list.append(p)
+        for t in range(horizon):
+            self.draw(obj_list, t)
+            import ipdb; ipdb.set_trace()
+
+
+    def draw_plan(self, plan):
+        obj_list = []
+        horizon = plan.horizon
+        for p in plan.params.itervalues():
+            if not p.is_symbol():
+                obj_list.append(p)
+        self.draw_traj(obj_list, range(horizon))
