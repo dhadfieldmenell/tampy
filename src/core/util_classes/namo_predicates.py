@@ -29,6 +29,7 @@ class CollisionPredicate(ExprPredicate):
     def lazy_spawn_or_body(self, param, name, geom):
         if param.openrave_body is not None:
             assert geom == param.openrave_body._geom
+            assert self._env == param.openrave_body.env_body.GetEnv()
         else:
             param.openrave_body = OpenRAVEBody(self._env, name, geom)
         return param.openrave_body
@@ -44,6 +45,8 @@ class CollisionPredicate(ExprPredicate):
         pose1 = x[2:4]
         b0.set_pose(pose0)
         b1.set_pose(pose1)
+
+        assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
 
         collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
 
@@ -88,6 +91,8 @@ class CollisionPredicate(ExprPredicate):
                 jac0 = -1 * normal[0:2]
                 jac1 = normal[0:2]
 
+        if jac0 is None or jac1 is None or val is None:
+            import ipdb; ipdb.set_trace()
         return val, jac0, jac1
 
     def _plot_collision(self, ptA, ptB, distance):
@@ -112,12 +117,6 @@ class At(ExprPredicate):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-    def get_expr(self, pred_dict, action_preds):
-        if pred_dict['negated']:
-            return None
-        else:
-            return self.expr
 
 class RobotAt(At):
 
@@ -179,6 +178,12 @@ class Obstructs(CollisionPredicate):
         e = LEqExpr(col_expr, val)
         super(Obstructs, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
+    def get_expr(self, negated):
+        if negated:
+            return self.expr
+        else:
+            return None
+
 class ObstructsHolding(CollisionPredicate):
 
     # ObstructsHolding, Robot, RobotPose, Can, Can;
@@ -216,6 +221,12 @@ class ObstructsHolding(CollisionPredicate):
             # x_dim and x aren't computed correctly.
             self.x_dim = 6
             self.x = np.zeros(self.x_dim)
+
+    def get_expr(self, negated):
+        if negated:
+            return self.expr
+        else:
+            return None
 
     def distance_from_obj(self, x):
         # x = [rpx, rpy, obstrx, obstry, heldx, heldy]

@@ -41,22 +41,11 @@ class ExprPredicate(Predicate):
         self.x = np.zeros(self.x_dim)
 
 
-    def get_expr(self, pred_dict, action_preds):
-        """
-        Returns an expr or None
-
-        pred_dict is a dictionary containing
-        - the Predicate object (self)
-        - negated (Boolean): whether the predicated is negated
-        - hl_info (string) which is "pre", "post" and "hl_state" if the
-          predicate is a precondition, postcondition, or neither and part of the
-          high level state respectively
-        - active_timesteps (tuple of (start_time, end_time))
-
-        action_preds is a list containing all the predicate dictionaries for
-            the action get_expr is being called from.
-        """
-        raise NotImplementedError
+    def get_expr(self, negated):
+        if negated:
+            return None
+        else:
+            return self.expr
 
     def get_param_vector(self, t):
         i = 0

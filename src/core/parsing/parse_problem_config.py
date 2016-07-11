@@ -14,6 +14,7 @@ class ParseProblemConfig(object):
     def parse(problem_config, domain):
         # create parameter objects
         params = {}
+        env = Environment()
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")
         for t in problem_config["Objects"].split(";"):
@@ -75,7 +76,7 @@ class ParseProblemConfig(object):
                         raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
                 init_preds.add(domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
                                                                       params=p_objs,
-                                                                      expected_param_types=domain.pred_schemas[p_name].expected_params, env = Environment()))
+                                                                      expected_param_types=domain.pred_schemas[p_name].expected_params, env = env))
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0)
@@ -96,5 +97,5 @@ class ParseProblemConfig(object):
                                                                   expected_param_types=domain.pred_schemas[p_name].expected_params))
 
         # use initial state to create Problem object
-        initial_problem = problem.Problem(initial_state, goal_preds)
+        initial_problem = problem.Problem(initial_state, goal_preds, env)
         return initial_problem
