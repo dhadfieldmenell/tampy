@@ -29,9 +29,7 @@ class CollisionPredicate(ExprPredicate):
     def lazy_spawn_or_body(self, param, name, geom):
         if param.openrave_body is not None:
             assert geom == param.openrave_body._geom
-            if not self._env == param.openrave_body.env_body.GetEnv():
-                print "creating new body...."
-                param.openrave_body = OpenRAVEBody(self._env, name, geom)
+            assert self._env == param.openrave_body.env_body.GetEnv()
         else:
             param.openrave_body = OpenRAVEBody(self._env, name, geom)
         return param.openrave_body
