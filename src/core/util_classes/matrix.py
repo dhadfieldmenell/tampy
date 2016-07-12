@@ -40,12 +40,11 @@ class PR2PoseVector(Vector3d):
     """
     The PR2 domain uses the PR2PoseVector class to base poses of pr2.
     """
-
     pass
 
-class Vector7d(Matrix):
+class Vector8d(Matrix):
     """
-    The PR2 domain uses the Vector7d calss to track arm pose.
+        The PR2 domain uses the Vector8d calss to track arm pose.
     """
     def __new__(cls, vec):
         if type(vec) is str:
@@ -53,13 +52,14 @@ class Vector7d(Matrix):
                 vec += ")"
             vec = eval(vec)
         obj = np.array(vec)
-        assert len(obj) == 7
-        obj = obj.reshape((7, 1))
+        assert len(obj) == 8
+        obj = obj.reshape((8, 1))
         return obj
+
 
 class Value(Matrix):
     """
-    The PR2 domain uses the Vector1d calss to track pr2's back height.
+        The PR2 domain uses the Vector1d calss to track pr2's back height.
     """
     def __new__(cls, vec):
         if type(vec) is str:

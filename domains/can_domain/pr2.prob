@@ -1,5 +1,5 @@
 Objects: Robot (name dude); RobotPose (name r_pose)
 
-Init: (geom dude ../models/pr2/pr2.zae), (pose dude [0, 0, 4]), (backHeight dude [1]), (lArmPose dude [1,2,3,4,3,2,1]), (rArmPose dude [1,2,3,4,3,2,1]), (value r_pose [0, 0, 4]);
+Init: (geom dude ../models/pr2/pr2.zae), (pose dude [0, 0, -1.57]), (backHeight dude [0.2]), (lArmPose dude [0.73 , 0.73, 1.57, -1.57, 0.73, -0.73, 0, 0.5]), (rArmPose dude [-0.73, 0.73, -1.57, -1.57, -0.73, -0.73, -1.57, 0.5]), (value r_pose [0, 0, 4]);
 
 Goal: (RobotAt dude r_pose)

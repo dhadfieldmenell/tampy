@@ -83,3 +83,6 @@ class TestOpenRAVEBody(unittest.TestCase):
         arr = np.eye(4)
         arr[0,3] = 2
         self.assertTrue(np.allclose(obstacle_body.env_body.GetTransform(), arr))
+
+if __name__ == "__main__":
+    unittest.main()

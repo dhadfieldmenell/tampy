@@ -68,20 +68,35 @@ class OpenRAVEBody(object):
         self.env_body = self._env.ReadRobotXMLFile(geom.geom)
         self._env.Add(self.env_body)
 
-    def set_pose(self, x):
+    def set_pose(self, base_pose):
         trans = None
         if isinstance(self._geom, Circle):
-            trans = OpenRAVEBody.base_pose_2D_to_mat(x)
+            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, Obstacle):
-            trans = OpenRAVEBody.base_pose_2D_to_mat(x)
+            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, PR2):
-            trans = OpenRAVEBody.base_pose_3D_to_mat(x)
+            trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         self.env_body.SetTransform(trans)
 
     def set_dof(self, back_height, l_arm_pose, r_arm_pose):
-        #TODO set dof value for the pr2
-        trans = None
+        """
+            This function assumed to be called when the self.env_body is a robot and its geom is type PR2
+            It sets the DOF values for important joint of PR2
 
+            back_height: back_height attribute of type Value, which specified the back height of PR2
+            l_arm_pose: l_arm_pose attribute of type Vector8d, which specified the left arm pose of PR2
+            r_arm_pose: r_arm_pose attribute of type Vector8d, which specified the right arm pose of PR2
+        """
+        v = self.env_body.GetActiveDOFValues()
+        back_height_index = self.env_body.GetJoint('torso_lift_joint').GetDOFIndex()
+        l_shoulder_index = self.env_body.GetJoint('l_shoulder_pan_joint').GetDOFIndex()
+        r_shoulder_index = self.env_body.GetJoint('r_shoulder_pan_joint').GetDOFIndex()
+
+        v[back_height_index] = back_height[0]
+        v[l_shoulder_index: l_shoulder_index + 8] = l_arm_pose.reshape((1, 8)).tolist()[0]
+        v[r_shoulder_index: r_shoulder_index + 8] = r_arm_pose.reshape((1, 8)).tolist()[0]
+
+        self.env_body.SetActiveDOFValues(v)
 
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
@@ -121,19 +136,6 @@ class OpenRAVEBody(object):
         x = pose[0]
         y = pose[1]
         rot = 0
-        q = quatFromAxisAngle((0, 0, rot)).tolist()
-        pos = [x, y, 0]
-        # pos = np.vstack((x,y,np.zeros(1)))
-        matrix = matrixFromPose(q + pos)
-        return matrix
-
-    @staticmethod
-    def base_pose_3D_to_mat(pose):
-        # x, y = pose
-        assert len(pose) == 3
-        x = pose[0]
-        y = pose[1]
-        rot = pose[3]
         q = quatFromAxisAngle((0, 0, rot)).tolist()
         pos = [x, y, 0]
         # pos = np.vstack((x,y,np.zeros(1)))
