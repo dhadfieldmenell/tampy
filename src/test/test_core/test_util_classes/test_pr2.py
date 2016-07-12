@@ -18,9 +18,9 @@ class TestPR2(unittest.TestCase):
         self.domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         self.p_c = main.parse_file_to_dict(problem_fname)
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
-        view = viewer.OpenRAVEViewer()
-        view.draw([problem.init_state.params['dude']], 0)
-        import ipdb; ipdb.set_trace()
+        # view = viewer.OpenRAVEViewer()
+        # view.draw([problem.init_state.params['dude']], 0)
+        # import ipdb; ipdb.set_trace()
 
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@ class TestPR2Predicates(unittest.TestCase):
 
         # RobotAt, Robot, RobotPose
 
-        attrs = {"name": ["pr2"], "geom": [1], "pose": ["undefined"], "_type": ["Robot"]}
+        attrs = {"name": ["pr2"], "geom": ['../models/pr2/pr2.zae'], "pose": ["undefined"], "_type": ["Robot"]}
         attr_types = {"name": str, "geom": PR2, "pose": PR2PoseVector, "_type": str}
         robot = parameter.Object(attrs, attr_types)
 
@@ -73,16 +73,12 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(time=400))
         robot.pose = np.array([[3, 4, 5, 6],
                             [6, 5, 7, 8],
-                            [6, 3, 4, 2],
-                            [7, 2, 4, 5],
-                            [1, 4, 9, 4]])
+                            [6, 3, 4, 2]])
         # p2 is a symbol and doesn't have a value yet
         #self.assertRaises(PredicateException, pred.test, time=400)
         robot_pose.value = np.array([[3, 4, 5, 6],
                             [6, 5, 7, 1],
-                            [6, 3, 9, 2],
-                            [7, 2, 4, 5],
-                            [1, 4, 9, 4]])
+                            [6, 3, 9, 2]])
         self.assertTrue(pred.is_concrete())
 
         with self.assertRaises(PredicateException) as cm:
@@ -100,7 +96,7 @@ class TestPR2Predicates(unittest.TestCase):
 
         # IsGP, Robot, RobotPose, Can
 
-        attrs = {"name": ["robot"], "pose": ["undefined"], "_type": ["Robot"], "geom": [1]}
+        attrs = {"name": ["robot"], "pose": ["undefined"], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae']}
         attr_types = {"name": str, "pose": PR2PoseVector, "_type": str, "geom": PR2}
         robot = parameter.Object(attrs, attr_types)
 
@@ -123,7 +119,7 @@ class TestPR2Predicates(unittest.TestCase):
         # IsPDP, Robot, RobotPose, Can, Location
 
 
-        attrs = {"name": ["robot"], "pose": ["undefined"], "_type": ["Robot"], "geom": [1]}
+        attrs = {"name": ["robot"], "pose": ["undefined"], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae']}
         attr_types = {"name": str, "pose": PR2PoseVector, "_type": str, "geom": PR2}
         robot = parameter.Object(attrs, attr_types)
 
@@ -134,7 +130,7 @@ class TestPR2Predicates(unittest.TestCase):
         attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"], "geom": (1, 2)}
         attr_types = {"name": str, "pose": Vector3d, "_type": str, "geom": BlueCan}
         can = parameter.Object(attrs, attr_types)
-        
+
         attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
         attr_types = {"name": str, "value": Vector3d, "_type": str}
         location = parameter.Symbol(attrs, attr_types)
@@ -148,7 +144,7 @@ class TestPR2Predicates(unittest.TestCase):
 
         # InGripper, Robot, Can, Grasp
 
-        attrs = {"geom": [1], "pose": ["undefined"], "_type": ["Robot"], "name": ["pr2"]}
+        attrs = {"geom": ['../models/pr2/pr2.zae'], "pose": ["undefined"], "_type": ["Robot"], "name": ["pr2"]}
         attr_types = {"geom": PR2, "pose": Vector3d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 

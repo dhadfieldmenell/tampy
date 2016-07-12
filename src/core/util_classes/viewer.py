@@ -2,6 +2,7 @@ from IPython import embed as shell
 from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
+from core.util_classes.pr2 import PR2
 import time
 
 
@@ -53,7 +54,7 @@ class OpenRAVEViewer(Viewer):
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         if isinstance(obj.geom, PR2):
-            self.name_to_rave_body[name].set_DOF(obj.backHeight[:, t], obj.lArmPose[:, t], obj.rArmPose[:, t])
+            self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.rArmPose[:, t])
         self.name_to_rave_body[name].set_pose(obj.pose[:, t])
 
     def animate_plan(self, plan):

@@ -65,7 +65,7 @@ class OpenRAVEBody(object):
         self._env.AddKinBody(body)
 
     def _add_robot(self, geom):
-        self.env_body = self._env.ReadRobotXMLFile(geom.geom_file)
+        self.env_body = self._env.ReadRobotXMLFile(geom.geom)
         self._env.Add(self.env_body)
 
     def set_pose(self, x):
