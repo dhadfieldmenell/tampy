@@ -22,7 +22,7 @@ class OpenRAVEBody(object):
         elif isinstance(geom, Obstacle):
             self._add_obstacle()
         elif isinstance(geom, PR2):
-            self._add_robot()
+            self._add_robot(geom)
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
 
@@ -64,8 +64,8 @@ class OpenRAVEBody(object):
         self.env_body = body
         self._env.AddKinBody(body)
 
-    def _add_robot(self):
-        self.env_body = env.ReadRobotXMLFile("../models/pr2/pr2.zae")
+    def _add_robot(self, geom):
+        self.env_body = self._env.ReadRobotXMLFile(geom.geom_file)
         self._env.Add(self.env_body)
 
     def set_pose(self, x):
@@ -75,8 +75,13 @@ class OpenRAVEBody(object):
         elif isinstance(self._geom, Obstacle):
             trans = OpenRAVEBody.base_pose_2D_to_mat(x)
         elif isinstance(self._geom, PR2):
-            trans = OpenRAVEBody.base_pose_2D_to_mat(x)
+            trans = OpenRAVEBody.base_pose_3D_to_mat(x)
         self.env_body.SetTransform(trans)
+
+    def set_dof(self, back_height, l_arm_pose, r_arm_pose):
+        #TODO set dof value for the pr2
+        trans = None
+
 
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
@@ -109,15 +114,6 @@ class OpenRAVEBody(object):
         box.SetTransform(transform)
         return box
 
-    def create_robot(self):
-        self.env.Load("robot.xml")
-        robot = self.env.GetRobots()[0]
-        transform = np.eye(4)
-        transform[0,3] = -3
-        robot.SetTransform(transform)
-        self.make_transparent(robot)
-        return robot
-
     @staticmethod
     def base_pose_2D_to_mat(pose):
         # x, y = pose
@@ -125,6 +121,19 @@ class OpenRAVEBody(object):
         x = pose[0]
         y = pose[1]
         rot = 0
+        q = quatFromAxisAngle((0, 0, rot)).tolist()
+        pos = [x, y, 0]
+        # pos = np.vstack((x,y,np.zeros(1)))
+        matrix = matrixFromPose(q + pos)
+        return matrix
+
+    @staticmethod
+    def base_pose_3D_to_mat(pose):
+        # x, y = pose
+        assert len(pose) == 3
+        x = pose[0]
+        y = pose[1]
+        rot = pose[3]
         q = quatFromAxisAngle((0, 0, rot)).tolist()
         pos = [x, y, 0]
         # pos = np.vstack((x,y,np.zeros(1)))

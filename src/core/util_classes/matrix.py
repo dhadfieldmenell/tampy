@@ -67,6 +67,5 @@ class Value(Matrix):
                 vec += ")"
             vec = eval(vec)
         obj = np.array(vec)
-        assert len(obj) == 1
         obj = obj.reshape((1, 1))
         return obj
