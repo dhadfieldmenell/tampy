@@ -17,20 +17,35 @@ pr2_domain specific predicates can be cound in core/util_classes/pr2_predicates.
 
 DEFAULT_TOL=1e-4
 
+def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
+        i = startind
+        for p in pred.params:
+            if p not in pred.attr_inds: continue
+            for attr, ind_arr in pred.attr_inds[p]:
+                n_vals = len(ind_arr)
+
+                if p.is_symbol():
+                    res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
+                else:
+                    res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
+                i += n_vals
+        return i
+    
+
 class ExprPredicate(Predicate):
 
     """
     Predicates which are defined by a target value for a set expression.
     """
 
-    def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None):
+    def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None, dynamic=False):
         """
         attr2inds is a dictionary that maps each parameter name to a
         list of (attr, active_inds) pairs. This defines the mapping
         from the primitive predicates of the params to the inputs to
         expr
         """
-        super(ExprPredicate, self).__init__(name, params, expected_param_types, env=env)
+        super(ExprPredicate, self).__init__(name, params, expected_param_types, env=env, dynamic=dynamic)
         self.expr = expr
         self.attr_inds = attr_inds
         self.tol = DEFAULT_TOL
@@ -38,6 +53,9 @@ class ExprPredicate(Predicate):
         self.x_dim = sum(len(active_inds)
                          for p_attrs in attr_inds.values()
                          for (_, active_inds) in p_attrs)
+        if self.dynamic:
+            ## if its dynamic, then we assume that attr_inds is the same for both timesteps
+            self.x_dim *= 2
         self.x = np.zeros(self.x_dim)
 
 
@@ -46,19 +64,11 @@ class ExprPredicate(Predicate):
             return None
         else:
             return self.expr
-
+        
     def get_param_vector(self, t):
-        i = 0
-        for p in self.params:
-            if p not in self.attr_inds: continue
-            for attr, ind_arr in self.attr_inds[p]:
-                n_vals = len(ind_arr)
-
-                if p.is_symbol():
-                    self.x[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
-                else:
-                    self.x[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
-                i += n_vals
+        end_ind = get_param_vector_helper(self, self.x, 0, t, self.attr_inds)
+        if self.dynamic:
+            get_param_vector_helper(self, self.x, end_ind, t+1, self.attr_inds)
         return self.x
 
     def test(self, time):
