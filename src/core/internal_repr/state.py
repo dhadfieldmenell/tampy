@@ -22,6 +22,7 @@ class State(object):
 
     def is_consistent(self):
         for p in self.preds:
+            if p.dynamic: continue
             if p.is_concrete() and not p.test(time=self.timestep):
                 return False
         return True

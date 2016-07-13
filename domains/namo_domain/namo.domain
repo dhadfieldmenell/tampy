@@ -12,7 +12,7 @@ Predicates Import Path: core.util_classes.namo_predicates
 
 Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; pose, Target, Vector2d; value, RobotPose, Vector2d; geom, Robot, GreenCircle; pose, Robot, Vector2d; value, Grasp, Vector2d
 
-Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; InContact, Robot, RobotPose, Target; Obstructs, Robot, RobotPose, Can; ObstructsHolding, Robot, RobotPose, Can, Can; GraspValid, RobotPose, Target, Grasp
+Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; InContact, Robot, RobotPose, Target; Obstructs, Robot, RobotPose, Can; ObstructsHolding, Robot, RobotPose, Can, Can; GraspValid, RobotPose, Target, Grasp; Stationary, Can; StationaryNEq, Can, Can
 
 
 # The first set of parentheses after the colon contains the

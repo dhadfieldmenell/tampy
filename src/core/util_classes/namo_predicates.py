@@ -171,17 +171,30 @@ class Obstructs(CollisionPredicate):
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
                                c: self.lazy_spawn_or_body(c, c.name, c.geom)}
+
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
+
+        ## so we have an expr for the negated predicate
+        f_neg = lambda x: self.distance_from_obj(x)[0]
+        def grad_neg(x):
+            print self.distance_from_obj(x)
+            return self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
-        super(Obstructs, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, val)
+
+
+        super(Obstructs, self).__init__(name, e, attr_inds, params, 
+                                        expected_param_types, ind0=0, ind1=2)
 
     def get_expr(self, negated):
         if negated:
-            return self.expr
+            return self.neg_expr
         else:
             return None
 
@@ -204,17 +217,29 @@ class ObstructsHolding(CollisionPredicate):
             f = lambda x: np.zeros((1, 1))
             grad = lambda x: np.zeros((1, 6))
 
+            f_neg = f
+            grad_neg = grad
+
+
         else:
             self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                    obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
                                    held: self.lazy_spawn_or_body(held, held.name, held.geom)}
-
             f = lambda x: -self.distance_from_obj(x)[0]
             grad = lambda x: -self.distance_from_obj(x)[1]
+            
+            ## so we have an expr for the negated predicate
+            f_neg = lambda x: self.distance_from_obj(x)[0]
+            grad_neg = lambda x: self.distance_from_obj(x)[1]
+
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
         e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, val)
+
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
 
         if obstr == held:
@@ -225,7 +250,7 @@ class ObstructsHolding(CollisionPredicate):
 
     def get_expr(self, negated):
         if negated:
-            return self.expr
+            return self.neg_expr
         else:
             return None
 
@@ -313,3 +338,30 @@ class GraspValid(ExprPredicate):
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
+
+class Stationary(ExprPredicate):
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.c,  = params
+        attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))]}
+        A = np.array([[1, 0, -1, 0],
+                      [0, 1, 0, -1]])
+        b = np.zeros((2, 1))
+        e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+
+class StationaryNEq(ExprPredicate):
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.c, self.c_held = params
+        attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))]}
+        if self.c.name == self.c_held.name:
+            A = np.zeros((1, 4))
+            b = np.zeros((1, 1))
+        else:
+            A = np.array([[1, 0, -1, 0],
+                          [0, 1, 0, -1]])
+            b = np.zeros((2, 1))
+        e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
+        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        

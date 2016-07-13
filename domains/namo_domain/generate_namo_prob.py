@@ -43,7 +43,10 @@ def main():
         s += "(pose pr2 {}), ".format(list(coords[NUM_TARGETS]))
         s += "(value %s %s); "%("robot_init_pose", list(coords[NUM_TARGETS]))
         for i in range(NUM_CANS):
-            s += "(At can%d target%d), "%(i, i)
+            s += "(At can{} target{}), ".format(i, i)
+            s += "(Stationary can{}), ".format(i)
+            for j in range(NUM_CANS):
+                s += "(StationaryNEq can{} can{}), ".format(i, j)
             # s += "(InContact pr2 gp_can{} target{}), ".format(i, i)
             # s += "(GraspValid gp_can{} target{} grasp0), ".format(i, i)
         for i in range(NUM_TARGETS):
