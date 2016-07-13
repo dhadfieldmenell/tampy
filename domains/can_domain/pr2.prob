@@ -1,0 +1,5 @@
+Objects: Robot (name dude); RobotPose (name r_pose)
+
+Init: (geom dude ../models/pr2/pr2.zae), (pose dude [0, 0, 4]), (backHeight dude [1]), (lArmPose dude [1,2,3,4,3,2,1]), (rArmPose dude [1,2,3,4,3,2,1]), (value r_pose [0, 0, 4]);
+
+Goal: (RobotAt dude r_pose)

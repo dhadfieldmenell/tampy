@@ -160,6 +160,7 @@ class InContact(CollisionPredicate):
 class Obstructs(CollisionPredicate):
 
     # Obstructs, Robot, RobotPose, Can;
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 3
         self._env = env
