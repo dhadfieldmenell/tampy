@@ -1,2 +1,18 @@
+TODO Dylan: debug motion planning problem
+
+IFNEEDBE
+create IsMP constraint for robot (if needed), 
+
+TODO Simon: 
+HI PRI
+   - unit tests for Stationary, StationaryNEq
+
+LOW PRI
+   - dymamics integration in state
+   - dynamics integration in get_param_vector
+   - dynamics integration in ll_solver
+
+
+After IROS
  - fix modularity issues with sco.expr.py
  

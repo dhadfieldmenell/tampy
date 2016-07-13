@@ -126,19 +126,22 @@ class NAMOSolver(LLSolver):
         success = False
         # while not success:
             # self._solve_opt_prob(plan, priority=-1)
-        success = self._solve_opt_prob(plan, priority=1, callback=None)
+        # self._solve_opt_prob(plan, priority=-1, callback=callback)
+        # self._solve_opt_prob(plan, priority=1, callback=callback, init_from_prev=True)
+        self._solve_opt_prob(plan, priority=1, callback=callback)
 
-    def _solve_opt_prob(self, plan, priority, callback=None):
+    def _solve_opt_prob(self, plan, priority, callback=None, init=True, init_from_prev=False):
+
+        self._initialize_params(plan, init_from_prev=init_from_prev)
         model = grb.Model()
         model.params.OutputFlag = 0
         self._prob = Prob(model, callback=callback)
-        self._initialize_params(plan)
         # param_to_ll_old = self._param_to_ll.copy()
         self._spawn_parameter_to_ll_mapping(model, plan)
         model.update()
 
         if priority == -1:
-            obj_bexprs = self._get_trajopt_obj(plan) + self._get_init_obj(plan)
+            obj_bexprs = self._get_trajopt_obj(plan)
             self._add_obj_bexprs(obj_bexprs)
             self._add_first_and_last_timesteps_of_actions(plan)
         elif priority == 1:
@@ -148,13 +151,20 @@ class NAMOSolver(LLSolver):
 
         solv = Solver()
         success = solv.solve(self._prob, method='penalty_sqp')
+        self._update_ll_params()
         return success
-        # self._update_ll_params()
 
-    def _initialize_params(self, plan):
+    def _initialize_params(self, plan, init_from_prev=False):
         self._init_values = {}
-        for param in plan.params.values():
-            self._resample(param)
+        for param in plan.params.itervalues():
+            if init_from_prev:
+                if param.is_symbol():
+                    self._init_values[param] = self._param_to_ll[param]._get_attr_val("value")
+                else:
+                    self._init_values[param] = self._param_to_ll[param]._get_attr_val("pose")
+            else:
+                # random init
+                self._resample(param)
 
     def _resample(self, param):
         if param.is_symbol():
@@ -168,6 +178,7 @@ class NAMOSolver(LLSolver):
             print "pred being added: ", pred_dict
             start, end = pred_dict['active_timesteps']
             active_range = range(start, end+1)
+            print active_range, effective_timesteps
             for t in effective_timesteps:
                 if t in active_range:
                     negated = pred_dict['negated']
@@ -238,7 +249,7 @@ class NAMOSolver(LLSolver):
     def _get_trajopt_obj(self, plan):
         traj_objs = []
         for param in plan.params.values():
-            if param._type == 'Robot':
+            if param._type in ['Robot', 'Can']:
                 T = plan.horizon
                 K = 2
                 pose = param.pose
@@ -276,6 +287,7 @@ class NAMOSolver(LLSolver):
         return init_objs
 
     def _spawn_sco_var_for_pred(self, pred, t):
+        
         i = 0
         x = np.empty(pred.x_dim , dtype=object)
         for p in pred.params:
@@ -287,6 +299,17 @@ class NAMOSolver(LLSolver):
                 else:
                     x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t]
                 i += n_vals
+        if pred.dynamic:
+            ## include the variables from the next time step
+            for p in pred.params:
+                for attr, ind_arr in pred.attr_inds[p]:
+                    n_vals = len(ind_arr)
+                    ll_p = self._param_to_ll[p]
+                    if p.is_symbol():
+                        x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
+                    else:
+                        x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t+1]
+                    i += n_vals
         x = x.reshape((pred.x_dim, 1))
         return Variable(x)
 

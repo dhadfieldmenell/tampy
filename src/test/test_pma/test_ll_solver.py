@@ -27,7 +27,8 @@ class TestLLSolver(unittest.TestCase):
 
         hls = hl_solver.FFSolver(d_c)
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        self.move_no_obs = hls.solve(hls.translate_problem(problem), domain, problem)
+        abs_problem = hls.translate_problem(problem)
+        self.move_no_obs = hls.solve(abs_problem, domain, problem)
 
     def test_llparam(self):
         # TODO: tests for undefined, partially defined and fully defined params
@@ -190,11 +191,11 @@ class TestLLSolver(unittest.TestCase):
         """
         Uncomment out lines below to see optimization.
         """
-        viewer = OpenRAVEViewer()
-        def callback():
-            namo_solver._update_ll_params()
-            viewer.draw_plan(plan)
-            time.sleep(0.3)
+        # viewer = OpenRAVEViewer()
+        # def callback():
+        #     namo_solver._update_ll_params()
+        #     viewer.draw_plan(plan)
+        #     time.sleep(0.3)
         """
         """
         namo_solver = ll_solver.NAMOSolver()
@@ -242,16 +243,17 @@ class TestLLSolver(unittest.TestCase):
         """
         Uncomment out lines below to see optimization.
         """
-        viewer = OpenRAVEViewer()
-        def callback():
-            namo_solver._update_ll_params()
-            viewer.draw_plan(plan)
-            time.sleep(0.3)
+        # viewer = OpenRAVEViewer()
+        # def callback():
+        #     namo_solver._update_ll_params()
+        #     viewer.draw_plan(plan)
+        #     time.sleep(0.3)
         """
         """
         namo_solver = ll_solver.NAMOSolver()
-        namo_solver._solve_opt_prob(plan, priority=1, callback=callback)
-        namo_solver._update_ll_params()
+        namo_solver.solve(plan, callback=callback)
+        # namo_solver._solve_opt_prob(plan, priority=1, callback=callback)
+        # namo_solver._update_ll_params()
 
     def test_initialize_params(self):
         plan = self.move_no_obs

@@ -15,6 +15,7 @@ e2 = expr.Expr(lambda x: np.power(x, 2))
 
 class TestPR2Predicates(unittest.TestCase):
 
+
     def test_expr_at(self):
 
         # At, Can, Location

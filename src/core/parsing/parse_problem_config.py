@@ -74,9 +74,13 @@ class ParseProblemConfig(object):
                         p_objs.append(params[n])
                     except KeyError:
                         raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
-                init_preds.add(domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
-                                                                      params=p_objs,
-                                                                      expected_param_types=domain.pred_schemas[p_name].expected_params, env = env))
+                try:
+                    init_preds.add(domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
+                                                                          params=p_objs,
+                                                                          expected_param_types=domain.pred_schemas[p_name].expected_params, 
+                                                                          env = env))
+                except TypeError:
+                    import pdb; pdb.set_trace()
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0)
