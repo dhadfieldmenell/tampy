@@ -18,7 +18,7 @@ class TestParseProblemConfig(unittest.TestCase):
     def test_init_state(self):
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
         self.assertEqual(len(problem.init_state.params), 11)
-        self.assertEqual(len(problem.init_state.preds), 9)
+        self.assertEqual(len(problem.init_state.preds), 15)
         self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.get_type() == "Can"), 2)
         self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.get_type() == "Target"), 3)
         self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if not p.is_symbol()), 6)
