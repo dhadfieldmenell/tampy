@@ -248,10 +248,12 @@ class TestLLSolver(unittest.TestCase):
         """
         # viewer = OpenRAVEViewer()
         # def callback():
-        #     namo_solver._update_ll_params()
-        #     viewer.draw_plan(plan)
-        #     time.sleep(0.3)
+            # namo_solver._update_ll_params()
+            # viewer.draw_plan(plan)
+            # time.sleep(0.3)
+
         """
+            Section Ends
         """
         namo_solver = ll_solver.NAMOSolver()
         namo_solver.solve(plan, callback=callback)

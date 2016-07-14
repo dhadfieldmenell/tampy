@@ -106,7 +106,7 @@ class At(ExprPredicate):
         assert len(params) == 2
         self.can, self.targ = params
         attr_inds = {self.can: [("pose", np.array([0,1,2], dtype=np.int))],
-                     self.targ: [("value", np.array([0,1,2], dtype=np.int))],}
+                     self.targ: [("value", np.array([0,1,2], dtype=np.int))]}
 
         A = np.c_[np.eye(3), -np.eye(3)]
         b = np.zeros((3, 1))
@@ -123,7 +123,7 @@ class RobotAt(At):
         assert len(params) == 2
         self.r, self.rp = params
         attr_inds = {self.r: [("pose", np.array([0,1,2], dtype=np.int))],
-                     self.rp: [("value", np.array([0,1,2], dtype=np.int))],}
+                     self.rp: [("value", np.array([0,1,2], dtype=np.int))]}
 
         A = np.c_[np.eye(3), -np.eye(3)]
         b = np.zeros((3, 1))
@@ -140,9 +140,10 @@ class IsGP(CollisionPredicate):
         assert len(params) == 3
 	self._env = env
         self.robot, self.robot_pose, self.can = params
-        attr_inds = {self.robot: [("pose", np.array([0,1,2], dtype=np.int))],
+        attr_inds = {self.robot: [],
                      self.robot_pose: [("value", np.array([0,1,2], dtype=np.int))],
                      self.can: [("value", np.array([0,1,2], dtype=np.int))]}
+
         self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
@@ -162,9 +163,9 @@ class IsPDP(CollisionPredicate):
         assert len(params) == 4
         self._env = env
         self.robot, self.robot_pose, self.can, self.location = params
-        attr_inds = {self.robot: [("pose", np.array([0,1,2], dtype=np.int))],
+        attr_inds = {self.robot: [],
                      self.robot_pose: [("value", np.array([0,1,2], dtype=np.int))],
-                     self.can: [("value", np.array([0,1,2], dtype=np.int))],
+                     self.can: [],
                      self.location: [("value", np.array([0,1,2], dtype=np.int))]}
         self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.location: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
@@ -215,8 +216,8 @@ class Obstructs(CollisionPredicate):
         self._env = env
         r, rp, c = params
         attr_inds = {r: [("pose", np.array([0, 1, 2], dtype=np.int))],
-                     c: [("pose", np.array([0, 1, 2], dtype=np.int))],
-                     rp: []}
+                     rp: [],
+                     c: [("pose", np.array([0, 1, 2], dtype=np.int))]}
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
                                c: self.lazy_spawn_or_body(c, c.name, c.geom)}

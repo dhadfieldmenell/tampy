@@ -30,7 +30,7 @@ def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
                     res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
                 i += n_vals
         return i
-    
+
 
 class ExprPredicate(Predicate):
 
@@ -64,11 +64,14 @@ class ExprPredicate(Predicate):
             return None
         else:
             return self.expr
-        
+
     def get_param_vector(self, t):
         end_ind = get_param_vector_helper(self, self.x, 0, t, self.attr_inds)
         if self.dynamic:
-            get_param_vector_helper(self, self.x, end_ind, t+1, self.attr_inds)
+            try:
+                get_param_vector_helper(self, self.x, end_ind, t+1, self.attr_inds)
+            except IndexError:
+                raise PredicateException("Insufficient pose trajectory to check dynamic predicate '%s' at the timestep."%self)
         return self.x
 
     def test(self, time):

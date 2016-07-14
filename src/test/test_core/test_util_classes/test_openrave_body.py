@@ -1,12 +1,16 @@
 import numpy as np
 import unittest
-from openravepy import Environment
+from openravepy import Environment, KinBody,RaveCreateKinBody
 from core.internal_repr import parameter
 from core.util_classes import circle
 from core.util_classes.matrix import Vector2d
 from core.util_classes.obstacle import Obstacle
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import OpenRAVEException
+from core.util_classes import viewer
+from core.parsing import parse_domain_config
+from core.parsing import parse_problem_config
+import main
 
 N = 10
 
@@ -83,3 +87,20 @@ class TestOpenRAVEBody(unittest.TestCase):
         arr = np.eye(4)
         arr[0,3] = 2
         self.assertTrue(np.allclose(obstacle_body.env_body.GetTransform(), arr))
+
+    def test_pr2_table(self):
+        domain_fname, problem_fname = '../domains/can_domain/pr2.init', '../domains/can_domain/pr2.prob'
+        d_c = main.parse_file_to_dict(domain_fname)
+        self.domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        self.p_c = main.parse_file_to_dict(problem_fname)
+        problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
+        # view = viewer.OpenRAVEViewer()
+        # robot = problem.init_state.params['dude']
+        # table = problem.init_state.params['rll_table']
+        # table.pose = np.array([[1],[0],[0.7]])
+        # view.draw([robot, table], 0, 0.7)
+        # import ipdb; ipdb.set_trace()
+
+
+if __name__ == "__main__":
+    unittest.main()

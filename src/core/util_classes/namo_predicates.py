@@ -112,7 +112,7 @@ class At(ExprPredicate):
         ## At Can Target
         self.can, self.targ = params
         attr_inds = {self.can: [("pose", np.array([0,1], dtype=np.int))],
-                     self.targ: [("pose", np.array([0,1], dtype=np.int))],}
+                     self.targ: [("pose", np.array([0,1], dtype=np.int))]}
 
         A = np.c_[np.eye(2), -np.eye(2)]
         b = np.zeros((2, 1))
@@ -129,7 +129,7 @@ class RobotAt(At):
         ## At Robot RobotPose
         self.r, self.rp = params
         attr_inds = {self.r: [("pose", np.array([0,1], dtype=np.int))],
-                     self.rp: [("value", np.array([0,1], dtype=np.int))],}
+                     self.rp: [("value", np.array([0,1], dtype=np.int))]}
 
         A = np.c_[np.eye(2), -np.eye(2)]
         b = np.zeros((2, 1))
@@ -169,8 +169,8 @@ class Obstructs(CollisionPredicate):
         self._env = env
         r, rp, c = params
         attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
-                     c: [("pose", np.array([0, 1], dtype=np.int))],
-                     rp: []}
+                     rp: [],
+                     c: [("pose", np.array([0, 1], dtype=np.int))]}
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
                                c: self.lazy_spawn_or_body(c, c.name, c.geom)}
@@ -192,7 +192,7 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
 
-        super(Obstructs, self).__init__(name, e, attr_inds, params, 
+        super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=2)
 
     def get_expr(self, negated):
@@ -235,7 +235,7 @@ class ObstructsHolding(CollisionPredicate):
                                    held: self.lazy_spawn_or_body(held, held.name, held.geom)}
             f = lambda x: -self.distance_from_obj(x)[0]
             grad = lambda x: -self.distance_from_obj(x)[1]
-            
+
             ## so we have an expr for the negated predicate
             f_neg = lambda x: self.distance_from_obj(x)[0]
             grad_neg = lambda x: self.distance_from_obj(x)[1]
@@ -343,6 +343,8 @@ class GraspValid(ExprPredicate):
 
 class Stationary(ExprPredicate):
 
+    # Stationary, Can
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.c,  = params
         attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))]}
@@ -354,9 +356,15 @@ class Stationary(ExprPredicate):
 
 class StationaryNEq(ExprPredicate):
 
+    # StationaryNEq, Can, Can
+    # Assuming robot only holding one object,
+    # it checks whether the can in the first argument is stationary
+    # if that first can is not the second can which robot is holding
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.c, self.c_held = params
-        attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))]}
+        attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))],
+                     self.c_held: []}
         if self.c.name == self.c_held.name:
             A = np.zeros((1, 4))
             b = np.zeros((1, 1))
@@ -364,7 +372,7 @@ class StationaryNEq(ExprPredicate):
             A = np.array([[1, 0, -1, 0],
                           [0, 1, 0, -1]])
             b = np.zeros((2, 1))
-        e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
+        e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
 class IsMP(ExprPredicate):
@@ -383,5 +391,3 @@ class IsMP(ExprPredicate):
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
-    
-        

@@ -11,7 +11,7 @@ class TestParseProblemConfig(unittest.TestCase):
 
         d_c = main.parse_file_to_dict(domain_fname)
         self.domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        
+
 
         self.p_c = main.parse_file_to_dict(problem_fname)
 

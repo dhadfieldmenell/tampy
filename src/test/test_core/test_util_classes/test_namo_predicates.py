@@ -111,7 +111,7 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time=1))
 
 
-    def test_not_obstructs(self):
+    def test_obstructs(self):
         #Obstructs, Robot, RobotPose, Can;
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["robot"]}
@@ -194,7 +194,7 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 3))
         self.assertFalse(pred.test(time = 4))
 
-    def test_not_obstructs_holding(self):
+    def test_obstructs_holding(self):
         # ObstructsHolding, Robot, RobotPose, Can, Can;
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
@@ -223,8 +223,8 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
         robot.pose = np.zeros((2,4))
-        can1.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
-                                  [0, 2*(radius+pred.dsafe), 0, 0]])
+        can1.pose = np.array([[2*(radius+pred.dsafe)+0.1, 0,                    .1, 2*radius - pred.dsafe],
+                              [0,                     2*(radius+pred.dsafe)+0.1, 0, 0]])
         can2.pose = np.zeros((2,4))
         self.assertFalse(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
@@ -303,5 +303,69 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 1))
         self.assertTrue(pred.test(time = 2))
         self.assertFalse(pred.test(time = 3))
+
+
+    def test_stationary(self):
+        # Stationary, Can
+        attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can"]}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        can = parameter.Object(attrs, attr_types)
+
+        pred = namo_predicates.Stationary("test_stay", [can], ["Can"])
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=0)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary can)' at the timestep.")
+
+        can.pose = np.array([[1, 2],
+                             [4, 4]])
+        self.assertFalse(pred.test(time = 0))
+        can.pose = np.array([[1, 1, 2],
+                             [2, 2, 2]])
+        self.assertTrue(pred.test(time = 0))
+        self.assertFalse(pred.test(time = 1))
+
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=2)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary can)' at the timestep.")
+
+
+    def test_stationary_neq(self):
+        # StationaryNEq, Can, Can
+        attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        can1 = parameter.Object(attrs, attr_types)
+
+        attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can2"]}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        can2 = parameter.Object(attrs, attr_types)
+
+        pred1 = namo_predicates.StationaryNEq("test_stay_neq1", [can1, can1], ["Can", "Can"])
+
+        with self.assertRaises(PredicateException) as cm:
+            pred1.test(time=0)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay_neq1: (StationaryNEq can1 can1)' at the timestep.")
+
+        can1.pose = np.array([[1, 2, 3],
+                              [1, 2, 3]])
+        # Since two objects in this predicate are the same one, test should always pass
+        self.assertTrue(pred1.test(time = 0))
+        self.assertTrue(pred1.test(time = 1))
+
+        pred2 = namo_predicates.StationaryNEq("test_stay_neq2", [can1, can2], ["Can", "Can"])
+
+        can2.pose = np.array([[1, 1, 1],
+                              [1, 1, 1]])
+        # Now that can1 is not can2, so it will check whether first can is stationary
+        self.assertFalse(pred2.test(time = 0))
+        self.assertFalse(pred2.test(time = 1))
+
+        can1.pose = np.array([[2, 2, 3],
+                              [2, 2, 3]])
+        can2.pose = np.array([[1],
+                              [1]])
+        # no matter what kind of pose can2 has, it only checks whether first can is stationary
+        self.assertTrue(pred2.test(time = 0))
+        self.assertFalse(pred2.test(time = 1))
+
 if __name__ == "__main__":
     unittest.main()

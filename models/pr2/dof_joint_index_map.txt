@@ -1,0 +1,47 @@
+dof-joint_index mapping
+0 robot.GetJoint('bl_caster_rotation_joint'),
+1 robot.GetJoint('bl_caster_l_wheel_joint'),
+2 robot.GetJoint('bl_caster_r_wheel_joint'),
+3 robot.GetJoint('br_caster_rotation_joint'),
+4 robot.GetJoint('br_caster_l_wheel_joint'),
+5 robot.GetJoint('br_caster_r_wheel_joint'),
+6 robot.GetJoint('fl_caster_rotation_joint'),
+7 robot.GetJoint('fl_caster_l_wheel_joint'),
+8 robot.GetJoint('fl_caster_r_wheel_joint'),
+9 robot.GetJoint('fr_caster_rotation_joint'),
+
+10 robot.GetJoint('fr_caster_l_wheel_joint'),
+11 robot.GetJoint('fr_caster_r_wheel_joint'),
+
+12 robot.GetJoint('torso_lift_joint'),                          -->BackHeight 0
+
+13 robot.GetJoint('head_pan_joint'),
+14 robot.GetJoint('head_tilt_joint'),
+
+15 robot.GetJoint('l_shoulder_pan_joint'),                      -->lArmPose 0
+16 robot.GetJoint('l_shoulder_lift_joint'),                     -->lArmPose 1
+17 robot.GetJoint('l_upper_arm_roll_joint'),                    -->lArmPose 2
+18 robot.GetJoint('l_elbow_flex_joint'),                        -->lArmPose 3
+19 robot.GetJoint('l_forearm_roll_joint'),                      -->lArmPose 4
+20 robot.GetJoint('l_wrist_flex_joint'),                        -->lArmPose 5
+21 robot.GetJoint('l_wrist_roll_joint'),                        -->lArmPose 6
+22 robot.GetJoint('l_gripper_l_finger_joint'),                  -->lArmPose 7
+
+23 robot.GetJoint('l_gripper_motor_slider_joint'),
+24 robot.GetJoint('l_gripper_motor_screw_joint'),
+25 robot.GetJoint('l_gripper_joint'),
+26 robot.GetJoint('laser_tilt_mount_joint'),
+
+27 robot.GetJoint('r_shoulder_pan_joint'),                      -->rArmPose 0
+28 robot.GetJoint('r_shoulder_lift_joint'),                     -->rArmPose 1
+29 robot.GetJoint('r_upper_arm_roll_joint'),                    -->rArmPose 2
+30 robot.GetJoint('r_elbow_flex_joint'),                        -->rArmPose 3
+31 robot.GetJoint('r_forearm_roll_joint'),                      -->rArmPose 4
+32 robot.GetJoint('r_wrist_flex_joint'),                        -->rArmPose 5
+33 robot.GetJoint('r_wrist_roll_joint'),                        -->rArmPose 6
+34 robot.GetJoint('r_gripper_l_finger_joint'),                  -->rArmPose 7
+
+35 robot.GetJoint('r_gripper_motor_slider_joint'),
+36 robot.GetJoint('r_gripper_motor_screw_joint'),
+37 robot.GetJoint('r_gripper_joint'),
+38 robot.GetJoint('torso_lift_motor_screw_joint')

@@ -53,3 +53,5 @@ class TestViewer(unittest.TestCase):
         # testViewer = viewer.OpenRAVEViewer()
         # testViewer.draw_traj([green_can, blue_can], range(5))
         # import ipdb; ipdb.set_trace()
+
+    
