@@ -363,8 +363,7 @@ class StationaryNEq(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.c, self.c_held = params
-        attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))],
-                     self.c_held: []}
+        attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))]}
         if self.c.name == self.c_held.name:
             A = np.zeros((1, 4))
             b = np.zeros((1, 1))
