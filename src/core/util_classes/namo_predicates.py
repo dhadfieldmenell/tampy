@@ -108,8 +108,8 @@ class At(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         ## At Can Target
         self.can, self.targ = params
-        attr_inds = [(self.can, ("pose", np.array([0,1], dtype=np.int))),
-                     (self.targ, ("pose", np.array([0,1], dtype=np.int)))]
+        attr_inds = {self.can: [("pose", np.array([0,1], dtype=np.int))],
+                     self.targ: [("pose", np.array([0,1], dtype=np.int))]}
 
         A = np.c_[np.eye(2), -np.eye(2)]
         b = np.zeros((2, 1))
@@ -125,8 +125,8 @@ class RobotAt(At):
     def __init__(self, name, params, expected_param_types, env=None):
         ## At Robot RobotPose
         self.r, self.rp = params
-        attr_inds = [(self.r, ("pose", np.array([0,1], dtype=np.int))),
-                     (self.rp, ("value", np.array([0,1], dtype=np.int)))]
+        attr_inds = {self.r: [("pose", np.array([0,1], dtype=np.int))],
+                     self.rp: [("value", np.array([0,1], dtype=np.int))]}
 
         A = np.c_[np.eye(2), -np.eye(2)]
         b = np.zeros((2, 1))
@@ -142,8 +142,9 @@ class InContact(CollisionPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, rp, targ = params
-        attr_inds = [(rp, ("value", np.array([0,1], dtype=np.int))),
-                     (targ, ("pose", np.array([0,1], dtype=np.int)))]
+        attr_inds = {self.robot: [],
+                     rp: [("value", np.array([0,1], dtype=np.int))],
+                     targ: [("pose", np.array([0,1], dtype=np.int))]}
         self._param_to_body = {rp: self.lazy_spawn_or_body(rp, rp.name, self.robot.geom),
                                targ: self.lazy_spawn_or_body(targ, targ.name, targ.geom)}
 
@@ -164,8 +165,9 @@ class Obstructs(CollisionPredicate):
         assert len(params) == 3
         self._env = env
         r, rp, c = params
-        attr_inds = [(r, ("pose", np.array([0, 1], dtype=np.int))),
-                     (c, ("pose", np.array([0, 1], dtype=np.int)))]
+        attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
+                     rp: [],
+                     c: [("pose", np.array([0, 1], dtype=np.int))]}
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
                                c: self.lazy_spawn_or_body(c, c.name, c.geom)}
@@ -206,9 +208,10 @@ class ObstructsHolding(CollisionPredicate):
         self.r = r
         self.obstr = obstr
         self.held = held
-        attr_inds = [(r, ("pose", np.array([0, 1], dtype=np.int))),
-                     (obstr, ("pose", np.array([0, 1], dtype=np.int))),
-                     (held, ("pose", np.array([0, 1], dtype=np.int)))]
+        attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
+                     rp: [],
+                     obstr: [("pose", np.array([0, 1], dtype=np.int))],
+                     held: [("pose", np.array([0, 1], dtype=np.int))]}
 
         if obstr == held:
             f = lambda x: np.zeros((1, 1))
@@ -280,9 +283,9 @@ class InGripper(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.r, self.can, self.grasp = params
-        attr_inds = [(self.r, ("pose", np.array([0, 1], dtype=np.int))),
-                     (self.can, ("pose", np.array([0, 1], dtype=np.int))),
-                     (self.grasp, ("value", np.array([0, 1], dtype=np.int)))]
+        attr_inds = {self.r: [("pose", np.array([0, 1], dtype=np.int))],
+                     self.can: [("pose", np.array([0, 1], dtype=np.int))],
+                     self.grasp: [("value", np.array([0, 1], dtype=np.int))]}
         # want x0 - x2 = x4, x1 - x3 = x5
         A = np.array([[1, 0, -1, 0, -1, 0],
                       [0, 1, 0, -1, 0, -1]])
@@ -311,9 +314,9 @@ class GraspValid(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.rp, self.target,  self.grasp = params
-        attr_inds = [(self.rp, ("value", np.array([0, 1], dtype=np.int))),
-                     (self.target, ("pose", np.array([0, 1], dtype=np.int))),
-                     (self.grasp, ("value", np.array([0, 1], dtype=np.int)))]
+        attr_inds = {self.rp: [("value", np.array([0, 1], dtype=np.int))],
+                     self.target: [("pose", np.array([0, 1], dtype=np.int))],
+                     self.grasp: [("value", np.array([0, 1], dtype=np.int))]}
         # want x0 - x2 = x4, x1 - x3 = x5
         A = np.array([[1, 0, -1, 0, -1, 0],
                       [0, 1, 0, -1, 0, -1]])
@@ -342,7 +345,7 @@ class Stationary(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.c,  = params
-        attr_inds = [(self.c, ("pose", np.array([0, 1], dtype=np.int)))]
+        attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))]}
         A = np.array([[1, 0, -1, 0],
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
@@ -358,7 +361,8 @@ class StationaryNEq(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.c, self.c_held = params
-        attr_inds = [(self.c, ("pose", np.array([0, 1], dtype=np.int)))]
+        attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))],
+                     self.c_held: []}
         if self.c.name == self.c_held.name:
             A = np.zeros((1, 4))
             b = np.zeros((1, 1))

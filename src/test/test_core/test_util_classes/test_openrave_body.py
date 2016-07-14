@@ -98,7 +98,7 @@ class TestOpenRAVEBody(unittest.TestCase):
         # robot = problem.init_state.params['dude']
         # table = problem.init_state.params['rll_table']
         # table.pose = np.array([[1],[0],[0.7]])
-        # view.draw([robot, table], 0)
+        # view.draw([robot, table], 0, 0.7)
         # import ipdb; ipdb.set_trace()
 
 

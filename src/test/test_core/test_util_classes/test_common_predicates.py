@@ -31,7 +31,8 @@ class TestCommonPredicates(unittest.TestCase):
         p2.value = np.array([2, 2, 2])
 
         ## ExprPred Construction
-        attr_inds = [(p1, ("pose", np.array([0], dtype=np.int)))]
+        attr_inds = {p1: [("pose", np.array([0], dtype=np.int))],
+                     p2: []}
         e = expr.EqExpr(e1, np.array([2]))
         pred = common_predicates.ExprPredicate("expr_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
 
@@ -47,8 +48,9 @@ class TestCommonPredicates(unittest.TestCase):
         ## unpacking
         unpacked = pred.unpack([10])
         self.assertTrue("can" in unpacked)
-        self.assertFalse("sym" in unpacked)
+        self.assertTrue("sym" in unpacked)
         self.assertEqual(len(unpacked["can"]), 1)
+        self.assertEqual(len(unpacked["sym"]), 0)
         self.assertEqual(("pose", [10]), unpacked["can"][0])
 
     def test_expr_pred_eq(self):
@@ -67,8 +69,8 @@ class TestCommonPredicates(unittest.TestCase):
         p2.value = np.array([[1, 2], [2, 3]], dtype=np.float64).T
 
         ## pred is p1.pose[:1] = p2.value
-        attr_inds = [(p1, ("pose", np.array([0, 1], dtype=np.int))),
-                     (p2, ("value", np.array([0, 1], dtype=np.int)))]
+        attr_inds = {p1: [("pose", np.array([0, 1], dtype=np.int))],
+                     p2: [("value", np.array([0, 1], dtype=np.int))]}
         A = np.array([[1, 1, -1, -1]])
         b = np.array([0])
 
@@ -105,8 +107,8 @@ class TestCommonPredicates(unittest.TestCase):
 
 
         ## pred is p1.pose[:1] = p2.value
-        attr_inds = [(p1, ("pose", np.array([0, 1], dtype=np.int))),
-                     (p2, ("value", np.array([0, 1], dtype=np.int)))]
+        attr_inds = {p1: [("pose", np.array([0, 1], dtype=np.int))],
+                     p2: [("value", np.array([0, 1], dtype=np.int))]}
         A = np.array([[1, 1, -1, -1]])
         b = np.array([0])
 

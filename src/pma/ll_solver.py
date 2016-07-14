@@ -278,34 +278,15 @@ class NAMOSolver(LLSolver):
     def _spawn_sco_var_for_pred(self, pred, t):
         i = 0
         x = np.empty(pred.x_dim , dtype=object)
-
-        """
-            By Simon, I changed format of attr_inds to be of this format:
-            attr_inds = [(parameter, (attribute_name, np_arry_of index u wanna select)),
-                         (...)]
-            I think this will make the whole program cleaner, Let me know if there is an issue
-            for it.
-        """
-        for p, info in pred.attr_inds:
-            attr, ind_arr = info
-            n_vals = len(ind_arr)
-            ll_p = self._param_to_ll[p]
-            if p.is_symbol():
-                x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
-            else:
-                x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t]
-            i += n_vals
-
-        ### Original Inplementation
-        # for p in pred.params:
-        #     for attr, ind_arr in pred.attr_inds[p]:
-        #         n_vals = len(ind_arr)
-        #         ll_p = self._param_to_ll[p]
-        #         if p.is_symbol():
-        #             x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
-        #         else:
-        #             x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t]
-        #         i += n_vals
+        for p in pred.params:
+            for attr, ind_arr in pred.attr_inds[p]:
+                n_vals = len(ind_arr)
+                ll_p = self._param_to_ll[p]
+                if p.is_symbol():
+                    x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
+                else:
+                    x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t]
+                i += n_vals
         x = x.reshape((pred.x_dim, 1))
         return Variable(x)
 
