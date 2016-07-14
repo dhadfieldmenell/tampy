@@ -41,7 +41,7 @@ class TestParseDomainConfig(unittest.TestCase):
 
     def test_pred_schemas(self):
         s = self.domain.pred_schemas
-        self.assertEqual(set(s.keys()), set(["At", "Obstructs", "ObstructsHolding", "GraspValid", "InGripper", "RobotAt", "InContact"]))
+        self.assertEqual(set(s.keys()), set(["At", "Obstructs", "ObstructsHolding", "GraspValid", "InGripper", "RobotAt", "InContact", "Stationary", "StationaryNEq"]))
         self.assertEqual(s["At"].pred_class.__name__, "At")
         self.assertEqual(s["At"].expected_params, ["Can", "Target"])
 
