@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-from openravepy import Environment
+from openravepy import Environment, KinBody,RaveCreateKinBody
 from core.internal_repr import parameter
 from core.util_classes import circle
 from core.util_classes.matrix import Vector2d
@@ -97,6 +97,7 @@ class TestOpenRAVEBody(unittest.TestCase):
         # view = viewer.OpenRAVEViewer()
         # robot = problem.init_state.params['dude']
         # table = problem.init_state.params['rll_table']
+        # table.pose = np.array([[1],[0],[0.7]])
         # view.draw([robot, table], 0)
         # import ipdb; ipdb.set_trace()
 

@@ -85,7 +85,7 @@ class OpenRAVEBody(object):
         elif isinstance(self._geom, PR2):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif isinstance(self._geom, Table):
-            trans = OpenRAVEBody.base_pose_to_mat(base_pose)
+            trans = OpenRAVEBody.base_pose_3D_to_mat(base_pose)
         self.env_body.SetTransform(trans)
 
     def set_dof(self, back_height, l_arm_pose, r_arm_pose):
@@ -191,6 +191,20 @@ class OpenRAVEBody(object):
         rot = 0
         q = quatFromAxisAngle((0, 0, rot)).tolist()
         pos = [x, y, 0]
+        # pos = np.vstack((x,y,np.zeros(1)))
+        matrix = matrixFromPose(q + pos)
+        return matrix
+
+    @staticmethod
+    def base_pose_3D_to_mat(pose):
+        # x, y = pose
+        assert len(pose) == 3
+        x = pose[0]
+        y = pose[1]
+        z = pose[2]
+        rot = 0
+        q = quatFromAxisAngle((0, 0, rot)).tolist()
+        pos = [x, y, z]
         # pos = np.vstack((x,y,np.zeros(1)))
         matrix = matrixFromPose(q + pos)
         return matrix
