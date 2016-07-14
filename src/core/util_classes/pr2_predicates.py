@@ -105,8 +105,8 @@ class At(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.can, self.targ = params
-        attr_inds = {self.can: [("pose", np.array([0,1,2], dtype=np.int))],
-                     self.targ: [("value", np.array([0,1,2], dtype=np.int))],}
+        attr_inds = [(self.can, ("pose", np.array([0,1,2], dtype=np.int))),
+                     (self.targ, ("value", np.array([0,1,2], dtype=np.int)))]
 
         A = np.c_[np.eye(3), -np.eye(3)]
         b = np.zeros((3, 1))
@@ -122,8 +122,8 @@ class RobotAt(At):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.r, self.rp = params
-        attr_inds = {self.r: [("pose", np.array([0,1,2], dtype=np.int))],
-                     self.rp: [("value", np.array([0,1,2], dtype=np.int))],}
+        attr_inds = [(self.r, ("pose", np.array([0,1,2], dtype=np.int))),
+                     (self.rp, ("value", np.array([0,1,2], dtype=np.int)))]
 
         A = np.c_[np.eye(3), -np.eye(3)]
         b = np.zeros((3, 1))
@@ -140,9 +140,9 @@ class IsGP(CollisionPredicate):
         assert len(params) == 3
 	self._env = env
         self.robot, self.robot_pose, self.can = params
-        attr_inds = {self.robot: [("pose", np.array([0,1,2], dtype=np.int))],
-                     self.robot_pose: [("value", np.array([0,1,2], dtype=np.int))],
-                     self.can: [("value", np.array([0,1,2], dtype=np.int))]}
+        attr_inds = [(self.robot_pose, ("value", np.array([0,1,2], dtype=np.int))),
+                     (self.can, ("value", np.array([0,1,2], dtype=np.int)))]
+
         self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
@@ -162,10 +162,8 @@ class IsPDP(CollisionPredicate):
         assert len(params) == 4
         self._env = env
         self.robot, self.robot_pose, self.can, self.location = params
-        attr_inds = {self.robot: [("pose", np.array([0,1,2], dtype=np.int))],
-                     self.robot_pose: [("value", np.array([0,1,2], dtype=np.int))],
-                     self.can: [("value", np.array([0,1,2], dtype=np.int))],
-                     self.location: [("value", np.array([0,1,2], dtype=np.int))]}
+        attr_inds = [(self.robot_pose, ("value", np.array([0,1,2], dtype=np.int))),
+                     (self.location, ("value", np.array([0,1,2], dtype=np.int)))]
         self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.location: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
@@ -183,9 +181,9 @@ class InGripper(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types):
         self.robot, self.can, self.grasp = params
-        attr_inds = {self.robot: [("pose", np.array([0, 1, 2], dtype=np.int))],
-                     self.can: [("pose", np.array([0, 1, 2], dtype=np.int))],
-                     self.grasp: [("value", np.array([0, 1, 2], dtype=np.int))]}
+        attr_inds = [(self.robot, ("pose", np.array([0, 1, 2], dtype=np.int))),
+                     (self.can, ("pose", np.array([0, 1, 2], dtype=np.int))),
+                     (self.grasp, ("value", np.array([0, 1, 2], dtype=np.int)))]
         # want x0 - x2 = x4, x1 - x3 = x5
         A = np.c_[np.eye(3), -np.eye(3)]
         b = np.zeros((3, 1))
@@ -214,9 +212,8 @@ class Obstructs(CollisionPredicate):
         assert len(params) == 3
         self._env = env
         r, rp, c = params
-        attr_inds = {r: [("pose", np.array([0, 1, 2], dtype=np.int))],
-                     c: [("pose", np.array([0, 1, 2], dtype=np.int))],
-                     rp: []}
+        attr_inds = [(r, ("pose", np.array([0, 1, 2], dtype=np.int))),
+                     (c, ("pose", np.array([0, 1, 2], dtype=np.int)))]
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
                                c: self.lazy_spawn_or_body(c, c.name, c.geom)}

@@ -19,18 +19,16 @@ DEFAULT_TOL=1e-4
 
 def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
         i = startind
-        for p in pred.params:
-            if p not in pred.attr_inds: continue
-            for attr, ind_arr in pred.attr_inds[p]:
-                n_vals = len(ind_arr)
-
-                if p.is_symbol():
-                    res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
-                else:
-                    res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
-                i += n_vals
+        for p, ind_arr in pred.attr_inds:
+            attr, inds = ind_arr
+            n_vals = len(inds)
+            if p.is_symbol():
+                res_arr[i:i+n_vals] = getattr(p, attr)[inds, 0]
+            else:
+                res_arr[i:i+n_vals] = getattr(p, attr)[inds, t]
+            i += n_vals
         return i
-    
+
 
 class ExprPredicate(Predicate):
 
@@ -50,9 +48,8 @@ class ExprPredicate(Predicate):
         self.attr_inds = attr_inds
         self.tol = DEFAULT_TOL
 
-        self.x_dim = sum(len(active_inds)
-                         for p_attrs in attr_inds.values()
-                         for (_, active_inds) in p_attrs)
+        self.x_dim = sum(len(p_attrs[1])
+                         for _, p_attrs in attr_inds)
         if self.dynamic:
             ## if its dynamic, then we assume that attr_inds is the same for both timesteps
             self.x_dim *= 2
@@ -64,11 +61,14 @@ class ExprPredicate(Predicate):
             return None
         else:
             return self.expr
-        
+
     def get_param_vector(self, t):
         end_ind = get_param_vector_helper(self, self.x, 0, t, self.attr_inds)
         if self.dynamic:
-            get_param_vector_helper(self, self.x, end_ind, t+1, self.attr_inds)
+            try:
+                get_param_vector_helper(self, self.x, end_ind, t+1, self.attr_inds)
+            except IndexError:
+                raise PredicateException("Insufficient pose trajectory to check dynamic predicate '%s' at the timestep."%self)
         return self.x
 
     def test(self, time):
@@ -90,12 +90,12 @@ class ExprPredicate(Predicate):
         """
         res = {}
         i = 0
-        for p in self.params:
+        for p, info in self.attr_inds:
+            attr, ind_arr = info
             res[p.name] = []
-            for attr, ind_arr in self.attr_inds[p]:
-                n_vals = len(ind_arr)
-                res[p.name].append((attr, y[i:i+n_vals]))
-                i += n_vals
+            n_vals = len(ind_arr)
+            res[p.name].append((attr, y[i:i+n_vals]))
+            i += n_vals
         return res
 
     def _grad(self, t):
