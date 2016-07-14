@@ -13,9 +13,12 @@ import ctrajoptpy
 This file implements the predicates for the 2D NAMO domain.
 """
 
+dsafe = 1e-2
+dmove = 1e0
+
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
@@ -178,7 +181,7 @@ class Obstructs(CollisionPredicate):
         ## so we have an expr for the negated predicate
         f_neg = lambda x: self.distance_from_obj(x)[0]
         def grad_neg(x):
-            print self.distance_from_obj(x)
+            # print self.distance_from_obj(x)
             return self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
@@ -208,20 +211,25 @@ class ObstructsHolding(CollisionPredicate):
         self.r = r
         self.obstr = obstr
         self.held = held
-        attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
-                     obstr: [("pose", np.array([0, 1], dtype=np.int))],
-                     held: [("pose", np.array([0, 1], dtype=np.int))],
-                     rp: []}
 
-        if obstr == held:
+        if obstr.name == held.name:
+            attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
+                         obstr: [("pose", np.array([0, 1], dtype=np.int))]}
+
             f = lambda x: np.zeros((1, 1))
-            grad = lambda x: np.zeros((1, 6))
+            grad = lambda x: np.zeros((1, 4))
 
             f_neg = f
             grad_neg = grad
 
 
         else:
+
+            attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
+                         obstr: [("pose", np.array([0, 1], dtype=np.int))],
+                         held: [("pose", np.array([0, 1], dtype=np.int))],
+                         rp: []}
+
             self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                    obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
                                    held: self.lazy_spawn_or_body(held, held.name, held.geom)}
@@ -241,12 +249,6 @@ class ObstructsHolding(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-        if obstr == held:
-            # attr_inds only contains 3 entries because of a key conflict so
-            # x_dim and x aren't computed correctly.
-            self.x_dim = 6
-            self.x = np.zeros(self.x_dim)
 
     def get_expr(self, negated):
         if negated:
@@ -364,4 +366,22 @@ class StationaryNEq(ExprPredicate):
             b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+
+class IsMP(ExprPredicate):
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.r, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = {self.r: [("pose", np.array([0, 1], dtype=np.int))]}
+        A = np.array([[1, 0, -1, 0],
+                      [0, 1, 0, -1],
+                      [-1, 0, 1, 0],
+                      [0, -1, 0, 1]])
+        b = np.zeros((4, 1))
+        
+        e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+
+    
         

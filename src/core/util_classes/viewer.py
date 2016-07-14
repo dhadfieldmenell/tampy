@@ -19,10 +19,29 @@ class GridWorldViewer(Viewer):
 
 class OpenRAVEViewer(Viewer):
 
+    _viewer = None
+
     def __init__(self):
+        assert OpenRAVEViewer._viewer == None
         self.env = Environment()
         self.env.SetViewer('qtcoin')
         self.name_to_rave_body = {}
+        OpenRAVEViewer._viewer = self
+
+    def clear(self):
+        for b in self.name_to_rave_body.itervalues():
+            b.delete()
+        self.name_to_rave_body = {}
+
+    @staticmethod
+    def create_viewer():
+        # if reset and OpenRAVEViewer._viewer != None:
+        #     ## close the old viewer to avoid a threading error
+        #     OpenRAVEViewer._viewer = None
+        if OpenRAVEViewer._viewer == None:
+            return OpenRAVEViewer()
+        OpenRAVEViewer._viewer.clear()
+        return OpenRAVEViewer._viewer
 
     def initialize_from_workspace(self, workspace):
         pass
@@ -57,7 +76,7 @@ class OpenRAVEViewer(Viewer):
             self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.rArmPose[:, t])
         self.name_to_rave_body[name].set_pose(obj.pose[:, t])
 
-    def animate_plan(self, plan):
+    def animate_plan(self, plan, delay=.1):
         obj_list = []
         horizon = plan.horizon
         for p in plan.params.itervalues():
@@ -65,7 +84,7 @@ class OpenRAVEViewer(Viewer):
                 obj_list.append(p)
         for t in range(horizon):
             self.draw(obj_list, t)
-            import ipdb; ipdb.set_trace()
+            time.sleep(delay)
 
 
     def draw_plan(self, plan):
@@ -75,3 +94,4 @@ class OpenRAVEViewer(Viewer):
             if not p.is_symbol():
                 obj_list.append(p)
         self.draw_traj(obj_list, range(horizon))
+

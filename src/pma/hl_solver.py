@@ -131,6 +131,7 @@ class FFSolver(HLSolver):
 
     def solve(self, abs_prob, domain, concr_prob):
         plan_str = self._run_planner(self.abs_domain, abs_prob)
+        print plan_str
         if plan_str == Plan.IMPOSSIBLE:
             return plan_str
         openrave_env = concr_prob.env
@@ -140,11 +141,13 @@ class FFSolver(HLSolver):
         return Plan(params, actions, plan_horizon, openrave_env)
 
     def _extract_horizon(self, plan_str, domain):
-        hor = 0
+        hor = 1
         for action_str in plan_str:
             spl = action_str.split()
             a_name = spl[1].lower()
-            hor += domain.action_schemas[a_name].horizon
+            ## subtract 1 b/c subsequent actions have an overlapping 
+            ## first and last state
+            hor += domain.action_schemas[a_name].horizon - 1
         return hor
 
     def _spawn_plan_params(self, concr_prob, plan_horizon):
@@ -194,7 +197,7 @@ class FFSolver(HLSolver):
             # updating hl_state
             hl_state.update(preds)
             actions.append(Action(step, a_name, (curr_h, curr_h + a_schema.horizon - 1), [params[arg] for arg in a_args], preds))
-            curr_h += a_schema.horizon
+            curr_h += a_schema.horizon - 1
         return actions
 
 

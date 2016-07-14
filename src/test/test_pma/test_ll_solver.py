@@ -17,18 +17,21 @@ import time, main
 
 class TestLLSolver(unittest.TestCase):
     def setUp(self):
-        domain_fname, problem_fname = '../domains/namo_domain/namo.domain', '../domains/namo_domain/namo_probs/ll_solver_one_move.prob'
 
+        domain_fname = '../domains/namo_domain/namo.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-
-
-        p_c = main.parse_file_to_dict(problem_fname)
-
         hls = hl_solver.FFSolver(d_c)
-        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        abs_problem = hls.translate_problem(problem)
-        self.move_no_obs = hls.solve(abs_problem, domain, problem)
+
+        def get_plan(p_fname):
+            p_c = main.parse_file_to_dict(p_fname)
+            problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+            abs_problem = hls.translate_problem(problem)
+            return hls.solve(abs_problem, domain, problem)
+            
+        self.move_no_obs = get_plan('../domains/namo_domain/namo_probs/ll_solver_one_move.prob')
+        self.move_grasp = get_plan('../domains/namo_domain/namo_probs/move_grasp.prob')
+        self.move_grasp_moveholding = get_plan('../domains/namo_domain/namo_probs/moveholding.prob')
 
     def test_llparam(self):
         # TODO: tests for undefined, partially defined and fully defined params
@@ -254,6 +257,44 @@ class TestLLSolver(unittest.TestCase):
         namo_solver.solve(plan, callback=callback)
         # namo_solver._solve_opt_prob(plan, priority=1, callback=callback)
         # namo_solver._update_ll_params()
+
+    def test_move_grasp(self):
+        plan = self.move_grasp
+        callback = None
+        """
+        Uncomment out lines below to see optimization.
+        """
+        # viewer = OpenRAVEViewer.create_viewer()
+        # def callback():
+        #     namo_solver._update_ll_params()
+        #     viewer.draw_plan(plan)
+        #     time.sleep(0.3)
+        """
+        """
+        namo_solver = ll_solver.NAMOSolver()
+        namo_solver.solve(plan, callback=callback)
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        # import pdb; pdb.set_trace()
+
+
+    def test_moveholding(self):
+        plan = self.move_grasp_moveholding
+        callback = None
+        """
+        Uncomment out lines below to see optimization.
+        """
+        viewer = OpenRAVEViewer.create_viewer()
+        # def callback():
+        #     namo_solver._update_ll_params()
+        #     viewer.draw_plan(plan)
+        #     time.sleep(0.03)
+        """
+        """
+        namo_solver = ll_solver.NAMOSolver()
+        namo_solver.solve(plan, callback=callback)
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
 
     def test_initialize_params(self):
         plan = self.move_no_obs

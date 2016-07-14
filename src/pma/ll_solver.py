@@ -77,7 +77,7 @@ class LLParam(object):
                 grb_vars = getattr(self, attr)
                 value = getattr(self._param, attr)
                 for index, value in np.ndenumerate(value):
-                    if not np.isnan(value):
+                    if not self._param._free_attrs[attr][index]:
                         self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
 
     def grb_val_dict(self):
@@ -105,30 +105,24 @@ class LLParam(object):
 
 class NAMOSolver(LLSolver):
 
-    # def solve(self, plan):
-    #
-    #     model = grb.Model()
-    #     # model.params.OutputFlag = 0
-    #     self._prob = Prob(model)
-    #
-    #     self._spawn_parameter_to_ll_mapping(model, plan)
-    #     model.update()
-    #
-    #     self._add_actions_to_sco_prob(plan)
-    #     obj_bexprs = self._get_trajopt_obj(plan)
-    #     self._add_obj_bexprs(obj_bexprs)
-    #
-    #     solv = Solver()
-    #     solv.solve(self._prob, method='penalty_sqp')
-    #     # self._update_ll_params()
-
-    def solve(self, plan, callback=None):
+    def solve(self, plan, callback=None, n_resamples=5):
         success = False
-        # while not success:
-            # self._solve_opt_prob(plan, priority=-1)
-        # self._solve_opt_prob(plan, priority=-1, callback=callback)
-        # self._solve_opt_prob(plan, priority=1, callback=callback, init_from_prev=True)
-        self._solve_opt_prob(plan, priority=1, callback=callback)
+        initialized=False
+        if not plan.initialized:            
+             ## solve at priority -1 to get an initial value for the parameters
+            initialized=True
+            self._solve_opt_prob(plan, priority=-1, callback=callback)
+        
+        for _ in range(n_resamples):
+        ## refinement loop
+            if not initialized:
+                self._solve_opt_prob(plan, priority=0, callback=callback)
+            success = self._solve_opt_prob(plan, priority=1, callback=callback)
+            if success:
+                return success, plan            
+            ## determine an unsatisfied predicate and resample
+            ## for now just return failure
+            return success
 
     def _solve_opt_prob(self, plan, priority, callback=None, init=True, init_from_prev=False):
 
@@ -144,6 +138,10 @@ class NAMOSolver(LLSolver):
             obj_bexprs = self._get_trajopt_obj(plan)
             self._add_obj_bexprs(obj_bexprs)
             self._add_first_and_last_timesteps_of_actions(plan)
+        elif priority == 0:
+            ## solve an optimization movement primitive to 
+            ## transfer current trajectories
+            raise NotImplementedError
         elif priority == 1:
             obj_bexprs = self._get_trajopt_obj(plan)
             self._add_obj_bexprs(obj_bexprs)
@@ -204,22 +202,6 @@ class NAMOSolver(LLSolver):
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps)
 
-    # def _add_actions_to_sco_prob(self, plan):
-    #     # needs to be modified to add only first and last time steps during initialization
-    #     for action in plan.actions:
-    #         for pred_dict in action.preds:
-    #             if pred_dict['hl_info'] == "hl_state":
-    #                 continue
-    #             pred = pred_dict['pred']
-    #             start, end = pred_dict['active_timesteps']
-    #             for t in xrange(start, end+1):
-    #                 assert isinstance(pred, common_predicates.ExprPredicate)
-    #                 expr = pred.expr
-    #                 if expr is not None:
-    #                     var = self._spawn_sco_var_for_pred(pred, t)
-    #                     bexpr = BoundExpr(expr, var)
-    #                     self._prob.add_cnt_expr(bexpr)
-
     def _update_ll_params(self):
         for ll_param in self._param_to_ll.values():
             ll_param.update_param()
@@ -238,12 +220,6 @@ class NAMOSolver(LLSolver):
     def _add_obj_bexprs(self, obj_bexprs):
         for bexpr in obj_bexprs:
             self._prob.add_obj_expr(bexpr)
-
-    # def _add_dynamic_cnts(self, plan):
-    #     for param in plan.params.values():
-    #         if param._type == 'Can':
-    #             ll_param = self._param_to_ll[param]
-    #             rows, cols = ll_param.pose.shape
 
 
     def _get_trajopt_obj(self, plan):
@@ -265,53 +241,43 @@ class NAMOSolver(LLSolver):
                 quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
                 robot_ll = self._param_to_ll[param]
                 robot_ll_grb_vars = robot_ll.pose.reshape((KT, 1), order='F')
-                bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars))
+                bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars, robot_ll._param.pose.reshape((KT, 1), order='F')))
                 traj_objs.append(bexpr)
         return traj_objs
-
-    def _get_init_obj(self, plan):
-        init_objs = []
-        for param in plan.params.values():
-            if param._type == 'Grasp':
-                value = self._init_values[param]
-                ll_param = self._param_to_ll[param]
-                g_var = ll_param.value
-                assert g_var.shape == (2,1)
-                assert value.shape == (2,1)
-                Q = np.eye(2)
-                A = -2*value.T
-                b = np.zeros((1,1))
-                quad_expr = QuadExpr(Q, A, b)
-                bexpr = BoundExpr(quad_expr, Variable(g_var))
-                init_objs.append(bexpr)
-        return init_objs
 
     def _spawn_sco_var_for_pred(self, pred, t):
         
         i = 0
         x = np.empty(pred.x_dim , dtype=object)
-        for p in pred.params:
+        v = np.empty(pred.x_dim)
+        for p in pred.attr_inds:
             for attr, ind_arr in pred.attr_inds[p]:
                 n_vals = len(ind_arr)
                 ll_p = self._param_to_ll[p]
                 if p.is_symbol():
                     x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
+                    v[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
                 else:
                     x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t]
+                    v[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
                 i += n_vals
         if pred.dynamic:
             ## include the variables from the next time step
-            for p in pred.params:
+            for p in pred.attr_inds:
                 for attr, ind_arr in pred.attr_inds[p]:
                     n_vals = len(ind_arr)
                     ll_p = self._param_to_ll[p]
                     if p.is_symbol():
                         x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
+                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
                     else:
                         x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t+1]
+                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
                     i += n_vals
+        assert i >= pred.x_dim
         x = x.reshape((pred.x_dim, 1))
-        return Variable(x)
+        v = v.reshape((pred.x_dim, 1))
+        return Variable(x, v)
 
 class CanSolver(LLSolver):
     pass

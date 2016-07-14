@@ -7,4 +7,4 @@ Objects: Target (name target0); RobotPose (name pdp_target0); Can (name can0); T
 
 Init: (geom target0 .3), (pose target0 [2, 0]), (value pdp_target0 undefined), (geom target1 .3), (pose target1 [6, 1]), (value pdp_target1 undefined), (geom target2 .3), (pose target2 [7, 2]), (value pdp_target2 undefined), (geom can0 .3), (pose can0 [2, 0]), (geom can1 .3), (pose can1 [6, 1]), (value grasp0 undefined), (geom pr2 .4), (pose pr2 [8, 1]), (pose pr2 [8, 1]), (value robot_init_pose [8, 1]), (value robot_end_pose [0,0]); (At can0 target0), (At can1 target1), (InContact pr2 pdp_target0 target0), (GraspValid pdp_target0 target0 grasp0), (InContact pr2 pdp_target1 target1), (GraspValid pdp_target1 target1 grasp0), (InContact pr2 pdp_target2 target2), (GraspValid pdp_target2 target2 grasp0), (RobotAt pr2 robot_init_pose), (Stationary can0), (Stationary can1), (StationaryNEq can0 can0), (StationaryNEq can0 can1), (StationaryNEq can1 can0), (StationaryNEq can1 can1), (IsMP pr2)
 
-Goal: (RobotAt pr2 robot_end_pose)
+Goal: (InGripper pr2 can1 grasp0), (RobotAt pr2 robot_end_pose)

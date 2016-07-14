@@ -26,6 +26,9 @@ class OpenRAVEBody(object):
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
 
+    def delete(self):
+        self._env.Remove(self.env_body)
+
 
     def _add_circle(self, geom):
         color = None
