@@ -218,8 +218,8 @@ class TestNamoPredicates(unittest.TestCase):
         #First test should fail because all objects's positions are in (0,0)
         self.assertTrue(pred.test(time = 0))
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0,0,0]))
-        self.assertTrue(np.allclose(np.array(val), 1.27, atol=1e-2))
-        jac2 = np.array([[-0.95968306, 0, 1.53703338, 0.57735032, -0.57735032, -0.57735032]])
+        self.assertTrue(np.allclose(np.array(val), 1.25, atol=1e-2))
+        jac2 = np.array([[ 0, 0, 0.57735032,  0.57735032, -0.57735032, -0.57735032]])
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
         robot.pose = np.zeros((2,4))
