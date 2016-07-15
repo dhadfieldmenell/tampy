@@ -129,7 +129,7 @@ class TestNamoPredicates(unittest.TestCase):
         env = Environment()
         pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
-        self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
+        self.assertTrue(np.allclose(np.array(val), .11, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
@@ -155,7 +155,7 @@ class TestNamoPredicates(unittest.TestCase):
 
     def test_in_contact(self):
         # InContact, Robot, RobotPose, Target
-        radius, dsafe = 1, 0.05
+        radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
@@ -173,21 +173,21 @@ class TestNamoPredicates(unittest.TestCase):
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
         val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
-        self.assertTrue(np.allclose(np.array(val), .15, atol=1e-2))
+        self.assertTrue(np.allclose(np.array(val), .11, atol=1e-2))
         jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
         robotPose.value = np.zeros((2,4))
-        target.pose = np.array([[radius, 2*radius+dsafe, 2*radius, 2*radius-dsafe, 0],
-                                [0,      0,              0,        0,              0]])
+        target.pose = np.array([[radius, 2*radius+pred.dsafe,   2*radius, 2*radius-pred.dsafe,  0],
+                                [0,      0,                     0,        0,                    0]])
         self.assertFalse(pred.test(time = 0))
         self.assertTrue(pred.test(time = 1))
         self.assertFalse(pred.test(time = 2))
         self.assertFalse(pred.test(time = 3))
         self.assertFalse(pred.test(time = 4))
         #since it symbol are assumed to be unchanged, test should always check distance with first traj vector
-        robotPose.value = np.array([[0, 2*radius, -dsafe, 2*radius+dsafe],
-                                    [0, 0,        0,      0]])
+        robotPose.value = np.array([[0, 2*radius, -pred.dsafe, 2*radius+pred.dsafe],
+                                    [0, 0,        0,           0]])
         self.assertFalse(pred.test(time = 0))
         self.assertTrue(pred.test(time = 1))
         self.assertFalse(pred.test(time = 2))
@@ -218,7 +218,7 @@ class TestNamoPredicates(unittest.TestCase):
         #First test should fail because all objects's positions are in (0,0)
         self.assertTrue(pred.test(time = 0))
         val, jac = pred.distance_from_obj(np.array([1.9,0,0,0,0,0]))
-        self.assertTrue(np.allclose(np.array(val), 1.35, atol=1e-2))
+        self.assertTrue(np.allclose(np.array(val), 1.27, atol=1e-2))
         jac2 = np.array([[-0.95968306, 0, 1.53703338, 0.57735032, -0.57735032, -0.57735032]])
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
@@ -366,6 +366,40 @@ class TestNamoPredicates(unittest.TestCase):
         # no matter what kind of pose can2 has, it only checks whether first can is stationary
         self.assertTrue(pred2.test(time = 0))
         self.assertFalse(pred2.test(time = 1))
+
+    def test_is_mp(self):
+        # IsMP Robot
+        attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
+        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        robot = parameter.Object(attrs, attr_types)
+
+        pred = namo_predicates.IsMP("IsMP", [robot], ["Robot"])
+
+        #predicate only have 1 timestep
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=0)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'IsMP: (IsMP pr2)' at the timestep.")
+        robot.pose = np.array([[1, 2,  8, 4],
+                              [0, 1, -4, 9]])
+
+        self.assertTrue([pred.test(time = 0)])
+        self.assertFalse(pred.test(time = 1))
+        self.assertFalse(pred.test(time = 2))
+
+
+        robot.pose = np.array([[1,2,3,4],
+                               [5,6,7,8]])
+        self.assertTrue(pred.test(time = 0))
+        self.assertTrue(pred.test(time = 1))
+        self.assertTrue(pred.test(time = 2))
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=3)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'IsMP: (IsMP pr2)' at the timestep.")
+
+
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -169,7 +169,6 @@ class Obstructs(CollisionPredicate):
         self._env = env
         r, rp, c = params
         attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
-                     rp: [],
                      c: [("pose", np.array([0, 1], dtype=np.int))]}
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
@@ -227,8 +226,7 @@ class ObstructsHolding(CollisionPredicate):
 
             attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
                          obstr: [("pose", np.array([0, 1], dtype=np.int))],
-                         held: [("pose", np.array([0, 1], dtype=np.int))],
-                         rp: []}
+                         held: [("pose", np.array([0, 1], dtype=np.int))]}
 
             self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                    obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
@@ -365,7 +363,7 @@ class StationaryNEq(ExprPredicate):
         self.c, self.c_held = params
         attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))]}
         if self.c.name == self.c_held.name:
-            A = np.zeros((1, 4))
+            A = np.zeros((1, 8))
             b = np.zeros((1, 1))
         else:
             A = np.array([[1, 0, -1, 0],
@@ -373,9 +371,14 @@ class StationaryNEq(ExprPredicate):
             b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        # When extracting x, if self.c and self.c_held are the same, length of x will be double.
+        if self.c.name == self.c_held.name:
+            self.x = np.zeros(8)
 
 class IsMP(ExprPredicate):
 
+    # IsMP Robot
+    
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
@@ -386,7 +389,6 @@ class IsMP(ExprPredicate):
                       [-1, 0, 1, 0],
                       [0, -1, 0, 1]])
         b = np.zeros((4, 1))
-        
+
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
-

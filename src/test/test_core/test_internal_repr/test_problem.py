@@ -25,7 +25,7 @@ class TestProblem(unittest.TestCase):
         attr_types = {"name": str, "pose": Vector2d, "_type": str}
         self.target = parameter.Object(attrs, attr_types)
 
-        attrs = {"name": ["gp"], "value": [(3,6.05)], "_type": ["Sym"]}
+        attrs = {"name": ["gp"], "value": [(3,6.01)], "_type": ["Sym"]}
         attr_types = {"name": str, "value": Vector2d, "_type": str}
         self.gp = parameter.Symbol(attrs, attr_types)
 
@@ -44,7 +44,7 @@ class TestProblem(unittest.TestCase):
         with self.assertRaises(ProblemConfigException) as cm:
             problem.Problem(self.init_state, None, None)
         self.assertEqual(cm.exception.message, "Initial state is not consistent (predicates are violated).")
-        self.target.pose = np.array([[3, 1], [4, 2]])
+        self.target.pose = np.array([[3, 0], [4, 2]])
         problem.Problem(self.init_state, None, None)
 
     def test_goal_test(self):
