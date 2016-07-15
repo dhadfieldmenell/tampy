@@ -61,11 +61,13 @@ class LLParam(object):
                     shape = (2, self._horizon)
 
                 x = np.empty(shape, dtype=object)
+                name = "({}-{}-{})"
 
                 for index in np.ndindex(shape):
                     # Note: it is easier for the sco code and update_param to
                     # handle things if everything is a Gurobi variable
-                    x[index] = self._model.addVar(lb=-GRB.INFINITY, ub=GRB.INFINITY)
+                    x[index] = self._model.addVar(lb=-GRB.INFINITY, ub=GRB.INFINITY, 
+                                                  name=name.format(self._param.name, k, index))
                 setattr(self, k, x)
 
     def batch_add_cnts(self):
@@ -107,11 +109,11 @@ class NAMOSolver(LLSolver):
 
     def solve(self, plan, callback=None, n_resamples=5):
         success = False
-        initialized=False
-        if not plan.initialized:            
-             ## solve at priority -1 to get an initial value for the parameters
-            initialized=True
-            self._solve_opt_prob(plan, priority=-1, callback=callback)
+        initialized=True #False
+        # if not plan.initialized:            
+        #      ## solve at priority -1 to get an initial value for the parameters
+        #     initialized=True
+        #     self._solve_opt_prob(plan, priority=-1, callback=callback)
         
         for _ in range(n_resamples):
         ## refinement loop
@@ -172,17 +174,24 @@ class NAMOSolver(LLSolver):
         self._init_values[param] = np.random.rand(*shape)
 
     def _add_pred_dict(self, pred_dict, effective_timesteps):
+        ## for debugging
+        ignore_preds = []
         if not pred_dict['hl_info'] == "hl_state":
             print "pred being added: ", pred_dict
             start, end = pred_dict['active_timesteps']
             active_range = range(start, end+1)
             print active_range, effective_timesteps
+            negated = pred_dict['negated']
+            pred = pred_dict['pred']
+
+            if pred.get_type() in ignore_preds: 
+                return
+
+            assert isinstance(pred, common_predicates.ExprPredicate)
+            expr = pred.get_expr(negated)
+
             for t in effective_timesteps:
                 if t in active_range:
-                    negated = pred_dict['negated']
-                    pred = pred_dict['pred']
-                    assert isinstance(pred, common_predicates.ExprPredicate)
-                    expr = pred.get_expr(negated)
                     if expr is not None:
                         print "expr being added at time ", t
                         var = self._spawn_sco_var_for_pred(pred, t)

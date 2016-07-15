@@ -18,18 +18,16 @@ pr2_domain specific predicates can be cound in core/util_classes/pr2_predicates.
 DEFAULT_TOL=1e-4
 
 def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
-        i = startind
-        for p in pred.params:
-            if p not in pred.attr_inds: continue
-            for attr, ind_arr in pred.attr_inds[p]:
-                n_vals = len(ind_arr)
-
-                if p.is_symbol():
-                    res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
-                else:
-                    res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
-                i += n_vals
-        return i
+    i = startind
+    for p in pred.attr_inds:
+        for attr, ind_arr in pred.attr_inds[p]:
+            n_vals = len(ind_arr)		
+	    if p.is_symbol():
+                res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
+	    else:
+	        res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
+	    i += n_vals
+    return i
 
 
 class ExprPredicate(Predicate):
@@ -74,13 +72,13 @@ class ExprPredicate(Predicate):
                 raise PredicateException("Insufficient pose trajectory to check dynamic predicate '%s' at the timestep."%self)
         return self.x
 
-    def test(self, time):
+    def test(self, time, negated=False):
         if not self.is_concrete():
             return False
         if time < 0:
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
-            return self.expr.eval(self.get_param_vector(time), tol=self.tol)
+            return self.expr.eval(self.get_param_vector(time), tol=self.tol, negated=negated)
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)

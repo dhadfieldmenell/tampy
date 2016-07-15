@@ -86,7 +86,6 @@ class OpenRAVEViewer(Viewer):
             self.draw(obj_list, t)
             time.sleep(delay)
 
-
     def draw_plan(self, plan):
         obj_list = []
         horizon = plan.horizon
@@ -94,4 +93,13 @@ class OpenRAVEViewer(Viewer):
             if not p.is_symbol():
                 obj_list.append(p)
         self.draw_traj(obj_list, range(horizon))
+
+    def draw_plan_ts(self, plan, t):
+        obj_list = []
+        horizon = plan.horizon
+        for p in plan.params.itervalues():
+            if not p.is_symbol():
+                obj_list.append(p)
+        self.draw(obj_list, t)
+        
 

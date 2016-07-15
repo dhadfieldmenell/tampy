@@ -13,8 +13,9 @@ import ctrajoptpy
 This file implements the predicates for the 2D NAMO domain.
 """
 
-dsafe = 1e-2
+dsafe = 1e-1
 dmove = 1e0
+contact_dist = 0
 
 
 class CollisionPredicate(ExprPredicate):
@@ -112,7 +113,7 @@ class At(ExprPredicate):
         ## At Can Target
         self.can, self.targ = params
         attr_inds = {self.can: [("pose", np.array([0,1], dtype=np.int))],
-                     self.targ: [("pose", np.array([0,1], dtype=np.int))]}
+                     self.targ: [("value", np.array([0,1], dtype=np.int))]}
 
         A = np.c_[np.eye(2), -np.eye(2)]
         b = np.zeros((2, 1))
@@ -147,7 +148,7 @@ class InContact(CollisionPredicate):
         self.robot, rp, targ = params
         attr_inds = {self.robot: [],
                      rp: [("value", np.array([0,1], dtype=np.int))],
-                     targ: [("pose", np.array([0,1], dtype=np.int))]}
+                     targ: [("value", np.array([0,1], dtype=np.int))]}
         self._param_to_body = {rp: self.lazy_spawn_or_body(rp, rp.name, self.robot.geom),
                                targ: self.lazy_spawn_or_body(targ, targ.name, targ.geom)}
 
@@ -155,7 +156,7 @@ class InContact(CollisionPredicate):
         grad = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.zeros((1, 1))
+        val = np.ones((1, 1))*1e-1
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
@@ -188,7 +189,7 @@ class Obstructs(CollisionPredicate):
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
-        self.neg_expr = LEqExpr(col_expr_neg, val)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
 
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
@@ -215,7 +216,7 @@ class ObstructsHolding(CollisionPredicate):
             attr_inds = {r: [("pose", np.array([0, 1], dtype=np.int))],
                          obstr: [("pose", np.array([0, 1], dtype=np.int))]}
 
-            f = lambda x: np.zeros((1, 1))
+            f = lambda x: np.ones((1, 1))
             grad = lambda x: np.zeros((1, 4))
 
             f_neg = f
@@ -244,7 +245,7 @@ class ObstructsHolding(CollisionPredicate):
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
-        self.neg_expr = LEqExpr(col_expr_neg, val)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
 
@@ -296,18 +297,6 @@ class InGripper(ExprPredicate):
 
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
 
-
-    def test(self, time = 0):
-        if not self.is_concrete():
-            return False
-        if time < 0:
-            raise PredicateException("Out of range time for predicate '%s'."%self)
-        try:
-            return self.expr.eval(self.get_param_vector(time))
-        except IndexError:
-            ## this happens with an invalid time
-            raise PredicateException("Out of range time for predicate '%s'."%self)
-
 class GraspValid(ExprPredicate):
 
     # GraspValid RobotPose Target Grasp
@@ -315,7 +304,7 @@ class GraspValid(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.rp, self.target,  self.grasp = params
         attr_inds = {self.rp: [("value", np.array([0, 1], dtype=np.int))],
-                     self.target: [("pose", np.array([0, 1], dtype=np.int))],
+                     self.target: [("value", np.array([0, 1], dtype=np.int))],
                      self.grasp: [("value", np.array([0, 1], dtype=np.int))]}
         # want x0 - x2 = x4, x1 - x3 = x5
         A = np.array([[1, 0, -1, 0, -1, 0],
@@ -326,18 +315,6 @@ class GraspValid(ExprPredicate):
         e = EqExpr(e, np.zeros((2,1)))
 
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-
-    def test(self, time = 0):
-        if not self.is_concrete():
-            return False
-        if time < 0:
-            raise PredicateException("Out of range time for predicate '%s'."%self)
-        try:
-            return self.expr.eval(self.get_param_vector(time))
-        except IndexError:
-            ## this happens with an invalid time
-            raise PredicateException("Out of range time for predicate '%s'."%self)
 
 class Stationary(ExprPredicate):
 
@@ -363,7 +340,7 @@ class StationaryNEq(ExprPredicate):
         self.c, self.c_held = params
         attr_inds = {self.c: [("pose", np.array([0, 1], dtype=np.int))]}
         if self.c.name == self.c_held.name:
-            A = np.zeros((1, 8))
+            A = np.zeros((1, 4))
             b = np.zeros((1, 1))
         else:
             A = np.array([[1, 0, -1, 0],
@@ -371,9 +348,6 @@ class StationaryNEq(ExprPredicate):
             b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
-        # When extracting x, if self.c and self.c_held are the same, length of x will be double.
-        if self.c.name == self.c_held.name:
-            self.x = np.zeros(8)
 
 class IsMP(ExprPredicate):
 

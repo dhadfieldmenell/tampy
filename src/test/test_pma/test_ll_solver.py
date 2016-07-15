@@ -32,6 +32,7 @@ class TestLLSolver(unittest.TestCase):
         self.move_no_obs = get_plan('../domains/namo_domain/namo_probs/ll_solver_one_move.prob')
         self.move_grasp = get_plan('../domains/namo_domain/namo_probs/move_grasp.prob')
         self.move_grasp_moveholding = get_plan('../domains/namo_domain/namo_probs/moveholding.prob')
+        self.place = get_plan('../domains/namo_domain/namo_probs/place.prob')
 
     def test_llparam(self):
         # TODO: tests for undefined, partially defined and fully defined params
@@ -168,6 +169,7 @@ class TestLLSolver(unittest.TestCase):
     #     self.assertTrue(np.allclose(start.value, np.array([[0.],[7.]])))
     #     self.assertTrue(np.allclose(end.value, np.array([[0.],[0.]])))
     #
+
     def test_namo_solver_one_move_plan_solve_init(self):
         # return
         plan = self.move_no_obs
@@ -221,82 +223,16 @@ class TestLLSolver(unittest.TestCase):
         # time.sleep(3)
 
     def test_namo_solver_one_move_plan_solve(self):
-        # return
-        plan = self.move_no_obs
-        move = plan.actions[0]
-        pr2 = move.params[0]
-        start = move.params[1]
-        end = move.params[2]
-
-        plan_params = plan.params.values()
-        for action in plan.actions:
-            for p in action.params:
-                self.assertTrue(p in plan_params)
-            for pred_dict in action.preds:
-                pred = pred_dict['pred']
-                for p in pred.params:
-                    if p not in plan_params:
-                        if pred_dict['hl_info'] != 'hl_state':
-                            print pred
-                            break
-                    # self.assertTrue(p in plan_params)
-
-
-        callback = None
-        """
-        Uncomment out lines below to see optimization.
-        """
-        # viewer = OpenRAVEViewer()
-        # def callback():
-            # namo_solver._update_ll_params()
-            # viewer.draw_plan(plan)
-            # time.sleep(0.3)
-
-        """
-            Section Ends
-        """
-        namo_solver = ll_solver.NAMOSolver()
-        namo_solver.solve(plan, callback=callback)
-        # namo_solver._solve_opt_prob(plan, priority=1, callback=callback)
-        # namo_solver._update_ll_params()
+        _test_plan(self, self.move_no_obs)
 
     def test_move_grasp(self):
-        plan = self.move_grasp
-        callback = None
-        """
-        Uncomment out lines below to see optimization.
-        """
-        # viewer = OpenRAVEViewer.create_viewer()
-        # def callback():
-        #     namo_solver._update_ll_params()
-        #     viewer.draw_plan(plan)
-        #     time.sleep(0.3)
-        """
-        """
-        namo_solver = ll_solver.NAMOSolver()
-        namo_solver.solve(plan, callback=callback)
-        viewer = OpenRAVEViewer.create_viewer()
-        viewer.animate_plan(plan)
-        # import pdb; pdb.set_trace()
-
+        _test_plan(self, self.move_grasp)
 
     def test_moveholding(self):
-        plan = self.move_grasp_moveholding
-        callback = None
-        """
-        Uncomment out lines below to see optimization.
-        """
-        viewer = OpenRAVEViewer.create_viewer()
-        # def callback():
-        #     namo_solver._update_ll_params()
-        #     viewer.draw_plan(plan)
-        #     time.sleep(0.03)
-        """
-        """
-        namo_solver = ll_solver.NAMOSolver()
-        namo_solver.solve(plan, callback=callback)
-        viewer = OpenRAVEViewer.create_viewer()
-        viewer.animate_plan(plan)
+        _test_plan(self, self.move_grasp_moveholding)
+
+    def test_place(self):
+        _test_plan(self, self.place)
 
     def test_initialize_params(self):
         plan = self.move_no_obs
@@ -306,6 +242,35 @@ class TestLLSolver(unittest.TestCase):
 
         for p in plan.params.itervalues():
             self.assertTrue(p in namo_solver._init_values)
+
+
+def _test_plan(test_obj, plan):
+    callback = None
+    viewer = None
+    """
+    Uncomment out lines below to see optimization.
+    """
+    # viewer = OpenRAVEViewer.create_viewer()
+    # def callback():
+    #     namo_solver._update_ll_params()
+    #     viewer.draw_plan(plan)
+    #     time.sleep(0.03)
+    """
+    """
+    namo_solver = ll_solver.NAMOSolver()
+    namo_solver.solve(plan, callback=callback)
+
+    fp = plan.get_failed_preds()
+    _, _, t = plan.get_failed_pred()
+    
+    if viewer != None:
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
+        
+    test_obj.assertTrue(plan.satisfied())
+    
 
 if __name__ == "__main__":
     unittest.main()
