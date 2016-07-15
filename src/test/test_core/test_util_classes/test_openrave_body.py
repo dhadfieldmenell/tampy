@@ -94,12 +94,12 @@ class TestOpenRAVEBody(unittest.TestCase):
         self.domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         self.p_c = main.parse_file_to_dict(problem_fname)
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
-        # view = viewer.OpenRAVEViewer()
-        # robot = problem.init_state.params['dude']
-        # table = problem.init_state.params['rll_table']
-        # table.pose = np.array([[1],[0],[0.7]])
-        # view.draw([robot, table], 0, 0.7)
-        # import ipdb; ipdb.set_trace()
+        view = viewer.OpenRAVEViewer()
+        robot = problem.init_state.params['dude']
+        table = problem.init_state.params['rll_table']
+        table.pose = np.array([[1],[0],[0.7]])
+        view.draw([robot, table], 0, 0.7)
+        import ipdb; ipdb.set_trace()
 
 
 if __name__ == "__main__":

@@ -31,6 +31,11 @@ class OpenRAVEBody(object):
     def delete(self):
         self._env.Remove(self.env_body)
 
+    def set_transparency(self, transparency):
+        for link in self.env_body.GetLinks():
+            for geom in link.GetGeometries():
+                geom.SetTransparency(transparency)
+
 
     def _add_circle(self, geom):
         color = None
