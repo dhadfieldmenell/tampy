@@ -13,7 +13,7 @@ class TestParseDomainConfig(unittest.TestCase):
         s = self.domain.param_schemas
         self.assertEqual(len(s), 5)
         self.assertEqual(s["Can"].param_class.__name__, "Object")
-        self.assertEqual(s["Target"].param_class.__name__, "Object")
+        self.assertEqual(s["Target"].param_class.__name__, "Symbol")
         self.assertEqual(s["RobotPose"].param_class.__name__, "Symbol")
         self.assertEqual(s["Robot"].param_class.__name__, "Object")
         self.assertEqual(len(s["Can"].attr_dict), 4)
@@ -56,8 +56,8 @@ class TestParseDomainConfig(unittest.TestCase):
     def test_action_schemas_basic(self):
         s = self.domain.action_schemas["grasp"]
         self.assertEqual(s.name, "grasp")
-        self.assertEqual(s.horizon, 2)
-        self.assertEqual(s.params, [('?robot', 'Robot'), ('?can', 'Can'), ('?target', 'Target'), ('?gp', 'RobotPose'), ('?g', 'Grasp')])
+        self.assertEqual(s.horizon, 20)
+        self.assertEqual(s.params, [('?robot', 'Robot'), ('?can', 'Can'), ('?target', 'Target'), ('?sp', 'RobotPose'), ('?gp', 'RobotPose'), ('?g', 'Grasp')])
         self.assertEqual(s.universally_quantified_params, {'?g': 'Grasp', '?sym': 'RobotPose', '?obj': 'Can', '?sym1': 'Robotpose', '?obj1': 'Can'})
 
         s = self.domain.action_schemas["moveto"]

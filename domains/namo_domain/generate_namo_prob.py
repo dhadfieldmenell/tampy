@@ -33,7 +33,7 @@ def main():
 
         s += "Init: "
         for i in range(NUM_TARGETS):
-            s += "(geom target%d 1), (pose target%d %s), "%(i, i, list(coords[i]))
+            s += "(geom target%d 1), (value target%d %s), "%(i, i, list(coords[i]))
             s += "(value pdp_target%d undefined), "%i
         for i in range(NUM_CANS):
             s += "(geom can%d 1), (pose can%d %s), "%(i, i, list(coords[i]))

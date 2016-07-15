@@ -21,7 +21,7 @@ class TestParseProblemConfig(unittest.TestCase):
         self.assertEqual(len(problem.init_state.preds), 16)
         self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.get_type() == "Can"), 2)
         self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.get_type() == "Target"), 3)
-        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if not p.is_symbol()), 6)
+        self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if not p.is_symbol()), 3)
         self.assertEqual(sum(1 for k, p in problem.init_state.params.items() if p.name.startswith("pdp")), 3)
 
     def test_goal_test(self):
@@ -63,7 +63,7 @@ class TestParseProblemConfig(unittest.TestCase):
     def test_missing_derived_preds(self):
         # should work fine even with no derived predicates
         p2 = self.p_c.copy()
-        p2["Init"] = "(pose pr2 [1, 2]), (geom pr2 1), (geom target0 1), (pose target0 [3, 5]), (geom target1 1), (pose target1 [4,6]), (geom can0 1), (pose can0 [3, 5]), (value pdp_target0 undefined), (value grasp0 undefined), (value robot_init_pose [1, 2]), (pose can1 [2, 3]), (pose target2 [5, 5]) (value pdp_target2 undefined) (value pdp_target1 undefined);"
+        p2["Init"] = "(pose pr2 [1, 2]), (geom pr2 1), (geom target0 1), (value target0 [3, 5]), (geom target1 1), (value target1 [4,6]), (geom can0 1), (pose can0 [3, 5]), (value pdp_target0 undefined), (value grasp0 undefined), (value robot_init_pose [1, 2]), (pose can1 [2, 3]), (value target2 [5, 5]) (value pdp_target2 undefined) (value pdp_target1 undefined);"
         problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         self.assertEqual(problem.init_state.preds, set())
 

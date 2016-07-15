@@ -99,7 +99,9 @@ class TestCommonPredicates(unittest.TestCase):
         attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
         attr_types = {"name": str, "geom": circle.RedCircle, "pose": float, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
-        p1.pose = np.array([[1, 2, 3], [1 + tols[1], 2 + tols[1], 3], [1 + tols[2], 2 + tols[2], 3]]).T
+        p1.pose = np.array([[1, 2, 3],
+                            [1 + tols[1], 2 + tols[1], 3],
+                            [1 + tols[2], 2 + tols[2], 3]]).T
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": float, "_type": str}
         p2 = parameter.Symbol(attrs, attr_types)
@@ -116,6 +118,7 @@ class TestCommonPredicates(unittest.TestCase):
         e = expr.LEqExpr(aff_e, np.array([[0.]]))
         pred0 = common_predicates.ExprPredicate("leq_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
         self.assertTrue(pred0.test(0))
+        pred0.tol = tols[1]
         self.assertFalse(pred0.test(1))
         self.assertFalse(pred0.test(2))
 
