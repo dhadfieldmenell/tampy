@@ -52,8 +52,8 @@ def main():
         for i in range(NUM_TARGETS):
             s += "(InContact pr2 pdp_target{} target{}), ".format(i, i)
             s += "(GraspValid pdp_target{} target{} grasp0), ".format(i, i)
-
-        s += "(RobotAt pr2 robot_init_pose)\n\n"
+        s += "(RobotAt pr2 robot_init_pose), "
+        s += "(IsMP pr2)\n\n"
         s += "Goal: %s"%GOAL
 
         with open("namo_probs/namo_%d_%d.prob"%(SEED, iteration), "w") as f:

@@ -145,7 +145,7 @@ class FFSolver(HLSolver):
         for action_str in plan_str:
             spl = action_str.split()
             a_name = spl[1].lower()
-            ## subtract 1 b/c subsequent actions have an overlapping 
+            ## subtract 1 b/c subsequent actions have an overlapping
             ## first and last state
             hor += domain.action_schemas[a_name].horizon - 1
         return hor
