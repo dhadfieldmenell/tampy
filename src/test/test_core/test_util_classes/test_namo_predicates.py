@@ -304,7 +304,6 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.test(time = 2))
         self.assertFalse(pred.test(time = 3))
 
-
     def test_stationary(self):
         # Stationary, Can
         attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can"]}
@@ -327,7 +326,6 @@ class TestNamoPredicates(unittest.TestCase):
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=2)
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary can)' at the timestep.")
-
 
     def test_stationary_neq(self):
         # StationaryNEq, Can, Can
@@ -386,7 +384,6 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 1))
         self.assertFalse(pred.test(time = 2))
 
-
         robot.pose = np.array([[1,2,3,4],
                                [5,6,7,8]])
         self.assertTrue(pred.test(time = 0))
@@ -395,11 +392,6 @@ class TestNamoPredicates(unittest.TestCase):
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=3)
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'IsMP: (IsMP pr2)' at the timestep.")
-
-
-
-
-
 
 if __name__ == "__main__":
     unittest.main()
