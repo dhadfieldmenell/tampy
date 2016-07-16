@@ -109,11 +109,12 @@ class NAMOSolver(LLSolver):
 
     def solve(self, plan, callback=None, n_resamples=5):
         success = False
-        initialized=True #False
-        # if not plan.initialized:            
-        #      ## solve at priority -1 to get an initial value for the parameters
-        #     initialized=True
-        #     self._solve_opt_prob(plan, priority=-1, callback=callback)
+        initialized=False
+        # initialized = True
+        if not plan.initialized:            
+             ## solve at priority -1 to get an initial value for the parameters
+            initialized=True
+            self._solve_opt_prob(plan, priority=-1, callback=callback)
         
         for _ in range(n_resamples):
         ## refinement loop

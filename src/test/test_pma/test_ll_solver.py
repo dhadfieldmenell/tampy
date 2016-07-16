@@ -245,12 +245,13 @@ class TestLLSolver(unittest.TestCase):
 
 
 def _test_plan(test_obj, plan):
+    print "testing plan: {}".format(plan.actions)
     callback = None
     viewer = None
     """
     Uncomment out lines below to see optimization.
     """
-    # viewer = OpenRAVEViewer.create_viewer()
+    viewer = OpenRAVEViewer.create_viewer()
     # def callback():
     #     namo_solver._update_ll_params()
     #     viewer.draw_plan(plan)
