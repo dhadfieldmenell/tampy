@@ -11,27 +11,26 @@ import numpy as np
 
 class TestProblem(unittest.TestCase):
     def setUp(self):
-        raidus = 1
 
-        attrs = {"name": ["robot"], "geom": [raidus], "pose": [(0,0)], "_type": ["Robot"]}
+        attrs = {"name": ["robot"], "geom": [1], "pose": [(0,0)], "_type": ["Robot"]}
         attr_types = {"name": str, "geom": circle.RedCircle,"pose": Vector2d, "_type": str}
         self.robot = parameter.Object(attrs, attr_types)
 
-        attrs = {"name": ["can"], "geom": [raidus], "pose": [(3,4)], "_type": ["Can"]}
+        attrs = {"name": ["can"], "geom": [1], "pose": ["undefined"], "_type": ["Can"]}
         attr_types = {"name": str, "geom": circle.RedCircle,"pose": Vector2d, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
 
-        attrs = {"name": ["target"], "pose": ["undefined"], "_type": ["Target"]}
-        attr_types = {"name": str, "pose": Vector2d, "_type": str}
-        self.target = parameter.Object(attrs, attr_types)
+        attrs = {"name": ["target"], "geom": [1], "value": ["undefined"], "_type": ["Target"]}
+        attr_types = {"name": str, "geom":circle.BlueCircle, "value": Vector2d, "_type": str}
+        self.target = parameter.Symbol(attrs, attr_types)
 
-        attrs = {"name": ["gp"], "value": [(3,6.01)], "_type": ["Sym"]}
+        attrs = {"name": ["gp"], "value": [(3,6.1)], "_type": ["Sym"]}
         attr_types = {"name": str, "value": Vector2d, "_type": str}
         self.gp = parameter.Symbol(attrs, attr_types)
 
         self.at = namo_predicates.At("at", [self.can, self.target], ["Can", "Target"])
         env = Environment()
-        self.in_contact = namo_predicates.InContact("incontact", [self.robot, self.gp, self.can], ["Robot","Sym", "Can"], env=env)
+        self.in_contact = namo_predicates.InContact("incontact", [self.robot, self.gp, self.target], ["Robot","Sym", "Target"], env=env)
         self.init_state = state.State("state", {self.can.name: self.can, self.target.name: self.target, self.gp.name: self.gp},
                                       [self.at, self.in_contact], timestep=0)
 
@@ -40,16 +39,16 @@ class TestProblem(unittest.TestCase):
             problem.Problem(self.init_state, None, None)
         self.assertEqual(cm.exception.message, "Initial state is not concrete. Have all non-symbol parameters been instantiated with a value?")
         self.can.pose = np.array([[3, 0], [4, 2]])
-        self.target.pose = np.array([[3, 1], [3, 2]])
+        self.target.value = np.array([[3, 1], [3, 2]])
         with self.assertRaises(ProblemConfigException) as cm:
             problem.Problem(self.init_state, None, None)
         self.assertEqual(cm.exception.message, "Initial state is not consistent (predicates are violated).")
-        self.target.pose = np.array([[3, 0], [4, 2]])
+        self.target.value = np.array([[3, 0], [4, 2]])
         problem.Problem(self.init_state, None, None)
 
     def test_goal_test(self):
         self.can.pose = np.array([[3, 0, 5], [4, 1, 1]])
-        self.target.pose = np.array([[3, 0, 4], [4, 2, 0]])
+        self.target.value = np.array([[3, 0, 4], [4, 2, 0]])
         p = problem.Problem(self.init_state, [self.at], None)
         # problems only consider timestep 0 in their goal test,
         # so this will be True even though the poses become different at timestep 1

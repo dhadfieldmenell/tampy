@@ -82,7 +82,7 @@ class TestHLSolver(unittest.TestCase):
                         return True
             return False
 
-        moveto = plan.actions[0]
+        moveto = plan.actions[1]
         moveto_pred_rep_list = extract_pred_reps_from_pred_dicts(moveto.preds)
 
         self.assertTrue('(InContact pr2 pdp_target1 target1)' in moveto_pred_rep_list)
@@ -92,7 +92,7 @@ class TestHLSolver(unittest.TestCase):
         self.assertTrue('(RobotAt pr2 pdp_target0)' in moveto_pred_rep_list)
         self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 pdp_target0)', "eff"))
 
-        grasp = plan.actions[1]
+        grasp = plan.actions[0]
         grasp_pred_rep_list = extract_pred_reps_from_pred_dicts(grasp.preds)
         self.assertTrue('(RobotAt pr2 robot_init_pose)' not in grasp_pred_rep_list)
         self.assertTrue('(InContact pr2 pdp_target0 target0)' in grasp_pred_rep_list)
@@ -122,7 +122,7 @@ class TestHLSolver(unittest.TestCase):
         abs_prob = self.hls.translate_problem(problem)
         plan = self.hls.solve(abs_prob, self.domain, problem)
         # test plan itself
-        self.assertEqual(plan.horizon, 121)
+        self.assertEqual(plan.horizon, 172)
         # self.assertEqual(repr(plan.actions), '[0: moveto (0, 19) pr2 robot_init_pose pdp_target1, 1: grasp (20, 21) pr2 can1 target1 pdp_target1 grasp0, 2: movetoholding (22, 41) pr2 pdp_target1 pdp_target2 can1 grasp0, 3: putdown (42, 43) pr2 can1 target2 pdp_target2 grasp0, 4: moveto (44, 63) pr2 pdp_target2 pdp_target0, 5: grasp (64, 65) pr2 can0 target0 pdp_target0 grasp0, 6: movetoholding (66, 85) pr2 pdp_target0 pdp_target1 can0 grasp0, 7: putdown (86, 87) pr2 can0 target1 pdp_target1 grasp0, 8: moveto (88, 107) pr2 pdp_target1 pdp_target2, 9: grasp (108, 109) pr2 can1 target2 pdp_target2 grasp0, 10: movetoholding (110, 129) pr2 pdp_target2 pdp_target0 can1 grasp0, 11: putdown (130, 131) pr2 can1 target0 pdp_target0 grasp0]')
         # test plan params
         self.assertEqual(len(plan.params), 11)
