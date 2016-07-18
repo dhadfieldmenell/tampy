@@ -101,5 +101,15 @@ class OpenRAVEViewer(Viewer):
             if not p.is_symbol():
                 obj_list.append(p)
         self.draw(obj_list, t)
+
+    def draw_cols_ts(self, plan, t):
+        preds = plan.get_active_preds(t)
+        for p in preds:
+            try: 
+                p.plot_cols(self.env, t)
+            except AttributeError:
+                ## some predicates won't define a collision
+                continue
+        
         
 

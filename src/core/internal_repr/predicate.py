@@ -13,6 +13,7 @@ class Predicate(object):
         self.validate_params(expected_param_types)
         self.env = env
         self.dynamic=dynamic
+        self.priority = 0
 
     def get_type(self):
         return self.__class__.__name__

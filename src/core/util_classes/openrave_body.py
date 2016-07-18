@@ -7,7 +7,10 @@ from core.util_classes.pr2 import PR2
 from core.util_classes.can import Can, BlueCan, RedCan
 from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
 from core.util_classes.obstacle import Obstacle
+from core.util_classes.wall import Wall
 from core.util_classes.table import Table
+
+WALL_THICKNESS = 1
 
 class OpenRAVEBody(object):
     def __init__(self, env, name, geom):
@@ -20,11 +23,13 @@ class OpenRAVEBody(object):
         elif isinstance(geom, Can):
             self._add_circle(geom)
         elif isinstance(geom, Obstacle):
-            self._add_obstacle()
+            self._add_obstacle(geom)
         elif isinstance(geom, PR2):
             self._add_robot(geom)
         elif isinstance(geom, Table):
             self._add_table(geom)
+        elif isinstance(geom, Wall):
+            self._add_wall(geom)
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
 
@@ -69,6 +74,11 @@ class OpenRAVEBody(object):
         self.env_body = body
         self._env.AddKinBody(body)
 
+    def _add_wall(self, geom):
+        self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
+        self.env_body.SetName(self.name)
+        self._env.Add(self.env_body)
+
     def _add_robot(self, geom):
         self.env_body = self._env.ReadRobotXMLFile(geom.shape)
         self.env_body.SetName(self.name)
@@ -89,6 +99,8 @@ class OpenRAVEBody(object):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif isinstance(self._geom, Table):
             trans = OpenRAVEBody.base_pose_3D_to_mat(base_pose)
+        elif isinstance(self._geom, Wall):
+            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         self.env_body.SetTransform(trans)
 
     def set_dof(self, back_height, l_arm_pose, r_arm_pose):
@@ -139,6 +151,45 @@ class OpenRAVEBody(object):
         infobox._fTransparency = 0
         infobox._vDiffuseColor = color
         return infobox
+
+    @staticmethod
+    def create_wall(env, wall_type):
+        component_type = KinBody.Link.GeomType.Box
+        wall_color = [0.5, 0.2, 0.1]
+        box_infos = []
+        if wall_type == 'closet':
+            wall_endpoints = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
+        else:
+            raise NotImplemented
+        for i, (start, end) in enumerate(zip(wall_endpoints[0:-1], wall_endpoints[1:])):
+            dim_x, dim_y = 0, 0
+            thickness = WALL_THICKNESS
+            if start[0] == end[0]:
+                ind_same, ind_diff = 0, 1
+                length = abs(start[ind_diff] - end[ind_diff])
+                dim_x, dim_y = thickness, length/2 + thickness
+            elif start[1] == end[1]:
+                ind_same, ind_diff = 1, 0
+                length = abs(start[ind_diff] - end[ind_diff])
+                dim_x, dim_y = length/2 + thickness, thickness
+            else:
+                raise NotImplemented, 'Can only create axis-aligned walls'
+
+            transform = np.eye(4)
+            transform[ind_same, 3] = start[ind_same]
+            if start[ind_diff] < end[ind_diff]:
+                transform[ind_diff, 3] = start[ind_diff] + length/2
+            else:
+                transform[ind_diff, 3] = end[ind_diff] + length/2
+            dims = [dim_x, dim_y, 1]
+            box_info = OpenRAVEBody.create_body_info(component_type, dims, wall_color)
+            box_info._t = transform
+            box_infos.append(box_info)
+        wall = RaveCreateRobot(env, '')
+        wall.InitFromGeometries(box_infos)
+        return wall
+            
+
 
     @staticmethod
     def create_table(env, geom):

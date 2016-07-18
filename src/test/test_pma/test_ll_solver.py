@@ -33,6 +33,7 @@ class TestLLSolver(unittest.TestCase):
         self.move_grasp = get_plan('../domains/namo_domain/namo_probs/move_grasp.prob')
         self.move_grasp_moveholding = get_plan('../domains/namo_domain/namo_probs/moveholding.prob')
         self.place = get_plan('../domains/namo_domain/namo_probs/place.prob')
+        self.putaway = get_plan('../domains/namo_domain/namo_probs/putaway.prob')
 
     def test_llparam(self):
         # TODO: tests for undefined, partially defined and fully defined params
@@ -234,6 +235,9 @@ class TestLLSolver(unittest.TestCase):
     def test_place(self):
         _test_plan(self, self.place)
 
+    def test_putaway(self):
+        _test_plan(self, self.putaway)
+
     def test_initialize_params(self):
         plan = self.move_no_obs
 
@@ -252,10 +256,10 @@ def _test_plan(test_obj, plan):
     Uncomment out lines below to see optimization.
     """
     viewer = OpenRAVEViewer.create_viewer()
-    # def callback():
-    #     namo_solver._update_ll_params()
-    #     viewer.draw_plan(plan)
-    #     time.sleep(0.03)
+    def callback():
+        namo_solver._update_ll_params()
+        viewer.draw_plan(plan)
+        time.sleep(0.03)
     """
     """
     namo_solver = ll_solver.NAMOSolver()
@@ -263,7 +267,7 @@ def _test_plan(test_obj, plan):
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
-    
+    # 
     if viewer != None:
         viewer = OpenRAVEViewer.create_viewer()
         viewer.animate_plan(plan)

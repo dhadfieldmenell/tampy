@@ -23,8 +23,8 @@ contact_dist = 0
 class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
         self._debug = debug
-        if self._debug:
-            self._env.SetViewer("qtcoin")
+        # if self._debug:
+        #     self._env.SetViewer("qtcoin")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
@@ -39,6 +39,13 @@ class CollisionPredicate(ExprPredicate):
         else:
             param.openrave_body = OpenRAVEBody(self._env, name, geom)
         return param.openrave_body
+
+    def plot_cols(self, env, t):
+        _debug = self._debug
+        self._env = env
+        self._debug = True
+        self.distance_from_obj(self.get_param_vector(t))
+        self._debug = _debug
 
     def distance_from_obj(self, x):
         # self._cc.SetContactDistance(self.dsafe + .1)
@@ -64,8 +71,9 @@ class CollisionPredicate(ExprPredicate):
 
     def _calc_grad_and_val(self, name0, name1, pose0, pose1, collisions):
         val = -1 * float("inf")
-        jac0 = None
-        jac1 = None
+        jac0 = np.zeros(2)
+        jac1 = np.zeros(2)
+        results = []
         for c in collisions:
             linkA = c.GetLinkAParentName()
             linkB = c.GetLinkBParentName()
@@ -81,6 +89,7 @@ class CollisionPredicate(ExprPredicate):
 
             distance = c.GetDistance()
             normal = c.GetNormal()
+            results.append((pt0, pt1, distance))
 
             # plotting
             if self._debug:
@@ -93,9 +102,16 @@ class CollisionPredicate(ExprPredicate):
 
             # if there are multiple collisions, use the one with the greatest penetration distance
             if self.dsafe - distance > val:
+                chosen_pt0, chosen_pt1 = (pt0, pt1)
+                chosen_distance = distance
                 val = self.dsafe - distance
                 jac0 = -1 * normal[0:2]
                 jac1 = normal[0:2]
+
+        if self._debug:
+            print "options: ", results
+            print "selected: ", chosen_pt0, chosen_pt1
+            self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
 
         if jac0 is None or jac1 is None or val is None:
             import ipdb; ipdb.set_trace()
@@ -157,11 +173,98 @@ class InContact(CollisionPredicate):
         grad = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        # val = -np.ones((1, 1))*1e-1
-        val = np.zeros((1, 1))
+        val = -np.ones((1, 1))*dsafe
+        # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
+class Collides(CollisionPredicate):
+    
+    # Collides Can Wall
+    
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.c, self.w = params
+        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]), 
+                                 (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
+        self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
+                               self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
+
+        f = lambda x: -self.distance_from_obj(x)[0]
+        grad = lambda x: -self.distance_from_obj(x)[1]
+
+        ## so we have an expr for the negated predicate
+        f_neg = lambda x: self.distance_from_obj(x)[0]
+        def grad_neg(x):
+            # print self.distance_from_obj(x)
+            return -self.distance_from_obj(x)[1]
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((1,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+
+        super(Collides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1)
+        self.priority = 1
+
+    def get_expr(self, negated):
+        if negated:
+            return self.neg_expr
+        else:
+            return None
+
+
+class RCollides(CollisionPredicate):
+    
+    # RCollides Robot Obstacle
+    
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.r, self.w = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]), 
+                                 (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
+        self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
+                               self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
+
+        f = lambda x: -self.distance_from_obj(x)[0]
+        grad = lambda x: -self.distance_from_obj(x)[1]
+
+        ## so we have an expr for the negated predicate
+        def f_neg(x):
+            d = self.distance_from_obj(x)[0]
+            # if d > 0:
+            #     import pdb; pdb.set_trace()
+            #     self.distance_from_obj(x)
+            return d
+
+        def grad_neg(x):
+            # print self.distance_from_obj(x)
+            return -self.distance_from_obj(x)[1]
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((1,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+
+        super(RCollides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1)
+
+        self.priority = 1
+
+    def get_expr(self, negated):
+        if negated:
+            return self.neg_expr
+        else:
+            return None
+
+        
 
 class Obstructs(CollisionPredicate):
 
@@ -354,6 +457,24 @@ class StationaryNEq(ExprPredicate):
             b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+
+class StationaryW(ExprPredicate):
+
+    # StationaryNEq, Can, Can
+    # Assuming robot only holding one object,
+    # it checks whether the can in the first argument is stationary
+    # if that first can is not the second can which robot is holding
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.w, = params
+        attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1], dtype=np.int))])])
+        A = np.array([[1, 0, -1, 0],
+                      [0, 1, 0, -1]])
+        b = np.zeros((2, 1))
+        e = EqExpr(AffExpr(A, b), b)
+        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+
+
 
 class IsMP(ExprPredicate):
 
