@@ -21,7 +21,7 @@ class TestState(unittest.TestCase):
         attr_types = {"name": str, "geom": circle.BlueCircle, "value": Vector2d, "_type": str}
         self.target = parameter.Symbol(attrs, attr_types)
 
-        attrs = {"name": ["gp"], "value": [(3, 6.1)], "_type": ["Sym"]}
+        attrs = {"name": ["gp"], "value": [(3, 6.)], "_type": ["Sym"]}
         attr_types = {"name": str, "value": Vector2d, "_type": str}
         self.gp = parameter.Symbol(attrs, attr_types)
 

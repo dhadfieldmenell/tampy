@@ -130,7 +130,7 @@ class At(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         ## At Can Target
         self.can, self.targ = params
-        attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]), 
+        attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]),
                                  (self.targ, [("value", np.array([0,1], dtype=np.int))])])
 
         A = np.c_[np.eye(2), -np.eye(2)]
@@ -173,19 +173,19 @@ class InContact(CollisionPredicate):
         grad = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = -np.ones((1, 1))*dsafe
+        val = np.ones((1, 1))*dsafe
         # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
 class Collides(CollisionPredicate):
-    
-    # Collides Can Wall
-    
+
+    # Collides Can Wall(Obstacle)
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.c, self.w = params
-        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]), 
+        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
@@ -219,13 +219,13 @@ class Collides(CollisionPredicate):
 
 
 class RCollides(CollisionPredicate):
-    
-    # RCollides Robot Obstacle
-    
+
+    # RCollides Robot Wall(Obstacle)
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.r, self.w = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]), 
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
         self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
@@ -264,7 +264,7 @@ class RCollides(CollisionPredicate):
         else:
             return None
 
-        
+
 
 class Obstructs(CollisionPredicate):
 
@@ -274,7 +274,7 @@ class Obstructs(CollisionPredicate):
         assert len(params) == 3
         self._env = env
         r, rp, c = params
-        attr_inds = OrderedDict([(r, [("pose", np.array([0, 1], dtype=np.int))]), 
+        attr_inds = OrderedDict([(r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (c, [("pose", np.array([0, 1], dtype=np.int))])])
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
@@ -321,7 +321,7 @@ class ObstructsHolding(CollisionPredicate):
                                  (obstr, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (held, [("pose", np.array([0, 1], dtype=np.int))])
                                  ])
-        
+
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
                                held: self.lazy_spawn_or_body(held, held.name, held.geom)}
@@ -382,7 +382,7 @@ class ObstructsHolding(CollisionPredicate):
             else:
                 val = np.array(col_val2)
                 jac = np.r_[np.zeros(2), jac1_, jac2].reshape((1, 6))
-            
+
         return val, jac
 
 class InGripper(ExprPredicate):
@@ -460,10 +460,7 @@ class StationaryNEq(ExprPredicate):
 
 class StationaryW(ExprPredicate):
 
-    # StationaryNEq, Can, Can
-    # Assuming robot only holding one object,
-    # it checks whether the can in the first argument is stationary
-    # if that first can is not the second can which robot is holding
+    # StationaryW, Wall(Obstacle)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params
@@ -479,7 +476,7 @@ class StationaryW(ExprPredicate):
 class IsMP(ExprPredicate):
 
     # IsMP Robot
-    
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove

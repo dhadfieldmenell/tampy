@@ -178,7 +178,7 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
         robotPose.value = np.zeros((2,4))
-        target.value = np.array([[2*radius+pred.dsafe, radius, 2*radius, 2*radius-pred.dsafe,  0],
+        target.value = np.array([[2*radius, radius, 2*radius, 2*radius-pred.dsafe,  0],
                                  [0,                   0,      0,        0,                    0]])
         self.assertTrue(pred.test(time = 0))
         self.assertTrue(pred.test(time = 1))
@@ -186,7 +186,7 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.test(time = 3))
         self.assertTrue(pred.test(time = 4))
         #since it symbol are assumed to be unchanged, test should always check distance with first traj vector
-        robotPose.value = np.array([[radius, 3*radius + pred.dsafe, 0, -pred.dsafe, 2*radius+pred.dsafe],
+        robotPose.value = np.array([[-pred.dsafe, 3*radius + pred.dsafe, 0, -pred.dsafe, 2*radius+pred.dsafe],
                                     [0,      0,                     0, 0,           0]])
         self.assertFalse(pred.test(time = 0))
         self.assertFalse(pred.test(time = 1))

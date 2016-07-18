@@ -56,7 +56,7 @@ class OpenRAVEBody(object):
                 [geom.radius, 2], color)
         self._env.AddKinBody(self.env_body)
 
-    def _add_obstacle(self):
+    def _add_obstacle(self, geom):
         obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
                         -0.806451612903226,-1.07017543859649, 1;\
                         1.01843317972350,-0.988304093567252, 1;\
@@ -193,7 +193,7 @@ class OpenRAVEBody(object):
         wall = RaveCreateRobot(env, '')
         wall.InitFromGeometries(box_infos)
         return wall
-            
+
 
 
     @staticmethod
