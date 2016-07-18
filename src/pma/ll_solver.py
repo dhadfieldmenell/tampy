@@ -1,6 +1,6 @@
 from sco.prob import Prob
 from sco.variable import Variable
-from sco.expr import BoundExpr, QuadExpr
+from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
 
 from core.util_classes import common_predicates
@@ -10,6 +10,8 @@ import gurobipy as grb
 import numpy as np
 GRB = grb.GRB
 from IPython import embed as shell
+
+MAX_PRIORITY=5
 
 class LLSolver(object):
     """
@@ -109,11 +111,13 @@ class NAMOSolver(LLSolver):
 
     def solve(self, plan, callback=None, n_resamples=5):
         success = False
-        initialized=True #False
-        # if not plan.initialized:            
-        #      ## solve at priority -1 to get an initial value for the parameters
-        #     initialized=True
-        #     self._solve_opt_prob(plan, priority=-1, callback=callback)
+        initialized=False
+        # initialized = True
+        if not plan.initialized:            
+             ## solve at priority -1 to get an initial value for the parameters
+            initialized=True
+            self._solve_opt_prob(plan, priority=-1, callback=callback)
+
         
         for _ in range(n_resamples):
         ## refinement loop
@@ -139,7 +143,7 @@ class NAMOSolver(LLSolver):
         if priority == -1:
             obj_bexprs = self._get_trajopt_obj(plan)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_first_and_last_timesteps_of_actions(plan)
+            self._add_first_and_last_timesteps_of_actions(plan, priority=-1)
         elif priority == 0:
             ## solve an optimization movement primitive to 
             ## transfer current trajectories
@@ -147,7 +151,7 @@ class NAMOSolver(LLSolver):
         elif priority == 1:
             obj_bexprs = self._get_trajopt_obj(plan)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan)
+            self._add_all_timesteps_of_actions(plan, priority=1)
 
         solv = Solver()
         success = solv.solve(self._prob, method='penalty_sqp')
@@ -173,9 +177,10 @@ class NAMOSolver(LLSolver):
             shape = param.pose.shape
         self._init_values[param] = np.random.rand(*shape)
 
-    def _add_pred_dict(self, pred_dict, effective_timesteps):
+    def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True, priority=MAX_PRIORITY):
         ## for debugging
         ignore_preds = []
+        priority = np.max(priority, 0)
         if not pred_dict['hl_info'] == "hl_state":
             print "pred being added: ", pred_dict
             start, end = pred_dict['active_timesteps']
@@ -187,29 +192,40 @@ class NAMOSolver(LLSolver):
             if pred.get_type() in ignore_preds: 
                 return
 
+            if pred.priority > priority: return
+
+            # if pred.get_type() == 'InContact':
+            #     import pdb; pdb.set_trace()
+
             assert isinstance(pred, common_predicates.ExprPredicate)
             expr = pred.get_expr(negated)
 
             for t in effective_timesteps:
                 if t in active_range:
                     if expr is not None:
-                        print "expr being added at time ", t
-                        var = self._spawn_sco_var_for_pred(pred, t)
-                        bexpr = BoundExpr(expr, var)
-                        self._prob.add_cnt_expr(bexpr)
+                        if add_nonlin or isinstance(expr.expr, AffExpr):
+                            print "expr being added at time ", t
+                            var = self._spawn_sco_var_for_pred(pred, t)
+                            bexpr = BoundExpr(expr, var)
+                            self._prob.add_cnt_expr(bexpr)
 
-    def _add_first_and_last_timesteps_of_actions(self, plan):
+    def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY):
         for action in plan.actions:
             action_start, action_end = action.active_timesteps
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, [action_start, action_end])
+            ## add all of the linear ineqs
+            timesteps = range(action_start+1, action_end)
+            for pred_dict in action.preds:
+                self._add_pred_dict(pred_dict, timesteps, add_nonlin=False, priority=priority)
+                
 
-    def _add_all_timesteps_of_actions(self, plan):
+    def _add_all_timesteps_of_actions(self, plan, priority=MAX_PRIORITY):
         for action in plan.actions:
             action_start, action_end = action.active_timesteps
             timesteps = range(action_start, action_end+1)
             for pred_dict in action.preds:
-                self._add_pred_dict(pred_dict, timesteps)
+                self._add_pred_dict(pred_dict, timesteps, priority=priority)
 
     def _update_ll_params(self):
         for ll_param in self._param_to_ll.values():
@@ -234,7 +250,7 @@ class NAMOSolver(LLSolver):
     def _get_trajopt_obj(self, plan):
         traj_objs = []
         for param in plan.params.values():
-            if param._type in ['Robot', 'Can']:
+            if param._type in ['Robot', 'Can', 'Obstacle']:
                 T = plan.horizon
                 K = 2
                 pose = param.pose
