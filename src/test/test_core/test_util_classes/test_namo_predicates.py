@@ -4,10 +4,12 @@ from core.util_classes.matrix import Vector2d
 from core.util_classes import common_predicates, namo_predicates
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import circle
+from core.util_classes import wall
 from errors_exceptions import PredicateException, ParamValidationException
 from sco import expr
 import numpy as np
 from openravepy import Environment
+from core.util_classes import viewer
 
 N = 10
 
@@ -141,17 +143,6 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.test(time=2))
         self.assertTrue(pred.test(time=3))
 
-        """
-        test below for checking gradient doesn't work well because the normal
-        returned by the collision can be off by quite a bit
-        """
-        # le_expr = pred.expr
-        # col_expr = le_expr.expr
-        # for i in range(N):
-        #     x = np.random.rand(4)
-        #     print x[0:2] - x[2:4]
-        #     print "x: ", x
-        #     col_expr.grad(x, num_check=True, atol=1e-1)
 
     def test_in_contact(self):
         # InContact, Robot, RobotPose, Target
@@ -230,6 +221,26 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time=1))
         self.assertTrue(pred.test(time=2))
         self.assertTrue(pred.test(time=3))
+
+        pred2 = namo_predicates.ObstructsHolding("obstruct holding2", [robot, robotPose, can2, can2], ["Robot", "RobotPose", "Can", "Can"], env)
+        # since the object holding, object obstructing and robot are at the same position, can2 obstructs robot
+        self.assertTrue(pred2.test(0))
+        can2.pose = np.array([[2*radius, 2*radius+pred2.dsafe, 2*radius-pred2.dsafe, 3*radius],
+                              [0,        0,                    0,                    0]])
+        # At timestep 0, touching is allowed, so not obstruct
+        self.assertFalse(pred2.test(time=0))
+        # At timestep 1, with a distance of dsafe is also allowed, also not obstruct
+        self.assertFalse(pred2.test(time=1))
+        # At timestep 2, there is intersect distance of dsafe, it obstructs
+        self.assertTrue(pred2.test(time=2))
+        # At timestep 4, objects are far away from robot, thus not obstructs
+        self.assertFalse(pred2.test(time=3))
+
+        # # Test whether negation is consistent
+        # self.assertTrue(pred2.test(time=0, negated = True))
+        # self.assertTrue(pred2.test(time=1, negated = True))
+        # self.assertTrue(pred2.test(time=2, negated = True))
+        # self.assertTrue(pred2.test(time=3, negated = True))
 
     def test_in_gripper(self):
         # InGripper, Robot, Can, Grasp
@@ -393,6 +404,84 @@ class TestNamoPredicates(unittest.TestCase):
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=3)
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'IsMP: (IsMP pr2)' at the timestep.")
+
+    def test_collides(self):
+        env = Environment()
+        attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        can = parameter.Object(attrs, attr_types)
+
+        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Wall"], "name": ["wall"]}
+        attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
+        border = parameter.Object(attrs, attr_types)
+
+        pred = namo_predicates.Collides("collides", [can, border], ["Can", "Wall"], env)
+        self.assertTrue(pred.test(0))
+        border.pose = np.zeros((2,4))
+        can.pose = np.array([[1+pred.dsafe, 1+2*pred.dsafe, 1, 1-pred.dsafe],
+                             [0,            0,            0,            0]])
+
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(1))
+        self.assertTrue(pred.test(2))
+        self.assertTrue(pred.test(3))
+
+        """
+            Uncomment the following to see the graph
+        """
+        # v = viewer.OpenRAVEViewer()
+        # v.draw([can, border], 0, 0.5)
+        # import ipdb; ipdb.set_trace()
+
+    def test_r_collides(self):
+        env = Environment()
+        attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
+        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        robot = parameter.Object(attrs, attr_types)
+
+        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Wall"], "name": ["wall"]}
+        attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
+        border = parameter.Object(attrs, attr_types)
+
+        pred = namo_predicates.RCollides("collides", [robot, border], ["Robot", "Wall"], env)
+        self.assertTrue(pred.test(0))
+        border.pose = np.zeros((2,4))
+        robot.pose = np.array([[1+pred.dsafe, 1+2*pred.dsafe, 1, 1-pred.dsafe],
+                               [0,            0,            0,            0]])
+
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(1))
+        self.assertTrue(pred.test(2))
+        self.assertTrue(pred.test(3))
+        #
+        # """
+        #     Uncomment the following to see the graph
+        # """
+        # v = viewer.OpenRAVEViewer()
+        # v.draw([robot, border], 2, 0.5)
+        # import ipdb; ipdb.set_trace()
+
+    def test_stationary_w(self):
+        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Wall"], "name": ["wall"]}
+        attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
+        border = parameter.Object(attrs, attr_types)
+
+        pred = namo_predicates.StationaryW("test_StationaryW", [border], ["Wall"])
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=0)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_StationaryW: (StationaryW wall)' at the timestep.")
+
+        border.pose = np.array([[1, 2],
+                                [4, 4]])
+        self.assertFalse(pred.test(time = 0))
+        border.pose = np.array([[1, 1, 2],
+                                [2, 2, 2]])
+        self.assertTrue(pred.test(time = 0))
+        self.assertFalse(pred.test(time = 1))
+
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=2)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_StationaryW: (StationaryW wall)' at the timestep.")
 
 if __name__ == "__main__":
     unittest.main()

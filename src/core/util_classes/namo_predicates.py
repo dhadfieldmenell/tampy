@@ -180,7 +180,7 @@ class InContact(CollisionPredicate):
 
 class Collides(CollisionPredicate):
 
-    # Collides Can Wall(Obstacle)
+    # Collides Can Wall
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -220,7 +220,7 @@ class Collides(CollisionPredicate):
 
 class RCollides(CollisionPredicate):
 
-    # RCollides Robot Wall(Obstacle)
+    # RCollides Robot Wall
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -460,7 +460,7 @@ class StationaryNEq(ExprPredicate):
 
 class StationaryW(ExprPredicate):
 
-    # StationaryW, Wall(Obstacle)
+    # StationaryW, Wall
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params
