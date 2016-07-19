@@ -28,8 +28,9 @@ def main():
                 # s += "RobotPose (name gp_can%d); "%i
         s += "Robot (name %s); "%"pr2"
         s += "Grasp (name {}); ".format("grasp0")
-        s += "RobotPose (name %s) \n\n"%"robot_init_pose"
-
+        s += "RobotPose (name %s); "%"robot_init_pose"
+        s += "RobotPose (name %s); "%"robot_end_pose"
+        s += "Obstacle (name %s) \n\n"%"obs0"
 
         s += "Init: "
         for i in range(NUM_TARGETS):
@@ -53,7 +54,9 @@ def main():
             s += "(InContact pr2 pdp_target{} target{}), ".format(i, i)
             s += "(GraspValid pdp_target{} target{} grasp0), ".format(i, i)
         s += "(RobotAt pr2 robot_init_pose), "
-        s += "(IsMP pr2)\n\n"
+        s += "(IsMP pr2), "
+        s += "(StationaryW obs0) \n\n"
+
         s += "Goal: %s"%GOAL
 
         with open("namo_probs/namo_%d_%d.prob"%(SEED, iteration), "w") as f:
