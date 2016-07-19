@@ -10,6 +10,7 @@ from sco import expr
 import numpy as np
 from openravepy import Environment
 from core.util_classes import viewer
+import numdifftools as nd
 
 N = 10
 
@@ -236,11 +237,11 @@ class TestNamoPredicates(unittest.TestCase):
         # At timestep 4, objects are far away from robot, thus not obstructs
         self.assertFalse(pred2.test(time=3))
 
-        # # Test whether negation is consistent
-        # self.assertTrue(pred2.test(time=0, negated = True))
-        # self.assertTrue(pred2.test(time=1, negated = True))
-        # self.assertTrue(pred2.test(time=2, negated = True))
-        # self.assertTrue(pred2.test(time=3, negated = True))
+        # Test whether negation is consistent
+        self.assertTrue(pred2.test(time=0, negated = True))
+        self.assertTrue(pred2.test(time=1, negated = True))
+        self.assertFalse(pred2.test(time=2, negated = True))
+        self.assertTrue(pred2.test(time=3, negated = True))
 
     def test_in_gripper(self):
         # InGripper, Robot, Can, Grasp
@@ -411,11 +412,11 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
-        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Wall"], "name": ["wall"]}
+        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Obstacle"], "name": ["wall"]}
         attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
         border = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.Collides("collides", [can, border], ["Can", "Wall"], env)
+        pred = namo_predicates.Collides("collides", [can, border], ["Can", "Obstacle"], env)
         self.assertTrue(pred.test(0))
         border.pose = np.zeros((2,4))
         can.pose = np.array([[1+pred.dsafe, 1+2*pred.dsafe, 1, 1-pred.dsafe],
@@ -439,34 +440,33 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
-        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Wall"], "name": ["wall"]}
+        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Obstacle"], "name": ["wall"]}
         attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
         border = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.RCollides("collides", [robot, border], ["Robot", "Wall"], env)
+        pred = namo_predicates.RCollides("collides", [robot, border], ["Robot", "Obstacle"], env)
         self.assertTrue(pred.test(0))
         border.pose = np.zeros((2,4))
         robot.pose = np.array([[1+pred.dsafe, 1+2*pred.dsafe, 1, 1-pred.dsafe],
-                               [0,            0,            0,            0]])
-
+                               [0,            0,              0, 0]])
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(1))
         self.assertTrue(pred.test(2))
         self.assertTrue(pred.test(3))
-        #
-        # """
-        #     Uncomment the following to see the graph
-        # """
+
+        """
+            Uncomment the following to see the graph
+        """
         # v = viewer.OpenRAVEViewer()
         # v.draw([robot, border], 2, 0.5)
         # import ipdb; ipdb.set_trace()
 
     def test_stationary_w(self):
-        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Wall"], "name": ["wall"]}
+        attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Obstacle"], "name": ["wall"]}
         attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
         border = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.StationaryW("test_StationaryW", [border], ["Wall"])
+        pred = namo_predicates.StationaryW("test_StationaryW", [border], ["Obstacle"])
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=0)
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_StationaryW: (StationaryW wall)' at the timestep.")
@@ -482,6 +482,41 @@ class TestNamoPredicates(unittest.TestCase):
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=2)
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_StationaryW: (StationaryW wall)' at the timestep.")
+
+
+    def test_grad(self):
+        radius = 1
+        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["robot"]}
+        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        robot = parameter.Object(attrs, attr_types)
+
+        attrs = {"value": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
+        attr_types = {"value": Vector2d, "_type": str, "name": str}
+        robotPose = parameter.Symbol(attrs, attr_types)
+
+        attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
+        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        can = parameter.Object(attrs, attr_types)
+
+        env = Environment()
+        pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
+
+        val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
+        self.assertTrue(np.allclose(np.array(val), .20, atol=1e-2))
+        jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
+        self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
+
+        f = lambda x: pred.distance_from_obj(x)[0]
+        g = lambda x: pred.distance_from_obj(x)[1]
+        dg = nd.Gradient(g)
+        x = np.array([1.9, 0, 0, 0])
+
+        print dtest(1), "\n", test(1)
+        import ipdb; ipdb.set_trace()
+
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

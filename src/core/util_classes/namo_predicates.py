@@ -99,6 +99,7 @@ class CollisionPredicate(ExprPredicate):
                 print "pt0 = ", pt0
                 print "pt1 = ", pt1
                 print "distance = ", distance
+                print "normal = ", normal
 
             # if there are multiple collisions, use the one with the greatest penetration distance
             if self.dsafe - distance > val:
@@ -176,11 +177,11 @@ class InContact(CollisionPredicate):
         val = np.ones((1, 1))*dsafe
         # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
 
 class Collides(CollisionPredicate):
 
-    # Collides Can Wall
+    # Collides Can Wall(Obstacle)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -220,7 +221,7 @@ class Collides(CollisionPredicate):
 
 class RCollides(CollisionPredicate):
 
-    # RCollides Robot Wall
+    # RCollides Robot Wall(Obstacle)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -295,7 +296,6 @@ class Obstructs(CollisionPredicate):
 
         col_expr_neg = Expr(f_neg, grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
-
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=2)
@@ -460,7 +460,7 @@ class StationaryNEq(ExprPredicate):
 
 class StationaryW(ExprPredicate):
 
-    # StationaryW, Wall
+    # StationaryW, Wall(Obstacle)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params
