@@ -42,7 +42,11 @@ def main():
         s += "(value grasp0 undefined), "
         s += "(geom %s 1), (pose %s %s), "%("pr2", "pr2", list(coords[NUM_TARGETS]))
         s += "(pose pr2 {}), ".format(list(coords[NUM_TARGETS]))
-        s += "(value %s %s); "%("robot_init_pose", list(coords[NUM_TARGETS]))
+        s += "(value %s %s), "%("robot_init_pose", list(coords[NUM_TARGETS]))
+        s += "(value %s %s), "%("robot_end_pose", list(coords[NUM_TARGETS]))
+        s += "(pose %s [0, 0]), "%"obs0"
+        s += "(geom %s %s); "%("obs0", "closet")
+
         for i in range(NUM_CANS):
             s += "(At can{} target{}), ".format(i, i)
             s += "(Stationary can{}), ".format(i)

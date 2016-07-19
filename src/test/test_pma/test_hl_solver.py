@@ -88,13 +88,14 @@ class TestHLSolver(unittest.TestCase):
         self.assertTrue('(InContact pr2 pdp_target1 target1)' in moveto_pred_rep_list)
         self.assertTrue(test_hl_info(moveto.preds, '(InContact pr2 pdp_target1 target1)', "hl_state"))
         self.assertTrue('(RobotAt pr2 robot_init_pose)' in moveto_pred_rep_list)
-        self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 robot_init_pose)', "pre"))
+        # self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 robot_init_pose)', "pre")) original test
+        self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 robot_init_pose)', "eff"))
         self.assertTrue('(RobotAt pr2 pdp_target0)' in moveto_pred_rep_list)
         self.assertTrue(test_hl_info(moveto.preds, '(RobotAt pr2 pdp_target0)', "eff"))
 
         grasp = plan.actions[0]
         grasp_pred_rep_list = extract_pred_reps_from_pred_dicts(grasp.preds)
-        self.assertTrue('(RobotAt pr2 robot_init_pose)' not in grasp_pred_rep_list)
+        # self.assertTrue('(RobotAt pr2 robot_init_pose)' not in grasp_pred_rep_list)
         self.assertTrue('(InContact pr2 pdp_target0 target0)' in grasp_pred_rep_list)
         self.assertTrue(test_hl_info(grasp.preds, '(InContact pr2 pdp_target0 target0)', "pre"))
         self.assertTrue('(InContact pr2 pdp_target1 target1)' in moveto_pred_rep_list)
@@ -102,7 +103,7 @@ class TestHLSolver(unittest.TestCase):
         self.assertTrue('(InGripper pr2 can0 grasp0)' in grasp_pred_rep_list)
         self.assertTrue(test_hl_info(grasp.preds, '(InGripper pr2 can0 grasp0)', "eff"))
 
-        moveto2 = plan.actions[2]
+        moveto2 = plan.actions[1]
         moveto2_pred_rep_list = extract_pred_reps_from_pred_dicts(moveto2.preds)
         self.assertTrue('(RobotAt pr2 pdp_target0)' in moveto2_pred_rep_list)
         self.assertTrue(test_hl_info(moveto2.preds, '(RobotAt pr2 pdp_target0)', "pre"))
@@ -122,10 +123,10 @@ class TestHLSolver(unittest.TestCase):
         abs_prob = self.hls.translate_problem(problem)
         plan = self.hls.solve(abs_prob, self.domain, problem)
         # test plan itself
-        self.assertEqual(plan.horizon, 172)
+        self.assertEqual(plan.horizon, 115)
         # self.assertEqual(repr(plan.actions), '[0: moveto (0, 19) pr2 robot_init_pose pdp_target1, 1: grasp (20, 21) pr2 can1 target1 pdp_target1 grasp0, 2: movetoholding (22, 41) pr2 pdp_target1 pdp_target2 can1 grasp0, 3: putdown (42, 43) pr2 can1 target2 pdp_target2 grasp0, 4: moveto (44, 63) pr2 pdp_target2 pdp_target0, 5: grasp (64, 65) pr2 can0 target0 pdp_target0 grasp0, 6: movetoholding (66, 85) pr2 pdp_target0 pdp_target1 can0 grasp0, 7: putdown (86, 87) pr2 can0 target1 pdp_target1 grasp0, 8: moveto (88, 107) pr2 pdp_target1 pdp_target2, 9: grasp (108, 109) pr2 can1 target2 pdp_target2 grasp0, 10: movetoholding (110, 129) pr2 pdp_target2 pdp_target0 can1 grasp0, 11: putdown (130, 131) pr2 can1 target0 pdp_target0 grasp0]')
         # test plan params
-        self.assertEqual(len(plan.params), 11)
+        self.assertEqual(len(plan.params), 13)
         can0 = plan.params["can0"]
         arr = np.zeros((2, plan.horizon))
         arr[:] = np.NaN
@@ -143,7 +144,7 @@ class TestHLSolver(unittest.TestCase):
         # self.assertEqual(repr(a), "5: grasp (59, 60) pr2 can1 target1 pdp_target1 grasp1")
         obstrs = filter(lambda x: "Obstructs" in repr(x["pred"]), a.preds)
         self.assertEqual([o["negated"] for o in obstrs], [True, True, True, True])
-        self.assertEqual([o["active_timesteps"] for o in obstrs], [(60, 60),(60, 60),(60, 60),(60, 60)])
+        self.assertEqual([o["active_timesteps"] for o in obstrs], [(95, 114), (95, 114), (114, 114), (114, 114)])
         reprs = [repr(o["pred"]) for o in obstrs]
         # In the following test of reprs, sometimes can0 obstructs pr2, sometimes can1, not reliable for test
         # expected_vals = ['placeholder: (Obstructs pr2 robot_init_pose can0)',
@@ -156,7 +157,28 @@ class TestHLSolver(unittest.TestCase):
 
     def test_nested_forall(self):
         d2 = self.d_c.copy()
-        d2['Action grasp 20'] = '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose ?grasp - Grasp) (and (At ?can ?target) (RobotAt ?robot ?gp) (InContact ?robot ?gp ?target) (forall (?obj - Can) (not (InGripper ?robot ?obj ?grasp))) (forall (?obj - Can) (not (Obstructs ?robot ?gp ?obj)))) (and (not (At ?can ?target)) (InGripper ?robot ?can ?grasp) (forall (?sym - RobotPose) (forall (?obj - Can) (forall (?r - Robot) (not (Obstructs ?r ?sym ?obj)))))) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19'
+
+        d2['Action grasp 20'] = '(?robot - Robot ?can - Can ?target - Target ?gp - RobotPose ?g - Grasp) \
+                                (and (At ?can ?target) \
+                                    (RobotAt ?robot ?gp) \
+                                    (InContact ?robot ?gp ?target) \
+                                    (forall (?obj - Can) \
+                                        (not (InGripper ?robot ?obj ?g))\
+                                    ) \
+                                    (forall (?obj - Can) \
+                                        (not (Obstructs ?robot ?gp ?obj))\
+                                    )\
+                                ) \
+                                (and (not (At ?can ?target)) \
+                                    (InGripper ?robot ?can ?g) \
+                                    (forall (?sym - RobotPose) \
+                                        (forall (?obj - Can) \
+                                            (forall (?r - Robot) \
+                                                (not (Obstructs ?r ?sym ?obj))\
+                                            )\
+                                        )\
+                                    )\
+                                ) 0:0 0:0 0:0 0:0 0:19 19:19 19:19 19:19'
         domain = parse_domain_config.ParseDomainConfig.parse(d2)
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, domain)
         plan = self.hls.solve(self.hls.translate_problem(problem), domain, problem)
@@ -191,7 +213,8 @@ class TestHLSolver(unittest.TestCase):
         p2["Goal"] = "(InGripper pr2 can0 grasp0)"
         problem = parse_problem_config.ParseProblemConfig.parse(p2, self.domain)
         plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
-        self.assertEqual(repr(plan.actions[0:2]), '[0: moveto (0, 19) pr2 robot_init_pose pdp_target0, 1: grasp (19, 20) pr2 can0 target0 pdp_target0 grasp0]')
+        self.assertEqual(repr(plan.actions[0:2]), '[0: grasp (0, 19) pr2 can0 target0 robot_init_pose pdp_target0 grasp0]')
+        # self.assertEqual(repr(plan.actions[0:2]), '[0: moveto (0, 19) pr2 robot_init_pose pdp_target0, 1: grasp (19, 20) pr2 can0 target0 pdp_target0 grasp0]')
 
     def test_impossible_obstr(self):
         p2 = self.p_c.copy()

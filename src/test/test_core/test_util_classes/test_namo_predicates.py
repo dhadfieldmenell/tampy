@@ -511,8 +511,8 @@ class TestNamoPredicates(unittest.TestCase):
         dg = nd.Gradient(g)
         x = np.array([1.9, 0, 0, 0])
 
-        print dtest(1), "\n", test(1)
-        import ipdb; ipdb.set_trace()
+        # print dtest(1), "\n", test(1)
+        # import ipdb; ipdb.set_trace()
 
 
 
