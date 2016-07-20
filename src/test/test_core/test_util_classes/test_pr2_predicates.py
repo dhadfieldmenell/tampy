@@ -1,9 +1,8 @@
 import unittest
 from core.internal_repr import parameter
-from core.util_classes.matrix import Vector3d, PR2PoseVector
-from core.util_classes import pr2_predicates
+from core.util_classes import pr2_predicates, viewer, matrix
 from errors_exceptions import PredicateException, ParamValidationException
-from core.util_classes.can import BlueCan
+from core.util_classes.can import BlueCan, RedCan
 from core.util_classes.pr2 import PR2
 from openravepy import Environment
 from sco import expr
@@ -21,11 +20,11 @@ class TestPR2Predicates(unittest.TestCase):
         # At, Can, Location
 
         attrs = {"name": ["can"], "geom": (1,1), "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": BlueCan, "pose": Vector3d, "_type": str}
+        attr_types = {"name": str, "geom": BlueCan, "pose": matrix.Vector3d, "_type": str}
         can = parameter.Object(attrs, attr_types)
 
         attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
-        attr_types = {"name": str, "value": Vector3d, "_type": str}
+        attr_types = {"name": str, "value": matrix.Vector3d, "_type": str}
         location = parameter.Symbol(attrs, attr_types)
 
         pred = pr2_predicates.At("testpred", [can, location], ["Can", "Location"])
@@ -60,12 +59,16 @@ class TestPR2Predicates(unittest.TestCase):
 
         # RobotAt, Robot, RobotPose
 
-        attrs = {"name": ["pr2"], "geom": ['../models/pr2/pr2.zae'], "pose": ["undefined"], "_type": ["Robot"]}
-        attr_types = {"name": str, "geom": PR2, "pose": PR2PoseVector, "_type": str}
+        attrs = {"name": ["robot"], "pose": ["undefined"], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae'],
+                "backHeight": [0.31], "lArmPose": ["undefined"], "rArmPose": ["undefined"], "lGripper": [0.5], "rGripper": [0.5]}
+        attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": PR2,
+                "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
         robot = parameter.Object(attrs, attr_types)
 
-        attrs = {"name": ["funnyPose"], "value": ["undefined"], "_type": ["RobotPose"]}
-        attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
+        attrs = {"name": ["funnyPose"], "value": ["undefined"], "_type": ["RobotPose"],
+                "backHeight": [0.31], "lArmPose": ["undefined"], "rArmPose": ["undefined"], "lGripper": [0.5], "rGripper": [0.5]}
+        attr_types = {"name": str, "value": matrix.Vector3d, "_type": str,
+                        "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
         robot_pose = parameter.Symbol(attrs, attr_types)
 
         pred = pr2_predicates.RobotAt("testRobotAt", [robot, robot_pose], ["Robot", "RobotPose"])
@@ -97,21 +100,41 @@ class TestPR2Predicates(unittest.TestCase):
 
         # IsGP, Robot, RobotPose, Can
 
-        attrs = {"name": ["robot"], "pose": ["undefined"], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae']}
-        attr_types = {"name": str, "pose": PR2PoseVector, "_type": str, "geom": PR2}
+        attrs = {"name": ["robot"], "pose": ["undefined"], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae'],
+                "backHeight": [0.31], "lArmPose": ["undefined"], "rArmPose": ["undefined"], "lGripper": ["undefined"], "rGripper": ["undefined"]}
+
+        attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": PR2,
+                        "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
         robot = parameter.Object(attrs, attr_types)
 
-        attrs = {"name": ["rPose"], "value": ["undefined"], "_type": ["RobotPose"]}
-        attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
+        attrs = {"name": ["rPose"], "value": ["undefined"], "_type": ["RobotPose"], "geom": ['../models/pr2/pr2.zae'],
+                "backHeight": [0.31], "lArmPose": ["undefined"], "rArmPose": ["undefined"], "lGripper": ["undefined"], "rGripper": ["undefined"]}
+        attr_types = {"name": str, "value": matrix.Vector3d, "_type": str, "geom": PR2,
+                    "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
         rPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"], "geom": (1, 2)}
-        attr_types = {"name": str, "pose": Vector3d, "_type": str, "geom": BlueCan}
+        attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": BlueCan}
         can = parameter.Object(attrs, attr_types)
+
         env = Environment()
         pred = pr2_predicates.IsGP("testgp", [robot, rPose, can], ["Robot", "RobotPose", "Can"], env)
         self.assertEqual(pred.get_type(), "IsGP")
-        self.assertFalse(pred.test(time=400))
+        self.assertFalse(pred.test(0))
+
+        rPose.value = np.array([[0],[0],[0]])
+        rPose.lArmPose = np.array([0.73 , 0.4, 1.57, -1.57, 0.73, -0.73, 0]).reshape((7, 1))
+        rPose.rArmPose = np.array([-0.73, 0.4, -1.57, -1.57, -0.73, -0.73, -1.57]).reshape((7, 1))
+        rPose.lGripper = np.array([0.5])
+        rPose.rGripper = np.array([0.5])
+        can.pose = np.array([[2],[2],[2]])
+
+        # view = viewer.OpenRAVEViewer()
+        # view.draw([rPose, can], 0, 0.7)
+        #
+        # import ipdb; ipdb.set_trace()
+
+
 
 
 
@@ -121,19 +144,19 @@ class TestPR2Predicates(unittest.TestCase):
 
 
         attrs = {"name": ["robot"], "pose": ["undefined"], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae']}
-        attr_types = {"name": str, "pose": PR2PoseVector, "_type": str, "geom": PR2}
+        attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": PR2}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"name": ["rPose"], "value": ["undefined"], "_type": ["RobotPose"]}
-        attr_types = {"name": str, "value": PR2PoseVector, "_type": str}
+        attr_types = {"name": str, "value": matrix.Vector3d, "_type": str}
         rPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"name": ["can"], "pose": ["undefined"], "_type": ["Can"], "geom": (1, 2)}
-        attr_types = {"name": str, "pose": Vector3d, "_type": str, "geom": BlueCan}
+        attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": BlueCan}
         can = parameter.Object(attrs, attr_types)
 
         attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
-        attr_types = {"name": str, "value": Vector3d, "_type": str}
+        attr_types = {"name": str, "value": matrix.Vector3d, "_type": str}
         location = parameter.Symbol(attrs, attr_types)
         env = Environment()
         pred = pr2_predicates.IsPDP("testpdp", [robot, rPose, can, location], ["Robot", "RobotPose", "Can", "Location"], env)
@@ -146,15 +169,15 @@ class TestPR2Predicates(unittest.TestCase):
         # InGripper, Robot, Can, Grasp
 
         attrs = {"geom": ['../models/pr2/pr2.zae'], "pose": ["undefined"], "_type": ["Robot"], "name": ["pr2"]}
-        attr_types = {"geom": PR2, "pose": Vector3d, "_type": str, "name": str}
+        attr_types = {"geom": PR2, "pose": matrix.Vector3d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"geom": (1, 1), "pose": ["undefined"], "_type": ["Can"], "name": ["can1"]}
-        attr_types = {"geom": BlueCan, "pose": Vector3d, "_type": str, "name": str}
+        attr_types = {"geom": BlueCan, "pose": matrix.Vector3d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
         attrs = {"value": ["undefined"], "_type": ["Grasp"], "name": ["grasp"]}
-        attr_types = {"value": Vector3d, "_type": str, "name": str}
+        attr_types = {"value": matrix.Vector3d, "_type": str, "name": str}
         grasp = parameter.Symbol(attrs, attr_types)
 
         pred = pr2_predicates.InGripper("InGripper", [robot, can, grasp], ["Robot", "Can", "Grasp"])

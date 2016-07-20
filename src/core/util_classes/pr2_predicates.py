@@ -6,6 +6,7 @@ from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.pr2 import PR2
 from sco.expr import Expr, AffExpr, EqExpr
+from collections import OrderedDict
 import numpy as np
 import ctrajoptpy
 
@@ -105,8 +106,8 @@ class At(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.can, self.targ = params
-        attr_inds = {self.can: [("pose", np.array([0,1,2], dtype=np.int))],
-                     self.targ: [("value", np.array([0,1,2], dtype=np.int))]}
+        attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1,2], dtype=np.int))]),
+                                 (self.targ, [("value", np.array([0,1,2], dtype=np.int))])])
 
         A = np.c_[np.eye(3), -np.eye(3)]
         b = np.zeros((3, 1))
@@ -122,8 +123,8 @@ class RobotAt(At):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.r, self.rp = params
-        attr_inds = {self.r: [("pose", np.array([0,1,2], dtype=np.int))],
-                     self.rp: [("value", np.array([0,1,2], dtype=np.int))]}
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1,2], dtype=np.int))]),
+                                 (self.rp, [("value", np.array([0,1,2], dtype=np.int))])])
 
         A = np.c_[np.eye(3), -np.eye(3)]
         b = np.zeros((3, 1))
@@ -140,10 +141,13 @@ class IsGP(CollisionPredicate):
         assert len(params) == 3
 	self._env = env
         self.robot, self.robot_pose, self.can = params
-        attr_inds = {self.robot: [],
-                     self.robot_pose: [("value", np.array([0,1,2], dtype=np.int))],
-                     self.can: [("value", np.array([0,1,2], dtype=np.int))]}
-
+        attr_inds = OrderedDict([(self.robot_pose, [("value", np.array([0, 1, 2], dtype=np.int)),
+                                               ("backHeight", np.array([1], dtype=np.int)),
+                                               ("leftArm", np.array(range(7), dtype=np.int)),
+                                               ("lGripper", np.array([1], dtype=np.int)),
+                                               ("rightArm", np.array(range(7), dtype=np.int)),
+                                               ("rGripper", np.array([1], dtype=np.int))]),
+                                 (self.can, [("pose", np.array([0,1,2], dtype=np.int))])])
         self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
@@ -154,6 +158,76 @@ class IsGP(CollisionPredicate):
         val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
         super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+
+    def distance_from_obj(self, x):
+        # Setting pose for each ravebody
+        # Assuming x is aligned according to the following order:
+        # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose
+        robot_body = self._param_to_body[self.robot_pose]
+        obj_body = robot_body = self._param_to_body[self.can]
+        base_pose, back_height = x[0:3], x[3]
+        l_arm_pose, l_gripper = x[4:11], x[11]
+        r_arm_pose, r_gripper = x[12:19], x[19]
+        can_pose = x[20:]
+
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        obj_body.set_pose(can_pose)
+
+
+
+
+        rarm_inds = robot_body.GetManipulator('rightarm').GetArmIndices()
+        rarm_joints = [robot_body.GetJointFromDOFIndex(ind) for ind in rarm_inds]
+
+        rarm_jac = np.array([np.cross(joint.GetAxis(), robot_pos.flatten() - joint.GetAnchor()) for joint in rarm_joints]).T.copy()
+        base_jac = np.eye(3)
+        base_jac[2,2] = 0
+
+        import ipdb; ipdb.set_trace()
+        bodypart_jac = {"rightarm": rarm_jac, "base": base_jac}
+        jac = self.robot.jac_from_bodypart_jacs(bodypart_jac, 3)
+        jac = np.hstack((np.zeros((3, (self.T-1)*self.K)), jac)) # only last time-step matters
+
+        # Get position of robot and can, then calculate the val
+        robot_pos = robot_body.GetLink("r_gripper_tool_frame").GetIndex().GetTransform()
+        robot_pos = robot_pos[:3, 3]
+
+        obj_trans = obj_body.GetTransform()
+        obj_trans[2,3] = obj_trans[2,3] + .125
+        # obj_trans[2,3] = obj_trans[2,3] + .325
+        obj_pos = obj_trans[:3,3]
+
+        val = robot_pos.flatten() - obj_pos.flatten()
+
+        return (val, jac)
+
+    def face_up(self, x):
+        t = self.T-1
+        xt = traj[self.K*t:self.K*(t+1)]
+        self.robot.set_pose(self.env, xt)
+        self.hl_action.plot()
+
+        robot = self.robot.get_env_body(self.env)
+
+        manip = robot.GetManipulator("rightarm")
+        arm_inds = manip.GetArmIndices()
+        arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        tool_link = robot.GetLink("r_gripper_tool_frame")
+        local_dir = np.array([0.,0.,1.])
+
+        val = tool_link.GetTransform()[:2,:3].dot(local_dir)
+
+        world_dir = tool_link.GetTransform()[:3,:3].dot(local_dir)
+        rarm_jac = np.array([np.cross(joint.GetAxis(), world_dir)[:2] for joint in arm_joints]).T.copy()
+        # base_rot_jac = np.array([np.cross([0,0,1], world_dir)[:2]]).T
+        # base_jac = np.hstack((np.zeros((2,1)), base_rot_jac))
+        bp_jac = self.robot.jac_from_bodypart_jacs({"rightarm": rarm_jac}, 2)
+        jac = np.hstack((np.zeros((2, (self.T-1)*self.K)), bp_jac)) # only last time-step matters
+
+        return (val, jac)
+
 
 class IsPDP(CollisionPredicate):
 
