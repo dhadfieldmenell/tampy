@@ -42,7 +42,7 @@ class PR2PoseVector(Vector3d):
     """
     pass
 
-class Vector8d(Matrix):
+class Vector7d(Matrix):
     """
         The PR2 domain uses the Vector8d calss to track arm pose.
     """
@@ -52,8 +52,8 @@ class Vector8d(Matrix):
                 vec += ")"
             vec = eval(vec)
         obj = np.array(vec)
-        assert len(obj) == 8
-        obj = obj.reshape((8, 1))
+        assert len(obj) == 7
+        obj = obj.reshape((7, 1))
         return obj
 
 
