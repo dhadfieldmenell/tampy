@@ -2,10 +2,10 @@
 
 Types: Robot, RobotPose, Table
 
-Attribute Import Paths: PR2 core.util_classes.pr2, PR2PoseVector core.util_classes.matrix, Value core.util_classes.matrix, Vector8d core.util_classes.matrix, Table core.util_classes.table, Vector3d core.util_classes.matrix
+Attribute Import Paths: PR2 core.util_classes.pr2, Value core.util_classes.matrix, Vector7d core.util_classes.matrix, Table core.util_classes.table, Vector3d core.util_classes.matrix
 
 Predicates Import Path: core.util_classes.pr2_predicates
 
-Primitive Predicates: geom, Robot, PR2; pose, Robot, PR2PoseVector; backHeight, Robot, Value; lArmPose, Robot, Vector8d; rArmPose, Robot, Vector8d; value, RobotPose, PR2PoseVector; geom, Table, Table; pose, Table, Vector3d
+Primitive Predicates: geom, Robot, PR2; pose, Robot, Vector3d; backHeight, Robot, Value; lArmPose, Robot, Vector7d; lGripper, Robot, Value; rArmPose, Robot, Vector7d; rGripper, Robot, Value; value, RobotPose, Vector3d; backHeight, RobotPose, Value; lArmPose, RobotPose, Vector7d; lGripper, RobotPose, Value; rArmPose, RobotPose, Vector7d; rGripper, RobotPose, Value; geom, Table, Table; pose, Table, Vector3d
 
 Derived Predicates: RobotAt, Robot, RobotPose

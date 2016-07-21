@@ -21,7 +21,7 @@ class OpenRAVEBody(object):
         if isinstance(geom, Circle):
             self._add_circle(geom)
         elif isinstance(geom, Can):
-            self._add_circle(geom)
+            self._add_can(geom)
         elif isinstance(geom, Obstacle):
             self._add_obstacle(geom)
         elif isinstance(geom, PR2):
@@ -43,17 +43,29 @@ class OpenRAVEBody(object):
 
 
     def _add_circle(self, geom):
-        color = None
+        color = [1,0,0]
         if hasattr(geom, "color") and geom.color == 'blue':
             color = [0, 0, 1]
         elif hasattr(geom, "color") and geom.color == 'green':
             color = [0, 1, 0]
         elif hasattr(geom, "color") and geom.color == 'red':
             color = [1, 0, 0]
-        else:
-            color = [1,0,0]
+
         self.env_body = OpenRAVEBody.create_cylinder(self._env, self.name, np.eye(4),
                 [geom.radius, 2], color)
+        self._env.AddKinBody(self.env_body)
+
+    def _add_can(self, geom):
+        color = [1,0,0]
+        if hasattr(geom, "color") and geom.color == 'blue':
+            color = [0, 0, 1]
+        elif hasattr(geom, "color") and geom.color == 'green':
+            color = [0, 1, 0]
+        elif hasattr(geom, "color") and geom.color == 'red':
+            color = [1, 0, 0]
+
+        self.env_body = OpenRAVEBody.create_cylinder(self._env, self.name, np.eye(4),
+                [geom.radius, geom.height], color)
         self._env.AddKinBody(self.env_body)
 
     def _add_obstacle(self, geom):
@@ -96,35 +108,38 @@ class OpenRAVEBody(object):
 
     def set_pose(self, base_pose):
         trans = None
-        if isinstance(self._geom, Circle):
-            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
-        elif isinstance(self._geom, Obstacle):
+        if isinstance(self._geom, Circle) or isinstance(self._geom, Obstacle) or isinstance(self._geom, Wall):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, PR2):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
-        elif isinstance(self._geom, Table):
+        elif isinstance(self._geom, Table) or isinstance(self._geom, Can):
             trans = OpenRAVEBody.base_pose_3D_to_mat(base_pose)
-        elif isinstance(self._geom, Wall):
-            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         self.env_body.SetTransform(trans)
 
-    def set_dof(self, back_height, l_arm_pose, r_arm_pose):
+    def set_dof(self, back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper):
         """
             This function assumed to be called when the self.env_body is a robot and its geom is type PR2
             It sets the DOF values for important joint of PR2
 
-            back_height: back_height attribute of type Value, which specified the back height of PR2
-            l_arm_pose: l_arm_pose attribute of type Vector8d, which specified the left arm pose of PR2
-            r_arm_pose: r_arm_pose attribute of type Vector8d, which specified the right arm pose of PR2
+            back_height: back_height attribute of type Value
+            l_arm_pose: l_arm_pose attribute of type Vector7d
+            l_gripper: l_gripper attribute of type Value
+            r_arm_pose: r_arm_pose attribute of type Vector7d
+            r_gripper: r_gripper attribute of type Value
         """
+        # Get current dof value for each joint
         dof_val = self.env_body.GetActiveDOFValues()
-        back_height_index = self.env_body.GetJoint('torso_lift_joint').GetDOFIndex()
-        l_shoulder_index = self.env_body.GetJoint('l_shoulder_pan_joint').GetDOFIndex()
-        r_shoulder_index = self.env_body.GetJoint('r_shoulder_pan_joint').GetDOFIndex()
-
-        dof_val[back_height_index] = back_height[0]
-        dof_val[l_shoulder_index: l_shoulder_index + 8] = l_arm_pose.reshape((1, 8)).tolist()[0]
-        dof_val[r_shoulder_index: r_shoulder_index + 8] = r_arm_pose.reshape((1, 8)).tolist()[0]
+        # Obtain indices of left arm and right arm
+        l_arm_inds = self.env_body.GetManipulator('leftarm').GetArmIndices()
+        l_gripper_ind = self.env_body.GetJoint('l_gripper_l_finger_joint').GetDOFIndex()
+        r_arm_inds = self.env_body.GetManipulator('rightarm').GetArmIndices()
+        r_gripper_ind = self.env_body.GetJoint('r_gripper_l_finger_joint').GetDOFIndex()
+        b_height_ind = self.env_body.GetJoint('torso_lift_joint').GetDOFIndex()
+        # Update the DOF value
+        dof_val[b_height_ind] = back_height
+        dof_val[l_arm_inds], dof_val[l_gripper_ind] = l_arm_pose, l_gripper
+        dof_val[r_arm_inds] ,dof_val[r_gripper_ind] = r_arm_pose, r_gripper
+        # Set new DOF value to the robot
         self.env_body.SetActiveDOFValues(dof_val)
 
     @staticmethod
@@ -256,7 +271,7 @@ class OpenRAVEBody(object):
 
     @staticmethod
     def base_pose_3D_to_mat(pose):
-        # x, y = pose
+        # x, y, z = pose
         assert len(pose) == 3
         x = pose[0]
         y = pose[1]

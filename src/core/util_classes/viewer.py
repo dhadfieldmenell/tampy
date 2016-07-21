@@ -21,9 +21,12 @@ class OpenRAVEViewer(Viewer):
 
     _viewer = None
 
-    def __init__(self):
+    def __init__(self, env = None):
         assert OpenRAVEViewer._viewer == None
-        self.env = Environment()
+        if env == None:
+            self.env = Environment()
+        else:
+            self.env = env
         self.env.SetViewer('qtcoin')
         self.name_to_rave_body = {}
         OpenRAVEViewer._viewer = self
@@ -73,7 +76,7 @@ class OpenRAVEViewer(Viewer):
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         if isinstance(obj.geom, PR2):
-            self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.rArmPose[:, t])
+            self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
         self.name_to_rave_body[name].set_pose(obj.pose[:, t])
         self.name_to_rave_body[name].set_transparency(transparency)
 
@@ -111,4 +114,3 @@ class OpenRAVEViewer(Viewer):
             except AttributeError:
                 ## some predicates won't define a collision
                 continue
-                

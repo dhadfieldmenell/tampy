@@ -25,7 +25,7 @@ dof-joint_index mapping
 19 robot.GetJoint('l_forearm_roll_joint'),                      -->lArmPose 4
 20 robot.GetJoint('l_wrist_flex_joint'),                        -->lArmPose 5
 21 robot.GetJoint('l_wrist_roll_joint'),                        -->lArmPose 6
-22 robot.GetJoint('l_gripper_l_finger_joint'),                  -->lArmPose 7
+22 robot.GetJoint('l_gripper_l_finger_joint'),                  -->lGripper 0
 
 23 robot.GetJoint('l_gripper_motor_slider_joint'),
 24 robot.GetJoint('l_gripper_motor_screw_joint'),
@@ -39,9 +39,18 @@ dof-joint_index mapping
 31 robot.GetJoint('r_forearm_roll_joint'),                      -->rArmPose 4
 32 robot.GetJoint('r_wrist_flex_joint'),                        -->rArmPose 5
 33 robot.GetJoint('r_wrist_roll_joint'),                        -->rArmPose 6
-34 robot.GetJoint('r_gripper_l_finger_joint'),                  -->rArmPose 7
+34 robot.GetJoint('r_gripper_l_finger_joint'),                  -->rGripper 0
 
 35 robot.GetJoint('r_gripper_motor_slider_joint'),
 36 robot.GetJoint('r_gripper_motor_screw_joint'),
 37 robot.GetJoint('r_gripper_joint'),
 38 robot.GetJoint('torso_lift_motor_screw_joint')
+
+[RaveGetEnvironment(5).GetRobot('dude').GetManipulator('leftarm_camera'),
+RaveGetEnvironment(5).GetRobot('dude').GetManipulator('rightarm_camera'),
+RaveGetEnvironment(5).GetRobot('dude').GetManipulator('head_torso'),
+RaveGetEnvironment(5).GetRobot('dude').GetManipulator('head'),
+RaveGetEnvironment(5).GetRobot('dude').GetManipulator('rightarm_torso'),
+RaveGetEnvironment(5).GetRobot('dude').GetManipulator('rightarm'),
+RaveGetEnvironment(5).GetRobot('dude').GetManipulator('leftarm_torso'),
+RaveGetEnvironment(5).GetRobot('dude').GetManipulator('leftarm')]
