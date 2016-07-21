@@ -56,6 +56,13 @@ class ExprPredicate(Predicate):
             self.x_dim *= 2
         self.x = np.zeros(self.x_dim)
 
+    def lazy_spawn_or_body(self, param, name, geom):
+        if param.openrave_body is not None:
+            assert geom == param.openrave_body._geom
+            assert self._env == param.openrave_body.env_body.GetEnv()
+        else:
+            param.openrave_body = OpenRAVEBody(self._env, name, geom)
+        return param.openrave_body
 
     def get_expr(self, negated):
         if negated:
