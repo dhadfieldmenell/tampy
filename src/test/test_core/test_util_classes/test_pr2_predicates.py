@@ -127,29 +127,33 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
         # Can's position overlap with robot's, test should fail
         self.can.pose = np.array([[0],[0],[0]])
-        self.assertFalse(pred.test(0))
+        # self.assertFalse(pred.test(0))
         # Set pose of can to be at the center of robot's gripper -> np.array([[0.951],[-0.188],[1.100675]])
-        self.can.pose = np.array([[0.951],[-0.188],[1.100675]])
+        self.can.pose = np.array([[0.951],[-0.188],[1.100675 - pred.dsafe]])
         # By default setting, gripper is facing up, test should pass
         self.assertTrue(pred.test(0))
-        self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
-        self.assertFalse(pred.test(0))
+        # Commented out for test
+        # self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
+        # self.assertFalse(pred.test(0))
+
+        # Test gradient
+        pred.expr.expr.grad(pred.get_param_vector(0), True)
         #change arm pose again
         self.rPose.rArmPose = np.array([[-np.pi/4, 0, -np.pi/2, -np.pi/2, -np.pi, 0, np.pi/2]]).T
+
         self.assertFalse(pred.test(0))
-        self.can.pose = np.array([[0.65781389, -0.18729289, 1.100675]]).T # moved can to the center of gripper again
+        self.can.pose = np.array([[0.65781389, -0.18729289, 1.100675 - pred.dsafe]]).T # moved can to the center of gripper again
         self.assertTrue(pred.test(0))
-        self.rPose.rGripper = np.matrix([0]) # close the gripper
-        #TODO: This test should fail because there is collision
-        self.assertTrue(pred.test(0))
+
+
 
         """
             Uncomment the following to see the robot
         """
-        # pred._param_to_body[self.rPose].set_transparency(0.7)
-        # pred._param_to_body[self.can].set_transparency(0.7)
-        # self.test_env.SetViewer("qtcoin")
-        # import ipdb; ipdb.set_trace()
+        pred._param_to_body[self.rPose].set_transparency(0.7)
+        pred._param_to_body[self.can].set_transparency(0.7)
+        self.test_env.SetViewer("qtcoin")
+        import ipdb; ipdb.set_trace()
 
 
 
@@ -163,6 +167,32 @@ class TestPR2Predicates(unittest.TestCase):
         pred = pr2_predicates.IsPDP("testpdp", [self.robot, self.rPose, self.can, self.location], ["Robot", "RobotPose", "Can", "Location"], self.test_env)
         self.assertEqual(pred.get_type(), "IsPDP")
 
+        # Since the pose of can is not defined, predicate is not concrete for the test
+        self.assertFalse(pred.test(0))
+        self.can.pose = np.array([[0],[0],[0]])
+        # Can's position overlap with robot's, test should fail
+        self.location.value = np.array([[0],[0],[0]])
+        # self.assertFalse(pred.test(0))
+        # Set pose of can to be at the center of robot's gripper -> np.array([[0.951],[-0.188],[1.100675]])
+        self.location.value = np.array([[0.951],[-0.188],[1.100675 - pred.dsafe]])
+        # By default setting, gripper is facing up, test should pass
+        self.assertTrue(pred.test(0))
+        self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
+        self.assertFalse(pred.test(0))
+        #change arm pose again
+        self.rPose.rArmPose = np.array([[-np.pi/4, 0, -np.pi/2, -np.pi/2, -np.pi, 0, np.pi/2]]).T
+
+        # self.assertFalse(pred.test(0))
+        self.location.value = np.array([[0.65781389, -0.18729289, 1.100675 - pred.dsafe]]).T # moved can to the center of gripper again
+        self.assertTrue(pred.test(0))
+
+        """
+            Uncomment the following to see the robot
+        """
+        # pred._param_to_body[self.rPose].set_transparency(0.7)
+        # pred._param_to_body[self.can].set_transparency(0.7)
+        # self.test_env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
 
 
     def test_expr_is_in_gripper(self):
