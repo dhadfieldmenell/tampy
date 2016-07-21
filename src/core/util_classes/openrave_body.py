@@ -133,8 +133,8 @@ class OpenRAVEBody(object):
         l_arm_inds = self.env_body.GetManipulator('leftarm').GetArmIndices()
         l_gripper_ind = self.env_body.GetJoint('l_gripper_l_finger_joint').GetDOFIndex()
         r_arm_inds = self.env_body.GetManipulator('rightarm').GetArmIndices()
-        r_gripper_ind = self.env_body.GetJoint('torso_lift_joint').GetDOFIndex()
-        b_height_ind = self.env_body.GetJoint('r_gripper_l_finger_joint').GetDOFIndex()
+        r_gripper_ind = self.env_body.GetJoint('r_gripper_l_finger_joint').GetDOFIndex()
+        b_height_ind = self.env_body.GetJoint('torso_lift_joint').GetDOFIndex()
         # Update the DOF value
         dof_val[b_height_ind] = back_height
         dof_val[l_arm_inds], dof_val[l_gripper_ind] = l_arm_pose, l_gripper
@@ -271,7 +271,7 @@ class OpenRAVEBody(object):
 
     @staticmethod
     def base_pose_3D_to_mat(pose):
-        # x, y = pose
+        # x, y, z = pose
         assert len(pose) == 3
         x = pose[0]
         y = pose[1]

@@ -31,15 +31,6 @@ class CollisionPredicate(ExprPredicate):
         self.ind1 = ind1
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
 
-
-    def lazy_spawn_or_body(self, param, name, geom):
-        if param.openrave_body is not None:
-            assert geom == param.openrave_body._geom
-            assert self._env == param.openrave_body.env_body.GetEnv()
-        else:
-            param.openrave_body = OpenRAVEBody(self._env, name, geom)
-        return param.openrave_body
-
     def plot_cols(self, env, t):
         _debug = self._debug
         self._env = env

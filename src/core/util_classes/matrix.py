@@ -66,6 +66,6 @@ class Value(Matrix):
             if not vec.endswith(")"):
                 vec += ")"
             vec = eval(vec)
-        obj = np.array(vec)
+        obj = np.matrix(vec)
         obj = obj.reshape((1, 1))
         return obj
