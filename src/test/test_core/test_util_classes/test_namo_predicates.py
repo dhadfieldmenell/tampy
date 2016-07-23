@@ -66,9 +66,9 @@ class TestNamoPredicates(unittest.TestCase):
 
         # testing get_expr
         pred_dict = {"negated": False, "hl_info": "pre", "active_timesteps": (0,0), "pred": pred}
-        self.assertTrue(isinstance(pred.get_expr(pred_dict["negated"]), expr.EqExpr))
+        self.assertTrue(isinstance(pred.get_expr(pred_dict["negated"])[0], expr.EqExpr))
         pred_dict['hl_info'] = "hl_state"
-        self.assertTrue(isinstance(pred.get_expr(pred_dict["negated"]), expr.EqExpr))
+        self.assertTrue(isinstance(pred.get_expr(pred_dict["negated"])[0], expr.EqExpr))
         pred_dict['negated'] = True
         self.assertTrue(pred.get_expr(pred_dict["negated"]) is None)
         pred_dict['hl_info'] = "pre"
@@ -131,13 +131,12 @@ class TestNamoPredicates(unittest.TestCase):
 
         env = Environment()
         pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
-        val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
-        self.assertTrue(np.allclose(np.array(val), .20, atol=1e-2))
-        jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
-        self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
+
+        # Test Gradient for it
+        pred.exprs[0].expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
 
         robot.pose = np.zeros((2,4))
-        can.pose = np.array([[2*(radius+pred.dsafe), 0, .1, 2*radius - pred.dsafe],
+        can.pose = np.array([[2*(radius+pred.dsafe), 0, 0, 2*radius - pred.dsafe],
                                   [0, 2*(radius+pred.dsafe), 0, 0]])
         self.assertFalse(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
@@ -164,11 +163,8 @@ class TestNamoPredicates(unittest.TestCase):
         pred = namo_predicates.InContact("InContact", [robot, robotPose, target], ["Robot", "RobotPose", "Target"], env=env)
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
-        val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
-        self.assertTrue(np.allclose(np.array(val), .20, atol=1e-2))
-        jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
-        self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
-
+        # Test Gradient for it
+        pred.exprs[0].expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
         robotPose.value = np.zeros((2,4))
         target.value = np.array([[2*radius, radius, 2*radius, 2*radius-pred.dsafe,  0],
                                  [0,                   0,      0,        0,                    0]])
@@ -177,7 +173,8 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.test(time = 2))
         self.assertTrue(pred.test(time = 3))
         self.assertTrue(pred.test(time = 4))
-        #since it symbol are assumed to be unchanged, test should always check distance with first traj vector
+
+        # since it symbol are assumed to be unchanged, test should always check distance with first traj vector
         robotPose.value = np.array([[-pred.dsafe, 3*radius + pred.dsafe, 0, -pred.dsafe, 2*radius+pred.dsafe],
                                     [0,      0,                     0, 0,           0]])
         self.assertFalse(pred.test(time = 0))
@@ -207,13 +204,10 @@ class TestNamoPredicates(unittest.TestCase):
 
         env = Environment()
         pred = namo_predicates.ObstructsHolding("ObstructsHolding", [robot, robotPose, can1, can2], ["Robot", "RobotPose", "Can", "Can"], env)
-        #First test should fail because all objects's positions are in (0,0)
+        # Object should obstructs because all objects's positions are in (0,0)
         self.assertTrue(pred.test(time = 0))
-        val, jac = pred.distance_from_obj(np.array([1.9,0,0,0,0,0]))
-        self.assertTrue(np.allclose(np.array(val), 1.25, atol=1e-2))
-        jac2 = np.array([[ 0, 0, 0.57735032,  0.57735032, -0.57735032, -0.57735032]])
-        self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
-
+        # This predicate has two expressions
+        pred.exprs[0].expr.grad(np.array([1.9,0,0,0,0,0]), True, 1e-2)
         robot.pose = np.zeros((2,4))
         can1.pose = np.array([[2*(radius+pred.dsafe)+0.1, 0,                    .1, 2*radius - pred.dsafe],
                               [0,                     2*(radius+pred.dsafe)+0.1, 0, 0]])
@@ -499,22 +493,9 @@ class TestNamoPredicates(unittest.TestCase):
         can = parameter.Object(attrs, attr_types)
 
         env = Environment()
+
         pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
-
-        val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
-        self.assertTrue(np.allclose(np.array(val), .20, atol=1e-2))
-        jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
-        self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
-
-        f = lambda x: pred.distance_from_obj(x)[0]
-        g = lambda x: pred.distance_from_obj(x)[1]
-        dg = nd.Gradient(g)
-        x = np.array([1.9, 0, 0, 0])
-
-        # print dtest(1), "\n", test(1)
-        # import ipdb; ipdb.set_trace()
-
-
+        pred.exprs[0].expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
 
 
 

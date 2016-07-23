@@ -33,7 +33,7 @@ class TestCommonPredicates(unittest.TestCase):
         ## ExprPred Construction
         attr_inds = {p1: [("pose", np.array([0], dtype=np.int))],
                      p2: []}
-        e = expr.EqExpr(e1, np.array([2]))
+        e = [expr.EqExpr(e1, np.array([2]))]
         pred = common_predicates.ExprPredicate("expr_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
 
         # with self.assertRaises(NotImplementedError):
@@ -75,7 +75,7 @@ class TestCommonPredicates(unittest.TestCase):
         b = np.array([0])
 
         aff_e = expr.AffExpr(A, b)
-        e = expr.EqExpr(aff_e, np.array([[0.]]))
+        e = [expr.EqExpr(aff_e, np.array([[0.]]))]
         pred0 = common_predicates.ExprPredicate("eq_expr_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
         self.assertTrue(pred0.test(0))
         self.assertFalse(pred0.test(1))
@@ -94,14 +94,14 @@ class TestCommonPredicates(unittest.TestCase):
     def test_expr_pred_leq(self):
         ## test (multiple tols)
         ## grad
-        tols = [1e-8, 1e-4, 1e-2]
+        tols = [1e-6, 1e-4, 1e-2]
         radius = 1
         attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
         attr_types = {"name": str, "geom": circle.RedCircle, "pose": float, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
-        p1.pose = np.array([[1 + tols[0], 2 + tols[0], 3],
-                            [1 + tols[1], 2 + tols[1], 3],
-                            [1 + tols[2], 2 + tols[2], 3]]).T
+        p1.pose = np.array([[1, 2, 3],
+                            [1 + 2*tols[0], 2 + 2*tols[0], 3],
+                            [1 + tols[1], 2 + tols[1], 3]]).T
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": float, "_type": str}
         p2 = parameter.Symbol(attrs, attr_types)
@@ -115,23 +115,24 @@ class TestCommonPredicates(unittest.TestCase):
         b = np.array([0])
 
         aff_e = expr.AffExpr(A, b)
-        e = expr.LEqExpr(aff_e, np.array([[0.]]))
+        e = [expr.LEqExpr(aff_e, np.array([[0.]]))]
         pred0 = common_predicates.ExprPredicate("leq_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
+        pred0.tol = tols[0]
         self.assertTrue(pred0.test(0))
-        pred0.tol = tols[1]
         self.assertFalse(pred0.test(1))
-        pred0.tol = tols[2]
         self.assertFalse(pred0.test(2))
 
         pred1 = common_predicates.ExprPredicate("leq_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
+        pred1.tol = tols[1]
         self.assertTrue(pred1.test(0))
-        self.assertFalse(pred1.test(1))
+        self.assertTrue(pred1.test(1))
         self.assertFalse(pred1.test(2))
 
         pred2 = common_predicates.ExprPredicate("leq_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
+        pred2.tol = tols[2]
         self.assertTrue(pred2.test(0))
-        self.assertFalse(pred2.test(1))
-        self.assertFalse(pred2.test(2))
+        self.assertTrue(pred2.test(1))
+        self.assertTrue(pred2.test(2))
 
         ## its LEq, so increasing value for sym should make everything work
         p2.value += 5

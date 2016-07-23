@@ -129,7 +129,7 @@ class At(ExprPredicate):
         b = np.zeros((2, 1))
         val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
-        e = EqExpr(aff_e, val)
+        e = [EqExpr(aff_e, val)]
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class RobotAt(At):
@@ -146,7 +146,7 @@ class RobotAt(At):
         b = np.zeros((2, 1))
         val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
-        e = EqExpr(aff_e, val)
+        e = [EqExpr(aff_e, val)]
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InContact(CollisionPredicate):
@@ -167,7 +167,7 @@ class InContact(CollisionPredicate):
         col_expr = Expr(f, grad)
         val = np.ones((1, 1))*dsafe
         # val = np.zeros((1, 1))
-        e = EqExpr(col_expr, val)
+        e = [EqExpr(col_expr, val)]
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
 
 class Collides(CollisionPredicate):
@@ -193,10 +193,10 @@ class Collides(CollisionPredicate):
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
-        e = LEqExpr(col_expr, val)
+        e = [LEqExpr(col_expr, val)]
 
         col_expr_neg = Expr(f_neg, grad_neg)
-        self.neg_expr = LEqExpr(col_expr_neg, -val)
+        self.neg_exprs = [LEqExpr(col_expr_neg, -val)]
 
 
         super(Collides, self).__init__(name, e, attr_inds, params,
@@ -205,7 +205,7 @@ class Collides(CollisionPredicate):
 
     def get_expr(self, negated):
         if negated:
-            return self.neg_expr
+            return self.neg_exprs
         else:
             return None
 
@@ -239,10 +239,10 @@ class RCollides(CollisionPredicate):
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
-        e = LEqExpr(col_expr, val)
+        e = [LEqExpr(col_expr, val)]
 
         col_expr_neg = Expr(f_neg, grad_neg)
-        self.neg_expr = LEqExpr(col_expr_neg, -val)
+        self.neg_exprs = [LEqExpr(col_expr_neg, -val)]
 
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
@@ -252,7 +252,7 @@ class RCollides(CollisionPredicate):
 
     def get_expr(self, negated):
         if negated:
-            return self.neg_expr
+            return self.neg_exprs
         else:
             return None
 
@@ -283,17 +283,17 @@ class Obstructs(CollisionPredicate):
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
-        e = LEqExpr(col_expr, val)
+        e = [LEqExpr(col_expr, val)]
 
         col_expr_neg = Expr(f_neg, grad_neg)
-        self.neg_expr = LEqExpr(col_expr_neg, -val)
+        self.neg_exprs = [LEqExpr(col_expr_neg, -val)]
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=2)
 
     def get_expr(self, negated):
         if negated:
-            return self.neg_expr
+            return self.neg_exprs
         else:
             return None
 
@@ -316,26 +316,33 @@ class ObstructsHolding(CollisionPredicate):
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
                                held: self.lazy_spawn_or_body(held, held.name, held.geom)}
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+
+        f1 = lambda x: -self.distance_from_obj(x)[0]
+        grad1 = lambda x: -self.distance_from_obj(x)[1]
+
+        f2 = lambda x: -self.distance_from_obj(x)[2]
+        grad2 = lambda x: -self.distance_from_obj(x)[3]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.distance_from_obj(x)[0]
-        grad_neg = lambda x: self.distance_from_obj(x)[1]
+        f_neg1 = lambda x: self.distance_from_obj(x)[0]
+        grad_neg1 = lambda x: self.distance_from_obj(x)[1]
+        f_neg2 = lambda x: self.distance_from_obj(x)[2]
+        grad_neg2 = lambda x: self.distance_from_obj(x)[3]
 
-
-        col_expr = Expr(f, grad)
+        col_expr1 = Expr(f1, grad1)
+        col_expr2 = Expr(f2, grad2)
         val = np.zeros((1,1))
-        e = LEqExpr(col_expr, val)
+        e = [LEqExpr(col_expr1, val), LEqExpr(col_expr2, val)]
 
-        col_expr_neg = Expr(f_neg, grad_neg)
-        self.neg_expr = LEqExpr(col_expr_neg, val)
+        col_expr_neg1 = Expr(f_neg1, grad_neg1)
+        col_expr_neg2 = Expr(f_neg2, grad_neg2)
+        self.neg_exprs = [LEqExpr(col_expr_neg1, val), LEqExpr(col_expr_neg2, val)]
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
 
     def get_expr(self, negated):
         if negated:
-            return self.neg_expr
+            return self.neg_exprs
         else:
             return None
 
@@ -357,8 +364,11 @@ class ObstructsHolding(CollisionPredicate):
         if self.obstr.name == self.held.name:
             ## add dsafe to col_val1 b/c we're allowed to touch, but not intersect
             col_val1 -= 2*self.dsafe
-            val = np.array(col_val1)
-            jac = np.r_[jac0, jac1].reshape((1, 4))
+            val1 = np.array(col_val1)
+            jac1 = np.r_[jac0, jac1].reshape((1, 4))
+            val2 = val1
+            jac2 = jac1
+
         else:
             b2 = self._param_to_body[self.held]
             pose_held = x[4:6]
@@ -367,14 +377,12 @@ class ObstructsHolding(CollisionPredicate):
             collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
             col_val2, jac2, jac1_ = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
 
-            if col_val1 > col_val2:
-                val = np.array(col_val1)
-                jac = np.r_[jac0, jac1, np.zeros(2)].reshape((1, 6))
-            else:
-                val = np.array(col_val2)
-                jac = np.r_[np.zeros(2), jac1_, jac2].reshape((1, 6))
+            val1 = np.array(col_val1)
+            jac1 = np.r_[jac0, jac1, np.zeros(2)].reshape((1, 6))
+            val2 = np.array(col_val2)
+            jac2 = np.r_[np.zeros(2), jac1_, jac2].reshape((1, 6))
 
-        return val, jac
+        return val1, jac1, val2, jac2
 
 class InGripper(ExprPredicate):
 
@@ -392,7 +400,7 @@ class InGripper(ExprPredicate):
         b = np.zeros((2, 1))
 
         e = AffExpr(A, b)
-        e = EqExpr(e, np.zeros((2,1)))
+        e = [EqExpr(e, np.zeros((2,1)))]
 
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
 
@@ -412,7 +420,7 @@ class GraspValid(ExprPredicate):
         b = np.zeros((2, 1))
 
         e = AffExpr(A, b)
-        e = EqExpr(e, np.zeros((2,1)))
+        e = [EqExpr(e, np.zeros((2,1)))]
 
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
 
@@ -426,7 +434,7 @@ class Stationary(ExprPredicate):
         A = np.array([[1, 0, -1, 0],
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
-        e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
+        e = [EqExpr(AffExpr(A, b), np.zeros((2, 1)))]
         super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
 class StationaryNEq(ExprPredicate):
@@ -446,7 +454,7 @@ class StationaryNEq(ExprPredicate):
             A = np.array([[1, 0, -1, 0],
                           [0, 1, 0, -1]])
             b = np.zeros((2, 1))
-        e = EqExpr(AffExpr(A, b), b)
+        e = [EqExpr(AffExpr(A, b), b)]
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
 class StationaryW(ExprPredicate):
@@ -459,7 +467,7 @@ class StationaryW(ExprPredicate):
         A = np.array([[1, 0, -1, 0],
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
-        e = EqExpr(AffExpr(A, b), b)
+        e = [EqExpr(AffExpr(A, b), b)]
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
 
@@ -479,5 +487,5 @@ class IsMP(ExprPredicate):
                       [0, -1, 0, 1]])
         b = np.zeros((4, 1))
 
-        e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
+        e = [LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))]
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
