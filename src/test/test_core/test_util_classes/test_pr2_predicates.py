@@ -16,24 +16,24 @@ class TestPR2Predicates(unittest.TestCase):
 
     def setup(self):
         # Setting up initialization of basic parameter that will be used for the test
-        attrs = {"name": ["pr2"], "pose": [(0, 0, 0)], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae'], "backHeight": [0.31], "lGripper": [0.5], "rGripper": [0.5]}
+        attrs = {"name": ["pr2"], "pose": [(0, 0, 0)], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae'], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
         attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
         attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": PR2, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
         self.robot = parameter.Object(attrs, attr_types)
 
-        attrs = {"name": ["funnyPose"], "value": [(0, 0, 0)], "_type": ["RobotPose"], "backHeight": [0.31], "lGripper": [0.5], "rGripper": [0.5]}
+        attrs = {"name": ["funnyPose"], "value": [(0, 0, 0)], "_type": ["RobotPose"], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
         attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
         attr_types = {"name": str, "value": matrix.Vector3d, "_type": str, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
         self.rPose = parameter.Symbol(attrs, attr_types)
 
-        attrs = {"name": ["can"], "geom": (0.04, 0.2), "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": BlueCan, "pose": matrix.Vector3d, "_type": str}
+        attrs = {"name": ["can"], "geom": (0.04, 0.2), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
 
-        attrs = {"name": ["location"], "value": ["undefined"], "_type": ["Location"]}
-        attr_types = {"name": str, "value": matrix.Vector3d, "_type": str}
+        attrs = {"name": ["location"], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["Location"]}
+        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         self.location = parameter.Symbol(attrs, attr_types)
 
         attrs = {"value": ["undefined"], "_type": ["Grasp"], "name": ["grasp"]}
@@ -48,22 +48,24 @@ class TestPR2Predicates(unittest.TestCase):
         self.setup()
         pred = pr2_predicates.At("testpred", [self.can, self.location], ["Can", "Location"])
         self.assertEqual(pred.get_type(), "At")
-
-        self.assertFalse(pred.test(time=400))
-        self.can.pose = np.array([[3, 4, 5, 6], [6, 5, 7, 8], [6, 3, 4, 2]])
         # location is a symbol and doesn't have a value yet
-        #self.assertRaises(PredicateException, pred.test, time = 400)
+        self.assertFalse(pred.test(time=0))
+        self.can.pose = np.array([[3, 3, 5, 6],
+                                  [6, 6, 7, 8],
+                                  [6, 6, 4, 2]])
+        self.can.rotation = np.zeros((3, 4))
         self.location.value = np.array([[3, 4, 5, 7], [6, 5, 8, 7], [6, 3, 4, 2]])
         self.assertTrue(pred.is_concrete())
-
+        # Test timesteps
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can location)'.")
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=-1)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can location)'.")
+        #
         self.assertTrue(pred.test(time=0))
-        self.assertFalse(pred.test(time=1))
+        self.assertTrue(pred.test(time=1))
         self.assertFalse(pred.test(time=2))
         self.assertFalse(pred.test(time=3))
 
@@ -73,6 +75,17 @@ class TestPR2Predicates(unittest.TestCase):
         with self.assertRaises(ParamValidationException) as cm:
             pred = pr2_predicates.At("testpred", [self.can, sym], ["Can", "Location"])
         self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'testpred: (At can sym)'.")
+        # Test rotation
+        self.can.rotation = np.array([[1,2,3,4],
+                                      [2,3,4,5],
+                                      [3,4,5,6]])
+
+        self.location.rotation = np.array([[2],[3],[4]])
+
+        self.assertFalse(pred.test(time=0))
+        self.assertTrue(pred.test(time=1))
+        self.assertFalse(pred.test(time=2))
+        self.assertFalse(pred.test(time=3))
 
     def test_expr_robot_at(self):
 
@@ -94,7 +107,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred.is_concrete())
         self.robot.lGripper = np.matrix([0.5, 0.4, 0.6, 0.5])
         self.robot.rGripper = np.matrix([0.5, 0.4, 0.6, 0.5])
-        self.robot.backHeight = np.matrix([0.31, 0.29, 0.2, 0.31])
+        self.robot.backHeight = np.matrix([0.2, 0.29, 0.18, 0.2])
         self.robot.lArmPose = np.array([[0,0,0,0,0,0,0],
                                        [1,2,3,4,5,6,7],
                                        [7,6,5,4,3,2,1],
@@ -103,7 +116,6 @@ class TestPR2Predicates(unittest.TestCase):
                                        [1,2,3,4,5,6,7],
                                        [7,6,5,4,3,2,1],
                                        [0,0,0,0,0,0,0]]).T
-
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 funnyPose)'.")
@@ -121,39 +133,50 @@ class TestPR2Predicates(unittest.TestCase):
         # IsGP, Robot, RobotPose, Can
 
         self.setup()
+        # Set the initial arm pose so that pose is not close to joint limit
+        self.robot.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.rPose.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
+
         pred = pr2_predicates.IsGP("testgp", [self.robot, self.rPose, self.can], ["Robot", "RobotPose", "Can"], self.test_env)
         self.assertEqual(pred.get_type(), "IsGP")
         # Since the pose of can is not defined, predicate is not concrete for the test
         self.assertFalse(pred.test(0))
-        # Can's position overlap with robot's, test should fail
+        # Set Can's position to be the same as robot's base pose, test should fail
         self.can.pose = np.array([[0],[0],[0]])
-        # self.assertFalse(pred.test(0))
+        self.assertFalse(pred.test(0))
+        # Uncomment to check gradient below
+        # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
+
         # Set pose of can to be at the center of robot's gripper -> np.array([[0.951],[-0.188],[1.100675]])
-        self.can.pose = np.array([[0.951],[-0.188],[1.100675 - pred.dsafe]])
+        self.can.pose = np.array([[0.57788757, -0.12674368,  0.83760163 - .125]]).T
         # By default setting, gripper is facing up, test should pass
         self.assertTrue(pred.test(0))
-        # Commented out for test
-        # self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
-        # self.assertFalse(pred.test(0))
-
-        # Test gradient
-        pred.expr.expr.grad(pred.get_param_vector(0), True)
-        #change arm pose again
-        self.rPose.rArmPose = np.array([[-np.pi/4, 0, -np.pi/2, -np.pi/2, -np.pi, 0, np.pi/2]]).T
-
+        # Test gripper facing
+        self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
         self.assertFalse(pred.test(0))
-        self.can.pose = np.array([[0.65781389, -0.18729289, 1.100675 - pred.dsafe]]).T # moved can to the center of gripper again
-        self.assertTrue(pred.test(0))
 
+        #change arm pose again
+        self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
+        self.rPose.backHeight = np.matrix([0.29])
+        self.assertFalse(pred.test(0))
+        self.can.pose = np.array([[0.39827922, -0.53027259,  0.92760163 - .125]]).T
+        # moved can to the center of gripper and test again
+        self.assertTrue(pred.test(0))
+        # Uncomment to check gradient below
+        # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
 
 
         """
             Uncomment the following to see the robot
         """
-        pred._param_to_body[self.rPose].set_transparency(0.7)
-        pred._param_to_body[self.can].set_transparency(0.7)
-        self.test_env.SetViewer("qtcoin")
-        import ipdb; ipdb.set_trace()
+        # pred._param_to_body[self.rPose].set_transparency(0.7)
+        # pred._param_to_body[self.can].set_transparency(0.7)
+        # self.test_env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
 
 
 
@@ -163,28 +186,41 @@ class TestPR2Predicates(unittest.TestCase):
         # IsPDP, Robot, RobotPose, Can, Location
 
         self.setup()
-        test_env = Environment()
+        # Set the initial arm pose so that pose is not close to joint limit
+        self.robot.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.rPose.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
+
         pred = pr2_predicates.IsPDP("testpdp", [self.robot, self.rPose, self.can, self.location], ["Robot", "RobotPose", "Can", "Location"], self.test_env)
         self.assertEqual(pred.get_type(), "IsPDP")
-
-        # Since the pose of can is not defined, predicate is not concrete for the test
+        # Since the pose of can is not defined, predicate is not concrete
         self.assertFalse(pred.test(0))
+        # Set Can's position to be the same as robot's base pose, test should fail
         self.can.pose = np.array([[0],[0],[0]])
-        # Can's position overlap with robot's, test should fail
         self.location.value = np.array([[0],[0],[0]])
-        # self.assertFalse(pred.test(0))
+        self.assertFalse(pred.test(0))
+        # Check gradient for the initial pose
+        pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
         # Set pose of can to be at the center of robot's gripper -> np.array([[0.951],[-0.188],[1.100675]])
-        self.location.value = np.array([[0.951],[-0.188],[1.100675 - pred.dsafe]])
+        self.location.value = np.array([[0.57788757, -0.12674368,  0.83760163 - .125]]).T
         # By default setting, gripper is facing up, test should pass
         self.assertTrue(pred.test(0))
+        # Test gripper facing
         self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
         self.assertFalse(pred.test(0))
-        #change arm pose again
-        self.rPose.rArmPose = np.array([[-np.pi/4, 0, -np.pi/2, -np.pi/2, -np.pi, 0, np.pi/2]]).T
 
-        # self.assertFalse(pred.test(0))
-        self.location.value = np.array([[0.65781389, -0.18729289, 1.100675 - pred.dsafe]]).T # moved can to the center of gripper again
+        #change arm pose again
+        self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
+        self.rPose.backHeight = np.matrix([0.29])
+        self.assertFalse(pred.test(0))
+        self.location.value = np.array([[0.39827922, -0.53027259,  0.92760163 - .125]]).T
+        # moved can to the center of gripper and test again
         self.assertTrue(pred.test(0))
+        # Test gradient on the new pose
+        pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
 
         """
             Uncomment the following to see the robot
@@ -200,9 +236,26 @@ class TestPR2Predicates(unittest.TestCase):
         # InGripper, Robot, Can, Grasp
 
         self.setup()
-        pred = pr2_predicates.InGripper("InGripper", [self.robot, self.can, self.grasp], ["Robot", "Can", "Grasp"])
-        self.assertEqual(pred.get_type(), "InGripper")
+        # Set the initial arm pose so that pose is not close to joint limit
+        self.robot.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.rPose.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        self.rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
 
+        pred = pr2_predicates.InGripper("InGripper", [self.robot, self.can, self.grasp], ["Robot", "Can", "Grasp"], self.test_env)
+        self.assertEqual(pred.get_type(), "InGripper")
+        # Since the pose of the can and grasp is not defined, predicate is not concrete
+        # self.assertFalse(pred.test(0))
+        # self.can.pose = np.array([[0],[0],[0]])
+        # self.can.rotation = np.array([[0],[0],[0]])
+        # self.grasp.value = np.array([[0],[0],[0.05]])
+        # # Since the position is not right, the test should fail
+        # self.assertFalse(pred.test(0))
+        # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # pred._param_to_body[self.robot].set_transparency(0.7)
+        # pred._param_to_body[self.can].set_transparency(0.7)
+        # self.test_env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
 
     # TODO: test other predicates
 
