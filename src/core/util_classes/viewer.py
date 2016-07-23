@@ -3,6 +3,7 @@ from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.pr2 import PR2
+from core.util_classes.can import Can
 import time
 
 
@@ -72,12 +73,15 @@ class OpenRAVEViewer(Viewer):
                 self._draw_rave_body(obj, name, t)
 
     def _draw_rave_body(self, obj, name, t, transparency = 0.7):
+        rotation = np.array([[0],[0],[0]])
         assert isinstance(obj, Object)
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         if isinstance(obj.geom, PR2):
             self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
-        self.name_to_rave_body[name].set_pose(obj.pose[:, t])
+        if isinstance(obj.geom, Can):
+            rotation = obj.rotation[:, t]
+        self.name_to_rave_body[name].set_pose(obj.pose[:, t], rotation)
         self.name_to_rave_body[name].set_transparency(transparency)
 
     def animate_plan(self, plan, delay=.1):

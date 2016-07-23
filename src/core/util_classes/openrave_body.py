@@ -1,4 +1,5 @@
 import numpy as np
+from math import cos, sin
 from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
@@ -106,14 +107,14 @@ class OpenRAVEBody(object):
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
-    def set_pose(self, base_pose):
+    def set_pose(self, base_pose, rotation = np.array([[0],[0],[0]])):
         trans = None
         if isinstance(self._geom, Circle) or isinstance(self._geom, Obstacle) or isinstance(self._geom, Wall):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, PR2):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif isinstance(self._geom, Table) or isinstance(self._geom, Can):
-            trans = OpenRAVEBody.base_pose_3D_to_mat(base_pose)
+            trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)
 
     def set_dof(self, back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper):
@@ -310,3 +311,42 @@ class OpenRAVEBody(object):
         y = pose[5]
         rot = axisAngleFromRotationMatrix(mat)[2]
         return np.array([x,y,rot])
+
+    @staticmethod
+    def transform_from_obj_pose(pose, rotation):
+        x, y, z = pose
+        alpha, beta, gamma = rotation
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pose, rotation)
+        rot_mat = np.dot(Rz, np.dot(Ry, Rx))
+        matrix = np.eye(4)
+        matrix[:3,:3] = rot_mat
+        matrix[:3,3] = [x,y,z]
+        return matrix
+
+    @staticmethod
+    def _axis_rot_matrices(pose, rotation):
+        x, y, z = pose
+        alpha, beta, gamma = rotation
+        Rz_2d = np.array([[cos(alpha), -sin(alpha)], [sin(alpha), cos(alpha)]])
+        Ry_2d = np.array([[cos(beta), sin(beta)], [-sin(beta), cos(beta)]])
+        Rx_2d = np.array([[cos(gamma), -sin(gamma)], [sin(gamma), cos(gamma)]])
+        I = np.eye(3)
+        Rz = I.copy()
+        Rz[:2,:2] = Rz_2d
+        Ry = I.copy()
+        Ry[[[0],[2]],[0,2]] = Ry_2d
+        Rx = I.copy()
+        Rx[1:3,1:3] = Rx_2d
+        # ipdb.set_trace()
+        return Rz, Ry, Rx
+
+    @staticmethod
+    def _ypr_from_rot_matrix(r):
+        # alpha
+        yaw = atan2(r[1,0], r[0,0])
+        # beta
+        pitch = atan2(-r[2,0],np.sqrt(r[2,1]**2+r[2,2]**2))
+        # gamma
+        roll = atan2(r[2,1], r[2,2])
+        # ipdb.set_trace()
+        return (yaw, pitch, roll)
