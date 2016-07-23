@@ -1,4 +1,4 @@
-TODO Dylan: 
+TODO Dylan:
 HI PRI
  - predicate resampling
  - swap task integration test
@@ -17,12 +17,12 @@ DONE
  - check plan validity, get failed predicates, get first failed ind
  - update plans to explicitly track which attributes are fixed by the high level
 
- 
+
 
 IFNEEDBE
-create IsMP constraint for robot (if needed), 
+create IsMP constraint for robot (if needed),
 
-TODO Simon: 
+TODO Simon:
 HI PRI
    - unit tests for Stationary, StationaryNEq
 
@@ -34,4 +34,4 @@ LOW PRI
 
 After IROS
  - fix modularity issues with sco.expr.py
- 
+ - implement tests for caching not_obstructs
