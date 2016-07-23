@@ -3,7 +3,8 @@ from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.pr2 import PR2
-import time
+import time, os, os.path as osp, shutil, scipy.misc, subprocess
+
 
 
 class Viewer(object):
@@ -42,6 +43,40 @@ class OpenRAVEViewer(Viewer):
             return OpenRAVEViewer()
         OpenRAVEViewer._viewer.clear()
         return OpenRAVEViewer._viewer
+
+    def record_plan(self, plan, outf, res = (640, 480), cam=None):
+        """
+        creates a video of a plan and stores it in outf
+        """
+        obj_list = []
+        horizon = plan.horizon
+        v = self.env.GetViewer()
+        if osp.exists('.video_images'):
+            shutil.rmtree('.video_images')
+        os.makedirs('.video_images')
+        for p in plan.params.itervalues():
+            if not p.is_symbol():
+                obj_list.append(p)
+        for t in range(horizon):
+            self.draw(obj_list, t)
+            time.sleep(0.1)
+            if cam is None:
+                cam = v.GetCameraTransform()
+            im = v.GetCameraImage(res[0], res[1], cam,[640,640,320,240])
+            scipy.misc.imsave('.video_images/frame_'+str('%05d'%t)+'.png', im)
+        outfname = "{}.mp4".format(outf)
+        if osp.exists(outfname):
+            os.remove(outfname)
+        arglist = ['avconv',
+                   '-f', 'image2', 
+                   '-r', '10', 
+                   "-i", ".video_images/frame_%05d.png",
+                   "-f", "mp4", 
+                   "-bf", "1", 
+                   "-r", "30", 
+                   "{}.mp4".format(outf)]
+        subprocess.call(arglist)
+
 
     def initialize_from_workspace(self, workspace):
         pass
