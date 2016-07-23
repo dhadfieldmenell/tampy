@@ -311,7 +311,8 @@ class Obstructs(CollisionPredicate):
             ## there should only be 1 target that satisfies this
             ## otherwise, choose to fail here
             targets  = plan.get_param(InContact, 2, {0: self.r, 1:param})
-            inds = param._free_attrs['value']
+            # http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
+            inds = np.where(param._free_attrs['value'])
             if np.sum(inds) == 0: continue ## no resampling for this one
             if len(targets) == 1:
                 random_dir = np.random.rand(2)
@@ -324,7 +325,9 @@ class Obstructs(CollisionPredicate):
                 raise NotImplemented
             self.param.value[inds] = val[inds]
             res.extend(val[inds].flatten().tolist())
-            attr_inds[param] = [('value', inds)]
+            # inds[0] returns the x values of the indices which is what we care
+            # about, because the y values correspond to time.
+            attr_inds[param] = [('value', inds[0])]
         return np.array(res), attr_inds
 
 
