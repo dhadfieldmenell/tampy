@@ -87,12 +87,20 @@ class OpenRAVEViewer(Viewer):
             time.sleep(delay)
 
     def draw_plan(self, plan):
-        obj_list = []
         horizon = plan.horizon
+        self.draw_plan_range(plan, range(horizon))
+
+    def draw_plan_range(self, plan, timesteps):
+        obj_list = self._get_plan_obj_list(plan)
+        self.draw_traj(obj_list, timesteps)
+
+    def _get_plan_obj_list(self, plan):
+        obj_list = []
         for p in plan.params.itervalues():
             if not p.is_symbol():
                 obj_list.append(p)
-        self.draw_traj(obj_list, range(horizon))
+        return obj_list
+
 
     def draw_plan_ts(self, plan, t):
         obj_list = []
@@ -102,14 +110,16 @@ class OpenRAVEViewer(Viewer):
                 obj_list.append(p)
         self.draw(obj_list, t)
 
+    def draw_cols(self, plan):
+        horizon = plan.horizon
+        for t in range(horizon):
+            self.draw_cols_ts(plan, t)
+
     def draw_cols_ts(self, plan, t):
         preds = plan.get_active_preds(t)
         for p in preds:
-            try: 
+            try:
                 p.plot_cols(self.env, t)
             except AttributeError:
                 ## some predicates won't define a collision
                 continue
-        
-        
-

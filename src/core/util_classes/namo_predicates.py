@@ -16,8 +16,10 @@ This file implements the predicates for the 2D NAMO domain.
 """
 
 dsafe = 1e-1
-dmove = 1e0
+dmove = 5e-1
 contact_dist = 0
+
+RS_SCALE = 0.5
 
 
 class CollisionPredicate(ExprPredicate):
@@ -130,7 +132,7 @@ class At(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         ## At Can Target
         self.can, self.targ = params
-        attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]), 
+        attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]),
                                  (self.targ, [("value", np.array([0,1], dtype=np.int))])])
 
         A = np.c_[np.eye(2), -np.eye(2)]
@@ -173,19 +175,19 @@ class InContact(CollisionPredicate):
         grad = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = -np.ones((1, 1))*dsafe
+        val = np.ones((1, 1))*dsafe
         # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
 class Collides(CollisionPredicate):
-    
+
     # Collides Can Wall
-    
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.c, self.w = params
-        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]), 
+        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
@@ -219,13 +221,13 @@ class Collides(CollisionPredicate):
 
 
 class RCollides(CollisionPredicate):
-    
+
     # RCollides Robot Obstacle
-    
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.r, self.w = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]), 
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
         self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
@@ -264,21 +266,21 @@ class RCollides(CollisionPredicate):
         else:
             return None
 
-        
+
 
 class Obstructs(CollisionPredicate):
 
-    # Obstructs, Robot, RobotPose, Can;
+    # Obstructs, Robot, RobotPose, RobotPose, Can;
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        assert len(params) == 3
         self._env = env
-        r, rp, c = params
-        attr_inds = OrderedDict([(r, [("pose", np.array([0, 1], dtype=np.int))]), 
-                                 (c, [("pose", np.array([0, 1], dtype=np.int))])])
-        self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
-                               rp: self.lazy_spawn_or_body(rp, rp.name, r.geom),
-                               c: self.lazy_spawn_or_body(c, c.name, c.geom)}
+        self.r, self.startp, self.endp, self.c = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0, 1], dtype=np.int))])])
+        self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
+                               self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom)}
+
+        self.rs_scale = RS_SCALE
 
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
@@ -298,7 +300,33 @@ class Obstructs(CollisionPredicate):
 
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=2)
+                                        expected_param_types, ind0=0, ind1=3)
+        self.priority=1
+
+    def resample(self, negated, time, plan):
+        assert negated
+        res = []
+        attr_inds = OrderedDict()
+        for param in [self.startp, self.endp]:
+            ## there should only be 1 target that satisfies this
+            ## otherwise, choose to fail here
+            targets  = plan.get_param(InContact, 2, {0: self.r, 1:param})
+            inds = param._free_attrs['value']
+            if np.sum(inds) == 0: continue ## no resampling for this one
+            if len(targets) == 1:
+                random_dir = np.random.rand(2)
+                random_dir = random_dir/np.linalg.norm(random_dir)
+                val = targets[0] + random_dir*2*self.r.geom.radius
+            elif len(targets) == 0:
+                ## old generator -- just add a random perturbation
+                val = np.random.normal(param.value[:, 0], scale=self.rs_scale)
+            else:
+                raise NotImplemented
+            self.param.value[inds] = val[inds]
+            res.extend(val[inds].flatten().tolist())
+            attr_inds[param] = [('value', inds)]
+        return np.array(res), attr_inds
+
 
     def get_expr(self, negated):
         if negated:
@@ -308,20 +336,22 @@ class Obstructs(CollisionPredicate):
 
 class ObstructsHolding(CollisionPredicate):
 
-    # ObstructsHolding, Robot, RobotPose, Can, Can;
+    # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can;
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        assert len(params) == 4
         self._env = env
-        r, rp, obstr, held = params
+        r, startp, endp, obstr, held = params
         self.r = r
+        self.startp, self.endp = startp, endp
         self.obstr = obstr
         self.held = held
+
+        self.rs_scale = RS_SCALE
 
         attr_inds = OrderedDict([(r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (obstr, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (held, [("pose", np.array([0, 1], dtype=np.int))])
                                  ])
-        
+
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
                                held: self.lazy_spawn_or_body(held, held.name, held.geom)}
@@ -341,6 +371,38 @@ class ObstructsHolding(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.priority=1
+
+    def resample(self, negated, time, plan):
+
+        assert negated
+        res = []
+        attr_inds = OrderedDict()
+        # assumes that self.startp, self.endp and target are all symbols
+        t_local = 0
+        for param in [self.startp, self.endp]:
+            ## there should only be 1 target that satisfies this
+            ## otherwise, choose to fail here
+            targets  = plan.get_param(InContact, 2, {0: self.r, 1:param})
+            # http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
+            inds = np.where(param._free_attrs['value'])
+            if np.sum(inds) == 0: continue ## no resampling for this one
+            if len(targets) == 1:
+                random_dir = np.random.rand(2,1)
+                random_dir = random_dir/np.linalg.norm(random_dir)
+                # assumes targets are symbols
+                val = targets[0].value + random_dir*2*self.r.geom.radius
+            elif len(targets) == 0:
+                ## old generator -- just add a random perturbation
+                val = np.random.normal(param.value[:, 0], scale=self.rs_scale)
+            else:
+                raise NotImplemented
+            param.value[inds] = val[inds]
+            res.extend(val[inds].flatten().tolist())
+            # inds[0] returns the x values of the indices which is what we care
+            # about, because the y values correspond to time.
+            attr_inds[param] = [('value', inds[0])]
+        return np.array(res), attr_inds
 
     def get_expr(self, negated):
         if negated:
@@ -382,7 +444,7 @@ class ObstructsHolding(CollisionPredicate):
             else:
                 val = np.array(col_val2)
                 jac = np.r_[np.zeros(2), jac1_, jac2].reshape((1, 6))
-            
+
         return val, jac
 
 class InGripper(ExprPredicate):
@@ -460,11 +522,6 @@ class StationaryNEq(ExprPredicate):
 
 class StationaryW(ExprPredicate):
 
-    # StationaryNEq, Can, Can
-    # Assuming robot only holding one object,
-    # it checks whether the can in the first argument is stationary
-    # if that first can is not the second can which robot is holding
-
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params
         attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1], dtype=np.int))])])
@@ -479,7 +536,7 @@ class StationaryW(ExprPredicate):
 class IsMP(ExprPredicate):
 
     # IsMP Robot
-    
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove

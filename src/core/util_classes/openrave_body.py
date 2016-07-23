@@ -143,12 +143,12 @@ class OpenRAVEBody(object):
         return box
 
     @staticmethod
-    def create_body_info(body_type, dims, color, transparency = 0.0, visible = True):
+    def create_body_info(body_type, dims, color, transparency = 0.8, visible = True):
         infobox = KinBody.Link.GeometryInfo()
         infobox._type = body_type
         infobox._vGeomData = dims
         infobox._bVisible = True
-        infobox._fTransparency = 0
+        infobox._fTransparency = transparency
         infobox._vDiffuseColor = color
         return infobox
 
@@ -188,7 +188,7 @@ class OpenRAVEBody(object):
         wall = RaveCreateRobot(env, '')
         wall.InitFromGeometries(box_infos)
         return wall
-            
+
 
 
     @staticmethod
