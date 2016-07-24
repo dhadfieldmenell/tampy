@@ -64,7 +64,7 @@ class ExprPredicate(Predicate):
             param.openrave_body = OpenRAVEBody(self._env, name, geom)
         return param.openrave_body
 
-    def get_expr(self, negated):
+    def get_exprs(self, negated):
         if negated:
             return None
         else:

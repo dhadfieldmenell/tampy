@@ -5,6 +5,7 @@ from core.internal_repr.parameter import Object
 from core.util_classes.pr2 import PR2
 from core.util_classes.can import Can
 import time
+import numpy as np
 
 
 class Viewer(object):

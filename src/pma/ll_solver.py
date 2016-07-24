@@ -68,7 +68,7 @@ class LLParam(object):
                 for index in np.ndindex(shape):
                     # Note: it is easier for the sco code and update_param to
                     # handle things if everything is a Gurobi variable
-                    x[index] = self._model.addVar(lb=-GRB.INFINITY, ub=GRB.INFINITY, 
+                    x[index] = self._model.addVar(lb=-GRB.INFINITY, ub=GRB.INFINITY,
                                                   name=name.format(self._param.name, k, index))
                 setattr(self, k, x)
 
@@ -113,19 +113,19 @@ class NAMOSolver(LLSolver):
         success = False
         initialized=False
         # initialized = True
-        if not plan.initialized:            
+        if not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
             initialized=True
             self._solve_opt_prob(plan, priority=-1, callback=callback)
 
-        
+
         for _ in range(n_resamples):
         ## refinement loop
             if not initialized:
                 self._solve_opt_prob(plan, priority=0, callback=callback)
             success = self._solve_opt_prob(plan, priority=1, callback=callback)
             if success:
-                return success, plan            
+                return success, plan
             ## determine an unsatisfied predicate and resample
             ## for now just return failure
             return success
@@ -145,7 +145,7 @@ class NAMOSolver(LLSolver):
             self._add_obj_bexprs(obj_bexprs)
             self._add_first_and_last_timesteps_of_actions(plan, priority=-1)
         elif priority == 0:
-            ## solve an optimization movement primitive to 
+            ## solve an optimization movement primitive to
             ## transfer current trajectories
             raise NotImplementedError
         elif priority == 1:
@@ -189,7 +189,7 @@ class NAMOSolver(LLSolver):
             negated = pred_dict['negated']
             pred = pred_dict['pred']
 
-            if pred.get_type() in ignore_preds: 
+            if pred.get_type() in ignore_preds:
                 return
 
             if pred.priority > priority: return
@@ -198,16 +198,17 @@ class NAMOSolver(LLSolver):
             #     import pdb; pdb.set_trace()
 
             assert isinstance(pred, common_predicates.ExprPredicate)
-            expr = pred.get_expr(negated)
+            exprs = pred.get_exprs(negated)
 
             for t in effective_timesteps:
                 if t in active_range:
-                    if expr is not None:
-                        if add_nonlin or isinstance(expr.expr, AffExpr):
-                            print "expr being added at time ", t
-                            var = self._spawn_sco_var_for_pred(pred, t)
-                            bexpr = BoundExpr(expr, var)
-                            self._prob.add_cnt_expr(bexpr)
+                    if exprs is not None:
+                        for expr in exprs:
+                            if add_nonlin or isinstance(expr.expr, AffExpr):
+                                print "expr being added at time ", t
+                                var = self._spawn_sco_var_for_pred(pred, t)
+                                bexpr = BoundExpr(expr, var)
+                                self._prob.add_cnt_expr(bexpr)
 
     def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY):
         for action in plan.actions:
@@ -218,7 +219,7 @@ class NAMOSolver(LLSolver):
             timesteps = range(action_start+1, action_end)
             for pred_dict in action.preds:
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False, priority=priority)
-                
+
 
     def _add_all_timesteps_of_actions(self, plan, priority=MAX_PRIORITY):
         for action in plan.actions:
@@ -271,7 +272,7 @@ class NAMOSolver(LLSolver):
         return traj_objs
 
     def _spawn_sco_var_for_pred(self, pred, t):
-        
+
         i = 0
         x = np.empty(pred.x_dim , dtype=object)
         v = np.empty(pred.x_dim)

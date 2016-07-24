@@ -8,7 +8,6 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
 from openravepy import Environment
 import ctrajoptpy
-
 from collections import OrderedDict
 
 """
@@ -203,7 +202,7 @@ class Collides(CollisionPredicate):
                                         expected_param_types, ind0=0, ind1=1)
         self.priority = 1
 
-    def get_expr(self, negated):
+    def get_exprs(self, negated):
         if negated:
             return self.neg_exprs
         else:
@@ -250,7 +249,7 @@ class RCollides(CollisionPredicate):
 
         self.priority = 1
 
-    def get_expr(self, negated):
+    def get_exprs(self, negated):
         if negated:
             return self.neg_exprs
         else:
@@ -291,7 +290,7 @@ class Obstructs(CollisionPredicate):
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=2)
 
-    def get_expr(self, negated):
+    def get_exprs(self, negated):
         if negated:
             return self.neg_exprs
         else:
@@ -340,7 +339,7 @@ class ObstructsHolding(CollisionPredicate):
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
 
-    def get_expr(self, negated):
+    def get_exprs(self, negated):
         if negated:
             return self.neg_exprs
         else:

@@ -8,6 +8,7 @@ from errors_exceptions import PredicateException
 from sco import expr
 import numpy as np
 from openravepy import Environment
+from collections import OrderedDict
 
 N = 10
 
@@ -31,8 +32,7 @@ class TestCommonPredicates(unittest.TestCase):
         p2.value = np.array([2, 2, 2])
 
         ## ExprPred Construction
-        attr_inds = {p1: [("pose", np.array([0], dtype=np.int))],
-                     p2: []}
+        attr_inds = OrderedDict([(p1, [("pose", np.array([0], dtype=np.int))]), (p2, [])])
         e = [expr.EqExpr(e1, np.array([2]))]
         pred = common_predicates.ExprPredicate("expr_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
 
@@ -100,17 +100,17 @@ class TestCommonPredicates(unittest.TestCase):
         attr_types = {"name": str, "geom": circle.RedCircle, "pose": float, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         p1.pose = np.array([[1, 2, 3],
-                            [1 + 2*tols[0], 2 + 2*tols[0], 3],
+                            [1 + tols[0], 2 + tols[0], 3],
                             [1 + tols[1], 2 + tols[1], 3]]).T
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
         attr_types = {"name": str, "value": float, "_type": str}
         p2 = parameter.Symbol(attrs, attr_types)
-        p2.value = np.array([[1, 2], [2, 3]], dtype=np.float64).T
+        p2.value = np.array([[1, 2], [2, 3]]).T
 
 
         ## pred is p1.pose[:1] = p2.value
-        attr_inds = {p1: [("pose", np.array([0, 1], dtype=np.int))],
-                     p2: [("value", np.array([0, 1], dtype=np.int))]}
+        attr_inds = OrderedDict([(p1, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (p2, [("value", np.array([0, 1], dtype=np.int))])])
         A = np.array([[1, 1, -1, -1]])
         b = np.array([0])
 
@@ -119,6 +119,10 @@ class TestCommonPredicates(unittest.TestCase):
         pred0 = common_predicates.ExprPredicate("leq_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
         pred0.tol = tols[0]
         self.assertTrue(pred0.test(0))
+
+        if pred0.exprs[0].eval(pred0.get_param_vector(1), tol = pred0.tol):
+            import ipdb; ipdb.set_trace()
+
         self.assertFalse(pred0.test(1))
         self.assertFalse(pred0.test(2))
 

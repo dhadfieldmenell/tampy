@@ -66,13 +66,13 @@ class TestNamoPredicates(unittest.TestCase):
 
         # testing get_expr
         pred_dict = {"negated": False, "hl_info": "pre", "active_timesteps": (0,0), "pred": pred}
-        self.assertTrue(isinstance(pred.get_expr(pred_dict["negated"])[0], expr.EqExpr))
+        self.assertTrue(isinstance(pred.get_exprs(pred_dict["negated"])[0], expr.EqExpr))
         pred_dict['hl_info'] = "hl_state"
-        self.assertTrue(isinstance(pred.get_expr(pred_dict["negated"])[0], expr.EqExpr))
+        self.assertTrue(isinstance(pred.get_exprs(pred_dict["negated"])[0], expr.EqExpr))
         pred_dict['negated'] = True
-        self.assertTrue(pred.get_expr(pred_dict["negated"]) is None)
+        self.assertTrue(pred.get_exprs(pred_dict["negated"]) is None)
         pred_dict['hl_info'] = "pre"
-        self.assertTrue(pred.get_expr(pred_dict["negated"]) is None)
+        self.assertTrue(pred.get_exprs(pred_dict["negated"]) is None)
 
     def test_robot_at(self):
         # RobotAt Robot RobotPose
