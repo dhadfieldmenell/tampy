@@ -28,7 +28,7 @@ class TestPR2Predicates(unittest.TestCase):
         attr_types = {"name": str, "value": matrix.Vector3d, "_type": str, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
         self.rPose = parameter.Symbol(attrs, attr_types)
 
-        attrs = {"name": ["can"], "geom": (0.04, 0.2), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
+        attrs = {"name": ["can"], "geom": (0.04, 0.25), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
         attr_types = {"name": str, "geom": BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
 
@@ -151,7 +151,7 @@ class TestPR2Predicates(unittest.TestCase):
         # pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
 
         # Set pose of can to be at the center of robot's gripper -> np.array([[0.951],[-0.188],[1.100675]])
-        self.can.pose = np.array([[0.57788757, -0.12674368,  0.83760163 - .125]]).T
+        self.can.pose = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
         # By default setting, gripper is facing up, test should pass
         self.assertTrue(pred.test(0))
         # Test gripper facing
@@ -162,7 +162,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
         self.rPose.backHeight = np.matrix([0.29])
         self.assertFalse(pred.test(0))
-        self.can.pose = np.array([[0.39827922, -0.53027259,  0.92760163 - .125]]).T
+        self.can.pose = np.array([[0.39827922, -0.53027259,  0.92760163]]).T
         # moved can to the center of gripper and test again
         self.assertTrue(pred.test(0))
         # Uncomment to check gradient below
@@ -204,7 +204,7 @@ class TestPR2Predicates(unittest.TestCase):
         pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
         pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
         # Set pose of can to be at the center of robot's gripper -> np.array([[0.951],[-0.188],[1.100675]])
-        self.location.value = np.array([[0.57788757, -0.12674368,  0.83760163 - .125]]).T
+        self.location.value = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
         # By default setting, gripper is facing up, test should pass
         self.assertTrue(pred.test(0))
         # Test gripper facing
@@ -215,7 +215,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
         self.rPose.backHeight = np.matrix([0.29])
         self.assertFalse(pred.test(0))
-        self.location.value = np.array([[0.39827922, -0.53027259,  0.92760163 - .125]]).T
+        self.location.value = np.array([[0.39827922, -0.53027259,  0.92760163]]).T
         # moved can to the center of gripper and test again
         self.assertTrue(pred.test(0))
         # Test gradient on the new pose

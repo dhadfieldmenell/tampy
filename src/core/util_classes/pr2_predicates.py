@@ -85,7 +85,7 @@ class CollisionPredicate(ExprPredicate):
 
     def gripper_can_displacement(self, obj_body, axises, arm_joints, tool_link):
         # Calculate the value and the jacobian regarding displacement between center of gripper and center of can
-        gp = np.array([0,0,.125])
+        gp = np.array([0,0,0])
         robot_pos = tool_link.GetTransform()[:3, 3]
         obj_trans = obj_body.env_body.GetTransform()
         obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
@@ -241,14 +241,14 @@ class IsPDP(CollisionPredicate):
         assert len(params) == 4
         self._env = env
         self.robot, self.robot_pose, self.can, self.location = params
-        attr_inds = {self.robot_pose: [("value", np.array([0,1,2], dtype=np.int)),
-                                        ("backHeight", np.array([0], dtype=np.int)),
-                                        ("lArmPose", np.array(range(7), dtype=np.int)),
-                                        ("lGripper", np.array([0], dtype=np.int)),
-                                        ("rArmPose", np.array(range(7), dtype=np.int)),
-                                        ("rGripper", np.array([0], dtype=np.int))],
-                     self.location: [("value", np.array([0,1,2], dtype=np.int)),
-                                     ("rotation", np.array([0,1,2], dtype=np.int))]}
+        attr_inds = OrderedDict([(self.robot_pose, [("value", np.array([0, 1, 2], dtype=np.int)),
+                                                   ("backHeight", np.array([0], dtype=np.int)),
+                                                   ("lArmPose", np.array(range(7), dtype=np.int)),
+                                                   ("lGripper", np.array([0], dtype=np.int)),
+                                                   ("rArmPose", np.array(range(7), dtype=np.int)),
+                                                   ("rGripper", np.array([0], dtype=np.int))]),
+                                 (self.location, [("value", np.array([0,1,2], dtype=np.int)),
+                                                  ("rotation", np.array([0,1,2], dtype=np.int))])])
         self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.location: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
@@ -297,15 +297,14 @@ class InGripper(CollisionPredicate):
         assert len(params) == 3
         self._env = env
         self.robot, self.can, self.grasp = params
-        attr_inds = {self.robot: [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                  ("backHeight", np.array([0], dtype=np.int)),
-                                  ("lArmPose", np.array(range(7), dtype=np.int)),
-                                  ("lGripper", np.array([0], dtype=np.int)),
-                                  ("rArmPose", np.array(range(7), dtype=np.int)),
-                                  ("rGripper", np.array([0], dtype=np.int))],
-                     self.can: [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                ("rotation", np.array([0, 1, 2], dtype=np.int))]}
-
+        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                               ("backHeight", np.array([0], dtype=np.int)),
+                                               ("lArmPose", np.array(range(7), dtype=np.int)),
+                                               ("lGripper", np.array([0], dtype=np.int)),
+                                               ("rArmPose", np.array(range(7), dtype=np.int)),
+                                               ("rGripper", np.array([0], dtype=np.int))]),
+                                 (self.can, [("pose", np.array([0,1,2], dtype=np.int)),
+                                             ("rotation", np.array([0,1,2], dtype=np.int))])])
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
         f = lambda x: self.pos_error(x)[0]
