@@ -180,7 +180,7 @@ class At(ExprPredicate):
 
 class RobotAt(ExprPredicate):
 
-    # RobotAt, Robot, RobotPose -> Every pose value of robot matches that of robotPose
+    # RobotAt, Robot, RobotPose
 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
@@ -291,7 +291,111 @@ class InGripper(CollisionPredicate):
         e = [EqExpr(pos_expr, np.zeros((3,1))), EqExpr(rot_expr, np.zeros((1,1)))]
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1)
 
-class Obstructs(CollisionPredicate):
+class IsMP(ExprPredicate): # TODO Not yet finished
+
+    # IsMP Robot
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.r, self.rp = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1,2], dtype=np.int)),
+                                            ("backHeight", np.array([0], dtype=np.int)),
+                                            ("lArmPose", np.array(range(7), dtype=np.int)),
+                                            ("lGripper", np.array([0], dtype=np.int)),
+                                            ("rArmPose", np.array(range(7), dtype=np.int)),
+                                            ("rGripper", np.array([0], dtype=np.int))])])
+
+        A = np.c_[np.eye(20), -np.eye(20)]
+        b ,val = np.zeros((20, 1)), np.zeros((20, 1))
+        aff_e = AffExpr(A, b)
+        e = [EqExpr(aff_e, val)]
+        super(RobotAt, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def displacement(self):
+        K = self.hl_action.K
+        T = self.hl_action.T
+        # K,T = traj.size
+
+        v = -1*np.ones((K*T-K,1))
+        d = np.vstack((np.ones((K*T-K,1)),np.zeros((K,1))))
+        # [:,0] allows numpy to see v and d as one-dimensional so that numpy will create a diagonal matrix with v and d as a diagonal
+        # P = np.matrix(np.diag(v[:,0],K) + np.diag(d[:,0]) )
+        P = np.diag(v[:,0],K) + np.diag(d[:,0])
+
+        # positions between time steps are less than eps
+        A_ineq = np.vstack((P, -P))
+        b_ineq = eps*np.ones((2*K*T,1))
+        # linear_constraints = [A_ineq * traj <= b_ineq]
+        v = -1*np.ones(((T-1),1))
+        P = np.eye(T) + np.diag(v[:,0],-1)
+        P = P[:,:T-1]
+        A_ineq = np.hstack((P, -P))
+        b_ineq = eps*np.ones((K, (T-1)*2))
+        lhs = AffExpr({self.traj: A_ineq})
+        rhs = AffExpr(constant = b_ineq)
+        # import ipdb; ipdb.set_trace()
+        return (lhs, rhs)
+
+    def upper_joint_limits(self):
+        K = self.hl_action.K
+        T = self.hl_action.T
+        robot_body = self.robot.get_env_body(self.env)
+        indices = robot_body.GetActiveDOFIndices()
+        if "base" in self.robot.active_bodyparts:
+            assert len(indices) == K - 3
+        else:
+            assert len(indices) == K
+        lb, ub = robot_body.GetDOFLimits()
+        # import ipdb; ipdb.set_trace()
+        active_ub = ub[indices]
+        if "base" in self.robot.active_bodyparts:
+            # create an upperbound on base position and z rotation that is so large that it won't appy
+            active_ub = np.r_[ub[indices], [10000,10000,10000]]
+        active_ub = active_ub.reshape((K,1))
+        ub_stack = np.tile(active_ub, (1,T))
+        # import ipdb; ipdb.set_trace()
+        lhs = AffExpr({self.traj: 1})
+        rhs = AffExpr(constant = ub_stack)
+        return (lhs, rhs)
+
+    def lower_joint_limits(self):
+        K = self.hl_action.K
+        T = self.hl_action.T
+        robot_body = self.robot.get_env_body(self.env)
+        indices = robot_body.GetActiveDOFIndices()
+        if "base" in self.robot.active_bodyparts:
+            assert len(indices) == K - 3
+        else:
+            assert len(indices) == K
+        lb, ub = robot_body.GetDOFLimits()
+        active_lb = lb[indices]
+        if "base" in self.robot.active_bodyparts:
+            # create an upperbound on base position and z rotation that is so large that it won't appy
+            active_lb = np.r_[lb[indices], [-10000,-10000,-10000]]
+        active_lb = active_lb.reshape((K,1))
+        lb_stack = np.tile(active_lb, (1,T))
+        lhs = AffExpr(constant = lb_stack)
+        rhs = AffExpr({self.traj: 1})
+        return (lhs, rhs)
+
+class Stationary(ExprPredicate):
+
+    # Stationary, Can
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 1
+        self.can,  = params
+        attr_inds = OrderedDict([
+                                (self.can, [("pose", np.array([0,1,2], dtype=np.int)),
+                                             ("rotation", np.array([0,1,2], dtype=np.int))])
+                                ])
+
+        A = np.c_[np.eye(6), -np.eye(6)]
+        b, val = np.zeros((6, 1)), np.zeros((6, 1))
+        e = [EqExpr(AffExpr(A, b), val)]
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+
+class Obstructs(CollisionPredicate): #TODO Not yet ready
 
     # Obstructs, Robot, RobotPose, Can
 
