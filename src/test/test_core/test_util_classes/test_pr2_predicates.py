@@ -147,8 +147,8 @@ class TestPR2Predicates(unittest.TestCase):
         self.can.pose = np.array([[0],[0],[0]])
         self.assertFalse(pred.test(0))
         # Uncomment to check gradient below
-        # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
-        # pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
 
         # Set pose of can to be at the center of robot's gripper -> np.array([[0.951],[-0.188],[1.100675]])
         self.can.pose = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
@@ -166,10 +166,8 @@ class TestPR2Predicates(unittest.TestCase):
         # moved can to the center of gripper and test again
         self.assertTrue(pred.test(0))
         # Uncomment to check gradient below
-        # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
-        # pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
-
-
+        pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
         """
             Uncomment the following to see the robot
         """
@@ -208,9 +206,9 @@ class TestPR2Predicates(unittest.TestCase):
         # By default setting, gripper is facing up, test should pass
         self.assertTrue(pred.test(0))
         # Test gripper facing
-        self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
+        # turn the wrist to the side, test should fail
+        self.rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi]]).T
         self.assertFalse(pred.test(0))
-
         #change arm pose again
         self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
         self.rPose.backHeight = np.matrix([0.29])
@@ -221,7 +219,6 @@ class TestPR2Predicates(unittest.TestCase):
         # Test gradient on the new pose
         pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
         pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
-
         """
             Uncomment the following to see the robot
         """
@@ -233,7 +230,7 @@ class TestPR2Predicates(unittest.TestCase):
 
     def test_expr_is_in_gripper(self):
 
-        # InGripper, Robot, Can, Grasp
+        # InGripper, Robot, Can
 
         self.setup()
         # Set the initial arm pose so that pose is not close to joint limit
@@ -242,16 +239,45 @@ class TestPR2Predicates(unittest.TestCase):
         self.rPose.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
         self.rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
 
-        pred = pr2_predicates.InGripper("InGripper", [self.robot, self.can, self.grasp], ["Robot", "Can", "Grasp"], self.test_env)
+        pred = pr2_predicates.InGripper("InGripper", [self.robot, self.can], ["Robot", "Can"], self.test_env)
         self.assertEqual(pred.get_type(), "InGripper")
         # Since the pose of the can and grasp is not defined, predicate is not concrete
-        # self.assertFalse(pred.test(0))
-        # self.can.pose = np.array([[0],[0],[0]])
-        # self.can.rotation = np.array([[0],[0],[0]])
-        # self.grasp.value = np.array([[0],[0],[0.05]])
-        # # Since the position is not right, the test should fail
-        # self.assertFalse(pred.test(0))
-        # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        self.assertFalse(pred.test(0))
+        self.can.pose = np.array([[0],[0],[0]])
+        self.can.rotation = np.array([[0],[0],[0]])
+        # Can's initial position is not right
+        self.assertFalse(pred.test(0))
+        # check the gradient of the implementations
+        pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # Set can's pose on robot's gripper
+        self.can.pose = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
+        self.can.rotation = np.array([[0],[0],[0]])
+        self.assertTrue(pred.test(0))
+        # Change rotation of the can (pose is right, but rotation is wrong)
+        self.can.rotation = np.array([[np.pi/8],[np.pi/4],[np.pi/16]])
+        self.assertFalse(pred.test(0))
+        # Turn robot's wrist
+        self.robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
+        self.assertFalse(pred.test(0))
+        # Now turn the can to the same direction as robot gripper
+        self.can.rotation = np.array([[1.17810, 0, -0.52360]]).T
+        self.assertTrue(pred.test(0))
+        # Now randomly set a new pose
+        self.robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
+        self.assertFalse(pred.test(0))
+        # Tune the can's rotation, now position is still wrong so test should fail
+        self.can.rotation = np.array([[0.02484, -0.59793, -0.68047]]).T
+        self.assertFalse(pred.test(0))
+        # Setting pose back to robot's gripper, Test should work
+        self.can.pose = np.array([[0.59152062, -0.71105108,  1.05144139]]).T
+        self.assertTrue(pred.test(0))
+        # check the gradient of the implementations
+        pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
+        """
+            Uncomment the following to see the robot
+        """
         # pred._param_to_body[self.robot].set_transparency(0.7)
         # pred._param_to_body[self.can].set_transparency(0.7)
         # self.test_env.SetViewer("qtcoin")
