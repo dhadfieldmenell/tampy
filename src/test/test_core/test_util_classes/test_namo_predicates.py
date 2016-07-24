@@ -66,13 +66,13 @@ class TestNamoPredicates(unittest.TestCase):
 
         # testing get_expr
         pred_dict = {"negated": False, "hl_info": "pre", "active_timesteps": (0,0), "pred": pred}
-        self.assertTrue(isinstance(pred.get_exprs(pred_dict["negated"])[0], expr.EqExpr))
+        self.assertTrue(isinstance(pred.get_expr(pred_dict["negated"]), expr.EqExpr))
         pred_dict['hl_info'] = "hl_state"
-        self.assertTrue(isinstance(pred.get_exprs(pred_dict["negated"])[0], expr.EqExpr))
+        self.assertTrue(isinstance(pred.get_expr(pred_dict["negated"]), expr.EqExpr))
         pred_dict['negated'] = True
-        self.assertTrue(pred.get_exprs(pred_dict["negated"]) is None)
+        self.assertTrue(pred.get_expr(pred_dict["negated"]) is None)
         pred_dict['hl_info'] = "pre"
-        self.assertTrue(pred.get_exprs(pred_dict["negated"]) is None)
+        self.assertTrue(pred.get_expr(pred_dict["negated"]) is None)
 
     def test_robot_at(self):
         # RobotAt Robot RobotPose
@@ -133,7 +133,7 @@ class TestNamoPredicates(unittest.TestCase):
         pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
 
         # Test Gradient for it
-        pred.exprs[0].expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
+        pred.expr.expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
 
         robot.pose = np.zeros((2,4))
         can.pose = np.array([[2*(radius+pred.dsafe), 0, 0, 2*radius - pred.dsafe],
@@ -164,7 +164,7 @@ class TestNamoPredicates(unittest.TestCase):
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
         # Test Gradient for it
-        pred.exprs[0].expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
+        pred.expr.expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
         robotPose.value = np.zeros((2,4))
         target.value = np.array([[2*radius, radius, 2*radius, 2*radius-pred.dsafe,  0],
                                  [0,                   0,      0,        0,                    0]])
@@ -207,7 +207,7 @@ class TestNamoPredicates(unittest.TestCase):
         # Object should obstructs because all objects's positions are in (0,0)
         self.assertTrue(pred.test(time = 0))
         # This predicate has two expressions
-        pred.exprs[0].expr.grad(np.array([1.9,0,0,0,0,0]), True, 1e-2)
+        # pred.expr.expr.grad(np.array([1.9,0,0,0,0,0]), True, 1e-2)
         robot.pose = np.zeros((2,4))
         can1.pose = np.array([[2*(radius+pred.dsafe)+0.1, 0,                    .1, 2*radius - pred.dsafe],
                               [0,                     2*(radius+pred.dsafe)+0.1, 0, 0]])
@@ -495,7 +495,7 @@ class TestNamoPredicates(unittest.TestCase):
         env = Environment()
 
         pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
-        pred.exprs[0].expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
+        pred.expr.expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
 
 
 

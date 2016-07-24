@@ -33,7 +33,7 @@ class TestCommonPredicates(unittest.TestCase):
 
         ## ExprPred Construction
         attr_inds = OrderedDict([(p1, [("pose", np.array([0], dtype=np.int))]), (p2, [])])
-        e = [expr.EqExpr(e1, np.array([2]))]
+        e = expr.EqExpr(e1, np.array([2]))
         pred = common_predicates.ExprPredicate("expr_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
 
         # with self.assertRaises(NotImplementedError):
@@ -75,7 +75,7 @@ class TestCommonPredicates(unittest.TestCase):
         b = np.array([0])
 
         aff_e = expr.AffExpr(A, b)
-        e = [expr.EqExpr(aff_e, np.array([[0.]]))]
+        e = expr.EqExpr(aff_e, np.array([[0.]]))
         pred0 = common_predicates.ExprPredicate("eq_expr_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
         self.assertTrue(pred0.test(0))
         self.assertFalse(pred0.test(1))
@@ -115,12 +115,12 @@ class TestCommonPredicates(unittest.TestCase):
         b = np.array([0])
 
         aff_e = expr.AffExpr(A, b)
-        e = [expr.LEqExpr(aff_e, np.array([[0.]]))]
+        e = expr.LEqExpr(aff_e, np.array([[0.]]))
         pred0 = common_predicates.ExprPredicate("leq_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
         pred0.tol = tols[0]
         self.assertTrue(pred0.test(0))
 
-        if pred0.exprs[0].eval(pred0.get_param_vector(1), tol = pred0.tol):
+        if pred0.expr.eval(pred0.get_param_vector(1), tol = pred0.tol):
             import ipdb; ipdb.set_trace()
 
         self.assertFalse(pred0.test(1))

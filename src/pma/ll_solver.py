@@ -198,17 +198,16 @@ class NAMOSolver(LLSolver):
             #     import pdb; pdb.set_trace()
 
             assert isinstance(pred, common_predicates.ExprPredicate)
-            exprs = pred.get_exprs(negated)
+            expr = pred.get_expr(negated)
 
             for t in effective_timesteps:
                 if t in active_range:
-                    if exprs is not None:
-                        for expr in exprs:
-                            if add_nonlin or isinstance(expr.expr, AffExpr):
-                                print "expr being added at time ", t
-                                var = self._spawn_sco_var_for_pred(pred, t)
-                                bexpr = BoundExpr(expr, var)
-                                self._prob.add_cnt_expr(bexpr)
+                    if expr is not None:
+                        if add_nonlin or isinstance(expr.expr, AffExpr):
+                            print "expr being added at time ", t
+                            var = self._spawn_sco_var_for_pred(pred, t)
+                            bexpr = BoundExpr(expr, var)
+                            self._prob.add_cnt_expr(bexpr)
 
     def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY):
         for action in plan.actions:

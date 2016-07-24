@@ -5,7 +5,7 @@ from core.util_classes.matrix import Vector3d, PR2PoseVector
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.pr2 import PR2
-from sco.expr import Expr, AffExpr, EqExpr
+from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 import numpy as np
 import ctrajoptpy
@@ -152,6 +152,16 @@ class CollisionPredicate(ExprPredicate):
 
         return (rot_val, rot_jac)
 
+    def face_up(self, tool_link, arm_joints):
+        # calculate the value and jacobian regarding direction of which the gripper is facing
+        local_dir = np.array([0.,0.,1.])
+        face_val = tool_link.GetTransform()[:2,:3].dot(local_dir)
+        world_dir = tool_link.GetTransform()[:3,:3].dot(local_dir)
+        arm_jac = np.array([np.cross(joint.GetAxis(), world_dir)[:2] for joint in arm_joints]).T.copy()
+        face_jac = np.hstack((np.zeros((2, 12)), arm_jac, np.zeros((2, 1)), np.zeros((2, 6))))
+
+        return (face_val, face_jac)
+
     def _plot_collision(self, ptA, ptB, distance):
         self.handles = []
         if not np.allclose(ptA, ptB, atol=1e-3):
@@ -175,7 +185,7 @@ class At(ExprPredicate):
         A = np.c_[np.eye(6), -np.eye(6)]
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
         aff_e = AffExpr(A, b)
-        e = [EqExpr(aff_e, val)]
+        e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class RobotAt(ExprPredicate):
@@ -201,7 +211,7 @@ class RobotAt(ExprPredicate):
         A = np.c_[np.eye(20), -np.eye(20)]
         b ,val = np.zeros((20, 1)), np.zeros((20, 1))
         aff_e = AffExpr(A, b)
-        e = [EqExpr(aff_e, val)]
+        e = EqExpr(aff_e, val)
         super(RobotAt, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class IsGP(CollisionPredicate):
@@ -224,13 +234,11 @@ class IsGP(CollisionPredicate):
         self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
-        f1 = lambda x: self.pose_rot_check(x)[0]
-        grad1 = lambda x: self.pose_rot_check(x)[1]
-        f2 = lambda x: self.pose_rot_check(x)[2]
-        grad2 = lambda x: self.pose_rot_check(x)[3]
+        f = lambda x: self.pose_rot_check(x)[0]
+        grad = lambda x: self.pose_rot_check(x)[1]
 
-        pos_expr, face_expr = Expr(f1, grad1), Expr(f2, grad2)
-        e = [EqExpr(pos_expr, np.zeros((3, 1))), EqExpr(face_expr, np.zeros((2, 1)))]
+        pos_expr = Expr(f, grad)
+        e = EqExpr(pos_expr, np.zeros((3, 1)))
         super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
 
 class IsPDP(CollisionPredicate):
@@ -253,13 +261,11 @@ class IsPDP(CollisionPredicate):
         self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.location: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
-        f1 = lambda x: self.pose_rot_check(x)[0]
-        grad1 = lambda x: self.pose_rot_check(x)[1]
-        f2 = lambda x: self.pose_rot_check(x)[2]
-        grad2 = lambda x: self.pose_rot_check(x)[3]
+        f = lambda x: self.pose_rot_check(x)[2]
+        grad = lambda x: self.pose_rot_check(x)[3]
 
-        pos_expr, face_expr = Expr(f1, grad1), Expr(f2, grad2)
-        e = [EqExpr(pos_expr, np.zeros((3, 1))), EqExpr(face_expr, np.zeros((2, 1)))]
+        face_expr = Expr(f, grad)
+        e = EqExpr(face_expr, np.zeros((2, 1)))
         super(IsPDP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=3)
 
 class InGripper(CollisionPredicate):
@@ -282,34 +288,30 @@ class InGripper(CollisionPredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
-        f1 = lambda x: self.pose_rot_check(x)[0]
-        grad1 = lambda x: self.pose_rot_check(x)[1]
-        f2 = lambda x: self.pose_rot_check(x)[2]
-        grad2 = lambda x: self.pose_rot_check(x)[3]
+        f = lambda x: self.pose_rot_check(x)[0]
+        grad = lambda x: self.pose_rot_check(x)[1]
 
-        pos_expr, rot_expr = Expr(f1, grad1), Expr(f2, grad2)
-        e = [EqExpr(pos_expr, np.zeros((3,1))), EqExpr(rot_expr, np.zeros((1,1)))]
+        pos_expr = Expr(f, grad)
+        e = EqExpr(pos_expr, np.zeros((3,1)))
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1)
 
 class IsMP(ExprPredicate): # TODO Not yet finished
 
     # IsMP Robot
 
-    def __init__(self, name, params, expected_param_types, env=None):
-        assert len(params) == 2
-        self.r, self.rp = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1,2], dtype=np.int)),
-                                            ("backHeight", np.array([0], dtype=np.int)),
-                                            ("lArmPose", np.array(range(7), dtype=np.int)),
-                                            ("lGripper", np.array([0], dtype=np.int)),
-                                            ("rArmPose", np.array(range(7), dtype=np.int)),
-                                            ("rGripper", np.array([0], dtype=np.int))])])
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.r, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))])])
+        A = np.array([[1, 0, -1, 0],
+                      [0, 1, 0, -1],
+                      [-1, 0, 1, 0],
+                      [0, -1, 0, 1]])
+        b = np.zeros((4, 1))
 
-        A = np.c_[np.eye(20), -np.eye(20)]
-        b ,val = np.zeros((20, 1)), np.zeros((20, 1))
-        aff_e = AffExpr(A, b)
-        e = [EqExpr(aff_e, val)]
-        super(RobotAt, self).__init__(name, e, attr_inds, params, expected_param_types)
+        e = LEqExpr(AffExpr(A, b), .5*np.ones((4, 1)))
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
     def displacement(self):
         K = self.hl_action.K
@@ -336,26 +338,32 @@ class IsMP(ExprPredicate): # TODO Not yet finished
         # import ipdb; ipdb.set_trace()
         return (lhs, rhs)
 
-    def upper_joint_limits(self):
-        K = self.hl_action.K
-        T = self.hl_action.T
-        robot_body = self.robot.get_env_body(self.env)
+    def upper_joint_limits(self, x):
+
+        robot_body = self._param_to_body[self.params[self.ind0]].env_body
         indices = robot_body.GetActiveDOFIndices()
-        if "base" in self.robot.active_bodyparts:
-            assert len(indices) == K - 3
-        else:
-            assert len(indices) == K
         lb, ub = robot_body.GetDOFLimits()
-        # import ipdb; ipdb.set_trace()
         active_ub = ub[indices]
-        if "base" in self.robot.active_bodyparts:
-            # create an upperbound on base position and z rotation that is so large that it won't appy
-            active_ub = np.r_[ub[indices], [10000,10000,10000]]
-        active_ub = active_ub.reshape((K,1))
-        ub_stack = np.tile(active_ub, (1,T))
+        import ipdb; ipdb.set_trace()
+
+        active_ub = active_ub.reshape((20,1))
+
+
+        # if "base" in self.robot.active_bodyparts:
+        #     assert len(indices) == K - 3
+        # else:
+        #     assert len(indices) == K
+        #
+        # # import ipdb; ipdb.set_trace()
+        #
+        # if "base" in self.robot.active_bodyparts:
+        #     # create an upperbound on base position and z rotation that is so large that it won't appy
+        #     active_ub = np.r_[ub[indices], [10000,10000,10000]]
+        # active_ub = active_ub.reshape((K,1))
+
         # import ipdb; ipdb.set_trace()
         lhs = AffExpr({self.traj: 1})
-        rhs = AffExpr(constant = ub_stack)
+        rhs = AffExpr(constant = active_ub)
         return (lhs, rhs)
 
     def lower_joint_limits(self):
@@ -392,7 +400,7 @@ class Stationary(ExprPredicate):
 
         A = np.c_[np.eye(6), -np.eye(6)]
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
-        e = [EqExpr(AffExpr(A, b), val)]
+        e = EqExpr(AffExpr(A, b), val)
         super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
 class Obstructs(CollisionPredicate): #TODO Not yet ready
@@ -421,5 +429,5 @@ class Obstructs(CollisionPredicate): #TODO Not yet ready
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
-        e = [LEqExpr(col_expr, val)]
+        e = LEqExpr(col_expr, val)
         super(Obstructs, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)

@@ -36,7 +36,7 @@ class ExprPredicate(Predicate):
     Predicates which are defined by a target value for a set expression.
     """
 
-    def __init__(self, name, exprs, attr_inds, params, expected_param_types, env=None, dynamic=False):
+    def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None, dynamic=False):
         """
         attr2inds is a dictionary that maps each parameter name to a
         list of (attr, active_inds) pairs. This defines the mapping
@@ -44,7 +44,7 @@ class ExprPredicate(Predicate):
         expr
         """
         super(ExprPredicate, self).__init__(name, params, expected_param_types, env=env, dynamic=dynamic)
-        self.exprs = exprs
+        self.expr = expr
         self.attr_inds = attr_inds
         self.tol = DEFAULT_TOL
 
@@ -64,11 +64,11 @@ class ExprPredicate(Predicate):
             param.openrave_body = OpenRAVEBody(self._env, name, geom)
         return param.openrave_body
 
-    def get_exprs(self, negated):
+    def get_expr(self, negated):
         if negated:
             return None
         else:
-            return self.exprs
+            return self.expr
 
     def get_param_vector(self, t):
         end_ind = get_param_vector_helper(self, self.x, 0, t, self.attr_inds)
@@ -85,8 +85,7 @@ class ExprPredicate(Predicate):
         if time < 0:
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
-            # Test whether all of the constrains are satisfied
-            return all([expr.eval(self.get_param_vector(time), tol=self.tol, negated=negated) for expr in self.exprs])
+            return self.expr.eval(self.get_param_vector(time), tol=self.tol, negated=negated)
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
@@ -107,5 +106,5 @@ class ExprPredicate(Predicate):
                 i += n_vals
         return res
 
-    def _grad(self, expr, t):
-        return expr.grad(self.get_param_vector(t))
+    def _grad(self, t):
+        return self.expr.grad(self.get_param_vector(t))
