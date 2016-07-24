@@ -114,7 +114,10 @@ class NAMOSolver(LLSolver):
     def __init__(self):
         self.transfer_coeff = 1e1
         self.rs_coeff = 1e6
-        self.init_penalty_coeff = 1e5
+        self.init_penalty_coeff = 1e2
+
+        self._bexpr_to_pred = {}
+        self._ec_violated_pred = None
 
     def solve(self, plan, callback=None, n_resamples=5):
         success = False
@@ -138,7 +141,8 @@ class NAMOSolver(LLSolver):
                 return success
         return success
 
-    def _solve_opt_prob(self, plan, priority, callback=None, init=True, init_from_prev=False):
+
+    def _solve_opt_prob(self, plan, priority, callback=None):
         model = grb.Model()
         model.params.OutputFlag = 0
         self._prob = Prob(model, callback=callback)
@@ -146,16 +150,22 @@ class NAMOSolver(LLSolver):
         self._spawn_parameter_to_ll_mapping(model, plan)
         model.update()
 
+        self._bexpr_to_pred = {}
+
         if priority == -1:
             obj_bexprs = self._get_trajopt_obj(plan)
             self._add_obj_bexprs(obj_bexprs)
             self._add_first_and_last_timesteps_of_actions(plan, priority=-1)
             tol = 1e-1
         elif priority == 0:
+            # failed_preds = None
             failed_preds = plan.get_failed_preds()
+            # if self._ec_violated_pred is None:
+            #     failed_preds = plan.get_failed_preds()
+            # else:
+            #     failed_preds = [self._ec_violated_pred]
             ## this is an objective that places
             ## a high value on matching the resampled values
-            # import pdb; pdb.set_trace()
             obj_bexprs = self._resample(plan, failed_preds)
             ## solve an optimization movement primitive to
             ## transfer current trajectories
@@ -176,7 +186,12 @@ class NAMOSolver(LLSolver):
 
         solv = Solver()
         solv.initial_penalty_coeff = self.init_penalty_coeff
-        success = solv.solve(self._prob, method='penalty_sqp', tol=tol)
+        # success, violated_bexpr = solv.solve(self._prob, method='penalty_sqp', tol=tol)
+        success, violated_bexpr = solv.solve(self._prob, method='penalty_sqp_early_converge', tol=tol)
+        if violated_bexpr is not None:
+            self._ec_violated_pred = self._bexpr_to_pred[violated_bexpr]
+        else:
+            self._ec_violated_pred = None
         self._update_ll_params()
         return success
 
@@ -258,10 +273,10 @@ class NAMOSolver(LLSolver):
         ignore_preds = []
         priority = np.maximum(priority, 0)
         if not pred_dict['hl_info'] == "hl_state":
-            print "pred being added: ", pred_dict
+            # print "pred being added: ", pred_dict
             start, end = pred_dict['active_timesteps']
             active_range = range(start, end+1)
-            print active_range, effective_timesteps
+            # print active_range, effective_timesteps
             negated = pred_dict['negated']
             pred = pred_dict['pred']
 
@@ -287,9 +302,10 @@ class NAMOSolver(LLSolver):
                 if t in active_range:
                     if expr is not None:
                         if add_nonlin or isinstance(expr.expr, AffExpr):
-                            print "expr being added at time ", t
+                            # print "expr being added at time ", t
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
+                            self._bexpr_to_pred[bexpr] = (negated, pred, t)
                             self._prob.add_cnt_expr(bexpr)
 
     def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY, add_nonlin=False):

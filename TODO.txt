@@ -35,3 +35,4 @@ LOW PRI
 After IROS
  - fix modularity issues with sco.expr.py
  - implement tests for caching not_obstructs
+ - implement more thorough tests for ll_solver
