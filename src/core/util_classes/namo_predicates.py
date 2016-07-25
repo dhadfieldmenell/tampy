@@ -168,11 +168,12 @@ class InContact(CollisionPredicate):
         self._param_to_body = {rp: self.lazy_spawn_or_body(rp, rp.name, self.robot.geom),
                                targ: self.lazy_spawn_or_body(targ, targ.name, targ.geom)}
 
-        f = lambda x: self.distance_from_obj(x)[0]
-        grad = lambda x: self.distance_from_obj(x)[1]
+        INCONTACT_COEFF = 1e1
+        f = lambda x: INCONTACT_COEFF*self.distance_from_obj(x)[0]
+        grad = lambda x: INCONTACT_COEFF*self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.ones((1, 1))*dsafe
+        val = np.ones((1, 1))*dsafe*INCONTACT_COEFF
         # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)

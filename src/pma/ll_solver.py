@@ -186,8 +186,8 @@ class NAMOSolver(LLSolver):
 
         solv = Solver()
         solv.initial_penalty_coeff = self.init_penalty_coeff
-        # success, violated_bexpr = solv.solve(self._prob, method='penalty_sqp', tol=tol)
-        success, violated_bexpr = solv.solve(self._prob, method='penalty_sqp_early_converge', tol=tol)
+        success, violated_bexpr = solv.solve(self._prob, method='penalty_sqp', tol=tol)
+        # success, violated_bexpr = solv.solve(self._prob, method='penalty_sqp_early_converge', tol=tol)
         if violated_bexpr is not None:
             self._ec_violated_pred = self._bexpr_to_pred[violated_bexpr]
         else:

@@ -31,11 +31,12 @@ class TestLLSolver(unittest.TestCase):
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
 
-        self.move_no_obs = get_plan('../domains/namo_domain/namo_probs/ll_solver_one_move.prob')
+        self.move_obs = get_plan('../domains/namo_domain/namo_probs/ll_solver_one_move.prob')
         self.move_grasp = get_plan('../domains/namo_domain/namo_probs/move_grasp.prob')
         self.move_grasp_moveholding = get_plan('../domains/namo_domain/namo_probs/moveholding.prob')
         self.place = get_plan('../domains/namo_domain/namo_probs/place.prob')
         self.putaway = get_plan('../domains/namo_domain/namo_probs/putaway.prob')
+        self.putaway3 = get_plan('../domains/namo_domain/namo_probs/putaway3.prob')
         self.putaway2 = get_plan('../domains/namo_domain/namo_probs/putaway2.prob', ['0: MOVETO PR2 ROBOT_INIT_POSE PDP_TARGET2',
                                                                                      '1: GRASP PR2 CAN0 TARGET0 PDP_TARGET2 PDP_TARGET0 GRASP0',
                                                                                      '2: MOVETOHOLDING PR2 PDP_TARGET0 PDP_TARGET2 CAN0 GRASP0',
@@ -43,7 +44,7 @@ class TestLLSolver(unittest.TestCase):
 
     def test_llparam(self):
         # TODO: tests for undefined, partially defined and fully defined params
-        plan = self.move_no_obs
+        plan = self.move_obs
         horizon = plan.horizon
         move = plan.actions[0]
         pr2 = move.params[0]
@@ -179,7 +180,7 @@ class TestLLSolver(unittest.TestCase):
 
     def test_namo_solver_one_move_plan_solve_init(self):
         # return
-        plan = self.move_no_obs
+        plan = self.move_obs
         # import ipdb; ipdb.set_trace()
         move = plan.actions[0]
         pr2 = move.params[0]
@@ -229,8 +230,8 @@ class TestLLSolver(unittest.TestCase):
         # import ipdb; ipdb.set_trace()
         # time.sleep(3)
 
-    def test_namo_solver_one_move_plan_solve(self):
-        _test_plan(self, self.move_no_obs)
+    def test_move(self):
+        _test_plan(self, self.move_obs)
 
     def test_move_grasp(self):
         _test_plan(self, self.move_grasp)
@@ -243,6 +244,9 @@ class TestLLSolver(unittest.TestCase):
 
     def test_putaway(self):
         _test_plan(self, self.putaway)
+
+    def test_putaway3(self):
+        _test_plan(self, self.putaway3)
 
     def test_putaway2(self):
         # this is a plan where the robot needs to end up
@@ -257,14 +261,14 @@ def _test_plan(test_obj, plan):
     """
     Uncomment out lines below to see optimization.
     """
-    viewer = OpenRAVEViewer.create_viewer()
-    def callback():
-        namo_solver._update_ll_params()
-        # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
-        # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
-        viewer.draw_plan(plan)
-        # viewer.draw_cols(plan)
-        time.sleep(0.03)
+    # viewer = OpenRAVEViewer.create_viewer()
+    # def callback():
+    #     namo_solver._update_ll_params()
+    #     # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
+    #     # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
+    #     viewer.draw_plan(plan)
+    #     # viewer.draw_cols(plan)
+    #     time.sleep(0.03)
     """
     """
     namo_solver = ll_solver.NAMOSolver()
@@ -272,13 +276,13 @@ def _test_plan(test_obj, plan):
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
-    import pdb; pdb.set_trace()
-    # #
-    # if viewer != None:
-    #     viewer = OpenRAVEViewer.create_viewer()
-    #     viewer.animate_plan(plan)
-    #     if t < plan.horizon:
-    #         viewer.draw_plan_ts(plan, t)
+
+    if viewer != None:
+        raw_input("see plan")
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
 
     # test_obj.assertTrue(plan.satisfied())
 
