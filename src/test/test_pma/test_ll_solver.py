@@ -250,17 +250,6 @@ class TestLLSolver(unittest.TestCase):
         # default initialization should fail
         _test_plan(self, self.putaway2)
 
-
-    def test_initialize_params(self):
-        plan = self.move_no_obs
-
-        namo_solver = ll_solver.NAMOSolver()
-        namo_solver._initialize_params(plan)
-
-        for p in plan.params.itervalues():
-            self.assertTrue(p in namo_solver._init_values)
-
-
 def _test_plan(test_obj, plan):
     print "testing plan: {}".format(plan.actions)
     callback = None
