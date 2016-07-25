@@ -130,10 +130,12 @@ class TestNamoPredicates(unittest.TestCase):
         can = parameter.Object(attrs, attr_types)
 
         env = Environment()
-        pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
-
-        # Test Gradient for it
+        pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, robotPose, can], ["Robot", "RobotPose", "RobotPose", "Can"], env)
         pred.expr.expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
+        # val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
+        # self.assertTrue(np.allclose(np.array(val), .11, atol=1e-2))
+        # jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
+        # self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
 
         robot.pose = np.zeros((2,4))
         can.pose = np.array([[2*(radius+pred.dsafe), 0, 0, 2*radius - pred.dsafe],
@@ -165,6 +167,12 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 0))
         # Test Gradient for it
         pred.expr.expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
+
+        val, jac = pred.distance_from_obj(np.array([1.9, 0, 0, 0]))
+        # self.assertTrue(np.allclose(np.array(val), .11, atol=1e-2))
+        jac2 = np.array([[-0.95968306, -0., 0.95968306, 0.]])
+         # self.assertTrue(np.allclose(jac, jac2, atol=1e-2))
+
         robotPose.value = np.zeros((2,4))
         target.value = np.array([[2*radius, radius, 2*radius, 2*radius-pred.dsafe,  0],
                                  [0,                   0,      0,        0,                    0]])
@@ -203,8 +211,8 @@ class TestNamoPredicates(unittest.TestCase):
         can2 = parameter.Object(attrs, attr_types)
 
         env = Environment()
-        pred = namo_predicates.ObstructsHolding("ObstructsHolding", [robot, robotPose, can1, can2], ["Robot", "RobotPose", "Can", "Can"], env)
-        # Object should obstructs because all objects's positions are in (0,0)
+        pred = namo_predicates.ObstructsHolding("ObstructsHolding", [robot, robotPose, robotPose, can1, can2], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], env)
+        #First test should fail because all objects's positions are in (0,0)
         self.assertTrue(pred.test(time = 0))
         # This predicate has two expressions
         # pred.expr.expr.grad(np.array([1.9,0,0,0,0,0]), True, 1e-2)
@@ -295,21 +303,35 @@ class TestNamoPredicates(unittest.TestCase):
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
         #robotPose.value - target.pose = grasp.value
-        robotPose.value = np.zeros((2,4))
-        target.value = np.array([[-1, 1, 3, 5],
-                                [-2, 2, 4, 6]])
-        #Since now target is a symbol, values are either all true or all false
-        self.assertTrue(pred.test(time = 0))
-        self.assertTrue(pred.test(time = 1))
-        self.assertTrue(pred.test(time = 2))
-        self.assertTrue(pred.test(time = 3))
+        rp_values = np.zeros((2,4))
 
-        robotPose.value = np.array([[4, 2, 1, 6],
-                                    [6, 4, 0, 8]])
-        self.assertFalse(pred.test(time = 0))
-        self.assertFalse(pred.test(time = 1))
-        self.assertFalse(pred.test(time = 2))
-        self.assertFalse(pred.test(time = 3))
+        values = np.array([[-1, 1, 3, 5],
+                           [-2, 2, 4, 6]])
+
+        robotPose.value = rp_values[:, 0].reshape(2, 1)
+        target.value= values[:, 0].reshape(2, 1)
+        self.assertTrue(pred.test(0))
+        target.value= values[:, 1].reshape(2, 1)
+        self.assertFalse(pred.test(0))
+        target.value= values[:, 2].reshape(2, 1)
+        self.assertFalse(pred.test(0))
+        target.value= values[:, 3].reshape(2, 1)
+        self.assertFalse(pred.test(0))
+
+        rp_values = np.array([[4, 2, 1, 6],
+                              [6, 4, 0, 8]])
+        robotPose.value = rp_values[:, 0].reshape(2, 1)
+        target.value= values[:, 0].reshape(2, 1)
+        self.assertFalse(pred.test(0))
+        robotPose.value = rp_values[:, 1].reshape(2, 1)
+        target.value= values[:, 1].reshape(2, 1)
+        self.assertTrue(pred.test(0))
+        robotPose.value = rp_values[:, 2].reshape(2, 1)
+        target.value= values[:, 2].reshape(2, 1)
+        self.assertFalse(pred.test(0))
+        robotPose.value = rp_values[:, 3].reshape(2, 1)
+        target.value= values[:, 3].reshape(2, 1)
+        self.assertTrue(pred.test(0))
 
     def test_stationary(self):
         # Stationary, Can

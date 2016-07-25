@@ -4,8 +4,9 @@ from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.pr2 import PR2
 from core.util_classes.can import Can
-import time
 import numpy as np
+import time, os, os.path as osp, shutil, scipy.misc, subprocess
+
 
 
 class Viewer(object):
@@ -47,6 +48,40 @@ class OpenRAVEViewer(Viewer):
             return OpenRAVEViewer()
         OpenRAVEViewer._viewer.clear()
         return OpenRAVEViewer._viewer
+
+    def record_plan(self, plan, outf, res = (640, 480), cam=None):
+        """
+        creates a video of a plan and stores it in outf
+        """
+        obj_list = []
+        horizon = plan.horizon
+        v = self.env.GetViewer()
+        if osp.exists('.video_images'):
+            shutil.rmtree('.video_images')
+        os.makedirs('.video_images')
+        for p in plan.params.itervalues():
+            if not p.is_symbol():
+                obj_list.append(p)
+        for t in range(horizon):
+            self.draw(obj_list, t)
+            time.sleep(0.1)
+            if cam is None:
+                cam = v.GetCameraTransform()
+            im = v.GetCameraImage(res[0], res[1], cam,[640,640,320,240])
+            scipy.misc.imsave('.video_images/frame_'+str('%05d'%t)+'.png', im)
+        outfname = "{}.mp4".format(outf)
+        if osp.exists(outfname):
+            os.remove(outfname)
+        arglist = ['avconv',
+                   '-f', 'image2',
+                   '-r', '10',
+                   "-i", ".video_images/frame_%05d.png",
+                   "-f", "mp4",
+                   "-bf", "1",
+                   "-r", "30",
+                   "{}.mp4".format(outf)]
+        subprocess.call(arglist)
+
 
     def initialize_from_workspace(self, workspace):
         pass
@@ -96,12 +131,20 @@ class OpenRAVEViewer(Viewer):
             time.sleep(delay)
 
     def draw_plan(self, plan):
-        obj_list = []
         horizon = plan.horizon
+        self.draw_plan_range(plan, range(horizon))
+
+    def draw_plan_range(self, plan, timesteps):
+        obj_list = self._get_plan_obj_list(plan)
+        self.draw_traj(obj_list, timesteps)
+
+    def _get_plan_obj_list(self, plan):
+        obj_list = []
         for p in plan.params.itervalues():
             if not p.is_symbol():
                 obj_list.append(p)
-        self.draw_traj(obj_list, range(horizon))
+        return obj_list
+
 
     def draw_plan_ts(self, plan, t):
         obj_list = []
@@ -110,6 +153,11 @@ class OpenRAVEViewer(Viewer):
             if not p.is_symbol():
                 obj_list.append(p)
         self.draw(obj_list, t)
+
+    def draw_cols(self, plan):
+        horizon = plan.horizon
+        for t in range(horizon):
+            self.draw_cols_ts(plan, t)
 
     def draw_cols_ts(self, plan, t):
         preds = plan.get_active_preds(t)

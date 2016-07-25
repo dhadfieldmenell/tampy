@@ -34,6 +34,31 @@ class Plan(object):
     def execute(self):
         raise NotImplementedError
 
+    def get_param(self, pred_type, target_ind, partial_assignment = None):
+        """
+        get all target_ind parameters of the given predicate type
+        partial_assignment is a dict that maps indices to parameter
+        """
+        if partial_assignment is None:
+            partial_assignment = {}
+        res = []
+        for p in self.get_preds():
+            has_partial_assignment = True
+            if not isinstance(p, pred_type): continue
+            for idx, v in partial_assignment.iteritems():
+                if p.params[idx] != v:
+                    has_partial_assignment = False
+                    break
+            if has_partial_assignment:
+                res.append(p.params[target_ind])
+        return res
+
+    def get_preds(self):
+        res = []
+        for a in self.actions:
+            res.extend([p['pred'] for p in a.preds])
+        return res
+
     def get_failed_pred(self):
         #just return the first one for now
         t_min = self.horizon+1

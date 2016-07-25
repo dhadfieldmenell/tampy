@@ -29,6 +29,9 @@ class Predicate(object):
             return False
         raise NotImplementedError("Override this.")
 
+    def resample(self, negated, time, plan):
+        return None, None
+
     def validate_params(self, expected_param_types):
         if len(self.params) != len(expected_param_types):
             raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
