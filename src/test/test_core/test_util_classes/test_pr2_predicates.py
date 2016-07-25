@@ -47,6 +47,11 @@ class TestPR2Predicates(unittest.TestCase):
         attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         self.location = parameter.Symbol(attrs, attr_types)
 
+    def setup_grasp(self):
+        attrs = {"name": ["grasp"], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["Grasp"]}
+        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        self.grasp = parameter.Symbol(attrs, attr_types)
+
     def test_expr_at(self):
 
         # At, Can, Location
@@ -163,10 +168,6 @@ class TestPR2Predicates(unittest.TestCase):
         self.can.pose = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
         # By default setting, gripper is facing up, test should pass
         self.assertTrue(pred.test(0))
-        # Test gripper facing
-        self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
-        self.assertFalse(pred.test(0))
-
         #change arm pose again
         self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
         self.rPose.backHeight = np.matrix([0.29])
@@ -177,6 +178,15 @@ class TestPR2Predicates(unittest.TestCase):
         # Uncomment to check gradient below
         # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
         # pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
+
+        pred2 = pr2_predicates.IsGPRot("test_gp_rot", [self.robot, self.rPose, self.can], ["Robot", "RobotPose", "Can"], self.test_env)
+        self.assertEqual(pred2.get_type(), "IsGPRot")
+        # Test gripper facing
+        self.rPose.rArmPose = np.array([[0,0,0,0,0,0,1.57]]).T # turn the wrist to the side, test should fail
+        self.assertFalse(pred.test(0))
+        self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
+        self.assertTrue(pred.test(0))
+
         """
             Uncomment the following to see the robot
         """
@@ -184,9 +194,6 @@ class TestPR2Predicates(unittest.TestCase):
         # pred._param_to_body[self.can].set_transparency(0.7)
         # self.test_env.SetViewer("qtcoin")
         # import ipdb; ipdb.set_trace()
-
-
-
 
     def test_is_pdp(self):
 
@@ -203,7 +210,7 @@ class TestPR2Predicates(unittest.TestCase):
         # Set Can's position to be the same as robot's base pose, test should fail
         self.can.pose = np.array([[0],[0],[0]])
         self.location.value = np.array([[0],[0],[0]])
-        # self.assertFalse(pred.test(0))
+        self.assertFalse(pred.test(0))
         # Check gradient for the initial pose
         # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
         # pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
@@ -211,10 +218,6 @@ class TestPR2Predicates(unittest.TestCase):
         self.location.value = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
         # By default setting, gripper is facing up, test should pass
         self.assertTrue(pred.test(0))
-        # Test gripper facing
-        # turn the wrist to the side, test should fail
-        self.rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi]]).T
-        self.assertFalse(pred.test(0))
         #change arm pose again
         self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
         self.rPose.backHeight = np.matrix([0.29])
@@ -225,6 +228,15 @@ class TestPR2Predicates(unittest.TestCase):
         # Test gradient on the new pose
         # pred.exprs[0].expr.grad(pred.get_param_vector(0), True, 1e-2)
         # pred.exprs[1].expr.grad(pred.get_param_vector(0), True, 1e-2)
+
+        pred2 = pr2_predicates.IsPDPRot("test_pdp_rot", [self.robot, self.rPose, self.can, self.location], ["Robot", "RobotPose", "Can", "Location"], self.test_env)
+        self.assertEqual(pred2.get_type(), "IsPDPRot")
+        # Test gripper facing
+        self.rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi]]).T
+        self.assertFalse(pred.test(0))
+        self.rPose.rArmPose = np.array([[-np.pi/2, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/4, np.pi/2]]).T
+        self.assertTrue(pred.test(0))
+
         """
             Uncomment the following to see the robot
         """
@@ -241,9 +253,6 @@ class TestPR2Predicates(unittest.TestCase):
         self.setup_can()
         self.setup_environment()
         pred = pr2_predicates.InGripper("InGripper", [self.robot, self.can], ["Robot", "Can"], self.test_env)
-        self.assertEqual(pred.get_type(), "InGripper")
-        # Since the pose of the can and grasp is not defined, predicate is not concrete
-        self.assertFalse(pred.test(0))
         self.can.pose = np.array([[0],[0],[0]])
         self.can.rotation = np.array([[0],[0],[0]])
         # Can's initial position is not right
@@ -254,15 +263,6 @@ class TestPR2Predicates(unittest.TestCase):
         # Set can's pose on robot's gripper
         self.can.pose = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
         self.can.rotation = np.array([[0],[0],[0]])
-        self.assertTrue(pred.test(0))
-        # Change rotation of the can (pose is right, but rotation is wrong)
-        self.can.rotation = np.array([[np.pi/8],[np.pi/4],[np.pi/16]])
-        # self.assertFalse(pred.test(0))
-        # Turn robot's wrist
-        self.robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
-        # self.assertFalse(pred.test(0))
-        # Now turn the can to the same direction as robot gripper
-        self.can.rotation = np.array([[1.17810, 0, -0.52360]]).T
         self.assertTrue(pred.test(0))
         # Now randomly set a new pose
         self.robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
@@ -283,6 +283,91 @@ class TestPR2Predicates(unittest.TestCase):
         # pred._param_to_body[self.can].set_transparency(0.7)
         # self.test_env.SetViewer("qtcoin")
         # import ipdb; ipdb.set_trace()
+
+    def test_in_gripper_rot(self):
+        # Test In GripperRot
+        self.setup_robot()
+        self.setup_can()
+        self.setup_environment()
+        pred = pr2_predicates.InGripperRot("InGripper_rot", [self.robot, self.can], ["Robot", "Can"], self.test_env)
+        self.assertEqual(pred.get_type(), "InGripperRot")
+        # Since pose of can is not defined
+        self.assertFalse(pred.test(0))
+        # can is initialized with right default rotation axis
+        self.can.pose = np.array([[0],[0],[0]])
+        self.assertTrue(pred.test(0))
+        # Turn robot's wrist to the side
+        self.robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
+        self.assertFalse(pred.test(0))
+        # set the right rotation
+        self.can.rotation = np.array([[1.17810, -2.49800, -0.52360]]).T
+        # TODO There are still problems in it
+        self.assertTrue(pred.test(0))
+        # Now turn the can to the same direction as robot gripper
+        self.robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
+        self.can.rotation = np.array([[1.17810, 0, -0.52360]]).T
+
+        self.assertTrue(pred.test(0))
+
+        # pred._param_to_body[self.robot].set_transparency(0.7)
+        # pred._param_to_body[self.can].set_transparency(0.7)
+        # self.test_env.SetViewer("qtcoin")
+        #
+        # import ipdb; ipdb.set_trace()
+
+
+
+    def test_in_gripper_angle(self):
+        # Test InGripperAngle
+        self.setup_grasp()
+        self.setup_robot()
+        self.setup_environment()
+        pred = pr2_predicates.InGripperAngle("test_inGripper_angle", [self.robot, self.grasp], ["Robot", "Grasp"], self.test_env)
+        self.assertEqual(pred.get_type(), "InGripperAngle")
+        # Since currently grasp hasn't been defined
+        self.assertFalse(pred.test(0))
+        self.grasp = np.array([[0],[0],[1]])
+        self.assertTrue(pred.test(0))
+
+
+
+    def test_is_mp(self):
+        self.setup_robot()
+        pred = pr2_predicates.IsMP("test_isMP", [self.robot], ["Robot"])
+        self.assertEqual(pred.get_type(), "IsMP")
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=0)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_isMP: (IsMP pr2)' at the timestep.")
+        b_m = pr2_predicates.BASE_MOVE
+        j_m = pr2_predicates.JOINT_MOVE
+        # Base pose is valid in the timestep: 1,2,3,4,5
+        self.robot.pose = np.array([[1,2,3,4,5,6,7],
+                                    [0,2,3,4,5,6,7],
+                                    [1,2,3,4,5,6,7]])
+        # Arm pose is valid in the timestep: 0,1,2,3
+        self.robot.rArmPose = np.array([[0,     0,     0,     0,     0,     0,     0],
+                                        [j_m,   j_m,   j_m,   j_m,   j_m,   j_m,   j_m],
+                                        [2*j_m, 2*j_m, 2*j_m, 2*j_m, 2*j_m, 2*j_m, 2*j_m],
+                                        [3*j_m, 3*j_m, 3*j_m, 3*j_m, 3*j_m, 3*j_m, 3*j_m],
+                                        [4*j_m, 4*j_m, 4*j_m, 4*j_m, 4*j_m, 4*j_m, 4*j_m],
+                                        [7*j_m, 2*j_m, 3*j_m, 7*j_m, 3*j_m, 6*j_m, 9*j_m],
+                                        [2*j_m, 5*j_m, 0*j_m, 1*j_m, 8*j_m, 5*j_m, 3*j_m]]).T
+        self.robot.lArmPose = self.robot.rArmPose.copy()
+        # Gripper pose is valid in the timestep: 0,1,3,4,5
+        self.robot.rGripper = np.matrix([0, j_m, 0, 4*j_m, 3*j_m, 4*j_m, 5*j_m])
+        self.robot.lGripper = self.robot.rGripper.copy()
+        # Back height pose is always valid
+        self.robot.backHeight = np.matrix([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2])
+        # Thus only timestep 1 and 3 are valid
+        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(1))
+        self.assertFalse(pred.test(2))
+        self.assertTrue(pred.test(3))
+        self.assertFalse(pred.test(4))
+        self.assertFalse(pred.test(5))
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(6)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_isMP: (IsMP pr2)' at the timestep.")
 
     def test_stationary(self):
         self.setup_can()
@@ -316,14 +401,6 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 1))
         self.assertFalse(pred.test(time = 2))
         self.assertTrue(pred.test(time = 3))
-
-    def test_is_mp(self):
-        self.setup_robot()
-        pred = pr2_predicates.IsMP("test_isMP", [self.robot], ["Robot"])
-        self.assertEqual(pred.get_type(), "IsMP")
-        # self.assertFalse(pred.test(0))
-
-
 
     # TODO: test other predicates
 
