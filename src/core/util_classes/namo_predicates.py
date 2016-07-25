@@ -31,6 +31,9 @@ class CollisionPredicate(ExprPredicate):
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
+
+        self._cache = {}
+
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 
@@ -50,7 +53,9 @@ class CollisionPredicate(ExprPredicate):
         self._debug = _debug
 
     def distance_from_obj(self, x):
-        # self._cc.SetContactDistance(self.dsafe + .1)
+        flattened = tuple(x.round(5).flatten())
+        if flattened in self._cache:
+            return self._cache[flattened]
         self._cc.SetContactDistance(np.Inf)
         p0 = self.params[self.ind0]
         p1 = self.params[self.ind1]
@@ -68,6 +73,7 @@ class CollisionPredicate(ExprPredicate):
         col_val, jac0, jac1 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
         val = np.array([col_val])
         jac = np.r_[jac0, jac1].reshape((1, 4))
+        self._cache[flattened] = (val.copy(), jac.copy())
         return val, jac
 
 

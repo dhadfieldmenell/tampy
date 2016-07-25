@@ -139,7 +139,7 @@ class NAMOSolver(LLSolver):
     def __init__(self):
         self.transfer_coeff = 1e1
         self.rs_coeff = 1e6
-        self.init_penalty_coeff = 1e5
+        self.init_penalty_coeff = 1e2
         self.child_solver = None
         self._param_to_ll = {}
 
@@ -276,6 +276,8 @@ class NAMOSolver(LLSolver):
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
 
+        self._bexpr_to_pred = {}
+
         if priority == -1:
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
@@ -284,10 +286,10 @@ class NAMOSolver(LLSolver):
         elif priority == 0:
             ## this should only get called with a full plan for now
             assert active_ts == (0, plan.horizon-1)
+
             failed_preds = plan.get_failed_preds()
             ## this is an objective that places
             ## a high value on matching the resampled values
-            # import pdb; pdb.set_trace()
             obj_bexprs = self._resample(plan, failed_preds)
             ## solve an optimization movement primitive to
             ## transfer current trajectories
@@ -414,6 +416,7 @@ class NAMOSolver(LLSolver):
                                 print "expr being added at time ", t
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
+                            self._bexpr_to_pred[bexpr] = (negated, pred, t)
                             self._prob.add_cnt_expr(bexpr)
 
     def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY, add_nonlin=False, active_ts=None, verbose=False):
