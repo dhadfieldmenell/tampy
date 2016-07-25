@@ -400,7 +400,7 @@ class TestNamoPredicates(unittest.TestCase):
         attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
-        pred = namo_predicates.IsMP("IsMP", [robot], ["Robot"])
+        pred = namo_predicates.IsMP("IsMP", [robot], ["Robot"], dmove=1.)
 
         #predicate only have 1 timestep
         with self.assertRaises(PredicateException) as cm:
