@@ -103,7 +103,7 @@ class ParseDomainConfig(object):
                         count -= 1
                         if count == 0:
                             inds.append(i+1)
-                
+
                 params_str = v[inds[0]:inds[1]].strip()
                 pre = v[inds[1]:inds[2]].strip()
                 m = re.match("\(\s*and", pre)
@@ -137,10 +137,13 @@ class ParseDomainConfig(object):
                         loop_var_name, loop_var_type = map(str.strip, g[0].split("-"))
                         pred = g[1].strip()
                         # if this dummy variable name is already used, then change the name
-                        if loop_var_name in univ_params:
-                            pred = pred.replace(loop_var_name, "%s1"%loop_var_name)
-                            loop_var_name = "%s1"%loop_var_name
-                        univ_params[loop_var_name] = loop_var_type
+                        unique_loop_var_name = loop_var_name
+                        ind = 1
+                        while unique_loop_var_name in univ_params:
+                            unique_loop_var_name = "{0}_{1}".format(loop_var_name, ind)
+                            ind += 1
+                        pred = pred.replace(loop_var_name, unique_loop_var_name)
+                        univ_params[unique_loop_var_name] = loop_var_type
                         # replace this predicate in pred_strs because we removed the forall part
                         # (and possibly renamed the dummy variable)
                         pred_strs[i] = pred

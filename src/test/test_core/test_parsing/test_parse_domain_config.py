@@ -58,8 +58,7 @@ class TestParseDomainConfig(unittest.TestCase):
         self.assertEqual(s.name, "grasp")
         self.assertEqual(s.horizon, 20)
         self.assertEqual(s.params, [('?robot', 'Robot'), ('?can', 'Can'), ('?target', 'Target'), ('?sp', 'RobotPose'), ('?gp', 'RobotPose'), ('?g', 'Grasp')])
-        self.assertEqual(s.universally_quantified_params, {'?w': 'Obstacle', '?w1': 'Obstacle', '?sym': 'RobotPose', '?sym1': 'Robotpose', '?obj': 'Can', '?obj1': 'Can', '?g': 'Grasp'}
-)
+        self.assertEqual(s.universally_quantified_params, {'?obj_1': 'Can', '?obj_3': 'Can', '?obj_2': 'Can', '?obj_5': 'Can', '?obj_4': 'Can', '?w': 'Obstacle', '?sym2_1': 'RobotPose', '?sym2': 'RobotPose', '?sym1': 'RobotPose', '?obj': 'Can', '?w_2': 'Obstacle', '?w_1': 'Obstacle', '?g': 'Grasp', '?sym1_1': 'Robotpose'})
 
         s = self.domain.action_schemas["moveto"]
         self.assertEqual(s.name, "moveto")
@@ -74,18 +73,18 @@ class TestParseDomainConfig(unittest.TestCase):
         new_c["Action grasp 20"] = "(?robot - Robot) (and (forall (?sym - RobotPose) (RobotAt ?robot ?sym))) (and (forall (?obj - Can) (forall (?sym - RobotPose) (not (Obstructs ?robot ?sym ?obj))))) 0:0 0:19"
         s = parse_domain_config.ParseDomainConfig.parse(new_c).action_schemas["grasp"]
         self.assertEqual(s.params, [("?robot", "Robot")])
-        self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RobotPose", "?sym1": "RobotPose"})
+        self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RobotPose", "?sym_1": "RobotPose"})
         self.assertEqual(s.preds, [{"type": "RobotAt", "hl_info": "pre", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?sym"]},
-                                   {"type": "Obstructs", "hl_info": "eff", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym1", "?obj"]}])
+                                   {"type": "Obstructs", "hl_info": "eff", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym_1", "?obj"]}])
 
     def test_action_schemas_formatting(self):
         new_c = self.c.copy()
         new_c["Action grasp 20"] = "(?robot- Robot)(and (forall (?sym -RobotPose) (RobotAt ?robot ?sym ))) (and (  forall (?obj    - Can)    (forall(?sym-RobotPose)(not(Obstructs ?robot ?sym ?obj)))))    0:0  0:19"
         s = parse_domain_config.ParseDomainConfig.parse(new_c).action_schemas["grasp"]
         self.assertEqual(s.params, [("?robot", "Robot")])
-        self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RobotPose", "?sym1": "RobotPose"})
+        self.assertEqual(s.universally_quantified_params, {"?obj": "Can", "?sym": "RobotPose", "?sym_1": "RobotPose"})
         self.assertEqual(s.preds, [{"type": "RobotAt", "hl_info": "pre", "active_timesteps": (0, 0), "negated": False, "args": ["?robot", "?sym"]},
-                                   {"type": "Obstructs", "hl_info": "eff", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym1", "?obj"]}])
+                                   {"type": "Obstructs", "hl_info": "eff", "active_timesteps": (0, 19), "negated": True, "args": ["?robot", "?sym_1", "?obj"]}])
 
 
 if __name__ == "__main__":
