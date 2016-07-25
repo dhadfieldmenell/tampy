@@ -311,15 +311,15 @@ class Obstructs(CollisionPredicate):
             inds = np.where(param._free_attrs['value'])
             if np.sum(inds) == 0: continue ## no resampling for this one
             if len(targets) == 1:
-                random_dir = np.random.rand(2)
+                random_dir = np.random.rand(2,1)
                 random_dir = random_dir/np.linalg.norm(random_dir)
-                val = targets[0] + random_dir*2*self.r.geom.radius
+                val = targets[0].value + random_dir*2*self.r.geom.radius
             elif len(targets) == 0:
                 ## old generator -- just add a random perturbation
                 val = np.random.normal(param.value[:, 0], scale=self.rs_scale)
             else:
                 raise NotImplemented
-            self.param.value[inds] = val[inds]
+            param.value[inds] = val[inds]
             res.extend(val[inds].flatten().tolist())
             # inds[0] returns the x values of the indices which is what we care
             # about, because the y values correspond to time.
