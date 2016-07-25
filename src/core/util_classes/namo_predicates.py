@@ -165,11 +165,11 @@ class InContact(CollisionPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
-        self.robot, rp, targ = params
-        attr_inds = OrderedDict([(rp, [("value", np.array([0,1], dtype=np.int))]),
-                                 (targ, [("value", np.array([0,1], dtype=np.int))])])
-        self._param_to_body = {rp: self.lazy_spawn_or_body(rp, rp.name, self.robot.geom),
-                               targ: self.lazy_spawn_or_body(targ, targ.name, targ.geom)}
+        self.robot, self.rp, self.targ = params
+        attr_inds = OrderedDict([(self.rp, [("value", np.array([0,1], dtype=np.int))]),
+                                 (self.targ, [("value", np.array([0,1], dtype=np.int))])])
+        self._param_to_body = {self.rp: self.lazy_spawn_or_body(self.rp, self.rp.name, self.robot.geom),
+                               self.targ: self.lazy_spawn_or_body(self.targ, self.targ.name, self.targ.geom)}
 
         f = lambda x: self.distance_from_obj(x)[0]
         grad = lambda x: self.distance_from_obj(x)[1]

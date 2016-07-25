@@ -3,6 +3,7 @@ from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.pr2 import PR2
+import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
 
 
@@ -109,6 +110,7 @@ class OpenRAVEViewer(Viewer):
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         if isinstance(obj.geom, PR2):
             self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.rArmPose[:, t])
+        assert not np.any(np.isnan(obj.pose[:, t]))
         self.name_to_rave_body[name].set_pose(obj.pose[:, t])
 
     def animate_plan(self, plan, delay=.1):
@@ -123,11 +125,11 @@ class OpenRAVEViewer(Viewer):
 
     def draw_plan(self, plan):
         horizon = plan.horizon
-        self.draw_plan_range(plan, range(horizon))
+        self.draw_plan_range(plan, (0, horizon-1))
 
-    def draw_plan_range(self, plan, timesteps):
+    def draw_plan_range(self, plan, (start, end)):
         obj_list = self._get_plan_obj_list(plan)
-        self.draw_traj(obj_list, timesteps)
+        self.draw_traj(obj_list, range(start, end+1))
 
     def _get_plan_obj_list(self, plan):
         obj_list = []

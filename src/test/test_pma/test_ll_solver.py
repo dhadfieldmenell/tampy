@@ -101,82 +101,6 @@ class TestLLSolver(unittest.TestCase):
         with self.assertRaises(AttributeError):
             pr2_ll.geom
 
-    # def test_namo_solver_init_params(self):
-    #     class dummy_plan(object):
-    #         def __init__(self, params):
-    #             self.params = params
-    #
-    #     radius = 1.0
-    #
-    #     attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can0"]}
-    #     attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
-    #     green_can = parameter.Object(attrs, attr_types)
-    #
-    #     attrs = {"name": ["robot_pose"], "value": [(0,0)], "_type": ["RobotPose"]}
-    #     attr_types = {"name": str, "value": Vector2d, "_type": str}
-    #     rp = parameter.Symbol(attrs, attr_types)
-    #     # test random seeds
-    #     pass
-    #
-    # def test_solver(self):
-    #     # check that parameter values don't change
-    #     pass
-    #
-    # def test_namo_solver_one_move_plan(self):
-    #     plan = self.move_no_obs
-    #     move = plan.actions[0]
-    #     pr2 = move.params[0]
-    #     start = move.params[1]
-    #     end = move.params[2]
-    #     model = grb.Model()
-    #     model.params.OutputFlag = 0 # silences Gurobi output
-    #     namo_solver = ll_solver.NAMOSolver()
-    #     namo_solver._prob = Prob(model)
-    #
-    #     namo_solver._spawn_parameter_to_ll_mapping(model, plan)
-    #     model.update()
-    #     namo_solver._add_actions_to_sco_prob(plan)
-    #
-    #     pr2_ll = namo_solver._param_to_ll[pr2]
-    #     start_ll = namo_solver._param_to_ll[start]
-    #     end_ll = namo_solver._param_to_ll[end]
-    #     # optimize without trajopt objective
-    #     model.optimize()
-    #     namo_solver._update_ll_params()
-    #     arr = np.zeros((2, plan.horizon))
-    #     arr[:,0] = [0., 7.]
-    #     self.assertTrue(np.allclose(pr2.pose, arr))
-    #     self.assertTrue(np.allclose(start.value, np.array([[0.],[7.]])))
-    #     self.assertTrue(np.allclose(end.value, np.array([[0.],[0.]])))
-    #
-    #
-    #     # setting up trajopt objective
-    #     T = plan.horizon
-    #     K = 2
-    #     KT = K*T
-    #     v = -1 * np.ones((KT - K, 1))
-    #     d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-    #     # [:,0] allows numpy to see v and d as one-dimensional so
-    #     # that numpy will create a diagonal matrix with v and d as a diagonal
-    #     P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-    #     Q = np.dot(np.transpose(P), P)
-    #
-    #     quad_expr = expr.QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
-    #     pr2_ll_grb_vars = pr2_ll.pose.reshape((pr2_ll.pose.size, 1), order='F')
-    #     bexpr = expr.BoundExpr(quad_expr, Variable(pr2_ll_grb_vars))
-    #     namo_solver._prob.add_obj_expr(bexpr)
-    #     sco_solver = Solver()
-    #     sco_solver.solve(namo_solver._prob, method='penalty_sqp')
-    #     namo_solver._update_ll_params()
-    #
-    #     arr1 = np.zeros(plan.horizon)
-    #     arr2 = np.linspace(7,0, num=20)
-    #     arr = np.c_[arr1, arr2].T
-    #     self.assertTrue(np.allclose(pr2.pose, arr))
-    #     self.assertTrue(np.allclose(start.value, np.array([[0.],[7.]])))
-    #     self.assertTrue(np.allclose(end.value, np.array([[0.],[0.]])))
-    #
-
     def test_namo_solver_one_move_plan_solve_init(self):
         # return
         plan = self.move_no_obs
@@ -251,6 +175,21 @@ class TestLLSolver(unittest.TestCase):
         _test_plan(self, self.putaway2)
 
 
+    def test_backtrack_move(self):
+        _test_plan(self, self.move_no_obs, method='Backtrack')
+
+    def test_backtrack_move_grasp(self):
+        _test_plan(self, self.move_grasp, method='Backtrack')
+
+    def test_backtrack_moveholding(self):
+        _test_plan(self, self.move_grasp_moveholding, method='Backtrack')
+
+    def test_backtrack_putaway(self):
+        _test_plan(self, self.putaway, method='Backtrack')
+
+    def test_backtrack_putaway2(self):
+        _test_plan(self, self.putaway2, method='Backtrack', plot=False, animate=True)
+
     def test_initialize_params(self):
         plan = self.move_no_obs
 
@@ -260,36 +199,40 @@ class TestLLSolver(unittest.TestCase):
         for p in plan.params.itervalues():
             self.assertTrue(p in namo_solver._init_values)
 
-
-def _test_plan(test_obj, plan):
+def _test_plan(test_obj, plan, method='SQP', plot=False, animate=True):
     print "testing plan: {}".format(plan.actions)
-    callback = None
-    viewer = None
-    """
-    Uncomment out lines below to see optimization.
-    """
-    viewer = OpenRAVEViewer.create_viewer()
-    def callback():
-        namo_solver._update_ll_params()
-        # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
-        # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
-        viewer.draw_plan(plan)
-        # viewer.draw_cols(plan)
-        time.sleep(0.03)
-    """
-    """
+    if not plot:
+        callback = None
+        viewer = None
+    else:
+        viewer = OpenRAVEViewer.create_viewer()
+        if method=='SQP':
+            def callback():
+                namo_solver._update_ll_params()
+                # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
+                # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
+                viewer.draw_plan(plan)
+                # viewer.draw_cols(plan)
+                time.sleep(0.03)
+        elif method == 'Backtrack':
+            def callback(a):
+                namo_solver._update_ll_params()
+                viewer.clear()
+                viewer.draw_plan_range(plan, a.active_timesteps)
+                time.sleep(0.3)
     namo_solver = ll_solver.NAMOSolver()
-    namo_solver.solve(plan, callback=callback)
+    if method == 'SQP':
+        namo_solver.solve(plan, callback=callback)
+    elif method == 'Backtrack':
+        namo_solver.backtrack_solve(plan, callback=callback, verbose=True)
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
-    import pdb; pdb.set_trace()
-    # #
-    # if viewer != None:
-    #     viewer = OpenRAVEViewer.create_viewer()
-    #     viewer.animate_plan(plan)
-    #     if t < plan.horizon:
-    #         viewer.draw_plan_ts(plan, t)
+    if animate:
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
 
     # test_obj.assertTrue(plan.satisfied())
 
