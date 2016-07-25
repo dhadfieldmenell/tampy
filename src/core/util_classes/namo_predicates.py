@@ -426,7 +426,8 @@ class ObstructsHolding(CollisionPredicate):
 
         if self.obstr.name == self.held.name:
             ## add dsafe to col_val1 b/c we're allowed to touch, but not intersect
-            col_val1 -= 2*self.dsafe
+            ## 1e-3 is there because the collision checker's value has some error.
+            col_val1 -= self.dsafe + 1e-3
             val = np.array(col_val1)
             jac = np.r_[jac0, jac1].reshape((1, 4))
 

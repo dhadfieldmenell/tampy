@@ -217,8 +217,8 @@ class TestNamoPredicates(unittest.TestCase):
         # This predicate has two expressions
         # pred.expr.expr.grad(np.array([1.9,0,0,0,0,0]), True, 1e-2)
         robot.pose = np.zeros((2,4))
-        can1.pose = np.array([[2*(radius+pred.dsafe)+0.1, 0,                    .1, 2*radius - pred.dsafe],
-                              [0,                     2*(radius+pred.dsafe)+0.1, 0, 0]])
+        can1.pose = np.array([[2*(radius+pred.dsafe)+0.1, 0,                         .1, 2*radius - pred.dsafe],
+                              [0,                         2*(radius+pred.dsafe)+0.1, 0, 0]])
         can2.pose = np.zeros((2,4))
         self.assertFalse(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
