@@ -225,7 +225,7 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.test(time=2))
         self.assertTrue(pred.test(time=3))
 
-        pred2 = namo_predicates.ObstructsHolding("obstruct holding2", [robot, robotPose, can2, can2], ["Robot", "RobotPose", "Can", "Can"], env)
+        pred2 = namo_predicates.ObstructsHolding("obstruct holding2", [robot, robotPose, robotPose, can2, can2], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], env)
         # since the object holding, object obstructing and robot are at the same position, can2 obstructs robot
         self.assertTrue(pred2.test(0))
         can2.pose = np.array([[2*radius, 2*radius+pred2.dsafe, 2*radius-pred2.dsafe, 3*radius],
@@ -516,7 +516,7 @@ class TestNamoPredicates(unittest.TestCase):
 
         env = Environment()
 
-        pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, can], ["Robot", "RobotPose", "Can"], env)
+        pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, robotPose, can], ["Robot", "RobotPose", "RobotPose", "Can"], env)
         pred.expr.expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
 
 
