@@ -117,6 +117,8 @@ class OpenRAVEViewer(Viewer):
             self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
         if isinstance(obj.geom, Can):
             rotation = obj.rotation[:, t]
+            assert not np.any(np.isnan(rotation))
+        assert not np.any(np.isnan(obj.pose[:, t]))
         self.name_to_rave_body[name].set_pose(obj.pose[:, t], rotation)
         self.name_to_rave_body[name].set_transparency(transparency)
 
@@ -132,11 +134,11 @@ class OpenRAVEViewer(Viewer):
 
     def draw_plan(self, plan):
         horizon = plan.horizon
-        self.draw_plan_range(plan, range(horizon))
+        self.draw_plan_range(plan, (0, horizon-1))
 
-    def draw_plan_range(self, plan, timesteps):
+    def draw_plan_range(self, plan, (start, end)):
         obj_list = self._get_plan_obj_list(plan)
-        self.draw_traj(obj_list, timesteps)
+        self.draw_traj(obj_list, range(start, end+1))
 
     def _get_plan_obj_list(self, plan):
         obj_list = []
