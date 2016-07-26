@@ -138,24 +138,31 @@ class OpenRAVEBody(object):
         # Update the DOF value
         dof_val[b_height_ind] = back_height
         dof_val[l_arm_inds], dof_val[l_gripper_ind] = l_arm_pose, l_gripper
-        dof_val[r_arm_inds] ,dof_val[r_gripper_ind] = r_arm_pose, r_gripper
+        dof_val[r_arm_inds], dof_val[r_gripper_ind] = r_arm_pose, r_gripper
         # Set new DOF value to the robot
         self.env_body.SetActiveDOFValues(dof_val)
 
-    def _set_active_dof_inds(self):
-        robot = self.env_body
-        dof_inds = np.ndarray(0, dtype=np.int)
-        dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
-        dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
-        dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
-        dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
-        dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
-        self.dof_inds = dof_inds
+    def _set_active_dof_inds(self, inds = None):
+        """
+            Set active dof index to the one we are interested
+            This function is implemented to simplify jacobian calculation in the CollisionPredicate
 
-        robot.SetActiveDOFs(
-                dof_inds,
-                DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
-                [0, 0, 1])
+            inds: Optional list of index specifying dof index we are interested in
+        """
+        robot = self.env_body
+        if inds == None:
+            dof_inds = np.ndarray(0, dtype=np.int)
+            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            robot.SetActiveDOFs(
+                    dof_inds,
+                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
+                    [0, 0, 1])
+        else:
+            robot.SetActiveDOFs(inds)
 
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):

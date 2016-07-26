@@ -16,7 +16,7 @@ typical domains.
 """
 BASE_MOVE = 1e0
 JOINT_MOVE = np.pi/8
-dsafe = 1e-1
+dsafe = 1e-2
 contact_dist = 0
 
 class CollisionPredicate(ExprPredicate):
@@ -42,9 +42,9 @@ class CollisionPredicate(ExprPredicate):
         # Assuming x is aligned according to the following order:
         # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
         # Parse the pose value
-        base_pose, back_height = x[0:3], x[3]
-        l_arm_pose, l_gripper = x[4:11], x[11]
-        r_arm_pose, r_gripper = x[12:19], x[19]
+        base_pose, back_height = x[0:3], x[3:4]
+        l_arm_pose, l_gripper = x[4:11], x[11:12]
+        r_arm_pose, r_gripper = x[12:19], x[19:20]
         can_pose, can_rot = x[20:23], x[23:]
         # Set pose of each rave body
         robot = self.params[self.ind0]
@@ -55,75 +55,67 @@ class CollisionPredicate(ExprPredicate):
         robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
         robot_body._set_active_dof_inds()
         obj_body.set_pose(can_pose, can_rot)
-        # Make sure two body is in the samd environment
+        # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
         # Setup collision checkers
         self._cc.SetContactDistance(np.Inf)
         collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
+        # set active dof value back to its original state (For successive function call)
+        robot_body._set_active_dof_inds(range(39))
 
         return col_val, col_jac
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
-
+        # Initialize values for later calculation
+        # col_val = -1 * float("inf")
+        # col_jac = np.zeros((1, 26))
+        # c_dist = -1 * float("inf")
         vals = []
         robot_grads = []
-        results = []
         for c in collisions:
-            # import ipdb; ipdb.set_trace()
-            linkA = c.GetLinkAName()
-            linkB = c.GetLinkBName()
-            linkAParent = c.GetLinkAParentName()
-            linkBParent = c.GetLinkBParentName()
-
-            linkRobot = None
-            linkObj = None
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot, linkObj = None, None
             sign = 1
             if linkAParent == robot_body.name and linkBParent == obj_body.name:
-                ptRobot = c.GetPtA()
-                linkRobot = linkA
+                ptRobot, ptObj = c.GetPtA(), c.GetPtB()
+                linkRobot, linkObj = linkA, linkB
                 sign = -1
-                ptObj = c.GetPtB()
-                linkObj = linkB
             elif linkBParent == robot_body.name and linkAParent == obj_body.name:
-                ptRobot = c.GetPtB()
-                linkRobot = linkB
+                ptRobot, ptObj = c.GetPtB(), c.GetPtA()
+                linkRobot, linkObj = linkB, linkA
                 sign = 1
-                ptObj = c.GetPtA()
-                linkObj = linkA
             else:
                 continue
-
+            # Obtain distance between two collision points, and their normal collision vector
             distance = c.GetDistance()
             normal = c.GetNormal()
-            results.append((ptRobot, ptObj, distance))
-
-            # plotting
-            if self._debug:
-                # ptRobot[2] = 1.01
-                # ptObj[2] = 1.01
-                self._plot_collision(ptRobot, ptObj, distance)
-                print "pt0 = ", ptRobot
-                print "pt1 = ", ptObj
-                print "distance = ", distance
-                print "normal = ", normal
-
+            # Calculate robot jacobian
             robot = robot_body.env_body
             robot_link_ind = robot.GetLink(linkRobot).GetIndex()
             robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
             robot_grad = np.dot(sign * normal, robot_jac).reshape((1,20))
             col_vec = ptRobot - ptObj
             col_vec = col_vec / np.linalg.norm(col_vec)
+            # Calculate object pose jacobian
             obj_jac = np.array([[np.dot(col_vec, axis) for axis in np.eye(3)]])
             obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
             torque = ptObj - obj_pos[:3]
-
+            # Calculate object rotation jacobian
             Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
             rot_axises = [np.dot(Rz, np.dot(Ry, [1,0,0])), np.dot(Rz, [0,1,0]), [0,0,1]]
             rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
             obj_jac = np.c_[obj_jac, rot_vec]
+            # Create 1x26 gradient matrix
             robot_grad = np.c_[robot_grad, obj_jac]
+            # When there is multiple collision points, return the one with biggest collision value
+            # if self.dsafe - distance > col_val:
+            #     col_val = np.array([self.dsafe - distance]).reshape((1,1))
+            #     col_jac = robot_grad
+            #     c_dist = distance
             vals.append(self.dsafe - distance)
             robot_grads.append(robot_grad)
 
@@ -323,118 +315,6 @@ class IsMP(ExprPredicate):
 
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
-class IsGP(PosePredicate):
-
-    # IsGP, Robot, RobotPose, Can
-    # This predicate only checks whether can pose is at center of gripper
-
-    def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        assert len(params) == 3
-        self._env = env
-        self.robot, self.robot_pose, self.can = params
-        attr_inds = OrderedDict([(self.robot_pose, [("value", np.array([0, 1, 2], dtype=np.int)),
-                                                   ("backHeight", np.array([0], dtype=np.int)),
-                                                   ("lArmPose", np.array(range(7), dtype=np.int)),
-                                                   ("lGripper", np.array([0], dtype=np.int)),
-                                                   ("rArmPose", np.array(range(7), dtype=np.int)),
-                                                   ("rGripper", np.array([0], dtype=np.int))]),
-                                 (self.can, [("pose", np.array([0,1,2], dtype=np.int)),
-                                             ("rotation", np.array([0,1,2], dtype=np.int))])])
-
-        self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
-                               self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
-
-        f = lambda x: self.pose_rot_check(x)[0]
-        grad = lambda x: self.pose_rot_check(x)[1]
-
-        pos_expr = Expr(f, grad)
-        e = EqExpr(pos_expr, np.zeros((3, 1)))
-        super(IsGP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
-
-class IsGPRot(PosePredicate):
-
-    # IsGP, Robot, RobotPose, Can
-    # This predicate checks whether can has the same rotation axis as that of gripper
-
-    def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        assert len(params) == 3
-        self._env = env
-        self.robot, self.robot_pose, self.can = params
-        attr_inds = OrderedDict([(self.robot_pose, [("value", np.array([0, 1, 2], dtype=np.int)),
-                                                   ("backHeight", np.array([0], dtype=np.int)),
-                                                   ("lArmPose", np.array(range(7), dtype=np.int)),
-                                                   ("lGripper", np.array([0], dtype=np.int)),
-                                                   ("rArmPose", np.array(range(7), dtype=np.int)),
-                                                   ("rGripper", np.array([0], dtype=np.int))]),
-                                 (self.can, [("pose", np.array([0,1,2], dtype=np.int)),
-                                             ("rotation", np.array([0,1,2], dtype=np.int))])])
-
-        self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
-                               self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
-
-        f = lambda x: self.pose_rot_check(x)[2]
-        grad = lambda x: self.pose_rot_check(x)[3]
-
-        pos_expr = Expr(f, grad)
-        e = EqExpr(pos_expr, np.zeros((2, 1)))
-        super(IsGPRot, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
-
-class IsPDP(PosePredicate):
-
-    # IsPDP, Robot, RobotPose, Can, Target
-    # This predicate only checks whether can pose is at center of gripper
-
-    def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        assert len(params) == 4
-        self._env = env
-        self.robot, self.robot_pose, self.can, self.target = params
-        attr_inds = OrderedDict([(self.robot_pose, [("value", np.array([0, 1, 2], dtype=np.int)),
-                                                   ("backHeight", np.array([0], dtype=np.int)),
-                                                   ("lArmPose", np.array(range(7), dtype=np.int)),
-                                                   ("lGripper", np.array([0], dtype=np.int)),
-                                                   ("rArmPose", np.array(range(7), dtype=np.int)),
-                                                   ("rGripper", np.array([0], dtype=np.int))]),
-                                 (self.target, [("value", np.array([0,1,2], dtype=np.int)),
-                                                  ("rotation", np.array([0,1,2], dtype=np.int))])])
-
-        self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
-                               self.target: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
-
-        f = lambda x: self.pose_rot_check(x)[0]
-        grad = lambda x: self.pose_rot_check(x)[1]
-
-        face_expr = Expr(f, grad)
-        e = EqExpr(face_expr, np.zeros((3, 1)))
-        super(IsPDP, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=3)
-
-class IsPDPRot(PosePredicate):
-
-    # IsPDP, Robot, RobotPose, Can, target
-    # This predicate checks whether can has the same rotation axis as that of gripper
-
-    def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        assert len(params) == 4
-        self._env = env
-        self.robot, self.robot_pose, self.can, self.target = params
-        attr_inds = OrderedDict([(self.robot_pose, [("value", np.array([0, 1, 2], dtype=np.int)),
-                                                   ("backHeight", np.array([0], dtype=np.int)),
-                                                   ("lArmPose", np.array(range(7), dtype=np.int)),
-                                                   ("lGripper", np.array([0], dtype=np.int)),
-                                                   ("rArmPose", np.array(range(7), dtype=np.int)),
-                                                   ("rGripper", np.array([0], dtype=np.int))]),
-                                 (self.target, [("value", np.array([0,1,2], dtype=np.int)),
-                                                  ("rotation", np.array([0,1,2], dtype=np.int))])])
-
-        self._param_to_body = {self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
-                               self.target: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
-
-        f = lambda x: self.pose_rot_check(x)[2]
-        grad = lambda x: self.pose_rot_check(x)[3]
-
-        face_expr = Expr(f, grad)
-        e = EqExpr(face_expr, np.zeros((2, 1)))
-        super(IsPDPRot, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=3)
-
 class InGripper(PosePredicate):
 
     # InGripper, Robot, Can
@@ -507,6 +387,10 @@ class GraspValid(PosePredicate):
 
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+class InContact(CollisionPredicate):
+    # InContact robot ee target
+    pass
+
 class EEReachable(PosePredicate):
 
     # EEUnreachable Robot, StartPose, EEPose
@@ -578,7 +462,7 @@ class Stationary(ExprPredicate):
 
 class StationaryBase(ExprPredicate):
 
-    # StationaryBase, Robot (Only Robot Base)
+    # StationaryBase, Robot (Only Robot Base) TODO include backheight
 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
@@ -613,9 +497,9 @@ class StationaryW(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params
-        attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1], dtype=np.int))])])
-        A = np.c_[np.eye(2), -np.eye(2)]
-        b = np.zeros((2, 1))
+        attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1, 2], dtype=np.int))])])
+        A = np.c_[np.eye(3), -np.eye(3)]
+        b = np.zeros((3, 1))
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
@@ -639,15 +523,13 @@ class StationaryNEQ(ExprPredicate):
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
-# TODO Still in Namo predicate implementation
 class Obstructs(CollisionPredicate):
 
-    # Obstructs, Robot, RobotPose, Can
+    # Obstructs, Robot, RobotPose, RobotPose, Can; TODO add endPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        assert len(params) == 3
         self._env = env
-        self.robot, self.robot_pose, self.can = params
+        self.robot, self.startp, self.endp, self.can = params
         attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
                                                ("backHeight", np.array([0], dtype=np.int)),
                                                ("lArmPose", np.array(range(7), dtype=np.int)),
@@ -669,14 +551,14 @@ class Obstructs(CollisionPredicate):
         grad_neg = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.zeros((1,1))
+        val = np.zeros((45,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
-        self.neg_expr = LEqExpr(col_expr_neg, -val)
+        self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=2)
+                                        expected_param_types, ind0=0, ind1=3)
 
     def get_expr(self, negated):
         if negated:
@@ -684,21 +566,36 @@ class Obstructs(CollisionPredicate):
         else:
             return None
 
+    def test(self, time, negated=False):
+        if not self.is_concrete():
+            return False
+        if time < 0:
+            raise PredicateException("Out of range time for predicate '%s'."%self)
+        try:
+            return self.neg_expr.eval(self.get_param_vector(time), tol=self.tol, negated = (not negated))
+        except IndexError:
+            ## this happens with an invalid time
+            raise PredicateException("Out of range time for predicate '%s'."%self)
+
 class ObstructsHolding(CollisionPredicate):
 
-    # ObstructsHolding, Robot, RobotPose, Can, Can;
+    # ObstructsHolding, Robot, RobotPose, Can, Can
+
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 4
         self._env = env
-        r, rp, obstr, held = params
-        self.r = r
-        self.obstr = obstr
-        self.held = held
+        self.robot, self.robot_pose, self.obstruct, self.held = params
 
-        attr_inds = OrderedDict([(r, [("pose", np.array([0, 1], dtype=np.int))]),
-                                 (obstr, [("pose", np.array([0, 1], dtype=np.int))]),
-                                 (held, [("pose", np.array([0, 1], dtype=np.int))])
-                                 ])
+        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                               ("backHeight", np.array([0], dtype=np.int)),
+                                               ("lArmPose", np.array(range(7), dtype=np.int)),
+                                               ("lGripper", np.array([0], dtype=np.int)),
+                                               ("rArmPose", np.array(range(7), dtype=np.int)),
+                                               ("rGripper", np.array([0], dtype=np.int))]),
+                                 (self.obstruct, [("pose", np.array([0,1,2], dtype=np.int)),
+                                                  ("rotation", np.array([0,1,2], dtype=np.int))]),
+                                 (self.held, [("pose", np.array([0,1,2], dtype=np.int)),
+                                              ("rotation", np.array([0,1,2], dtype=np.int))])])
 
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
@@ -718,7 +615,7 @@ class ObstructsHolding(CollisionPredicate):
         col_expr_neg = Expr(f_neg, grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=2)
 
     def get_expr(self, negated):
         if negated:
@@ -727,43 +624,53 @@ class ObstructsHolding(CollisionPredicate):
             return None
 
     def distance_from_obj(self, x):
-        # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
+        # Assuming x is aligned according to the following order:
+        # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
+        # Parse the pose value
+        # obj_body -> self.obstruct
+        base_pose, back_height = x[0:3], x[3:4]
+        l_arm_pose, l_gripper = x[4:11], x[11:12]
+        r_arm_pose, r_gripper = x[12:19], x[19:20]
+        can_pose, can_rot = x[20:23], x[23:26]
+        # Set pose of each rave body
+        robot = self.params[self.ind0]
+        obj = self.params[self.ind1]
+        robot_body = self._param_to_body[robot]
+        obj_body = self._param_to_body[obj]
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        robot_body._set_active_dof_inds()
+        obj_body.set_pose(can_pose, can_rot)
         self._cc.SetContactDistance(np.Inf)
-        b0 = self._param_to_body[self.r]
-        b1 = self._param_to_body[self.obstr]
 
-        pose_r = x[0:2]
-        pose_obstr = x[2:4]
+        # setup collision between robot and obstruct
+        collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
+        col_val1, col_jac1 = self._calc_grad_and_val(robot_body, obj_body, collisions1)
 
-        b0.set_pose(pose_r)
-        b1.set_pose(pose_obstr)
-
-        collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-        col_val1, jac0, jac1 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1)
-
-        if self.obstr.name == self.held.name:
+        if self.obstruct.name == self.held.name:
             ## add dsafe to col_val1 b/c we're allowed to touch, but not intersect
-            col_val1 -= 2*self.dsafe
-            val = np.array(col_val1)
-            jac = np.r_[jac0, jac1].reshape((1, 4))
+            col_val1 -= self.dsafe + 1e-3
+            val = col_val1
+            jac = col_jac1
 
         else:
-            b2 = self._param_to_body[self.held]
-            pose_held = x[4:6]
-            b2.set_pose(pose_held)
+            held_body = self._param_to_body[self.held]
+            held_pose, held_rot = x[26:29], x[29:]
+            held_body.set_pose(held_pose, held_rot)
 
-            collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
-            col_val2, jac2, jac1_ = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
+            collisions2 = self._cc.BodyVsBody(held_body.env_body, obj_body.env_body)
+            col_val2, col_jac2 = self._calc_grad_and_val(held_body, obj_body, collisions2)
 
             if col_val1 > col_val2:
-                val = np.array(col_val1)
-                jac = np.r_[jac0, jac1, np.zeros(2)].reshape((1, 6))
+                val = col_val1
+                jac = col_jac1
             else:
-                val = np.array(col_val2)
-                jac = np.r_[np.zeros(2), jac1_, jac2].reshape((1, 6))
+                val = col_val2
+                jac = col_jac2
 
         return val, jac
 
+# TODO Still in Namo predicate implementation
 
 class Collides(CollisionPredicate):
 
@@ -772,8 +679,8 @@ class Collides(CollisionPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.c, self.w = params
-        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]),
-                                 (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1, 2], dtype=np.int))]),
+                                 (self.w, [("pose", np.array([0, 1, 2], dtype=np.int))])])
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
