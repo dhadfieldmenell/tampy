@@ -8,7 +8,6 @@ import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
 
 
-
 class Viewer(object):
     """
     Defines viewers for visualizing execution.
