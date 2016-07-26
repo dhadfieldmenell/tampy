@@ -3,10 +3,10 @@ dom_str = """
 # Configuration file for CAN domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Can, Target, RobotPose, Robot, Grasp, Obstacle
+Types: Can, Target, RobotPose, Robot, EEPose, Obstacle
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
-Attribute Import Paths: RedCan core.util_classes.can, BlueCan core.util_classes.can, PR2 core.util_classes.pr2, PR2PoseVector core.util_classes.matrix, Vector3d core.util_classes.matrix, OpenRAVEViewer core.util_classes.viewer
+Attribute Import Paths: RedCan core.util_classes.can, BlueCan core.util_classes.can, PR2 core.util_classes.pr2, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, PR2ArmPose core.util_classes.matrix, Table core.util_classes.table
 
 Predicates Import Path: core.util_classes.pr2_predicates
 
@@ -33,12 +33,24 @@ class PrimitivePredicates(object):
         return prim_str
 
 pp = PrimitivePredicates()
-pp.add('Can', [('geom', 'RedCan'), ('pose', 'Vector3d')])
-pp.add('Target', [('geom', 'BlueCan'), ('value', 'Vector3d')])
-pp.add('RobotPose', [('value', 'Vector2d')])
-pp.add('Robot', [('pose', 'Vector2d'), ('geom', 'PR2')])
+pp.add('Can', [('geom', 'RedCan'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('Target', [('geom', 'BlueCan'), ('value', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('RobotPose', [('value', 'Vector3d'),
+                    ('backHeight', 'Vector1d'),
+                    ('lArmPose', 'PR2ArmPose'),
+                    ('lGripper', 'Vector1d'),
+                    ('rArmPose', 'PR2ArmPose'),
+                    ('rGripper', 'Vector1d')])
+pp.add('Robot', [('geom', 'PR2'),
+                ('pose', 'Vector3d'),
+                ('backHeight', 'Vector1d'),
+                ('lArmPose', 'PR2ArmPose'),
+                ('lGripper', 'Vector1d'),
+                ('rArmPose', 'PR2ArmPose'),
+                ('rGripper', 'Vector1d')])
+pp.add('EEPose', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
 # pp.add('Grasp', [('value', 'Vector2d')])
-# pp.add('Obstacle', [('geom', 'Wall'), ('pose', 'Vector2d')])
+pp.add('Obstacle', [('geom', 'Table'), ('pose', 'Vector3d')])
 dom_str += pp.get_str() + '\n\n'
 
 class DerivatedPredicates(object):
@@ -67,14 +79,17 @@ class DerivatedPredicates(object):
 dp = DerivatedPredicates()
 dp.add('At', ['Can', 'Target'])
 dp.add('RobotAt', ['Robot', 'RobotPose'])
-dp.add('InGripper', ['Robot', 'Can', 'Grasp'])
+dp.add('EEReachable', ['Robot', 'StartPose', 'EEPose'])
+dp.add('InGripper', ['Robot', 'Can'])
 dp.add('InContact', ['Robot', 'RobotPose', 'Target'])
 dp.add('Obstructs', ['Robot', 'RobotPose', 'RobotPose', 'Can'])
 dp.add('ObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'Can', 'Can'])
-dp.add('GraspValid', ['RobotPose', 'Target', 'Grasp'])
+dp.add('GraspValid', ['EEPose', 'Target'])
 dp.add('Stationary', ['Can'])
 dp.add('StationaryW', ['Obstacle'])
 dp.add('StationaryNEq', ['Can', 'Can'])
+dp.add('StationaryArms', ['Robot'])
+dp.add('StationaryBase', ['Robot'])
 dp.add('IsMP', ['Robot'])
 dp.add('Collides', ['Can', 'Obstacle'])
 dp.add('RCollides', ['Robot', 'Obstacle'])
@@ -119,15 +134,15 @@ class Move(Action):
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
         self.pre = [\
             ('(forall (?c - Can)\
-                (forall (?g - Grasp)\
-                    (not (InGripper ?robot ?c ?g))\
-                ))', '0:0'),
+                (not (InGripper ?robot ?c))\
+            )', '0:0'),
             ('(RobotAt ?robot ?start)', '0:0'),
             ('(forall (?obj - Can )\
                 (not (Obstructs ?robot ?start ?end ?obj)))', '0:19'),
             ('(forall (?obj - Can)\
                 (Stationary ?obj))', '0:18'),
             ('(forall (?w - Obstacle) (StationaryW ?w))', '0:18'),
+            ('(StationaryArms ?robot)', '0:18'),
             ('(IsMP ?robot)', '0:18'),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
@@ -142,15 +157,16 @@ class MoveHolding(Action):
     def __init__(self):
         self.name = 'movetoholding'
         self.timesteps = 20
-        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?g - Grasp)'
+        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can)'
         self.pre = [\
             ('(RobotAt ?robot ?start)', '0:0'),
-            ('(InGripper ?robot ?c ?g)', '0:19'),
+            ('(InGripper ?robot ?c)', '0:19'),
             ('(forall (?obj - Can)\
                 (not (ObstructsHolding ?robot ?start ?end ?obj ?c))\
             )', '0:19'),
             ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:18'),
             ('(forall (?w - Obstacle) (StationaryW ?w))', '0:18'),
+            ('(StationaryArms ?robot)', '0:18'),
             ('(IsMP ?robot)', '0:18'),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
@@ -168,16 +184,15 @@ class Grasp(Action):
     def __init__(self):
         self.name = 'grasp'
         self.timesteps = 20
-        self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp)'
+        self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?ee - EEPose ?ep - RobotPose)'
         self.pre = [\
             ('(At ?can ?target)', '0:0'),
             ('(RobotAt ?robot ?sp)', '0:0'),
-            ('(InContact ?robot ?gp ?target)', '0:0'),
-            ('(GraspValid ?gp ?target ?g)', '0:0'),
+            ('(EEReachable ?robot ?sp ?ee)', '10:10'),
+            ('(InContact ?robot ?ee ?target)', '10:10'),
+            ('(GraspValid ?ee ?target)', '0:0'),
             ('(forall (?obj - Can)\
-                (forall (?g - Grasp)\
-                    (not (InGripper ?robot ?obj ?g))\
-                )\
+                (not (InGripper ?robot ?obj))\
             )', '0:0'),
             ('(forall (?obj - Can) \
                 (Stationary ?obj)\
@@ -185,6 +200,7 @@ class Grasp(Action):
             ('(forall (?w - Obstacle)\
                 (StationaryW ?w)\
             )', '0:18'),
+            ('(StationaryBase ?robot)', '0:18'),
             ('(IsMP ?robot)', '0:18'),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
@@ -195,17 +211,17 @@ class Grasp(Action):
                 (not (RCollides ?robot ?w))\
             )', '0:19'),
             ('(forall (?obj - Can)\
-                (not (Obstructs ?robot ?sp ?gp ?obj))\
+                (not (Obstructs ?robot ?sp ?ep ?obj))\
             )', '0:18'),
             ('(forall (?obj - Can)\
-                (not (ObstructsHolding ?robot ?sp ?gp ?obj ?can))\
+                (not (ObstructsHolding ?robot ?sp ?ep ?obj ?can))\
             )', '19:19')
         ]
         self.eff = [\
             ('(not (At ?can ?target))', '19:18') ,
             ('(not (RobotAt ?robot ?sp))', '19:19'),
-            ('(RobotAt ?robot ?gp)', '19:19'),
-            ('(InGripper ?robot ?can ?g)', '19:18'),
+            ('(RobotAt ?robot ?ep)', '19:19'),
+            ('(InGripper ?robot ?can)', '19:18'),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (Obstructs ?robot ?sym1 ?sym2 ?can))\
@@ -222,19 +238,22 @@ class Putdown(Action):
     def __init__(self):
         self.name = 'putdown'
         self.timesteps = 20
-        self.args = '(?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose ?endp - RobotPose ?g - Grasp)'
+        self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?ee - EEPose ?ep - RobotPose)'
         self.pre = [\
-            ('(RobotAt ?robot ?pdp)', '0:0'),
-            ('(InContact ?robot ?pdp ?target)', '0:0'),
-            ('(GraspValid ?pdp ?target ?g)', '0:0'),
-            ('(InGripper ?robot ?can ?g)', '0:0'),
-            ('(not (InContact ?robot ?endp ?target))', '0:0'),
+            ('(RobotAt ?robot ?sp)', '0:0'),
+            ('(EEReachable ?robot ?sp ?ee)', '10:10'),
+            ('(InContact ?robot ?ee ?target)', '10:10'),
+            ('(GraspValid ?ee ?target)', '0:0'),
+            ('(InGripper ?robot ?can)', '0:0'),
+            # is the line below so that we have to use a new ee with the target?
+            # ('(not (InContact ?robot ?ee ?target))', '0:0'),
             ('(forall (?obj - Can)\
                 (Stationary ?obj)\
             )', '0:18'),
             ('(forall (?w - Obstacle)\
                 (StationaryW ?w)\
             )', '0:18'),
+            ('(StationaryBase ?robot)', '0:18'),
             ('(IsMP ?robot)', '0:18'),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
@@ -245,17 +264,17 @@ class Putdown(Action):
                 (not (RCollides ?robot ?w))\
             )', '0:19'),
             ('(forall (?obj - Can)\
-                (not (ObstructsHolding ?robot ?pdp ?endp ?obj ?can))\
+                (not (ObstructsHolding ?robot ?sp ?endp ?obj ?can))\
             )', '0:19'),
             ('(forall (?obj - Can)\
-                (not (Obstructs ?robot ?pdp ?endp ?obj))\
+                (not (Obstructs ?robot ?sp ?endp ?obj))\
             )', '19:19')
         ]
         self.eff = [\
-            ('(not (RobotAt ?robot ?pdp))', '19:19'),
+            ('(not (RobotAt ?robot ?sp))', '19:19'),
             ('(RobotAt ?robot ?endp)', '19:19'),
             ('(At ?can ?target)', '19:19'),
-            ('(not (InGripper ?robot ?can ?g))', '19:19')
+            ('(not (InGripper ?robot ?can))', '19:19')
         ]
 
 actions = [Move(), MoveHolding(), Grasp(), Putdown()]
@@ -269,5 +288,5 @@ dom_str = dom_str.replace('    ', '')
 dom_str = dom_str.replace('    ', '')
 
 print dom_str
-f = open('namo.domain', 'w')
+f = open('can.domain', 'w')
 f.write(dom_str)
