@@ -172,7 +172,7 @@ class TestLLSolver(unittest.TestCase):
         # this is a plan where the robot needs to end up
         # behind the obstruction (this means that the
         # default initialization should fail
-        _test_plan(self, self.putaway2)
+        _test_plan(self, self.putaway2, plot=False)
 
 
     def test_backtrack_move(self):
@@ -199,7 +199,7 @@ class TestLLSolver(unittest.TestCase):
         for p in plan.params.itervalues():
             self.assertTrue(p in namo_solver._init_values)
 
-def _test_plan(test_obj, plan, method='SQP', plot=False, animate=True):
+def _test_plan(test_obj, plan, method='SQP', plot=False, animate=True, verbose=False):
     print "testing plan: {}".format(plan.actions)
     if not plot:
         callback = None
@@ -221,11 +221,12 @@ def _test_plan(test_obj, plan, method='SQP', plot=False, animate=True):
                 viewer.draw_plan_range(plan, a.active_timesteps)
                 time.sleep(0.3)
     namo_solver = ll_solver.NAMOSolver()
+    start = time.time()
     if method == 'SQP':
-        namo_solver.solve(plan, callback=callback)
+        namo_solver.solve(plan, callback=callback, verbose=verbose)
     elif method == 'Backtrack':
-        namo_solver.backtrack_solve(plan, callback=callback, verbose=True)
-
+        namo_solver.backtrack_solve(plan, callback=callback, verbose=verbose)
+    print "Solve Took: {}".format(time.time() - start)
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
     if animate:

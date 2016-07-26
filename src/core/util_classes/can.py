@@ -16,3 +16,7 @@ class RedCan(Can):
         super(RedCan, self).__init__(radius, height)
         self.color = "red"
 
+class GreenCan(Can):
+    def __init__(self, radius, height):
+        super(RedCan, self).__init__(radius, height)
+        self.color = "green"

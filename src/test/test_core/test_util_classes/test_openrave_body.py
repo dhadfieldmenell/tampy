@@ -8,8 +8,7 @@ from core.util_classes.obstacle import Obstacle
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import OpenRAVEException
 from core.util_classes import viewer
-from core.parsing import parse_domain_config
-from core.parsing import parse_problem_config
+from core.parsing import parse_domain_config, parse_problem_config
 import main
 
 N = 10
@@ -94,10 +93,12 @@ class TestOpenRAVEBody(unittest.TestCase):
         self.domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         self.p_c = main.parse_file_to_dict(problem_fname)
         problem = parse_problem_config.ParseProblemConfig.parse(self.p_c, self.domain)
+        """
+            Uncomment the following to see things in the viewer
+        """
         # view = viewer.OpenRAVEViewer()
         # robot = problem.init_state.params['dude']
         # table = problem.init_state.params['rll_table']
-        # table.pose = np.array([[1],[0],[0.7]])
         # view.draw([robot, table], 0, 0.7)
         # import ipdb; ipdb.set_trace()
 

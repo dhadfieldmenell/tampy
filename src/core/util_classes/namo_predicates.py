@@ -8,7 +8,6 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
 from openravepy import Environment
 import ctrajoptpy
-
 from collections import OrderedDict
 
 """
@@ -35,15 +34,6 @@ class CollisionPredicate(ExprPredicate):
         self._cache = {}
 
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-
-    def lazy_spawn_or_body(self, param, name, geom):
-        if param.openrave_body is not None:
-            assert geom == param.openrave_body._geom
-            assert self._env == param.openrave_body.env_body.GetEnv()
-        else:
-            param.openrave_body = OpenRAVEBody(self._env, name, geom)
-        return param.openrave_body
 
     def plot_cols(self, env, t):
         _debug = self._debug
@@ -107,6 +97,7 @@ class CollisionPredicate(ExprPredicate):
                 print "pt0 = ", pt0
                 print "pt1 = ", pt1
                 print "distance = ", distance
+                print "normal = ", normal
 
             # if there are multiple collisions, use the one with the greatest penetration distance
             if self.dsafe - distance > val:
@@ -184,11 +175,11 @@ class InContact(CollisionPredicate):
         val = np.ones((1, 1))*dsafe
         # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=1, ind1=2)
+        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
 
 class Collides(CollisionPredicate):
 
-    # Collides Can Wall
+    # Collides Can Obstacle (wall)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -228,7 +219,7 @@ class Collides(CollisionPredicate):
 
 class RCollides(CollisionPredicate):
 
-    # RCollides Robot Obstacle
+    # RCollides Robot Obstacle (Wall)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -304,7 +295,6 @@ class Obstructs(CollisionPredicate):
         col_expr_neg = Expr(f_neg, grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
-
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=3)
         self.priority=1
@@ -364,13 +354,13 @@ class ObstructsHolding(CollisionPredicate):
         self._param_to_body = {r: self.lazy_spawn_or_body(r, r.name, r.geom),
                                obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
                                held: self.lazy_spawn_or_body(held, held.name, held.geom)}
+
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
 
         ## so we have an expr for the negated predicate
         f_neg = lambda x: self.distance_from_obj(x)[0]
         grad_neg = lambda x: self.distance_from_obj(x)[1]
-
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
@@ -439,6 +429,7 @@ class ObstructsHolding(CollisionPredicate):
             col_val1 -= 2*self.dsafe
             val = np.array(col_val1)
             jac = np.r_[jac0, jac1].reshape((1, 4))
+
         else:
             b2 = self._param_to_body[self.held]
             pose_held = x[4:6]
@@ -530,6 +521,8 @@ class StationaryNEq(ExprPredicate):
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
 class StationaryW(ExprPredicate):
+
+    # StationaryW, Wall(Obstacle)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params

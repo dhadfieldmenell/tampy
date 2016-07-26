@@ -54,7 +54,7 @@ class Action(object):
         start, end = self.active_timesteps
         ## init at the maximize
         t_min = end
-        for t, p in self.get_failed_preds():
+        for b, p, t in self.get_failed_preds():
             if t < t_min:
                 t_min = t
-        return t
+        return t_min

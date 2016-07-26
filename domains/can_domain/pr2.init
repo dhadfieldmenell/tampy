@@ -1,11 +1,11 @@
 # Initial configuration file for PR2
 
-Types: Robot, RobotPose, Table
+Types: Robot, RobotPose, Table, Can, Location, Grasp
 
-Attribute Import Paths: PR2 core.util_classes.pr2, PR2PoseVector core.util_classes.matrix, Value core.util_classes.matrix, Vector8d core.util_classes.matrix, Table core.util_classes.table, Vector3d core.util_classes.matrix
+Attribute Import Paths: PR2 core.util_classes.pr2, Value core.util_classes.matrix, Vector7d core.util_classes.matrix, Table core.util_classes.table, Vector3d core.util_classes.matrix, GreenCan core.util_classes.can, RedCan core.util_classes.can, BlueCan core.util_classes.can
 
 Predicates Import Path: core.util_classes.pr2_predicates
 
-Primitive Predicates: geom, Robot, PR2; pose, Robot, PR2PoseVector; backHeight, Robot, Value; lArmPose, Robot, Vector8d; rArmPose, Robot, Vector8d; value, RobotPose, PR2PoseVector; geom, Table, Table; pose, Table, Vector3d
+Primitive Predicates: geom, Robot, PR2; pose, Robot, Vector3d; backHeight, Robot, Value; lArmPose, Robot, Vector7d; lGripper, Robot, Value; rArmPose, Robot, Vector7d; rGripper, Robot, Value; value, RobotPose, Vector3d; backHeight, RobotPose, Value; lArmPose, RobotPose, Vector7d; lGripper, RobotPose, Value; rArmPose, RobotPose, Vector7d; rGripper, RobotPose, Value; geom, Table, Table; pose, Table, Vector3d; pose, Can, Vector3d; rotation, Can, Vector3d; geom, Can, GreenCan; pose, Location, Vector3d; rotation, Location, Vector3d; value, Grasp, Vector3d
 
 Derived Predicates: RobotAt, Robot, RobotPose

@@ -6,6 +6,7 @@ from core.util_classes.pr2 import PR2
 import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
 
+from core.util_classes.can import Can
 
 
 class Viewer(object):
@@ -23,9 +24,12 @@ class OpenRAVEViewer(Viewer):
 
     _viewer = None
 
-    def __init__(self):
+    def __init__(self, env = None):
         assert OpenRAVEViewer._viewer == None
-        self.env = Environment()
+        if env == None:
+            self.env = Environment()
+        else:
+            self.env = env
         self.env.SetViewer('qtcoin')
         self.name_to_rave_body = {}
         OpenRAVEViewer._viewer = self
@@ -82,7 +86,7 @@ class OpenRAVEViewer(Viewer):
     def initialize_from_workspace(self, workspace):
         pass
 
-    def draw(self, objList, t):
+    def draw(self, objList, t, transparency = 0.7):
         """
         This function draws all the objects from the objList at timestep t
 
@@ -90,7 +94,7 @@ class OpenRAVEViewer(Viewer):
         t       : timestep of the trajectory
         """
         for obj in objList:
-            self._draw_rave_body(obj, obj.name, t)
+            self._draw_rave_body(obj, obj.name, t, transparency)
 
     def draw_traj(self, objList, t_range):
         """
@@ -104,14 +108,17 @@ class OpenRAVEViewer(Viewer):
                 name = "{0}-{1}".format(obj.name, t)
                 self._draw_rave_body(obj, name, t)
 
-    def _draw_rave_body(self, obj, name, t):
+    def _draw_rave_body(self, obj, name, t, transparency = 0.7):
+        rotation = np.array([[0],[0],[0]])
         assert isinstance(obj, Object)
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         if isinstance(obj.geom, PR2):
-            self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.rArmPose[:, t])
-        assert not np.any(np.isnan(obj.pose[:, t]))
-        self.name_to_rave_body[name].set_pose(obj.pose[:, t])
+            self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
+        if isinstance(obj.geom, Can):
+            rotation = obj.rotation[:, t]
+        self.name_to_rave_body[name].set_pose(obj.pose[:, t], rotation)
+        self.name_to_rave_body[name].set_transparency(transparency)
 
     def animate_plan(self, plan, delay=.1):
         obj_list = []

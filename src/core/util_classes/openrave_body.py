@@ -1,4 +1,5 @@
 import numpy as np
+from math import cos, sin, atan2
 from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
@@ -21,7 +22,7 @@ class OpenRAVEBody(object):
         if isinstance(geom, Circle):
             self._add_circle(geom)
         elif isinstance(geom, Can):
-            self._add_circle(geom)
+            self._add_can(geom)
         elif isinstance(geom, Obstacle):
             self._add_obstacle(geom)
         elif isinstance(geom, PR2):
@@ -36,22 +37,39 @@ class OpenRAVEBody(object):
     def delete(self):
         self._env.Remove(self.env_body)
 
+    def set_transparency(self, transparency):
+        for link in self.env_body.GetLinks():
+            for geom in link.GetGeometries():
+                geom.SetTransparency(transparency)
+
 
     def _add_circle(self, geom):
-        color = None
+        color = [1,0,0]
         if hasattr(geom, "color") and geom.color == 'blue':
             color = [0, 0, 1]
         elif hasattr(geom, "color") and geom.color == 'green':
             color = [0, 1, 0]
         elif hasattr(geom, "color") and geom.color == 'red':
             color = [1, 0, 0]
-        else:
-            color = [1,0,0]
+
         self.env_body = OpenRAVEBody.create_cylinder(self._env, self.name, np.eye(4),
                 [geom.radius, 2], color)
         self._env.AddKinBody(self.env_body)
 
-    def _add_obstacle(self):
+    def _add_can(self, geom):
+        color = [1,0,0]
+        if hasattr(geom, "color") and geom.color == 'blue':
+            color = [0, 0, 1]
+        elif hasattr(geom, "color") and geom.color == 'green':
+            color = [0, 1, 0]
+        elif hasattr(geom, "color") and geom.color == 'red':
+            color = [1, 0, 0]
+
+        self.env_body = OpenRAVEBody.create_cylinder(self._env, self.name, np.eye(4),
+                [geom.radius, geom.height], color)
+        self._env.AddKinBody(self.env_body)
+
+    def _add_obstacle(self, geom):
         obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
                         -0.806451612903226,-1.07017543859649, 1;\
                         1.01843317972350,-0.988304093567252, 1;\
@@ -89,37 +107,40 @@ class OpenRAVEBody(object):
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
-    def set_pose(self, base_pose):
+    def set_pose(self, base_pose, rotation = np.array([[0],[0],[0]])):
         trans = None
-        if isinstance(self._geom, Circle):
-            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
-        elif isinstance(self._geom, Obstacle):
+        if isinstance(self._geom, Circle) or isinstance(self._geom, Obstacle) or isinstance(self._geom, Wall):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, PR2):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
-        elif isinstance(self._geom, Table):
-            trans = OpenRAVEBody.base_pose_3D_to_mat(base_pose)
-        elif isinstance(self._geom, Wall):
-            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
+        elif isinstance(self._geom, Table) or isinstance(self._geom, Can):
+            trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)
 
-    def set_dof(self, back_height, l_arm_pose, r_arm_pose):
+    def set_dof(self, back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper):
         """
             This function assumed to be called when the self.env_body is a robot and its geom is type PR2
             It sets the DOF values for important joint of PR2
 
-            back_height: back_height attribute of type Value, which specified the back height of PR2
-            l_arm_pose: l_arm_pose attribute of type Vector8d, which specified the left arm pose of PR2
-            r_arm_pose: r_arm_pose attribute of type Vector8d, which specified the right arm pose of PR2
+            back_height: back_height attribute of type Value
+            l_arm_pose: l_arm_pose attribute of type Vector7d
+            l_gripper: l_gripper attribute of type Value
+            r_arm_pose: r_arm_pose attribute of type Vector7d
+            r_gripper: r_gripper attribute of type Value
         """
+        # Get current dof value for each joint
         dof_val = self.env_body.GetActiveDOFValues()
-        back_height_index = self.env_body.GetJoint('torso_lift_joint').GetDOFIndex()
-        l_shoulder_index = self.env_body.GetJoint('l_shoulder_pan_joint').GetDOFIndex()
-        r_shoulder_index = self.env_body.GetJoint('r_shoulder_pan_joint').GetDOFIndex()
-
-        dof_val[back_height_index] = back_height[0]
-        dof_val[l_shoulder_index: l_shoulder_index + 8] = l_arm_pose.reshape((1, 8)).tolist()[0]
-        dof_val[r_shoulder_index: r_shoulder_index + 8] = r_arm_pose.reshape((1, 8)).tolist()[0]
+        # Obtain indices of left arm and right arm
+        l_arm_inds = self.env_body.GetManipulator('leftarm').GetArmIndices()
+        l_gripper_ind = self.env_body.GetJoint('l_gripper_l_finger_joint').GetDOFIndex()
+        r_arm_inds = self.env_body.GetManipulator('rightarm').GetArmIndices()
+        r_gripper_ind = self.env_body.GetJoint('r_gripper_l_finger_joint').GetDOFIndex()
+        b_height_ind = self.env_body.GetJoint('torso_lift_joint').GetDOFIndex()
+        # Update the DOF value
+        dof_val[b_height_ind] = back_height
+        dof_val[l_arm_inds], dof_val[l_gripper_ind] = l_arm_pose, l_gripper
+        dof_val[r_arm_inds] ,dof_val[r_gripper_ind] = r_arm_pose, r_gripper
+        # Set new DOF value to the robot
         self.env_body.SetActiveDOFValues(dof_val)
 
     @staticmethod
@@ -251,7 +272,7 @@ class OpenRAVEBody(object):
 
     @staticmethod
     def base_pose_3D_to_mat(pose):
-        # x, y = pose
+        # x, y, z = pose
         assert len(pose) == 3
         x = pose[0]
         y = pose[1]
@@ -290,3 +311,42 @@ class OpenRAVEBody(object):
         y = pose[5]
         rot = axisAngleFromRotationMatrix(mat)[2]
         return np.array([x,y,rot])
+
+    @staticmethod
+    def transform_from_obj_pose(pose, rotation):
+        x, y, z = pose
+        alpha, beta, gamma = rotation
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pose, rotation)
+        rot_mat = np.dot(Rz, np.dot(Ry, Rx))
+        matrix = np.eye(4)
+        matrix[:3,:3] = rot_mat
+        matrix[:3,3] = [x,y,z]
+        return matrix
+
+    @staticmethod
+    def _axis_rot_matrices(pose, rotation):
+        x, y, z = pose
+        alpha, beta, gamma = rotation
+        Rz_2d = np.array([[cos(alpha), -sin(alpha)], [sin(alpha), cos(alpha)]])
+        Ry_2d = np.array([[cos(beta), sin(beta)], [-sin(beta), cos(beta)]])
+        Rx_2d = np.array([[cos(gamma), -sin(gamma)], [sin(gamma), cos(gamma)]])
+        I = np.eye(3)
+        Rz = I.copy()
+        Rz[:2,:2] = Rz_2d
+        Ry = I.copy()
+        Ry[[[0],[2]],[0,2]] = Ry_2d
+        Rx = I.copy()
+        Rx[1:3,1:3] = Rx_2d
+        # ipdb.set_trace()
+        return Rz, Ry, Rx
+
+    @staticmethod
+    def _ypr_from_rot_matrix(r):
+        # alpha
+        yaw = atan2(r[1,0], r[0,0])
+        # beta
+        pitch = atan2(-r[2,0],np.sqrt(r[2,1]**2+r[2,2]**2))
+        # gamma
+        roll = atan2(r[2,1], r[2,2])
+        # ipdb.set_trace()
+        return (yaw, pitch, roll)
