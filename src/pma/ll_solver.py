@@ -136,12 +136,13 @@ class LLParam(object):
 
 class NAMOSolver(LLSolver):
 
-    def __init__(self):
+    def __init__(self, early_converge=True):
         self.transfer_coeff = 1e1
         self.rs_coeff = 1e6
         self.init_penalty_coeff = 1e2
         self.child_solver = None
         self._param_to_ll = {}
+        self.early_converge=early_converge
 
 
     def backtrack_solve(self, plan, callback=None, anum=0, verbose=False):
@@ -407,7 +408,6 @@ class NAMOSolver(LLSolver):
             assert isinstance(pred, common_predicates.ExprPredicate)
             expr = pred.get_expr(negated)
 
-
             for t in effective_timesteps:
                 if t in active_range:
                     if expr is not None:
@@ -417,7 +417,13 @@ class NAMOSolver(LLSolver):
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
                             self._bexpr_to_pred[bexpr] = (negated, pred, t)
-                            self._prob.add_cnt_expr(bexpr)
+                            groups = ['all']
+                            if self.early_converge:
+                                ## this will check for convergence per parameter
+                                ## this is good if e.g., a single trajectory quickly 
+                                ## gets stuck
+                                groups.extend([param.name for param in pred.params])
+                            self._prob.add_cnt_expr(bexpr, groups)
 
     def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY, add_nonlin=False, active_ts=None, verbose=False):
         if active_ts==None:
