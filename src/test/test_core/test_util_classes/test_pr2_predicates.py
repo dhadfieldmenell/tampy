@@ -492,16 +492,15 @@ class TestPR2Predicates(unittest.TestCase):
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
         self.can.pose = np.array([[0],[0],[0]])
-        # import ipdb; ipdb.set_trace()
-        # self.assertTrue(pred.test(0))
-        #
-        # """
-        #     Uncomment the following to see the robot
-        # """
-        # pred._param_to_body[self.rPose].set_transparency(0.7)
-        # pred._param_to_body[self.can].set_transparency(0.7)
-        # self.test_env.SetViewer("qtcoin")
-        # import ipdb; ipdb.set_trace()
+        self.assertFalse(pred.test(0))
+
+        """
+            Uncomment the following to see the robot
+        """
+        pred._param_to_body[self.robot].set_transparency(0.7)
+        pred._param_to_body[self.can].set_transparency(0.7)
+        self.test_env.SetViewer("qtcoin")
+        import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":
     unittest.main()

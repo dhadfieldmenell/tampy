@@ -67,8 +67,6 @@ class CollisionPredicate(ExprPredicate):
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
 
-        # jac0 = np.zeros(2)
-        # jac1 = np.zeros(2)
         vals = []
         robot_grads = []
         results = []
@@ -114,44 +112,23 @@ class CollisionPredicate(ExprPredicate):
             robot = robot_body.env_body
             robot_link_ind = robot.GetLink(linkRobot).GetIndex()
             robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
-            robot_grad = np.dot(sign * normal, robot_jac)
+            robot_grad = np.dot(sign * normal, robot_jac).reshape((1,20))
             col_vec = ptRobot - ptObj
             col_vec = col_vec / np.linalg.norm(col_vec)
-            obj_jac = np.array([np.dot(col_vec, [1, 0, 0]), np.dot(col_vec, [0, 1, 0]), np.dot(col_vec, [0, 0, 1])])
-
+            obj_jac = np.array([[np.dot(col_vec, axis) for axis in np.eye(3)]])
             obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
             torque = ptObj - obj_pos[:3]
-            rot_axies = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
-            rot_vec = np.array([np.cross(rot_axies[0], torque), np.cross(rot_axies[1], torque), np.cross(rot_axies[2], torque)])
+
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+            rot_axises = [np.dot(Rz, np.dot(Ry, [1,0,0])), np.dot(Rz, [0,1,0]), [0,0,1]]
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
             obj_jac = np.c_[obj_jac, rot_vec]
+            robot_grad = np.c_[robot_grad, obj_jac]
             vals.append(self.dsafe - distance)
             robot_grads.append(robot_grad)
 
-
-            # if there are multiple collisions, use the one with the greatest penetration distance
-            # if self.dsafe - distance > val:
-            #     chosen_pt0, chosen_pt1 = (pt0, pt1)
-            #     chosen_distance = distance
-            #     val = self.dsafe - distance
-            #     jac0 = -1 * normal[0:2]
-            #     jac1 = normal[0:2]
-
-        # if self._debug:
-        #     print "options: ", results
-        #     print "selected: ", chosen_pt0, chosen_pt1
-        #     self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
-
-        import ipdb; ipdb.set_trace()
-
         vals = np.vstack(vals)
-        dof_inds = robot_body.dof_inds.tolist()
-        robot_grads = np.vstack(robot_grads)[:, dof_inds]
-        dim = len(vals)
-        val = vals.reshape((dim, 1))
-        jac = np.zeros((dim, 26))
-        jac[:, range(3,20)] = robot_grads
-
-
+        robot_grads = np.vstack(robot_grads)
 
         return vals, robot_grads
 
@@ -176,8 +153,7 @@ class PosePredicate(ExprPredicate):
 
     def pose_rot_check(self, x):
         # Assuming x is aligned according to the following order:
-        # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
-
+        # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->eePose->eeRot
         # Parse the pose values
         base_pose, back_height = x[0:3], x[3]
         l_arm_pose, l_gripper = x[4:11], x[11]
@@ -682,8 +658,8 @@ class Obstructs(CollisionPredicate):
                                              ("rotation", np.array([0,1,2], dtype=np.int))])])
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
-                               self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
+        # self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
 
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
