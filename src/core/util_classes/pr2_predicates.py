@@ -474,7 +474,7 @@ class StationaryBase(ExprPredicate):
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryBase, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
-class StationaryArm(ExprPredicate):
+class StationaryArms(ExprPredicate):
 
     # StationaryArm, Robot (Only Robot Arms)
 

@@ -87,7 +87,7 @@ dp.add('ObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'Can', 'Can'])
 dp.add('GraspValid', ['EEPose', 'Target'])
 dp.add('Stationary', ['Can'])
 dp.add('StationaryW', ['Obstacle'])
-dp.add('StationaryNEq', ['Can', 'Can'])
+dp.add('StationaryNEQ', ['Can', 'Can'])
 dp.add('StationaryArms', ['Robot'])
 dp.add('StationaryBase', ['Robot'])
 dp.add('IsMP', ['Robot'])
@@ -164,7 +164,7 @@ class MoveHolding(Action):
             ('(forall (?obj - Can)\
                 (not (ObstructsHolding ?robot ?start ?end ?obj ?c))\
             )', '0:19'),
-            ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:18'),
+            ('(forall (?obj - Can) (StationaryNEQ ?obj ?c))', '0:18'),
             ('(forall (?w - Obstacle) (StationaryW ?w))', '0:18'),
             ('(StationaryArms ?robot)', '0:18'),
             ('(IsMP ?robot)', '0:18'),
