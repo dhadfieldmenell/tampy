@@ -309,8 +309,8 @@ class IsMP(ExprPredicate):
                                                ("rArmPose", np.array(range(7), dtype=np.int)),
                                                ("rGripper", np.array([0], dtype=np.int))])])
         A = np.eye(40) - np.eye(40, k=20) - np.eye(40, k=-20)
-        b = np.zeros((40,))
-        val = np.vstack((BASE_MOVE*np.ones((3,1)), JOINT_MOVE*np.ones((17,1)), BASE_MOVE*np.ones((3,1)), JOINT_MOVE*np.ones((17,1)))).reshape((40,))
+        b = np.zeros((40,1))
+        val = np.vstack((BASE_MOVE*np.ones((3,1)), JOINT_MOVE*np.ones((17,1)), BASE_MOVE*np.ones((3,1)), JOINT_MOVE*np.ones((17,1))))
         e = LEqExpr(AffExpr(A, b), val)
 
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
@@ -519,7 +519,7 @@ class StationaryNEq(ExprPredicate):
             b = np.zeros((1, 1))
         else:
             A = np.c_[np.eye(6), -np.eye(6)]
-            b = np.zeros((2, 1))
+            b = np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
