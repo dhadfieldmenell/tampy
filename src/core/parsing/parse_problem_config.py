@@ -78,7 +78,7 @@ class ParseProblemConfig(object):
                     init_preds.add(domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                          env = env))
+                                                                          env=env))
                 except TypeError:
                     import pdb; pdb.set_trace()
 
@@ -98,7 +98,7 @@ class ParseProblemConfig(object):
                     raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
             goal_preds.add(domain.pred_schemas[p_name].pred_class(name="goalpred%d"%i,
                                                                   params=p_objs,
-                                                                  expected_param_types=domain.pred_schemas[p_name].expected_params))
+                                                                  expected_param_types=domain.pred_schemas[p_name].expected_params, env=env))
 
         # use initial state to create Problem object
         initial_problem = problem.Problem(initial_state, goal_preds, env)
