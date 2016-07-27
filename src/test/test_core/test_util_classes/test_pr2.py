@@ -7,7 +7,7 @@ import numpy as np
 class TestPR2(unittest.TestCase):
 
     def test_basic(self):
-        pr2_robot = pr2.PR2('../models/pr2/pr2.zae')
+        pr2_robot = pr2.PR2()
         env = Environment()
         robot = env.ReadRobotXMLFile(pr2_robot.shape)
         env.Add(robot)
