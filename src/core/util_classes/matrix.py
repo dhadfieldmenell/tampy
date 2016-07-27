@@ -52,8 +52,7 @@ class PR2ArmPose(Vector7d):
     """
     The PR2's arm pose is a 7d vector.
     """
-    def __new__(cls, vec):
-        return super(Vector2d, cls).__new__(cls, vec, 7)
+    pass
 
 class Value(Vector1d):
     pass

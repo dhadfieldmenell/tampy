@@ -476,7 +476,7 @@ class StationaryBase(ExprPredicate):
 
 class StationaryArms(ExprPredicate):
 
-    # StationaryArm, Robot (Only Robot Arms)
+    # StationaryArms, Robot (Only Robot Arms)
 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
@@ -489,7 +489,7 @@ class StationaryArms(ExprPredicate):
         A = np.c_[np.eye(16), -np.eye(16)]
         b, val = np.zeros((16, 1)), np.zeros((16, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(StationaryArm, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryArms, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
 class StationaryW(ExprPredicate):
 
@@ -503,7 +503,7 @@ class StationaryW(ExprPredicate):
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
-class StationaryNEQ(ExprPredicate):
+class StationaryNEq(ExprPredicate):
 
     # StationaryNEq, Can, Can(Hold)
 
@@ -514,7 +514,7 @@ class StationaryNEQ(ExprPredicate):
                                  (self.can_held, [("pose", np.array([0, 1, 2], dtype=np.int)),
                                                   ("rotation", np.array([0, 1, 2], dtype=np.int))])])
 
-        if self.c.name == self.c_held.name:
+        if self.can.name == self.can_held.name:
             A = np.zeros((1, 12))
             b = np.zeros((1, 1))
         else:
