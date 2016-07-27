@@ -3,7 +3,7 @@ from math import cos, sin, atan2
 from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
-RaveCreateKinBody, TriMesh, Environment
+RaveCreateKinBody, TriMesh, Environment, DOFAffine
 from core.util_classes.pr2 import PR2
 from core.util_classes.can import Can, BlueCan, RedCan
 from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
@@ -41,7 +41,6 @@ class OpenRAVEBody(object):
         for link in self.env_body.GetLinks():
             for geom in link.GetGeometries():
                 geom.SetTransparency(transparency)
-
 
     def _add_circle(self, geom):
         color = [1,0,0]
@@ -139,9 +138,31 @@ class OpenRAVEBody(object):
         # Update the DOF value
         dof_val[b_height_ind] = back_height
         dof_val[l_arm_inds], dof_val[l_gripper_ind] = l_arm_pose, l_gripper
-        dof_val[r_arm_inds] ,dof_val[r_gripper_ind] = r_arm_pose, r_gripper
+        dof_val[r_arm_inds], dof_val[r_gripper_ind] = r_arm_pose, r_gripper
         # Set new DOF value to the robot
         self.env_body.SetActiveDOFValues(dof_val)
+
+    def _set_active_dof_inds(self, inds = None):
+        """
+            Set active dof index to the one we are interested
+            This function is implemented to simplify jacobian calculation in the CollisionPredicate
+
+            inds: Optional list of index specifying dof index we are interested in
+        """
+        robot = self.env_body
+        if inds == None:
+            dof_inds = np.ndarray(0, dtype=np.int)
+            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            robot.SetActiveDOFs(
+                    dof_inds,
+                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
+                    [0, 0, 1])
+        else:
+            robot.SetActiveDOFs(inds)
 
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
@@ -209,8 +230,6 @@ class OpenRAVEBody(object):
         wall = RaveCreateRobot(env, '')
         wall.InitFromGeometries(box_infos)
         return wall
-
-
 
     @staticmethod
     def create_table(env, geom):
@@ -311,6 +330,14 @@ class OpenRAVEBody(object):
         y = pose[5]
         rot = axisAngleFromRotationMatrix(mat)[2]
         return np.array([x,y,rot])
+
+    @staticmethod
+    def obj_pose_from_transform(transform):
+        trans = transform[:3,3]
+        rot_matrix = transform[:3,:3]
+        yaw, pitch, roll = OpenRAVEBody._ypr_from_rot_matrix(rot_matrix)
+        # ipdb.set_trace()
+        return np.array((trans[0], trans[1], trans[2], yaw, pitch, roll))
 
     @staticmethod
     def transform_from_obj_pose(pose, rotation):
