@@ -69,8 +69,7 @@ class CollisionPredicate(ExprPredicate):
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
         # Initialization
-        vals = []
-        robot_grads = []
+        links = []
         for c in collisions:
             # Identify the collision points
             linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
@@ -108,62 +107,67 @@ class CollisionPredicate(ExprPredicate):
             obj_jac = np.c_[obj_jac, rot_vec]
             # Constructing gradient matrix
             robot_grad = np.c_[robot_grad, obj_jac]
-            vals.append(self.dsafe - distance)
-            robot_grads.append(robot_grad)
+            links.append((robot_link_ind, self.dsafe - distance, robot_grad))
+        # arrange gradients in proper link order
+        # import ipdb; ipdb.set_trace()
 
-        vals = np.vstack(vals)
-        robot_grads = np.vstack(robot_grads)
-
+        vals, robot_grads = np.zeros((45,1)), np.zeros((45,26))
+        links = sorted(links, key = lambda x: x[0])
+        vals[:,0] = np.array([link[1] for link in links])
+        robot_grads[:, range(26)] = np.array([link[2] for link in links]).reshape((45, 26))
         return vals, robot_grads
 
     def _calc_obj_grad_and_val(self, obj_body, obstr_body, collisions):# TODO not yet working
         # Initialization
         vals = []
-        robot_grads = []
+        grads = []
         for c in collisions:
             # Identify the collision points
             linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
             linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
-            linkRobot, linkObj = None, None
+            linkObj, linkObstr = None, None
             sign = 1
-            if linkAParent == robot_body.name and linkBParent == obj_body.name:
-                ptRobot, ptObj = c.GetPtA(), c.GetPtB()
-                linkRobot, linkObj = linkA, linkB
+            if linkAParent == obj_body.name and linkBParent == obstr_body.name:
+                ptObj, ptObstr = c.GetPtA(), c.GetPtB()
+                linkObj, linkObstr = linkA, linkB
                 sign = -1
-            elif linkBParent == robot_body.name and linkAParent == obj_body.name:
-                ptRobot, ptObj = c.GetPtB(), c.GetPtA()
-                linkRobot, linkObj = linkB, linkA
+            elif linkBParent == obj_body.name and linkAParent == obstr_body.name:
+                ptObj, ptObstr = c.GetPtB(), c.GetPtA()
+                linkObj, linkObstr = linkB, linkA
                 sign = 1
             else:
                 continue
             # Obtain distance between two collision points, and their normal collision vector
             distance = c.GetDistance()
             normal = c.GetNormal()
-            # Calculate robot jacobian
-            robot = robot_body.env_body
-            robot_link_ind = robot.GetLink(linkRobot).GetIndex()
-            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
-            robot_grad = np.dot(sign * normal, robot_jac).reshape((1,20))
-            col_vec = ptRobot - ptObj
+
+            col_vec = ptObj - ptObstr
             col_vec = col_vec / np.linalg.norm(col_vec)
-            # Calculate object pose jacobian
             obj_jac = np.array([[np.dot(col_vec, axis) for axis in np.eye(3)]])
             obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
             torque = ptObj - obj_pos[:3]
             # Calculate object rotation jacobian
             Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
             rot_axises = [np.dot(Rz, np.dot(Ry, [1,0,0])), np.dot(Rz, [0,1,0]), [0,0,1]]
-            rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
-            obj_jac = np.c_[obj_jac, rot_vec]
+            obj_rot = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
+
+            obstr_jac = np.array([[np.dot(-col_vec, axis) for axis in np.eye(3)]])
+            obstr_pos = OpenRAVEBody.obj_pose_from_transform(obstr_body.env_body.GetTransform())
+            torque = ptObstr - obj_pos[:3]
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obstr_pos[:3], obstr_pos[3:])
+            rot_axises = [np.dot(Rz, np.dot(Ry, [1,0,0])), np.dot(Rz, [0,1,0]), [0,0,1]]
+            obstr_rot = np.array([[np.dot(np.cross(axis, torque), -col_vec) for axis in rot_axises]])
             # Constructing gradient matrix
-            robot_grad = np.c_[robot_grad, obj_jac]
+            grad = np.r_['-1',obj_jac, obj_rot, obstr_jac, obstr_rot]
             vals.append(self.dsafe - distance)
-            robot_grads.append(robot_grad)
+            grads.append(grad)
+
+        # import ipdb; ipdb.set_trace()
 
         vals = np.vstack(vals)
-        robot_grads = np.vstack(robot_grads)
+        grads = np.vstack(grads)
 
-        return vals, robot_grads
+        return vals, grads
 
     def _plot_collision(self, ptA, ptB, distance):
         self.handles = []
@@ -644,7 +648,7 @@ class ObstructsHolding(CollisionPredicate):
         grad_neg = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.zeros((45,1))
+        val = np.zeros((46,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -660,13 +664,14 @@ class ObstructsHolding(CollisionPredicate):
 
     def distance_from_obj(self, x):
         # Assuming x is aligned according to the following order:
-        # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
+        # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot->heldPos->heldRot
         # Parse the pose value
         # obj_body -> self.obstruct
         base_pose, back_height = x[0:3], x[3:4]
         l_arm_pose, l_gripper = x[4:11], x[11:12]
         r_arm_pose, r_gripper = x[12:19], x[19:20]
         can_pos, can_rot = x[20:23], x[23:26]
+        held_pose, held_rot = x[26:29], x[29:]
         # Set pose of each rave body
         robot = self.params[self.ind0]
         obj = self.params[self.ind1]
@@ -681,27 +686,23 @@ class ObstructsHolding(CollisionPredicate):
         # setup collision between robot and obstruct
         collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
         col_val1, col_jac1 = self._calc_grad_and_val(robot_body, obj_body, collisions1)
+        col_jac1 = np.c_[col_jac1, np.zeros((45,6))]
 
         if self.obstruct.name == self.held.name:
             ## add dsafe to col_val1 b/c we're allowed to touch, but not intersect
             col_val1 -= self.dsafe + 1e-3
-            val = col_val1
-            jac = col_jac1
-
+            col_val2 = -np.array([[1e-3]])
+            col_jac2 = np.zeros((1,32))
         else:
             held_body = self._param_to_body[self.held]
-            held_pose, held_rot = x[26:29], x[29:]
             held_body.set_pose(held_pose, held_rot)
-
             collisions2 = self._cc.BodyVsBody(held_body.env_body, obj_body.env_body)
-            col_val2, col_jac2 = self._calc_grad_and_val(held_body, obj_body, collisions2)
-
-            if col_val1 > col_val2:
-                val = col_val1
-                jac = col_jac1
-            else:
-                val = col_val2
-                jac = col_jac2
+            col_val2, col_jac2 = self._calc_obj_grad_and_val(held_body, obj_body, collisions2)
+            col_jac2 = np.c_[np.zeros((1,20)), col_jac2]
+        # import ipdb; ipdb.set_trace()
+        val = np.vstack((col_val1, col_val2))
+        jac = np.vstack((col_jac1, col_jac2))
+        robot_body._set_active_dof_inds(range(39))
 
         return val, jac
 

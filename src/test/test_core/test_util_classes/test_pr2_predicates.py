@@ -402,11 +402,11 @@ class TestPR2Predicates(unittest.TestCase):
         # Move can so that it collide with robot base
         can.pose = np.array([[0],[0],[0]])
         self.assertTrue(pred.test(0))
-        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
         # Move can away so there is no collision
         can.pose = np.array([[0],[0],[-2]])
         self.assertFalse(pred.test(0))
-        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
         # Move can to the center of the gripper (touching -> should recognize as collision)
         can.pose = np.array([[.578,  -.127,   .838]]).T
         self.assertTrue(pred.test(0))
@@ -442,34 +442,49 @@ class TestPR2Predicates(unittest.TestCase):
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
         # Move can so that it collide with robot base
-        """
-            Needs to deal with obj-obj collison
-        """
-        # rPose.value = can_held.pose = can.pose = np.array([[0],[0],[0]])
-        # self.assertTrue(pred.test(0))
+        rPose.value = can_held.pose = can.pose = np.array([[0],[0],[0]])
+        self.assertTrue(pred.test(0))
         # # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
-        # # Move can away so there is no collision
-        # can.pose = np.array([[0],[0],[-2]])
-        # self.assertFalse(pred.test(0))
-        # # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
-        # # Move can to the center of the gripper (touching -> should recognize as collision)
-        # can.pose = np.array([[.578,  -.127,   .838]]).T
-        # self.assertTrue(pred.test(0))
-        # self.assertFalse(pred.test(0, negated = True))
-        # # Move can away from the gripper, no collision
-        # can.pose = np.array([[.700,  -.127,   .838]]).T
-        # self.assertFalse(pred.test(0))
-        # self.assertTrue(pred.test(0, negated = True))
-        # # Move caheldn into the robot arm, should have collision
-        # can.pose = np.array([[.50,  -.3,   .838]]).T
-        # self.assertTrue(pred.test(0))
+        # Move can away so there is no collision
+        can.pose = np.array([[0],[0],[-2]])
+        self.assertFalse(pred.test(0))
+        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # Move can to the center of the gripper (touching -> should recognize as collision)
+        can.pose = np.array([[.578,  -.127,   .838]]).T
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+        # Move can away from the gripper, no collision
+        can.pose = np.array([[.700,  -.127,   .838]]).T
+        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0, negated = True))
+        # Move caheldn into the robot arm, should have collision
+        can.pose = np.array([[.50,  -.3,   .838]]).T
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+
+        pred2 = pr2_predicates.ObstructsHolding("test_obstructs_held", [robot, rPose, rPose, can_held, can_held], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], test_env)
+        rPose.value = can_held.pose = can.pose = np.array([[0],[0],[0]])
+        self.assertTrue(pred2.test(0))
+        can_held.pose = np.array([[0],[0],[-2]])
+        self.assertFalse(pred2.test(0))
+        # Move can to the center of the gripper (touching -> should allow touching)
+        can_held.pose = np.array([[.578,  -.127,   .838]]).T
+        self.assertFalse(pred2.test(0))
+        self.assertTrue(pred2.test(0, negated = True))
+        # Move can away from the gripper, no collision
+        can_held.pose = np.array([[.700,  -.127,   .838]]).T
+        self.assertFalse(pred2.test(0))
+        self.assertTrue(pred2.test(0, negated = True))
+        # Move caheldn into the robot arm, should have collision
+        can_held.pose = np.array([[.50,  -.3,   .838]]).T
+        self.assertTrue(pred2.test(0))
         # self.assertFalse(pred.test(0, negated = True))
         """
             Uncomment the following to see the robot
         """
         # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # pred._param_to_body[can].set_pose(can.pose, can.rotation)
+        # pred._param_to_body[can_held].set_transparency(0.7)
+        # pred._param_to_body[can_held].set_pose(can_held.pose, can_held.rotation)
         # test_env.SetViewer("qtcoin")
         # import ipdb; ipdb.set_trace()
 
