@@ -16,9 +16,9 @@ CAN_GEOM = [0.05, 0.25]
 
 BACKHEIGHT_INIT = [0.3]
 # referred to as side2 pose in rapprentice
-L_ARM_INIT = [1.832, -0.332, 1.011, -1.437, 1.1, 0, 3.074]
-# right arm is tucked
-R_ARM_INIT = [-0.06, 1.25, -1.79, -1.68, 1.73, -0.10, 0.09]
+R_ARM_INIT = [-1.832, -0.332, -1.011, -1.437, -1.1, 0, -3.074]
+# left arm is tucked
+L_ARM_INIT = [0.06, 1.25, 1.79, -1.68, -1.73, -0.10, -0.09]
 GRIPPER_INIT = [0.8]
 
 TABLE_GEOM = [2.235, 0.94, 0.2, 1.3, 0.6, 0.6, False]
@@ -64,7 +64,8 @@ def main():
             s += "(pose can{} {}), ".format(i, list(coords[i]))
             s += "(rotation can{} {}),".format(i, CAN_ROTATION_INIT)
             # s += "(value gp_can{} undefined), ".format(i)
-        s += "(geom {} 1), (pose {} {}), ".format("pr2", "pr2", list(coords[NUM_TARGETS]))
+        s += "(geom {}), ".format("pr2")
+        s += "(pose {} {}), ".format("pr2", list(coords[NUM_TARGETS]))
         # setting intial state of robot
         s += "(pose pr2 {}), ".format(list(coords[NUM_TARGETS]))
         s += get_pr2_attrs_str('pr2')
