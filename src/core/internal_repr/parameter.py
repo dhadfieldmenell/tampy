@@ -1,6 +1,6 @@
 from IPython import embed as shell
 from errors_exceptions import DomainConfigException
-from core.util_classes.matrix import Vector2d
+from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 
 import numpy as np
@@ -122,8 +122,9 @@ class Symbol(Parameter):
         new = Symbol()
         for k, v in self.__dict__.items():
             if v == 'undefined':
-                assert self.get_attr_type(k) == Vector2d
-                val = np.empty((2, 1))
+                attr_type = self.get_attr_type(k)
+                assert issubclass(attr_type, Vector)
+                val = np.empty((attr_type.dim, 1))
                 val[:] = np.NaN
                 setattr(new, k, val)
             else:
