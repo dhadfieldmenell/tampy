@@ -8,33 +8,39 @@ class Matrix(np.ndarray):
     def __new__(cls, *args, **kwargs):
         raise NotImplementedError("Override this.")
 
-class Vector2d(Matrix):
+class Vector(Matrix):
+    """
+    The vector class.
+    """
+    def __new__(cls, vec, dim):
+        if type(vec) is str:
+            if not vec.endswith(")"):
+                vec += ")"
+            vec = eval(vec)
+        obj = np.array(vec)
+        # deals with case where obj is zero-dimensional
+        assert len(np.atleast_1d(obj)) == dim
+        obj = obj.reshape((dim, 1))
+        return obj
+
+class Vector1d(Vector):
+    def __new__(cls, vec):
+        return super(Vector1d, cls).__new__(cls, vec, 1)
+
+class Vector2d(Vector):
     """
     The NAMO domain uses the Vector2d class to track poses of objects in the grid.
     """
     def __new__(cls, vec):
-        if type(vec) is str:
-            if not vec.endswith(")"):
-                vec += ")"
-            vec = eval(vec)
-        obj = np.array(vec)
-        assert len(obj) == 2
-        obj = obj.reshape((2, 1))
-        return obj
+        return super(Vector2d, cls).__new__(cls, vec, 2)
 
-class Vector3d(Matrix):
-    """
-    The PR2 domain uses the Vector3d class to track poses of objects in the grid.
-    """
+class Vector3d(Vector):
     def __new__(cls, vec):
-        if type(vec) is str:
-            if not vec.endswith(")"):
-                vec += ")"
-            vec = eval(vec)
-        obj = np.array(vec)
-        assert len(obj) == 3
-        obj = obj.reshape((3, 1))
-        return obj
+        return super(Vector3d, cls).__new__(cls, vec, 3)
+
+class Vector7d(Vector):
+    def __new__(cls, vec):
+        return super(Vector7d, cls).__new__(cls, vec, 7)
 
 class PR2PoseVector(Vector3d):
     """
@@ -42,30 +48,12 @@ class PR2PoseVector(Vector3d):
     """
     pass
 
-class Vector7d(Matrix):
+class PR2ArmPose(Vector7d):
     """
-        The PR2 domain uses the Vector8d calss to track arm pose.
-    """
-    def __new__(cls, vec):
-        if type(vec) is str:
-            if not vec.endswith(")"):
-                vec += ")"
-            vec = eval(vec)
-        obj = np.array(vec)
-        assert len(obj) == 7
-        obj = obj.reshape((7, 1))
-        return obj
-
-
-class Value(Matrix):
-    """
-        The PR2 domain uses the Vector1d calss to track pr2's back height.
+    The PR2's arm pose is a 7d vector.
     """
     def __new__(cls, vec):
-        if type(vec) is str:
-            if not vec.endswith(")"):
-                vec += ")"
-            vec = eval(vec)
-        obj = np.matrix(vec)
-        obj = obj.reshape((1, 1))
-        return obj
+        return super(Vector2d, cls).__new__(cls, vec, 7)
+
+class Value(Vector1d):
+    pass
