@@ -37,3 +37,4 @@ After IROS
  - implement tests for caching not_obstructs
  - implement more thorough tests for ll_solver
  - put shared methods of CanSolver and NAMOSolver into Solver
+ - should is_defined only return True when all numerical attributes are defined?

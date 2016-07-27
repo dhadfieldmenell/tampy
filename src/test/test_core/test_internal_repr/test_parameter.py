@@ -92,33 +92,44 @@ class TestParameter(unittest.TestCase):
     #     self.assertEqual(cm.exception.message, "Must instantiate either Object or Symbol.")
 
     def test_copy_object(self):
-        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "pose": [[[3, 4, 5, 0], [6, 2, 1, 5], [1, 1, 1, 1]]], "_type": ["Can"]}
-        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "pose": np.array, "_type": str}
+        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "pose": [[[3, 4, 5, 0], [6, 2, 1, 5], [1, 1, 1, 1]]], "rotation": [[[1, 2, 3],[4, 5, 6]]], "_type": ["Can"]}
+        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "pose": matrix.Vector3d, "rotation": matrix.Vector2d, "_type": str}
         p = parameter.Object(attrs, attr_types)
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
         self.assertTrue(np.allclose(p2.pose, [[3, 4, 5, 0, np.NaN, np.NaN, np.NaN], [6, 2, 1, 5, np.NaN, np.NaN, np.NaN], [1, 1, 1, 1, np.NaN, np.NaN, np.NaN]], equal_nan=True))
+        self.assertTrue(np.allclose(p2.rotation, [[1, 2, 3, np.NaN, np.NaN, np.NaN, np.NaN], [4, 5, 6, np.NaN, np.NaN, np.NaN, np.NaN]], equal_nan=True))
         p2 = p.copy(new_horizon=2)
         self.assertTrue(np.array_equal(p2.pose, [[3, 4], [6, 2], [1, 1]]))
-        attrs["pose"] = ["undefined"]
+        self.assertTrue(np.array_equal(p2.rotation, [[1, 2], [4, 5]]))
+        attrs["pose"] = "undefined"
+        attrs["rotation"] = "undefined"
         p = parameter.Object(attrs, attr_types)
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
-        self.assertEqual(p2.pose, "undefined")
+        new_pose = np.empty((3, 7))
+        new_pose[:] = np.NaN
+        self.assertTrue(np.allclose(p2.pose, new_pose, equal_nan=True))
+        new_pose = np.empty((2, 7))
+        new_pose[:] = np.NaN
+        self.assertTrue(np.allclose(p2.rotation, new_pose, equal_nan=True))
 
     def test_copy_symbol(self):
-        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": ["(3, 6)"], "_type": ["Can"]}
-        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": matrix.Vector2d, "_type": str}
+        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": ["(3, 6)"], "rotation": ["(1,2,3)"], "_type": ["Can"]}
+        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": matrix.Vector2d, "rotation": matrix.Vector3d, "_type": str}
         p = parameter.Symbol(attrs, attr_types)
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
         self.assertTrue(np.allclose(p2.value, [[3], [6]]))
+        self.assertTrue(np.allclose(p2.rotation, [[1], [2], [3]]))
         p2 = p.copy(new_horizon=2)
         self.assertTrue(np.allclose(p2.value, [[3], [6]]))
+        self.assertTrue(np.allclose(p2.rotation, [[1], [2], [3]]))
         attrs["value"] = ["undefined"]
+        attrs["rotation"] = ["undefined"]
         p = parameter.Symbol(attrs, attr_types)
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
@@ -126,3 +137,7 @@ class TestParameter(unittest.TestCase):
         arr = np.empty((2, 1))
         arr[:] = np.NaN
         self.assertTrue(np.allclose(p2.value, arr, equal_nan=True))
+
+        arr = np.empty((3, 1))
+        arr[:] = np.NaN
+        self.assertTrue(np.allclose(p2.rotation, arr, equal_nan=True))
