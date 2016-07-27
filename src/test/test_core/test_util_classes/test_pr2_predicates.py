@@ -18,8 +18,8 @@ class TestPR2Predicates(unittest.TestCase):
     def setup_environment(self):
         return Environment()
 
-    def setup_robot(self):
-        attrs = {"name": ["pr2"], "pose": [(0, 0, 0)], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae'], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
+    def setup_robot(self, name = "pr2"):
+        attrs = {"name": [name], "pose": [(0, 0, 0)], "_type": ["Robot"], "geom": ['../models/pr2/pr2.zae'], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
         attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
         attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": PR2, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
@@ -29,8 +29,8 @@ class TestPR2Predicates(unittest.TestCase):
         robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
         return robot
 
-    def setup_robot_pose(self):
-        attrs = {"name": ["funnyPose"], "value": [(0, 0, 0)], "_type": ["RobotPose"], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
+    def setup_robot_pose(self, name = "robot_Pose"):
+        attrs = {"name": [name], "value": [(0, 0, 0)], "_type": ["RobotPose"], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
         attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
         attr_types = {"name": str, "value": matrix.Vector3d, "_type": str, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
@@ -40,21 +40,21 @@ class TestPR2Predicates(unittest.TestCase):
         rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
         return rPose
 
-    def setup_can(self):
-        attrs = {"name": ["can"], "geom": (0.04, 0.25), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
+    def setup_can(self, name = "can"):
+        attrs = {"name": [name], "geom": (0.04, 0.25), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
         attr_types = {"name": str, "geom": BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         can = parameter.Object(attrs, attr_types)
         return can
 
-    def setup_target(self):
+    def setup_target(self, name = "target"):
         # This is the target parameter
-        attrs = {"name": ["target"], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["Target"]}
+        attrs = {"name": [name], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["Target"]}
         attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         target = parameter.Symbol(attrs, attr_types)
         return target
 
-    def setup_ee_pose(self):
-        attrs = {"name": ["ee_pose"], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["EEPose"]}
+    def setup_ee_pose(self, name = "ee_pose"):
+        attrs = {"name": [name], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["EEPose"]}
         attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         ee_pose = parameter.Symbol(attrs, attr_types)
         return ee_pose
@@ -119,7 +119,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred.test(0))
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=2)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 funnyPose)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 robot_Pose)'.")
         robot.pose = np.array([[3, 4, 5, 3],
                                [6, 5, 7, 6],
                                [6, 3, 4, 6]])
@@ -143,10 +143,10 @@ class TestPR2Predicates(unittest.TestCase):
         rPose.lArmPose = np.array([[0,0,0,0,0,0,0]]).T
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 funnyPose)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 robot_Pose)'.")
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=-1)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 funnyPose)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 robot_Pose)'.")
 
         self.assertTrue(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
@@ -198,60 +198,38 @@ class TestPR2Predicates(unittest.TestCase):
         can = self.setup_can()
         test_env = self.setup_environment()
         pred = pr2_predicates.InGripper("InGripper", [robot, can], ["Robot", "Can"], test_env)
-        can.pose = np.array([[0],[0],[0]])
-        can.rotation = np.array([[0],[0],[0]])
-        # Can's initial position is not right
+        # Since this predicate is not yet concrete
         self.assertFalse(pred.test(0))
-        # check the gradient of the implementations
+        can.pose = np.array([[0,0,0]]).T
+        # initialized pose value is not right
+        self.assertFalse(pred.test(0))
+        # check the gradient of the implementations (correct)
         # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
-        # Set can's pose on robot's gripper
-        can.pose = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
-        can.rotation = np.array([[0],[0],[0]])
+        # Now set can's pose and rotation to be the right things
+        can.pose = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
         self.assertTrue(pred.test(0))
-        # Now randomly set a new pose
+        # A new robot arm pose
         robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
         self.assertFalse(pred.test(0))
-        # Tune the can's rotation, now position is still wrong so test should fail
-        can.rotation = np.array([[0.02484, -0.59793, -0.68047]]).T
-        self.assertFalse(pred.test(0))
-        # Setting pose back to robot's gripper, Test should work
+        # Only the pos is correct, rotation is not yet right
         can.pose = np.array([[0.59152062, -0.71105108,  1.05144139]]).T
-        self.assertTrue(pred.test(0))
-        # check the gradient of the implementations
-        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # test_env.SetViewer("qtcoin")
-        # import ipdb; ipdb.set_trace()
-
-    def test_in_gripper_rot(self):
-        # Test In GripperRot
-        robot = self.setup_robot()
-        can = self.setup_can()
-        test_env = self.setup_environment()
-        pred = pr2_predicates.InGripperRot("InGripper_rot", [robot, can], ["Robot", "Can"], test_env)
-        self.assertEqual(pred.get_type(), "InGripperRot")
-        # Since pose of can is not defined
         self.assertFalse(pred.test(0))
-        # can is initialized with right default rotation axis
-        can.pose = np.array([[0],[0],[0]])
-        self.assertTrue(pred.test(0))
-        # Turn robot's wrist to the side
-        robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
-        self.assertFalse(pred.test(0))
-        # set the right rotation
-        can.rotation = np.array([[1.17809725e+00,  -2.49800181e-16,  -5.23598776e-01]]).T
-        self.assertTrue(pred.test(0))
-        # New robot arm pose
-        robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
-        self.assertFalse(pred.test(0))
-        can.pose = np.array([[ 0.59152062, -0.71105108,  1.05144139]]).T
         can.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
-        # check the gradient of the implementations
+        # now rotate robot basepose
+        robot.pose = np.array([[0,0,np.pi/3]]).T
+        self.assertFalse(pred.test(0))
+        can.pose = np.array([[0.91154861,  0.15674634,  1.05144139]]).T
+        self.assertFalse(pred.test(0))
+        can.rotation = np.array([[1.07204204, -0.59793421, -0.68047349]]).T
+        self.assertTrue(pred.test(0))
+        robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
+        self.assertFalse(pred.test(0))
+        can.rotation = np.array([[2.22529480e+00,   3.33066907e-16,  -5.23598776e-01]]).T
+        self.assertFalse(pred.test(0))
+        can.pose = np.array([[3.98707028e-01,   4.37093473e-01,   8.37601627e-01]]).T
+        self.assertTrue(pred.test(0))
+        # check the gradient of the implementations (correct)
         # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
         """
             Uncomment the following to see the robot
@@ -259,7 +237,6 @@ class TestPR2Predicates(unittest.TestCase):
         # pred._param_to_body[robot].set_transparency(0.7)
         # pred._param_to_body[can].set_transparency(0.7)
         # test_env.SetViewer("qtcoin")
-        #
         # import ipdb; ipdb.set_trace()
 
     def test_grasp_valid(self):
@@ -294,6 +271,37 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(1))
         self.assertFalse(pred.test(2))
 
+    def test_in_contact(self):
+        # InContact robot EEPose target
+        robot = self.setup_robot()
+        ee_pose = self.setup_ee_pose()
+        target = self.setup_target()
+        test_env = self.setup_environment()
+        test_can = self.setup_can()
+        pred = pr2_predicates.InContact("test_in_contact", [robot, ee_pose, target], ["Robot", "EEPose", "Target"], test_env)
+        self.assertTrue(pred.get_type(), "InContact")
+        # Since EEPose and Target are both undefined
+        self.assertFalse(pred.test(0))
+        target.value = ee_pose.value = np.array([[0],[0],[0]])
+
+        # By default, gripper fingers are not close enough to touch the can
+        self.assertFalse(pred.test(0))
+        robot.rGripper = np.matrix([0.46])
+        self.assertTrue(pred.test(0))
+        robot.rGripper = np.matrix([0.2])
+        self.assertFalse(pred.test(0))
+
+        # check the gradient of the implementations (correct) #TODO gradient not right
+        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+
+        # ref_can_body = pred.lazy_spawn_or_body(test_can, test_can.name, test_can.geom)
+        # test_can.pose = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
+        # pred._param_to_body[robot].set_transparency(0.7)
+        # ref_can_body.set_transparency(0)
+        # ref_can_body.set_pose(test_can.pose)
+        # test_env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
+
     def test_ee_reachable(self):
 
         # EEUnreachable Robot, StartPose, EEPose
@@ -310,7 +318,7 @@ class TestPR2Predicates(unittest.TestCase):
         rPose.value = np.array([[0,0,0]]).T
         # initialized pose value is not right
         self.assertFalse(pred.test(0))
-        # check the gradient of the implementations
+        # check the gradient of the implementations (correct)
         # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
         # Now set can's pose and rotation to be the right things
         ee_pose.value = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
@@ -318,42 +326,33 @@ class TestPR2Predicates(unittest.TestCase):
         # A new robot arm pose
         robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
         self.assertFalse(pred.test(0))
+        # Only the pos is correct, rotation is not yet right
         ee_pose.value = np.array([[0.59152062, -0.71105108,  1.05144139]]).T
+        self.assertFalse(pred.test(0))
+        ee_pose.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
         # now rotate robot basepose
         robot.pose = np.array([[0,0,np.pi/3]]).T
         self.assertFalse(pred.test(0))
         ee_pose.value = np.array([[0.91154861,  0.15674634,  1.05144139]]).T
-        self.assertTrue(pred.test(0))
-
-    def test_ee_reachable_rot(self):
-
-        # EEUnreachable Robot, StartPose, EEPose
-
-        robot = self.setup_robot()
-        rPose = self.setup_robot_pose()
-        ee_pose = self.setup_ee_pose()
-        test_env = self.setup_environment()
-        pred = pr2_predicates.EEReachableRot("test_ee_reachable_rot", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
-        self.assertTrue(pred.get_type(), "EEReachable")
-        # Since this predicate is not yet concrete
         self.assertFalse(pred.test(0))
-        ee_pose.value = np.array([[0,0,0]]).T
-        rPose.value = np.array([[0,0,0]]).T
-        # initialized facing is right
+        ee_pose.rotation = np.array([[1.07204204, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
-        # check the gradient of the implementations
-        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
-        # Now set a new robot arm pose
         robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
         self.assertFalse(pred.test(0))
-        ee_pose.rotation = np.array([[1.17809725e+00,  -2.49800181e-16,  -5.23598776e-01]]).T
-        self.assertTrue(pred.test(0))
-        # now rotate robot basepose
-        robot.pose = np.array([[0,0,np.pi/3]]).T
+        ee_pose.rotation = np.array([[2.22529480e+00,   3.33066907e-16,  -5.23598776e-01]]).T
         self.assertFalse(pred.test(0))
-        ee_pose.rotation= np.array([[2.22529480e+00,   3.33066907e-16,  -5.23598776e-01]]).T
+        ee_pose.value = np.array([[3.98707028e-01,   4.37093473e-01,   8.37601627e-01]]).T
         self.assertTrue(pred.test(0))
+        # check the gradient of the implementations (correct)
+        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        """
+            Uncomment the following to see the robot
+        """
+        # pred._param_to_body[robot].set_transparency(0.7)
+        # pred._param_to_body[can].set_transparency(0.7)
+        # test_env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
 
     def test_stationary(self):
         can = self.setup_can()
@@ -390,7 +389,7 @@ class TestPR2Predicates(unittest.TestCase):
 
     def test_obstructs(self):
 
-        # Obstructs, Robot, RobotPose, Can
+        # Obstructs, Robot, RobotPose, RobotPose, Can
 
         robot = self.setup_robot()
         rPose = self.setup_robot_pose()
@@ -411,12 +410,15 @@ class TestPR2Predicates(unittest.TestCase):
         # Move can to the center of the gripper (touching -> should recognize as collision)
         can.pose = np.array([[.578,  -.127,   .838]]).T
         self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
         # Move can away from the gripper, no collision
         can.pose = np.array([[.700,  -.127,   .838]]).T
         self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0, negated = True))
         # Move can into the robot arm, should have collision
         can.pose = np.array([[.50,  -.3,   .838]]).T
         self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
         """
             Uncomment the following to see the robot
         """
@@ -427,20 +429,23 @@ class TestPR2Predicates(unittest.TestCase):
         # import ipdb; ipdb.set_trace()
 
     def test_obstructs_holding(self):
+
+        # Obstructs, Robot, RobotPose, RobotPose, Can, Can
+
         robot = self.setup_robot()
         rPose = self.setup_robot_pose()
-        can = self.setup_can()
-        can_held = self.setup_can()
-        # test_env = self.setup_environment()
-        #
-        # # ObstructsHolding, Robot, RobotPose, Can, Can
-        #
-        # pred = pr2_predicates.ObstructsHolding("test_obstructs_holding", [robot, rPose, can, can_held], ["Robot", "RobotPose", "Can"], test_env)
-        # self.assertEqual(pred.get_type(), "ObstructsHolding")
-        # # Since can is not yet defined
-        # self.assertFalse(pred.test(0))
-        # # Move can so that it collide with robot base
-        # can.pose = np.array([[0],[0],[0]])
+        can = self.setup_can("can1")
+        can_held = self.setup_can("can2")
+        test_env = self.setup_environment()
+        pred = pr2_predicates.ObstructsHolding("test_obstructs", [robot, rPose, rPose, can, can_held], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], test_env)
+        self.assertEqual(pred.get_type(), "ObstructsHolding")
+        # Since can is not yet defined
+        self.assertFalse(pred.test(0))
+        # Move can so that it collide with robot base
+        """
+            Needs to deal with obj-obj collison
+        """
+        # rPose.value = can_held.pose = can.pose = np.array([[0],[0],[0]])
         # self.assertTrue(pred.test(0))
         # # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
         # # Move can away so there is no collision
@@ -450,12 +455,30 @@ class TestPR2Predicates(unittest.TestCase):
         # # Move can to the center of the gripper (touching -> should recognize as collision)
         # can.pose = np.array([[.578,  -.127,   .838]]).T
         # self.assertTrue(pred.test(0))
+        # self.assertFalse(pred.test(0, negated = True))
         # # Move can away from the gripper, no collision
         # can.pose = np.array([[.700,  -.127,   .838]]).T
         # self.assertFalse(pred.test(0))
-        # # Move can into the robot arm, should have collision
+        # self.assertTrue(pred.test(0, negated = True))
+        # # Move caheldn into the robot arm, should have collision
         # can.pose = np.array([[.50,  -.3,   .838]]).T
         # self.assertTrue(pred.test(0))
+        # self.assertFalse(pred.test(0, negated = True))
+        """
+            Uncomment the following to see the robot
+        """
+        # pred._param_to_body[robot].set_transparency(0.7)
+        # pred._param_to_body[can].set_transparency(0.7)
+        # pred._param_to_body[can].set_pose(can.pose, can.rotation)
+        # test_env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
+
+    def test_collides(self):
+        pass
+    def test_r_collides(self):
+        pass
+
+    #TODO test other stationary
 
 if __name__ == "__main__":
     unittest.main()
