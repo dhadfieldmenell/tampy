@@ -162,12 +162,11 @@ class TestPR2Predicates(unittest.TestCase):
             pred.test(time=0)
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_isMP: (IsMP pr2)' at the timestep.")
         # Getting lowerbound and movement step
-        b_m = pred.base_move
-        lbH_l, bH_m = pred.lb_lim[0], pred.bHeight_move
-        llA_l, lA_m = pred.lb_lim[1:8], pred.lArm_move
-        lrA_l, rA_m = pred.lb_lim[9:16], pred.rArm_move
-        llG_l, lG_m = pred.lb_lim[8], pred.lGripper_move
-        lrG_l, rG_m = pred.lb_lim[16], pred.rGripper_move
+        lbH_l, bH_m = pred.lower_limit[0], pred.joint_step[0]
+        llA_l, lA_m = pred.lower_limit[1:8], pred.joint_step[1:8]
+        lrA_l, rA_m = pred.lower_limit[9:16], pred.joint_step[9:16]
+        llG_l, lG_m = pred.lower_limit[8], pred.joint_step[8]
+        lrG_l, rG_m = pred.lower_limit[16], pred.joint_step[16]
         # Base pose is valid in the timestep: 1,2,3,4,5
         robot.pose = np.array([[1,2,3,4,5,6,7],
                                [0,2,3,4,5,6,7],
@@ -186,14 +185,47 @@ class TestPR2Predicates(unittest.TestCase):
         # Thus only timestep 1 and 3 are valid
         # import ipdb; ipdb.set_trace()
         self.assertFalse(pred.test(0))
-        # self.assertTrue(pred.test(1))
+        self.assertTrue(pred.test(1))
         self.assertFalse(pred.test(2))
-        # self.assertTrue(pred.test(3))
+        self.assertTrue(pred.test(3))
         self.assertFalse(pred.test(4))
         self.assertFalse(pred.test(5))
         with self.assertRaises(PredicateException) as cm:
             pred.test(6)
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_isMP: (IsMP pr2)' at the timestep.")
+
+    def test_within_joint_limit(self):
+        robot = self.setup_robot()
+        test_env = self.setup_environment()
+        pred = pr2_predicates.WithinJointLimit("test_joint_limit", [robot], ["Robot"], test_env)
+        self.assertEqual(pred.get_type(), "WithinJointLimit")
+        # Getting lowerbound and movement step
+        lbH_l, bH_m = pred.lower_limit[0], pred.joint_step[0]
+        llA_l, lA_m = pred.lower_limit[1:8], pred.joint_step[1:8]
+        lrA_l, rA_m = pred.lower_limit[9:16], pred.joint_step[9:16]
+        llG_l, lG_m = pred.lower_limit[8], pred.joint_step[8]
+        lrG_l, rG_m = pred.lower_limit[16], pred.joint_step[16]
+        # Base pose is valid in the timestep: 1,2,3,4,5
+        robot.pose = np.array([[1,2,3,4,5,6,7],
+                               [0,2,3,4,5,6,7],
+                               [1,2,3,4,5,6,7]])
+
+        # timestep 6 should fail
+        robot.rArmPose = np.hstack((lrA_l+rA_m, lrA_l+2*rA_m, lrA_l+3*rA_m, lrA_l+4*rA_m, lrA_l+3*rA_m, lrA_l+5*rA_m, lrA_l+100*rA_m))
+        # timestep 1 should fail
+        robot.lArmPose = np.hstack((llA_l+lA_m, llA_l-lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m))
+        robot.rGripper = np.matrix([lrG_l, lrG_l+rG_m, lrG_l+2*rG_m, lrG_l+5*rG_m, lrG_l+4*rG_m, lrG_l+3*rG_m, lrG_l+2*rG_m]).reshape((1,7))
+        robot.lGripper = np.matrix([llG_l, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m]).reshape((1,7))
+        # timestep 3 shold fail
+        robot.backHeight = np.matrix([bH_m, bH_m, bH_m, -bH_m, bH_m, bH_m, bH_m]).reshape((1,7))
+        # Thus timestep 1, 3, 6 should fail
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(1))
+        self.assertTrue(pred.test(2))
+        self.assertFalse(pred.test(3))
+        self.assertTrue(pred.test(4))
+        self.assertTrue(pred.test(5))
+        self.assertFalse(pred.test(6))
 
     def test_in_gripper(self):
 

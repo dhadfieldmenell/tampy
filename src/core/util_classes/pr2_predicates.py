@@ -336,12 +336,6 @@ class PosePredicate(ExprPredicate):
 
         return val, jac
 
-
-
-
-
-
-
 class At(ExprPredicate):
 
     # At, Can, Target
@@ -421,21 +415,61 @@ class IsMP(ExprPredicate):
         # Setup the Equation so that: Ax+b < val represents
         # |base_pose_next - base_pose| <= BASE_MOVE
         # |joint_next - joint| <= joint_movement_range/10
-        # lb_limit <= pose <= ub_limit
-        val = np.vstack((BASE_MOVE*np.ones((3,1)), joint_move, BASE_MOVE*np.ones((3,1)), joint_move, -active_lb, active_ub))
-        A_move = np.eye(40) - np.eye(40, k=20) - np.eye(40, k=-20)
-        A_lb_limit = np.hstack((np.zeros((17, 3)), -np.eye(17), np.zeros((17, 20))))
-        A_up_limit = np.hstack((np.zeros((17,3)), np.eye(17), np.zeros((17,20))))
-        A = np.vstack((A_move, A_lb_limit, A_up_limit))
-        b = np.zeros((74,1))
+        val = np.vstack((BASE_MOVE*np.ones((3,1)), joint_move, BASE_MOVE*np.ones((3,1)), joint_move))
+        A = np.eye(40) - np.eye(40, k=20) - np.eye(40, k=-20)
+        b = np.zeros((40,1))
         robot_body._set_active_dof_inds(range(39))
         # Setting attributes for testing
+        self.base_step = BASE_MOVE*np.ones((3,1))
+        self.joint_step = joint_move
+        self.lower_limit = active_lb
 
-        self.base_move, self.bHeight_move = BASE_MOVE*np.ones((3,1)), joint_move[0]
-        self.lArm_move, self.rArm_move = joint_move[1:8], joint_move[9:16]
-        self.lGripper_move, self.rGripper_move = joint_move[8], joint_move[16]
-        self.lb_lim, self.ub_lim = active_lb, active_ub
+        return A, b, val
 
+class WithinJointLimit(ExprPredicate):
+
+    # WithinJointLimit Robot
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.robot, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                               ("backHeight", np.array([0], dtype=np.int)),
+                                               ("lArmPose", np.array(range(7), dtype=np.int)),
+                                               ("lGripper", np.array([0], dtype=np.int)),
+                                               ("rArmPose", np.array(range(7), dtype=np.int)),
+                                               ("rGripper", np.array([0], dtype=np.int))])])
+
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        A, b, val = self.setup_mov_limit_check()
+        e = LEqExpr(AffExpr(A, b), val)
+        super(WithinJointLimit, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def setup_mov_limit_check(self):
+        # Get upper joint limit and lower joint limit
+        robot_body = self._param_to_body[self.robot]
+        robot = robot_body.env_body
+        robot_body._set_active_dof_inds()
+        dof_inds = robot.GetActiveDOFIndices()
+        lb_limit, ub_limit = robot.GetDOFLimits()
+        active_ub = ub_limit[dof_inds].reshape((17,1))
+        active_lb = lb_limit[dof_inds].reshape((17,1))
+        joint_move = (active_ub-active_lb)/10
+        # Setup the Equation so that: Ax+b < val represents
+        # lb_limit <= pose <= ub_limit
+        val = np.vstack((-active_lb, active_ub))
+        A_lb_limit = np.hstack((np.zeros((17, 3)), -np.eye(17)))
+        A_up_limit = np.hstack((np.zeros((17,3)), np.eye(17)))
+        A = np.vstack((A_lb_limit, A_up_limit))
+        b = np.zeros((34,1))
+        robot_body._set_active_dof_inds(range(39))
+        # Setting attributes for testing
+        self.base_step = BASE_MOVE*np.ones((3,1))
+        self.joint_step = joint_move
+        self.lower_limit = active_lb
         return A, b, val
 
 class Stationary(ExprPredicate):
