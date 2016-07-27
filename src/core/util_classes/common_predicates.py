@@ -77,7 +77,7 @@ class ExprPredicate(Predicate):
                 get_param_vector_helper(self, self.x, end_ind, t+1, self.attr_inds)
             except IndexError:
                 raise PredicateException("Insufficient pose trajectory to check dynamic predicate '%s' at the timestep."%self)
-        return self.x
+        return self.x.reshape((self.x_dim, 1))
 
     def test(self, time, negated=False):
         if not self.is_concrete():
