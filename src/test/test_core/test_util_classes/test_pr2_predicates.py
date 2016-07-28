@@ -59,6 +59,9 @@ class TestPR2Predicates(unittest.TestCase):
         ee_pose = parameter.Symbol(attrs, attr_types)
         return ee_pose
 
+    def setup_obstacle(self, name = "obstacle"):
+        pass
+
     # Begin of the test
     def test_expr_at(self):
 
@@ -314,28 +317,30 @@ class TestPR2Predicates(unittest.TestCase):
         target = self.setup_target()
         test_env = self.setup_environment()
         test_can = self.setup_can()
-        pred = pr2_predicates.InContact("test_in_contact", [robot, ee_pose, target], ["Robot", "EEPose", "Target"], test_env)
-        self.assertTrue(pred.get_type(), "InContact")
+
+        pred = pr2_predicates.InContact2("test_in_contact", [robot, ee_pose, target], ["Robot", "EEPose", "Target"], test_env)
+        self.assertTrue(pred.get_type(), "InContact2")
         # Since EEPose and Target are both undefined
         self.assertFalse(pred.test(0))
         target.value = ee_pose.value = np.array([[0],[0],[0]])
-
         # By default, gripper fingers are not close enough to touch the can
         self.assertFalse(pred.test(0))
         robot.rGripper = np.matrix([0.46])
+        target.value = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
         self.assertTrue(pred.test(0))
         robot.rGripper = np.matrix([0.2])
         self.assertFalse(pred.test(0))
-
-        # check the gradient of the implementations (correct) #TODO gradient not right
-        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
-
+        # check the gradient of the implementations
+        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2) # TODO fix gradient
+        """
+            Uncomment the following to see the can and robot gripper position
+        """
         # ref_can_body = pred.lazy_spawn_or_body(test_can, test_can.name, test_can.geom)
         # test_can.pose = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
         # pred._param_to_body[robot].set_transparency(0.7)
+        # test_env.SetViewer("qtcoin")
         # ref_can_body.set_transparency(0)
         # ref_can_body.set_pose(test_can.pose)
-        # test_env.SetViewer("qtcoin")
         # import ipdb; ipdb.set_trace()
 
     def test_ee_reachable(self):
@@ -525,11 +530,71 @@ class TestPR2Predicates(unittest.TestCase):
         # import ipdb; ipdb.set_trace()
 
     def test_collides(self):
-        pass
-    def test_r_collides(self):
-        pass
+        can = self.setup_can("obj")
+        obstr = self.setup_can("obstr")
+        test_env = self.setup_environment()
 
-    #TODO test other stationary
+        pred = pr2_predicates.Collides("test_collides", [can, obstr], ["Can", "Can"], test_env)
+        self.assertEqual(pred.get_type(), "Collides")
+        # Since parameters are not defined
+        self.assertFalse(pred.test(0))
+        # pose overlapped, collision should happens
+        radius, height = 0.04, 0.25
+        can.pose = np.array([[0,0,     radius,0,       radius*2+pred.dsafe,0,                    5],
+                             [0,radius,0,     0,       0,                  radius*2+2*pred.dsafe,5],
+                             [0,0,     height,2*height,0,                  0,                    5]])
+        can.rotation = np.zeros((3,7))
+        obstr.pose = np.zeros((3,7))
+        obstr.rotation = np.zeros((3,7))
+        self.assertTrue(pred.test(0))
+        self.assertTrue(pred.test(1))
+        self.assertTrue(pred.test(2))
+        self.assertFalse(pred.test(3))
+        self.assertTrue(pred.test(4))
+        self.assertFalse(pred.test(5))
+        self.assertFalse(pred.test(6))
+
+    def test_r_collides(self):
+
+        # RCollides Robot Obstacle
+
+        robot = self.setup_robot()
+        rPose = self.setup_robot_pose()
+        can = self.setup_can()
+        test_env = self.setup_environment()
+        pred = pr2_predicates.RCollides("test_r_collides", [robot, can], ["Robot", "Can"], test_env)
+        self.assertEqual(pred.get_type(), "RCollides")
+        # Since can is not yet defined
+        self.assertFalse(pred.test(0))
+        # Move can so that it collide with robot base
+        can.pose = np.array([[0],[0],[0]])
+        self.assertTrue(pred.test(0))
+        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # Move can away so there is no collision
+        can.pose = np.array([[0],[0],[-2]])
+        self.assertFalse(pred.test(0))
+        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # Move can to the center of the gripper (touching -> should recognize as collision)
+        can.pose = np.array([[.578,  -.127,   .838]]).T
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+        # Move can away from the gripper, no collision
+        can.pose = np.array([[.700,  -.127,   .838]]).T
+        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0, negated = True))
+        # Move can into the robot arm, should have collision
+        can.pose = np.array([[.50,  -.3,   .838]]).T
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+        """
+            Uncomment the following to see the robot
+        """
+        # pred._param_to_body[robot].set_transparency(0.7)
+        # pred._param_to_body[can].set_transparency(0.7)
+        # pred._param_to_body[can].set_pose(can.pose, can.rotation)
+        # test_env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
+
 
 if __name__ == "__main__":
     unittest.main()
