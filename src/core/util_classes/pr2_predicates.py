@@ -702,12 +702,39 @@ class InContact(PosePredicate):
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
-        f = lambda x: self.finger_pose_check(x)[0]
-        grad = lambda x: self.finger_pose_check(x)[1]
+        # f = lambda x: self.finger_pose_check(x)[0]
+        # grad = lambda x: self.finger_pose_check(x)[1]
+
+        f = lambda x: self.set_gripper_value(x)[0]
+        grad = lambda x: self.set_gripper_value(x)[1]
+
+        f_neg = lambda x: self.set_gripper_value(x, negated=True)[0]
+        grad_neg = lambda x: self.set_gripper_value(x, negated=True)[1]
+
+        self.neg_expr = Expr(f_neg, grad_neg)
 
         fing_expr, val = Expr(f, grad), np.zeros((1,1))
         e = EqExpr(fing_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0 = 0, ind1 = 2)
+
+    def set_gripper_value(self, x, negated = False):
+
+        base_pose, back_height = x[0:3], x[3]
+        l_arm_pose, l_gripper = x[4:11], x[11]
+        r_arm_pose, r_gripper = x[12:19], x[19]
+        grab_pose = 0.46
+        open_pose = 0.5
+        if negated:
+            r_gripper = open_pose
+        else:
+            r_gripper = grab_pose
+
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+
+        return np.zeros((1,1)), np.zeros((1,20))
 
 class InContact2(PosePredicate):
     # InContact robot EEPose target
@@ -778,7 +805,6 @@ class InContact2(PosePredicate):
         # print val
 
         return val, jac
-
 
 class EEReachable(PosePredicate):
 
