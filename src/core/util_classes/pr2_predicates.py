@@ -11,7 +11,7 @@ import numpy as np
 import ctrajoptpy
 
 """
-This file implements the classes for pr2 domain specific predicates 
+This file implements the classes for pr2 domain specific predicates
 """
 BASE_MOVE = 1e0
 dsafe = 1e-2
@@ -27,6 +27,7 @@ class CollisionPredicate(ExprPredicate):
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
+        self._plot_handles = []
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
 
     def plot_cols(self, env, t):
@@ -35,6 +36,15 @@ class CollisionPredicate(ExprPredicate):
         self._debug = True
         self.distance_from_obj(self.get_param_vector(t))
         self._debug = _debug
+
+    def plot_collision(self, ptA, ptB, distance):
+        handles = []
+        if not np.allclose(ptA, ptB, atol=1e-3):
+            if distance < 0:
+                handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.001,color=(1,0,0)))
+            else:
+                handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.001,color=(0,0,0)))
+        self._plot_handles.extend(handles)
 
     def distance_from_obj(self, x):
         """
@@ -45,9 +55,11 @@ class CollisionPredicate(ExprPredicate):
         """
         # self._cc.SetContactDistance(self.dsafe + .1)
         # Parse the pose value
-        base_pose, back_height = x[0:3], x[3:4]
-        l_arm_pose, l_gripper = x[4:11], x[11:12]
-        r_arm_pose, r_gripper = x[12:19], x[19:20]
+        self._plot_handles = []
+        back_height = x[0:1]
+        l_arm_pose, l_gripper = x[1:8], x[8:9]
+        r_arm_pose, r_gripper = x[9:16], x[16:17]
+        base_pose = x[17:20]
         can_pos, can_rot = x[20:23], x[23:]
         # Set pose of each rave body
         robot = self.params[self.ind0]
@@ -86,7 +98,7 @@ class CollisionPredicate(ExprPredicate):
             linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
             linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
             linkRobot, linkObj = None, None
-            sign = 1
+            sign = 0
             if linkAParent == robot_body.name and linkBParent == obj_body.name:
                 ptRobot, ptObj = c.GetPtA(), c.GetPtB()
                 linkRobot, linkObj = linkA, linkB
@@ -105,20 +117,22 @@ class CollisionPredicate(ExprPredicate):
             robot_link_ind = robot.GetLink(linkRobot).GetIndex()
             robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
             robot_grad = np.dot(sign * normal, robot_jac).reshape((1,20))
-            col_vec = ptRobot - ptObj
-            col_vec = col_vec / np.linalg.norm(col_vec)
+            col_vec = -sign*normal
             # Calculate object pose jacobian
-            obj_jac = np.array([[np.dot(col_vec, axis) for axis in np.eye(3)]])
+            obj_jac = np.array([normal])
             obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
             torque = ptObj - obj_pos[:3]
             # Calculate object rotation jacobian
             Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
-            rot_axises = [np.dot(Rz, np.dot(Ry, [1,0,0])), np.dot(Rz, [0,1,0]), [0,0,1]]
+            rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
             rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
             obj_jac = np.c_[obj_jac, rot_vec]
             # Constructing gradient matrix
             robot_grad = np.c_[robot_grad, obj_jac]
             links.append((robot_link_ind, self.dsafe - distance, robot_grad))
+
+            if self._debug:
+                self.plot_collision(ptRobot, ptObj, distance)
         # arrange gradients in proper link order
         # import ipdb; ipdb.set_trace()
 
@@ -567,7 +581,7 @@ class Stationary(ExprPredicate):
 
 class StationaryBase(ExprPredicate):
 
-    # StationaryBase, Robot (Only Robot Base) 
+    # StationaryBase, Robot (Only Robot Base)
 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
@@ -718,12 +732,12 @@ class InContact2(PosePredicate):
         super(InContact2, self).__init__(name, e, attr_inds, params, expected_param_types, ind0 = 0, ind1 = 2)
 
     def finger_pose_check(self, x):
-        
+
         """
             This function checks whether finger of robot gripper is touching the object or Not
             val is defined between center of the gripper and left finger tips
             (assuming can is at the center of robot gripper already)
-        
+
             x: list of 26 dimensional values aligned in following order:
             # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper
         """
@@ -801,12 +815,15 @@ class Obstructs(CollisionPredicate):
         assert len(params) == 4
         self._env = env
         self.robot, self.startp, self.endp, self.can = params
-        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                               ("backHeight", np.array([0], dtype=np.int)),
+        # attr_inds for the robot must be in this exact order do to assumptions
+        # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
+        # CalculateActiveJacobian for robots work (base pose is always last)
+        attr_inds = OrderedDict([(self.robot, [("backHeight", np.array([0], dtype=np.int)),
                                                ("lArmPose", np.array(range(7), dtype=np.int)),
                                                ("lGripper", np.array([0], dtype=np.int)),
                                                ("rArmPose", np.array(range(7), dtype=np.int)),
-                                               ("rGripper", np.array([0], dtype=np.int))]),
+                                               ("rGripper", np.array([0], dtype=np.int)),
+                                               ("pose", np.array([0, 1, 2], dtype=np.int))]),
                                  (self.can, [("pose", np.array([0,1,2], dtype=np.int)),
                                              ("rotation", np.array([0,1,2], dtype=np.int))])])
 
@@ -829,7 +846,7 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3)
+                                        expected_param_types, ind0=0, ind1=3, debug=debug)
 
     def get_expr(self, negated):
         if negated:
@@ -845,12 +862,15 @@ class ObstructsHolding(CollisionPredicate):
         assert len(params) == 5
         self._env = env
         self.robot, self.startp, self.endp, self.obstruct, self.held = params
-        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                               ("backHeight", np.array([0], dtype=np.int)),
+        # attr_inds for the robot must be in this exact order do to assumptions
+        # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
+        # CalculateActiveJacobian for robots work (base pose is always last)
+        attr_inds = OrderedDict([(self.robot, [("backHeight", np.array([0], dtype=np.int)),
                                                ("lArmPose", np.array(range(7), dtype=np.int)),
                                                ("lGripper", np.array([0], dtype=np.int)),
                                                ("rArmPose", np.array(range(7), dtype=np.int)),
-                                               ("rGripper", np.array([0], dtype=np.int))]),
+                                               ("rGripper", np.array([0], dtype=np.int)),
+                                               ("pose", np.array([0, 1, 2], dtype=np.int))]),
                                  (self.obstruct, [("pose", np.array([0,1,2], dtype=np.int)),
                                                   ("rotation", np.array([0,1,2], dtype=np.int))]),
                                  (self.held, [("pose", np.array([0,1,2], dtype=np.int)),
@@ -1003,12 +1023,15 @@ class RCollides(CollisionPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, self.obstacle = params
-        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                               ("backHeight", np.array([0], dtype=np.int)),
+        # attr_inds for the robot must be in this exact order do to assumptions
+        # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
+        # CalculateActiveJacobian for robots work (base pose is always last)
+        attr_inds = OrderedDict([(self.robot, [("backHeight", np.array([0], dtype=np.int)),
                                                ("lArmPose", np.array(range(7), dtype=np.int)),
                                                ("lGripper", np.array([0], dtype=np.int)),
                                                ("rArmPose", np.array(range(7), dtype=np.int)),
-                                               ("rGripper", np.array([0], dtype=np.int))]),
+                                               ("rGripper", np.array([0], dtype=np.int)),
+                                               ("pose", np.array([0, 1, 2], dtype=np.int))]),
                                  (self.obstacle, [("pose", np.array([0, 1, 2], dtype=np.int)),
                                                   ("rotation", np.array([0, 1, 2], dtype = np.int))])])
 
