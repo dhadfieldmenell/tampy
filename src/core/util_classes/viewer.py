@@ -3,7 +3,9 @@ from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.pr2 import PR2
-import time
+from core.util_classes.can import Can
+import numpy as np
+import time, os, os.path as osp, shutil, scipy.misc, subprocess
 
 
 class Viewer(object):
@@ -46,6 +48,40 @@ class OpenRAVEViewer(Viewer):
         OpenRAVEViewer._viewer.clear()
         return OpenRAVEViewer._viewer
 
+    def record_plan(self, plan, outf, res = (640, 480), cam=None):
+        """
+        creates a video of a plan and stores it in outf
+        """
+        obj_list = []
+        horizon = plan.horizon
+        v = self.env.GetViewer()
+        if osp.exists('.video_images'):
+            shutil.rmtree('.video_images')
+        os.makedirs('.video_images')
+        for p in plan.params.itervalues():
+            if not p.is_symbol():
+                obj_list.append(p)
+        for t in range(horizon):
+            self.draw(obj_list, t)
+            time.sleep(0.1)
+            if cam is None:
+                cam = v.GetCameraTransform()
+            im = v.GetCameraImage(res[0], res[1], cam,[640,640,320,240])
+            scipy.misc.imsave('.video_images/frame_'+str('%05d'%t)+'.png', im)
+        outfname = "{}.mp4".format(outf)
+        if osp.exists(outfname):
+            os.remove(outfname)
+        arglist = ['avconv',
+                   '-f', 'image2',
+                   '-r', '10',
+                   "-i", ".video_images/frame_%05d.png",
+                   "-f", "mp4",
+                   "-bf", "1",
+                   "-r", "30",
+                   "{}.mp4".format(outf)]
+        subprocess.call(arglist)
+
+
     def initialize_from_workspace(self, workspace):
         pass
 
@@ -72,12 +108,17 @@ class OpenRAVEViewer(Viewer):
                 self._draw_rave_body(obj, name, t)
 
     def _draw_rave_body(self, obj, name, t, transparency = 0.7):
+        rotation = np.array([[0],[0],[0]])
         assert isinstance(obj, Object)
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         if isinstance(obj.geom, PR2):
             self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
-        self.name_to_rave_body[name].set_pose(obj.pose[:, t])
+        if isinstance(obj.geom, Can):
+            rotation = obj.rotation[:, t]
+            assert not np.any(np.isnan(rotation))
+        assert not np.any(np.isnan(obj.pose[:, t]))
+        self.name_to_rave_body[name].set_pose(obj.pose[:, t], rotation)
         self.name_to_rave_body[name].set_transparency(transparency)
 
     def animate_plan(self, plan, delay=.1):
@@ -91,12 +132,20 @@ class OpenRAVEViewer(Viewer):
             time.sleep(delay)
 
     def draw_plan(self, plan):
-        obj_list = []
         horizon = plan.horizon
+        self.draw_plan_range(plan, (0, horizon-1))
+
+    def draw_plan_range(self, plan, (start, end)):
+        obj_list = self._get_plan_obj_list(plan)
+        self.draw_traj(obj_list, range(start, end+1))
+
+    def _get_plan_obj_list(self, plan):
+        obj_list = []
         for p in plan.params.itervalues():
             if not p.is_symbol():
                 obj_list.append(p)
-        self.draw_traj(obj_list, range(horizon))
+        return obj_list
+
 
     def draw_plan_ts(self, plan, t):
         obj_list = []
@@ -105,6 +154,11 @@ class OpenRAVEViewer(Viewer):
             if not p.is_symbol():
                 obj_list.append(p)
         self.draw(obj_list, t)
+
+    def draw_cols(self, plan):
+        horizon = plan.horizon
+        for t in range(horizon):
+            self.draw_cols_ts(plan, t)
 
     def draw_cols_ts(self, plan, t):
         preds = plan.get_active_preds(t)
