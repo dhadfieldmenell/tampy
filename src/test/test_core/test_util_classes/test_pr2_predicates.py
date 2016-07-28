@@ -318,19 +318,20 @@ class TestPR2Predicates(unittest.TestCase):
         test_env = self.setup_environment()
         test_can = self.setup_can()
 
-        pred = pr2_predicates.InContact("test_in_contact", [robot, ee_pose, target], ["Robot", "EEPose", "Target"], test_env)
-        self.assertTrue(pred.get_type(), "InContact")
+        pred = pr2_predicates.InContact2("test_in_contact", [robot, ee_pose, target], ["Robot", "EEPose", "Target"], test_env)
+        self.assertTrue(pred.get_type(), "InContact2")
         # Since EEPose and Target are both undefined
         self.assertFalse(pred.test(0))
         target.value = ee_pose.value = np.array([[0],[0],[0]])
         # By default, gripper fingers are not close enough to touch the can
         self.assertFalse(pred.test(0))
         robot.rGripper = np.matrix([0.46])
+        target.value = np.array([[0.57788757, -0.12674368,  0.83760163]]).T
         self.assertTrue(pred.test(0))
         robot.rGripper = np.matrix([0.2])
         self.assertFalse(pred.test(0))
         # check the gradient of the implementations
-        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2) # TODO fix gradient
         """
             Uncomment the following to see the can and robot gripper position
         """

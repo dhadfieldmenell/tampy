@@ -11,8 +11,7 @@ import numpy as np
 import ctrajoptpy
 
 """
-This file implements the classes for commonly used predicates that are useful in a wide variety of
-typical domains.
+This file implements the classes for pr2 domain specific predicates 
 """
 BASE_MOVE = 1e0
 dsafe = 1e-2
@@ -129,7 +128,7 @@ class CollisionPredicate(ExprPredicate):
         robot_grads[:, range(26)] = np.array([link[2] for link in links]).reshape((45, 26))
         return vals, robot_grads
 
-    def _calc_obj_grad_and_val(self, obj_body, obstr_body, collisions):# TODO not yet working
+    def _calc_obj_grad_and_val(self, obj_body, obstr_body, collisions):
         """
             This function is helper function of distance_from_obj(self, x) #Used in ObstructsHolding#
             It calculates collision distance and gradient between each robot's link and obstr,
@@ -401,8 +400,6 @@ class PosePredicate(ExprPredicate):
         # val corresponds distance between right finger tip to center of gripper
         val = np.linalg.norm(grip_pos - l_tip) - can_radius
 
-
-
         finger_dir =  l_tip - grip_pos.reshape((1,3))
         finger_dir = finger_dir/np.linalg.norm(finger_dir)
         finger_joint = robot.GetJoint('r_gripper_l_finger_joint')
@@ -570,15 +567,16 @@ class Stationary(ExprPredicate):
 
 class StationaryBase(ExprPredicate):
 
-    # StationaryBase, Robot (Only Robot Base) TODO include backheight
+    # StationaryBase, Robot (Only Robot Base) 
 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.robot,  = params
-        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                               ("backHeight", np.array([0], dtype=np.int))])])
 
-        A = np.c_[np.eye(3), -np.eye(3)]
-        b, val = np.zeros((3, 1)), np.zeros((3, 1))
+        A = np.c_[np.eye(4), -np.eye(4)]
+        b, val = np.zeros((4, 1)), np.zeros((4, 1))
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryBase, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
@@ -696,6 +694,77 @@ class InContact(PosePredicate):
         fing_expr, val = Expr(f, grad), np.zeros((1,1))
         e = EqExpr(fing_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0 = 0, ind1 = 2)
+
+class InContact2(PosePredicate):
+    # InContact robot EEPose target
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.robot, self.ee_pose, self.target = params
+        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0,1,2], dtype=np.int)),
+                                            ("backHeight", np.array([0], dtype=np.int)),
+                                            ("lArmPose", np.array(range(7), dtype=np.int)),
+                                            ("lGripper", np.array([0], dtype=np.int)),
+                                            ("rArmPose", np.array(range(7), dtype=np.int)),
+                                            ("rGripper", np.array([0], dtype=np.int))]),
+                                 (self.target, [("value", np.array([0, 1, 2], dtype=np.int))])])
+
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        f = lambda x: self.finger_pose_check(x)[0]
+        grad = lambda x: self.finger_pose_check(x)[1]
+
+        fing_expr, val = Expr(f, grad), np.zeros((1,1))
+        e = EqExpr(fing_expr, val)
+        super(InContact2, self).__init__(name, e, attr_inds, params, expected_param_types, ind0 = 0, ind1 = 2)
+
+    def finger_pose_check(self, x):
+        
+        """
+            This function checks whether finger of robot gripper is touching the object or Not
+            val is defined between center of the gripper and left finger tips
+            (assuming can is at the center of robot gripper already)
+        
+            x: list of 26 dimensional values aligned in following order:
+            # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper
+        """
+
+        # Parse the pose values
+        base_pose, back_height = x[0:3], x[3]
+        l_arm_pose, l_gripper = x[4:11], x[11]
+        r_arm_pose, r_gripper = x[12:19], x[19]
+        target_pose = x[20:23].reshape((1,3))
+        # Setting pose for each ravebody
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        target = self.params[self.ind1]
+        robot = robot_body.env_body
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+
+        # Get coordinate points in the finger tips
+        l_finger = robot.GetLink("r_gripper_l_finger_tip_link")
+        l_finger_pos = OpenRAVEBody.obj_pose_from_transform(l_finger.GetTransform())[:3]
+        grip_pos = OpenRAVEBody.obj_pose_from_transform(robot.GetLink("r_gripper_tool_frame").GetTransform())[:3]
+        l_tip = l_finger_pos + np.array([0.0205 ,  0.0083,  0.])
+
+        # val corresponds distance between right finger tip to center of gripper
+        val = np.linalg.norm(target_pose - l_tip) - can_radius
+
+        finger_dir =  l_tip - target_pose.reshape((1,3))
+        finger_dir = finger_dir/np.linalg.norm(finger_dir)
+        finger_joint = robot.GetJoint('r_gripper_l_finger_joint')
+        arm_jac = np.array([np.dot(finger_dir, np.cross(finger_joint.GetAxis(), l_finger_pos.flatten() - finger_joint.GetAnchor()))])
+        obj_jac = np.array([np.dot(finger_dir, axis) for axis in np.eye(3)]).reshape((1,3))
+        # import ipdb; ipdb.set_trace()
+        jac = np.c_[np.zeros((1,19)), arm_jac, obj_jac]
+
+        # self.handle = []
+        # self.handle.append(self._env.drawarrow(p1=grip_pos, p2=l_tip, linewidth=.001,color=(1,0,0)))
+        # self.handle.append(self._env.drawarrow(p1=r_tip, p2=finger_joint.GetAnchor(), linewidth=.001,color=(0,1,0)))
+        # import ipdb; ipdb.set_trace()
+        # print val
+
+        return val, jac
+
 
 class EEReachable(PosePredicate):
 
