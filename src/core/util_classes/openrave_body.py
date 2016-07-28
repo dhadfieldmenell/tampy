@@ -340,7 +340,7 @@ class OpenRAVEBody(object):
         return np.array((trans[0], trans[1], trans[2], yaw, pitch, roll))
 
     @staticmethod
-    def transform_from_obj_pose(pose, rotation):
+    def transform_from_obj_pose(pose, rotation = np.array([0,0,0])):
         x, y, z = pose
         alpha, beta, gamma = rotation
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pose, rotation)
