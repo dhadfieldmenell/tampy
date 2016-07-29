@@ -281,6 +281,21 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred.test(0))
         # check the gradient of the implementations (correct)
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+
+        # testing example from grasp where predicate continues to fail,
+        # confirmed that Jacobian is fine.
+        robot.pose = np.array([-0.52014383,  0.374093  ,  0.04957286]).reshape((3,1))
+        robot.backHeight = np.array([  2.79699865e-13]).reshape((1,1))
+        robot.lGripper = np.array([ 0.49999948]).reshape((1,1))
+        robot.rGripper = np.array([ 0.53268086]).reshape((1,1))
+        robot.rArmPose = np.array([-1.39996414, -0.31404741, -1.42086452, -1.72304084, -1.16688324,
+                                   -0.20148917, -3.33438558]).reshape((7,1))
+        robot.lArmPose = np.array([ 0.05999948,  1.24999946,  1.78999946, -1.68000049, -1.73000049,
+                                   -0.10000051, -0.09000051]).reshape((7,1))
+        can.pose = np.array([-0.        , -0.08297436,  0.925     ]).reshape((3,1))
+        can.rotation = np.array([-0., -0., -0.]).reshape((3,1))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-4)
+
         """
             Uncomment the following to see the robot
         """
@@ -426,9 +441,20 @@ class TestPR2Predicates(unittest.TestCase):
             Uncomment the following to see the robot
         """
         # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
         # test_env.SetViewer("qtcoin")
-        # import ipdb; ipdb.set_trace()
+        # testing example from grasp where predicate continues to fail,
+        # confirmed that Jacobian is fine.
+        robot.pose = np.array([-0.52014383,  0.374093  ,  0.04957286]).reshape((3,1))
+        robot.backHeight = np.array([  2.79699865e-13]).reshape((1,1))
+        robot.lGripper = np.array([ 0.49999948]).reshape((1,1))
+        robot.rGripper = np.array([ 0.53268086]).reshape((1,1))
+        robot.rArmPose = np.array([-1.39996414, -0.31404741, -1.42086452, -1.72304084, -1.16688324,
+                                   -0.20148917, -3.33438558]).reshape((7,1))
+        robot.lArmPose = np.array([ 0.05999948,  1.24999946,  1.78999946, -1.68000049, -1.73000049,
+                                   -0.10000051, -0.09000051]).reshape((7,1))
+        ee_pose.value = np.array([-0.        , -0.08297436,  0.925     ]).reshape((3,1))
+        ee_pose.rotation = np.array([-0., -0., -0.]).reshape((3,1))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-4)
 
     def test_stationary(self):
         can = self.setup_can()
