@@ -14,6 +14,8 @@ import ctrajoptpy
 This file implements the classes for pr2 domain specific predicates
 """
 BASE_MOVE = 1e0
+IN_GRIPPER_COEFF = 1.
+EEREACHABLE_COEFF = 1.
 dsafe = 1e-2
 contact_dist = 0
 can_radius = 0.04
@@ -681,8 +683,8 @@ class InGripper(PosePredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
-        f = lambda x: self.pose_rot_check(x)[0]
-        grad = lambda x: self.pose_rot_check(x)[1]
+        f = lambda x: IN_GRIPPER_COEFF*self.pose_rot_check(x)[0]
+        grad = lambda x: IN_GRIPPER_COEFF*self.pose_rot_check(x)[1]
 
         pos_expr, val = Expr(f, grad), np.zeros((4,1))
         e = EqExpr(pos_expr, val)
@@ -826,8 +828,8 @@ class EEReachable(PosePredicate):
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
-        f = lambda x: self.ee_pose_check(x)[0]
-        grad = lambda x: self.ee_pose_check(x)[1]
+        f = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[0]
+        grad = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[1]
 
         pos_expr = Expr(f, grad)
         e = EqExpr(pos_expr, np.zeros((4,1)))
