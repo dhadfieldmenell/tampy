@@ -134,7 +134,8 @@ class CollisionPredicate(ExprPredicate):
             obj_jac = np.c_[obj_jac, rot_vec]
             # Constructing gradient matrix
             robot_grad = np.c_[robot_grad, obj_jac]
-            links.append((robot_link_ind, self.dsafe - distance, robot_grad))
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            links.append((robot_link_ind, self.dsafe - distance, robot_grad, robot.GetLink(linkRobot)))
 
             if self._debug:
                 self.plot_collision(ptRobot, ptObj, distance)
@@ -144,6 +145,8 @@ class CollisionPredicate(ExprPredicate):
         links = sorted(links, key = lambda x: x[0])
         vals[:,0] = np.array([link[1] for link in links])
         robot_grads[:, range(26)] = np.array([link[2] for link in links]).reshape((num_links, 26))
+        # TODO: remove line below which was added for debugging purposes
+        self.links = links
         return vals, robot_grads
 
     def _calc_obj_grad_and_val(self, obj_body, obstr_body, collisions):
@@ -269,7 +272,7 @@ class PosePredicate(ExprPredicate):
         arm_inds = robot.GetManipulator('rightarm').GetArmIndices()
         arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in arm_inds]
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(can_pos, can_rot)
-        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]# axises = [axis_x, axis_y, axis_z]
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]# axises = [axis_z, axis_y, axis_x]
 
         # Two function calls return the value and jacobian of each constraints
         pos_val, pos_jac = self.pos_error(obj_trans, robot_trans, axises, arm_joints)
@@ -305,7 +308,7 @@ class PosePredicate(ExprPredicate):
         arm_inds = robot.GetManipulator('rightarm').GetArmIndices()
         arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in arm_inds]
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
-        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_x, axis_y, axis_z]
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
         pos_val, pos_jac = self.pos_error(obj_trans, robot_trans, axises, arm_joints)
         rot_val, rot_jac = self.rot_error(obj_trans, robot_trans, axises, arm_joints)
