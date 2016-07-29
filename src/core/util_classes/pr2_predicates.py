@@ -630,12 +630,10 @@ class StationaryNEq(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.can, self.can_held = params
         attr_inds = OrderedDict([(self.can, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                             ("rotation", np.array([0, 1, 2], dtype=np.int))]),
-                                 (self.can_held, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                                  ("rotation", np.array([0, 1, 2], dtype=np.int))])])
+                                             ("rotation", np.array([0, 1, 2], dtype=np.int))])])
 
         if self.can.name == self.can_held.name:
-            A = np.zeros((1, 12))
+            A = np.zeros((1, 6))
             b = np.zeros((1, 1))
         else:
             A = np.c_[np.eye(6), -np.eye(6)]
