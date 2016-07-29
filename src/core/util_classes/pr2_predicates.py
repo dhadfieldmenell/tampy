@@ -17,9 +17,11 @@ BASE_MOVE = 1e0
 dsafe = 1e-2
 contact_dist = 0
 can_radius = 0.04
+COLLISION_TOL = 1e-2
+POSE_TOL = 1e-2
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, tol=COLLISION_TOL):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
@@ -28,7 +30,7 @@ class CollisionPredicate(ExprPredicate):
         self.ind0 = ind0
         self.ind1 = ind1
         self._plot_handles = []
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol)
 
     def plot_cols(self, env, t):
         _debug = self._debug
@@ -225,7 +227,7 @@ class CollisionPredicate(ExprPredicate):
 
 class PosePredicate(ExprPredicate):
 
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1, tol=POSE_TOL):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
@@ -233,7 +235,7 @@ class PosePredicate(ExprPredicate):
         self.ind0 = ind0
         self.ind1 = ind1
         self.handle = []
-        super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol)
 
     def pose_rot_check(self, x):
         """
