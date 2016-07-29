@@ -639,7 +639,7 @@ class StationaryNEq(ExprPredicate):
                                              ("rotation", np.array([0, 1, 2], dtype=np.int))])])
 
         if self.can.name == self.can_held.name:
-            A = np.zeros((1, 6))
+            A = np.zeros((1, 12))
             b = np.zeros((1, 1))
         else:
             A = np.c_[np.eye(6), -np.eye(6)]
