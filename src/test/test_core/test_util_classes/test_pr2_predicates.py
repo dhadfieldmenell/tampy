@@ -233,6 +233,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(6))
 
     def test_in_gripper(self):
+        tol = 1e-4
 
         # InGripper, Robot, Can
         robot = self.setup_robot()
@@ -245,41 +246,41 @@ class TestPR2Predicates(unittest.TestCase):
         # initialized pose value is not right
         self.assertFalse(pred.test(0))
         # check the gradient of the implementations (correct)
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # Now set can's pose and rotation to be the right things
         can.pose = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # A new robot arm pose
         robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
         self.assertFalse(pred.test(0))
         # Only the pos is correct, rotation is not yet right
         can.pose = np.array([[0.59152062, -0.71105108,  1.05144139]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # now rotate robot basepose
         robot.pose = np.array([[0,0,np.pi/3]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.pose = np.array([[0.91154861,  0.15674634,  1.05144139]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.rotation = np.array([[1.07204204, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.rotation = np.array([[2.22529480e+00,   3.33066907e-16,  -5.23598776e-01]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.pose = np.array([[3.98707028e-01,   4.37093473e-01,   8.37601627e-01]]).T
         self.assertTrue(pred.test(0))
         # check the gradient of the implementations (correct)
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         """
             Uncomment the following to see the robot
         """
@@ -370,6 +371,7 @@ class TestPR2Predicates(unittest.TestCase):
     def test_ee_reachable(self):
 
         # EEUnreachable Robot, StartPose, EEPose
+        tol = 1e-4
 
         robot = self.setup_robot()
         rPose = self.setup_robot_pose()
@@ -384,42 +386,42 @@ class TestPR2Predicates(unittest.TestCase):
         # initialized pose value is not right
         self.assertFalse(pred.test(0))
         # check the gradient of the implementations (correct)
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # Now set can's pose and rotation to be the right things
         ee_pose.value = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # A new robot arm pose
         robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # Only the pos is correct, rotation is not yet right
         ee_pose.value = np.array([[0.59152062, -0.71105108,  1.05144139]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # now rotate robot basepose
         robot.pose = np.array([[0,0,np.pi/3]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.value = np.array([[0.91154861,  0.15674634,  1.05144139]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.rotation = np.array([[1.07204204, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.rotation = np.array([[2.22529480e+00,   3.33066907e-16,  -5.23598776e-01]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.value = np.array([[3.98707028e-01,   4.37093473e-01,   8.37601627e-01]]).T
         self.assertTrue(pred.test(0))
         # check the gradient of the implementations (correct)
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         """
             Uncomment the following to see the robot
         """
