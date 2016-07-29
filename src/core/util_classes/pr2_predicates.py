@@ -269,7 +269,7 @@ class PosePredicate(ExprPredicate):
         arm_inds = robot.GetManipulator('rightarm').GetArmIndices()
         arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in arm_inds]
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(can_pos, can_rot)
-        axises = [np.dot(Rz, np.dot(Ry, [1,0,0])), np.dot(Rz, [0,1,0]), [0,0,1]]# axises = [axis_x, axis_y, axis_z]
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]# axises = [axis_x, axis_y, axis_z]
 
         # Two function calls return the value and jacobian of each constraints
         pos_val, pos_jac = self.pos_error(obj_trans, robot_trans, axises, arm_joints)
