@@ -3,6 +3,7 @@ from core.internal_repr import parameter
 from core.util_classes import pr2_predicates, viewer, matrix
 from errors_exceptions import PredicateException, ParamValidationException
 from core.util_classes.can import BlueCan, RedCan
+from core.util_classes.table import Table
 from core.util_classes.pr2 import PR2
 from openravepy import Environment
 from sco import expr
@@ -61,8 +62,11 @@ class TestPR2Predicates(unittest.TestCase):
         ee_pose = parameter.Symbol(attrs, attr_types)
         return ee_pose
 
-    def setup_obstacle(self, name = "obstacle"):
-        pass
+    def setup_obstacle(self, name = "table"):
+        attrs = {"name": [name], "geom": [[1.5, 0.94, 0.15, .2, 0.2, 0.6, False]], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
+        attr_types = {"name": str, "geom": Table, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        table = parameter.Object(attrs, attr_types)
+        return table
 
     # Begin of the test
     def test_expr_at(self):
@@ -619,10 +623,11 @@ class TestPR2Predicates(unittest.TestCase):
         # Move caheldn into the robot arm, should have collision
         can_held.pose = np.array([[.50,  -.3,   .838]]).T
         self.assertTrue(pred2.test(0))
+        self.assertFalse(pred.test(0, negated = True))
         # This Gradient test failed -> failed link: r_gripper_l_finger, r_gripper_r_finger
         # if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
 
-        # self.assertFalse(pred.test(0, negated = True))
+
         """
             Uncomment the following to see the robot
         """
@@ -639,36 +644,51 @@ class TestPR2Predicates(unittest.TestCase):
         table = self.setup_obstacle()
         test_env = self.setup_environment()
 
-        pred = pr2_predicates.Collides("test_collides", [can, table], ["Can", "Table"], test_env)
+        pred = pr2_predicates.Collides("test_collides", [can, table], ["Can", "Table"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "Collides")
+        # test_env.SetViewer("qtcoin")
+        # pred._param_to_body[can].set_transparency(0.7)
+        # pred._param_to_body[table].set_transparency(0.7)
         # Since parameters are not defined
         self.assertFalse(pred.test(0))
         # pose overlapped, collision should happens
-        radius, height = 0.04, 0.25
         can.pose = table.pose = np.array([[0],[0],[0]])
         self.assertTrue(pred.test(0))
+        #This gradient failed, table base link fails
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         can.pose = np.array([[0],[0],[1]])
         self.assertFalse(pred.test(0))
+        # This Gradient test passed
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         can.pose = np.array([[0],[0],[.25]])
         self.assertFalse(pred.test(0))
+        # This Gradient test passed
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         can.pose = np.array([[1],[1],[-.5]])
         self.assertFalse(pred.test(0))
+        # This Gradient test passed
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         can.pose = np.array([[.5],[.5],[-.5]])
-        self.assertTrue(pred.test(0))
-        can.pose = np.array([[.5],[.5],[-.5]])
-        self.assertTrue(pred.test(0))
-        table.rotation = np.array([[1],[1],[0]])
         self.assertFalse(pred.test(0))
-        table.rotation = np.array([[.5],[.5],[.5]])
+        # This Gradient test didn't pass
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        can.pose = np.array([[.6],[.5],[-.5]])
         self.assertTrue(pred.test(0))
+        # This Gradient test passed
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.rotation = np.array([[1],[0.4],[0.5]])
+        self.assertFalse(pred.test(0))
+        # This Gradient test passed
+        pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.rotation = np.array([[.2],[.4],[.5]])
+        self.assertTrue(pred.test(0))
+        # This Gradient test passed
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         """
             Uncomment the following to see the robot
         """
-        # pred._param_to_body[can].set_transparency(0.7)
-        # pred._param_to_body[table].set_transparency(0.7)
         # pred._param_to_body[can].set_pose(can.pose, can.rotation)
         # pred._param_to_body[table].set_pose(table.pose, table.rotation)
-        # test_env.SetViewer("qtcoin")
         # import ipdb; ipdb.set_trace()
 
     def test_r_collides(self):
@@ -677,41 +697,47 @@ class TestPR2Predicates(unittest.TestCase):
 
         robot = self.setup_robot()
         rPose = self.setup_robot_pose()
-        can = self.setup_can()
+        table = self.setup_obstacle()
         test_env = self.setup_environment()
-        pred = pr2_predicates.RCollides("test_r_collides", [robot, can], ["Robot", "Can"], test_env)
+        pred = pr2_predicates.RCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "RCollides")
+        test_env.SetViewer("qtcoin")
+        pred._param_to_body[robot].set_transparency(0.7)
+        pred._param_to_body[table].set_transparency(0.7)
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
+        table.pose = np.array([[0],[0],[0]])
+        self.assertTrue(pred.test(0))
+        # This gradient test didn't pass
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         # Move can so that it collide with robot base
-        can.pose = np.array([[0],[0],[0]])
+        table.pose = np.array([[0],[0],[.75]])
         self.assertTrue(pred.test(0))
         # TODO: TEST below fails
         # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
         # Move can away so there is no collision
-        can.pose = np.array([[0],[0],[-2]])
+        table.pose = np.array([[0],[2],[.75]])
         self.assertFalse(pred.test(0))
-        # TODO: TEST below fails
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
-        # Move can to the center of the gripper (touching -> should recognize as collision)
-        can.pose = np.array([[.578,  -.127,   .838]]).T
-        self.assertTrue(pred.test(0))
-        self.assertFalse(pred.test(0, negated = True))
-        # Move can away from the gripper, no collision
-        can.pose = np.array([[.700,  -.127,   .838]]).T
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[0],[0],[3]])
         self.assertFalse(pred.test(0))
-        self.assertTrue(pred.test(0, negated = True))
-        # Move can into the robot arm, should have collision
-        can.pose = np.array([[.50,  -.3,   .838]]).T
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[0],[0],[.125]])
         self.assertTrue(pred.test(0))
-        self.assertFalse(pred.test(0, negated = True))
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[1],[1],[.75]])
+        self.assertTrue(pred.test(0))
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[1],[1],[.75]])
+        self.assertTrue(pred.test(0))
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[.5],[.5],[2]])
+        self.assertTrue(pred.test(0))
+        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         """
             Uncomment the following to see the robot
         """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # pred._param_to_body[can].set_pose(can.pose, can.rotation)
-        # test_env.SetViewer("qtcoin")
+        pred._param_to_body[table].set_pose(table.pose, table.rotation)
         # import ipdb; ipdb.set_trace()
 
 

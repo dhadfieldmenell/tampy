@@ -19,8 +19,8 @@ EEREACHABLE_COEFF = 1.
 dsafe = 1e-2
 contact_dist = 0
 can_radius = 0.04
-COLLISION_TOL = 1e-2
-POSE_TOL = 1e-2
+COLLISION_TOL = 1e-4
+POSE_TOL = 1e-4
 
 class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, tol=COLLISION_TOL):
@@ -124,7 +124,7 @@ class CollisionPredicate(ExprPredicate):
             robot_grad = np.dot(sign * normal, robot_jac).reshape((1,20))
             col_vec = -sign*normal
             # Calculate object pose jacobian
-            obj_jac = np.array([normal])
+            obj_jac = np.array([-sign*normal])
             obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
             torque = ptObj - obj_pos[:3]
             # Calculate object rotation jacobian
@@ -209,8 +209,11 @@ class CollisionPredicate(ExprPredicate):
 
         vals = np.vstack(vals)
         grads = np.vstack(grads)
+        ind = np.argmax(vals)
+        val = vals[ind].reshape((1,1))
+        grad = grads[ind].reshape((1,12))
 
-        return vals, grads
+        return val, grad
 
     def _plot_collision(self, ptA, ptB, distance):
         self.handles = []
@@ -1011,7 +1014,7 @@ class Collides(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Collides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, ind0=0, ind1=1, debug=debug)
         self.priority = 1
 
     def get_expr(self, negated):
@@ -1028,6 +1031,7 @@ class Collides(CollisionPredicate):
             x: 12 dimensional list aligned in the following order:
             CanPose->CanRot->ObstaclePose->ObstacleRot
         """
+        self._plot_handles = []
         # self._cc.SetContactDistance(self.dsafe + .1)
         # Parse the pose value
         can_pos, can_rot = x[:3], x[3:6]
@@ -1079,7 +1083,7 @@ class RCollides(CollisionPredicate):
         grad_neg = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.zeros((45,1))
+        val = np.zeros((225,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
