@@ -7,6 +7,8 @@ from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector
 from core.util_classes.namo_predicates import StationaryW, InContact
 
+from ll_solver import LLSolver, LLParam
+
 import gurobipy as grb
 import numpy as np
 GRB = grb.GRB
@@ -14,234 +16,18 @@ from IPython import embed as shell
 
 MAX_PRIORITY=5
 
-class LLSolver(object):
-    """
-    LLSolver solves the underlying optimization problem using motion planning.
-    This is where different refinement strategies (e.g. backtracking,
-    randomized), different motion planners, and different optimization
-    strategies (global, sequential) are implemented.
-    """
-    def solve(self, plan):
-        raise NotImplementedError("Override this.")
 
-class LLParam(object):
-    """
-    LLParam creates the low-level representation of parameters (Numpy array of
-    Gurobi variables) that is used in the optimization. For every numerical
-    attribute in the original parameter, LLParam has the corresponding
-    attribute where the value is a numpy array of Gurobi variables. LLParam
-    updates its parameter based off of the value of the Gurobi variables.
-
-    Create create_grb_vars and batch_add_cnts aren't included in the
-    initialization because a Gurobi model update needs to be done before the
-    batch_add_cnts call. Model updates can be very slow, so we want to create
-    all the Gurobi variables for all the parameters before adding all the
-    constraints.
-    """
-    def __init__(self, model, param, horizon, active_ts):
-        self._model = model
-        self._param = param
-        self._horizon = horizon
-        self._num_attrs = []
-        self.active_ts = active_ts
-
-    def create_grb_vars(self):
-        """
-        Creates Gurobi variables for attributes of certain types.
-        """
-        for k, _ in self._param.__dict__.items():
-            rows = None
-            attr_type = self._param.get_attr_type(k)
-            if issubclass(attr_type, Vector):
-                rows = attr_type.dim
-
-            if rows is not None:
-                self._num_attrs.append(k)
-
-                shape = None
-                value = None
-                if self._param.is_symbol():
-                    shape = (rows, 1)
-                else:
-                    shape = (rows, self._horizon)
-
-                x = np.empty(shape, dtype=object)
-                name = "({}-{}-{})"
-
-                for index in np.ndindex(shape):
-                    # Note: it is easier for the sco code and update_param to
-                    # handle things if everything is a Gurobi variable
-                    x[index] = self._model.addVar(lb=-GRB.INFINITY, ub=GRB.INFINITY,
-                                                  name=name.format(self._param.name, k, index))
-                setattr(self, k, x)
-
-
-    def batch_add_cnts(self):
-        """
-        Adds all the equality constraints.
-        """
-        if self._param.is_defined():
-            for attr in self._num_attrs:
-                grb_vars = getattr(self, attr)
-                value = self.get_param_val(attr)
-                free_vars = self.get_free_vars(attr)
-                for index, value in np.ndenumerate(value):
-                    # TODO: what's the purpose of _free_attrs (should they be the indices)?
-                    if not free_vars[index]:
-                        self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
-
-    def grb_val_dict(self):
-        val_dict = {}
-        for attr in self._num_attrs:
-            val_dict[attr] = self._get_attr_val(attr)
-
-    def _get_attr_val(self, attr):
-        grb_vars = getattr(self, attr)
-        value = np.zeros(grb_vars.shape)
-        for index, var in np.ndenumerate(grb_vars):
-            try:
-                value[index] = var.X
-            except grb.GurobiError:
-                value[index] = np.nan
-        return value
-
-    def update_param(self):
-        """
-        Updates the numerical attributes in the original parameter based off of
-        the attribute's corresponding Gurobi variables.
-        """
-        for attr in self._num_attrs:
-            value = self._get_attr_val(attr)
-            if np.any(np.isnan(value)):
-                continue
-            self.set_param_val(attr, value)
-
-
-    def get_param_val(self, attr):
-        if self._param.is_symbol():
-            return getattr(self._param, attr)[:, 0][:, None]
-        return getattr(self._param, attr)[:, self.active_ts[0]:self.active_ts[1]+1]
-
-    def get_free_vars(self, attr):
-        if self._param.is_symbol():
-            return self._param._free_attrs[attr][:, 0][:, None]
-        return self._param._free_attrs[attr][:, self.active_ts[0]:self.active_ts[1]+1]
-
-    def set_param_val(self, attr, value):
-        assert not np.any(np.isnan(value))
-        if self._param.is_symbol():
-            setattr(self._param, attr, value)
-        getattr(self._param, attr)[:, self.active_ts[0]:self.active_ts[1]+1] = value
-        assert np.allclose(self.get_param_val(attr), value)
-
-
-
-class NAMOSolver(LLSolver):
-
-    def __init__(self, early_converge=True):
+class CanSolver(LLSolver):
+    def __init__(self, early_converge=False):
         self.transfer_coeff = 1e1
         self.rs_coeff = 1e6
-        self.init_penalty_coeff = 1e2
-        self.child_solver = None
+        self.initial_trust_region_size = 1e-1
+        self.init_penalty_coeff = 1e1
+        # self.init_penalty_coeff = 1e5
+        self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
-
-
-    def backtrack_solve(self, plan, callback=None, anum=0, verbose=False):
-        if anum > len(plan.actions) - 1:
-            return True
-        a = plan.actions[anum]
-        active_ts = a.active_timesteps
-        inits = {}
-        if a.name == 'moveto':
-            ## find possible values for the final pose
-            rs_param = a.params[2]
-        elif a.name == 'movetoholding':
-            ## find possible values for the final pose
-            rs_param = a.params[2]
-        elif a.name == 'grasp':
-            ## sample the grasp/grasp_pose
-            rs_param = a.params[4]
-        elif a.name == 'putdown':
-            ## sample the end pose
-            rs_param = a.params[4]
-        else:
-            raise NotImplemented
-
-        def recursive_solve():
-            ## don't optimize over any params that are already set
-            old_params_free = {}
-            for p in plan.params.itervalues():
-                if p.is_symbol():
-                    if p not in a.params: continue
-                    old_params_free[p] = p._free_attrs['value'].copy()
-                    p._free_attrs['value'][:] = 0
-                else:
-                    old_params_free[p] = p._free_attrs['pose'][:, active_ts[1]].copy()
-                    p._free_attrs['pose'][:, active_ts[1]] = 0
-            self.child_solver = NAMOSolver()
-            if self.child_solver.backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose):
-                return True
-            ## reset free_attrs
-            for p in a.params:
-                if p.is_symbol():
-                    if p not in a.params: continue
-                    p._free_attrs['value'] = old_params_free[p]
-                else:
-                    p._free_attrs['pose'][:, active_ts[1]] = old_params_free[p]
-            return False
-        if not np.all(rs_param._free_attrs['value']):
-            ## this parameter is fixed
-            if callback is not None:
-                callback_a = lambda: callback(a)
-            else:
-                callback_a = None
-            self.child_solver = NAMOSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
-                                              active_ts = active_ts, verbose=verbose, force_init=True)
-
-            if not success:
-                ## if planning fails we're done
-                return False
-            ## no other options, so just return here
-            return recursive_solve()
-
-        ## so that this won't be optimized over
-        rs_free = rs_param._free_attrs['value'].copy()
-        rs_param._free_attrs['value'][:] = 0
-
-        target, = plan.get_param(InContact, 2, {1:rs_param})
-        ## TODO: add support for an unset target
-        assert not np.any(np.isnan(target.value))
-
-        grasp_dirs = [np.array([0, -1]), np.array([1, 0]), np.array([0, 1]), np.array([-1, 0])]
-        dsafe = None
-        for p in plan.get_preds():
-            try:
-                dsafe = p.dsafe
-            except AttributeError:
-                continue
-        assert dsafe != None
-        grasp_len = plan.params['pr2'].geom.radius + target.geom.radius
-        for g_dir in grasp_dirs:
-            grasp = (g_dir*grasp_len).reshape((2, 1))
-            rs_param.value = target.value + grasp
-            success = False
-            if callback is not None:
-                callback_a = lambda: callback(a)
-            else:
-                callback_a = None
-            self.child_solver = NAMOSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
-                                              active_ts = active_ts, verbose=verbose, force_init=True)
-
-            if success:
-                if recursive_solve():
-                    break
-                else:
-                    success = False
-        rs_param._free_attrs['value'] = rs_free
-        return success
+        self.child_solver = None
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, force_init=False):
         success = False
@@ -309,11 +95,14 @@ class NAMOSolver(LLSolver):
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=1, add_nonlin=True, active_ts=active_ts, verbose=verbose)
-            tol=1e-3
+            tol=1e-4
 
         solv = Solver()
+        solv.initial_trust_region_size = self.initial_trust_region_size
         solv.initial_penalty_coeff = self.init_penalty_coeff
-        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
+        solv.max_merit_coeff_increases = self.max_merit_coeff_increases
+        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
+        import ipdb; ipdb.set_trace()
         self._update_ll_params()
         return success
 
@@ -418,6 +207,8 @@ class NAMOSolver(LLSolver):
                                 print "expr being added at time ", t
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
+                            # TODO: REMOVE line below, for tracing back predicate for debugging.
+                            bexpr.pred = pred
                             self._bexpr_to_pred[bexpr] = (negated, pred, t)
                             groups = ['all']
                             if self.early_converge:
@@ -454,7 +245,7 @@ class NAMOSolver(LLSolver):
             active_ts = (0, plan.horizon-1)
         for action in plan.actions:
             action_start, action_end = action.active_timesteps
-            if action_start >= active_ts[1]: continue
+            if action_start > active_ts[1]: continue
             if action_end < active_ts[0]: continue
 
             timesteps = range(max(action_start, active_ts[0]),
@@ -496,23 +287,28 @@ class NAMOSolver(LLSolver):
             if param not in self._param_to_ll:
                 continue
             if param._type in ['Robot', 'Can']:
-                T = end - start + 1
-                K = 2
-                pose = param.pose
-                KT = K*T
-                v = -1 * np.ones((KT - K, 1))
-                d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-                # [:,0] allows numpy to see v and d as one-dimensional so
-                # that numpy will create a diagonal matrix with v and d as a diagonal
-                P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-                Q = np.dot(np.transpose(P), P)
+                for attr_name in param.__dict__.iterkeys():
+                    attr_type = param.get_attr_type(attr_name)
+                    if issubclass(attr_type, Vector):
+                        T = end - start + 1
+                        K = attr_type.dim
+                        attr_val = getattr(param, attr_name)
+                        KT = K*T
+                        v = -1 * np.ones((KT - K, 1))
+                        d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+                        # [:,0] allows numpy to see v and d as one-dimensional so
+                        # that numpy will create a diagonal matrix with v and d as a diagonal
+                        P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+                        Q = np.dot(np.transpose(P), P)
 
-                quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
-                robot_ll = self._param_to_ll[param]
-                robot_ll_grb_vars = robot_ll.pose.reshape((KT, 1), order='F')
-                init_val = param.pose[:, start:end+1].reshape((KT, 1), order='F')
-                bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars, init_val))
-                traj_objs.append(bexpr)
+                        quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
+                        robot_ll = self._param_to_ll[param]
+                        ll_attr_val = getattr(robot_ll, attr_name)
+                        robot_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+                        # init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
+                        # bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars, init_val))
+                        bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars))
+                        traj_objs.append(bexpr)
         return traj_objs
 
     def _spawn_sco_var_for_pred(self, pred, t):
@@ -548,8 +344,3 @@ class NAMOSolver(LLSolver):
         x = x.reshape((pred.x_dim, 1))
         v = v.reshape((pred.x_dim, 1))
         return Variable(x, v)
-
-
-class DummyLLSolver(LLSolver):
-    def solve(self, plan):
-        return "solve"
