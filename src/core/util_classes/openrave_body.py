@@ -3,7 +3,8 @@ from math import cos, sin, atan2
 from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
-RaveCreateKinBody, TriMesh, Environment, DOFAffine
+RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
+IkFilterOptions, matrixFromAxisAngle
 from core.util_classes.pr2 import PR2
 from core.util_classes.box import Box
 from core.util_classes.can import Can, BlueCan, RedCan
@@ -387,3 +388,14 @@ class OpenRAVEBody(object):
         roll = atan2(r[2,1], r[2,2])
         # ipdb.set_trace()
         return (yaw, pitch, roll)
+
+    def ik_arm_pose(self, ee_pos, ee_rot):
+        assert isinstance(self._geom, PR2)
+        ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+        # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
+        rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+        ee_trans = ee_trans.dot(rot_mat)
+        manip = self.env_body.GetManipulator('rightarm')
+        iktype = IkParameterizationType.Transform6D
+        solution = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
+        return solution
