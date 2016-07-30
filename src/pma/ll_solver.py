@@ -4,7 +4,7 @@ from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
 
 from core.util_classes import common_predicates
-from core.util_classes.matrix import Vector2d
+from core.util_classes.matrix import Vector
 from core.util_classes.namo_predicates import StationaryW, InContact
 
 import gurobipy as grb
@@ -51,8 +51,9 @@ class LLParam(object):
         """
         for k, _ in self._param.__dict__.items():
             rows = None
-            if self._param.get_attr_type(k) == Vector2d:
-                rows = 2
+            attr_type = self._param.get_attr_type(k)
+            if issubclass(attr_type, Vector):
+                rows = attr_type.dim
 
             if rows is not None:
                 self._num_attrs.append(k)
@@ -60,9 +61,9 @@ class LLParam(object):
                 shape = None
                 value = None
                 if self._param.is_symbol():
-                    shape = (2, 1)
+                    shape = (rows, 1)
                 else:
-                    shape = (2, self._horizon)
+                    shape = (rows, self._horizon)
 
                 x = np.empty(shape, dtype=object)
                 name = "({}-{}-{})"
@@ -73,6 +74,7 @@ class LLParam(object):
                     x[index] = self._model.addVar(lb=-GRB.INFINITY, ub=GRB.INFINITY,
                                                   name=name.format(self._param.name, k, index))
                 setattr(self, k, x)
+
 
     def batch_add_cnts(self):
         """
