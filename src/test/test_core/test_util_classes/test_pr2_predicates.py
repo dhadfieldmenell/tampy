@@ -5,6 +5,7 @@ from errors_exceptions import PredicateException, ParamValidationException
 from core.util_classes.can import BlueCan, RedCan
 from core.util_classes.table import Table
 from core.util_classes.pr2 import PR2
+from core.util_classes.box import Box
 from openravepy import Environment
 from sco import expr
 import numpy as np
@@ -68,6 +69,11 @@ class TestPR2Predicates(unittest.TestCase):
         table = parameter.Object(attrs, attr_types)
         return table
 
+    def setup_box(self, name = "box"):
+        attrs = {"name": [name], "geom": [[1,.5,.5]], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
+        attr_types = {"name": str, "geom": Box, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        box = parameter.Object(attrs, attr_types)
+        return box
     # Begin of the test
     def test_expr_at(self):
 
@@ -422,6 +428,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
+
         self.assertTrue(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # now rotate robot basepose
@@ -700,7 +707,7 @@ class TestPR2Predicates(unittest.TestCase):
 
         robot = self.setup_robot()
         rPose = self.setup_robot_pose()
-        table = self.setup_obstacle()
+        table = self.setup_box()
         test_env = self.setup_environment()
         pred = pr2_predicates.RCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "RCollides")
@@ -711,32 +718,38 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
         table.pose = np.array([[0],[0],[0]])
         self.assertTrue(pred.test(0))
-        # This gradient test didn't pass
-        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # This gradient test passed with a box
+        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         # Move can so that it collide with robot base
-        table.pose = np.array([[0],[0],[.75]])
+        table.pose = np.array([[0],[0],[1.5]])
         self.assertTrue(pred.test(0))
-        # TODO: TEST below fails
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
+        # This gradient test passed with a box
+        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         # Move can away so there is no collision
         table.pose = np.array([[0],[2],[.75]])
         self.assertFalse(pred.test(0))
-        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # This gradient test passed with a box
+        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         table.pose = np.array([[0],[0],[3]])
         self.assertFalse(pred.test(0))
-        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        table.pose = np.array([[0],[0],[.125]])
+        # This gradient test passed with a box
+        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[0],[0],[-0.5]])
         self.assertTrue(pred.test(0))
-        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # This gradient test failed
+        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         table.pose = np.array([[1],[1],[.75]])
         self.assertTrue(pred.test(0))
-        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        table.pose = np.array([[1],[1],[.75]])
+        # This gradient test passed with a box
+        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.rotation = np.array([[.5,.5,-.5]]).T
         self.assertTrue(pred.test(0))
-        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # This gradient test passed with a box
+        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         table.pose = np.array([[.5],[.5],[2]])
-        self.assertTrue(pred.test(0))
-        # pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        self.assertFalse(pred.test(0))
+        # This gradient test passed with a box
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         """
             Uncomment the following to see the robot
         """
