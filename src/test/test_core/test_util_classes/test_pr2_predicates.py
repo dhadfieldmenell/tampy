@@ -266,7 +266,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
         # Only the pos is correct, rotation is not yet right
         can.pose = np.array([[0.59152062, -0.71105108,  1.05144139]]).T
-        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
@@ -276,7 +276,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.pose = np.array([[0.91154861,  0.15674634,  1.05144139]]).T
-        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.rotation = np.array([[1.07204204, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))

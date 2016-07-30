@@ -767,9 +767,103 @@ class InGripper(PosePredicate):
         f = lambda x: IN_GRIPPER_COEFF*self.pose_rot_check(x)[0]
         grad = lambda x: IN_GRIPPER_COEFF*self.pose_rot_check(x)[1]
 
-        pos_expr, val = Expr(f, grad), np.zeros((4,1))
+        pos_expr, val = Expr(f, grad), np.zeros((3,1))
         e = EqExpr(pos_expr, val)
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1)
+
+    def pose_rot_check(self, x):
+        """
+            This function is used to check whether:
+                1. object is at robot gripper's center
+                2. object's rotational axis is parallel to that of robot gripper
+
+            x: 26 dimensional list aligned in following order,
+            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->canPose->canRot
+        """
+        # Parse the pose values
+        base_pose, back_height = x[0:3], x[3]
+        l_arm_pose, l_gripper = x[4:11], x[11]
+        r_arm_pose, r_gripper = x[12:19], x[19]
+        can_pos, can_rot = x[20:23], x[23:]
+        # Setting pose for each ravebody
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        obj_body = self._param_to_body[self.params[self.ind1]]
+        robot = robot_body.env_body
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        obj_body.set_pose(can_pos, can_rot)
+        # Helper variables that will be used in many places
+        obj_trans = obj_body.env_body.GetTransform()
+        tool_link = robot.GetLink("r_gripper_tool_frame")
+        robot_trans = tool_link.GetTransform()
+        arm_inds = robot.GetManipulator('rightarm').GetArmIndices()
+        arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in arm_inds]
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(can_pos, can_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]# axises = [axis_z, axis_y, axis_x]
+        pos_val, pos_jac = self.pos_error(obj_trans, robot_trans, axises, arm_joints)
+
+        return pos_val, pos_jac
+
+
+class InGripperRot(PosePredicate):
+
+    # InGripper, Robot, Can
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        assert len(params) == 2
+        self._env = env
+        self.robot, self.can = params
+        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                               ("backHeight", np.array([0], dtype=np.int)),
+                                               ("lArmPose", np.array(range(7), dtype=np.int)),
+                                               ("lGripper", np.array([0], dtype=np.int)),
+                                               ("rArmPose", np.array(range(7), dtype=np.int)),
+                                               ("rGripper", np.array([0], dtype=np.int))]),
+                                 (self.can, [("pose", np.array([0,1,2], dtype=np.int)),
+                                             ("rotation", np.array([0,1,2], dtype=np.int))])])
+
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
+                               self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
+
+        f = lambda x: IN_GRIPPER_COEFF*self.pose_rot_check(x)[0]
+        grad = lambda x: IN_GRIPPER_COEFF*self.pose_rot_check(x)[1]
+
+        pos_expr, val = Expr(f, grad), np.zeros((1,1))
+        e = EqExpr(pos_expr, val)
+        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1)
+
+    def pose_rot_check(self, x):
+        """
+            This function is used to check whether:
+                1. object is at robot gripper's center
+                2. object's rotational axis is parallel to that of robot gripper
+
+            x: 26 dimensional list aligned in following order,
+            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->canPose->canRot
+        """
+        # Parse the pose values
+        base_pose, back_height = x[0:3], x[3]
+        l_arm_pose, l_gripper = x[4:11], x[11]
+        r_arm_pose, r_gripper = x[12:19], x[19]
+        can_pos, can_rot = x[20:23], x[23:]
+        # Setting pose for each ravebody
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        obj_body = self._param_to_body[self.params[self.ind1]]
+        robot = robot_body.env_body
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        obj_body.set_pose(can_pos, can_rot)
+        # Helper variables that will be used in many places
+        obj_trans = obj_body.env_body.GetTransform()
+        tool_link = robot.GetLink("r_gripper_tool_frame")
+        robot_trans = tool_link.GetTransform()
+        arm_inds = robot.GetManipulator('rightarm').GetArmIndices()
+        arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in arm_inds]
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(can_pos, can_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]# axises = [axis_z, axis_y, axis_x]
+        rot_val, rot_jac = self.rot_error(obj_trans, robot_trans, axises, arm_joints)
+
+        return rot_val, rot_jac
 
 class InContact(PosePredicate):
     # InContact robot EEPose target
