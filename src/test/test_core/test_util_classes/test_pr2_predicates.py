@@ -334,9 +334,11 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred.test(0))
         self.assertTrue(pred.test(1))
         self.assertTrue(pred.test(2))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, .1)
         # set rotation of target to be wrong
         target.rotation = np.array([[0],[1],[3]])
         self.assertFalse(pred.test(0))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, .1)
         self.assertFalse(pred.test(1))
         self.assertFalse(pred.test(2))
 
@@ -408,6 +410,7 @@ class TestPR2Predicates(unittest.TestCase):
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # Now set can's pose and rotation to be the right things
         ee_pose.value = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
+        ee_pose.rotation = np.array([[1.17809725e+00,  -2.42868422e-16,  -4.00715103e-16]]).T
         self.assertTrue(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # A new robot arm pose

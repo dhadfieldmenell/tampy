@@ -314,9 +314,50 @@ class PosePredicate(ExprPredicate):
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
         pos_val, pos_jac = self.pos_error(obj_trans, robot_trans, axises, arm_joints)
-        rot_val, rot_jac = self.rot_error(obj_trans, robot_trans, axises, arm_joints)
+        rot_val, rot_jac = self.rot_lock(obj_trans, robot_trans, axises, arm_joints)
         val = np.vstack((pos_val, rot_val))
         jac = np.vstack((pos_jac, rot_jac))
+
+        return val, jac
+
+    def ee_pose_rot_check(self, x):
+        """
+            This function is used to check whether:
+                1. End effective pose's position is at target center
+                2. End effective pose's rotational axis is parallel to that of the target
+
+            x: 12 dimensional list aligned in following order,
+            eePose->eeRot->targPose->targRot
+        """
+        # Parse the pose values
+        ee_pos, ee_rot = x[:3], x[3:6]
+        targ_pos, targ_rot = x[6:9], x[9:]
+        # Dist_val->distance between ee_pose and targe
+        dist_val = ee_pos - targ_pos
+        # Calculate distance Jacobian
+        dist_jac = np.eye(3)
+        dist_jac = np.c_[dist_jac, np.zeros((3,3)), -dist_jac, np.zeros((3,3))]
+        # Calculate ee_pose and target's transform
+        local_dir = np.array([0.,0.,1.])
+        ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos.reshape((3,)), ee_rot.reshape((3,)))[:3,:3]
+        targ_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos.reshape((3,)), targ_rot.reshape((3,)))[:3,:3]
+        # Calculate ee_pose and target's direction
+        ee_dir = np.dot(ee_trans, local_dir)
+        targ_dir = np.dot(targ_trans, local_dir)
+        rot_val = np.array([[np.dot(ee_dir, targ_dir) - 1]])
+        # Obatin the axises of ee_pose and target
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        ee_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(targ_pos, targ_rot)
+        targ_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+        # Calculate rotational jacobian
+        ee_jac = np.array([np.dot(targ_dir, np.cross(axis, ee_dir)) for axis in ee_axises])
+        ee_jac = np.r_[[0,0,0], ee_jac].reshape((1, 6))
+        targ_jac = np.array([np.dot(ee_dir, np.cross(axis, targ_dir)) for axis in targ_axises])
+        targ_jac = np.r_[[0,0,0], targ_jac].reshape((1, 6))
+        rot_jac = np.c_[ee_jac, targ_jac]
+        val = np.vstack((dist_val, rot_val))
+        jac = np.vstack((dist_jac, rot_jac))
 
         return val, jac
 
@@ -372,6 +413,38 @@ class PosePredicate(ExprPredicate):
         obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
         # Create final 1x26 jacobian matrix
         rot_jac = np.hstack((base_jac, np.zeros((1, 9)), arm_jac, np.zeros((1,1)), obj_jac))
+
+        return (rot_val, rot_jac)
+
+    def rot_lock(self, obj_trans, robot_trans, axises, arm_joints):
+        """
+            This function calculates the value and the jacobian of the rotational error between
+            robot gripper's rotational axis and object's rotational axis
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        rot_vals = []
+        rot_jacs = []
+        for local_dir in np.eye(3):
+            obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+            world_dir = robot_trans[:3,:3].dot(local_dir)
+            rot_vals.append(np.array([[np.dot(obj_dir, world_dir) - 1]]))
+            # computing robot's jacobian
+            arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
+            arm_jac = arm_jac.reshape((1, len(arm_joints)))
+            base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir)))
+            base_jac = np.array([[0, 0, base_jac]])
+            # computing object's jacobian
+            obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+            obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
+            # Create final 1x26 jacobian matrix
+            rot_jacs.append(np.hstack((base_jac, np.zeros((1, 9)), arm_jac, np.zeros((1,1)), obj_jac)))
+
+        rot_val = np.vstack(rot_vals)
+        rot_jac = np.vstack(rot_jacs)
 
         return (rot_val, rot_jac)
 
@@ -653,7 +726,7 @@ class StationaryNEq(ExprPredicate):
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
-class GraspValid(ExprPredicate):
+class GraspValid(PosePredicate):
 
     # GraspValid EEPose Target
 
@@ -664,11 +737,11 @@ class GraspValid(ExprPredicate):
                                  (self.target, [("value", np.array([0, 1, 2], dtype=np.int)),
                                                 ("rotation", np.array([0, 1, 2], dtype=np.int))])])
 
-        A = np.c_[np.eye(6), -np.eye(6)]
-        b, val = np.zeros((6,1)), np.zeros((6,1))
-        e = AffExpr(A, b)
-        e = EqExpr(e, val)
+        f = lambda x: IN_GRIPPER_COEFF*self.ee_pose_rot_check(x)[0]
+        grad = lambda x: IN_GRIPPER_COEFF*self.ee_pose_rot_check(x)[1]
 
+        pos_expr, val = Expr(f, grad), np.zeros((4,1))
+        e = EqExpr(pos_expr, val)
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InGripper(PosePredicate):
@@ -840,7 +913,7 @@ class EEReachable(PosePredicate):
         grad = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[1]
 
         pos_expr = Expr(f, grad)
-        e = EqExpr(pos_expr, np.zeros((4,1)))
+        e = EqExpr(pos_expr, np.zeros((6,1)))
         super(EEReachable, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class Obstructs(CollisionPredicate):
@@ -1083,7 +1156,7 @@ class RCollides(CollisionPredicate):
         grad_neg = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.zeros((225,1))
+        val = np.zeros((45,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
