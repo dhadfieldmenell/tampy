@@ -256,6 +256,7 @@ class TestPR2Predicates(unittest.TestCase):
         can.pose = np.array([[0,0,0]]).T
         # initialized pose value is not right
         self.assertFalse(pred.test(0))
+        self.assertTrue(pred2.test(0))
         # check the gradient of the implementations (correct)
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # Now set can's pose and rotation to be the right things
@@ -325,32 +326,40 @@ class TestPR2Predicates(unittest.TestCase):
         ee_pose = self.setup_ee_pose()
         target = self.setup_target() # Target is the target
         pred = pr2_predicates.GraspValid("test_grasp_valid", [ee_pose, target], ["EEPose", "Target"])
+        pred2 = pr2_predicates.GraspValidRot("test_grasp_valid_rot", [ee_pose, target], ["EEPose", "Target"])
         self.assertTrue(pred.get_type(), "GraspValid")
         # Since EEPose and Target are both undefined
         self.assertFalse(pred.test(0))
+        ee_pose.value = np.array([[1,1,1]]).T
+        target.value = np.array([[0,0,0]]).T
+        self.assertFalse(pred.test(0))
+        self.assertTrue(pred2.test(0))
+
         ee_pose.value = np.array([[1,2,3],
-                                       [2,3,4],
-                                       [3,4,5]])
+                                   [2,3,4],
+                                   [3,4,5]])
         target.value = np.array([[1,2,3],
-                                      [2,9,4],
-                                      [3,4,5]])
+                                  [2,9,4],
+                                  [3,4,5]])
         ee_pose.rotation = np.array([[1,2,3],
-                                          [2,3,3],
-                                          [3,4,5]])
+                                      [2,3,3],
+                                      [3,4,5]])
         target.rotation = np.array([[1,2,3],
-                                         [2,3,4],
-                                         [3,4,5]])
+                                     [2,3,4],
+                                     [3,4,5]])
         # Since target and eepose are both symbol, and their first timestep value are the same, test should all pass
         self.assertTrue(pred.test(0))
         self.assertTrue(pred.test(1))
         self.assertTrue(pred.test(2))
+        self.assertTrue(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, .1)
         # set rotation of target to be wrong
         target.rotation = np.array([[0],[1],[3]])
-        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0))
+        self.assertTrue(pred.test(1))
+        self.assertTrue(pred.test(2))
+        self.assertFalse(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, .1)
-        self.assertFalse(pred.test(1))
-        self.assertFalse(pred.test(2))
 
     def test_in_contact(self):
         # InContact robot EEPose target
@@ -423,6 +432,7 @@ class TestPR2Predicates(unittest.TestCase):
         rPose.value = np.array([[0,0,0]]).T
         # initialized pose value is not right
         self.assertFalse(pred.test(0))
+        self.assertFalse(pred2.test(0))
         # check the gradient of the implementations (correct)
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # Now set can's pose and rotation to be the right things

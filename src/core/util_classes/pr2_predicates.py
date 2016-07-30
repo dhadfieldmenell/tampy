@@ -251,8 +251,7 @@ class PosePredicate(ExprPredicate):
     def pose_check(self, x):
         """
             This function is used to check whether:
-                1. object is at robot gripper's center
-                2. object's rotational axis is parallel to that of robot gripper
+                object is at robot gripper's center
 
             x: 26 dimensional list aligned in following order,
             BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->canPose->canRot
@@ -284,8 +283,7 @@ class PosePredicate(ExprPredicate):
     def rot_check(self, x):
         """
             This function is used to check whether:
-                1. object is at robot gripper's center
-                2. object's rotational axis is parallel to that of robot gripper
+                object's rotational axis is parallel to that of robot gripper
 
             x: 26 dimensional list aligned in following order,
             BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->canPose->canRot
@@ -317,8 +315,7 @@ class PosePredicate(ExprPredicate):
     def ee_pose_check(self, x):
         """
             This function is used to check whether:
-                1. End effective pose's position is at robot gripper's center
-                2. End effective pose's rotational axis is parallel to that of robot gripper
+                End effective pose's position is at robot gripper's center
 
             x: 26 dimensional list aligned in following order,
             BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->eePose->eRot
@@ -349,8 +346,7 @@ class PosePredicate(ExprPredicate):
     def ee_rot_check(self, x):
         """
             This function is used to check whether:
-                1. End effective pose's position is at robot gripper's center
-                2. End effective pose's rotational axis is parallel to that of robot gripper
+                End effective pose's rotational axis is parallel to that of robot gripper
 
             x: 26 dimensional list aligned in following order,
             BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->eePose->eRot
@@ -378,11 +374,10 @@ class PosePredicate(ExprPredicate):
 
         return rot_val, rot_jac
 
-    def ee_targ_check(self, x):
+    def ee_targ_rot_check(self, x):
         """
             This function is used to check whether:
-                1. End effective pose's position is at target center
-                2. End effective pose's rotational axis is parallel to that of the target
+                End effective pose's rotational axis is parallel to that of the target
 
             x: 12 dimensional list aligned in following order,
             eePose->eeRot->targPose->targRot
@@ -390,11 +385,6 @@ class PosePredicate(ExprPredicate):
         # Parse the pose values
         ee_pos, ee_rot = x[:3], x[3:6]
         targ_pos, targ_rot = x[6:9], x[9:]
-        # Dist_val->distance between ee_pose and targe
-        dist_val = ee_pos - targ_pos
-        # Calculate distance Jacobian
-        dist_jac = np.eye(3)
-        dist_jac = np.c_[dist_jac, np.zeros((3,3)), -dist_jac, np.zeros((3,3))]
         # Calculate ee_pose and target's transform
         local_dir = np.array([0.,0.,1.])
         ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos.reshape((3,)), ee_rot.reshape((3,)))[:3,:3]
@@ -414,10 +404,8 @@ class PosePredicate(ExprPredicate):
         targ_jac = np.array([np.dot(ee_dir, np.cross(axis, targ_dir)) for axis in targ_axises])
         targ_jac = np.r_[[0,0,0], targ_jac].reshape((1, 6))
         rot_jac = np.c_[ee_jac, targ_jac]
-        val = np.vstack((dist_val, rot_val))
-        jac = np.vstack((dist_jac, rot_jac))
 
-        return val, jac
+        return rot_val, rot_jac
 
     def pos_error(self, obj_trans, robot_trans, axises, arm_joints):
         """
@@ -460,6 +448,8 @@ class PosePredicate(ExprPredicate):
         local_dir = np.array([0.,0.,1.])
         obj_dir = np.dot(obj_trans[:3,:3], local_dir)
         world_dir = robot_trans[:3,:3].dot(local_dir)
+        obj_dir = obj_dir/np.linalg(obj_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
         rot_val = np.array([[np.dot(obj_dir, world_dir) - 1]])
         # computing robot's jacobian
         arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
@@ -790,17 +780,32 @@ class GraspValid(PosePredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.ee_pose, self.target = params
+        attr_inds = OrderedDict([(self.ee_pose, [("value", np.array([0, 1, 2], dtype=np.int))]),
+                                 (self.target, [("value", np.array([0, 1, 2], dtype=np.int))])])
+
+        A = np.c_[np.eye(3), -np.eye(3)]
+        b, val = np.zeros((3,1)), np.zeros((3,1))
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class GraspValidRot(PosePredicate):
+
+    # GraspValid EEPose Target
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.ee_pose, self.target = params
         attr_inds = OrderedDict([(self.ee_pose, [("value", np.array([0, 1, 2], dtype=np.int)),
                                                  ("rotation", np.array([0, 1, 2], dtype=np.int))]),
                                  (self.target, [("value", np.array([0, 1, 2], dtype=np.int)),
                                                 ("rotation", np.array([0, 1, 2], dtype=np.int))])])
 
-        f = lambda x: IN_GRIPPER_COEFF*self.ee_targ_check(x)[0]
-        grad = lambda x: IN_GRIPPER_COEFF*self.ee_targ_check(x)[1]
+        f = lambda x: IN_GRIPPER_COEFF*self.ee_targ_rot_check(x)[0]
+        grad = lambda x: IN_GRIPPER_COEFF*self.ee_targ_rot_check(x)[1]
 
-        pos_expr, val = Expr(f, grad), np.zeros((4,1))
+        pos_expr, val = Expr(f, grad), np.zeros((1,1))
         e = EqExpr(pos_expr, val)
-        super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(GraspValidRot, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InGripper(PosePredicate):
 
