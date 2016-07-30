@@ -250,6 +250,7 @@ class TestPR2Predicates(unittest.TestCase):
         can = self.setup_can()
         test_env = self.setup_environment()
         pred = pr2_predicates.InGripper("InGripper", [robot, can], ["Robot", "Can"], test_env)
+        pred2 = pr2_predicates.InGripperRot("InGripper_rot", [robot, can], ["Robot", "Can"], test_env)
         # Since this predicate is not yet concrete
         self.assertFalse(pred.test(0))
         can.pose = np.array([[0,0,0]]).T
@@ -270,6 +271,7 @@ class TestPR2Predicates(unittest.TestCase):
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
+        self.assertTrue(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # now rotate robot basepose
         robot.pose = np.array([[0,0,np.pi/3]]).T
@@ -279,12 +281,14 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.rotation = np.array([[1.07204204, -0.59793421, -0.68047349]]).T
+        self.assertTrue(pred2.test(0))
         self.assertTrue(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
         self.assertFalse(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.rotation = np.array([[2.22529480e+00,   3.33066907e-16,  -5.23598776e-01]]).T
+        self.assertTrue(pred2.test(0))
         self.assertFalse(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         can.pose = np.array([[3.98707028e-01,   4.37093473e-01,   8.37601627e-01]]).T
@@ -405,6 +409,13 @@ class TestPR2Predicates(unittest.TestCase):
         ee_pose = self.setup_ee_pose()
         test_env = self.setup_environment()
         pred = pr2_predicates.EEReachable("test_ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
+        pred2 = pr2_predicates.EEReachableRot("test_ee_reachable_rot", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
+        """
+            Uncomment the following to see the robot
+        """
+        # pred._param_to_body[robot].set_transparency(0.7)
+        # test_env.SetViewer("qtcoin")
+
         self.assertTrue(pred.get_type(), "EEReachable")
         # Since this predicate is not yet concrete
         self.assertFalse(pred.test(0))
@@ -418,6 +429,7 @@ class TestPR2Predicates(unittest.TestCase):
         ee_pose.value = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
         ee_pose.rotation = np.array([[1.17809725e+00,  -2.42868422e-16,  -4.00715103e-16]]).T
         self.assertTrue(pred.test(0))
+        self.assertTrue(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # A new robot arm pose
         robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
@@ -425,37 +437,44 @@ class TestPR2Predicates(unittest.TestCase):
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # Only the pos is correct, rotation is not yet right
         ee_pose.value = np.array([[0.59152062, -0.71105108,  1.05144139]]).T
-        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
-
         self.assertTrue(pred.test(0))
+        self.assertTrue(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # now rotate robot basepose
         robot.pose = np.array([[0,0,np.pi/3]]).T
         self.assertFalse(pred.test(0))
+        self.assertFalse(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.value = np.array([[0.91154861,  0.15674634,  1.05144139]]).T
-        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.rotation = np.array([[1.07204204, -0.59793421, -0.68047349]]).T
         self.assertTrue(pred.test(0))
+        self.assertTrue(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
         self.assertFalse(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.rotation = np.array([[2.22529480e+00,   3.33066907e-16,  -5.23598776e-01]]).T
         self.assertFalse(pred.test(0))
+        self.assertTrue(pred2.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         ee_pose.value = np.array([[3.98707028e-01,   4.37093473e-01,   8.37601627e-01]]).T
         self.assertTrue(pred.test(0))
+        self.assertTrue(pred2.test(0))
         # check the gradient of the implementations (correct)
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # test_env.SetViewer("qtcoin")
+
+        # import ipdb; ipdb.set_trace()
+        # robot.rArmPose = pred._param_to_body[robot].ik_arm_pose(ee_pose.value.reshape((3,)), ee_pose.rotation.reshape((3,)))
+        # pred._param_to_body[robot].set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
+
+
         # testing example from grasp where predicate continues to fail,
         # confirmed that Jacobian is fine.
         robot.pose = np.array([-0.52014383,  0.374093  ,  0.04957286]).reshape((3,1))
@@ -710,50 +729,66 @@ class TestPR2Predicates(unittest.TestCase):
         table = self.setup_box()
         test_env = self.setup_environment()
         pred = pr2_predicates.RCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
-        self.assertEqual(pred.get_type(), "RCollides")
-        test_env.SetViewer("qtcoin")
-        pred._param_to_body[robot].set_transparency(0.7)
-        pred._param_to_body[table].set_transparency(0.7)
+        # self.assertEqual(pred.get_type(), "RCollides")
+        # test_env.SetViewer("qtcoin")
+        # pred._param_to_body[robot].set_transparency(0.7)
+        # pred._param_to_body[table].set_transparency(0.7)
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
         table.pose = np.array([[0],[0],[0]])
         self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
         # This gradient test passed with a box
-        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         # Move can so that it collide with robot base
         table.pose = np.array([[0],[0],[1.5]])
         self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
         # This gradient test passed with a box
-        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         # Move can away so there is no collision
         table.pose = np.array([[0],[2],[.75]])
         self.assertFalse(pred.test(0))
-        # This gradient test passed with a box
-        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        table.pose = np.array([[0],[0],[3]])
-        self.assertFalse(pred.test(0))
-        # This gradient test passed with a box
-        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        table.pose = np.array([[0],[0],[-0.5]])
-        self.assertTrue(pred.test(0))
-        # This gradient test failed
-        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        table.pose = np.array([[1],[1],[.75]])
-        self.assertTrue(pred.test(0))
-        # This gradient test passed with a box
-        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        table.rotation = np.array([[.5,.5,-.5]]).T
-        self.assertTrue(pred.test(0))
-        # This gradient test passed with a box
-        if not TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        table.pose = np.array([[.5],[.5],[2]])
-        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0, negated = True))
         # This gradient test passed with a box
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[0],[0],[3]])
+        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0, negated = True))
+        # This gradient test passed with a box
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[0],[0],[-0.5]])
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+        # This gradient test failed
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[1],[1],[.75]])
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+        # This gradient test passed with a box
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.rotation = np.array([[.5,.5,-.5]]).T
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+        # This gradient test passed with a box
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        table.pose = np.array([[.5],[.5],[2]])
+        self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0, negated = True))
+        # This gradient test passed with a box
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+
+        table.pose = np.array([[.5],[1.45],[.5]])
+        table.rotation = np.array([[0.8,0,0]]).T
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+        # This gradient test passed with a box
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+
         """
             Uncomment the following to see the robot
         """
-        pred._param_to_body[table].set_pose(table.pose, table.rotation)
+        # pred._param_to_body[table].set_pose(table.pose, table.rotation)
         # import ipdb; ipdb.set_trace()
 
 
