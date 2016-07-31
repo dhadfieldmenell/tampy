@@ -15,7 +15,7 @@ namo_domain specific predicates can be found in core/util_classes/namo_predicate
 pr2_domain specific predicates can be cound in core/util_classes/pr2_predicates.py
 """
 
-DEFAULT_TOL=1e-4
+DEFAULT_TOL=1e-3
 
 def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
     i = startind
