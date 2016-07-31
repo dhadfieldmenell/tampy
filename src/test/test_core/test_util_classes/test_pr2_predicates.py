@@ -383,7 +383,7 @@ class TestPR2Predicates(unittest.TestCase):
         robot.rGripper = np.matrix([0.2])
         self.assertFalse(pred.test(0))
         # check the gradient of the implementations
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2) # TODO fix gradient
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, .1)
 
 
         # Test setting gripper value
@@ -845,12 +845,12 @@ class TestPR2Predicates(unittest.TestCase):
         can.pose = np.array([[0,0,0]]).T
         robot_body.set_pose(robot.pose)
         can_body.set_pose(can.pose)
-        test_env.SetViewer("qtcoin")
-        robot_body.set_transparency(0.7)
-        can_body.set_transparency(0.7)
-        import ipdb; ipdb.set_trace()
+        # env.SetViewer("qtcoin")
+        # robot_body.set_transparency(0.7)
+        # can_body.set_transparency(0.7)
+        # import ipdb; ipdb.set_trace()
 
-        rArmPose = robot_body.ik_arm_pose(can.pose, can.rotation)[0]
+        rArmPose = robot_body.ik_arm_pose(can.pose, can.rotation)
         robot.rArmPose = rArmPose
         robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
 

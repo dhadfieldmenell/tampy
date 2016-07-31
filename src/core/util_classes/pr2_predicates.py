@@ -33,6 +33,7 @@ class CollisionPredicate(ExprPredicate):
         self.ind0 = ind0
         self.ind1 = ind1
         self._plot_handles = []
+        self._cache = {}
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol)
 
     def plot_cols(self, env, t):
@@ -51,16 +52,19 @@ class CollisionPredicate(ExprPredicate):
                 handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.001,color=(0,0,0)))
         self._plot_handles.extend(handles)
 
-    def distance_from_obj(self, x):
+    def robot_obj_collision(self, x):
         """
             This function is used to calculae collisiosn between Robot and Can
             This function calculates the collision distance gradient associated to it
             x: 26 dimensional list of values aligned in following order,
             BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
         """
-        # self._cc.SetContactDistance(self.dsafe + .1)
         # Parse the pose value
         self._plot_handles = []
+        flattened = tuple(x.round(5).flatten())
+        if flattened in self._cache:
+            return self._cache[flattened]
+
         back_height = x[0:1]
         l_arm_pose, l_gripper = x[1:8], x[8:9]
         r_arm_pose, r_gripper = x[9:16], x[16:17]
@@ -84,8 +88,87 @@ class CollisionPredicate(ExprPredicate):
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
         # set active dof value back to its original state (For successive function call)
         robot_body._set_active_dof_inds(range(39))
-
+        self._cache[flattened] = (col_val.copy(), col_jac.copy())
         return col_val, col_jac
+
+    def obj_obj_collision(self, x):
+        """
+            This function calculates collision between object and obstructs
+            Assuming object and obstructs all has pose and rotation
+
+            x: 12 dimensional list aligned in the following order:
+            CanPose->CanRot->ObstaclePose->ObstacleRot
+        """
+        self._plot_handles = []
+        flattened = tuple(x.round(5).flatten())
+        if flattened in self._cache:
+            return self._cache[flattened]
+
+        # Parse the pose value
+        can_pos, can_rot = x[:3], x[3:6]
+        obstr_pos, obstr_rot = x[6:9], x[9:]
+        # Set pose of each rave body
+        can = self.params[self.ind0]
+        obstr = self.params[self.ind1]
+        can_body = self._param_to_body[can]
+        obstr_body = self._param_to_body[obstr]
+        can_body.set_pose(can_pos, can_rot)
+        obstr_body.set_pose(obstr_pos, obstr_rot)
+        # Make sure two body is in the same environment
+        assert can_body.env_body.GetEnv() == obstr_body.env_body.GetEnv()
+        # Setup collision checkers
+        self._cc.SetContactDistance(np.Inf)
+        collisions = self._cc.BodyVsBody(can_body.env_body, obstr_body.env_body)
+        # Calculate value and jacobian
+        col_val, col_jac = self._calc_obj_grad_and_val(can_body, obstr_body, collisions)
+        self._cache[flattened] = (col_val.copy(), col_jac.copy())
+        return col_val, col_jac
+
+    def robot_obj_held_collision(self, x):
+        """
+            Similar to distance_from_obj in CollisionPredicate; however, this function take into account of object holding
+
+            x: 26 dimensional list of values aligned in following order,
+            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot->HeldPose->HeldRot
+        """
+        self._plot_handles = []
+        flattened = tuple(x.round(5).flatten())
+        if flattened in self._cache:
+            return self._cache[flattened]
+        # Parse the pose value
+        # obj_body -> self.obstruct
+        back_height = x[0]
+        l_arm_pose, l_gripper = x[1:8], x[8]
+        r_arm_pose, r_gripper = x[9:16], x[16]
+        base_pose = x[17:20]
+        can_pos, can_rot = x[20:23], x[23:26]
+        held_pose, held_rot = x[26:29], x[29:]
+        # Set pose of each rave body
+        robot = self.params[self.ind0]
+        obj = self.params[self.ind1]
+        robot_body = self._param_to_body[robot]
+        obj_body = self._param_to_body[obj]
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        robot_body._set_active_dof_inds()
+        obj_body.set_pose(can_pos, can_rot)
+        self._cc.SetContactDistance(np.Inf)
+        # setup collision between robot and obstruct
+        collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
+        col_val1, col_jac1 = self._calc_grad_and_val(robot_body, obj_body, collisions1)
+        col_jac1 = np.c_[col_jac1, np.zeros((45,6))]
+        # find collision between object and object held
+        held_body = self._param_to_body[self.held]
+        held_body.set_pose(held_pose, held_rot)
+        collisions2 = self._cc.BodyVsBody(held_body.env_body, obj_body.env_body)
+        col_val2, col_jac2 = self._calc_obj_grad_and_val(held_body, obj_body, collisions2)
+        col_jac2 = np.c_[np.zeros((1,20)), col_jac2]
+        # Stack these val and jac, and return
+        val = np.vstack((col_val1, col_val2))
+        jac = np.vstack((col_jac1, col_jac2))
+        robot_body._set_active_dof_inds(range(39))
+        self._cache[flattened] = (val.copy(), jac.copy())
+        return val, jac
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
         """
@@ -448,7 +531,7 @@ class PosePredicate(ExprPredicate):
         local_dir = np.array([0.,0.,1.])
         obj_dir = np.dot(obj_trans[:3,:3], local_dir)
         world_dir = robot_trans[:3,:3].dot(local_dir)
-        obj_dir = obj_dir/np.linalg(obj_dir)
+        obj_dir = obj_dir/np.linalg.norm(obj_dir)
         world_dir = world_dir/np.linalg.norm(world_dir)
         rot_val = np.array([[np.dot(obj_dir, world_dir) - 1]])
         # computing robot's jacobian
@@ -560,6 +643,25 @@ class PosePredicate(ExprPredicate):
         # print val
 
         return val, jac
+
+    def set_gripper_value(self, x, negated = False):
+
+        base_pose, back_height = x[0:3], x[3]
+        l_arm_pose, l_gripper = x[4:11], x[11]
+        r_arm_pose, r_gripper = x[12:19], x[19]
+        grab_pose = 0.46
+        open_pose = 0.5
+        if negated:
+            r_gripper = open_pose
+        else:
+            r_gripper = grab_pose
+
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+
+        return np.zeros((1,1)), np.zeros((1,20))
 
 class At(ExprPredicate):
 
@@ -891,25 +993,6 @@ class InContact(PosePredicate):
         e = EqExpr(fing_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0 = 0, ind1 = 2)
 
-    def set_gripper_value(self, x, negated = False):
-
-        base_pose, back_height = x[0:3], x[3]
-        l_arm_pose, l_gripper = x[4:11], x[11]
-        r_arm_pose, r_gripper = x[12:19], x[19]
-        grab_pose = 0.46
-        open_pose = 0.5
-        if negated:
-            r_gripper = open_pose
-        else:
-            r_gripper = grab_pose
-
-        robot_body = self._param_to_body[self.params[self.ind0]]
-        robot = robot_body.env_body
-        robot_body.set_pose(base_pose)
-        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
-
-        return np.zeros((1,1)), np.zeros((1,20))
-
 class InContact2(PosePredicate):
     # InContact robot EEPose target
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -940,7 +1023,7 @@ class InContact2(PosePredicate):
             (assuming can is at the center of robot gripper already)
 
             x: list of 26 dimensional values aligned in following order:
-            # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper
+            # BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->targetPose
         """
 
         # Parse the pose values
@@ -1058,12 +1141,12 @@ class Obstructs(CollisionPredicate):
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
         # self.robot_pose: self.lazy_spawn_or_body(self.robot_pose, self.robot_pose.name, self.robot.geom),
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        f = lambda x: -self.robot_obj_collision(x)[0]
+        grad = lambda x: -self.robot_obj_collision(x)[1]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.distance_from_obj(x)[0]
-        grad_neg = lambda x: self.distance_from_obj(x)[1]
+        f_neg = lambda x: self.robot_obj_collision(x)[0]
+        grad_neg = lambda x: self.robot_obj_collision(x)[1]
 
         col_expr = Expr(f, grad)
         val = np.zeros((45,1))
@@ -1108,18 +1191,18 @@ class ObstructsHolding(CollisionPredicate):
                                self.held: self.lazy_spawn_or_body(self.held, self.held.name, self.held.geom)}
 
         if self.held.name == self.obstruct.name:
-            f = lambda x: -super(ObstructsHolding, self).distance_from_obj(x)[0] + self.dsafe - 1e-3
-            grad = lambda x: -super(ObstructsHolding, self).distance_from_obj(x)[1]
+            f = lambda x: -self.robot_obj_collision(x)[0] + self.dsafe - 1e-3
+            grad = lambda x: -self.robot_obj_collision(x)[1]
             ## so we have an expr for the negated predicate
-            f_neg = lambda x: super(ObstructsHolding, self).distance_from_obj(x)[0] - self.dsafe + 1e-3
-            grad_neg = lambda x: super(ObstructsHolding, self).distance_from_obj(x)[1]
+            f_neg = lambda x: self.robot_obj_collision(x)[0] - self.dsafe + 1e-3
+            grad_neg = lambda x: self.robot_obj_collision(x)[1]
             val = np.zeros((45,1))
         else:
-            f = lambda x: -self.distance_from_obj(x)[0]
-            grad = lambda x: -self.distance_from_obj(x)[1]
+            f = lambda x: -self.robot_obj_held_collision(x)[0]
+            grad = lambda x: -self.robot_obj_held_collision(x)[1]
             ## so we have an expr for the negated predicate
-            f_neg = lambda x: self.distance_from_obj(x)[0]
-            grad_neg = lambda x: self.distance_from_obj(x)[1]
+            f_neg = lambda x: self.robot_obj_held_collision(x)[0]
+            grad_neg = lambda x: self.robot_obj_held_collision(x)[1]
             val = np.zeros((46,1))
 
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
@@ -1131,51 +1214,6 @@ class ObstructsHolding(CollisionPredicate):
             return self.neg_expr
         else:
             return None
-
-    def distance_from_obj(self, x):
-        """
-            Similar to distance_from_obj in CollisionPredicate; however, this function take into account of object holding
-
-            x: 26 dimensional list of values aligned in following order,
-            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot->HeldPose->HeldRot
-        """
-        self._plot_handles = []
-        # Parse the pose value
-        # obj_body -> self.obstruct
-        back_height = x[0]
-        l_arm_pose, l_gripper = x[1:8], x[8]
-        r_arm_pose, r_gripper = x[9:16], x[16]
-        base_pose = x[17:20]
-        can_pos, can_rot = x[20:23], x[23:26]
-        held_pose, held_rot = x[26:29], x[29:]
-        # Set pose of each rave body
-        robot = self.params[self.ind0]
-        obj = self.params[self.ind1]
-        robot_body = self._param_to_body[robot]
-        obj_body = self._param_to_body[obj]
-        robot_body.set_pose(base_pose)
-        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
-        robot_body._set_active_dof_inds()
-        obj_body.set_pose(can_pos, can_rot)
-        self._cc.SetContactDistance(np.Inf)
-
-        # setup collision between robot and obstruct
-        collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
-        col_val1, col_jac1 = self._calc_grad_and_val(robot_body, obj_body, collisions1)
-        col_jac1 = np.c_[col_jac1, np.zeros((45,6))]
-
-        held_body = self._param_to_body[self.held]
-
-        held_body.set_pose(held_pose, held_rot)
-        collisions2 = self._cc.BodyVsBody(held_body.env_body, obj_body.env_body)
-        col_val2, col_jac2 = self._calc_obj_grad_and_val(held_body, obj_body, collisions2)
-        col_jac2 = np.c_[np.zeros((1,20)), col_jac2]
-
-        val = np.vstack((col_val1, col_val2))
-        jac = np.vstack((col_jac1, col_jac2))
-        robot_body._set_active_dof_inds(range(39))
-
-        return val, jac
 
 class Collides(CollisionPredicate):
 
@@ -1191,12 +1229,12 @@ class Collides(CollisionPredicate):
         self._param_to_body = {self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        f = lambda x: -self.obj_obj_collision(x)[0]
+        grad = lambda x: -self.obj_obj_collision(x)[1]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.distance_from_obj(x)[0]
-        grad_neg = lambda x: self.distance_from_obj(x)[1]
+        f_neg = lambda x: self.obj_obj_collision(x)[0]
+        grad_neg = lambda x: self.obj_obj_collision(x)[1]
 
         col_expr, val = Expr(f, grad), np.zeros((1,1))
         e = LEqExpr(col_expr, val)
@@ -1213,36 +1251,6 @@ class Collides(CollisionPredicate):
             return self.neg_expr
         else:
             return None
-
-    def distance_from_obj(self, x):
-        """
-            This function calculates collision between object and obstructs
-            Assuming object and obstructs all has pose and rotation
-
-            x: 12 dimensional list aligned in the following order:
-            CanPose->CanRot->ObstaclePose->ObstacleRot
-        """
-        self._plot_handles = []
-        # self._cc.SetContactDistance(self.dsafe + .1)
-        # Parse the pose value
-        can_pos, can_rot = x[:3], x[3:6]
-        obstr_pos, obstr_rot = x[6:9], x[9:]
-        # Set pose of each rave body
-        can = self.params[self.ind0]
-        obstr = self.params[self.ind1]
-        can_body = self._param_to_body[can]
-        obstr_body = self._param_to_body[obstr]
-        can_body.set_pose(can_pos, can_rot)
-        obstr_body.set_pose(obstr_pos, obstr_rot)
-        # Make sure two body is in the same environment
-        assert can_body.env_body.GetEnv() == obstr_body.env_body.GetEnv()
-        # Setup collision checkers
-        self._cc.SetContactDistance(np.Inf)
-        collisions = self._cc.BodyVsBody(can_body.env_body, obstr_body.env_body)
-        # Calculate value and jacobian
-        col_val, col_jac = self._calc_obj_grad_and_val(can_body, obstr_body, collisions)
-
-        return col_val, col_jac
 
 class RCollides(CollisionPredicate):
 
@@ -1266,12 +1274,12 @@ class RCollides(CollisionPredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        f = lambda x: -self.robot_obj_collision(x)[0]
+        grad = lambda x: -self.robot_obj_collision(x)[1]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.distance_from_obj(x)[0]
-        grad_neg = lambda x: self.distance_from_obj(x)[1]
+        f_neg = lambda x: self.robot_obj_collision(x)[0]
+        grad_neg = lambda x: self.robot_obj_collision(x)[1]
 
         col_expr = Expr(f, grad)
         val = np.zeros((45,1))
