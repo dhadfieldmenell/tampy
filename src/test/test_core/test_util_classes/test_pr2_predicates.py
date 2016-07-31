@@ -2,6 +2,7 @@ import unittest
 from core.internal_repr import parameter
 from core.util_classes import pr2_predicates, viewer, matrix
 from errors_exceptions import PredicateException, ParamValidationException
+from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.can import BlueCan, RedCan
 from core.util_classes.table import Table
 from core.util_classes.pr2 import PR2
@@ -532,6 +533,39 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 2))
         self.assertTrue(pred.test(time = 3))
 
+    def test_stationary_w(self):
+        table = self.setup_box()
+        pred = pr2_predicates.StationaryW("test_stay_w", [table], ["Table"])
+        self.assertEqual(pred.get_type(), "StationaryW")
+        # Since pose of can is undefined, predicate is not concrete
+        self.assertFalse(pred.test(0))
+        table.pose = np.array([[0], [0], [0]])
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(0)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay_w: (StationaryW box)' at the timestep.")
+        table.rotation = np.array([[1, 1, 1, 4, 4],
+                                  [2, 2, 2, 5, 5],
+                                  [3, 3, 3, 6, 6]])
+        table.pose = np.array([[1, 2],
+                              [4, 4],
+                              [5, 7]])
+        self.assertFalse(pred.test(time = 0))
+        table.pose = np.array([[1, 1, 2],
+                              [2, 2, 2],
+                              [3, 3, 7]])
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(1))
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=2)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay_w: (StationaryW box)' at the timestep.")
+        table.pose = np.array([[1, 4, 5, 5, 5],
+                              [2, 5, 6, 6, 6],
+                              [3, 6, 7, 7, 7]])
+        self.assertFalse(pred.test(time = 0))
+        self.assertFalse(pred.test(time = 1))
+        self.assertFalse(pred.test(time = 2))
+        self.assertTrue(pred.test(time = 3))
+
     def test_obstructs(self):
 
         # Obstructs, Robot, RobotPose, RobotPose, Can
@@ -801,6 +835,24 @@ class TestPR2Predicates(unittest.TestCase):
         # pred._param_to_body[table].set_pose(table.pose, table.rotation)
         # import ipdb; ipdb.set_trace()
 
+    def test_ik(self):
+        robot = self.setup_robot()
+        can = self.setup_can()
+        env = self.setup_environment()
+        robot_body = OpenRAVEBody(env, robot.name, robot.geom)
+        can_body = OpenRAVEBody(env, can.name, can.geom)
+        robot.pose = np.array([[-.5,0,0]]).T
+        can.pose = np.array([[0,0,0]]).T
+        robot_body.set_pose(robot.pose)
+        can_body.set_pose(can.pose)
+        test_env.SetViewer("qtcoin")
+        robot_body.set_transparency(0.7)
+        can_body.set_transparency(0.7)
+        import ipdb; ipdb.set_trace()
+
+        rArmPose = robot_body.ik_arm_pose(can.pose, can.rotation)[0]
+        robot.rArmPose = rArmPose
+        robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
 
 if __name__ == "__main__":
     unittest.main()

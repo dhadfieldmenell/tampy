@@ -750,9 +750,10 @@ class StationaryW(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params
-        attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1, 2], dtype=np.int))])])
-        A = np.c_[np.eye(3), -np.eye(3)]
-        b = np.zeros((3, 1))
+        attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1, 2], dtype=np.int)),
+                                           ("rotation", np.array([0, 1, 2], dtype=np.int))])])
+        A = np.c_[np.eye(6), -np.eye(6)]
+        b = np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
