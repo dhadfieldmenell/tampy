@@ -5,25 +5,29 @@ import random
 
 SEED = 1234
 NUM_PROBS = 5
-NUM_CANS = 30 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
-NUM_TARGETS = 30
+NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_TARGETS = 3
 assert NUM_CANS <= NUM_TARGETS
+# GOAL = "(RobotAt pr2 pdp_target0)"
 GOAL = "(RobotAt pr2 robot_end_pose)"
+# GOAL = "(At can0 target2)"
+# GOAL = "(InGripper pr2 can0)"
+# GOAL = "(RobotAt pr2 robot_end_pose), (InGripper pr2 can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
-CAN_RADIUS = 0.05
+CAN_RADIUS = 0.04
 CAN_HEIGHT = 0.25
 CAN_GEOM = [CAN_RADIUS, CAN_HEIGHT]
 DIST_BETWEEN_CANS = 0.01
 
 PR2_INIT_POSE = [-1,0,0]
-PR2_END_POSE = [-1,0,0]
+PR2_END_POSE = [-0,1,0]
 BACKHEIGHT_INIT = [0.3]
 # referred to as side2 pose in rapprentice
 R_ARM_INIT = [-1.832, -0.332, -1.011, -1.437, -1.1, 0, -3.074]
 # left arm is tucked
 L_ARM_INIT = [0.06, 1.25, 1.79, -1.68, -1.73, -0.10, -0.09]
-GRIPPER_INIT = [0.8]
+GRIPPER_INIT = [0.5]
 
 ROBOT_DIST_FROM_TABLE = 0.05
 # rll table
@@ -39,7 +43,8 @@ TABLE_THICKNESS = 0.2
 TABLE_LEG_DIM = [.15, 0.2]
 TABLE_LEG_HEIGHT = 0.6
 TABLE_BACK = False
-TABLE_GEOM = []
+# TABLE_GEOM = []
+TABLE_GEOM = [.325, .75, 0.1]
 for info in [TABLE_DIM, [TABLE_THICKNESS], TABLE_LEG_DIM, [TABLE_LEG_HEIGHT], [TABLE_BACK]]:
     TABLE_GEOM.extend(info)
 
@@ -72,7 +77,7 @@ class CollisionFreeTargetValueGenerator(object):
     def reset(self):
         self._poses = []
 
-def get_pr2_attrs_str(name):
+def get_pr2_init_attrs_str(name):
     s = ""
     s += "(backHeight {} {}), ".format(name, BACKHEIGHT_INIT)
     s += "(lArmPose {} {}), ".format(name, L_ARM_INIT)
@@ -81,6 +86,14 @@ def get_pr2_attrs_str(name):
     s += "(rGripper {} {}), ".format(name, GRIPPER_INIT)
     return s
 
+def get_pr2_undefined_attrs_str(name):
+    s = ""
+    s += "(backHeight {} undefined)".format(name)
+    s += "(lArmPose {} undefined), ".format(name)
+    s += "(lGripper {} undefined), ".format(name)
+    s += "(rArmPose {} undefined), ".format(name)
+    s += "(rGripper {} undefined), ".format(name)
+    return s
 
 def main():
     random.seed(SEED)
@@ -94,6 +107,7 @@ def main():
         for i in range(NUM_TARGETS):
             s += "Target (name target{}); ".format(i)
             s += "EEPose (name ee_target{}); ".format(i)
+            s += "RobotPose (name pdp_target{}); ".format(i)
             if i < NUM_CANS:
                 s += "Can (name can{}); ".format(i)
                 # s += "RobotPose (name gp_can{}); ".format(i)
@@ -108,7 +122,10 @@ def main():
             s += "(geom target{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
             s += "(value target{} {}), ".format(i, target_pos)
             s += "(rotation target{} {}),".format(i, CAN_ROTATION_INIT)
+            s += "(value pdp_target{} undefined)".format(i)
+            s += get_pr2_undefined_attrs_str("pdp_target{}".format(i))
             s += "(value ee_target{} undefined), ".format(i)
+            s += "(rotation ee_target{} undefined), ".format(i)
 
             if i < NUM_CANS:
                 s += "(geom can{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
@@ -118,18 +135,18 @@ def main():
         s += "(geom {}), ".format("pr2")
         # setting intial state of robot
         s += "(pose pr2 {}), ".format(PR2_INIT_POSE)
-        s += get_pr2_attrs_str('pr2')
+        s += get_pr2_init_attrs_str('pr2')
 
         s += "(value {} {}), ".format("robot_init_pose", PR2_INIT_POSE)
-        s += get_pr2_attrs_str('robot_init_pose')
+        s += get_pr2_init_attrs_str('robot_init_pose')
         s += "(value {} {}), ".format("robot_end_pose", PR2_END_POSE)
-        s += get_pr2_attrs_str('robot_end_pose')
+        s += get_pr2_init_attrs_str('robot_end_pose')
 
         # table pose
         z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT
         s += "(pose {} [0, 0, {}]), ".format("table", z)
-        s += "(geom {} {}), ".format("table", TABLE_GEOM)
-        s += "(rotation {} [0, 0, 0]); ".format("table")
+        s += "(rotation {} {}), ".format("table", CAN_ROTATION_INIT)
+        s += "(geom {} {}); ".format("table", TABLE_GEOM)
 
         for i in range(NUM_CANS):
             s += "(At can{} target{}), ".format(i, i)
@@ -141,10 +158,14 @@ def main():
         for i in range(NUM_TARGETS):
             s += "(InContact pr2 ee_target{} target{}), ".format(i, i)
             s += "(GraspValid ee_target{} target{}), ".format(i, i)
+            s += "(GraspValidRot ee_target{} target{}), ".format(i, i)
+            s += "(EEReachable pr2 pdp_target{} ee_target{}), ".format(i, i)
+            s += "(EEReachableRot pr2 pdp_target{} ee_target{}), ".format(i, i)
         s += "(RobotAt pr2 robot_init_pose), "
         s += "(StationaryArms pr2), "
         s += "(StationaryBase pr2), "
         s += "(IsMP pr2), "
+        s += "(WithinJointLimit pr2), "
         s += "(StationaryW table) \n\n"
 
         s += "Goal: {}".format(GOAL)

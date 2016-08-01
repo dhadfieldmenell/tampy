@@ -52,6 +52,12 @@ class Parameter(object):
     def is_symbol(self):
         return False
 
+    def is_defined(self):
+        for attr_name in self._attr_types.iterkeys():
+            if getattr(self, attr_name) is "undefined":
+                return False
+        return True
+
     def __repr__(self):
         return "%s - %s"%(self.name, self.get_type())
 

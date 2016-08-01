@@ -389,13 +389,17 @@ class OpenRAVEBody(object):
         # ipdb.set_trace()
         return (yaw, pitch, roll)
 
-    def ik_arm_pose(self, ee_pos, ee_rot):
+    def get_ik_arm_pose(self, ee_pos, ee_rot):
         assert isinstance(self._geom, PR2)
         ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
         # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
         rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
-        ee_trans = ee_trans.dot(rot_mat)
+        ee_rot_mat = ee_trans[:3, :3].dot(rot_mat[:3, :3])
+        ee_trans[:3, :3] = ee_rot_mat
         manip = self.env_body.GetManipulator('rightarm')
+        # curr_ee_trans = manip.GetEndEffectorTransform()
         iktype = IkParameterizationType.Transform6D
+        # solution = manip.FindIKSolutions(IkParameterization(curr_ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
         solution = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
+        import ipdb; ipdb.set_trace()
         return solution

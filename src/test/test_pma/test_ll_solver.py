@@ -203,7 +203,7 @@ class TestLLSolver(unittest.TestCase):
     def test_backtrack_putaway2(self):
         _test_plan(self, self.putaway2, method='Backtrack', plot=False)
 
-def _test_plan(test_obj, plan, method='SQP', plot=False, animate=True, verbose=False, 
+def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=False,
                early_converge=False):
     print "testing plan: {}".format(plan.actions)
     if not plot:
@@ -216,7 +216,8 @@ def _test_plan(test_obj, plan, method='SQP', plot=False, animate=True, verbose=F
                 namo_solver._update_ll_params()
                 # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
                 # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
-                viewer.draw_plan(plan)
+                viewer.draw_plan_range(plan, [0,19,38])
+                # viewer.draw_plan(plan)
                 # viewer.draw_cols(plan)
                 time.sleep(0.03)
         elif method == 'Backtrack':

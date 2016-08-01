@@ -41,12 +41,12 @@ class TestCanSolver(unittest.TestCase):
             return hls.solve(abs_problem, domain, problem)
 
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/move.prob')
-        self.move_no_obs = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
-        # self.move_obs = get_plan('../domains/can_domain/can_probs/move_obs.prob')
+        # self.move_no_obs = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
         # self.grasp = get_plan('../domains/can_domain/can_probs/grasp.prob')
-        self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob', ['0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
-        # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
-        self.gen_plan = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
+        self.grasp = get_plan('../domains/can_domain/can_probs/grasp_rot.prob')
+        # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob', ['0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
+        # # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
+        # self.gen_plan = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
 
     def test_move(self):
         pass
@@ -60,6 +60,9 @@ class TestCanSolver(unittest.TestCase):
         pass
         # _test_plan(self, self.grasp)
 
+    def test_grasp_resampling(self):
+        _test_plan(self, self.grasp, n_resamples=3)
+
     def test_moveholding(self):
         pass
         # _test_plan(self, self.moveholding)
@@ -68,7 +71,7 @@ class TestCanSolver(unittest.TestCase):
         pass
         # _test_plan(self, self.gen_plan)
 
-def _test_plan(test_obj, plan):
+def _test_plan(test_obj, plan, n_resamples=0):
     print "testing plan: {}".format(plan.actions)
     callback = None
     viewer = None
@@ -90,7 +93,7 @@ def _test_plan(test_obj, plan):
     """
     """
     solver = can_solver.CanSolver()
-    solver.solve(plan, callback=callback, n_resamples=0, verbose=True)
+    solver.solve(plan, callback=callback, n_resamples=n_resamples, verbose=True)
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()

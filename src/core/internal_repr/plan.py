@@ -27,7 +27,7 @@ class Plan(object):
     @staticmethod
     def create_plan_for_preds(preds, env):
         ## preds is a list of pred, negated
-        ## constructs a plan with a single action that 
+        ## constructs a plan with a single action that
         ## enforces all the preds
         p_dicts = []
         params = set()
@@ -52,7 +52,7 @@ class Plan(object):
     def execute(self):
         raise NotImplementedError
 
-    def get_param(self, pred_type, target_ind, partial_assignment = None, 
+    def get_param(self, pred_type, target_ind, partial_assignment = None,
                   negated=False, return_preds=False):
         """
         get all target_ind parameters of the given predicate type

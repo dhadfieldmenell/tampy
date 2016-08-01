@@ -80,6 +80,7 @@ class ParseProblemConfig(object):
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
                                                                           env=env))
                 except TypeError:
+                    print("type error for {}".format(pred))
                     import pdb; pdb.set_trace()
 
         # use params and initial preds to create an initial State object

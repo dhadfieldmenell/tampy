@@ -21,8 +21,8 @@ BASE_MOVE = 1e0
 IN_GRIPPER_COEFF = 1.
 
 EEREACHABLE_COEFF = 1e0
-EEReachable_OPT_COEFF = 1e2
-EEReachableRot_OPT_COEFF = 1e2
+EEREACHABLE_OPT_COEFF = 1e2
+EEREACHABLE_ROT_OPT_COEFF = 1e2
 INGRIPPER_OPT_COEFF = 1e2
 
 GRASP_VALID_COEFF = 1e1
@@ -31,6 +31,8 @@ contact_dist = 0
 can_radius = 0.04
 COLLISION_TOL = 1e-2
 POSE_TOL = 1e-2
+
+ROBOT_LINKS = 45
 
 
 
@@ -52,7 +54,7 @@ class CollisionPredicate(ExprPredicate):
         _debug = self._debug
         self._env = env
         self._debug = True
-        self.distance_from_obj(self.get_param_vector(t))
+        self.robot_obj_collision(self.get_param_vector(t))
         self._debug = _debug
 
     def plot_collision(self, ptA, ptB, distance):
@@ -138,7 +140,7 @@ class CollisionPredicate(ExprPredicate):
 
     def robot_obj_held_collision(self, x):
         """
-            Similar to distance_from_obj in CollisionPredicate; however, this function take into account of object holding
+            Similar to robot_obj_collision in CollisionPredicate; however, this function take into account of object holding
 
             x: 26 dimensional list of values aligned in following order,
             BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot->HeldPose->HeldRot
@@ -184,7 +186,7 @@ class CollisionPredicate(ExprPredicate):
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
         """
-            This function is helper function of distance_from_obj(self, x)
+            This function is helper function of robot_obj_collision(self, x)
             It calculates collision distance and gradient between each robot's link and object
 
             robot_body: OpenRAVEBody containing body information of pr2 robot
@@ -193,7 +195,8 @@ class CollisionPredicate(ExprPredicate):
         """
         # Initialization
         links = []
-        num_links = len(collisions)
+        # num_links = len(collisions)
+        num_links = ROBOT_LINKS
         for c in collisions:
             # Identify the collision points
             linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
@@ -239,15 +242,15 @@ class CollisionPredicate(ExprPredicate):
         # arrange gradients in proper link order
         vals, robot_grads = np.zeros((num_links,1)), np.zeros((num_links,26))
         links = sorted(links, key = lambda x: x[0])
-        vals[:,0] = np.array([link[1] for link in links])
-        robot_grads[:, range(26)] = np.array([link[2] for link in links]).reshape((num_links, 26))
+        vals[:len(links),0] = np.array([link[1] for link in links])
+        robot_grads[:len(links), range(26)] = np.array([link[2] for link in links]).reshape((len(links), 26))
         # TODO: remove line below which was added for debugging purposes
         self.links = links
         return vals, robot_grads
 
     def _calc_obj_grad_and_val(self, obj_body, obstr_body, collisions):
         """
-            This function is helper function of distance_from_obj(self, x) #Used in ObstructsHolding#
+            This function is helper function of robot_obj_collision(self, x) #Used in ObstructsHolding#
             It calculates collision distance and gradient between each robot's link and obstr,
             and between held object and obstr
 
@@ -990,7 +993,7 @@ class InGripperRot(PosePredicate):
         pos_expr, val = Expr(f, grad), np.zeros((1,1))
         e = EqExpr(pos_expr, val)
 
-        self.opt_expr = EqExpr(Expr(lambda x: INGRIPPER_OPT_COEFF * f(x),
+        self.opt_expr = EqExpr(Expr(lambda x: INGRIPPER_OPT_COEFF*f(x),
                                     lambda x: INGRIPPER_OPT_COEFF*grad(x)),
                                 np.zeros((1,1)))
 
@@ -1127,8 +1130,8 @@ class EEReachable(PosePredicate):
 
         pos_expr = Expr(f, grad)
         e = EqExpr(pos_expr, np.zeros((3,1)))
-        self.opt_expr = EqExpr(Expr(lambda x: EEReachable_OPT_COEFF * f(x),
-                                    lambda x: EEReachable_OPT_COEFF*grad(x)),
+        self.opt_expr = EqExpr(Expr(lambda x: EEREACHABLE_OPT_COEFF * f(x),
+                                    lambda x: EEREACHABLE_OPT_COEFF*grad(x)),
                                 np.zeros((1,1)))
         super(EEReachable, self).__init__(name, e, attr_inds, params, expected_param_types)
 
@@ -1166,8 +1169,8 @@ class EEReachableRot(PosePredicate):
 
         pos_expr = Expr(f, grad)
         e = EqExpr(pos_expr, np.zeros((1,1)))
-        self.opt_expr = EqExpr(Expr(lambda x: EEReachableRot_OPT_COEFF * f(x),
-                                    lambda x: EEReachableRot_OPT_COEFF*grad(x)),
+        self.opt_expr = EqExpr(Expr(lambda x: EEREACHABLE_ROT_OPT_COEFF * f(x),
+                                    lambda x: EEREACHABLE_ROT_OPT_COEFF*grad(x)),
                                 np.zeros((1,1)))
         super(EEReachableRot, self).__init__(name, e, attr_inds, params, expected_param_types)
 
@@ -1367,7 +1370,7 @@ def ee_reachable_resample(self, negated, t, plan):
     attr_inds = OrderedDict()
     res = []
 
-    targets = plan.get_param(GraspValid, 1, {0: self.ee_pose})
+    targets = plan.get_param('GraspValid', 1, {0: self.ee_pose})
     assert len(targets) == 1
     # confirm target is correct
     target_pose = targets[0].value
@@ -1385,7 +1388,7 @@ def ee_reachable_resample(self, negated, t, plan):
     rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
     ee_rot_mat = ee_trans[:3, :3].dot(rot_mat[:3, :3])
     ee_trans[:3, :3] = ee_rot_mat
-    manip = robot_body.env_body.GetManipulator('rightarm')
+    manip = robot_body.env_body.GetManipulator('rightarm_torso')
     # curr_ee_trans = manip.GetEndEffectorTransform()
     iktype = IkParameterizationType.Transform6D
     # solution = manip.FindIKSolutions(IkParameterization(curr_ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
@@ -1396,15 +1399,16 @@ def ee_reachable_resample(self, negated, t, plan):
     # handles.append(self.plot_transform(ee_trans))
     solutions = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
     # import pdb; pdb.set_trace()
-    # v = OpenRAVEViewer.create_viewer()
-    # v.draw_plan_ts(plan, t)
-    
-    if len(solutions) == 0:
+    v = OpenRAVEViewer.create_viewer()
+    v.draw_plan_ts(plan, t)
+
+    import ipdb; ipdb.set_trace()
+    while len(solutions) == 0:
         # import pdb; pdb.set_trace()
         ## resample the base pose
         rand_dir = np.random.rand(2) - 0.5
         rand_dir = rand_dir/np.linalg.norm(rand_dir)
-        bp = rand_dir[:, None] * 0.5 + target_pose[:2, :]
+        bp = rand_dir[:, None] * 0.6 + target_pose[:2, :]
 
         vec = target_pose[:2, :] - bp
         vec = vec / np.linalg.norm(vec)
@@ -1413,34 +1417,46 @@ def ee_reachable_resample(self, negated, t, plan):
         self.robot.pose[2, t] = theta
         robot_body.set_pose(self.robot.pose[:, t])
         solutions = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
-        
+        v = OpenRAVEViewer.create_viewer()
+        v.draw_plan_ts(plan, t)
 
+        # if len(solutions) == 0:
+        #     import pdb; pdb.set_trace()
+        import ipdb; ipdb.set_trace()
 
-    if len(solutions) == 0:
-        import pdb; pdb.set_trace()
-
-    arm_poses = solutions
-    # import ipdb; ipdb.set_trace()
-    # print 'original ', manip.GetEndEffectorTransform()
+    torso_arm_poses = solutions
     cur_arm_pose = self.robot.rArmPose[:, t]
-    closest_arm_pose = None
+    cur_torso_pose = self.robot.backHeight[:, t]
+    cur_torso_arm_pose = np.r_[cur_torso_pose, cur_arm_pose]
+
+    closest_torso_arm_pose = None
     closest_l2 = np.Inf
     for solution in solutions:
-        if np.linalg.norm(solution - cur_arm_pose, ord=np.Inf) < closest_l2:
-            closest_arm_pose = solution
+        if np.linalg.norm(solution - cur_torso_arm_pose, ord=1) < closest_l2:
+            closest_torso_arm_pose = solution
         # robot_body.env_body.SetDOFValues(solution, manip.GetArmIndices())
         # handles.append(self.plot_transform(manip.GetEndEffectorTransform(), s=.2))
         # time.sleep(.3)
 
     # arm_poses = robot_body.get_ik_arm_pose(target_pose, target_rot)
     # arm_pose = arm_poses[0, :]
-    arm_pose = closest_arm_pose
+    torso_pose = closest_torso_arm_pose[:1]
+    arm_pose = closest_torso_arm_pose[1:]
     # confirm arm poses are correct
-    inds = np.where(self.robot._free_attrs['rArmPose'][:, t])
-    val = arm_pose
-    self.robot.rArmPose[inds[0], t] = val[inds[0]]
-    attr_inds[self.robot] = [('rArmPose', inds[0]), ('pose', np.array([0,1,2]))]
-    res.extend(val[inds[0]].flatten().tolist())
+    arm_inds = np.where(self.robot._free_attrs['rArmPose'][:, t])
+    back_inds = np.where(self.robot._free_attrs['backHeight'][:, t])
+    pose_inds = np.where(self.robot._free_attrs['pose'][:, t])
+    self.robot.rArmPose[arm_inds[0], t] = arm_pose[arm_inds[0]]
+    self.robot.backHeight[back_inds[0], t] = torso_pose[back_inds[0]]
+    v = OpenRAVEViewer.create_viewer()
+    v.draw_plan_ts(plan, t)
+    import ipdb; ipdb.set_trace()
+    attr_inds[self.robot] = [('rArmPose', arm_inds[0]),
+                             ('backHeight', back_inds[0]),
+                             ('pose', pose_inds[0])]
+    res.extend(arm_pose[arm_inds[0]].flatten().tolist())
+    res.extend(torso_pose[back_inds[0]].flatten().tolist())
+    # Assumes robot pose is free
     res.extend(self.robot.pose[:,t].flatten().tolist())
 
     inds = np.where(self.ee_pose._free_attrs['value'][:, 0])
