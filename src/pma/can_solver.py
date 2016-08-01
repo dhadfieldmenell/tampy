@@ -16,6 +16,12 @@ from IPython import embed as shell
 
 MAX_PRIORITY=5
 
+attr_map = {'Robot': ['backHeight', 'lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
+            'RobotPose':['backHeight', 'lArmPose', 'lGripper','rArmPose', 'rGripper', 'value'],
+            'EEPose': ['value', 'rotation'],
+            'Can': ['pose', 'rotation'],
+            'Target': ['value', 'rotation'],
+            'Obstacle': ['pose', 'rotation']}
 
 class CanSolver(LLSolver):
     def __init__(self, early_converge=False):
@@ -28,6 +34,124 @@ class CanSolver(LLSolver):
         self._param_to_ll = {}
         self.early_converge=early_converge
         self.child_solver = None
+
+    def backtrack_solve(self, plan, callback=None, anum=0, verbose=False):
+        if anum > len(plan.actions) - 1:
+            return True
+        a = plan.actions[anum]
+        active_ts = a.active_timesteps
+        inits = {}
+        if a.name == 'moveto':
+            ## find possible values for the final pose
+            rs_param = a.params[2]
+        elif a.name == 'movetoholding':
+            ## find possible values for the final pose
+            rs_param = a.params[2]
+        elif a.name == 'grasp':
+            ## sample the grasp/grasp_pose
+            rs_param = a.params[4]
+        elif a.name == 'putdown':
+            ## sample the end pose
+            rs_param = a.params[4]
+        else:
+            raise NotImplemented
+
+        def recursive_solve():
+            ## don't optimize over any params that are already set
+            old_params_free = {}
+            for p in plan.params.itervalues():
+                old_param_map = {}
+                if p.is_symbol():
+                    if p not in a.params: continue
+                    for attr in attr_map[getattr(p, '_type')]:
+                        old_param_map[attr] = p._free_attrs[attr].copy()
+                        p._free_attrs[attr][:] = 0
+                else:
+                    for attr in attr_map[getattr(p, '_type')]:
+                        old_param_map[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
+                        p._free_attrs[attr][:, active_ts[1]] = 0
+                old_params_free[p] = old_param_map
+            self.child_solver = CanSolver()
+            if self.child_solver.backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose):
+                return True
+            ## reset free_attrs
+            for p in a.params:
+                if p.is_symbol():
+                    if p not in a.params: continue
+                    for attr in attr_map[getattr(p, '_type')]:
+                        p._free_attrs[attr] = old_params_free[p][attr]
+                else:
+                    for attr in attr_map[getattr(p, '_type')]:
+                        p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
+            return False
+        if not np.all([rs_param._free_attrs[attr] for attr in attr_map[getattr(rs_param, '_type')]]):
+            ## this parameter is fixed
+            if callback is not None:
+                callback_a = lambda: callback(a)
+            else:
+                callback_a = None
+            self.child_solver = CanSolver()
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
+                                              active_ts = active_ts, verbose=verbose, force_init=True)
+
+            if not success:
+                ## if planning fails we're done
+                return False
+            ## no other options, so just return here
+            return recursive_solve()
+
+        ## so that this won't be optimized over
+        rs_free = {}
+        for attr in attr_map[getattr(rs_param, '_type')]:
+            rs_free[attr] = rs_param._free_attrs[attr].copy()
+            rs_param._free_attrs[attr][:] = 0
+
+        targets = plan.get_param('InContact', 2, {1:rs_param}, negated=False)
+        if len(targets) > 1:
+            import pdb; pdb.set_trace()
+
+        if callback is not None:
+            callback_a = lambda: callback(a)
+        else:
+            callback_a = None
+
+        robot_poses = []
+
+        if len(targets) == 0 or np.all([targets[0]._free_attrs[attr] for attr in attr_map[targets[0]]]):
+            ## sample 4 possible poses
+            coords = list(itertools.product(range(WIDTH), range(HEIGHT)))
+            random.shuffle(coords)
+            robot_poses = [np.array(x)[:, None] for x in coords[:4]]
+        elif np.any([targets[0]._free_attrs[attr] for attr in attr_map[targets[0]]]):
+            ## there shouldn't be only some free_attrs set
+            raise NotImplementedError
+        else:
+            grasp_dirs = [np.array([0, -1]),
+                          np.array([1, 0]),
+                          np.array([0, 1]),
+                          np.array([-1, 0])]
+            grasp_len = plan.params['pr2'].geom.radius + targets[0].geom.radius
+            for g_dir in grasp_dirs:
+                grasp = (g_dir*grasp_len).reshape((2, 1))
+                robot_poses.append(targets[0].value + grasp)
+
+        for rp in robot_poses:
+            rs_param.value = rp
+            success = False
+            self.child_solver = CanSolver()
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
+                                              active_ts = active_ts, verbose=verbose,
+                                              force_init=True)
+            if success:
+                if recursive_solve():
+                    break
+                else:
+                    success = False
+
+        for attr in attr_map[getattr(rs_param, '_type')]:
+            rs_param._free_attrs[attr] = rs_free[attr]
+
+        return success
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, force_init=False):
         success = False
