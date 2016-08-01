@@ -128,7 +128,8 @@ def main():
         # table pose
         z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT
         s += "(pose {} [0, 0, {}]), ".format("table", z)
-        s += "(geom {} {}); ".format("table", TABLE_GEOM)
+        s += "(geom {} {}), ".format("table", TABLE_GEOM)
+        s += "(rotation {} [0, 0, 0]); ".format("table")
 
         for i in range(NUM_CANS):
             s += "(At can{} target{}), ".format(i, i)

@@ -819,8 +819,9 @@ class TestPR2Predicates(unittest.TestCase):
         table.pose = np.array([[.5],[.5],[2]])
         self.assertFalse(pred.test(0))
         self.assertTrue(pred.test(0, negated = True))
-        # This gradient test passed with a box
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # testViewer = viewer.OpenRAVEViewer()
+        # testViewer.draw_traj([robot, can, table, sTable], range(1))
+        # import ipdb; ipdb.set_trace()d.get_param_vector(0), num_check=True, atol=.1)
 
         table.pose = np.array([[.5],[1.45],[.5]])
         table.rotation = np.array([[0.8,0,0]]).T
@@ -835,24 +836,6 @@ class TestPR2Predicates(unittest.TestCase):
         # pred._param_to_body[table].set_pose(table.pose, table.rotation)
         # import ipdb; ipdb.set_trace()
 
-    def test_ik(self):
-        robot = self.setup_robot()
-        can = self.setup_can()
-        env = self.setup_environment()
-        robot_body = OpenRAVEBody(env, robot.name, robot.geom)
-        can_body = OpenRAVEBody(env, can.name, can.geom)
-        robot.pose = np.array([[-.5,0,0]]).T
-        can.pose = np.array([[0,0,0]]).T
-        robot_body.set_pose(robot.pose)
-        can_body.set_pose(can.pose)
-        # env.SetViewer("qtcoin")
-        # robot_body.set_transparency(0.7)
-        # can_body.set_transparency(0.7)
-        # import ipdb; ipdb.set_trace()
-
-        rArmPose = robot_body.ik_arm_pose(can.pose, can.rotation)
-        robot.rArmPose = rArmPose
-        robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
 
 if __name__ == "__main__":
     unittest.main()

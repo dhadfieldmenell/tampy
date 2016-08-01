@@ -104,6 +104,6 @@ class TestViewer(unittest.TestCase):
         """
         To check whether this works uncomment the following
         """
-        testViewer = viewer.OpenRAVEViewer()
-        testViewer.draw_traj([robot, can, table, sTable], range(1))
-        import ipdb; ipdb.set_trace()
+        # testViewer = viewer.OpenRAVEViewer()
+        # testViewer.draw_traj([robot, can, table, sTable], range(1))
+        # import ipdb; ipdb.set_trace()

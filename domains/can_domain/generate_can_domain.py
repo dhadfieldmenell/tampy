@@ -50,7 +50,7 @@ pp.add('Robot', [('geom', 'PR2'),
                 ('rGripper', 'Vector1d')])
 pp.add('EEPose', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
 # pp.add('Grasp', [('value', 'Vector2d')])
-pp.add('Obstacle', [('geom', 'Table'), ('pose', 'Vector3d')])
+pp.add('Obstacle', [('geom', 'Table'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 dom_str += pp.get_str() + '\n\n'
 
 class DerivatedPredicates(object):

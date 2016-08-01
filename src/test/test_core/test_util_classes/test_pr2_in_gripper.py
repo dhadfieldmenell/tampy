@@ -3,6 +3,7 @@ from core.internal_repr import parameter
 from core.util_classes import pr2_predicates, viewer, matrix
 from core.util_classes.can import BlueCan, RedCan
 from core.util_classes.pr2 import PR2
+from pma.can_solver import CanSolver
 import time
 from openravepy import Environment
 import numpy as np
@@ -86,7 +87,7 @@ def _test_plan(test_obj, plan):
         time.sleep(0.03)
     """
     """
-    can_solver = ll_solver.CanSolver()
+    can_solver = CanSolver()
     can_solver.solve(plan, callback=callback, n_resamples=0)
 
     fp = plan.get_failed_preds()
