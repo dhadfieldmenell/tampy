@@ -24,16 +24,18 @@ EEREACHABLE_COEFF = 1e0
 EEREACHABLE_OPT_COEFF = 1e2
 EEREACHABLE_ROT_OPT_COEFF = 1e2
 INGRIPPER_OPT_COEFF = 1e2
+RCOLLIDES_OPT_COEFF = 1e2
 
 GRASP_VALID_COEFF = 1e1
 dsafe = 1e-2
 contact_dist = 0
 can_radius = 0.04
 COLLISION_TOL = 1e-2
-POSE_TOL = 1e-2
+POSE_TOL = 2e-2
 
 ROBOT_LINKS = 45
 
+TABLE_SAMPLING_RADIUS = 2.0
 
 
 class CollisionPredicate(ExprPredicate):
@@ -1347,23 +1349,58 @@ class RCollides(CollisionPredicate):
         f_neg = lambda x: self.robot_obj_collision(x)[0]
         grad_neg = lambda x: self.robot_obj_collision(x)[1]
 
+        f_neg_opt = lambda x: RCOLLIDES_OPT_COEFF*self.robot_obj_collision(x)[0]
+        grad_neg_opt = lambda x: RCOLLIDES_OPT_COEFF*self.robot_obj_collision(x)[1]
+
         col_expr = Expr(f, grad)
         val = np.zeros((45,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
+        col_expr_neg_opt = Expr(f_neg_opt, grad_neg_opt)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
+        self.neg_expr_opt = LEqExpr(col_expr_neg_opt, val)
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
 
-        self.priority = 1
+        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
-            return self.neg_expr
+            return self.neg_expr_opt
         else:
             return None
+
+    def resample(self, negated, t, plan):
+        resample = True
+
+        v = OpenRAVEViewer.create_viewer()
+        while resample:
+            rand_dir = get_random_dir()
+
+            target_pose = self.obstacle.pose[:,t]
+            bp = rand_dir[:] * TABLE_SAMPLING_RADIUS + target_pose[:2]
+            self.robot.pose[:2, t] = bp
+
+            v.draw_plan_ts(plan, t)
+            import ipdb; ipdb.set_trace()
+
+        attr_inds = OrderedDict()
+        pose_inds = np.where(self.robot._free_attrs['pose'][0:2, t])
+        attr_inds[self.robot] = [('pose', pose_inds)]
+        val = bp.flatten()
+        import ipdb; ipdb.set_trace()
+        return val, attr_inds
+
+# def add_val_attr_inds(param, attrs, vals, val, attr_inds):
+#     assert len(attrs) == len(vals)
+#     inds = np.where(param._free_attrs[attr])
+
+def get_random_dir():
+    rand_dir = np.random.rand(2) - 0.5
+    rand_dir = rand_dir/np.linalg.norm(rand_dir)
+    return rand_dir
 
 def ee_reachable_resample(self, negated, t, plan):
     assert not negated
@@ -1406,8 +1443,7 @@ def ee_reachable_resample(self, negated, t, plan):
     while len(solutions) == 0:
         # import pdb; pdb.set_trace()
         ## resample the base pose
-        rand_dir = np.random.rand(2) - 0.5
-        rand_dir = rand_dir/np.linalg.norm(rand_dir)
+        rand_dir = get_random_dir()
         bp = rand_dir[:, None] * 0.6 + target_pose[:2, :]
 
         vec = target_pose[:2, :] - bp
