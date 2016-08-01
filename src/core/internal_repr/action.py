@@ -47,7 +47,7 @@ class Action(object):
             if start <= t and end >= t: res.append(pred_d['pred'])
         return res
 
-    def satisfied(self):
+    def satisfied(self, tol):
         return len(self.get_failed_preds()) == 0
 
     def first_failed_ts(self):

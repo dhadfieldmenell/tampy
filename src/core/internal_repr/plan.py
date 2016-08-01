@@ -1,4 +1,5 @@
 from IPython import embed as shell
+from action import Action
 import numpy as np
 
 class Plan(object):
@@ -13,14 +14,31 @@ class Plan(object):
     """
     IMPOSSIBLE = "Impossible"
 
-    def __init__(self, params, actions, horizon, env):
+    def __init__(self, params, actions, horizon, env, determine_free=True):
         self.params = params
         self.actions = actions
         self.horizon = horizon
         self.env = env
         self.initialized = False
         self._free_params = {}
-        self._determine_free_attrs()
+        if determine_free:
+            self._determine_free_attrs()
+
+    @staticmethod
+    def create_plan_for_preds(preds, env):
+        ## preds is a list of pred, negated
+        ## constructs a plan with a single action that 
+        ## enforces all the preds
+        p_dicts = []
+        params = set()
+        for p, neg in preds:
+            p_dicts.append({'pred': p, 'hl_info': 'pre', 'active_timesteps': (0, 0),
+                            'negated': neg})
+            params = params.union(p.params)
+        params = list(params)
+        a = Action(0, 'dummy', (0,0), params, p_dicts)
+        param_dict = dict([(p.name, p) for p in params])
+        return Plan(param_dict, [a], 1, env, determine_free=False)
 
     def _determine_free_attrs(self):
         for p in self.params.itervalues():
@@ -34,7 +52,8 @@ class Plan(object):
     def execute(self):
         raise NotImplementedError
 
-    def get_param(self, pred_type, target_ind, partial_assignment = None):
+    def get_param(self, pred_type, target_ind, partial_assignment = None, 
+                  negated=False, return_preds=False):
         """
         get all target_ind parameters of the given predicate type
         partial_assignment is a dict that maps indices to parameter
@@ -42,21 +61,31 @@ class Plan(object):
         if partial_assignment is None:
             partial_assignment = {}
         res = []
-        for p in self.get_preds():
+        if return_preds:
+            preds = []
+        for p in self.get_preds(incl_negated = negated):
             has_partial_assignment = True
-            if not isinstance(p, pred_type): continue
+            if p.get_type() != pred_type: continue
             for idx, v in partial_assignment.iteritems():
                 if p.params[idx] != v:
                     has_partial_assignment = False
                     break
             if has_partial_assignment:
                 res.append(p.params[target_ind])
+                if return_preds: preds.append(p)
+        res = np.unique(res)
+        if return_preds:
+            return res, np.unique(preds)
         return res
 
-    def get_preds(self):
+    def get_preds(self, incl_negated):
         res = []
         for a in self.actions:
-            res.extend([p['pred'] for p in a.preds])
+            if incl_negated:
+                res.extend([p['pred'] for p in a.preds if p['hl_info'] != 'hl_state'])
+            else:
+                res.extend([p['pred'] for p in a.preds if p['hl_info'] != 'hl_state' and not p['negated']])
+
         return res
 
     def get_failed_pred(self):
@@ -78,10 +107,10 @@ class Plan(object):
             failed.extend(a.get_failed_preds())
         return failed
 
-    def satisfied(self):
+    def satisfied(self, tol):
         success = True
         for a in self.actions:
-            success &= a.satisfied()
+            success &= a.satisfied(tol)
         return success
 
     def get_active_preds(self, t):
