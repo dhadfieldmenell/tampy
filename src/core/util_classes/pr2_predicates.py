@@ -2,6 +2,7 @@ from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.matrix import Vector3d, PR2PoseVector
+from core.util_classes.viewer import OpenRAVEViewer
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.pr2 import PR2
@@ -9,18 +10,29 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 import numpy as np
 import ctrajoptpy
+import time, math
+from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions
+import openravepy
 
 """
 This file implements the classes for pr2 domain specific predicates
 """
 BASE_MOVE = 1e0
 IN_GRIPPER_COEFF = 1.
-EEREACHABLE_COEFF = 1.
+
+EEREACHABLE_COEFF = 1e0
+EEReachable_OPT_COEFF = 1e2
+EEReachableRot_OPT_COEFF = 1e2
+INGRIPPER_OPT_COEFF = 1e2
+
+GRASP_VALID_COEFF = 1e1
 dsafe = 1e-2
 contact_dist = 0
 can_radius = 0.04
-COLLISION_TOL = 1e-4
-POSE_TOL = 1e-4
+COLLISION_TOL = 1e-2
+POSE_TOL = 1e-2
+
+
 
 class CollisionPredicate(ExprPredicate):
 
@@ -370,7 +382,7 @@ class PosePredicate(ExprPredicate):
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
-        rot_val, rot_jac = self.rot_lock(obj_trans, robot_trans, axises, arm_joints)
+        rot_val, rot_jac = self.rot_error(obj_trans, robot_trans, axises, arm_joints)
 
         return rot_val, rot_jac
 
@@ -448,7 +460,7 @@ class PosePredicate(ExprPredicate):
         local_dir = np.array([0.,0.,1.])
         obj_dir = np.dot(obj_trans[:3,:3], local_dir)
         world_dir = robot_trans[:3,:3].dot(local_dir)
-        obj_dir = obj_dir/np.linalg(obj_dir)
+        obj_dir = obj_dir/np.linalg.norm(obj_dir)
         world_dir = world_dir/np.linalg.norm(world_dir)
         rot_val = np.array([[np.dot(obj_dir, world_dir) - 1]])
         # computing robot's jacobian
@@ -636,7 +648,7 @@ class IsMP(ExprPredicate):
         lb_limit, ub_limit = robot.GetDOFLimits()
         active_ub = ub_limit[dof_inds].reshape((17,1))
         active_lb = lb_limit[dof_inds].reshape((17,1))
-        joint_move = (active_ub-active_lb)/10
+        joint_move = (active_ub-active_lb)/100
         # Setup the Equation so that: Ax+b < val represents
         # |base_pose_next - base_pose| <= BASE_MOVE
         # |joint_next - joint| <= joint_movement_range/10
@@ -719,11 +731,12 @@ class StationaryBase(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.robot,  = params
-        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int)),
-                                               ("backHeight", np.array([0], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0, 1, 2], dtype=np.int))])])
 
-        A = np.c_[np.eye(4), -np.eye(4)]
-        b, val = np.zeros((4, 1)), np.zeros((4, 1))
+        N_DIM=3
+
+        A = np.c_[np.eye(N_DIM), -np.eye(N_DIM)]
+        b, val = np.zeros((N_DIM, 1)), np.zeros((N_DIM, 1))
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryBase, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
@@ -739,8 +752,10 @@ class StationaryArms(ExprPredicate):
                                                ("rArmPose", np.array(range(7), dtype=np.int)),
                                                ("rGripper", np.array([0], dtype=np.int))])])
 
-        A = np.c_[np.eye(16), -np.eye(16)]
-        b, val = np.zeros((16, 1)), np.zeros((16, 1))
+        N_DIM=16
+
+        A = np.c_[np.eye(N_DIM), -np.eye(N_DIM)]
+        b, val = np.zeros((N_DIM, 1)), np.zeros((N_DIM, 1))
         e = EqExpr(AffExpr(A, b), val)
         super(StationaryArms, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
 
@@ -796,16 +811,18 @@ class GraspValidRot(PosePredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.ee_pose, self.target = params
-        attr_inds = OrderedDict([(self.ee_pose, [("value", np.array([0, 1, 2], dtype=np.int)),
-                                                 ("rotation", np.array([0, 1, 2], dtype=np.int))]),
-                                 (self.target, [("value", np.array([0, 1, 2], dtype=np.int)),
-                                                ("rotation", np.array([0, 1, 2], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.ee_pose, [("rotation", np.array([1, 2], dtype=np.int))]),
+                                 (self.target, [("rotation", np.array([1, 2], dtype=np.int))])])
 
-        f = lambda x: IN_GRIPPER_COEFF*self.ee_targ_rot_check(x)[0]
-        grad = lambda x: IN_GRIPPER_COEFF*self.ee_targ_rot_check(x)[1]
+        # f = lambda x: GRASP_VALID_COEFF*self.ee_targ_rot_check(x)[0]
+        # grad = lambda x: GRASP_VALID_COEFF*self.ee_targ_rot_check(x)[1]
 
-        pos_expr, val = Expr(f, grad), np.zeros((1,1))
+        A = np.c_[np.eye(2), -np.eye(2)]
+        b, val = np.zeros((2,1)), np.zeros((2,1))
+        pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
+        # pos_expr, val = Expr(f, grad), np.zeros((1,1))
+        # e = EqExpr(pos_expr, val)
         super(GraspValidRot, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InGripper(PosePredicate):
@@ -831,9 +848,19 @@ class InGripper(PosePredicate):
         f = lambda x: IN_GRIPPER_COEFF*self.pose_check(x)[0]
         grad = lambda x: IN_GRIPPER_COEFF*self.pose_check(x)[1]
 
+        self.opt_expr = EqExpr(Expr(lambda x: INGRIPPER_OPT_COEFF * f(x),
+                                    lambda x: INGRIPPER_OPT_COEFF*grad(x)),
+                                np.zeros((1,1)))
+
+
         pos_expr, val = Expr(f, grad), np.zeros((3,1))
         e = EqExpr(pos_expr, val)
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1)
+
+    def get_expr(self, negated):
+        if negated:
+            return None
+        return self.opt_expr
 
 class InGripperRot(PosePredicate):
 
@@ -860,7 +887,19 @@ class InGripperRot(PosePredicate):
 
         pos_expr, val = Expr(f, grad), np.zeros((1,1))
         e = EqExpr(pos_expr, val)
+
+        self.opt_expr = EqExpr(Expr(lambda x: INGRIPPER_OPT_COEFF * f(x),
+                                    lambda x: INGRIPPER_OPT_COEFF*grad(x)),
+                                np.zeros((1,1)))
+
+
+
         super(InGripperRot, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1)
+
+    def get_expr(self, negated):
+        if negated:
+            return None
+        return self.opt_expr
 
 class InContact(PosePredicate):
     # InContact robot EEPose target
@@ -1005,7 +1044,19 @@ class EEReachable(PosePredicate):
 
         pos_expr = Expr(f, grad)
         e = EqExpr(pos_expr, np.zeros((3,1)))
+        self.opt_expr = EqExpr(Expr(lambda x: EEReachable_OPT_COEFF * f(x),
+                                    lambda x: EEReachable_OPT_COEFF*grad(x)),
+                                np.zeros((1,1)))
         super(EEReachable, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def get_expr(self, negated):
+        if negated:
+            return None
+        else:
+            return self.opt_expr
+
+    def resample(self, negated, t, plan):
+        return ee_reachable_resample(self, negated, t, plan)
 
 class EEReachableRot(PosePredicate):
 
@@ -1031,8 +1082,20 @@ class EEReachableRot(PosePredicate):
         grad = lambda x: EEREACHABLE_COEFF*self.ee_rot_check(x)[1]
 
         pos_expr = Expr(f, grad)
-        e = EqExpr(pos_expr, np.zeros((3,1)))
+        e = EqExpr(pos_expr, np.zeros((1,1)))
+        self.opt_expr = EqExpr(Expr(lambda x: EEReachableRot_OPT_COEFF * f(x),
+                                    lambda x: EEReachableRot_OPT_COEFF*grad(x)),
+                                np.zeros((1,1)))
         super(EEReachableRot, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def get_expr(self, negated):
+        if negated:
+            return None
+        else:
+            return self.opt_expr
+
+    def resample(self, negated, t, plan):
+        return ee_reachable_resample(self, negated, t, plan)
 
 class Obstructs(CollisionPredicate):
 
@@ -1290,3 +1353,94 @@ class RCollides(CollisionPredicate):
             return self.neg_expr
         else:
             return None
+
+def ee_reachable_resample(self, negated, t, plan):
+    assert not negated
+    attr_inds = OrderedDict()
+    res = []
+
+    targets = plan.get_param(GraspValid, 1, {0: self.ee_pose})
+    assert len(targets) == 1
+    # confirm target is correct
+    target_pose = targets[0].value
+    target_rot = self.ee_pose.rotation
+
+    robot_body = self._param_to_body[self.robot]
+    robot_body.set_pose(self.robot.pose[:, t])
+
+    ee_pos = target_pose
+    ee_rot = target_rot
+
+    ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+    # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
+    # rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+    rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+    ee_rot_mat = ee_trans[:3, :3].dot(rot_mat[:3, :3])
+    ee_trans[:3, :3] = ee_rot_mat
+    manip = robot_body.env_body.GetManipulator('rightarm')
+    # curr_ee_trans = manip.GetEndEffectorTransform()
+    iktype = IkParameterizationType.Transform6D
+    # solution = manip.FindIKSolutions(IkParameterization(curr_ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
+    robot_body.set_dof(self.robot.backHeight[:, t], self.robot.lArmPose[:, t], self.robot.lGripper[:, t], self.robot.rArmPose[:, t], self.robot.rGripper[:, t])
+    handles = []
+
+    # import ipdb; ipdb.set_trace()
+    # handles.append(self.plot_transform(ee_trans))
+    solutions = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
+    # import pdb; pdb.set_trace()
+    # v = OpenRAVEViewer.create_viewer()
+    # v.draw_plan_ts(plan, t)
+    
+    if len(solutions) == 0:
+        # import pdb; pdb.set_trace()
+        ## resample the base pose
+        rand_dir = np.random.rand(2) - 0.5
+        rand_dir = rand_dir/np.linalg.norm(rand_dir)
+        bp = rand_dir[:, None] * 0.5 + target_pose[:2, :]
+
+        vec = target_pose[:2, :] - bp
+        vec = vec / np.linalg.norm(vec)
+        theta = math.atan2(vec[1], vec[0])
+        self.robot.pose[:2, t] = bp.flatten()
+        self.robot.pose[2, t] = theta
+        robot_body.set_pose(self.robot.pose[:, t])
+        solutions = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
+        
+
+
+    if len(solutions) == 0:
+        import pdb; pdb.set_trace()
+
+    arm_poses = solutions
+    # import ipdb; ipdb.set_trace()
+    # print 'original ', manip.GetEndEffectorTransform()
+    cur_arm_pose = self.robot.rArmPose[:, t]
+    closest_arm_pose = None
+    closest_l2 = np.Inf
+    for solution in solutions:
+        if np.linalg.norm(solution - cur_arm_pose, ord=np.Inf) < closest_l2:
+            closest_arm_pose = solution
+        # robot_body.env_body.SetDOFValues(solution, manip.GetArmIndices())
+        # handles.append(self.plot_transform(manip.GetEndEffectorTransform(), s=.2))
+        # time.sleep(.3)
+
+    # arm_poses = robot_body.get_ik_arm_pose(target_pose, target_rot)
+    # arm_pose = arm_poses[0, :]
+    arm_pose = closest_arm_pose
+    # confirm arm poses are correct
+    inds = np.where(self.robot._free_attrs['rArmPose'][:, t])
+    val = arm_pose
+    self.robot.rArmPose[inds[0], t] = val[inds[0]]
+    attr_inds[self.robot] = [('rArmPose', inds[0]), ('pose', np.array([0,1,2]))]
+    res.extend(val[inds[0]].flatten().tolist())
+    res.extend(self.robot.pose[:,t].flatten().tolist())
+
+    inds = np.where(self.ee_pose._free_attrs['value'][:, 0])
+    self.ee_pose.value[inds[0], 0] = target_pose[inds[0], 0]
+    res.extend(target_pose[inds[0]].flatten().tolist())
+
+    attr_inds[self.ee_pose] = [('value', inds[0])]
+    # check that indexes are correct
+    # import ipdb; ipdb.set_trace()
+
+    return np.array(res), attr_inds

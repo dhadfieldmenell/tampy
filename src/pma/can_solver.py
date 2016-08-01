@@ -14,20 +14,35 @@ import numpy as np
 GRB = grb.GRB
 from IPython import embed as shell
 
+from core.util_classes.viewer import OpenRAVEViewer
+
 MAX_PRIORITY=5
+BASE_MOVE_COEFF = 10
+TRAJOPT_COEFF=1e3
 
 
 class CanSolver(LLSolver):
     def __init__(self, early_converge=False):
         self.transfer_coeff = 1e1
-        self.rs_coeff = 1e6
-        self.initial_trust_region_size = 1e-1
+        self.rs_coeff = 1e10
+        self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 1e1
         # self.init_penalty_coeff = 1e5
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
         self.child_solver = None
+        self.solve_priorities = [1]
+
+    def _solve_helper(self, plan, callback, active_ts, verbose):
+        # certain constraints should be solved first
+        success = False
+        for priority in self.solve_priorities:
+            success = self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose)
+            # if not success:
+            #     return success
+        # return True
+        return success
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, force_init=False):
         success = False
@@ -36,9 +51,11 @@ class CanSolver(LLSolver):
              ## solve at priority -1 to get an initial value for the parameters
             self._solve_opt_prob(plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose)
             plan.initialized=True
-        success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
-        if success:
-            return success
+
+        success = self._solve_helper(plan, callback=callback, active_ts=active_ts, verbose=verbose)
+        fp = plan.get_failed_preds()
+        if len(fp) == 0:
+            return True
 
 
         for _ in range(n_resamples):
@@ -46,10 +63,13 @@ class CanSolver(LLSolver):
             ## priority 0 resamples the first failed predicate in the plan
             ## and then solves a transfer optimization that only includes linear constraints
             self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
-            success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
-            if success:
-                return success
-        return success
+
+            # self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = self._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
+            fp = plan.get_failed_preds()
+            if len(fp) == 0:
+                return True
+        return False
 
     def _solve_opt_prob(self, plan, priority, callback=None, init=True, init_from_prev=False, active_ts=None,
                         verbose=False):
@@ -70,7 +90,7 @@ class CanSolver(LLSolver):
         if priority == -1:
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_first_and_last_timesteps_of_actions(plan, priority=-1, active_ts=active_ts, verbose=verbose)
+            self._add_first_and_last_timesteps_of_actions(plan, priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=True)
             tol = 1e-1
         elif priority == 0:
             ## this should only get called with a full plan for now
@@ -79,59 +99,85 @@ class CanSolver(LLSolver):
             failed_preds = plan.get_failed_preds()
             ## this is an objective that places
             ## a high value on matching the resampled values
-            obj_bexprs = self._resample(plan, failed_preds)
+            obj_bexprs = []
+            obj_bexprs.extend(self._resample(plan, failed_preds))
             ## solve an optimization movement primitive to
             ## transfer current trajectories
-            obj_bexprs.extend(self._get_transfer_obj(plan, 'min-vel'))
+            obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
+            # obj_bexprs.extend(self._get_transfer_obj(plan, 'min-vel'))
             self._add_obj_bexprs(obj_bexprs)
             # self._add_first_and_last_timesteps_of_actions(
             #     plan, priority=0, add_nonlin=False)
-            self._add_first_and_last_timesteps_of_actions(
-                plan, priority=-1, add_nonlin=True, verbose=verbose)
+
+            # self._add_first_and_last_timesteps_of_actions(
+            #     plan, priority=-1, add_nonlin=True, verbose=verbose)
+            # self._add_all_timesteps_of_actions(
+            #     plan, priority=0, add_nonlin=False, verbose=verbose)
+
             self._add_all_timesteps_of_actions(
-                plan, priority=0, add_nonlin=False, verbose=verbose)
+                plan, priority=1, add_nonlin=True, verbose=verbose)
+
             tol = 1e-1
-        elif priority == 1:
+        elif priority >= 1:
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=1, add_nonlin=True, active_ts=active_ts, verbose=verbose)
-            tol=1e-4
+            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True, active_ts=active_ts, verbose=verbose)
+            tol=1e-3
 
+
+            
+        # v = OpenRAVEViewer.create_viewer()
+        # if priority != -1:
+        #     print priority
+        #     v.draw_plan_ts(plan, 39)
+        #     import pdb; pdb.set_trace()
         solv = Solver()
         solv.initial_trust_region_size = self.initial_trust_region_size
         solv.initial_penalty_coeff = self.init_penalty_coeff
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         self._update_ll_params()
+        # v.draw_plan_ts(plan, 39)
+        # print "priority: {}".format(priority)
+        # import pdb; pdb.set_trace()
         return success
 
     def _get_transfer_obj(self, plan, norm):
         transfer_objs = []
         if norm == 'min-vel':
             for param in plan.params.values():
-                if param._type in ['Robot', 'Can']:
-                    T = plan.horizon
-                    K = 2
-                    pose = param.pose
-                    assert (K, T) == pose.shape
-                    KT = K*T
-                    v = -1 * np.ones((KT - K, 1))
-                    d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-                    # [:,0] allows numpy to see v and d as one-dimensional so
-                    # that numpy will create a diagonal matrix with v and d as a diagonal
-                    P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-                    Q = np.dot(np.transpose(P), P)
-                    cur_pose = pose.reshape((KT, 1), order='F')
-                    A = -2*cur_pose.T.dot(Q)
-                    b = cur_pose.T.dot(Q.dot(cur_pose))
-                    # QuadExpr is 0.5*x^Tx + Ax + b
-                    quad_expr = QuadExpr(2*self.transfer_coeff*Q,
-                                         self.transfer_coeff*A, self.transfer_coeff*b)
-                    ll_param = self._param_to_ll[param]
-                    ll_grb_vars = ll_param.pose.reshape((KT, 1), order='F')
-                    bexpr = BoundExpr(quad_expr, Variable(ll_grb_vars, cur_pose))
-                    transfer_objs.append(bexpr)
+                if param._type in ['Robot', 'Can', 'EEPose']:
+                    for attr_name in param.__dict__.iterkeys():
+                        attr_type = param.get_attr_type(attr_name)
+                        if issubclass(attr_type, Vector):
+                            if param.is_symbol():
+                                T = 1
+                            else:
+                                T = plan.horizon
+                            K = attr_type.dim
+                            attr_val = getattr(param, attr_name)
+
+                            # pose = param.pose
+                            assert (K, T) == attr_val.shape
+                            KT = K*T
+                            v = -1 * np.ones((KT - K, 1))
+                            d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+                            # [:,0] allows numpy to see v and d as one-dimensional so
+                            # that numpy will create a diagonal matrix with v and d as a diagonal
+                            P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+                            Q = np.dot(np.transpose(P), P)
+                            cur_val = attr_val.reshape((KT, 1), order='F')
+                            A = -2*cur_val.T.dot(Q)
+                            b = cur_val.T.dot(Q.dot(cur_val))
+                            # QuadExpr is 0.5*x^Tx + Ax + b
+                            quad_expr = QuadExpr(2*self.transfer_coeff*Q,
+                                                 self.transfer_coeff*A, self.transfer_coeff*b)
+                            param_ll = self._param_to_ll[param]
+                            ll_attr_val = getattr(param_ll, attr_name)
+                            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+                            bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars, cur_val))
+                            transfer_objs.append(bexpr)
         else:
             raise NotImplemented
         return transfer_objs
@@ -146,7 +192,7 @@ class CanSolver(LLSolver):
             ## no resample defined for that pred
             if val is not None: break
         if val is None:
-            return None
+            return []
         t_local = t
         bexprs = []
         i = 0
@@ -300,14 +346,20 @@ class CanSolver(LLSolver):
                         # that numpy will create a diagonal matrix with v and d as a diagonal
                         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
                         Q = np.dot(np.transpose(P), P)
+                        Q *= TRAJOPT_COEFF
 
-                        quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
-                        robot_ll = self._param_to_ll[param]
-                        ll_attr_val = getattr(robot_ll, attr_name)
-                        robot_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-                        # init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
-                        # bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars, init_val))
-                        bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars))
+                        quad_expr = None
+                        if attr_name == 'pose' and param._type == 'Robot':
+                            quad_expr = QuadExpr(BASE_MOVE_COEFF*Q, np.zeros((1,KT)), np.zeros((1,1)))
+                        else:
+                            quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
+                        param_ll = self._param_to_ll[param]
+                        ll_attr_val = getattr(param_ll, attr_name)
+                        param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+                        attr_val = getattr(param, attr_name)
+                        init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
+                        bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars, init_val))
+                        # bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars))
                         traj_objs.append(bexpr)
         return traj_objs
 
