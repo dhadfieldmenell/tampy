@@ -2,19 +2,22 @@ from sco.prob import Prob
 from sco.variable import Variable
 from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
-
+from openravepy import matrixFromAxisAngle
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector
+from core.util_classes.pr2 import PR2
 from core.util_classes.namo_predicates import StationaryW, InContact
-
+from core.util_classes.openrave_body import OpenRAVEBody
 from ll_solver import LLSolver, LLParam
-
+import itertools
 import gurobipy as grb
 import numpy as np
 GRB = grb.GRB
 from IPython import embed as shell
 
-MAX_PRIORITY=5
+MAX_PRIORITY= 5
+SAMPLE_SIZE = 5
+BASE_SAMPLE_SIZE = 5
 
 attr_map = {'Robot': ['backHeight', 'lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
             'RobotPose':['backHeight', 'lArmPose', 'lGripper','rArmPose', 'rGripper', 'value'],
@@ -41,17 +44,21 @@ class CanSolver(LLSolver):
         a = plan.actions[anum]
         active_ts = a.active_timesteps
         inits = {}
+        # Moveto -> Grasp -> Movetoholding -> Putdown
         if a.name == 'moveto':
+            ## moveto: (?robot - Robot ?start - RobotPose ?end - RobotPose)
             ## find possible values for the final pose
             rs_param = a.params[2]
         elif a.name == 'movetoholding':
+            ## movetoholding: (?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can)
             ## find possible values for the final pose
-            rs_param = a.params[2]
+            rs_param = a.params[3]
         elif a.name == 'grasp':
-            ## sample the grasp/grasp_pose
-            rs_param = a.params[4]
+            ## grasp: (?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?ee - EEPose ?ep - RobotPose)
+            ## sample the ee_pose
+            rs_param = a.params[5]
         elif a.name == 'putdown':
-            ## sample the end pose
+            ## putdown: (?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?ee - EEPose ?ep - RobotPose)
             rs_param = a.params[4]
         else:
             raise NotImplemented
@@ -84,7 +91,7 @@ class CanSolver(LLSolver):
                     for attr in attr_map[getattr(p, '_type')]:
                         p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
             return False
-        if not np.all([rs_param._free_attrs[attr] for attr in attr_map[getattr(rs_param, '_type')]]):
+        if rs_param.is_fixed(attr_map[getattr(rs_param, '_type')]):
             ## this parameter is fixed
             if callback is not None:
                 callback_a = lambda: callback(a)
@@ -106,10 +113,14 @@ class CanSolver(LLSolver):
             rs_free[attr] = rs_param._free_attrs[attr].copy()
             rs_param._free_attrs[attr][:] = 0
 
-        targets = plan.get_param('InContact', 2, {1:rs_param}, negated=False)
+        # Target is needed to sample the ee_pose, ee_pose is needed to sample the robot_pose
+        # InContact, Robot, EEPose, Target
+        targets = plan.get_param('InContact', 2, {1: rs_param}, negated=False)
+        # EEReachable, Robot, RobotPose, EEPose
+        robot_pose = plan.get_param('EEReachable', 1, {2: rs_param}, negated=False)
+
         if len(targets) > 1:
             import pdb; pdb.set_trace()
-
         if callback is not None:
             callback_a = lambda: callback(a)
         else:
@@ -152,6 +163,58 @@ class CanSolver(LLSolver):
             rs_param._free_attrs[attr] = rs_free[attr]
 
         return success
+
+    def sample_ee_from_target(self, target):
+        """
+            Sample all possible EE Pose that pr2 can grasp with
+
+            target: parameter of type Target
+            return: list of tuple in the format of (ee_pos, ee_rot)
+        """
+        possible_ee_poses = []
+        targ_pos, targ_rot = target.value.flatten(), target.rotation.flatten()
+        ee_pos = targ_pos.copy()
+        target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
+        # rotate can's local z-axis by the amount of linear spacing between 0 to 2pi
+        angle_range = np.linspace(0, np.pi*2, num=SAMPLE_SIZE)
+        for rot in angle_range:
+            target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
+            # rotate new ee_pose around can's rotation axis
+            rot_mat = matrixFromAxisAngle([0, 0, rot])
+            ee_trans = target_trans.dot(rot_mat)
+            ee_rot = OpenRAVEBody.obj_pose_from_transform(ee_trans)[3:]
+            possible_ee_poses.append((ee_pos, ee_rot))
+        return possible_ee_poses
+
+    def sample_rp_from_ee(self, env, rs_param, ee_pose):
+        """
+            Using Inverse Kinematics to solve all possible robot armpose and basepose that reaches this ee_pose
+
+            robot_pose: list of full robot pose with format of(basepose, backHeight, lArmPose, lGripper, rArmPose, rGripper)
+        """
+        ee_pos, ee_rot = ee_pose[0], ee_pose[1]
+        base_raidus = np.linspace(-1,1, num = BASE_SAMPLE_SIZE)
+        poses = list(itertools.product(base_raidus, base_raidus))
+        # sample
+        dummy_body = OpenRAVEBody(env, rs_param.name, PR2())
+        possible_robot_pose = []
+        for pos in poses:
+            bp = pos + ee_pos[:2]
+            vec = ee_pos[:2] - bp
+            vec = vec / np.linalg.norm(vec)
+            theta = math.atan2(vec[1], vec[0])
+            bp = np.array([bp[0], bp[1], theta])
+            dummy_body.set_pose(bp)
+            arm_poses = robot_body.ik_arm_pose(ee_pos, ee_rot)
+            for arm_pose in arm_poses:
+                possible_robot_pose.append((bp, ee_arm_poses[0], rs_param.lArmPose, rs_param.lGripper, ee_arm_poses[1:], rs_param.rGripper))
+
+        import ipdb; ipdb.set_trace()
+        dummy_body.delete()
+        return possible_robot_pose
+
+    def closest_arm_pose(self, arm_poses, cur_arm_poses):
+        pass
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, force_init=False):
         success = False
