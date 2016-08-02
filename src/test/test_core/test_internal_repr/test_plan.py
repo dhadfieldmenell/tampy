@@ -9,6 +9,8 @@ from core.util_classes import namo_predicates
 from errors_exceptions import PredicateException
 import numpy as np
 
+PLAN_TOL = 1e-4
+
 class TestPlan(unittest.TestCase):
 
     def setup(self):
@@ -68,7 +70,7 @@ class TestPlan(unittest.TestCase):
         test_plan = plan.Plan(plan_params, plan_actions, 10, 1) #1 is a dummy_env
 
         with self.assertRaises(PredicateException) as cm:
-            test_plan.satisfied()
+            test_plan.satisfied(PLAN_TOL)
         self.assertEqual(cm.exception.message, "Out of range time for predicate 'At_0: (At can1 target)'.")
         self.robot.pose = np.array([[3, 4, 7, 7],
                                     [2, 5, 8, 9]])
@@ -80,19 +82,19 @@ class TestPlan(unittest.TestCase):
                                      [9]])
         self.target.value = np.array([[5],
                                       [5]])
-        self.assertFalse(test_plan.satisfied())
+        self.assertFalse(test_plan.satisfied(PLAN_TOL))
         self.assertEqual(test_plan.get_failed_pred(), (False, self.pred2, 2))
         self.assertEqual(test_plan.get_failed_preds(), [(False, self.pred1, 3), (False, self.pred2, 2)])
         self.robot.pose = np.array([[3, 4, 7, 7],
                                     [2, 5, 9, 9]])
         self.assertEqual(test_plan.get_failed_pred(), (False, self.pred1, 3))
         self.assertEqual(test_plan.get_failed_preds(), [(False, self.pred1, 3)])
-        self.assertFalse(test_plan.satisfied())
+        self.assertFalse(test_plan.satisfied(PLAN_TOL))
         self.can2.pose = np.array([[9, 5, 5, 5],
                                    [4, 5, 5, 5]])
         self.assertEqual(test_plan.get_failed_pred(), (False, None, 11))
         self.assertEqual(test_plan.get_failed_preds(), [])
-        self.assertTrue(test_plan.satisfied())
+        self.assertTrue(test_plan.satisfied(PLAN_TOL))
 
     def test_get_active_preds(self):
         self.setup()

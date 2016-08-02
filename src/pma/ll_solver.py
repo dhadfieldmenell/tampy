@@ -5,7 +5,7 @@ from sco.solver import Solver
 
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector, Vector2d
-from core.util_classes.namo_predicates import StationaryW, InContact
+# from core.util_classes.namo_predicates import StationaryW, InContact
 
 import gurobipy as grb
 import numpy as np

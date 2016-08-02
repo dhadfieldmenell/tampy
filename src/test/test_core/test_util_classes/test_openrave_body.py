@@ -130,13 +130,12 @@ class TestOpenRAVEBody(unittest.TestCase):
         robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
         # Solve the IK solution
         ik_arm = robot_body.ik_arm_pose(can.pose, can.rotation)[0]
-        robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, ik_arm, robot.rGripper)
+        robot_body.set_dof(ik_arm[:1], robot.lArmPose, robot.lGripper, ik_arm[1:], robot.rGripper)
         robot_trans = robot_body.env_body.GetLink("r_gripper_tool_frame").GetTransform()
         robot_pos = OpenRAVEBody.obj_pose_from_transform(robot_trans)
         # resulted robot eepose should be exactly the same as that can pose
-        self.assertEqual(can.pose, robot_pos[:3])
-        self.assertEqual(can.rotation, robot_pos[3:])
-
+        self.assertTrue(np.allclose(can.pose.flatten(), robot_pos[:3], atol = 1e-4))
+        self.assertTrue(np.allclose(can.rotation.flatten(), robot_pos[3:], atol = 1e-4))
         """
             Uncomment the following to see the robot arm pose
         """
