@@ -52,6 +52,10 @@ class Parameter(object):
     def is_symbol(self):
         return False
 
+    def is_fixed(self, attr_list, t):
+        ## This function checks whether any of the attribute value at timestep t is fixed
+        return not np.all([self._free_attrs[attr][:, t] for attr in attr_list])
+
     def __repr__(self):
         return "%s - %s"%(self.name, self.get_type())
 
