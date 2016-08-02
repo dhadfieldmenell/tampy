@@ -117,13 +117,14 @@ class OpenRAVEBody(object):
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
-    def set_pose(self, base_pose, rotation = np.array([[0],[0],[0]])):
+    def set_pose(self, base_pose, rotation = None):
         trans = None
         if isinstance(self._geom, Circle) or isinstance(self._geom, Obstacle) or isinstance(self._geom, Wall):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, PR2):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif isinstance(self._geom, Table) or isinstance(self._geom, Can) or isinstance(self._geom, Box):
+            assert rotation != None
             trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)
 
@@ -391,11 +392,15 @@ class OpenRAVEBody(object):
 
     def ik_arm_pose(self, ee_pos, ee_rot):
         assert isinstance(self._geom, PR2)
+        manip = self.env_body.GetManipulator('rightarm_torso')
+        iktype = IkParameterizationType.Transform6D
+        solution = self.ik_solution(manip, iktype, ee_pos, ee_rot)
+        return solution
+
+    def ik_solution(self, manip, iktype, ee_pos, ee_rot):
         ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
         # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
         rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
         ee_trans = ee_trans.dot(rot_mat)
-        manip = self.env_body.GetManipulator('rightarm')
-        iktype = IkParameterizationType.Transform6D
-        solution = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
-        return solution
+        solutions = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
+        return solutions
