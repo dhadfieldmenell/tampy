@@ -81,7 +81,8 @@ class CollisionPredicate(ExprPredicate):
         # Parse the pose value
         self._plot_handles = []
         flattened = tuple(x.round(5).flatten())
-        if flattened in self._cache:
+        # cache prevents plotting
+        if flattened in self._cache and not self._debug:
             return self._cache[flattened]
 
         back_height = x[0:1]
@@ -120,7 +121,8 @@ class CollisionPredicate(ExprPredicate):
         """
         self._plot_handles = []
         flattened = tuple(x.round(5).flatten())
-        if flattened in self._cache:
+        # cache prevents plotting
+        if flattened in self._cache and not self._debug:
             return self._cache[flattened]
 
         # Parse the pose value
@@ -152,7 +154,8 @@ class CollisionPredicate(ExprPredicate):
         """
         self._plot_handles = []
         flattened = tuple(x.round(5).flatten())
-        if flattened in self._cache:
+        # cache prevents plotting
+        if flattened in self._cache and not self._debug:
             return self._cache[flattened]
         # Parse the pose value
         # obj_body -> self.obstruct
