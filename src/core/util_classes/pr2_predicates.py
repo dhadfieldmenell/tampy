@@ -6,6 +6,8 @@ from core.util_classes.viewer import OpenRAVEViewer
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.pr2 import PR2
+from core.util_classes.sampling import get_col_free_base_pose_around_target, \
+    get_col_free_torso_arm_pose, get_random_theta
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 import numpy as np
@@ -13,6 +15,7 @@ import ctrajoptpy
 import time, math
 from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions
 import openravepy
+from ipdb import set_trace as st
 
 """
 This file implements the classes for pr2 domain specific predicates
@@ -25,6 +28,7 @@ EEREACHABLE_OPT_COEFF = 1e3
 EEREACHABLE_ROT_OPT_COEFF = 3e2
 INGRIPPER_OPT_COEFF = 1e2
 RCOLLIDES_OPT_COEFF = 1e2
+OBSTRUCTS_OPT_COEFF = 1e2
 
 GRASP_VALID_COEFF = 1e1
 dsafe = 1e-2
@@ -38,6 +42,10 @@ ROBOT_LINKS = 45
 TABLE_SAMPLING_RADIUS = 2.0
 OBJ_RING_SAMPLING_RADIUS = 0.6
 
+APPROACH_DIST = 0.05
+
+GRIPPER_OPEN_VALUE = 0.5
+GRIPPER_CLOSE_VALUE = 0.46
 
 NUM_EEREACHABLE_RESAMPLE_ATTEMPTS = 10
 
@@ -990,8 +998,10 @@ class GraspValidRot(PosePredicate):
         # f = lambda x: GRASP_VALID_COEFF*self.ee_targ_rot_check(x)[0]
         # grad = lambda x: GRASP_VALID_COEFF*self.ee_targ_rot_check(x)[1]
 
-        A = np.c_[np.eye(2), -np.eye(2)]
-        b, val = np.zeros((2,1)), np.zeros((2,1))
+        # A = np.c_[np.eye(2), -np.eye(2)]
+        A = np.eye(4)
+        # b, val = np.zeros((2,1)), np.zeros((2,1))
+        b, val = np.zeros((4,1)), np.zeros((4,1))
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         # pos_expr, val = Expr(f, grad), np.zeros((1,1))
@@ -1068,40 +1078,33 @@ class InGripperRot(PosePredicate):
 
 
         super(InGripperRot, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1)
+        # self.priority = 2
 
     def get_expr(self, negated):
         if negated:
             return None
         return self.opt_expr
 
-class InContact(PosePredicate):
+class InContact(ExprPredicate):
     # InContact robot EEPose target
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, self.ee_pose, self.target = params
-        attr_inds = OrderedDict([(self.robot, [("pose", np.array([0,1,2], dtype=np.int)),
-                                            ("backHeight", np.array([0], dtype=np.int)),
-                                            ("lArmPose", np.array(range(7), dtype=np.int)),
-                                            ("lGripper", np.array([0], dtype=np.int)),
-                                            ("rArmPose", np.array(range(7), dtype=np.int)),
-                                            ("rGripper", np.array([0], dtype=np.int))])])
+        attr_inds = OrderedDict([(self.robot, [("rGripper", np.array([0], dtype=np.int))])])
 
-        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+        A = np.eye(1).reshape((1,1))
+        b = np.zeros(1).reshape((1,1))
 
-        # f = lambda x: self.finger_pose_check(x)[0]
-        # grad = lambda x: self.finger_pose_check(x)[1]
+        val = np.array([[GRIPPER_CLOSE_VALUE]])
+        aff_expr = AffExpr(A, b)
+        e = EqExpr(aff_expr, val)
 
-        f = lambda x: self.set_gripper_value(x)[0]
-        grad = lambda x: self.set_gripper_value(x)[1]
+        aff_expr = AffExpr(A, b)
+        val = np.array([[GRIPPER_OPEN_VALUE]])
+        self.neg_expr = EqExpr(aff_expr, val)
 
-        f_neg = lambda x: self.set_gripper_value(x, negated=True)[0]
-        grad_neg = lambda x: self.set_gripper_value(x, negated=True)[1]
+        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types)
 
-        self.neg_expr = Expr(f_neg, grad_neg)
-
-        fing_expr, val = Expr(f, grad), np.zeros((1,1))
-        e = EqExpr(fing_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, ind0 = 0, ind1 = 2)
 
 class InContact2(PosePredicate):
     # InContact robot EEPose target
@@ -1269,11 +1272,12 @@ class EEReachableRot(PosePredicate):
         grad = lambda x: EEREACHABLE_COEFF*self.ee_rot_check(x)[1]
 
         pos_expr = Expr(f, grad)
-        e = EqExpr(pos_expr, np.zeros((1,1)))
+        e = EqExpr(pos_expr, np.zeros((3,1)))
         self.opt_expr = EqExpr(Expr(lambda x: EEREACHABLE_ROT_OPT_COEFF * f(x),
                                     lambda x: EEREACHABLE_ROT_OPT_COEFF*grad(x)),
                                 np.zeros((1,1)))
         super(EEReachableRot, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
@@ -1324,12 +1328,17 @@ class Obstructs(CollisionPredicate):
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=3, debug=debug)
+        self.priority = 0
 
     def get_expr(self, negated):
         if negated:
             return self.neg_expr
         else:
             return None
+
+    def resample(self, negated, t, plan):
+        target_pose = self.can.pose[:, t]
+        return resample_bp_around_target(self, t, plan, target_pose, dist=OBJ_RING_SAMPLING_RADIUS)
 
 class ObstructsHolding(CollisionPredicate):
 
@@ -1374,13 +1383,22 @@ class ObstructsHolding(CollisionPredicate):
 
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
+        self.neg_expr_opt = LEqExpr(get_expr_mult(OBSTRUCTS_OPT_COEFF, col_expr_neg), val)
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug)
+
+        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
-            return self.neg_expr
+            return self.neg_expr_opt
         else:
             return None
+
+    def resample(self, negated, t, plan):
+        target_pose = self.obstruct.pose[:, t]
+        return resample_bp_around_target(self, t, plan, target_pose,
+                                        dist=OBJ_RING_SAMPLING_RADIUS)
+
 
 class Collides(CollisionPredicate):
 
@@ -1411,7 +1429,7 @@ class Collides(CollisionPredicate):
 
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, debug=debug)
-        self.priority = 1
+        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
@@ -1472,25 +1490,24 @@ class RCollides(CollisionPredicate):
             return None
 
     def resample(self, negated, t, plan):
-        resample = True
+        target_pose = self.obstacle.pose[:, t]
+        return resample_bp_around_target(self, t, plan, target_pose,
+                                        dist=TABLE_SAMPLING_RADIUS)
 
-        v = OpenRAVEViewer.create_viewer()
-        while resample:
-            rand_dir = get_random_dir()
+def resample_bp_around_target(pred, t, plan, target_pose, dist=OBJ_RING_SAMPLING_RADIUS):
+    v = OpenRAVEViewer.create_viewer()
 
-            target_pose = self.obstacle.pose[:,t]
-            bp = rand_dir[:] * TABLE_SAMPLING_RADIUS + target_pose[:2]
-            self.robot.pose[:2, t] = bp
+    bp = get_col_free_base_pose_around_target(t, plan, target_pose, pred.robot,
+                                        save=True, dist=dist)
+    v.draw_plan_ts(plan, t)
 
-            v.draw_plan_ts(plan, t)
-            import ipdb; ipdb.set_trace()
+    attr_inds = OrderedDict()
+    res = []
+    robot_attr_name_val_tuples = [('pose', bp)]
+    add_to_attr_inds_and_res(t, attr_inds, res, pred.robot,
+                            robot_attr_name_val_tuples)
+    return np.array(res), attr_inds
 
-        attr_inds = OrderedDict()
-        pose_inds = np.where(self.robot._free_attrs['pose'][0:2, t])
-        attr_inds[self.robot] = [('pose', pose_inds)]
-        val = bp.flatten()
-        import ipdb; ipdb.set_trace()
-        return val, attr_inds
 def get_expr_mult(coeff, expr):
     new_f = lambda x: coeff*expr.eval(x)
     new_grad = lambda x: coeff*expr.grad(x)

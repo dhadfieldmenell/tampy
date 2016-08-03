@@ -124,12 +124,11 @@ class OpenRAVEViewer(Viewer):
         self.name_to_rave_body[name].set_transparency(transparency)
 
     def animate_plan(self, plan, delay=.1):
-        obj_list = []
-        horizon = plan.horizon
-        for p in plan.params.itervalues():
-            if not p.is_symbol():
-                obj_list.append(p)
-        for t in range(horizon):
+        self.animate_range(plan, (0, plan.horizon-1), delay=delay)
+
+    def animate_range(self, plan, (start, end), delay=.1):
+        obj_list = self._get_plan_obj_list(plan)
+        for t in range(start, end+1):
             self.draw(obj_list, t)
             time.sleep(delay)
 
@@ -160,6 +159,10 @@ class OpenRAVEViewer(Viewer):
     def draw_cols(self, plan):
         horizon = plan.horizon
         for t in range(horizon):
+            self.draw_cols_ts(plan, t)
+
+    def draw_cols_range(self, plan, (start, end)):
+        for t in range(start, end+1):
             self.draw_cols_ts(plan, t)
 
     def draw_cols_ts(self, plan, t):
