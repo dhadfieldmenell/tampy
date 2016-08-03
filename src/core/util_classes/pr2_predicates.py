@@ -26,7 +26,7 @@ IN_GRIPPER_COEFF = 1.
 EEREACHABLE_COEFF = 1e0
 EEREACHABLE_OPT_COEFF = 1e3
 EEREACHABLE_ROT_OPT_COEFF = 3e2
-INGRIPPER_OPT_COEFF = 1e2
+INGRIPPER_OPT_COEFF = 3e2
 RCOLLIDES_OPT_COEFF = 1e2
 OBSTRUCTS_OPT_COEFF = 1e2
 
@@ -1277,7 +1277,6 @@ class EEReachableRot(PosePredicate):
                                     lambda x: EEREACHABLE_ROT_OPT_COEFF*grad(x)),
                                 np.zeros((1,1)))
         super(EEReachableRot, self).__init__(name, e, attr_inds, params, expected_param_types)
-        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
@@ -1328,7 +1327,7 @@ class Obstructs(CollisionPredicate):
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=3, debug=debug)
-        self.priority = 0
+        self.priority = 2
 
     def get_expr(self, negated):
         if negated:

@@ -18,7 +18,7 @@ from core.util_classes.viewer import OpenRAVEViewer
 
 MAX_PRIORITY=5
 BASE_MOVE_COEFF = 10
-TRAJOPT_COEFF=1e3
+TRAJOPT_COEFF=1e4
 
 
 class CanSolver(LLSolver):
