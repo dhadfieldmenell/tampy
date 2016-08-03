@@ -43,6 +43,7 @@ TABLE_SAMPLING_RADIUS = 2.0
 OBJ_RING_SAMPLING_RADIUS = 0.6
 
 APPROACH_DIST = 0.05
+RETREAT_DIST = 0.075
 
 GRIPPER_OPEN_VALUE = 0.5
 GRIPPER_CLOSE_VALUE = 0.46
@@ -1211,7 +1212,10 @@ class EEReachable(PosePredicate):
         super(EEReachable, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(-self._steps, self._steps))
 
     def get_rel_pt(self, rel_step):
-        return -np.abs(rel_step)*np.array([APPROACH_DIST, 0, 0])
+        if rel_step <= 0:
+            return rel_step*np.array([APPROACH_DIST, 0, 0])
+        else:
+            return rel_step*np.array([0, 0, RETREAT_DIST])
 
     def stacked_f(self, x):
         i = 0
@@ -1602,8 +1606,9 @@ def ee_reachable_resample(pred, negated, t, plan):
             print "we should be able to find an IK"
             continue
 
-        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot.flatten())
-        rel_pt = pred.get_rel_pt(pred._steps)
+        # generate approach IK
+        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot)
+        rel_pt = pred.get_rel_pt(-pred._steps)
         target_pose_approach = np.dot(ee_trans, np.r_[rel_pt, 1])[:3]
 
         torso_pose_approach, arm_pose_approach = get_col_free_torso_arm_pose(
@@ -1612,7 +1617,21 @@ def ee_reachable_resample(pred, negated, t, plan):
                                                     arm_pose_seed=arm_pose,
                                                     callback=target_trans_callback)
         st()
-        if torso_pose_approach is not None:
+        if torso_pose_approach is None:
+            continue
+
+        # generate retreat IK
+        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot)
+        rel_pt = pred.get_rel_pt(pred._steps)
+        target_pose_retreat = np.dot(ee_trans, np.r_[rel_pt, 1])[:3]
+
+        torso_pose_retreat, arm_pose_retreat = get_col_free_torso_arm_pose(
+                                                    t, target_pose_retreat, target_rot,
+                                                    robot, robot_body, save=True,
+                                                    arm_pose_seed=arm_pose,
+                                                    callback=target_trans_callback)
+        st()
+        if torso_pose_retreat is not None:
             break
     else:
         print "we should always be able to sample a collision-free base and arm pose"
@@ -1620,18 +1639,25 @@ def ee_reachable_resample(pred, negated, t, plan):
 
     attr_inds = OrderedDict()
     res = []
-    arm_traj = lin_interp_traj(arm_pose, arm_pose_approach, pred._steps)
-    torso_traj = lin_interp_traj(torso_pose, torso_pose_approach, pred._steps)
-    base_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
+    arm_approach_traj = lin_interp_traj(arm_pose_approach, arm_pose, pred._steps)
+    torso_approach_traj = lin_interp_traj(torso_pose_approach, torso_pose, pred._steps)
+    base_approach_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
+
+    arm_retreat_traj = lin_interp_traj(arm_pose, arm_pose_retreat, pred._steps)
+    torso_retreat_traj = lin_interp_traj(torso_pose, torso_pose_retreat, pred._steps)
+    base_retreat_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
+
+    arm_traj = np.hstack((arm_approach_traj, arm_retreat_traj[:, 1:]))
+    torso_traj = np.hstack((torso_approach_traj, torso_retreat_traj[:, 1:]))
+    base_traj = np.hstack((base_approach_traj, base_retreat_traj[:, 1:]))
 
     # add attributes for approach and retreat
-    for t_rel in range(-pred._steps, pred._steps+1):
-        ind = abs(t_rel)
+    for ind in range(2*pred._steps+1):
         robot_attr_name_val_tuples = [('rArmPose', arm_traj[:, ind]),
                                       ('backHeight', torso_traj[:, ind]),
                                       ('pose', base_traj[:, ind])]
-        add_to_attr_inds_and_res(t+t_rel, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
-    import ipdb; ipdb.set_trace()
+        add_to_attr_inds_and_res(t+ind-pred._steps, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
+    st()
 
     ee_pose_attr_name_val_tuples = [('value', target_pose),
                                     ('rotation', target_rot)]
