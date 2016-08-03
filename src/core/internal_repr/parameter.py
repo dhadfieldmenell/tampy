@@ -18,6 +18,7 @@ class Parameter(object):
     def __init__(self, *args):
         self.openrave_body = None
         self._free_attrs = {}
+        self._saved_free_attrs = {}
 
     def get_attr_type(self, attr_name):
         raise NotImplementedError("get_attr_type not implemented for Parameter.")
@@ -27,6 +28,8 @@ class Parameter(object):
             return OpenRAVEBody
         elif attr_name == '_free_attrs':
             return dict
+        elif attr_name == '_saved_free_attrs':
+            return dict
         return self._attr_types[attr_name]
 
     def get_type(self):
@@ -34,6 +37,14 @@ class Parameter(object):
 
     def is_symbol(self):
         return False
+
+    def save_free_attrs(self):
+        self._saved_free_attrs = {}
+        for k, v in self._free_attrs.iteritems():
+            self._saved_free_attrs[k] = v.copy()
+
+    def restore_free_attrs(self):
+        self._free_attrs = self._saved_free_attrs
 
     def __repr__(self):
         return "%s - %s"%(self.name, self.get_type())

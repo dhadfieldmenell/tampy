@@ -15,6 +15,8 @@ import itertools, random
 MAX_PRIORITY=5
 WIDTH=7
 HEIGHT=2
+TRAJOPT_COEFF = 1e0
+dsafe = 1e-1
 
 class LLSolver(object):
     """
@@ -149,7 +151,14 @@ class NAMOSolver(LLSolver):
         self.early_converge=early_converge
         self.transfer_norm = transfer_norm
 
-    def backtrack_solve(self, plan, callback=None, anum=0, verbose=False):
+    def backtrack_solve(self, plan, callback=None, verbose=False):
+        plan.save_free_attrs()
+        success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
+        plan.restore_free_attrs()
+        return success
+        
+
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False):
         if anum > len(plan.actions) - 1:
             return True
         a = plan.actions[anum]
@@ -182,7 +191,7 @@ class NAMOSolver(LLSolver):
                     old_params_free[p] = p._free_attrs['pose'][:, active_ts[1]].copy()
                     p._free_attrs['pose'][:, active_ts[1]] = 0
             self.child_solver = NAMOSolver()
-            if self.child_solver.backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose):
+            if self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose):
                 return True
             ## reset free_attrs
             for p in a.params:
@@ -236,7 +245,7 @@ class NAMOSolver(LLSolver):
                           np.array([1, 0]), 
                           np.array([0, 1]), 
                           np.array([-1, 0])]
-            grasp_len = plan.params['pr2'].geom.radius + targets[0].geom.radius
+            grasp_len = plan.params['pr2'].geom.radius + targets[0].geom.radius - dsafe
             for g_dir in grasp_dirs:
                 grasp = (g_dir*grasp_len).reshape((2, 1))
                 robot_poses.append(targets[0].value + grasp)
@@ -264,6 +273,7 @@ class NAMOSolver(LLSolver):
             self._solve_opt_prob(plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose)
             plan.initialized=True
         success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+        success = plan.satisfied(active_ts)
         if success:
             return success
 
@@ -274,6 +284,7 @@ class NAMOSolver(LLSolver):
             ## and then solves a transfer optimization that only includes linear constraints
             self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
             success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = plan.satisfied(active_ts)
             if success:
                 return success
         return success
@@ -335,6 +346,22 @@ class NAMOSolver(LLSolver):
         self._update_ll_params()
         self._failed_groups = self._prob.nonconverged_groups
         return success
+
+    def get_value(self, plan, penalty_coeff=1e0):
+        model = grb.Model()
+        model.params.OutputFlag = 0
+        self._prob = Prob(model)
+        # param_to_ll_old = self._param_to_ll.copy()
+        self._spawn_parameter_to_ll_mapping(model, plan)
+        model.update()
+        self._bexpr_to_pred = {}
+
+        obj_bexprs = self._get_trajopt_obj(plan)
+        self._add_obj_bexprs(obj_bexprs)
+        self._add_all_timesteps_of_actions(plan, priority=1, add_nonlin=True, verbose=False)
+        return self._prob.get_value(penalty_coeff)
+
+        
 
     def _get_transfer_obj(self, plan, norm):
         transfer_objs = []
@@ -547,6 +574,8 @@ class NAMOSolver(LLSolver):
                 P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
                 Q = np.dot(np.transpose(P), P)
 
+                Q *= TRAJOPT_COEFF
+
                 quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
                 robot_ll = self._param_to_ll[param]
                 robot_ll_grb_vars = robot_ll.pose.reshape((KT, 1), order='F')
@@ -582,7 +611,7 @@ class NAMOSolver(LLSolver):
                         v[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
                     else:
                         x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t+1 - self.ll_start]
-                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
+                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, t+1]
                     i += n_vals
         assert i >= pred.x_dim
         x = x.reshape((pred.x_dim, 1))

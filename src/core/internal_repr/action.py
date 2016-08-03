@@ -27,14 +27,15 @@ class Action(object):
     def __repr__(self):
         return "%d: %s %s %s"%(self.step_num, self.name, self.active_timesteps, " ".join([p.name for p in self.params]))
 
-    def get_failed_preds(self):
+    def get_failed_preds(self, active_ts):
         failed = []
         for pred_d in self.preds:
             if pred_d['hl_info'] == 'hl_state': continue
             pred = pred_d['pred']
             negated = pred_d['negated']
             start, end = pred_d['active_timesteps']
-            for t in range(start, end+1):
+            for t in range(max(start, active_ts[0]), 
+                           min(end, active_ts[1])+1):
                 if not pred.test(t, negated=negated):
                     failed.append((negated, pred, t))
         return failed
@@ -47,8 +48,10 @@ class Action(object):
             if start <= t and end >= t: res.append(pred_d['pred'])
         return res
 
-    def satisfied(self, tol):
-        return len(self.get_failed_preds()) == 0
+    def satisfied(self, active_ts):
+        if self.active_timesteps[1] >= active_ts[0]:
+            return True
+        return len(self.get_failed_preds(active_ts)) == 0
 
     def first_failed_ts(self):
         start, end = self.active_timesteps
