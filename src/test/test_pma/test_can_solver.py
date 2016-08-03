@@ -12,7 +12,7 @@ from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import circle
 from core.util_classes.matrix import Vector2d
-from core.internal_repr import parameter
+from core.internal_repr import parameter, plan
 import time, main
 
 class TestCanSolver(unittest.TestCase):
@@ -47,6 +47,8 @@ class TestCanSolver(unittest.TestCase):
         # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob', ['0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
         # # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
         # self.gen_plan = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
+        self.grasp_obstructs = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
+        # self.grasp_obstructs = get_plan('../domains/can_domain/can_probs/can_grasp_1234_4.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
 
     def test_move(self):
         pass
@@ -61,6 +63,12 @@ class TestCanSolver(unittest.TestCase):
         # _test_plan(self, self.grasp)
 
     def test_grasp_resampling(self):
+        # np.random.seed(2) # demonstrates the need to use closest joint angles
+        # np.random.seed(4)
+        np.random.seed(6) # forms right angle
+        _test_resampling(self, self.grasp_obstructs, n_resamples=3)
+
+    def test_grasp_obstructs(self):
         _test_plan(self, self.grasp, n_resamples=3)
 
     def test_moveholding(self):
@@ -71,6 +79,72 @@ class TestCanSolver(unittest.TestCase):
         pass
         # _test_plan(self, self.gen_plan)
 
+def _test_resampling(test_obj, plan, n_resamples=0):
+    print "testing plan: {}".format(plan.actions)
+    callback = None
+    viewer = None
+    """
+    Uncomment out lines below to see optimization.
+    """
+    viewer = OpenRAVEViewer.create_viewer()
+    def animate():
+        viewer.animate_plan(plan)
+    def draw_ts(ts):
+        viewer.draw_plan_ts(plan, ts)
+    def draw_col_ts(ts):
+        viewer.draw_cols_ts(plan, ts)
+    def callback(set_trace=False):
+        solver._update_ll_params()
+        # draw_ts(20)
+        # viewer.draw_plan(plan)
+        draw_ts(17)
+        viewer.draw_cols_ts(plan, 17)
+        # time_range = (13,17)
+        # viewer.draw_plan_range(plan, time_range)
+        # viewer.draw_cols_range(plan, time_range)
+        # time.sleep(0.03)
+        if set_trace:
+            import ipdb; ipdb.set_trace()
+    """
+    """
+    solver = can_solver.CanSolver()
+
+    # Initializing to sensible values
+    active_ts = (0, plan.horizon-1)
+    verbose = False
+    solver._solve_opt_prob(plan, priority=-2, callback=callback, active_ts=active_ts, verbose=verbose)
+    solver._solve_opt_prob(plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose)
+
+
+    for _ in range(n_resamples):
+        ## refinement loop
+        ## priority 0 resamples the first failed predicate in the plan
+        ## and then solves a transfer optimization that only includes linear constraints
+        solver._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
+        fp = plan.get_failed_preds()
+        import ipdb; ipdb.set_trace()
+
+        solver._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+        fp = plan.get_failed_preds()
+        import ipdb; ipdb.set_trace()
+
+        success = solver._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
+        import ipdb; ipdb.set_trace()
+        if len(fp) == 0:
+            break
+
+    fp = plan.get_failed_preds()
+    _, _, t = plan.get_failed_pred()
+    #
+    if viewer != None:
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
+
+    test_obj.assertTrue(plan.satisfied())
+
+
 def _test_plan(test_obj, plan, n_resamples=0):
     print "testing plan: {}".format(plan.actions)
     callback = None
@@ -79,8 +153,8 @@ def _test_plan(test_obj, plan, n_resamples=0):
     Uncomment out lines below to see optimization.
     """
     viewer = OpenRAVEViewer.create_viewer()
-    # def callback():
-    #     solver._update_ll_params()
+    def callback():
+        solver._update_ll_params()
     # #     obj_list = viewer._get_plan_obj_list(plan)
     # #     # viewer.draw_traj(obj_list, [0,9,19,20,29,38])
     # #     # viewer.draw_traj(obj_list, range(19,30))
@@ -88,8 +162,9 @@ def _test_plan(test_obj, plan, n_resamples=0):
     # #     # viewer.draw_traj(obj_list, [38])
     # #     # viewer.draw_traj(obj_list, range(19,39))
     # #     # viewer.draw_plan_range(plan, [0,19,38])
-    #     viewer.draw_plan(plan)
-    #     time.sleep(0.03)
+        viewer.draw_plan_ts(plan, 20)
+        # viewer.draw_plan(plan)
+        # time.sleep(0.03)
     """
     """
     solver = can_solver.CanSolver()
