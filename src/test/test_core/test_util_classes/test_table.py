@@ -3,7 +3,7 @@ from core.util_classes import table
 import numpy as np
 
 
-class TestViewer(unittest.TestCase):
+class TestTable(unittest.TestCase):
     def test_table_dim(self):
         table_dim = [1, 2]
         thickness = 0.2

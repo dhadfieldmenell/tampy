@@ -4,6 +4,8 @@ from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.pr2 import PR2
 from core.util_classes.can import Can
+from core.util_classes.table import Table
+from core.util_classes.box import Box
 import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
 
@@ -114,7 +116,7 @@ class OpenRAVEViewer(Viewer):
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         if isinstance(obj.geom, PR2):
             self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
-        if isinstance(obj.geom, Can):
+        if isinstance(obj.geom, Can) or isinstance(obj.geom, Box) or isinstance(obj.geom, Table):
             rotation = obj.rotation[:, t]
             assert not np.any(np.isnan(rotation))
         assert not np.any(np.isnan(obj.pose[:, t]))

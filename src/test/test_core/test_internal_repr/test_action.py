@@ -6,6 +6,8 @@ from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter
 import numpy as np
 
+PLAN_TOL = 1e-4
+
 class TestAction(unittest.TestCase):
     def setup(self):
         attrs = {"name": ["robot"], "geom": [1], "pose": [(0,0)], "_type": ["Robot"]}
@@ -50,11 +52,11 @@ class TestAction(unittest.TestCase):
                      {'pred': self.pred2, 'negated': False, 'hl_info': 'pre', 'active_timesteps': (0, 0)}]
         act = action.Action(0, 'test_action', (0,0), params, pred_dict)
         # Since value of robot pose is not defined, RobotAt should fail
-        self.assertFalse(act.satisfied())
+        self.assertFalse(act.satisfied(PLAN_TOL))
         self.assertEqual(act.get_failed_preds(), [(False, self.pred2, 0)])
         # Now rpose.value is defined, test should all pass
         self.rpose.value = np.array([[0],[0]])
-        self.assertTrue(act.satisfied())
+        self.assertTrue(act.satisfied(PLAN_TOL))
         self.assertEqual(act.get_failed_preds(), [])
 
         self.robot.pose = np.array([[2, 2, 7],
@@ -73,7 +75,7 @@ class TestAction(unittest.TestCase):
         act2 = action.Action(3, 'test_action2', (0,2), params, pred_dict)
         # since each preds is only defined between timestep 0 and timestep 1, it doesn't chect the timestep at 2
         #since hl_info for pred1 is hl_state, test doesn't check it
-        self.assertTrue(act2.satisfied())
+        self.assertTrue(act2.satisfied(PLAN_TOL))
         self.assertEqual(act2.get_failed_preds(), [])
 
 
@@ -98,7 +100,7 @@ class TestAction(unittest.TestCase):
                                       [5]])
         #so that pred2 failed at timestep 2, pred1 failed at timestep3
         act = action.Action(4, 'test_action', (0,10), params, pred_dict)
-        self.assertFalse(act.satisfied())
+        self.assertFalse(act.satisfied(PLAN_TOL))
         self.assertEqual(act.first_failed_ts(), 2)
         self.robot.pose = np.array([[2, 4, 7, 7],
                                [5, 7, 9, 9]])
