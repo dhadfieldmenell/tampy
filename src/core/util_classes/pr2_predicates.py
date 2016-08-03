@@ -21,8 +21,8 @@ BASE_MOVE = 1e0
 IN_GRIPPER_COEFF = 1.
 
 EEREACHABLE_COEFF = 1e0
-EEREACHABLE_OPT_COEFF = 1e2
-EEREACHABLE_ROT_OPT_COEFF = 1e2
+EEREACHABLE_OPT_COEFF = 1e3
+EEREACHABLE_ROT_OPT_COEFF = 3e2
 INGRIPPER_OPT_COEFF = 1e2
 RCOLLIDES_OPT_COEFF = 1e2
 
@@ -36,7 +36,10 @@ POSE_TOL = 2e-2
 ROBOT_LINKS = 45
 
 TABLE_SAMPLING_RADIUS = 2.0
+OBJ_RING_SAMPLING_RADIUS = 0.6
 
+
+NUM_EEREACHABLE_RESAMPLE_ATTEMPTS = 10
 
 class CollisionPredicate(ExprPredicate):
 
@@ -470,7 +473,7 @@ class PosePredicate(ExprPredicate):
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
-        rot_val, rot_jac = self.rot_error(obj_trans, robot_trans, axises, arm_joints)
+        rot_val, rot_jac = self.rot_lock(obj_trans, robot_trans, axises, arm_joints)
 
         return rot_val, rot_jac
 
@@ -507,6 +510,37 @@ class PosePredicate(ExprPredicate):
 
         return rot_val, rot_jac
 
+    def ee_pose_check_rel_obj(self, x, rel_pt):
+        """
+            This function is used to check whether:
+                End effective pose's position is at robot gripper's center
+
+            x: 26 dimensional list aligned in following order,
+            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->eePose->eRot
+        """
+        # Parse the pose values
+        base_pose, back_height = x[0:3], x[3]
+        l_arm_pose, l_gripper = x[4:11], x[11]
+        r_arm_pose, r_gripper = x[12:19], x[19]
+        ee_pos, ee_rot = x[20:23], x[23:]
+        # Setting pose for the robot
+        robot_body = self._param_to_body[self.robot]
+        robot = robot_body.env_body
+        robot_body.set_pose(base_pose)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        # Helper variables that will be used in many places
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+        tool_link = robot.GetLink("r_gripper_tool_frame")
+        robot_trans = tool_link.GetTransform()
+        arm_inds = robot.GetManipulator('rightarm').GetArmIndices()
+        arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in arm_inds]
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        pos_val, pos_jac = self.pos_error_rel_to_obj(obj_trans, robot_trans, axises, arm_joints, rel_pt)
+
+        return pos_val, pos_jac
+
     def pos_error(self, obj_trans, robot_trans, axises, arm_joints):
         """
             This function calculates the value and the jacobian of the displacement between center of gripper and center of object
@@ -529,6 +563,35 @@ class PosePredicate(ExprPredicate):
         torso_jac = np.array([[0],[0],[1]])
         # Calculate object jacobian
         obj_jac = -1*np.array([np.cross(axis, obj_pos - gp - obj_trans[:3,3].flatten()) for axis in axises]).T
+        obj_jac = np.c_[-np.eye(3), obj_jac]
+        # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
+        dist_jac = np.hstack((base_jac, torso_jac, np.zeros((3, 8)), arm_jac, np.zeros((3, 1)), obj_jac))
+
+        return (dist_val, dist_jac)
+
+    def pos_error_rel_to_obj(self, obj_trans, robot_trans, axises, arm_joints, rel_pt):
+        """
+            This function calculates the value and the jacobian of the displacement between center of gripper and a point relative to the object
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        gp = rel_pt
+        robot_pos = robot_trans[:3, 3]
+        obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
+        dist_val = (robot_pos.flatten() - obj_pos.flatten()).reshape((3,1))
+        # Calculate the joint jacobian
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos.flatten() - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        # Calculate jacobian for the robot base
+        base_jac = np.eye(3)
+        base_jac[:,2] = np.cross(np.array([0, 0, 1]), robot_pos - self.x[:3])
+        # Calculate jacobian for the back hight
+        torso_jac = np.array([[0],[0],[1]])
+        # Calculate object jacobian
+        # obj_jac = -1*np.array([np.cross(axis, obj_pos - gp - obj_trans[:3,3].flatten()) for axis in axises]).T
+        obj_jac = -1*np.array([np.cross(axis, obj_pos - obj_trans[:3,3].flatten()) for axis in axises]).T
         obj_jac = np.c_[-np.eye(3), obj_jac]
         # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
         dist_jac = np.hstack((base_jac, torso_jac, np.zeros((3, 8)), arm_jac, np.zeros((3, 1)), obj_jac))
@@ -1127,15 +1190,48 @@ class EEReachable(PosePredicate):
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
-        f = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[0]
-        grad = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[1]
+        self._steps = 3
+        self._dim = 26
+        # f = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[0]
+        # grad = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[1]
+        f = lambda x: self.stacked_f(x)
+        grad = lambda x: self.stacked_grad(x)
 
         pos_expr = Expr(f, grad)
-        e = EqExpr(pos_expr, np.zeros((3,1)))
-        self.opt_expr = EqExpr(Expr(lambda x: EEREACHABLE_OPT_COEFF * f(x),
+        e = EqExpr(pos_expr, np.zeros((3*(2*self._steps+1),1)))
+        self.opt_expr = EqExpr(Expr(lambda x: EEREACHABLE_OPT_COEFF*f(x),
                                     lambda x: EEREACHABLE_OPT_COEFF*grad(x)),
                                 np.zeros((1,1)))
-        super(EEReachable, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(EEReachable, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(-self._steps, self._steps))
+
+    def get_rel_pt(self, rel_step):
+        return -np.abs(rel_step)*np.array([APPROACH_DIST, 0, 0])
+
+    def stacked_f(self, x):
+        i = 0
+        f_res = []
+        start, end = self.active_range
+        for s in range(start, end+1):
+            rel_pt = self.get_rel_pt(s)
+            f_res.append(self.ee_pose_check_rel_obj(x[i:i+self._dim], rel_pt)[0])
+            i += self._dim
+        return np.vstack(tuple(f_res))
+
+    def stacked_grad(self, x):
+        f_grad = []
+        start, end = self.active_range
+        t = (2*self._steps+1)
+        k = 3
+
+        grad = np.zeros((k*t, self._dim*t))
+        i = 0
+        j = 0
+        for s in range(start, end+1):
+            rel_pt = self.get_rel_pt(s)
+            grad[j:j+k, i:i+self._dim] = self.ee_pose_check_rel_obj(x[i:i+self._dim], rel_pt)[1]
+            i += self._dim
+            j += k
+        return grad
 
     def get_expr(self, negated):
         if negated:
@@ -1392,115 +1488,138 @@ class RCollides(CollisionPredicate):
         val = bp.flatten()
         import ipdb; ipdb.set_trace()
         return val, attr_inds
+def get_expr_mult(coeff, expr):
+    new_f = lambda x: coeff*expr.eval(x)
+    new_grad = lambda x: coeff*expr.grad(x)
+    return Expr(new_f, new_grad)
 
-# def add_val_attr_inds(param, attrs, vals, val, attr_inds):
-#     assert len(attrs) == len(vals)
-#     inds = np.where(param._free_attrs[attr])
+def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
+    param_attr_inds = []
+    if param.is_symbol():
+        t = 0
+    for attr_name, val in attr_name_val_tuples:
+        inds = np.where(param._free_attrs[attr_name][:, t])[0]
+        getattr(param, attr_name)[inds, t] = val[inds]
+        res.extend(val[inds].flatten().tolist())
+        param_attr_inds.append((attr_name, inds, t))
+    if param in attr_inds:
+        attr_inds[param].extend(param_attr_inds)
+    else:
+        attr_inds[param] = param_attr_inds
 
-def get_random_dir():
-    rand_dir = np.random.rand(2) - 0.5
-    rand_dir = rand_dir/np.linalg.norm(rand_dir)
-    return rand_dir
+def set_robot_body_to_pred_values(pred, t):
+    robot_body = pred._param_to_body[pred.robot]
+    robot_body.set_pose(pred.robot.pose[:, t])
+    robot_body.set_dof(pred.robot.backHeight[:, t], pred.robot.lArmPose[:, t], pred.robot.lGripper[:, t], pred.robot.rArmPose[:, t], pred.robot.rGripper[:, t])
 
-def ee_reachable_resample(self, negated, t, plan):
+def plot_transform(env, T, s=0.1):
+    """
+    Plots transform T in openrave environment.
+    S is the length of the axis markers.
+    """
+    h = []
+    x = T[0:3,0]
+    y = T[0:3,1]
+    z = T[0:3,2]
+    o = T[0:3,3]
+    h.append(env.drawlinestrip(points=np.array([o, o+s*x]), linewidth=3.0, colors=np.array([(1,0,0),(1,0,0)])))
+    h.append(env.drawlinestrip(points=np.array([o, o+s*y]), linewidth=3.0, colors=np.array(((0,1,0),(0,1,0)))))
+    h.append(env.drawlinestrip(points=np.array([o, o+s*z]), linewidth=3.0, colors=np.array(((0,0,1),(0,0,1)))))
+    return h
+
+
+def lin_interp_traj(start, end, time_steps):
+    assert start.shape == end.shape
+    if time_steps == 0:
+        assert np.allclose(start, end)
+        return start.copy()
+    rows = start.shape[0]
+    traj = np.zeros((rows, time_steps+1))
+
+    for i in range(rows):
+        traj_row = np.linspace(start[i], end[i], num=time_steps+1)
+        traj[i, :] = traj_row
+    return traj
+
+def ee_reachable_resample(pred, negated, t, plan):
     assert not negated
-    attr_inds = OrderedDict()
-    res = []
-
-    targets = plan.get_param('GraspValid', 1, {0: self.ee_pose})
-    assert len(targets) == 1
-    # confirm target is correct
-    target_pose = targets[0].value
-    target_rot = self.ee_pose.rotation
-
-    robot_body = self._param_to_body[self.robot]
-    robot_body.set_pose(self.robot.pose[:, t])
-
-    ee_pos = target_pose
-    ee_rot = target_rot
-
-    ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
-    # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
-    # rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
-    rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
-    ee_rot_mat = ee_trans[:3, :3].dot(rot_mat[:3, :3])
-    ee_trans[:3, :3] = ee_rot_mat
-    manip = robot_body.env_body.GetManipulator('rightarm_torso')
-    # curr_ee_trans = manip.GetEndEffectorTransform()
-    iktype = IkParameterizationType.Transform6D
-    # solution = manip.FindIKSolutions(IkParameterization(curr_ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
-    robot_body.set_dof(self.robot.backHeight[:, t], self.robot.lArmPose[:, t], self.robot.lGripper[:, t], self.robot.rArmPose[:, t], self.robot.rGripper[:, t])
     handles = []
-
-    # import ipdb; ipdb.set_trace()
-    # handles.append(self.plot_transform(ee_trans))
-    solutions = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
-    # import pdb; pdb.set_trace()
     v = OpenRAVEViewer.create_viewer()
-    v.draw_plan_ts(plan, t)
 
-    import ipdb; ipdb.set_trace()
-    while len(solutions) == 0:
-        # import pdb; pdb.set_trace()
-        ## resample the base pose
-        rand_dir = get_random_dir()
-        bp = rand_dir[:, None] * 0.6 + target_pose[:2, :]
-
-        vec = target_pose[:2, :] - bp
-        vec = vec / np.linalg.norm(vec)
-        theta = math.atan2(vec[1], vec[0])
-        self.robot.pose[:2, t] = bp.flatten()
-        self.robot.pose[2, t] = theta
-        robot_body.set_pose(self.robot.pose[:, t])
-        solutions = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
-        v = OpenRAVEViewer.create_viewer()
+    def target_trans_callback(target_trans):
+        handles.append(plot_transform(v.env, target_trans))
         v.draw_plan_ts(plan, t)
 
-        # if len(solutions) == 0:
-        #     import pdb; pdb.set_trace()
-        import ipdb; ipdb.set_trace()
+    def plot_time_step_callback():
+        v.draw_plan_ts(plan, t)
+    plot_time_step_callback()
 
-    torso_arm_poses = solutions
-    cur_arm_pose = self.robot.rArmPose[:, t]
-    cur_torso_pose = self.robot.backHeight[:, t]
-    cur_torso_arm_pose = np.r_[cur_torso_pose, cur_arm_pose]
+    targets = plan.get_param('GraspValid', 1, {0: pred.ee_pose})
+    assert len(targets) == 1
+    # confirm target is correct
+    target_pose = targets[0].value[:, 0]
+    set_robot_body_to_pred_values(pred, t)
 
-    closest_torso_arm_pose = None
-    closest_l2 = np.Inf
-    for solution in solutions:
-        if np.linalg.norm(solution - cur_torso_arm_pose, ord=1) < closest_l2:
-            closest_torso_arm_pose = solution
-        # robot_body.env_body.SetDOFValues(solution, manip.GetArmIndices())
-        # handles.append(self.plot_transform(manip.GetEndEffectorTransform(), s=.2))
-        # time.sleep(.3)
+    theta = 0
+    robot = pred.robot
+    robot_body = pred._param_to_body[robot]
+    for _ in range(NUM_EEREACHABLE_RESAMPLE_ATTEMPTS):
+        # generate collision free base pose
+        base_pose = get_col_free_base_pose_around_target(t, plan, target_pose, robot, save=True,
+                                                  dist=OBJ_RING_SAMPLING_RADIUS,
+                                                  callback=plot_time_step_callback)
+        if base_pose is None:
+            print "we should always be able to sample a collision-free base pose"
+            st()
+        # generate collision free arm pose
+        target_rot = np.array([get_random_theta(), 0, 0])
 
-    # arm_poses = robot_body.get_ik_arm_pose(target_pose, target_rot)
-    # arm_pose = arm_poses[0, :]
-    torso_pose = closest_torso_arm_pose[:1]
-    arm_pose = closest_torso_arm_pose[1:]
-    # confirm arm poses are correct
-    arm_inds = np.where(self.robot._free_attrs['rArmPose'][:, t])
-    back_inds = np.where(self.robot._free_attrs['backHeight'][:, t])
-    pose_inds = np.where(self.robot._free_attrs['pose'][:, t])
-    self.robot.rArmPose[arm_inds[0], t] = arm_pose[arm_inds[0]]
-    self.robot.backHeight[back_inds[0], t] = torso_pose[back_inds[0]]
-    v = OpenRAVEViewer.create_viewer()
-    v.draw_plan_ts(plan, t)
+        torso_pose, arm_pose = get_col_free_torso_arm_pose(t, target_pose, target_rot,
+                                                           robot, robot_body, save=True,
+                                                           arm_pose_seed=None,
+                                                           callback=target_trans_callback)
+        st()
+        if torso_pose is None:
+            print "we should be able to find an IK"
+            continue
+
+        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot.flatten())
+        rel_pt = pred.get_rel_pt(pred._steps)
+        target_pose_approach = np.dot(ee_trans, np.r_[rel_pt, 1])[:3]
+
+        torso_pose_approach, arm_pose_approach = get_col_free_torso_arm_pose(
+                                                    t, target_pose_approach, target_rot,
+                                                    robot, robot_body, save=True,
+                                                    arm_pose_seed=arm_pose,
+                                                    callback=target_trans_callback)
+        st()
+        if torso_pose_approach is not None:
+            break
+    else:
+        print "we should always be able to sample a collision-free base and arm pose"
+        st()
+
+    attr_inds = OrderedDict()
+    res = []
+    arm_traj = lin_interp_traj(arm_pose, arm_pose_approach, pred._steps)
+    torso_traj = lin_interp_traj(torso_pose, torso_pose_approach, pred._steps)
+    base_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
+
+    # add attributes for approach and retreat
+    for t_rel in range(-pred._steps, pred._steps+1):
+        ind = abs(t_rel)
+        robot_attr_name_val_tuples = [('rArmPose', arm_traj[:, ind]),
+                                      ('backHeight', torso_traj[:, ind]),
+                                      ('pose', base_traj[:, ind])]
+        add_to_attr_inds_and_res(t+t_rel, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
     import ipdb; ipdb.set_trace()
-    attr_inds[self.robot] = [('rArmPose', arm_inds[0]),
-                             ('backHeight', back_inds[0]),
-                             ('pose', pose_inds[0])]
-    res.extend(arm_pose[arm_inds[0]].flatten().tolist())
-    res.extend(torso_pose[back_inds[0]].flatten().tolist())
-    # Assumes robot pose is free
-    res.extend(self.robot.pose[:,t].flatten().tolist())
 
-    inds = np.where(self.ee_pose._free_attrs['value'][:, 0])
-    self.ee_pose.value[inds[0], 0] = target_pose[inds[0], 0]
-    res.extend(target_pose[inds[0]].flatten().tolist())
-
-    attr_inds[self.ee_pose] = [('value', inds[0])]
+    ee_pose_attr_name_val_tuples = [('value', target_pose),
+                                    ('rotation', target_rot)]
+    add_to_attr_inds_and_res(t, attr_inds, res, pred.ee_pose, ee_pose_attr_name_val_tuples)
+    # v.draw_plan_ts(plan, t)
+    v.animate_range(plan, (t-pred._steps, t+pred._steps))
     # check that indexes are correct
-    # import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
 
     return np.array(res), attr_inds
