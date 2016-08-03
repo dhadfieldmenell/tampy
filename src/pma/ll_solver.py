@@ -26,6 +26,29 @@ class LLSolver(object):
     def solve(self, plan):
         raise NotImplementedError("Override this.")
 
+    def _spawn_sco_var_for_pred(self, pred, t):
+        x = np.empty(pred.x_dim , dtype=object)
+        v = np.empty(pred.x_dim)
+        i = 0
+        start, end = pred.active_range
+        for rel_t in range(start, end+1):
+            for p in pred.attr_inds:
+                for attr, ind_arr in pred.attr_inds[p]:
+                    n_vals = len(ind_arr)
+                    ll_p = self._param_to_ll[p]
+                    if p.is_symbol():
+                        x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
+                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
+                    else:
+                        x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t+rel_t - self.ll_start]
+                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, t+rel_t]
+                    i += n_vals
+
+        assert i >= pred.x_dim
+        x = x.reshape((pred.x_dim, 1))
+        v = v.reshape((pred.x_dim, 1))
+        return Variable(x, v)
+
 class LLParam(object):
     """
     LLParam creates the low-level representation of parameters (Numpy array of
@@ -556,40 +579,6 @@ class NAMOSolver(LLSolver):
                 bexpr = BoundExpr(quad_expr, Variable(robot_ll_grb_vars, init_val))
                 traj_objs.append(bexpr)
         return traj_objs
-
-    def _spawn_sco_var_for_pred(self, pred, t):
-
-        i = 0
-        x = np.empty(pred.x_dim , dtype=object)
-        v = np.empty(pred.x_dim)
-        for p in pred.attr_inds:
-            for attr, ind_arr in pred.attr_inds[p]:
-                n_vals = len(ind_arr)
-                ll_p = self._param_to_ll[p]
-                if p.is_symbol():
-                    x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
-                    v[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
-                else:
-                    x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t - self.ll_start]
-                    v[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
-                i += n_vals
-        if pred.dynamic:
-            ## include the variables from the next time step
-            for p in pred.attr_inds:
-                for attr, ind_arr in pred.attr_inds[p]:
-                    n_vals = len(ind_arr)
-                    ll_p = self._param_to_ll[p]
-                    if p.is_symbol():
-                        x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
-                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
-                    else:
-                        x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t+1 - self.ll_start]
-                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
-                    i += n_vals
-        assert i >= pred.x_dim
-        x = x.reshape((pred.x_dim, 1))
-        v = v.reshape((pred.x_dim, 1))
-        return Variable(x, v)
 
 
 class DummyLLSolver(LLSolver):

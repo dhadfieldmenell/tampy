@@ -193,19 +193,18 @@ class CanSolver(LLSolver):
             if val is not None: break
         if val is None:
             return []
-        t_local = t
+
         bexprs = []
         i = 0
         for p in attr_inds:
-                ## get the ll_param for p and gurobi variables
+            ## get the ll_param for p and gurobi variables
             ll_p = self._param_to_ll[p]
-            if p.is_symbol(): t_local = 0
             n_vals = 0
             grb_vars = []
-            for attr, ind_arr in attr_inds[p]:
+            for attr, ind_arr, t in attr_inds[p]:
                 n_vals += len(ind_arr)
                 grb_vars.extend(
-                    list(getattr(ll_p, attr)[ind_arr, t_local]))
+                    list(getattr(ll_p, attr)[ind_arr, t].flatten()))
 
             for j, grb_var in enumerate(grb_vars):
                 ## create an objective saying stay close to this value
@@ -362,37 +361,3 @@ class CanSolver(LLSolver):
                         # bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars))
                         traj_objs.append(bexpr)
         return traj_objs
-
-    def _spawn_sco_var_for_pred(self, pred, t):
-
-        i = 0
-        x = np.empty(pred.x_dim , dtype=object)
-        v = np.empty(pred.x_dim)
-        for p in pred.attr_inds:
-            for attr, ind_arr in pred.attr_inds[p]:
-                n_vals = len(ind_arr)
-                ll_p = self._param_to_ll[p]
-                if p.is_symbol():
-                    x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
-                    v[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
-                else:
-                    x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t - self.ll_start]
-                    v[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
-                i += n_vals
-        if pred.dynamic:
-            ## include the variables from the next time step
-            for p in pred.attr_inds:
-                for attr, ind_arr in pred.attr_inds[p]:
-                    n_vals = len(ind_arr)
-                    ll_p = self._param_to_ll[p]
-                    if p.is_symbol():
-                        x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, 0]
-                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
-                    else:
-                        x[i:i+n_vals] = getattr(ll_p, attr)[ind_arr, t+1 - self.ll_start]
-                        v[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
-                    i += n_vals
-        assert i >= pred.x_dim
-        x = x.reshape((pred.x_dim, 1))
-        v = v.reshape((pred.x_dim, 1))
-        return Variable(x, v)

@@ -338,7 +338,7 @@ class CollisionPredicate(ExprPredicate):
 
 class PosePredicate(ExprPredicate):
 
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1, tol=POSE_TOL):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1, tol=POSE_TOL, active_range=(0,0)):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
@@ -346,7 +346,7 @@ class PosePredicate(ExprPredicate):
         self.ind0 = ind0
         self.ind1 = ind1
         self.handle = []
-        super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol)
+        super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, active_range=active_range)
 
     def pose_check(self, x):
         """
@@ -744,7 +744,7 @@ class IsMP(ExprPredicate):
 
         A, b, val = self.setup_mov_limit_check()
         e = LEqExpr(AffExpr(A, b), val)
-        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
     def setup_mov_limit_check(self):
         # Get upper joint limit and lower joint limit
@@ -829,7 +829,7 @@ class Stationary(ExprPredicate):
         A = np.c_[np.eye(6), -np.eye(6)]
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class StationaryBase(ExprPredicate):
 
@@ -845,7 +845,7 @@ class StationaryBase(ExprPredicate):
         A = np.c_[np.eye(N_DIM), -np.eye(N_DIM)]
         b, val = np.zeros((N_DIM, 1)), np.zeros((N_DIM, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(StationaryBase, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryBase, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class StationaryArms(ExprPredicate):
 
@@ -864,7 +864,7 @@ class StationaryArms(ExprPredicate):
         A = np.c_[np.eye(N_DIM), -np.eye(N_DIM)]
         b, val = np.zeros((N_DIM, 1)), np.zeros((N_DIM, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(StationaryArms, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryArms, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class StationaryW(ExprPredicate):
 
@@ -877,7 +877,7 @@ class StationaryW(ExprPredicate):
         A = np.c_[np.eye(6), -np.eye(6)]
         b = np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class StationaryNEq(ExprPredicate):
 
@@ -895,7 +895,7 @@ class StationaryNEq(ExprPredicate):
             A = np.c_[np.eye(6), -np.eye(6)]
             b = np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class GraspValid(PosePredicate):
 

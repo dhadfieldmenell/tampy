@@ -353,7 +353,7 @@ def sample_pose(plan, pose, robot, rs_scale):
     old_free = robot._free_attrs['pose'].copy()
     robot.pose = pose.value.copy()
     robot._free_attrs['pose'][:] = 1
-    
+
     wall = collision_preds[0].params[1]
     old_w_pose = wall.pose.copy()
     wall.pose = wall.pose[:, 0][:, None]
@@ -365,7 +365,7 @@ def sample_pose(plan, pose, robot, rs_scale):
     p = Plan.create_plan_for_preds(preds, collision_preds[0]._env)
     s = NAMOSolver(transfer_norm='l2')
     success = s._solve_opt_prob(p, 0, resample=False, verbose=False)
-    
+
     # print success
 
 
@@ -543,7 +543,7 @@ class Stationary(ExprPredicate):
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class StationaryNEq(ExprPredicate):
 
@@ -563,7 +563,7 @@ class StationaryNEq(ExprPredicate):
                           [0, 1, 0, -1]])
             b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class StationaryW(ExprPredicate):
 
@@ -576,7 +576,7 @@ class StationaryW(ExprPredicate):
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 
 
@@ -596,4 +596,4 @@ class IsMP(ExprPredicate):
         b = np.zeros((4, 1))
 
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
-        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
