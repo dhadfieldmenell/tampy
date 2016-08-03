@@ -50,6 +50,8 @@ GRIPPER_CLOSE_VALUE = 0.46
 
 NUM_EEREACHABLE_RESAMPLE_ATTEMPTS = 10
 
+EEREACHABLE_STEPS = 3
+
 class CollisionPredicate(ExprPredicate):
 
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, tol=COLLISION_TOL):
@@ -1197,7 +1199,7 @@ class EEReachable(PosePredicate):
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
-        self._steps = 3
+        self._steps = EEREACHABLE_STEPS
         self._dim = 26
         # f = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[0]
         # grad = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[1]
