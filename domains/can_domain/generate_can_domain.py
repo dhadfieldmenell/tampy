@@ -41,9 +41,7 @@ pp.add('Can', [('geom', 'RedCan'), ('pose', 'Vector3d'), ('rotation', 'Vector3d'
 pp.add('Target', [('geom', 'BlueCan'), ('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('RobotPose', [('value', 'Vector3d'),
                     ('backHeight', 'Vector1d'),
-                    ('lArmPose', 'PR2ArmPose'),
-                    ('lGripper', 'Vector1d'),
-                    ('rArmPose', 'PR2ArmPose'),
+                    ('lArmPose', 'PRcan_1234_02ArmPose'),
                     ('rGripper', 'Vector1d')])
 pp.add('Robot', [('geom', 'PR2'),
                 ('pose', 'Vector3d'),
@@ -155,6 +153,7 @@ class Move(Action):
                 (Stationary ?obj))', '0:{}'.format(end-1)),
             ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{}'.format(end-1)),
             ('(StationaryArms ?robot)', '0:{}'.format(end-1)),
+            ('(StationaryW ?w)', '0:{}'.format(end-1)),
             ('(IsMP ?robot)', '0:{}'.format(end-1)),
             ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
             # ('(forall (?w     - Obstacle)\

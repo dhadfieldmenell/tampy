@@ -389,17 +389,23 @@ class OpenRAVEBody(object):
         # ipdb.set_trace()
         return (yaw, pitch, roll)
 
-    def get_ik_arm_pose(self, ee_pos, ee_rot):
-        assert isinstance(self._geom, PR2)
-        ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+    @staticmethod
+    def get_ik_transform(pos, rot):
+        trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
         # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
         rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
-        ee_rot_mat = ee_trans[:3, :3].dot(rot_mat[:3, :3])
-        ee_trans[:3, :3] = ee_rot_mat
-        manip = self.env_body.GetManipulator('rightarm')
-        # curr_ee_trans = manip.GetEndEffectorTransform()
-        iktype = IkParameterizationType.Transform6D
-        # solution = manip.FindIKSolutions(IkParameterization(curr_ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
-        solution = manip.FindIKSolutions(IkParameterization(ee_trans,iktype),IkFilterOptions.CheckEnvCollisions)
-        import ipdb; ipdb.set_trace()
+        trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
+        trans[:3, :3] = trans_mat
+        return trans
+
+    def get_ik_arm_pose(self, pos, rot):
+        assert isinstance(self._geom, PR2)
+        trans = OpenRAVEBody.get_ik_transform(pos, rot)
+        solution = self.get_ik_solutions('rightarm_torso', trans)
         return solution
+
+    def get_ik_solutions(self, manip_name, trans):
+        manip = self.env_body.GetManipulator(manip_name)
+        iktype = IkParameterizationType.Transform6D
+        solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
+        return solutions

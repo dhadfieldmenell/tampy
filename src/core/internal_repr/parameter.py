@@ -52,6 +52,10 @@ class Parameter(object):
     def is_symbol(self):
         return False
 
+    def is_fixed(self, attr_list):
+        return not np.all([np.all(self._free_attrs[attr]) for attr in attr_list])
+
+
     def is_defined(self):
         for attr_name in self._attr_types.iterkeys():
             if getattr(self, attr_name) is "undefined":

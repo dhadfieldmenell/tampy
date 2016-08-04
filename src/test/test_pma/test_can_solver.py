@@ -42,7 +42,7 @@ class TestCanSolver(unittest.TestCase):
             # objs.extend(cans)
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
-
+        self.bmove = get_plan('../domains/can_domain/can_probs/can_1111_0.prob')
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/move.prob')
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
         # self.grasp = get_plan('../domains/can_domain/can_probs/grasp.prob')
@@ -53,6 +53,7 @@ class TestCanSolver(unittest.TestCase):
         # self.gen_plan = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
         self.grasp_obstructs1 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
         self.grasp_obstructs0 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
+
         # self.grasp_obstructs = get_plan('../domains/can_domain/can_probs/can_grasp_1234_4.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
 
         if VIEWER:
@@ -100,6 +101,9 @@ class TestCanSolver(unittest.TestCase):
     def test_gen_plan(self):
         pass
         # _test_plan(self, self.gen_plan)
+
+    def test_backtrack_move(self):
+        _test_backtrack_plan(self, self.bmove)
 
 def get_animate_fn(viewer, plan):
     def animate():
@@ -205,6 +209,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
         if set_trace:
             animate()
             import ipdb; ipdb.set_trace()
+
         # viewer.draw_plan(plan)
         # time.sleep(0.03)
     """
@@ -220,6 +225,36 @@ def _test_plan(test_obj, plan, n_resamples=0):
             viewer.draw_plan_ts(plan, t)
 
     test_obj.assertTrue(plan.satisfied(FAKE_TOL))
+
+def _test_backtrack_plan(test_obj, plan, n_resamples=0):
+    print "testing plan: {}".format(plan.actions)
+    callback = None
+    viewer = None
+    solver = can_solver.CanSolver()
+    """
+    Uncomment out lines below to see optimization.
+    """
+    viewer = OpenRAVEViewer.create_viewer()
+    def callback(a):
+        solver._update_ll_params()
+        viewer.clear()
+        viewer.draw_plan_range(plan, a.active_timesteps)
+        time.sleep(0.3)
+    """
+    """
+
+    solver.backtrack_solve(plan, callback=callback, anum = 0, verbose=True)
+
+    fp = plan.get_failed_preds()
+    _, _, t = plan.get_failed_pred()
+    #
+    if viewer != None:
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
+
+    test_obj.assertTrue(plan.satisfied())
 
 
 if __name__ == "__main__":
