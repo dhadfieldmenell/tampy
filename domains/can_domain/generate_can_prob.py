@@ -5,13 +5,13 @@ import random
 
 SEED = 1234
 NUM_PROBS = 5
-NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
-NUM_TARGETS = 3
+NUM_CANS = 10 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_TARGETS = 14
 assert NUM_CANS <= NUM_TARGETS
 # GOAL = "(RobotAt pr2 pdp_target0)"
-GOAL = "(RobotAt pr2 robot_end_pose)"
+# GOAL = "(RobotAt pr2 robot_end_pose)"
 # GOAL = "(At can0 target2)"
-# GOAL = "(InGripper pr2 can0)"
+GOAL = "(InGripper pr2 can0)"
 # GOAL = "(RobotAt pr2 robot_end_pose), (InGripper pr2 can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
@@ -45,8 +45,8 @@ TABLE_LEG_HEIGHT = 0.6
 TABLE_BACK = False
 # TABLE_GEOM = []
 TABLE_GEOM = [.325, .75, 0.1]
-for info in [TABLE_DIM, [TABLE_THICKNESS], TABLE_LEG_DIM, [TABLE_LEG_HEIGHT], [TABLE_BACK]]:
-    TABLE_GEOM.extend(info)
+# for info in [TABLE_DIM, [TABLE_THICKNESS], TABLE_LEG_DIM, [TABLE_LEG_HEIGHT], [TABLE_BACK]]:
+#     TABLE_GEOM.extend(info)
 
 class CollisionFreeTargetValueGenerator(object):
     def __init__(self):
