@@ -138,7 +138,8 @@ class Action(object):
 class Move(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 40
+        self.timesteps = 30
+        end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
         self.pre = [\
             ('(forall (?c - Can)\
@@ -149,22 +150,22 @@ class Move(Action):
             )', '0:0'),
             ('(RobotAt ?robot ?start)', '0:0'),
             ('(forall (?obj - Can )\
-                (not (Obstructs ?robot ?start ?end ?obj)))', '0:19'),
+                (not (Obstructs ?robot ?start ?end ?obj)))', '0:{}'.format(end-1)),
             ('(forall (?obj - Can)\
-                (Stationary ?obj))', '0:18'),
-            ('(forall (?w - Obstacle) (StationaryW ?w))', '0:38'),
-            ('(StationaryArms ?robot)', '0:38'),
-            ('(IsMP ?robot)', '0:38'),
-            ('(WithinJointLimit ?robot)', '0:39'),
+                (Stationary ?obj))', '0:{}'.format(end-1)),
+            ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{}'.format(end-1)),
+            ('(StationaryArms ?robot)', '0:{}'.format(end-1)),
+            ('(IsMP ?robot)', '0:{}'.format(end-1)),
+            ('(WithinJointLimit ?robot)', '0:{}'.format(end)),
             # ('(forall (?w     - Obstacle)\
             #     (forall (?obj - Can)\
             #         (not (Collides ?obj ?w))\
             #     ))','0:19')
-            ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:39')
+            ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{}'.format(end))
         ]
         self.eff = [\
-            ('(not (RobotAt ?robot ?start))', '39:39'),
-            ('(RobotAt ?robot ?end)', '39:39')]
+            ('(not (RobotAt ?robot ?start))', '{}:{}'.format(end, end)),
+            ('(RobotAt ?robot ?end)', '{}:{}'.format(end, end))]
 
 class MoveHolding(Action):
     def __init__(self):
