@@ -18,13 +18,15 @@ def get_random_theta():
     theta =  2*np.pi*np.random.rand(1) - np.pi
     return theta[0]
 
-def sample_base_pose(target_pose, dist=DEFAULT_DIST):
+def sample_base_pose(target_pose, base_pose_seed=None, dist=DEFAULT_DIST):
     rand_dir = get_random_dir()
     bp = rand_dir*dist+target_pose[:2]
 
     vec = target_pose[:2] - bp
     vec = vec / np.linalg.norm(vec)
     theta = math.atan2(vec[1], vec[0])
+    if base_pose_seed is not None:
+        theta = closer_ang(theta, base_pose_seed[2])
     pose = np.array([bp[0], bp[1], theta])
     return pose
 
@@ -97,7 +99,7 @@ def get_col_free_base_pose_around_target(t, plan, target_pose, robot, callback=N
     base_pose = None
     old_base_pose = robot.pose[:, t].copy()
     for i in range(NUM_BASE_RESAMPLES):
-        base_pose = sample_base_pose(target_pose, dist=dist)
+        base_pose = sample_base_pose(target_pose, base_pose_seed=old_base_pose, dist=dist)
         robot.pose[:, t] = base_pose
         if callback is not None: callback()
         _, collision_preds = plan.get_param('RCollides', 1, negated=True, return_preds=True)

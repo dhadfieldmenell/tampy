@@ -26,7 +26,7 @@ IN_GRIPPER_COEFF = 1.
 EEREACHABLE_COEFF = 1e0
 EEREACHABLE_OPT_COEFF = 1e3
 EEREACHABLE_ROT_OPT_COEFF = 3e2
-INGRIPPER_OPT_COEFF = 1e2
+INGRIPPER_OPT_COEFF = 3e2
 RCOLLIDES_OPT_COEFF = 1e2
 OBSTRUCTS_OPT_COEFF = 1e2
 
@@ -43,11 +43,16 @@ TABLE_SAMPLING_RADIUS = 2.0
 OBJ_RING_SAMPLING_RADIUS = 0.6
 
 APPROACH_DIST = 0.05
+RETREAT_DIST = 0.075
 
 GRIPPER_OPEN_VALUE = 0.5
 GRIPPER_CLOSE_VALUE = 0.46
 
 NUM_EEREACHABLE_RESAMPLE_ATTEMPTS = 10
+
+EEREACHABLE_STEPS = 3
+
+MAX_CONTACT_DISTANCE = .1
 
 class CollisionPredicate(ExprPredicate):
 
@@ -110,7 +115,7 @@ class CollisionPredicate(ExprPredicate):
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
         # Setup collision checkers
-        self._cc.SetContactDistance(np.Inf)
+        self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
         collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
@@ -146,7 +151,8 @@ class CollisionPredicate(ExprPredicate):
         # Make sure two body is in the same environment
         assert can_body.env_body.GetEnv() == obstr_body.env_body.GetEnv()
         # Setup collision checkers
-        self._cc.SetContactDistance(np.Inf)
+        # self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
+        self._cc.SetContactDistance(np.inf)
         collisions = self._cc.BodyVsBody(can_body.env_body, obstr_body.env_body)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_obj_grad_and_val(can_body, obstr_body, collisions)
@@ -182,14 +188,16 @@ class CollisionPredicate(ExprPredicate):
         robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
         robot_body._set_active_dof_inds()
         obj_body.set_pose(can_pos, can_rot)
-        self._cc.SetContactDistance(np.Inf)
+        self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
         # setup collision between robot and obstruct
         collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
         col_val1, col_jac1 = self._calc_grad_and_val(robot_body, obj_body, collisions1)
-        col_jac1 = np.c_[col_jac1, np.zeros((45,6))]
+        num_links = len(robot.geom.col_links)
+        col_jac1 = np.c_[col_jac1, np.zeros((num_links,6))]
         # find collision between object and object held
         held_body = self._param_to_body[self.held]
         held_body.set_pose(held_pose, held_rot)
+        self._cc.SetContactDistance(np.inf)
         collisions2 = self._cc.BodyVsBody(held_body.env_body, obj_body.env_body)
         col_val2, col_jac2 = self._calc_obj_grad_and_val(held_body, obj_body, collisions2)
         col_jac2 = np.c_[np.zeros((1,20)), col_jac2]
@@ -211,8 +219,12 @@ class CollisionPredicate(ExprPredicate):
         """
         # Initialization
         links = []
-        # num_links = len(collisions)
-        num_links = ROBOT_LINKS
+        robot = self.params[self.ind0]
+        col_links = robot.geom.col_links
+        num_links = len(col_links)
+        obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+        rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
         for c in collisions:
             # Identify the collision points
             linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
@@ -229,6 +241,8 @@ class CollisionPredicate(ExprPredicate):
                 sign = 1
             else:
                 continue
+            if linkRobot not in col_links:
+                continue
             # Obtain distance between two collision points, and their normal collision vector
             distance = c.GetDistance()
             normal = c.GetNormal()
@@ -236,27 +250,30 @@ class CollisionPredicate(ExprPredicate):
             robot = robot_body.env_body
             robot_link_ind = robot.GetLink(linkRobot).GetIndex()
             robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
-            robot_grad = np.dot(sign * normal, robot_jac).reshape((1,20))
+            grad = np.zeros((1,26))
+            grad[:, :20] = np.dot(sign * normal, robot_jac)
+            # robot_grad = np.dot(sign * normal, robot_jac).reshape((1,20))
             col_vec = -sign*normal
             # Calculate object pose jacobian
-            obj_jac = np.array([-sign*normal])
-            obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+            # obj_jac = np.array([-sign*normal])
+            grad[:, 20:23] = np.array([-sign*normal])
             torque = ptObj - obj_pos[:3]
             # Calculate object rotation jacobian
-            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
-            rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
             rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
-            obj_jac = np.c_[obj_jac, rot_vec]
+            # obj_jac = np.c_[obj_jac, rot_vec]
+            grad[:, 23:36] = rot_vec
             # Constructing gradient matrix
-            robot_grad = np.c_[robot_grad, obj_jac]
+            # robot_grad = np.c_[robot_grad, obj_jac]
             # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
-            links.append((robot_link_ind, self.dsafe - distance, robot_grad, robot.GetLink(linkRobot)))
+            # links.append((robot_link_ind, self.dsafe - distance, robot_grad, robot.GetLink(linkRobot)))
+            links.append((robot_link_ind, self.dsafe - distance, grad, robot.GetLink(linkRobot)))
 
             if self._debug:
                 self.plot_collision(ptRobot, ptObj, distance)
 
         # arrange gradients in proper link order
-        vals, robot_grads = np.zeros((num_links,1)), np.zeros((num_links,26))
+        max_dist = self.dsafe - MAX_CONTACT_DISTANCE
+        vals, robot_grads = max_dist*np.ones((num_links,1)), np.zeros((num_links,26))
         links = sorted(links, key = lambda x: x[0])
         vals[:len(links),0] = np.array([link[1] for link in links])
         robot_grads[:len(links), range(26)] = np.array([link[2] for link in links]).reshape((len(links), 26))
@@ -1196,7 +1213,7 @@ class EEReachable(PosePredicate):
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
-        self._steps = 3
+        self._steps = EEREACHABLE_STEPS
         self._dim = 26
         # f = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[0]
         # grad = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[1]
@@ -1211,7 +1228,10 @@ class EEReachable(PosePredicate):
         super(EEReachable, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(-self._steps, self._steps))
 
     def get_rel_pt(self, rel_step):
-        return -np.abs(rel_step)*np.array([APPROACH_DIST, 0, 0])
+        if rel_step <= 0:
+            return rel_step*np.array([APPROACH_DIST, 0, 0])
+        else:
+            return rel_step*np.array([0, 0, RETREAT_DIST])
 
     def stacked_f(self, x):
         i = 0
@@ -1277,7 +1297,6 @@ class EEReachableRot(PosePredicate):
                                     lambda x: EEREACHABLE_ROT_OPT_COEFF*grad(x)),
                                 np.zeros((1,1)))
         super(EEReachableRot, self).__init__(name, e, attr_inds, params, expected_param_types)
-        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
@@ -1292,7 +1311,7 @@ class Obstructs(CollisionPredicate):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
         assert len(params) == 4
         self._env = env
         self.robot, self.startp, self.endp, self.can = params
@@ -1320,15 +1339,16 @@ class Obstructs(CollisionPredicate):
         grad_neg = lambda x: self.robot_obj_collision(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.zeros((45,1))
+        links = len(self.robot.geom.col_links)
+        val = np.zeros((links,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3, debug=debug)
-        self.priority = 0
+                                        expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol)
+        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
@@ -1366,20 +1386,21 @@ class ObstructsHolding(CollisionPredicate):
                                self.obstruct: self.lazy_spawn_or_body(self.obstruct, self.obstruct.name, self.obstruct.geom),
                                self.held: self.lazy_spawn_or_body(self.held, self.held.name, self.held.geom)}
 
+        links = len(self.robot.geom.col_links)
         if self.held.name == self.obstruct.name:
             f = lambda x: -self.robot_obj_collision(x)[0] + self.dsafe - 1e-3
             grad = lambda x: -self.robot_obj_collision(x)[1]
             ## so we have an expr for the negated predicate
             f_neg = lambda x: self.robot_obj_collision(x)[0] - self.dsafe + 1e-3
             grad_neg = lambda x: self.robot_obj_collision(x)[1]
-            val = np.zeros((45,1))
+            val = np.zeros((links,1))
         else:
             f = lambda x: -self.robot_obj_held_collision(x)[0]
             grad = lambda x: -self.robot_obj_held_collision(x)[1]
             ## so we have an expr for the negated predicate
             f_neg = lambda x: self.robot_obj_held_collision(x)[0]
             grad_neg = lambda x: self.robot_obj_held_collision(x)[1]
-            val = np.zeros((46,1))
+            val = np.zeros((links+1,1))
 
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
@@ -1470,7 +1491,8 @@ class RCollides(CollisionPredicate):
         grad_neg_opt = lambda x: RCOLLIDES_OPT_COEFF*self.robot_obj_collision(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.zeros((45,1))
+        links = len(self.robot.geom.col_links)
+        val = np.zeros((links,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -1603,8 +1625,9 @@ def ee_reachable_resample(pred, negated, t, plan):
             print "we should be able to find an IK"
             continue
 
-        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot.flatten())
-        rel_pt = pred.get_rel_pt(pred._steps)
+        # generate approach IK
+        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot)
+        rel_pt = pred.get_rel_pt(-pred._steps)
         target_pose_approach = np.dot(ee_trans, np.r_[rel_pt, 1])[:3]
 
         torso_pose_approach, arm_pose_approach = get_col_free_torso_arm_pose(
@@ -1613,7 +1636,21 @@ def ee_reachable_resample(pred, negated, t, plan):
                                                     arm_pose_seed=arm_pose,
                                                     callback=target_trans_callback)
         st()
-        if torso_pose_approach is not None:
+        if torso_pose_approach is None:
+            continue
+
+        # generate retreat IK
+        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot)
+        rel_pt = pred.get_rel_pt(pred._steps)
+        target_pose_retreat = np.dot(ee_trans, np.r_[rel_pt, 1])[:3]
+
+        torso_pose_retreat, arm_pose_retreat = get_col_free_torso_arm_pose(
+                                                    t, target_pose_retreat, target_rot,
+                                                    robot, robot_body, save=True,
+                                                    arm_pose_seed=arm_pose,
+                                                    callback=target_trans_callback)
+        st()
+        if torso_pose_retreat is not None:
             break
     else:
         print "we should always be able to sample a collision-free base and arm pose"
@@ -1621,18 +1658,25 @@ def ee_reachable_resample(pred, negated, t, plan):
 
     attr_inds = OrderedDict()
     res = []
-    arm_traj = lin_interp_traj(arm_pose, arm_pose_approach, pred._steps)
-    torso_traj = lin_interp_traj(torso_pose, torso_pose_approach, pred._steps)
-    base_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
+    arm_approach_traj = lin_interp_traj(arm_pose_approach, arm_pose, pred._steps)
+    torso_approach_traj = lin_interp_traj(torso_pose_approach, torso_pose, pred._steps)
+    base_approach_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
+
+    arm_retreat_traj = lin_interp_traj(arm_pose, arm_pose_retreat, pred._steps)
+    torso_retreat_traj = lin_interp_traj(torso_pose, torso_pose_retreat, pred._steps)
+    base_retreat_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
+
+    arm_traj = np.hstack((arm_approach_traj, arm_retreat_traj[:, 1:]))
+    torso_traj = np.hstack((torso_approach_traj, torso_retreat_traj[:, 1:]))
+    base_traj = np.hstack((base_approach_traj, base_retreat_traj[:, 1:]))
 
     # add attributes for approach and retreat
-    for t_rel in range(-pred._steps, pred._steps+1):
-        ind = abs(t_rel)
+    for ind in range(2*pred._steps+1):
         robot_attr_name_val_tuples = [('rArmPose', arm_traj[:, ind]),
                                       ('backHeight', torso_traj[:, ind]),
                                       ('pose', base_traj[:, ind])]
-        add_to_attr_inds_and_res(t+t_rel, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
-    import ipdb; ipdb.set_trace()
+        add_to_attr_inds_and_res(t+ind-pred._steps, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
+    st()
 
     ee_pose_attr_name_val_tuples = [('value', target_pose),
                                     ('rotation', target_rot)]
