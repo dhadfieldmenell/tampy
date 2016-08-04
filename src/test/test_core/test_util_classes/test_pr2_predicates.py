@@ -569,12 +569,13 @@ class TestPR2Predicates(unittest.TestCase):
     def test_obstructs(self):
 
         # Obstructs, Robot, RobotPose, RobotPose, Can
+        TOL = 1e-4
 
         robot = self.setup_robot()
         rPose = self.setup_robot_pose()
         can = self.setup_can()
         test_env = self.setup_environment()
-        pred = pr2_predicates.Obstructs("test_obstructs", [robot, rPose, rPose, can], ["Robot", "RobotPose", "RobotPose", "Can"], test_env)
+        pred = pr2_predicates.Obstructs("test_obstructs", [robot, rPose, rPose, can], ["Robot", "RobotPose", "RobotPose", "Can"], test_env, tol=TOL)
         self.assertEqual(pred.get_type(), "Obstructs")
         # Since can is not yet defined
         self.assertFalse(pred.test(0))

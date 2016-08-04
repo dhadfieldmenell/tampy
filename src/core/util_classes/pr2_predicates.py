@@ -1311,7 +1311,7 @@ class Obstructs(CollisionPredicate):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
         assert len(params) == 4
         self._env = env
         self.robot, self.startp, self.endp, self.can = params
@@ -1347,7 +1347,7 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3, debug=debug)
+                                        expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol)
         self.priority = 2
 
     def get_expr(self, negated):
