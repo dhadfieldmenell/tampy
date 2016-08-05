@@ -15,7 +15,7 @@ namo_domain specific predicates can be found in core/util_classes/namo_predicate
 pr2_domain specific predicates can be cound in core/util_classes/pr2_predicates.py
 """
 
-DEFAULT_TOL=1e-4
+DEFAULT_TOL=1e-3
 
 def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
     i = startind
@@ -36,24 +36,23 @@ class ExprPredicate(Predicate):
     Predicates which are defined by a target value for a set expression.
     """
 
-    def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None, dynamic=False):
+    def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None, active_range=(0,0), tol=DEFAULT_TOL):
         """
         attr2inds is a dictionary that maps each parameter name to a
         list of (attr, active_inds) pairs. This defines the mapping
         from the primitive predicates of the params to the inputs to
         expr
         """
-        super(ExprPredicate, self).__init__(name, params, expected_param_types, env=env, dynamic=dynamic)
+        super(ExprPredicate, self).__init__(name, params, expected_param_types, env=env, active_range=active_range)
         self.expr = expr
         self.attr_inds = attr_inds
-        self.tol = DEFAULT_TOL
+        self.tol = tol
 
         self.x_dim = sum(len(active_inds)
                          for p_attrs in attr_inds.values()
                          for (_, active_inds) in p_attrs)
-        if self.dynamic:
-            ## if its dynamic, then we assume that attr_inds is the same for both timesteps
-            self.x_dim *= 2
+        start, end = active_range
+        self.x_dim *= end + 1 - start
         self.x = np.zeros(self.x_dim)
 
     def lazy_spawn_or_body(self, param, name, geom):
@@ -71,12 +70,16 @@ class ExprPredicate(Predicate):
             return self.expr
 
     def get_param_vector(self, t):
-        end_ind = get_param_vector_helper(self, self.x, 0, t, self.attr_inds)
-        if self.dynamic:
+        end_ind = 0
+        start, end = self.active_range
+        for rel_t in range(start, end+1):
             try:
-                get_param_vector_helper(self, self.x, end_ind, t+1, self.attr_inds)
-            except IndexError:
-                raise PredicateException("Insufficient pose trajectory to check dynamic predicate '%s' at the timestep."%self)
+                end_ind = get_param_vector_helper(self, self.x, end_ind, t+rel_t, self.attr_inds)
+            except IndexError as err:
+                if end - start >= 1:
+                    raise PredicateException("Insufficient pose trajectory to check dynamic predicate '%s' at the timestep."%self)
+                else:
+                    raise err
         return self.x.reshape((self.x_dim, 1))
 
     def test(self, time, negated=False):

@@ -4,6 +4,8 @@ from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.pr2 import PR2
 from core.util_classes.can import Can
+from core.util_classes.table import Table
+from core.util_classes.box import Box
 import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
 
@@ -114,7 +116,7 @@ class OpenRAVEViewer(Viewer):
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
         if isinstance(obj.geom, PR2):
             self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
-        if isinstance(obj.geom, Can):
+        if isinstance(obj.geom, Can) or isinstance(obj.geom, Box) or isinstance(obj.geom, Table):
             rotation = obj.rotation[:, t]
             assert not np.any(np.isnan(rotation))
         assert not np.any(np.isnan(obj.pose[:, t]))
@@ -122,12 +124,11 @@ class OpenRAVEViewer(Viewer):
         self.name_to_rave_body[name].set_transparency(transparency)
 
     def animate_plan(self, plan, delay=.1):
-        obj_list = []
-        horizon = plan.horizon
-        for p in plan.params.itervalues():
-            if not p.is_symbol():
-                obj_list.append(p)
-        for t in range(horizon):
+        self.animate_range(plan, (0, plan.horizon-1), delay=delay)
+
+    def animate_range(self, plan, (start, end), delay=.1):
+        obj_list = self._get_plan_obj_list(plan)
+        for t in range(start, end+1):
             self.draw(obj_list, t)
             time.sleep(delay)
 
@@ -158,6 +159,10 @@ class OpenRAVEViewer(Viewer):
     def draw_cols(self, plan):
         horizon = plan.horizon
         for t in range(horizon):
+            self.draw_cols_ts(plan, t)
+
+    def draw_cols_range(self, plan, (start, end)):
+        for t in range(start, end+1):
             self.draw_cols_ts(plan, t)
 
     def draw_cols_ts(self, plan, t):

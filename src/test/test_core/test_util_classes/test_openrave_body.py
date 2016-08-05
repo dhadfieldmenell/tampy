@@ -3,13 +3,16 @@ import unittest
 from openravepy import Environment, KinBody,RaveCreateKinBody
 from core.internal_repr import parameter
 from core.util_classes import circle
-from core.util_classes.matrix import Vector2d
+from core.util_classes.pr2 import PR2
+from core.util_classes.can import BlueCan, RedCan
+from core.util_classes.matrix import Vector2d, Vector3d, Vector7d, Value
 from core.util_classes.obstacle import Obstacle
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import OpenRAVEException
 from core.util_classes import viewer
 from core.parsing import parse_domain_config, parse_problem_config
 import main
+import time
 
 N = 10
 
@@ -101,6 +104,59 @@ class TestOpenRAVEBody(unittest.TestCase):
         # table = problem.init_state.params['rll_table']
         # view.draw([robot, table], 0, 0.7)
         # import ipdb; ipdb.set_trace()
+
+    def setup_environment(self):
+        return Environment()
+
+    def setup_robot(self, name = "pr2"):
+        attrs = {"name": [name], "pose": [(0, 0, 0)], "_type": ["Robot"], "geom": [], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
+        attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
+        attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
+        attr_types = {"name": str, "pose": Vector3d, "_type": str, "geom": PR2, "backHeight": Value, "lArmPose": Vector7d, "rArmPose": Vector7d, "lGripper": Value, "rGripper": Value}
+        robot = parameter.Object(attrs, attr_types)
+        # Set the initial arm pose so that pose is not close to joint limit
+        R_ARM_INIT = [-1.832, -0.332, -1.011, -1.437, -1.1, 0, -3.074]
+        L_ARM_INIT = [0.06, 1.25, 1.79, -1.68, -1.73, -0.10, -0.09]
+        robot.rArmPose = np.array(R_ARM_INIT).reshape((7,1))
+        robot.lArmPose = np.array(L_ARM_INIT).reshape((7,1))
+        return robot
+
+    def setup_can(self, name = "can"):
+        attrs = {"name": [name], "geom": (0.04, 0.25), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": BlueCan, "pose": Vector3d, "rotation": Vector3d, "_type": str}
+        can = parameter.Object(attrs, attr_types)
+        return can
+
+    def test_get_ik_arm_pose(self):
+        robot = self.setup_robot()
+        can = self.setup_can()
+        test_env = self.setup_environment()
+
+        robot_body = OpenRAVEBody(test_env, robot.name, robot.geom)
+
+        # robot.pose = np.array([-.5, 0, 0]).reshape((3,1))
+        robot.pose = np.array([-0., 0, 0]).reshape((3,1))
+        robot_body.set_pose(robot.pose)
+        robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
+        # can.pose = np.array([-0.31622543, -0.38142561,  1.19321209]).reshape((3,1))
+        # can.pose = np.array([0.5, -0.2,  .8]).reshape((3,1))
+        can.pose = np.array([.5, .2, .8]).reshape((3,1))
+        # can.rotation = np.array([ 0.04588155, -0.38504402,  0.19207589]).reshape((3,1))
+        can.rotation = np.array([ -.0, -0.,  0.]).reshape((3,1))
+        can_body = OpenRAVEBody(test_env, can.name, can.geom)
+        can_body.set_pose(can.pose, can.rotation)
+
+        view = viewer.OpenRAVEViewer()
+        view.draw([robot, can], 0, 0.7)
+
+        arm_poses = robot_body.get_ik_arm_pose(can.pose.flatten(), can.rotation.flatten())
+        print arm_poses
+        import ipdb; ipdb.set_trace()
+        for arm_pose in arm_poses:
+            robot.rArmPose = arm_pose.reshape((7,1))
+            view.draw([robot, can], 0, 0.7)
+            time.sleep(.1)
+        import ipdb; ipdb.set_trace()
 
 
 if __name__ == "__main__":

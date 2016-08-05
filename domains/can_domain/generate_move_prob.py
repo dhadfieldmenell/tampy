@@ -5,13 +5,13 @@ import random
 
 SEED = 1234
 NUM_PROBS = 5
-NUM_CANS = 10 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
-NUM_TARGETS = 14
+NUM_CANS = 1 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_TARGETS = 1
 assert NUM_CANS <= NUM_TARGETS
 # GOAL = "(RobotAt pr2 pdp_target0)"
-# GOAL = "(RobotAt pr2 robot_end_pose)"
+GOAL = "(RobotAt pr2 robot_end_pose)"
 # GOAL = "(At can0 target2)"
-GOAL = "(InGripper pr2 can0)"
+# GOAL = "(InGripper pr2 can0)"
 # GOAL = "(RobotAt pr2 robot_end_pose), (InGripper pr2 can0)"
 
 CAN_ROTATION_INIT = [0,0,0]

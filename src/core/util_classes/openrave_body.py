@@ -3,8 +3,10 @@ from math import cos, sin, atan2
 from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
-RaveCreateKinBody, TriMesh, Environment, DOFAffine
+RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
+IkFilterOptions, matrixFromAxisAngle
 from core.util_classes.pr2 import PR2
+from core.util_classes.box import Box
 from core.util_classes.can import Can, BlueCan, RedCan
 from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
 from core.util_classes.obstacle import Obstacle
@@ -31,6 +33,8 @@ class OpenRAVEBody(object):
             self._add_table(geom)
         elif isinstance(geom, Wall):
             self._add_wall(geom)
+        elif isinstance(geom, Box):
+            self._add_box(geom)
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
 
@@ -91,6 +95,13 @@ class OpenRAVEBody(object):
         self.env_body = body
         self._env.AddKinBody(body)
 
+    def _add_box(self, geom):
+        infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, geom.dim, [0.5, 0.2, 0.1])
+        self.env_body = RaveCreateKinBody(self._env,'')
+        self.env_body.InitFromGeometries([infobox])
+        self.env_body.SetName(self.name)
+        self._env.Add(self.env_body)
+
     def _add_wall(self, geom):
         self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
         self.env_body.SetName(self.name)
@@ -112,7 +123,7 @@ class OpenRAVEBody(object):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, PR2):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
-        elif isinstance(self._geom, Table) or isinstance(self._geom, Can):
+        elif isinstance(self._geom, Table) or isinstance(self._geom, Can) or isinstance(self._geom, Box):
             trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)
 
@@ -177,7 +188,7 @@ class OpenRAVEBody(object):
 
     @staticmethod
     def create_box(env, name, transform, dims, color=[0,0,1]):
-        infobox = OpenRAVEBody.create_box_info(dims, color, 0, True)
+        infobox = OpenRAVEBody.create_body_info(dims, color, 0, True)
         box = RaveCreateKinBody(env,'')
         box.InitFromGeometries([infobox])
         box.SetName(name)
@@ -377,3 +388,24 @@ class OpenRAVEBody(object):
         roll = atan2(r[2,1], r[2,2])
         # ipdb.set_trace()
         return (yaw, pitch, roll)
+
+    @staticmethod
+    def get_ik_transform(pos, rot):
+        trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
+        # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
+        rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+        trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
+        trans[:3, :3] = trans_mat
+        return trans
+
+    def get_ik_arm_pose(self, pos, rot):
+        assert isinstance(self._geom, PR2)
+        trans = OpenRAVEBody.get_ik_transform(pos, rot)
+        solution = self.get_ik_solutions('rightarm_torso', trans)
+        return solution
+
+    def get_ik_solutions(self, manip_name, trans):
+        manip = self.env_body.GetManipulator(manip_name)
+        iktype = IkParameterizationType.Transform6D
+        solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
+        return solutions

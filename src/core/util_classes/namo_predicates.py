@@ -1,5 +1,6 @@
 from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
+from core.internal_repr.plan import Plan
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody
@@ -9,6 +10,8 @@ import numpy as np
 from openravepy import Environment
 import ctrajoptpy
 from collections import OrderedDict
+
+from pma.ll_solver import NAMOSolver
 
 """
 This file implements the predicates for the 2D NAMO domain.
@@ -126,6 +129,7 @@ class CollisionPredicate(ExprPredicate):
 
 
 class At(ExprPredicate):
+
     def __init__(self, name, params, expected_param_types, env=None):
         ## At Can Target
         self.can, self.targ = params
@@ -209,7 +213,7 @@ class Collides(CollisionPredicate):
 
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
-        self.priority = 1
+        # self.priority = 1
 
     def get_expr(self, negated):
         if negated:
@@ -256,7 +260,7 @@ class RCollides(CollisionPredicate):
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
 
-        self.priority = 1
+        # self.priority = 1
 
     def get_expr(self, negated):
         if negated:
@@ -298,29 +302,16 @@ class Obstructs(CollisionPredicate):
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=3)
-        self.priority=1
+        # self.priority=1
 
     def resample(self, negated, time, plan):
         assert negated
         res = []
         attr_inds = OrderedDict()
         for param in [self.startp, self.endp]:
-            ## there should only be 1 target that satisfies this
-            ## otherwise, choose to fail here
-            targets  = plan.get_param(InContact, 2, {0: self.r, 1:param})
-            # http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
-            inds = np.where(param._free_attrs['value'])
-            if np.sum(inds) == 0: continue ## no resampling for this one
-            if len(targets) == 1:
-                random_dir = np.random.rand(2,1)
-                random_dir = random_dir/np.linalg.norm(random_dir)
-                val = targets[0].value + random_dir*2*self.r.geom.radius
-            elif len(targets) == 0:
-                ## old generator -- just add a random perturbation
-                val = np.random.normal(param.value[:, 0], scale=self.rs_scale)
-            else:
-                raise NotImplemented
-            param.value[inds] = val[inds]
+            val, inds = sample_pose(plan, param, self.r, self.rs_scale)
+            if val is None:
+                continue
             res.extend(val[inds].flatten().tolist())
             # inds[0] returns the x values of the indices which is what we care
             # about, because the y values correspond to time.
@@ -333,6 +324,70 @@ class Obstructs(CollisionPredicate):
             return self.neg_expr
         else:
             return None
+
+def sample_pose(plan, pose, robot, rs_scale):
+    targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
+    # http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
+    inds = np.where(pose._free_attrs['value'])
+    if np.sum(inds) == 0: return None, None ## no resampling for this one
+    if len(targets) == 1:
+        # print "one target", pose
+        random_dir = np.random.rand(2,1) - 0.5
+        random_dir = random_dir/np.linalg.norm(random_dir)
+                # assumes targets are symbols
+        val = targets[0].value + random_dir*3*robot.geom.radius
+    elif len(targets) == 0:
+                ## old generator -- just add a random perturbation
+        # print "no targets", pose
+        val = np.random.normal(pose.value[:, 0], scale=rs_scale)[:, None]
+    else:
+        # import pdb; pdb.set_trace()
+        raise NotImplementedError
+    # print pose, val
+    pose.value = val
+    ## make the pose collision free
+    _, collision_preds = plan.get_param('RCollides', 1, negated=True, return_preds=True)
+    _, at_preds = plan.get_param('RobotAt', 1, {0: robot, 1:pose}, negated=False, return_preds=True)
+    preds = [(collision_preds[0], True), (at_preds[0], False)]
+    old_pose = robot.pose.copy()
+    old_free = robot._free_attrs['pose'].copy()
+    robot.pose = pose.value.copy()
+    robot._free_attrs['pose'][:] = 1
+
+    wall = collision_preds[0].params[1]
+    old_w_pose = wall.pose.copy()
+    wall.pose = wall.pose[:, 0][:, None]
+
+
+    old_priority = [p.priority for p, n in preds]
+    for p, n in preds:
+        p.priority = -1
+    p = Plan.create_plan_for_preds(preds, collision_preds[0]._env)
+    s = NAMOSolver(transfer_norm='l2')
+    success = s._solve_opt_prob(p, 0, resample=False, verbose=False)
+
+    # print success
+
+
+    ## debugging
+    # import viewer
+    # v = viewer.OpenRAVEViewer.create_viewer()
+    # v.draw_plan_ts(p, 0)
+    # print pose.value, val
+    # import pdb; pdb.set_trace()
+
+
+
+    ## restore the old values
+    robot.pose = old_pose
+    robot._free_attrs['pose'] = old_free
+    for i, (p, n) in enumerate(preds):
+        p.priority = old_priority[i]
+
+    wall.pose = old_w_pose
+
+    return pose.value, inds
+
 
 class ObstructsHolding(CollisionPredicate):
 
@@ -371,7 +426,7 @@ class ObstructsHolding(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
-        self.priority=1
+        # self.priority=1
 
     def resample(self, negated, time, plan):
 
@@ -383,21 +438,9 @@ class ObstructsHolding(CollisionPredicate):
         for param in [self.startp, self.endp]:
             ## there should only be 1 target that satisfies this
             ## otherwise, choose to fail here
-            targets  = plan.get_param(InContact, 2, {0: self.r, 1:param})
-            # http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
-            inds = np.where(param._free_attrs['value'])
-            if np.sum(inds) == 0: continue ## no resampling for this one
-            if len(targets) == 1:
-                random_dir = np.random.rand(2,1)
-                random_dir = random_dir/np.linalg.norm(random_dir)
-                # assumes targets are symbols
-                val = targets[0].value + random_dir*2*self.r.geom.radius
-            elif len(targets) == 0:
-                ## old generator -- just add a random perturbation
-                val = np.random.normal(param.value[:, 0], scale=self.rs_scale)
-            else:
-                raise NotImplemented
-            param.value[inds] = val[inds]
+            val, inds = sample_pose(plan, param, self.r, self.rs_scale)
+            if val is None:
+                continue
             res.extend(val[inds].flatten().tolist())
             # inds[0] returns the x values of the indices which is what we care
             # about, because the y values correspond to time.
@@ -500,7 +543,7 @@ class Stationary(ExprPredicate):
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class StationaryNEq(ExprPredicate):
 
@@ -520,7 +563,7 @@ class StationaryNEq(ExprPredicate):
                           [0, 1, 0, -1]])
             b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 class StationaryW(ExprPredicate):
 
@@ -533,7 +576,7 @@ class StationaryW(ExprPredicate):
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
 
 
@@ -553,4 +596,4 @@ class IsMP(ExprPredicate):
         b = np.zeros((4, 1))
 
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
-        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, dynamic=True)
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
