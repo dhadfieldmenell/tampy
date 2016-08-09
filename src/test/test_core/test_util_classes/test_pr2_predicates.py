@@ -312,14 +312,6 @@ class TestPR2Predicates(unittest.TestCase):
         can.rotation = np.array([-0., -0., -0.]).reshape((3,1))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-4)
 
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # test_env.SetViewer("qtcoin")
-        # import ipdb; ipdb.set_trace()
-
     def test_grasp_valid(self):
 
         # GraspValid EEPose Target
@@ -396,19 +388,6 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred2.test(0))
         self.assertTrue(robot.rGripper, 0.46)
 
-
-
-        # """
-        #     Uncomment the following to see the can and robot gripper position
-        # """
-        # # ref_can_body = pred.lazy_spawn_or_body(test_can, test_can.name, test_can.geom)
-        # # test_can.pose = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
-        # pred2._param_to_body[robot].set_transparency(0.7)
-        # test_env.SetViewer("qtcoin")
-        # # ref_can_body.set_transparency(0)
-        # # ref_can_body.set_pose(test_can.pose)
-        # import ipdb; ipdb.set_trace()
-
     def test_ee_reachable_with_zero_steps(self):
 
         # EEUnreachable Robot, StartPose, EEPose
@@ -420,11 +399,6 @@ class TestPR2Predicates(unittest.TestCase):
         test_env = self.setup_environment()
         pred = pr2_predicates.EEReachable("test_ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env, steps=0)
         pred2 = pr2_predicates.EEReachableRot("test_ee_reachable_rot", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # test_env.SetViewer("qtcoin")
 
         self.assertTrue(pred.get_type(), "EEReachable")
         # Since this predicate is not yet concrete
@@ -546,7 +520,7 @@ class TestPR2Predicates(unittest.TestCase):
         ee_pose.rotation = np.array([[ 0.19443979], [ 0.],[ 0.        ]])
 
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(3), True, tol)
-        
+
     def test_stationary(self):
         can = self.setup_can()
         pred = pr2_predicates.Stationary("test_stay", [can], ["Can"])
@@ -660,14 +634,6 @@ class TestPR2Predicates(unittest.TestCase):
         # The gradient test below doesn't work because the collision normals for
         # the robot's r_wrist_flex_link are inaccurate because the can is there.
         # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # pred._param_to_body[can].set_pose(can.pose, can.rotation)
-        # test_env.SetViewer("qtcoin")
-        # import ipdb; ipdb.set_trace()
 
     def test_obstructs_holding(self):
 
@@ -748,18 +714,6 @@ class TestPR2Predicates(unittest.TestCase):
         # This Gradient test failed -> failed link: r_gripper_l_finger, r_gripper_r_finger
         # if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
 
-
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[can_held].set_pose(can_held.pose, can_held.rotation)
-        # pred._param_to_body[can].set_pose(can.pose, can_held.rotation)
-        # test_env.SetViewer("qtcoin")
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can_held].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # import ipdb; ipdb.set_trace()
-
     def test_collides(self):
         can = self.setup_can("obj")
         table = self.setup_obstacle()
@@ -767,9 +721,6 @@ class TestPR2Predicates(unittest.TestCase):
 
         pred = pr2_predicates.Collides("test_collides", [can, table], ["Can", "Table"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "Collides")
-        # test_env.SetViewer("qtcoin")
-        # pred._param_to_body[can].set_transparency(0.7)
-        # pred._param_to_body[table].set_transparency(0.7)
         # Since parameters are not defined
         self.assertFalse(pred.test(0))
         # pose overlapped, collision should happens
@@ -822,9 +773,6 @@ class TestPR2Predicates(unittest.TestCase):
         test_env = self.setup_environment()
         pred = pr2_predicates.RCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
         # self.assertEqual(pred.get_type(), "RCollides")
-        # test_env.SetViewer("qtcoin")
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[table].set_transparency(0.7)
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
         table.pose = np.array([[0],[0],[0]])
@@ -867,9 +815,6 @@ class TestPR2Predicates(unittest.TestCase):
         table.pose = np.array([[.5],[.5],[2]])
         self.assertFalse(pred.test(0))
         self.assertTrue(pred.test(0, negated = True))
-        # testViewer = viewer.OpenRAVEViewer()
-        # testViewer.draw_traj([robot, can, table, sTable], range(1))
-        # import ipdb; ipdb.set_trace()d.get_param_vector(0), num_check=True, atol=.1)
 
         table.pose = np.array([[.5],[1.45],[.5]])
         table.rotation = np.array([[0.8,0,0]]).T
