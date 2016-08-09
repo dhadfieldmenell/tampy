@@ -53,7 +53,7 @@ class Plan(object):
     def save_free_attrs(self):
         for p in self.params.itervalues():
             p.save_free_attrs()
-    
+
     def restore_free_attrs(self):
         for p in self.params.itervalues():
             p.restore_free_attrs()
@@ -97,17 +97,16 @@ class Plan(object):
 
         return res
 
-    def get_failed_pred(self):
+    def get_failed_pred(self, active_ts=None):
         #just return the first one for now
         t_min = self.horizon+1
         pred = None
         negated = False
-        for a in self.actions:
-            for n, p, t in a.get_failed_preds():
-                if t < t_min:
-                    t_min = t
-                    pred = p
-                    negated = n
+        for n, p, t in self.get_failed_preds(active_ts=active_ts):
+            if t < t_min:
+                t_min = t
+                pred = p
+                negated = n
         return negated, pred, t_min
 
     def get_failed_preds(self, active_ts=None):
