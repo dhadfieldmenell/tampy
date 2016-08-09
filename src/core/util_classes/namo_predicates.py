@@ -40,6 +40,18 @@ class CollisionPredicate(ExprPredicate):
 
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+    def test(self, time, negated=False):
+        # This test is overwritten so that collisions can be calculated correctly
+        if not self.is_concrete():
+            return False
+        if time < 0:
+            raise PredicateException("Out of range time for predicate '%s'."%self)
+        try:
+            return self.neg_expr.eval(self.get_param_vector(time), tol=self.tol, negated = (not negated))
+        except IndexError:
+            ## this happens with an invalid time
+            raise PredicateException("Out of range time for predicate '%s'."%self)
+
     def plot_cols(self, env, t):
         _debug = self._debug
         self._env = env
@@ -85,6 +97,7 @@ class CollisionPredicate(ExprPredicate):
         # jac1 = np.zeros(2)
         results = []
         n_cols = len(collisions)
+        assert n_cols <= self.n_cols
         jac = np.zeros((1, 4))
         for i, c in enumerate(collisions):
             linkA = c.GetLinkAParentName()
@@ -113,15 +126,9 @@ class CollisionPredicate(ExprPredicate):
                 print "distance = ", distance
                 print "normal = ", normal
 
-            # if there are multiple collisions, use the one with the greatest penetration distance
-            if self.dsafe - distance > val:
-                chosen_pt0, chosen_pt1 = (pt0, pt1)
-                chosen_distance = distance
-                chosen_normal = normal
-                val = self.dsafe - distance
-        vals[i, 0] = self.dsafe - chosen_distance
-        jacs[i, :2] = -1*chosen_normal[:2]
-        jacs[i, 2:] = chosen_normal[:2]
+            vals[i, 0] = self.dsafe - distance
+            jacs[i, :2] = -1*normal[:2]
+            jacs[i, 2:] = normal[:2]
 
         if self._debug:
             print "options: ", results
@@ -196,6 +203,9 @@ class InContact(CollisionPredicate):
         # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
+
+    def test(self, time, negated=False):
+        return super(CollisionPredicate, self).test(time, negated)
 
 class Collides(CollisionPredicate):
 
