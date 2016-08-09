@@ -18,7 +18,7 @@ This file implements the predicates for the 2D NAMO domain.
 """
 
 dsafe = 1e-1
-dmove = 5e-1
+dmove = 2e-1
 contact_dist = 0
 
 RS_SCALE = 0.5
@@ -77,7 +77,8 @@ class CollisionPredicate(ExprPredicate):
 
     # @profile
     def _calc_grad_and_val(self, name0, name1, pose0, pose1, collisions):
-        vals, jacs = [], []
+        vals = np.zeros((self.n_cols, 1))
+        jacs = np.zeros((self.n_cols, 4))
 
         val = -1 * float("inf")
         # jac0 = np.zeros(2)
@@ -85,7 +86,7 @@ class CollisionPredicate(ExprPredicate):
         results = []
         n_cols = len(collisions)
         jac = np.zeros((1, 4))
-        for c in collisions:
+        for i, c in enumerate(collisions):
             linkA = c.GetLinkAParentName()
             linkB = c.GetLinkBParentName()
 
@@ -116,10 +117,9 @@ class CollisionPredicate(ExprPredicate):
             if self.dsafe - distance > val:
                 chosen_pt0, chosen_pt1 = (pt0, pt1)
                 chosen_distance = distance
-            vals.append(self.dsafe - distance)
-            jac[:, :2] = -1*normal[:2]
-            jac[:, 2:] = normal[:2]
-            jacs.append(jac.copy())
+            vals[i, 0] = self.dsafe - distance
+            jacs[i, :2] = -1*normal[:2]
+            jacs[i, 2:] = normal[:2]
 
         if self._debug:
             print "options: ", results
@@ -129,7 +129,7 @@ class CollisionPredicate(ExprPredicate):
         # if jac0 is None or jac1 is None or val is None:
         #     import ipdb; ipdb.set_trace()
 
-        return np.array(vals).reshape((n_cols, 1)), np.array(jacs).reshape((n_cols, 4))
+        return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
         self.handles = []
