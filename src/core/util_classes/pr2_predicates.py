@@ -1198,7 +1198,7 @@ class EEReachable(PosePredicate):
     # EEUnreachable Robot, StartPose, EEPose
     # checks robot.getEEPose = EEPose
 
-    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
         assert len(params) == 3
         self._env = env
         self.robot, self.start_pose, self.ee_pose = params
@@ -1213,7 +1213,7 @@ class EEReachable(PosePredicate):
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
-        self._steps = EEREACHABLE_STEPS
+        self._steps = steps
         self._dim = 26
         # f = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[0]
         # grad = lambda x: EEREACHABLE_COEFF*self.ee_pose_check(x)[1]
