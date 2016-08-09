@@ -18,6 +18,7 @@ class Parameter(object):
     def __init__(self, attrs=None, attr_types=None):
         self.openrave_body = None
         self._free_attrs = {}
+        self._saved_free_attrs = {}
 
         if attr_types is not None:
             self._attr_types = attr_types.copy()
@@ -44,6 +45,8 @@ class Parameter(object):
             return OpenRAVEBody
         elif attr_name == '_free_attrs':
             return dict
+        elif attr_name == '_saved_free_attrs':
+            return dict
         return self._attr_types[attr_name]
 
     def get_type(self):
@@ -52,15 +55,26 @@ class Parameter(object):
     def is_symbol(self):
         return False
 
-    def is_fixed(self, attr_list):
-        return not np.all([np.all(self._free_attrs[attr]) for attr in attr_list])
-
+    def is_fixed(self, attr_list, t=None):
+        if t is None:
+            return not np.all([np.all(self._free_attrs[attr]) for attr in attr_list])
+        else:
+            return not np.all([self._free_attrs[attr][:, t] for attr in attr_list])
 
     def is_defined(self):
         for attr_name in self._attr_types.iterkeys():
             if getattr(self, attr_name) is "undefined":
                 return False
         return True
+
+    def save_free_attrs(self):
+        self._saved_free_attrs = {}
+        for k, v in self._free_attrs.iteritems():
+            self._saved_free_attrs[k] = v.copy()
+
+    def restore_free_attrs(self):
+        self._free_attrs = self._saved_free_attrs
+
 
     def __repr__(self):
         return "%s - %s"%(self.name, self.get_type())
