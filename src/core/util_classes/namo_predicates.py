@@ -51,7 +51,7 @@ class CollisionPredicate(ExprPredicate):
     # @profile
     def distance_from_obj(self, x):
         flattened = tuple(x.round(N_DIGS).flatten())
-        if flattened in self._cache:
+        if flattened in self._cache and self._debug is False:
             return self._cache[flattened]
         self._cc.SetContactDistance(np.Inf)
         p0 = self.params[self.ind0]
@@ -117,13 +117,16 @@ class CollisionPredicate(ExprPredicate):
             if self.dsafe - distance > val:
                 chosen_pt0, chosen_pt1 = (pt0, pt1)
                 chosen_distance = distance
-            vals[i, 0] = self.dsafe - distance
-            jacs[i, :2] = -1*normal[:2]
-            jacs[i, 2:] = normal[:2]
+                chosen_normal = normal
+                val = self.dsafe - distance
+        vals[i, 0] = self.dsafe - chosen_distance
+        jacs[i, :2] = -1*chosen_normal[:2]
+        jacs[i, 2:] = chosen_normal[:2]
 
         if self._debug:
             print "options: ", results
             print "selected: ", chosen_pt0, chosen_pt1
+            print "selected distance: ", chosen_distance
             self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
 
         # if jac0 is None or jac1 is None or val is None:
@@ -215,7 +218,7 @@ class Collides(CollisionPredicate):
             # print self.distance_from_obj(x)
             return -self.distance_from_obj(x)[1]
 
-        
+
         N_COLS = 8
 
         col_expr = Expr(f, grad)
