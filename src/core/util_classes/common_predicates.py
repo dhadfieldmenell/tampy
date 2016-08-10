@@ -55,6 +55,19 @@ class ExprPredicate(Predicate):
         self.x_dim *= end + 1 - start
         self.x = np.zeros(self.x_dim)
 
+    def copy(self, param_to_copy):
+        """
+        Note that expr's are not copied. This is an issue if exprs are modified.
+        """
+        expr_pred_copy = super(ExprPredicate, self).copy(param_to_copy)
+        expr_pred_copy.expr = self.expr
+        expr_pred_copy.attr_inds = self.attr_inds.copy()
+        expr_pred_copy.tol = self.tol
+
+        expr_pred_copy.x_dim = self.x_dim
+        expr_pred_copy.x = self.x.copy()
+        return expr_pred_copy
+
     def lazy_spawn_or_body(self, param, name, geom):
         if param.openrave_body is not None:
             assert geom == param.openrave_body._geom

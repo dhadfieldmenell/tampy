@@ -150,6 +150,39 @@ class TestCommonPredicates(unittest.TestCase):
         self.assertTrue(pred2.test(1))
         self.assertTrue(pred2.test(2))
 
+    def test_expr_pred_copy(self):
+        radius = 1
+        attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": circle.RedCircle, "pose": Vector2d, "_type": str}
+        p1 = parameter.Object(attrs, attr_types)
+        p1.pose = np.array([[1, 2, 3], [2, 3, 1]])
+        attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
+        attr_types = {"name": str, "value": Vector2d, "_type": str}
+        p2 = parameter.Symbol(attrs, attr_types)
+
+        ## ExprPred Construction
+        attr_inds = OrderedDict([(p1, [("pose", np.array([0], dtype=np.int))])])
+        e = expr.EqExpr(e1, np.array([2]))
+        pred = common_predicates.ExprPredicate("expr_pred", e, attr_inds, [p1, p2], ["Can", "Sym"])
+        pred.x = np.ones(pred.x_dim)
+
+        param_copy = {}
+        params = [p1, p2]
+        for p in params:
+            param_copy[p] = p.copy_ts((1,2))
+
+        pred_copy = pred.copy(param_copy)
+        for p in params:
+            self.assertTrue(p not in pred_copy.params)
+        for p in param_copy.values():
+            self.assertTrue(p in pred_copy.params)
+
+        self.assertTrue(pred.expr == pred_copy.expr)
+        self.assertTrue(pred.tol == pred_copy.tol)
+        self.assertTrue(pred.x_dim == pred_copy.x_dim)
+        self.assertTrue(np.allclose(pred.x, pred_copy.x))
+        pred_copy.x[0] = 0.
+        self.assertFalse(np.allclose(pred.x, pred_copy.x))
 
 
 
