@@ -132,3 +132,29 @@ class Plan(object):
             if start <= t and end >= t:
                 res.extend(a.get_active_preds(t))
         return res
+
+    def get_action_plans(self):
+        plans = []
+        param_to_copies = {}
+        param_to_name = {param: name for name, param in self.params.items()}
+        for a in self.actions:
+            active_timesteps = a.active_timesteps
+            start, end = active_timesteps
+            action_param_to_copy = {}
+            for param in a.params:
+                param_copy = param.copy_ts(active_timesteps)
+                action_param_to_copy[param] = param_copy
+
+                param_ts_tuple = (start, param_copy)
+                if param in param_to_copies:
+                    param_to_copies[param].append(param_ts_tuple)
+                else:
+                    param_to_copies[param] = [param_ts_tuple]
+
+            actions = [a.copy(0, action_param_to_copy)]
+            horizon = end - start + 1
+
+            params_dict = {param_to_name[param]: param_copy \
+                            for param, param_copy in action_param_to_copy.items()}
+            plans.append(Plan(params_dict, actions, horizon, self.env))
+        return plans, param_to_copies
