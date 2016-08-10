@@ -116,6 +116,20 @@ class TestParameter(unittest.TestCase):
         new_pose[:] = np.NaN
         self.assertTrue(np.allclose(p2.rotation, new_pose, equal_nan=True))
 
+    def test_copy_ts_object(self):
+        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], \
+                "pose": [[[3, 4, 5, 0], [6, 2, 1, 5], [1, 1, 1, 1]]], \
+                "rotation": [[[1, 2, 3],[4, 5, 6]]], "_type": ["Can"]}
+        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "pose": matrix.Vector3d, "rotation": matrix.Vector2d, "_type": str}
+        p = parameter.Object(attrs, attr_types)
+        p2 = p.copy_ts((1,2))
+        self.assertTrue(np.allclose(p2.pose, p.pose[:, 1:3]))
+        self.assertTrue(np.allclose(p2.rotation, p.rotation[:, 1:3]))
+        p2.pose[0,0] = 0.
+        p2.rotation[0,0] = 0.
+        self.assertFalse(np.allclose(p2.pose, p.pose[:, 1:3]))
+        self.assertFalse(np.allclose(p2.rotation, p.rotation[:, 1:3]))
+
     def test_copy_symbol(self):
         attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": ["(3, 6)"], "rotation": ["(1,2,3)"], "_type": ["Can"]}
         attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": matrix.Vector2d, "rotation": matrix.Vector3d, "_type": str}
@@ -141,3 +155,18 @@ class TestParameter(unittest.TestCase):
         arr = np.empty((3, 1))
         arr[:] = np.NaN
         self.assertTrue(np.allclose(p2.rotation, arr, equal_nan=True))
+
+    def test_copy_ts_symbol(self):
+        attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": ["(3, 6)"], "rotation": ["(1,2,3)"], "_type": ["Can"]}
+        attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": matrix.Vector2d, "rotation": matrix.Vector3d, "_type": str}
+        p = parameter.Symbol(attrs, attr_types)
+        p2 = p.copy_ts((1,3))
+        self.assertTrue(np.allclose(p2.value, [[3], [6]]))
+        self.assertTrue(np.allclose(p2.rotation, [[1], [2], [3]]))
+        self.assertTrue(np.allclose(p2.value, p.value))
+        self.assertTrue(np.allclose(p2.rotation, p.rotation))
+
+        p2.value[0,0] = 20
+        p2.rotation[0,0] = 20
+        self.assertFalse(np.allclose(p2.value, p.value))
+        self.assertFalse(np.allclose(p2.rotation, p.rotation))
