@@ -174,15 +174,13 @@ class TestCommonPredicates(unittest.TestCase):
         pred_copy = pred.copy(param_copy)
         for p in params:
             self.assertTrue(p not in pred_copy.params)
+            self.assertTrue(p not in pred_copy.attr_inds)
         for p in param_copy.values():
             self.assertTrue(p in pred_copy.params)
 
         self.assertTrue(pred.expr == pred_copy.expr)
         self.assertTrue(pred.tol == pred_copy.tol)
         self.assertTrue(pred.x_dim == pred_copy.x_dim)
-        self.assertTrue(np.allclose(pred.x, pred_copy.x))
-        pred_copy.x[0] = 0.
-        self.assertFalse(np.allclose(pred.x, pred_copy.x))
 
 
 

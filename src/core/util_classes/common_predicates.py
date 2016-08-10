@@ -3,6 +3,7 @@ from core.internal_repr.predicate import Predicate
 from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
+from collections import OrderedDict
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
 from openravepy import Environment
@@ -56,17 +57,16 @@ class ExprPredicate(Predicate):
         self.x = np.zeros(self.x_dim)
 
     def copy(self, param_to_copy):
-        """
-        Note that expr's are not copied. This is an issue if exprs are modified.
-        """
-        expr_pred_copy = super(ExprPredicate, self).copy(param_to_copy)
-        expr_pred_copy.expr = self.expr
-        expr_pred_copy.attr_inds = self.attr_inds.copy()
-        expr_pred_copy.tol = self.tol
-
-        expr_pred_copy.x_dim = self.x_dim
-        expr_pred_copy.x = self.x.copy()
-        return expr_pred_copy
+        params = self._get_param_copy(param_to_copy)
+        attr_inds = OrderedDict()
+        for p, attrs in self.attr_inds.iteritems():
+            attr_name_ind = []
+            for attr_name, inds in attrs:
+                attr_name_ind.append((attr_name, inds.copy()))
+            attr_inds[param_to_copy[p]] = attr_name_ind
+        return ExprPredicate(self.name, self.expr, attr_inds,
+                params, self.expected_param_types[:], env=self._env,
+                active_range=self.active_range, tol=self.tol)
 
     def lazy_spawn_or_body(self, param, name, geom):
         if param.openrave_body is not None:
