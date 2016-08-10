@@ -10,6 +10,7 @@ class Predicate(object):
     def __init__(self, name, params, expected_param_types, env=None, active_range=(0,0)):
         self.name = name
         self.params = params
+        self.expected_param_types = expected_param_types
         self.validate_params(expected_param_types)
         self.env = env
         self.active_range = active_range
@@ -31,6 +32,11 @@ class Predicate(object):
 
     def resample(self, negated, time, plan):
         return None, None
+
+    def copy(self, param_to_copy):
+        params = [param_to_copy[param] for param in self.params]
+        return Predicate(self.name, params, self.expected_param_types[:],
+                         env=self.env, active_range=self.active_range)
 
     def validate_params(self, expected_param_types):
         if len(self.params) != len(expected_param_types):
