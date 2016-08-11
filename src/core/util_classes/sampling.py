@@ -8,7 +8,7 @@ pi = np.pi
 
 DEFAULT_DIST = 0.6
 NUM_BASE_RESAMPLES = 10
-
+EE_ANGLE_SAMPLE_SIZE = 5
 def get_random_dir():
     rand_dir = np.random.rand(2) - 0.5
     rand_dir = rand_dir/np.linalg.norm(rand_dir)
@@ -144,37 +144,61 @@ def get_col_free_torso_arm_pose(t, pos, rot, robot_param, robot_body,
     robot_param.backHeight[:,t] = old_back_height
     return torso_pose, arm_pose
 
-    def get_ee_from_target(self, targ_pos, targ_rot):
-        """
-            Sample all possible EE Pose that pr2 can grasp with
+def get_ee_from_target(targ_pos, targ_rot):
+    """
+        Sample all possible EE Pose that pr2 can grasp with
 
-            target_pos: position of target we want to sample ee_pose form
-            target_rot: rotation of target we want to sample ee_pose form
-            return: list of ee_pose tuple in the format of (ee_pos, ee_rot) around target axis
-        """
-        possible_ee_poses = []
-        ee_pos = targ_pos.copy()
+        target_pos: position of target we want to sample ee_pose form
+        target_rot: rotation of target we want to sample ee_pose form
+        return: list of ee_pose tuple in the format of (ee_pos, ee_rot) around target axis
+    """
+    possible_ee_poses = []
+    ee_pos = targ_pos.copy()
+    target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
+    # rotate can's local z-axis by the amount of linear spacing between 0 to 2pi
+    angle_range = np.linspace(0, np.pi*2, num=EE_ANGLE_SAMPLE_SIZE)
+    for rot in angle_range:
         target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
-        # rotate can's local z-axis by the amount of linear spacing between 0 to 2pi
-        angle_range = np.linspace(0, np.pi*2, num=SAMPLE_SIZE)
-        for rot in angle_range:
-            target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
-            # rotate new ee_pose around can's rotation axis
-            rot_mat = matrixFromAxisAngle([0, 0, rot])
-            ee_trans = target_trans.dot(rot_mat)
-            ee_rot = OpenRAVEBody.obj_pose_from_transform(ee_trans)[3:]
-            possible_ee_poses.append((ee_pos, ee_rot))
-        return possible_ee_poses
+        # rotate new ee_pose around can's rotation axis
+        rot_mat = matrixFromAxisAngle([0, 0, rot])
+        ee_trans = target_trans.dot(rot_mat)
+        ee_rot = OpenRAVEBody.obj_pose_from_transform(ee_trans)[3:]
+        possible_ee_poses.append((ee_pos, ee_rot))
+    return possible_ee_poses
 
-    def closest_arm_pose(self, arm_poses, cur_arm_pose):
-        """
-            Given a list of possible arm poses, select the one with the least change from current arm pose
-        """
-        min_change = np.inf
-        chosen_arm_pose = None
-        for arm_pose in arm_poses:
-            change = sum((arm_pose - cur_arm_poses)**2)
-            if change < min_change:
-                chosen_arm_pose = arm_pose
-                min_change = change
-        return chosen_arm_pose
+def closest_arm_pose(arm_poses, cur_arm_pose):
+    """
+        Given a list of possible arm poses, select the one with the least change from current arm pose
+    """
+    min_change = np.inf
+    chosen_arm_pose = None
+    for arm_pose in arm_poses:
+        change = sum((arm_pose - cur_arm_poses)**2)
+        if change < min_change:
+            chosen_arm_pose = arm_pose
+            min_change = change
+    return chosen_arm_pose
+
+def get_base_poses_around_pos(t, robot, pos, sample_size, dist=DEFAULT_DIST):
+    base_poses = []
+    old_base_pose = robot.pose[:,t].copy()
+    for i in range(sample_size):
+        if np.any(old_base_pose):
+            base_pose = sample_base_pose(pos.flatten(), dist=dist)
+        else:
+            base_pose = sample_base_pose(pos.flatten(), base_pose_seed=old_base_pose.flatten(), dist=dist)
+        if base_pose is not None:
+            base_poses.append(base_pose)
+    return base_poses
+
+def closest_base_poses(base_poses, robot_base):
+    val, chosen = np.inf, None
+    if len(base_poses) <= 0:
+        return chosen
+    for base_pose in base_poses:
+        diff = base_pose - robot_base
+        distance = reduce(lambda x, y: x**2 + y, diff, 0)
+        if distance < val:
+            chosen = base_pose
+            val = distance
+    return chosen
