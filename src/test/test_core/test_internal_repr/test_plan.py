@@ -9,6 +9,7 @@ from core.util_classes import namo_predicates
 from errors_exceptions import PredicateException
 import numpy as np
 
+
 class TestPlan(unittest.TestCase):
 
     def setup(self):
@@ -67,9 +68,6 @@ class TestPlan(unittest.TestCase):
         plan_actions = [act0, act1, act2]
         test_plan = plan.Plan(plan_params, plan_actions, 10, 1) #1 is a dummy_env
 
-        with self.assertRaises(PredicateException) as cm:
-            test_plan.satisfied()
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'At_0: (At can1 target)'.")
         self.robot.pose = np.array([[3, 4, 7, 7],
                                     [2, 5, 8, 9]])
         self.can1.pose = np.array([[5, 5, 7, 9],

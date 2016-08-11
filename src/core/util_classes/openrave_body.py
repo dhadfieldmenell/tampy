@@ -117,13 +117,14 @@ class OpenRAVEBody(object):
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
-    def set_pose(self, base_pose, rotation = np.array([[0],[0],[0]])):
+    def set_pose(self, base_pose, rotation = None):
         trans = None
         if isinstance(self._geom, Circle) or isinstance(self._geom, Obstacle) or isinstance(self._geom, Wall):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, PR2):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif isinstance(self._geom, Table) or isinstance(self._geom, Can) or isinstance(self._geom, Box):
+            assert rotation != None
             trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)
 
@@ -401,8 +402,8 @@ class OpenRAVEBody(object):
     def get_ik_arm_pose(self, pos, rot):
         assert isinstance(self._geom, PR2)
         trans = OpenRAVEBody.get_ik_transform(pos, rot)
-        solution = self.get_ik_solutions('rightarm_torso', trans)
-        return solution
+        solutions = self.get_ik_solutions('rightarm_torso', trans)
+        return solutions
 
     def get_ik_solutions(self, manip_name, trans):
         manip = self.env_body.GetManipulator(manip_name)

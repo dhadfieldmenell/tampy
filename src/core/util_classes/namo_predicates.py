@@ -18,10 +18,11 @@ This file implements the predicates for the 2D NAMO domain.
 """
 
 dsafe = 1e-1
-dmove = 5e-1
+dmove = 2e-1
 contact_dist = 0
 
 RS_SCALE = 0.5
+N_DIGS = 3
 
 
 class CollisionPredicate(ExprPredicate):
@@ -35,8 +36,21 @@ class CollisionPredicate(ExprPredicate):
         self.ind1 = ind1
 
         self._cache = {}
+        self.n_cols = 1
 
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def test(self, time, negated=False):
+        # This test is overwritten so that collisions can be calculated correctly
+        if not self.is_concrete():
+            return False
+        if time < 0:
+            raise PredicateException("Out of range time for predicate '%s'."%self)
+        try:
+            return self.neg_expr.eval(self.get_param_vector(time), tol=self.tol, negated = (not negated))
+        except IndexError:
+            ## this happens with an invalid time
+            raise PredicateException("Out of range time for predicate '%s'."%self)
 
     def plot_cols(self, env, t):
         _debug = self._debug
@@ -45,9 +59,11 @@ class CollisionPredicate(ExprPredicate):
         self.distance_from_obj(self.get_param_vector(t))
         self._debug = _debug
 
+
+    # @profile
     def distance_from_obj(self, x):
-        flattened = tuple(x.round(5).flatten())
-        if flattened in self._cache:
+        flattened = tuple(x.round(N_DIGS).flatten())
+        if flattened in self._cache and self._debug is False:
             return self._cache[flattened]
         self._cc.SetContactDistance(np.Inf)
         p0 = self.params[self.ind0]
@@ -63,19 +79,27 @@ class CollisionPredicate(ExprPredicate):
 
         collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
 
-        col_val, jac0, jac1 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
-        val = np.array([col_val])
-        jac = np.r_[jac0, jac1].reshape((1, 4))
+        col_val, jac01 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
+        # val = np.array([col_val])
+        val = col_val
+        jac = jac01
         self._cache[flattened] = (val.copy(), jac.copy())
         return val, jac
 
 
+    # @profile
     def _calc_grad_and_val(self, name0, name1, pose0, pose1, collisions):
+        vals = np.zeros((self.n_cols, 1))
+        jacs = np.zeros((self.n_cols, 4))
+
         val = -1 * float("inf")
-        jac0 = np.zeros(2)
-        jac1 = np.zeros(2)
+        # jac0 = np.zeros(2)
+        # jac1 = np.zeros(2)
         results = []
-        for c in collisions:
+        n_cols = len(collisions)
+        assert n_cols <= self.n_cols
+        jac = np.zeros((1, 4))
+        for i, c in enumerate(collisions):
             linkA = c.GetLinkAParentName()
             linkB = c.GetLinkBParentName()
 
@@ -102,22 +126,20 @@ class CollisionPredicate(ExprPredicate):
                 print "distance = ", distance
                 print "normal = ", normal
 
-            # if there are multiple collisions, use the one with the greatest penetration distance
-            if self.dsafe - distance > val:
-                chosen_pt0, chosen_pt1 = (pt0, pt1)
-                chosen_distance = distance
-                val = self.dsafe - distance
-                jac0 = -1 * normal[0:2]
-                jac1 = normal[0:2]
+            vals[i, 0] = self.dsafe - distance
+            jacs[i, :2] = -1*normal[:2]
+            jacs[i, 2:] = normal[:2]
 
         if self._debug:
             print "options: ", results
             print "selected: ", chosen_pt0, chosen_pt1
+            print "selected distance: ", chosen_distance
             self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
 
-        if jac0 is None or jac1 is None or val is None:
-            import ipdb; ipdb.set_trace()
-        return val, jac0, jac1
+        # if jac0 is None or jac1 is None or val is None:
+        #     import ipdb; ipdb.set_trace()
+
+        return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
         self.handles = []
@@ -182,6 +204,9 @@ class InContact(CollisionPredicate):
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
 
+    def test(self, time, negated=False):
+        return super(CollisionPredicate, self).test(time, negated)
+
 class Collides(CollisionPredicate):
 
     # Collides Can Obstacle (wall)
@@ -203,16 +228,21 @@ class Collides(CollisionPredicate):
             # print self.distance_from_obj(x)
             return -self.distance_from_obj(x)[1]
 
+
+        N_COLS = 8
+
         col_expr = Expr(f, grad)
-        val = np.zeros((1,1))
+        val = np.zeros((N_COLS,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
 
+
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
+        self.n_cols = N_COLS
         # self.priority = 1
 
     def get_expr(self, negated):
@@ -249,8 +279,9 @@ class RCollides(CollisionPredicate):
             # print self.distance_from_obj(x)
             return -self.distance_from_obj(x)[1]
 
+        N_COLS = 8
         col_expr = Expr(f, grad)
-        val = np.zeros((1,1))
+        val = np.zeros((N_COLS,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -259,6 +290,7 @@ class RCollides(CollisionPredicate):
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
+        self.n_cols = N_COLS
 
         # self.priority = 1
 
@@ -345,6 +377,7 @@ def sample_pose(plan, pose, robot, rs_scale):
         raise NotImplementedError
     # print pose, val
     pose.value = val
+
     ## make the pose collision free
     _, collision_preds = plan.get_param('RCollides', 1, negated=True, return_preds=True)
     _, at_preds = plan.get_param('RobotAt', 1, {0: robot, 1:pose}, negated=False, return_preds=True)
@@ -465,15 +498,17 @@ class ObstructsHolding(CollisionPredicate):
         b0.set_pose(pose_r)
         b1.set_pose(pose_obstr)
 
+        assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
+
         collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
-        col_val1, jac0, jac1 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1)
+        col_val1, jac01 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1)
 
         if self.obstr.name == self.held.name:
             ## add dsafe to col_val1 b/c we're allowed to touch, but not intersect
             ## 1e-3 is there because the collision checker's value has some error.
             col_val1 -= self.dsafe + 1e-3
             val = np.array(col_val1)
-            jac = np.r_[jac0, jac1].reshape((1, 4))
+            jac = jac01
 
         else:
             b2 = self._param_to_body[self.held]
@@ -481,14 +516,14 @@ class ObstructsHolding(CollisionPredicate):
             b2.set_pose(pose_held)
 
             collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
-            col_val2, jac2, jac1_ = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
+            col_val2, jac21 = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
 
             if col_val1 > col_val2:
                 val = np.array(col_val1)
-                jac = np.r_[jac0, jac1, np.zeros(2)].reshape((1, 6))
+                jac = np.c_[jac01, np.zeros((1, 2))].reshape((1, 6))
             else:
                 val = np.array(col_val2)
-                jac = np.r_[np.zeros(2), jac1_, jac2].reshape((1, 6))
+                jac = np.c_[np.zeros((1, 2)), jac21[:, 2:], jac21[:, :2]].reshape((1, 6))
 
         return val, jac
 

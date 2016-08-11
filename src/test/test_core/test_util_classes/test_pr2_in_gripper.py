@@ -142,4 +142,4 @@ def _test_plan(test_obj, plan):
             viewer.draw_plan_ts(plan, t)
 
     import ipdb; ipdb.set_trace()
-    test_obj.assertTrue(plan.satisfied())
+    test_obj.assertTrue(plan.satisfied(1e-4))

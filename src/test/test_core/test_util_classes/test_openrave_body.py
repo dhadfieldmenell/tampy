@@ -6,6 +6,7 @@ from core.util_classes import circle
 from core.util_classes.pr2 import PR2
 from core.util_classes.can import BlueCan, RedCan
 from core.util_classes.matrix import Vector2d, Vector3d, Vector7d, Value
+from core.util_classes import matrix
 from core.util_classes.obstacle import Obstacle
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import OpenRAVEException
@@ -158,6 +159,44 @@ class TestOpenRAVEBody(unittest.TestCase):
             time.sleep(.1)
         import ipdb; ipdb.set_trace()
 
+    def test_ik_arm_pose2(self):
+        env = Environment()
+        attrs = {"name": ["pr2"], "pose": [(0, 0, 0)], "_type": ["Robot"], "geom": [], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
+        attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
+        attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
+        attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": PR2, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
+        robot = parameter.Object(attrs, attr_types)
+        # Set the initial arm pose so that pose is not close to joint limit
+        robot.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
+
+        attrs = {"name": ["can"], "geom": (0.04, 0.25), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
+        attr_types = {"name": str, "geom": BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        can = parameter.Object(attrs, attr_types)
+        can.pose = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
+        can.rotation = np.array([[np.pi/4, np.pi/4, np.pi/4]]).T
+        # Create openRAVEBody for each parameter
+        can_body = OpenRAVEBody(env, can.name, can.geom)
+        robot_body = OpenRAVEBody(env, robot.name, robot.geom)
+        # Set the poses and dof values for each body
+        can_body.set_pose(can.pose, can.rotation)
+        robot_body.set_pose(robot.pose)
+        robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
+        # Solve the IK solution
+        ik_arm = robot_body.get_ik_arm_pose(can.pose, can.rotation)[0]
+        robot_body.set_dof(ik_arm[:1], robot.lArmPose, robot.lGripper, ik_arm[1:], robot.rGripper)
+        robot_trans = robot_body.env_body.GetLink("r_gripper_tool_frame").GetTransform()
+        robot_pos = OpenRAVEBody.obj_pose_from_transform(robot_trans)
+        # resulted robot eepose should be exactly the same as that can pose
+        self.assertTrue(np.allclose(can.pose.flatten(), robot_pos[:3], atol = 1e-4))
+        self.assertTrue(np.allclose(can.rotation.flatten(), robot_pos[3:], atol = 1e-4))
+        """
+            Uncomment the following to see the robot arm pose
+        """
+        # robot_body.set_transparency(.7)
+        # can_body.set_transparency(.7)
+        # env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":
     unittest.main()

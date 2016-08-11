@@ -42,10 +42,10 @@ class TestCanSolver(unittest.TestCase):
             # objs.extend(cans)
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
-        self.bmove = get_plan('../domains/can_domain/can_probs/can_move_1234.prob')
-        self.bmove_grasp = get_plan('../domains/can_domain/can_probs/can_move_grasp_0.prob')
-        self.bgrasp = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob')
-        self.bmovehold = get_plan('../domains/can_domain/can_probs/can_grasp_movehold_1234_0.prob')
+
+        self.bmove = get_plan('../domains/can_domain/can_probs/can_1111_0.prob')
+        # self.move_obs = get_plan('../domains/can_domain/can_probs/move_obs.prob')
+
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/move.prob')
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
         # self.grasp = get_plan('../domains/can_domain/can_probs/grasp.prob')
@@ -64,21 +64,15 @@ class TestCanSolver(unittest.TestCase):
         else:
             self.viewer = None
 
-    def test_move(self):
-        # pass
-        _test_plan(self, self.bmove)
+    # def test_backtrack_move_grasp(self):
+    #     _test_backtrack_plan(self, self.bmove_grasp)
 
-    def test_backtrack_move(self):
-        _test_backtrack_plan(self, self.bmove)
+    # def test_move(self):
+    #     _test_plan(self, self.move_no_obs)
+    #
+    # def test_backtrack_move(self):
+    #     _test_backtrack_plan(self, self.move_no_obs, method='Backtrack', plot = True)
 
-    def test_backtrack_grasp(self):
-        _test_backtrack_plan(self, self.grasp_gen)
-
-    def test_backtrack_move_grasp(self):
-        _test_backtrack_plan(self, self.bmove_grasp)
-
-    def test_backtrack_move_grasp_move(self):
-        _test_plan(self, self.bmovehold)
 
     def test_move_obs(self):
         pass
@@ -116,8 +110,6 @@ class TestCanSolver(unittest.TestCase):
     def test_gen_plan(self):
         pass
         # _test_plan(self, self.gen_plan)
-
-
 
 def get_animate_fn(viewer, plan):
     def animate():
@@ -273,6 +265,44 @@ def _test_backtrack_plan(test_obj, plan, n_resamples=0):
     import ipdb; ipdb.set_trace()
     test_obj.assertTrue(plan.satisfied(0))
 
+def _test_backtrack_plan(test_obj, plan, method='SQP', plot=False, animate=True, verbose=False,
+               early_converge=False):
+    print "testing plan: {}".format(plan.actions)
+    if not plot:
+        callback = None
+        viewer = None
+    else:
+        viewer = OpenRAVEViewer.create_viewer()
+        if method=='SQP':
+            def callback():
+                solver._update_ll_params()
+                # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
+                # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
+                viewer.draw_plan(plan)
+                # viewer.draw_cols(plan)
+                time.sleep(0.03)
+        elif method == 'Backtrack':
+            def callback(a):
+                solver._update_ll_params()
+                viewer.clear()
+                viewer.draw_plan_range(plan, a.active_timesteps)
+                time.sleep(0.3)
+    solver = can_solver.CanSolver(early_converge=early_converge)
+    start = time.time()
+    if method == 'SQP':
+        solver.solve(plan, callback=callback, verbose=verbose)
+    elif method == 'Backtrack':
+        solver.backtrack_solve(plan, callback=callback, verbose=verbose)
+    print "Solve Took: {}".format(time.time() - start)
+    fp = plan.get_failed_preds()
+    _, _, t = plan.get_failed_pred()
+    if animate:
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
+
+    # test_obj.assertTrue(plan.satisfied())
 
 if __name__ == "__main__":
     unittest.main()

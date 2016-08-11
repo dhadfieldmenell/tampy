@@ -20,7 +20,8 @@ class Plan(object):
         self.horizon = horizon
         self.env = env
         self.initialized = False
-        self._free_params = {}
+        self._free_attrs = {}
+        self._saved_free_attrs = {}
         if determine_free:
             self._determine_free_attrs()
 
@@ -48,6 +49,14 @@ class Plan(object):
                     arr = np.zeros(v.shape, dtype=np.int)
                     arr[np.isnan(v)] = 1
                     p._free_attrs[k] = arr
+
+    def save_free_attrs(self):
+        for p in self.params.itervalues():
+            p.save_free_attrs()
+
+    def restore_free_attrs(self):
+        for p in self.params.itervalues():
+            p.restore_free_attrs()
 
     def execute(self):
         raise NotImplementedError
@@ -88,29 +97,32 @@ class Plan(object):
 
         return res
 
-    def get_failed_pred(self):
+    def get_failed_pred(self, active_ts=None):
         #just return the first one for now
         t_min = self.horizon+1
         pred = None
         negated = False
-        for a in self.actions:
-            for n, p, t in a.get_failed_preds():
-                if t < t_min:
-                    t_min = t
-                    pred = p
-                    negated = n
+        for n, p, t in self.get_failed_preds(active_ts=active_ts):
+            if t < t_min:
+                t_min = t
+                pred = p
+                negated = n
         return negated, pred, t_min
 
-    def get_failed_preds(self):
+    def get_failed_preds(self, active_ts=None):
+        if active_ts == None:
+            active_ts = (0, self.horizon-1)
         failed = []
         for a in self.actions:
-            failed.extend(a.get_failed_preds())
+            failed.extend(a.get_failed_preds(active_ts))
         return failed
 
-    def satisfied(self, tol):
+    def satisfied(self, active_ts=None):
+        if active_ts == None:
+            active_ts = (0, self.horizon-1)
         success = True
         for a in self.actions:
-            success &= a.satisfied(tol)
+            success &= a.satisfied(active_ts)
         return success
 
     def get_active_preds(self, t):

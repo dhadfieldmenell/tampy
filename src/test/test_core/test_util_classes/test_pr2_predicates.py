@@ -312,14 +312,6 @@ class TestPR2Predicates(unittest.TestCase):
         can.rotation = np.array([-0., -0., -0.]).reshape((3,1))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-4)
 
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # test_env.SetViewer("qtcoin")
-        # import ipdb; ipdb.set_trace()
-
     def test_grasp_valid(self):
 
         # GraspValid EEPose Target
@@ -396,20 +388,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred2.test(0))
         self.assertTrue(robot.rGripper, 0.46)
 
-
-
-        # """
-        #     Uncomment the following to see the can and robot gripper position
-        # """
-        # # ref_can_body = pred.lazy_spawn_or_body(test_can, test_can.name, test_can.geom)
-        # # test_can.pose = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
-        # pred2._param_to_body[robot].set_transparency(0.7)
-        # test_env.SetViewer("qtcoin")
-        # # ref_can_body.set_transparency(0)
-        # # ref_can_body.set_pose(test_can.pose)
-        # import ipdb; ipdb.set_trace()
-
-    def test_ee_reachable(self):
+    def test_ee_reachable_with_zero_steps(self):
 
         # EEUnreachable Robot, StartPose, EEPose
         tol = 1e-4
@@ -418,13 +397,8 @@ class TestPR2Predicates(unittest.TestCase):
         rPose = self.setup_robot_pose()
         ee_pose = self.setup_ee_pose()
         test_env = self.setup_environment()
-        pred = pr2_predicates.EEReachable("test_ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
+        pred = pr2_predicates.EEReachable("test_ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env, steps=0)
         pred2 = pr2_predicates.EEReachableRot("test_ee_reachable_rot", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # test_env.SetViewer("qtcoin")
 
         self.assertTrue(pred.get_type(), "EEReachable")
         # Since this predicate is not yet concrete
@@ -499,6 +473,53 @@ class TestPR2Predicates(unittest.TestCase):
         ee_pose.value = np.array([-0.        , -0.08297436,  0.925     ]).reshape((3,1))
         ee_pose.rotation = np.array([-0., -0., -0.]).reshape((3,1))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-4)
+
+    def test_new_ee_reachable_on_real_scenario(self):
+        tol = 1e-2
+        approach_dist = pr2_predicates.APPROACH_DIST
+
+        robot = self.setup_robot()
+        rPose = self.setup_robot_pose()
+        ee_pose = self.setup_ee_pose()
+        test_env = self.setup_environment()
+        pred = pr2_predicates.EEReachable("test_ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
+
+        robot.pose = np.array([[-0.86781942, -0.86678922, -0.86497235, -0.86193732, -0.86467002,
+                                -0.86619416, -0.86730764],
+                               [ 0.71974634,  0.72077784,  0.72171126,  0.72255537,  0.72167699,
+                                 0.72068628,  0.71957508],
+                               [-0.23095187, -0.2310754 , -0.23109161, -0.23093796, -0.23104886,
+                                -0.2310134 , -0.23095187]])
+        robot.rArmPose = np.array([[-0.66490539, -0.55404033, -0.44385716, -0.33451703, -0.44372767,
+                                    -0.55392061, -0.66490539],
+                                   [ 1.05058352,  1.01866571,  0.98636921,  0.95295444,  0.98790629,
+                                     1.02091879,  1.05058352],
+                                   [-1.40423844, -1.27655404, -1.14793919, -1.01775001, -1.14612105,
+                                    -1.27439349, -1.40423844],
+                                   [-2.1834061 , -2.06475678, -1.94318176, -1.81793617, -1.94431955,
+                                    -2.06703347, -2.1854061 ],
+                                   [-3.46640267, -3.4327794 , -3.3992001 , -3.3657951 , -3.39746001,
+                                    -3.43158324, -3.46659299],
+                                   [-0.87404586, -0.81687909, -0.76031535, -0.70434362, -0.75896191,
+                                    -0.8156337 , -0.87404586],
+                                   [-2.40788409, -2.41962747, -2.43137085, -2.44311423, -2.42785782,
+                                    -2.41534558, -2.40788409]])
+        robot.rGripper = np.array([[ 0.466,  0.464,  0.462,  0.46 ,  0.46 ,  0.46 ,  0.46 ]])
+        robot.lArmPose = np.array([[ 0.06,  0.06,  0.06,  0.06,  0.06,  0.06,  0.06],
+                                   [ 1.25,  1.25,  1.25,  1.25,  1.25,  1.25,  1.25],
+                                   [ 1.79,  1.79,  1.79,  1.79,  1.79,  1.79,  1.79],
+                                   [-1.68, -1.68, -1.68, -1.68, -1.68, -1.68, -1.68],
+                                   [-1.73, -1.73, -1.73, -1.73, -1.73, -1.73, -1.73],
+                                   [-0.1 , -0.1 , -0.1 , -0.1 , -0.1 , -0.1 , -0.1 ],
+                                   [-0.09, -0.09, -0.09, -0.09, -0.09, -0.09, -0.09]])
+        robot.lGripper = np.array([[ 0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5]])
+        robot.backHeight = np.array([[ 0.29927181,  0.30233486,  0.30315221,  0.30242296,  0.30285026,
+                                     0.30163447,  0.29852726]])
+
+        ee_pose.value = np.array([[-0.28072986], [ 0.58358587], [ 0.925     ]])
+        ee_pose.rotation = np.array([[ 0.19443979], [ 0.],[ 0.        ]])
+
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(3), True, tol)
 
     def test_stationary(self):
         can = self.setup_can()
@@ -613,14 +634,6 @@ class TestPR2Predicates(unittest.TestCase):
         # The gradient test below doesn't work because the collision normals for
         # the robot's r_wrist_flex_link are inaccurate because the can is there.
         # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # pred._param_to_body[can].set_pose(can.pose, can.rotation)
-        # test_env.SetViewer("qtcoin")
-        # import ipdb; ipdb.set_trace()
 
     def test_obstructs_holding(self):
 
@@ -701,18 +714,6 @@ class TestPR2Predicates(unittest.TestCase):
         # This Gradient test failed -> failed link: r_gripper_l_finger, r_gripper_r_finger
         # if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
 
-
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[can_held].set_pose(can_held.pose, can_held.rotation)
-        # pred._param_to_body[can].set_pose(can.pose, can_held.rotation)
-        # test_env.SetViewer("qtcoin")
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[can_held].set_transparency(0.7)
-        # pred._param_to_body[can].set_transparency(0.7)
-        # import ipdb; ipdb.set_trace()
-
     def test_collides(self):
         can = self.setup_can("obj")
         table = self.setup_obstacle()
@@ -720,9 +721,6 @@ class TestPR2Predicates(unittest.TestCase):
 
         pred = pr2_predicates.Collides("test_collides", [can, table], ["Can", "Table"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "Collides")
-        # test_env.SetViewer("qtcoin")
-        # pred._param_to_body[can].set_transparency(0.7)
-        # pred._param_to_body[table].set_transparency(0.7)
         # Since parameters are not defined
         self.assertFalse(pred.test(0))
         # pose overlapped, collision should happens
@@ -775,9 +773,6 @@ class TestPR2Predicates(unittest.TestCase):
         test_env = self.setup_environment()
         pred = pr2_predicates.RCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
         # self.assertEqual(pred.get_type(), "RCollides")
-        # test_env.SetViewer("qtcoin")
-        # pred._param_to_body[robot].set_transparency(0.7)
-        # pred._param_to_body[table].set_transparency(0.7)
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
         table.pose = np.array([[0],[0],[0]])
@@ -820,9 +815,6 @@ class TestPR2Predicates(unittest.TestCase):
         table.pose = np.array([[.5],[.5],[2]])
         self.assertFalse(pred.test(0))
         self.assertTrue(pred.test(0, negated = True))
-        # testViewer = viewer.OpenRAVEViewer()
-        # testViewer.draw_traj([robot, can, table, sTable], range(1))
-        # import ipdb; ipdb.set_trace()d.get_param_vector(0), num_check=True, atol=.1)
 
         table.pose = np.array([[.5],[1.45],[.5]])
         table.rotation = np.array([[0.8,0,0]]).T
@@ -837,53 +829,6 @@ class TestPR2Predicates(unittest.TestCase):
         # pred._param_to_body[table].set_pose(table.pose, table.rotation)
         # import ipdb; ipdb.set_trace()
 
-
-    def test_new_ee_reachable_on_real_scenario(self):
-        tol = 1e-2
-        approach_dist = pr2_predicates.APPROACH_DIST
-
-        robot = self.setup_robot()
-        rPose = self.setup_robot_pose()
-        ee_pose = self.setup_ee_pose()
-        test_env = self.setup_environment()
-        pred = pr2_predicates.EEReachable("test_ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
-
-        robot.pose = np.array([[-0.86781942, -0.86678922, -0.86497235, -0.86193732, -0.86467002,
-                                -0.86619416, -0.86730764],
-                               [ 0.71974634,  0.72077784,  0.72171126,  0.72255537,  0.72167699,
-                                 0.72068628,  0.71957508],
-                               [-0.23095187, -0.2310754 , -0.23109161, -0.23093796, -0.23104886,
-                                -0.2310134 , -0.23095187]])
-        robot.rArmPose = np.array([[-0.66490539, -0.55404033, -0.44385716, -0.33451703, -0.44372767,
-                                    -0.55392061, -0.66490539],
-                                   [ 1.05058352,  1.01866571,  0.98636921,  0.95295444,  0.98790629,
-                                     1.02091879,  1.05058352],
-                                   [-1.40423844, -1.27655404, -1.14793919, -1.01775001, -1.14612105,
-                                    -1.27439349, -1.40423844],
-                                   [-2.1834061 , -2.06475678, -1.94318176, -1.81793617, -1.94431955,
-                                    -2.06703347, -2.1854061 ],
-                                   [-3.46640267, -3.4327794 , -3.3992001 , -3.3657951 , -3.39746001,
-                                    -3.43158324, -3.46659299],
-                                   [-0.87404586, -0.81687909, -0.76031535, -0.70434362, -0.75896191,
-                                    -0.8156337 , -0.87404586],
-                                   [-2.40788409, -2.41962747, -2.43137085, -2.44311423, -2.42785782,
-                                    -2.41534558, -2.40788409]])
-        robot.rGripper = np.array([[ 0.466,  0.464,  0.462,  0.46 ,  0.46 ,  0.46 ,  0.46 ]])
-        robot.lArmPose = np.array([[ 0.06,  0.06,  0.06,  0.06,  0.06,  0.06,  0.06],
-                                   [ 1.25,  1.25,  1.25,  1.25,  1.25,  1.25,  1.25],
-                                   [ 1.79,  1.79,  1.79,  1.79,  1.79,  1.79,  1.79],
-                                   [-1.68, -1.68, -1.68, -1.68, -1.68, -1.68, -1.68],
-                                   [-1.73, -1.73, -1.73, -1.73, -1.73, -1.73, -1.73],
-                                   [-0.1 , -0.1 , -0.1 , -0.1 , -0.1 , -0.1 , -0.1 ],
-                                   [-0.09, -0.09, -0.09, -0.09, -0.09, -0.09, -0.09]])
-        robot.lGripper = np.array([[ 0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5]])
-        robot.backHeight = np.array([[ 0.29927181,  0.30233486,  0.30315221,  0.30242296,  0.30285026,
-                                     0.30163447,  0.29852726]])
-
-        ee_pose.value = np.array([[-0.28072986], [ 0.58358587], [ 0.925     ]])
-        ee_pose.rotation = np.array([[ 0.19443979], [ 0.],[ 0.        ]])
-
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(3), True, tol)
 
 
 if __name__ == "__main__":
