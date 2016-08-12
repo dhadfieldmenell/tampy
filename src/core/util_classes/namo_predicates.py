@@ -28,8 +28,6 @@ N_DIGS = 3
 class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, env=None, dsafe = dsafe, debug = False, ind0=0, ind1=1):
         self._debug = debug
-        # if self._debug:
-        #     self._env.SetViewer("qtcoin")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
@@ -80,7 +78,6 @@ class CollisionPredicate(ExprPredicate):
         collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
 
         col_val, jac01 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
-        # val = np.array([col_val])
         val = col_val
         jac = jac01
         self._cache[flattened] = (val.copy(), jac.copy())
@@ -93,8 +90,6 @@ class CollisionPredicate(ExprPredicate):
         jacs = np.zeros((self.n_cols, 4))
 
         val = -1 * float("inf")
-        # jac0 = np.zeros(2)
-        # jac1 = np.zeros(2)
         results = []
         n_cols = len(collisions)
         assert n_cols <= self.n_cols
@@ -134,10 +129,7 @@ class CollisionPredicate(ExprPredicate):
             jacs[i, :2] = sign*normal[:2]
             jacs[i, 2:] = -sign*normal[:2]
 
-        # if jac0 is None or jac1 is None or val is None:
-        #     import ipdb; ipdb.set_trace()
-
-        return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
+        return vals, jacs
 
     def _plot_collision(self, ptA, ptB, distance):
         if not np.allclose(ptA, ptB, atol=1e-3):
@@ -237,7 +229,6 @@ class Collides(CollisionPredicate):
         ## so we have an expr for the negated predicate
         f_neg = lambda x: self.distance_from_obj(x)[0]
         def grad_neg(x):
-            # print self.distance_from_obj(x)
             return self.distance_from_obj(x)[1]
 
 
@@ -285,13 +276,9 @@ class RCollides(CollisionPredicate):
         ## so we have an expr for the negated predicate
         def f_neg(x):
             d = self.distance_from_obj(x)[0]
-            # if d > 0:
-            #     import pdb; pdb.set_trace()
-            #     self.distance_from_obj(x)
             return d
 
         def grad_neg(x):
-            # print self.distance_from_obj(x)
             return self.distance_from_obj(x)[1]
 
         N_COLS = 8
@@ -339,7 +326,6 @@ class Obstructs(CollisionPredicate):
         ## so we have an expr for the negated predicate
         f_neg = lambda x: self.distance_from_obj(x)[0]
         def grad_neg(x):
-            # print self.distance_from_obj(x)
             return self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
@@ -387,14 +373,13 @@ def sample_pose(plan, pose, robot, rs_scale):
         # print "one target", pose
         random_dir = np.random.rand(2,1) - 0.5
         random_dir = random_dir/np.linalg.norm(random_dir)
-                # assumes targets are symbols
+        # assumes targets are symbols
         val = targets[0].value + random_dir*3*robot.geom.radius
     elif len(targets) == 0:
                 ## old generator -- just add a random perturbation
         # print "no targets", pose
         val = np.random.normal(pose.value[:, 0], scale=rs_scale)[:, None]
     else:
-        # import pdb; pdb.set_trace()
         raise NotImplementedError
     # print pose, val
     pose.value = val
