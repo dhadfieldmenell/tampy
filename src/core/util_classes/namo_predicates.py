@@ -103,12 +103,15 @@ class CollisionPredicate(ExprPredicate):
             linkA = c.GetLinkAParentName()
             linkB = c.GetLinkBParentName()
 
+            sign = 0
             if linkA == name0 and linkB == name1:
                 pt0 = c.GetPtA()
                 pt1 = c.GetPtB()
+                sign = -1
             elif linkB == name0 and linkA == name1:
                 pt0 = c.GetPtB()
                 pt1 = c.GetPtA()
+                sign = 1
             else:
                 continue
 
@@ -127,14 +130,8 @@ class CollisionPredicate(ExprPredicate):
                 print "normal = ", normal
 
             vals[i, 0] = self.dsafe - distance
-            jacs[i, :2] = -1*normal[:2]
-            jacs[i, 2:] = normal[:2]
-
-        if self._debug:
-            print "options: ", results
-            print "selected: ", chosen_pt0, chosen_pt1
-            print "selected distance: ", chosen_distance
-            self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
+            jacs[i, :2] = sign*normal[:2]
+            jacs[i, 2:] = -sign*normal[:2]
 
         # if jac0 is None or jac1 is None or val is None:
         #     import ipdb; ipdb.set_trace()
@@ -241,7 +238,7 @@ class Collides(CollisionPredicate):
         f_neg = lambda x: self.distance_from_obj(x)[0]
         def grad_neg(x):
             # print self.distance_from_obj(x)
-            return -self.distance_from_obj(x)[1]
+            return self.distance_from_obj(x)[1]
 
 
         N_COLS = 8
@@ -295,7 +292,7 @@ class RCollides(CollisionPredicate):
 
         def grad_neg(x):
             # print self.distance_from_obj(x)
-            return -self.distance_from_obj(x)[1]
+            return self.distance_from_obj(x)[1]
 
         N_COLS = 8
         col_expr = Expr(f, grad)
