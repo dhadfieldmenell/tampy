@@ -99,6 +99,7 @@ class CollisionPredicate(ExprPredicate):
         n_cols = len(collisions)
         assert n_cols <= self.n_cols
         jac = np.zeros((1, 4))
+        self.handles = []
         for i, c in enumerate(collisions):
             linkA = c.GetLinkAParentName()
             linkB = c.GetLinkBParentName()
@@ -139,7 +140,6 @@ class CollisionPredicate(ExprPredicate):
         return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
-        self.handles = []
         if not np.allclose(ptA, ptB, atol=1e-3):
             if distance < 0:
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(1, 0, 0)))
