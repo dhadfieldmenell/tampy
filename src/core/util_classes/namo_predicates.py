@@ -194,16 +194,27 @@ class InContact(CollisionPredicate):
                                self.targ: self.lazy_spawn_or_body(self.targ, self.targ.name, self.targ.geom)}
 
         INCONTACT_COEFF = 1e1
-        f = lambda x: INCONTACT_COEFF*self.distance_from_obj(x)[0]
-        grad = lambda x: INCONTACT_COEFF*self.distance_from_obj(x)[1]
+        f = lambda x: self.distance_from_obj(x)[0]
+        grad = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.ones((1, 1))*dsafe*INCONTACT_COEFF
-        # val = np.zeros((1, 1))
+        # val = np.ones((1, 1))*dsafe*INCONTACT_COEFF
+        val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
+
+        self.opt_expr = EqExpr(Expr(lambda x: INCONTACT_COEFF*f(x),
+                                    lambda x: INCONTACT_COEFF*grad(x)),
+                                np.zeros((1,1)))
+
         super(InContact, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, env=env,
                                         debug=debug, ind0=1, ind1=2)
+
+    def get_expr(self, negated):
+        if negated:
+            return None
+        else:
+            return self.opt_expr
 
     def test(self, time, negated=False):
         return super(CollisionPredicate, self).test(time, negated)
