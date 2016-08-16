@@ -5,7 +5,7 @@ from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
 RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
 IkFilterOptions, matrixFromAxisAngle
-from core.util_classes.pr2 import PR2
+from core.util_classes.robots import PR2, Baxter
 from core.util_classes.box import Box
 from core.util_classes.can import Can, BlueCan, RedCan
 from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
@@ -27,7 +27,7 @@ class OpenRAVEBody(object):
             self._add_can(geom)
         elif isinstance(geom, Obstacle):
             self._add_obstacle(geom)
-        elif isinstance(geom, PR2):
+        elif isinstance(geom, PR2) or isinstance(geom, Baxter):
             self._add_robot(geom)
         elif isinstance(geom, Table):
             self._add_table(geom)

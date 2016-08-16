@@ -5,8 +5,9 @@ from errors_exceptions import PredicateException, ParamValidationException
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.can import BlueCan, RedCan
 from core.util_classes.table import Table
-from core.util_classes.pr2 import PR2
+from core.util_classes.robots import PR2
 from core.util_classes.box import Box
+from core.util_classes.param_setup import ParamSetup
 from openravepy import Environment
 from sco import expr
 import numpy as np
@@ -19,69 +20,13 @@ e2 = expr.Expr(lambda x: np.power(x, 2))
 
 class TestPR2Predicates(unittest.TestCase):
 
-    # These functions sets up the variable necessary for each test
-    def setup_environment(self):
-        return Environment()
-
-    def setup_robot(self, name = "pr2"):
-        attrs = {"name": [name], "pose": [(0, 0, 0)], "_type": ["Robot"], "geom": [], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
-        attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
-        attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
-        attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": PR2, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
-        robot = parameter.Object(attrs, attr_types)
-        # Set the initial arm pose so that pose is not close to joint limit
-        robot.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
-        robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
-        return robot
-
-    def setup_robot_pose(self, name = "robot_Pose"):
-        attrs = {"name": [name], "value": [(0, 0, 0)], "_type": ["RobotPose"], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
-        attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
-        attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
-        attr_types = {"name": str, "value": matrix.Vector3d, "_type": str, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
-        rPose = parameter.Symbol(attrs, attr_types)
-        # Set the initial arm pose so that pose is not close to joint limit
-        rPose.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
-        rPose.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
-        return rPose
-
-    def setup_can(self, name = "can"):
-        attrs = {"name": [name], "geom": (0.04, 0.25), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
-        can = parameter.Object(attrs, attr_types)
-        return can
-
-    def setup_target(self, name = "target"):
-        # This is the target parameter
-        attrs = {"name": [name], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["Target"]}
-        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
-        target = parameter.Symbol(attrs, attr_types)
-        return target
-
-    def setup_ee_pose(self, name = "ee_pose"):
-        attrs = {"name": [name], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["EEPose"]}
-        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
-        ee_pose = parameter.Symbol(attrs, attr_types)
-        return ee_pose
-
-    def setup_obstacle(self, name = "table"):
-        attrs = {"name": [name], "geom": [[1.5, 0.94, 0.15, .2, 0.2, 0.6, False]], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
-        attr_types = {"name": str, "geom": Table, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
-        table = parameter.Object(attrs, attr_types)
-        return table
-
-    def setup_box(self, name = "box"):
-        attrs = {"name": [name], "geom": [[1,.5,.5]], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
-        attr_types = {"name": str, "geom": Box, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
-        box = parameter.Object(attrs, attr_types)
-        return box
     # Begin of the test
     def test_expr_at(self):
 
         # At, Can, Target
 
-        can = self.setup_can()
-        target = self.setup_target()
+        can = ParamSetup.setup_blue_can()
+        target = ParamSetup.setup_target()
         pred = pr2_predicates.At("testpred", [can, target], ["Can", "Target"])
         self.assertEqual(pred.get_type(), "At")
         # target is a symbol and doesn't have a value yet
@@ -95,10 +40,10 @@ class TestPR2Predicates(unittest.TestCase):
         # Test timesteps
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can target)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At blue_can target)'.")
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=-1)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At can target)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testpred: (At blue_can target)'.")
         #
         self.assertTrue(pred.test(time=0))
         self.assertTrue(pred.test(time=1))
@@ -110,7 +55,7 @@ class TestPR2Predicates(unittest.TestCase):
         sym = parameter.Symbol(attrs, attr_types)
         with self.assertRaises(ParamValidationException) as cm:
             pred = pr2_predicates.At("testpred", [can, sym], ["Can", "Target"])
-        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'testpred: (At can sym)'.")
+        self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'testpred: (At blue_can sym)'.")
         # Test rotation
         can.rotation = np.array([[1,2,3,4],
                                       [2,3,4,5],
@@ -127,15 +72,15 @@ class TestPR2Predicates(unittest.TestCase):
 
         # RobotAt, Robot, RobotPose
 
-        robot = self.setup_robot()
-        rPose = self.setup_robot_pose()
+        robot = ParamSetup.setup_pr2()
+        rPose = ParamSetup.setup_pr2_pose()
         pred = pr2_predicates.RobotAt("testRobotAt", [robot, rPose], ["Robot", "RobotPose"])
         self.assertEqual(pred.get_type(), "RobotAt")
         # Robot and RobotPose are initialized to the same pose
         self.assertTrue(pred.test(0))
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=2)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 robot_Pose)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 pr2_pose)'.")
         robot.pose = np.array([[3, 4, 5, 3],
                                [6, 5, 7, 6],
                                [6, 3, 4, 6]])
@@ -159,10 +104,10 @@ class TestPR2Predicates(unittest.TestCase):
         rPose.lArmPose = np.array([[0,0,0,0,0,0,0]]).T
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=4)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 robot_Pose)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 pr2_pose)'.")
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=-1)
-        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 robot_Pose)'.")
+        self.assertEqual(cm.exception.message, "Out of range time for predicate 'testRobotAt: (RobotAt pr2 pr2_pose)'.")
 
         self.assertTrue(pred.test(time=0))
         self.assertFalse(pred.test(time=1))
@@ -170,8 +115,8 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred.test(time=3))
 
     def test_is_mp(self):
-        robot = self.setup_robot()
-        test_env = self.setup_environment()
+        robot = ParamSetup.setup_pr2()
+        test_env = ParamSetup.setup_env()
         pred = pr2_predicates.IsMP("test_isMP", [robot], ["Robot"], test_env)
         self.assertEqual(pred.get_type(), "IsMP")
         with self.assertRaises(PredicateException) as cm:
@@ -211,8 +156,8 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_isMP: (IsMP pr2)' at the timestep.")
 
     def test_within_joint_limit(self):
-        robot = self.setup_robot()
-        test_env = self.setup_environment()
+        robot = ParamSetup.setup_pr2()
+        test_env = ParamSetup.setup_env()
         pred = pr2_predicates.WithinJointLimit("test_joint_limit", [robot], ["Robot"], test_env)
         self.assertEqual(pred.get_type(), "WithinJointLimit")
         # Getting lowerbound and movement step
@@ -247,9 +192,9 @@ class TestPR2Predicates(unittest.TestCase):
         tol = 1e-4
 
         # InGripper, Robot, Can
-        robot = self.setup_robot()
-        can = self.setup_can()
-        test_env = self.setup_environment()
+        robot = ParamSetup.setup_pr2()
+        can = ParamSetup.setup_blue_can()
+        test_env = ParamSetup.setup_env()
         pred = pr2_predicates.InGripper("InGripper", [robot, can], ["Robot", "Can"], test_env)
         pred2 = pr2_predicates.InGripperRot("InGripper_rot", [robot, can], ["Robot", "Can"], test_env)
         # Since this predicate is not yet concrete
@@ -316,8 +261,8 @@ class TestPR2Predicates(unittest.TestCase):
 
         # GraspValid EEPose Target
 
-        ee_pose = self.setup_ee_pose()
-        target = self.setup_target() # Target is the target
+        ee_pose = ParamSetup.setup_pr2_ee_pose()
+        target = ParamSetup.setup_target() # Target is the target
         pred = pr2_predicates.GraspValid("test_grasp_valid", [ee_pose, target], ["EEPose", "Target"])
         pred2 = pr2_predicates.GraspValidRot("test_grasp_valid_rot", [ee_pose, target], ["EEPose", "Target"])
         self.assertTrue(pred.get_type(), "GraspValid")
@@ -356,11 +301,11 @@ class TestPR2Predicates(unittest.TestCase):
 
     def test_in_contact(self):
         # InContact robot EEPose target
-        robot = self.setup_robot()
-        ee_pose = self.setup_ee_pose()
-        target = self.setup_target()
-        test_env = self.setup_environment()
-        test_can = self.setup_can()
+        robot = ParamSetup.setup_pr2()
+        ee_pose = ParamSetup.setup_pr2_ee_pose()
+        target = ParamSetup.setup_target()
+        test_env = ParamSetup.setup_env()
+        test_can = ParamSetup.setup_blue_can()
 
         pred = pr2_predicates.InContact2("test_in_contact", [robot, ee_pose, target], ["Robot", "EEPose", "Target"], test_env)
         self.assertTrue(pred.get_type(), "InContact2")
@@ -379,8 +324,8 @@ class TestPR2Predicates(unittest.TestCase):
 
 
         # Test setting gripper value
-        robot = self.setup_robot("robotttt")
-        target = self.setup_target("omg")
+        robot = ParamSetup.setup_pr2("robotttt")
+        target = ParamSetup.setup_target("omg")
         pred2 = pr2_predicates.InContact("test_set_gripper", [robot, ee_pose, target], ["Robot", "EEPose", "Target"], test_env)
         target.value = np.array([[0],[0],[0]])
         # robot.lArmPose = np.array([[0,0,0,0,0,0,0]]).T
@@ -393,10 +338,10 @@ class TestPR2Predicates(unittest.TestCase):
         # EEUnreachable Robot, StartPose, EEPose
         tol = 1e-4
 
-        robot = self.setup_robot()
-        rPose = self.setup_robot_pose()
-        ee_pose = self.setup_ee_pose()
-        test_env = self.setup_environment()
+        robot = ParamSetup.setup_pr2()
+        rPose = ParamSetup.setup_pr2_pose()
+        ee_pose = ParamSetup.setup_pr2_ee_pose()
+        test_env = ParamSetup.setup_env()
         pred = pr2_predicates.EEReachable("test_ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env, steps=0)
         pred2 = pr2_predicates.EEReachableRot("test_ee_reachable_rot", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
 
@@ -478,10 +423,10 @@ class TestPR2Predicates(unittest.TestCase):
         tol = 1e-2
         approach_dist = pr2_predicates.APPROACH_DIST
 
-        robot = self.setup_robot()
-        rPose = self.setup_robot_pose()
-        ee_pose = self.setup_ee_pose()
-        test_env = self.setup_environment()
+        robot = ParamSetup.setup_pr2()
+        rPose = ParamSetup.setup_pr2_pose()
+        ee_pose = ParamSetup.setup_pr2_ee_pose()
+        test_env = ParamSetup.setup_env()
         pred = pr2_predicates.EEReachable("test_ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
 
         robot.pose = np.array([[-0.86781942, -0.86678922, -0.86497235, -0.86193732, -0.86467002,
@@ -522,7 +467,7 @@ class TestPR2Predicates(unittest.TestCase):
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(3), True, tol)
 
     def test_stationary(self):
-        can = self.setup_can()
+        can = ParamSetup.setup_blue_can()
         pred = pr2_predicates.Stationary("test_stay", [can], ["Can"])
         self.assertEqual(pred.get_type(), "Stationary")
         # Since pose of can is undefined, predicate is not concrete
@@ -530,7 +475,7 @@ class TestPR2Predicates(unittest.TestCase):
         can.pose = np.array([[0], [0], [0]])
         with self.assertRaises(PredicateException) as cm:
             pred.test(0)
-        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary can)' at the timestep.")
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary blue_can)' at the timestep.")
         can.rotation = np.array([[1, 1, 1, 4, 4],
                                       [2, 2, 2, 5, 5],
                                       [3, 3, 3, 6, 6]])
@@ -545,7 +490,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(1))
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=2)
-        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary can)' at the timestep.")
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary blue_can)' at the timestep.")
         can.pose = np.array([[1, 4, 5, 5, 5],
                                   [2, 5, 6, 6, 6],
                                   [3, 6, 7, 7, 7]])
@@ -555,7 +500,7 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertTrue(pred.test(time = 3))
 
     def test_stationary_w(self):
-        table = self.setup_box()
+        table = ParamSetup.setup_box()
         pred = pr2_predicates.StationaryW("test_stay_w", [table], ["Table"])
         self.assertEqual(pred.get_type(), "StationaryW")
         # Since pose of can is undefined, predicate is not concrete
@@ -592,10 +537,10 @@ class TestPR2Predicates(unittest.TestCase):
         # Obstructs, Robot, RobotPose, RobotPose, Can
         TOL = 1e-4
 
-        robot = self.setup_robot()
-        rPose = self.setup_robot_pose()
-        can = self.setup_can()
-        test_env = self.setup_environment()
+        robot = ParamSetup.setup_pr2()
+        rPose = ParamSetup.setup_pr2_pose()
+        can = ParamSetup.setup_blue_can()
+        test_env = ParamSetup.setup_env()
         pred = pr2_predicates.Obstructs("test_obstructs", [robot, rPose, rPose, can], ["Robot", "RobotPose", "RobotPose", "Can"], test_env, tol=TOL)
         self.assertEqual(pred.get_type(), "Obstructs")
         # Since can is not yet defined
@@ -639,11 +584,11 @@ class TestPR2Predicates(unittest.TestCase):
 
         # Obstructs, Robot, RobotPose, RobotPose, Can, Can
 
-        robot = self.setup_robot()
-        rPose = self.setup_robot_pose()
-        can = self.setup_can("can1")
-        can_held = self.setup_can("can2")
-        test_env = self.setup_environment()
+        robot = ParamSetup.setup_pr2()
+        rPose = ParamSetup.setup_pr2_pose()
+        can = ParamSetup.setup_blue_can("can1")
+        can_held = ParamSetup.setup_blue_can("can2")
+        test_env = ParamSetup.setup_env()
 
         pred = pr2_predicates.ObstructsHolding("test_obstructs", [robot, rPose, rPose, can, can_held], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "ObstructsHolding")
@@ -715,9 +660,9 @@ class TestPR2Predicates(unittest.TestCase):
         # if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
 
     def test_collides(self):
-        can = self.setup_can("obj")
-        table = self.setup_obstacle()
-        test_env = self.setup_environment()
+        can = ParamSetup.setup_blue_can("obj")
+        table = ParamSetup.setup_table()
+        test_env = ParamSetup.setup_env()
 
         pred = pr2_predicates.Collides("test_collides", [can, table], ["Can", "Table"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "Collides")
@@ -767,10 +712,10 @@ class TestPR2Predicates(unittest.TestCase):
 
         # RCollides Robot Obstacle
 
-        robot = self.setup_robot()
-        rPose = self.setup_robot_pose()
-        table = self.setup_box()
-        test_env = self.setup_environment()
+        robot = ParamSetup.setup_pr2()
+        rPose = ParamSetup.setup_pr2_pose()
+        table = ParamSetup.setup_box()
+        test_env = ParamSetup.setup_env()
         pred = pr2_predicates.RCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
         # self.assertEqual(pred.get_type(), "RCollides")
         # Since can is not yet defined
