@@ -3,7 +3,7 @@ from core.util_classes import viewer
 from core.util_classes import circle
 from core.util_classes import matrix
 from core.internal_repr import parameter
-from core.util_classes.pr2 import PR2
+from core.util_classes.robots import PR2
 from core.util_classes.box import Box
 from core.util_classes.can import Can, BlueCan
 from core.util_classes.table import Table

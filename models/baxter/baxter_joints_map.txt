@@ -1,0 +1,32 @@
+###Baxter Links###
+[RaveGetEnvironment(1).GetKinBody('baxter').GetLink('base'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('collision_head_link_1'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('collision_head_link_2'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('torso'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('head'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('dummyhead1'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('head_camera'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('screen'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('display'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_arm_mount'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_upper_shoulder'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_lower_shoulder'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_upper_elbow_visual'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_upper_elbow'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_lower_elbow'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_upper_forearm'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_lower_forearm'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_wrist'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_hand'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_gripper_base'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_gripper'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_gripper_l_finger'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_gripper_l_finger_tip'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_gripper_r_finger'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_gripper_r_finger_tip'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_hand_accelerometer'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_hand_camera'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_hand_camera_axis'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_hand_range'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_arm_itb'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_upper_forearm_visual'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('left_torso_itb'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('pedestal'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_arm_mount'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_upper_shoulder'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_lower_shoulder'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_upper_elbow_visual'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_upper_elbow'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_lower_elbow'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_upper_forearm'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_lower_forearm'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_wrist'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_hand'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_gripper_base'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_gripper'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_gripper_l_finger'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_gripper_l_finger_tip'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_gripper_r_finger'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_gripper_r_finger_tip'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_hand_accelerometer'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_hand_camera'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_hand_camera_axis'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_hand_range'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_arm_itb'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_upper_forearm_visual'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('right_torso_itb'), RaveGetEnvironment(1).GetKinBody('baxter').GetLink('sonar_ring')]
+
+ ###Baxter Joints###
+ [RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('torso_joint'),                   pose
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('head_pan_joint'),
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('left_upper_shoulder_joint'),      lArmPose[0]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('left_lower_shoulder_joint'),      lArmPose[1]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('left_upper_elbow_joint'),         lArmPose[2]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('left_lower_elbow_joint'),         lArmPose[3]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('left_upper_forearm_joint'),       lArmPose[4]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('left_lower_forearm_joint'),       lArmPose[5]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('left_wrist_joint'),               lArmPose[6]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('left_gripper_l_finger_joint'),    lGripper
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('right_upper_shoulder_joint'),     rArmPose[0]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('right_lower_shoulder_joint'),     rArmPose[1]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('right_upper_elbow_joint'),        rArmPose[2]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('right_lower_elbow_joint'),        rArmPose[3]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('right_upper_forearm_joint'),      rArmPose[4]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('right_lower_forearm_joint'),      rArmPose[5]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('right_wrist_joint'),              rArmPose[6]
+ RaveGetEnvironment(1).GetKinBody('baxter').GetJoint('right_gripper_l_finger_joint')]   rGripper
+
+
+
+###Sample Pose Dof
+[ 0, 0,
+-np.pi, -np.pi/4, -np.pi/4, np.pi/3, 0, np.pi/2, np.pi/2,
+np.pi/10, -np.pi/4, np.pi/4,  np.pi/3, 0, np.pi/2,np.pi/2]
+
+###Baxter Manipulater###
+[]

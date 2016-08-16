@@ -6,6 +6,7 @@ from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter
 import numpy as np
 
+
 class TestAction(unittest.TestCase):
     def setup(self):
         attrs = {"name": ["robot"], "geom": [1], "pose": [(0,0)], "_type": ["Robot"]}
