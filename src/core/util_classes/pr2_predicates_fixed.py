@@ -17,7 +17,7 @@ import openravepy
 This file Defines specific PR2 related predicates
 """
 
-BASE_MOVE = 1e0
+
 IN_GRIPPER_COEFF = 1.
 
 EEREACHABLE_COEFF = 1e0
@@ -50,9 +50,17 @@ NUM_EEREACHABLE_RESAMPLE_ATTEMPTS = 10
 EEREACHABLE_STEPS = 3
 
 MAX_CONTACT_DISTANCE = .1
-# Simon's
-BASEDIM = 3
-TWOARMDIM = 16
+
+
+# Dimensional Constants
+BASE_DIM = 3e0
+JOINT_DIM = 1.7e1
+ROBOT_ATTR_DIM = 2e1
+# Movement Constraints Constants
+BASE_MOVE = 1e0
+JOINT_MOVE_FACTOR = 1e1
+
+TWOARMDIM = 1.6e1
 # Attributes used in pr2 domain. (Tuple to avoid changes to the attr_inds)
 PR2_ATTRMAP = {"Robot": (("backHeight", np.array([0], dtype=np.int)),
                          ("lArmPose", np.array(range(7), dtype=np.int)),
@@ -77,6 +85,7 @@ class PR2RobotAt(robot_predicates.RobotAt):
     # RobotAt, Robot, RobotPose
 
     def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_dim = 20
         self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type])),
                                  (params[1], list(PR2_ATTRMAP[params[1]._type]))])
         super(PR2RobotAt, self).__init__(name, params, expected_param_types, env)
@@ -86,15 +95,31 @@ class PR2IsMP(robot_predicates.IsMP):
     # IsMP Robot (Just the Robot Base)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(self.robot, [PR2_ATTRMAP[self.robot._type][-1]])])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type]))])
         super(PR2IsMP, self).__init__(name, params, expected_param_types, env, debug)
 
     def setup_mov_limit_check(self):
+        # Get upper joint limit and lower joint limit
+        robot_body = self._param_to_body[self.robot]
+        robot = robot_body.env_body
+        robot_body._set_active_dof_inds()
+        dof_inds = robot.GetActiveDOFIndices()
+        lb_limit, ub_limit = robot.GetDOFLimits()
+        active_ub = ub_limit[dof_inds].reshape((JOINT_DIM,1))
+        active_lb = lb_limit[dof_inds].reshape((JOINT_DIM,1))
+        joint_move = (active_ub-active_lb)/JOINT_MOVE_FACTOR
         # Setup the Equation so that: Ax+b < val represents
         # |base_pose_next - base_pose| <= BASE_MOVE
-        val = np.vstack((BASE_MOVE*np.ones((BASEDIM,1)), BASE_MOVE*np.ones((BASEDIM,1))))
-        A = np.eye(BASEDIM*2) - np.eye(BASEDIM*2, k=BASEDIM) - np.eye(BASEDIM*2, k=-BASEDIM)
-        b = np.zeros((BASEDIM*2,1))
+        # |joint_next - joint| <= joint_movement_range/JOINT_MOVE_FACTOR
+        val = np.vstack((joint_move, BASE_MOVE*np.ones((BASE_DIM, 1)), joint_move, BASE_MOVE*np.ones((BASE_DIM, 1))))
+        A = np.eye(2*ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=-ROBOT_ATTR_DIM)
+        b = np.zeros((2*ROBOT_ATTR_DIM,1))
+        robot_body._set_active_dof_inds(range(39))
+
+        # Setting attributes for testing
+        self.base_step = BASE_MOVE*np.ones((BASE_DIM, 1))
+        self.joint_step = joint_move
+        self.lower_limit = active_lb
         return A, b, val
 
 class PR2WithinJointLimit(robot_predicates.WithinJointLimit):
@@ -102,7 +127,7 @@ class PR2WithinJointLimit(robot_predicates.WithinJointLimit):
     # WithinJointLimit Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(self.robot, list(PR2_ATTRMAP[self.robot._type][:-1]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type][:-1]))])
         super(PR2WithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
 
     def setup_mov_limit_check(self):
@@ -112,17 +137,20 @@ class PR2WithinJointLimit(robot_predicates.WithinJointLimit):
         robot_body._set_active_dof_inds()
         dof_inds = robot.GetActiveDOFIndices()
         lb_limit, ub_limit = robot.GetDOFLimits()
-        active_ub = ub_limit[dof_inds].reshape((17,1))
-        active_lb = lb_limit[dof_inds].reshape((17,1))
-        joint_move = (active_ub-active_lb)/10
+        active_ub = ub_limit[dof_inds].reshape((JOINT_DIM,1))
+        active_lb = lb_limit[dof_inds].reshape((JOINT_DIM,1))
         # Setup the Equation so that: Ax+b < val represents
         # lb_limit <= pose <= ub_limit
         val = np.vstack((-active_lb, active_ub))
-        A_lb_limit = np.hstack((np.zeros((17, 3)), -np.eye(17)))
-        A_up_limit = np.hstack((np.zeros((17,3)), np.eye(17)))
+        A_lb_limit = -np.eye(JOINT_DIM)
+        A_up_limit = np.eye(JOINT_DIM)
         A = np.vstack((A_lb_limit, A_up_limit))
-        b = np.zeros((34,1))
+        b = np.zeros((2*JOINT_DIM,1))
         robot_body._set_active_dof_inds(range(39))
+
+        self.base_step = BASE_MOVE*np.ones((3,1))
+        self.joint_step = joint_move
+        self.lower_limit = active_lb
         return A, b, val
 
 class PR2StationaryBase(robot_predicates.StationaryBase):

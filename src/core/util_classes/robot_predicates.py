@@ -498,15 +498,17 @@ class RobotAt(ExprPredicate):
     """
         Format: RobotAt, Robot, RobotPose
 
-        Note: attr_inds needs to be provided
+        Requires:
+            attr_inds: robot attribute indices
+            attr_dim: dimension of robot attribute
     """
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.robot, self.robot_pose = params
         attr_inds = self.attr_inds
 
-        A = np.c_[np.eye(20), -np.eye(20)]
-        b ,val = np.zeros((20, 1)), np.zeros((20, 1))
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b ,val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(RobotAt, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -515,8 +517,9 @@ class IsMP(ExprPredicate):
     """
         Format: IsMP Robot (Just the Robot Base)
 
-        Note: attr_inds needs to be provided
-        NOTE: It Requires child class to have setup_mov_limit_check function
+        Requires:
+            attr_inds: robot attribute indices
+            setup_mov_limit_check: function that checks movement constraints
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -534,14 +537,13 @@ class WithinJointLimit(ExprPredicate):
     """
         Format: WithinJointLimit Robot
 
-        Note: attr_inds needs to be provided
-        NOTE: It Requires child class to have setup_mov_limit_check function
+        Requires:
+            attr_inds: robot attribute indices
+            setup_mov_limit_check: function that checks joint movement constraints
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, = params
-        ## constraints  |x_t - x_{t+1}| < dmove
-        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
         attr_inds = self.attr_inds
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
