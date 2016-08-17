@@ -111,7 +111,7 @@ class TestRobotPredicates(unittest.TestCase):
     def test_is_mp(self):
         robot = ParamSetup.setup_pr2()
         test_env = ParamSetup.setup_env()
-        pred = pr2_predicates.IsMP("test_isMP", [robot], ["Robot"], test_env)
+        pred = pr2_predicates_fixed.PR2IsMP("test_isMP", [robot], ["Robot"], test_env)
         self.assertEqual(pred.get_type(), "PR2IsMP")
         with self.assertRaises(PredicateException) as cm:
             pred.test(time=0)
@@ -152,7 +152,7 @@ class TestRobotPredicates(unittest.TestCase):
     def test_within_joint_limit(self):
         robot = ParamSetup.setup_pr2()
         test_env = ParamSetup.setup_env()
-        pred = pr2_predicates.WithinJointLimit("test_joint_limit", [robot], ["Robot"], test_env)
+        pred = pr2_predicates_fixed.PR2WithinJointLimit("test_joint_limit", [robot], ["Robot"], test_env)
         self.assertEqual(pred.get_type(), "PR2WithinJointLimit")
         # Getting lowerbound and movement step
         lbH_l, bH_m = pred.lower_limit[0], pred.joint_step[0]

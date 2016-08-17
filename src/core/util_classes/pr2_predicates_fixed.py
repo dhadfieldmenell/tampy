@@ -148,6 +148,7 @@ class PR2WithinJointLimit(robot_predicates.WithinJointLimit):
         b = np.zeros((2*JOINT_DIM,1))
         robot_body._set_active_dof_inds(range(39))
 
+        joint_move = (active_ub-active_lb)/JOINT_MOVE_FACTOR
         self.base_step = BASE_MOVE*np.ones((3,1))
         self.joint_step = joint_move
         self.lower_limit = active_lb
