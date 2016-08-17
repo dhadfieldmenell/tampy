@@ -1,6 +1,7 @@
 from openravepy import Environment
 from core.util_classes import matrix, robots, can, circle
 from core.util_classes.table import Table
+from core.util_classes.box import Box
 from core.internal_repr import parameter
 import numpy as np
 
