@@ -39,6 +39,30 @@ class ParamSetup(object):
         return rPose
 
     @staticmethod
+    def setup_baxter(name = "baxter"):
+        attrs = {"name": [name], "pose": [(0)], "_type": ["Robot"], "geom": [], "lGripper": [0.5], "rGripper": [0.5]}
+        attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
+        attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
+        attr_types = {"name": str, "pose": matrix.Value, "_type": str, "geom": robots.Baxter, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
+        robot = parameter.Object(attrs, attr_types)
+        # Set the initial arm pose so that pose is not close to joint limit
+        robot.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
+        return robot
+
+    @staticmethod
+    def setup_baxter_pose(name = "baxter_pose"):
+        attrs = {"name": [name], "value": [(0)], "_type": ["RobotPose"], "geom": [], "lGripper": [0.5], "rGripper": [0.5]}
+        attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
+        attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
+        attr_types = {"name": str, "value": matrix.Value, "_type": str, "geom": robots.Baxter, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
+        robot = parameter.Symbol(attrs, attr_types)
+        # Set the initial arm pose so that pose is not close to joint limit
+        robot.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
+        robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
+        return robot    
+
+    @staticmethod
     def setup_green_can(name = "green_can"):
         attrs = {"name": [name], "geom": (0.04, 0.25), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
         attr_types = {"name": str, "geom": can.GreenCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}

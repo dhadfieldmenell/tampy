@@ -6,6 +6,7 @@ from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.robots import PR2
 from core.util_classes import can, sampling, matrix, param_setup
+from core.util_classes.param_setup import ParamSetup
 from core.internal_repr import parameter
 import time
 
@@ -30,8 +31,8 @@ class TestSampling(unittest.TestCase):
         robot_body.set_pose(robot.pose.flatten())
         robot_body.set_dof(robot.backHeight, robot.lArmPose.flatten(), robot.lGripper, robot.rArmPose.flatten(), robot.rGripper)
 
-        dummy_ee_pose_geom = GreenCan(.03,.3)
-        ee_list = list(enumerate(sampling.get_ee_from_target(target)))
+        dummy_ee_pose_geom = can.GreenCan(.03,.3)
+        ee_list = list(enumerate(sampling.get_ee_from_target(target.value, target.rotation)))
         for ee_pose in ee_list:
             ee_pos, ee_rot = ee_pose[1]
             body = OpenRAVEBody(env, "dummy"+str(ee_pose[0]), dummy_ee_pose_geom)
