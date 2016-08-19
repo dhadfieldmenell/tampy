@@ -1,16 +1,11 @@
-import ctrajoptpy
 from core.util_classes.common_predicates import ExprPredicate
-from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.sampling import get_col_free_base_pose_around_target, \
-    get_col_free_torso_arm_pose, get_random_theta, get_expr_mult, resample_bp_around_target, \
-    ee_reachable_resample
+from core.util_classes.sampling import get_expr_mult, resample_bp_around_target, ee_reachable_resample
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 import numpy as np
 import ctrajoptpy
 import time
-import openravepy
 
 # Needed
 POSE_TOL = 2e-2
@@ -710,35 +705,19 @@ class StationaryNEq(ExprPredicate):
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
-class GraspValidPos(ExprPredicate):
+class GraspValid(ExprPredicate):
     """
         Format: GraspValid EEPose Target
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.ee_pose, self.target = params
-        attr_inds = OrderedDict([(self.ee_pose, [("value", np.array([0, 1, 2], dtype=np.int))]),
-                                 (self.target, [("value", np.array([0, 1, 2], dtype=np.int))])])
+        attr_inds = self.attr_inds
 
-        A = np.c_[np.eye(3), -np.eye(3)]
-        b, val = np.zeros((3,1)), np.zeros((3,1))
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim,1)), np.zeros((self.attr_dim,1))
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(GraspValidPos, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-class GraspValidRot(ExprPredicate):
-    """
-        Format: GraspValid EEPose Target
-    """
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.ee_pose, self.target = params
-        attr_inds = OrderedDict([(self.ee_pose, [("rotation", np.array([1, 2], dtype=np.int))]),
-                                 (self.target, [("rotation", np.array([1, 2], dtype=np.int))])])
-
-        A = np.eye(4)
-        b, val = np.zeros((4,1)), np.zeros((4,1))
-        pos_expr = AffExpr(A, b)
-        e = EqExpr(pos_expr, val)
-        super(GraspValidRot, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InContact(ExprPredicate):
     """
@@ -764,10 +743,6 @@ class InContact(ExprPredicate):
         self.neg_expr = EqExpr(aff_expr, val)
 
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types)
-
-"""
-    Subclass of PosePredicate
-"""
 
 class InGripper(PosePredicate):
     """
@@ -835,10 +810,6 @@ class EEReachable(PosePredicate):
 
     def resample(self, negated, t, plan):
         return ee_reachable_resample(self, negated, t, plan)
-
-"""
-    Subclass of CollisionPredicate
-"""
 
 class Obstructs(CollisionPredicate):
 
