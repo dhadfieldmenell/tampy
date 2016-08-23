@@ -175,7 +175,6 @@ class BaxterGraspValidRot(BaxterGraspValid):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]]),(params[1], [ATTRMAP[params[1]._type][1]])])
         self.attr_dim = 3
         super(BaxterGraspValidRot, self).__init__(name, params, expected_param_types, env, debug)
-#--------------------------------------------
 
 class BaxterInContact(robot_predicates.InContact):
 
@@ -331,8 +330,6 @@ class BaxterEEReachableRot(BaxterEEReachable):
         self.check_f = lambda x: self.ee_rot_check[0]
         self.check_grad = lambda x: self.ee_rot_check[1]
         super(BaxterEEReachableRot, self).__init__(name, params, expected_param_types, env, debug, steps)
-
-#--------------------------------------------
 
 class BaxterObstructs(robot_predicates.Obstructs):
 

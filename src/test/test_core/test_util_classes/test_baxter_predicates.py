@@ -49,15 +49,6 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time=2))
         self.assertTrue(pred.test(time=3))
 
-    def test_baxter(self):
-        # from core.util_classes.openrave_body import OpenRAVEBody
-        # env = ParamSetup.setup_env()
-        # env.SetViewer("qtcoin")
-        # baxter = ParamSetup.setup_baxter()
-        # body = OpenRAVEBody(env, baxter.name, baxter.geom)
-        # import ipdb; ipdb.set_trace()
-        pass
-
     def test_is_mp(self):
         robot = ParamSetup.setup_baxter()
         test_env = ParamSetup.setup_env()
@@ -130,7 +121,7 @@ class TestBaxterPredicates(unittest.TestCase):
         robot = ParamSetup.setup_baxter()
         can = ParamSetup.setup_blue_can()
         test_env = ParamSetup.setup_env()
-        test_env.SetViewer("qtcoin")
+        # test_env.SetViewer("qtcoin")
         pred = baxter_predicates.BaxterInGripperPos("InGripper", [robot, can], ["Robot", "Can"], test_env)
         pred2 = baxter_predicates.BaxterInGripperRot("InGripper_rot", [robot, can], ["Robot", "Can"], test_env)
         # Since this predicate is not yet concrete
@@ -147,54 +138,30 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(pred.test(0))
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
         # A new robot arm pose
-        # import ipdb;ipdb.set_trace()
-        # robot.rArmPose = np.array([[-np.pi/3, np.pi/7, -np.pi/5, -np.pi/3, -np.pi/7, -np.pi/7, np.pi/5]]).T
-        # self.assertFalse(pred.test(0))
-        # # Only the pos is correct, rotation is not yet right
-        # can.pose = np.array([[0.59152062, -0.71105108,  1.05144139]]).T
-        # self.assertTrue(pred.test(0))
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        # can.rotation = np.array([[0.02484449, -0.59793421, -0.68047349]]).T
-        # self.assertTrue(pred.test(0))
-        # self.assertTrue(pred2.test(0))
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        # # now rotate robot basepose
-        # robot.pose = np.array([[0,0,np.pi/3]]).T
-        # self.assertFalse(pred.test(0))
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        # can.pose = np.array([[0.91154861,  0.15674634,  1.05144139]]).T
-        # self.assertTrue(pred.test(0))
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        # can.rotation = np.array([[1.07204204, -0.59793421, -0.68047349]]).T
-        # self.assertTrue(pred2.test(0))
-        # self.assertTrue(pred.test(0))
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        # robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/3]]).T
-        # self.assertFalse(pred.test(0))
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        # can.rotation = np.array([[2.22529480e+00,   3.33066907e-16,  -5.23598776e-01]]).T
-        # self.assertTrue(pred2.test(0))
-        # self.assertFalse(pred.test(0))
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        # can.pose = np.array([[3.98707028e-01,   4.37093473e-01,   8.37601627e-01]]).T
-        # self.assertTrue(pred.test(0))
-        # # check the gradient of the implementations (correct)
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        
-        # # testing example from grasp where predicate continues to fail,
-        # # confirmed that Jacobian is fine.
-        # robot.pose = np.array([-0.52014383,  0.374093  ,  0.04957286]).reshape((3,1))
-        # robot.backHeight = np.array([  2.79699865e-13]).reshape((1,1))
-        # robot.lGripper = np.array([ 0.49999948]).reshape((1,1))
-        # robot.rGripper = np.array([ 0.53268086]).reshape((1,1))
-        # robot.rArmPose = np.array([-1.39996414, -0.31404741, -1.42086452, -1.72304084, -1.16688324,
-        #                            -0.20148917, -3.33438558]).reshape((7,1))
-        # robot.lArmPose = np.array([ 0.05999948,  1.24999946,  1.78999946, -1.68000049, -1.73000049,
-        #                            -0.10000051, -0.09000051]).reshape((7,1))
-        # can.pose = np.array([-0.        , -0.08297436,  0.925     ]).reshape((3,1))
-        # can.rotation = np.array([-0., -0., -0.]).reshape((3,1))
-        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-4)
-
+        robot.rArmPose = np.array([[0,-np.pi/4,np.pi/4,np.pi/2,-np.pi/4,-np.pi/4,0]]).T
+        self.assertFalse(pred.test(0))
+       
+        # Only the pos is correct, rotation is not yet right
+        can.pose = np.array([[1.08769922, -0.31906039,  1.21028557]]).T
+        self.assertTrue(pred.test(0))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        can.rotation = np.array([[-2.84786534,  0.25268026, -2.98976055]]).T
+        self.assertTrue(pred.test(0))
+        self.assertTrue(pred2.test(0))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        # now rotate robot basepose
+        robot.pose = np.array([[np.pi/3]]).T
+        self.assertFalse(pred.test(0))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        can.pose = np.array([[0.85016401,  0.73048344,  1.21028557]]).T
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred2.test(0))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        can.rotation = np.array([[-1.80066778,  0.25268026, -2.98976055]]).T
+        self.assertTrue(pred2.test(0))
+        self.assertTrue(pred.test(0))
+        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+    
     def test_obstructs(self):
 
         # Obstructs, Robot, RobotPose, RobotPose, Can
@@ -256,8 +223,6 @@ class TestBaxterPredicates(unittest.TestCase):
         pred = baxter_predicates.BaxterObstructsHolding("test_obstructs", [robot, rPose, rPose, can, can_held], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "BaxterObstructsHolding")
         
-        body = pred._param_to_body[robot]
-
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
         # Move can so that it collide with robot base
