@@ -29,22 +29,6 @@ class CollisionPredicate(ExprPredicate):
         self._cache = {}
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol)
 
-    def plot_cols(self, env, t):
-        _debug = self._debug
-        self._env = env
-        self._debug = True
-        self.robot_obj_collision(self.get_param_vector(t))
-        self._debug = _debug
-
-    def plot_collision(self, ptA, ptB, distance):
-        handles = []
-        if not np.allclose(ptA, ptB, atol=1e-3):
-            if distance < 0:
-                handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.001,color=(1,0,0)))
-            else:
-                handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.001,color=(0,0,0)))
-        self._plot_handles.extend(handles)
-
     def robot_obj_collision(self, x):
         """
             This function is used to calculae collisiosn between Robot and Can
@@ -71,16 +55,14 @@ class CollisionPredicate(ExprPredicate):
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
-        #robot_body._set_active_dof_inds()
-        self.set_active_dof_inds(robot_body, False)
+        self.set_active_dof_inds(robot_body, reset=False)
         # Setup collision checkers
         self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
         collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
         # set active dof value back to its original state (For successive function call)
-        #robot_body._set_active_dof_inds(range(39))
-        self.set_active_dof_inds(robot_body, True)
+        self.set_active_dof_inds(robot_body, reset=True)
         self._cache[flattened] = (col_val.copy(), col_jac.copy())
         return col_val, col_jac
 
@@ -142,8 +124,7 @@ class CollisionPredicate(ExprPredicate):
         obj = self.params[self.ind1]
         obj_body = self._param_to_body[obj]
         obj_body.set_pose(can_pos, can_rot)
-        #robot_body._set_active_dof_inds()
-        self.set_active_dof_inds(robot_body, False)
+        self.set_active_dof_inds(robot_body, reset=False)
         self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
         # setup collision between robot and obstruct
         collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
@@ -160,8 +141,7 @@ class CollisionPredicate(ExprPredicate):
         # Stack these val and jac, and return
         val = np.vstack((col_val1, col_val2))
         jac = np.vstack((col_jac1, col_jac2))
-        #robot_body._set_active_dof_inds(range(39))
-        self.set_active_dof_inds(robot_body, True)
+        self.set_active_dof_inds(robot_body, reset=True)
         self._cache[flattened] = (val.copy(), jac.copy())
         return val, jac
 
@@ -316,6 +296,22 @@ class CollisionPredicate(ExprPredicate):
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
+
+    def plot_cols(self, env, t):
+        _debug = self._debug
+        self._env = env
+        self._debug = True
+        self.robot_obj_collision(self.get_param_vector(t))
+        self._debug = _debug
+
+    def plot_collision(self, ptA, ptB, distance):
+        handles = []
+        if not np.allclose(ptA, ptB, atol=1e-3):
+            if distance < 0:
+                handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.001,color=(1,0,0)))
+            else:
+                handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.001,color=(0,0,0)))
+        self._plot_handles.extend(handles)
 
 class PosePredicate(ExprPredicate):
 
@@ -556,9 +552,11 @@ class PosePredicate(ExprPredicate):
         return (rot_val, rot_jac)
 
 class At(ExprPredicate):
+    """
+        Format: # At, Can, Target
 
-    # At, Can, Target
-
+        Non-robot related
+    """
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.can, self.target = params
@@ -577,9 +575,11 @@ class RobotAt(ExprPredicate):
     """
         Format: RobotAt, Robot, RobotPose
 
+        Robot related
+
         Requires:
-            attr_inds: robot attribute indices
-            attr_dim: dimension of robot attribute
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]: dimension of robot attribute
     """
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
@@ -596,9 +596,11 @@ class IsMP(ExprPredicate):
     """
         Format: IsMP Robot (Just the Robot Base)
 
+        Robot related
+
         Requires:
-            attr_inds: robot attribute indices
-            setup_mov_limit_check: function that checks movement constraints
+            attr_inds[OrderedDict]: robot attribute indices
+            setup_mov_limit_check[Function]: function that sets constraint matrix
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -616,9 +618,11 @@ class WithinJointLimit(ExprPredicate):
     """
         Format: WithinJointLimit Robot
 
+        Robot related
+
         Requires:
-            attr_inds: robot attribute indices
-            setup_mov_limit_check: function that checks joint movement constraints
+            attr_inds[OrderedDict]: robot attribute indices
+            setup_mov_limit_check[Function]: function that sets constraint matrix
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -634,6 +638,8 @@ class WithinJointLimit(ExprPredicate):
 class Stationary(ExprPredicate):
     """
         Format: Stationary, Can
+
+        Non-robot related
     """
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
@@ -650,7 +656,11 @@ class StationaryBase(ExprPredicate):
     """
         Format: StationaryBase, Robot (Only Robot Base)
 
-        Note: attr_inds needs to be provided
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]: dimension of robot attribute
     """
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
@@ -666,7 +676,11 @@ class StationaryArms(ExprPredicate):
     """
         Format: StationaryArms, Robot (Only Robot Arms)
 
-        Note: attr_inds needs to be provided
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]: dimension of robot attribute
     """
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
@@ -681,6 +695,8 @@ class StationaryArms(ExprPredicate):
 class StationaryW(ExprPredicate):
     """
         Format: StationaryW, Obstacle
+
+        Non-robot related
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params
@@ -694,6 +710,8 @@ class StationaryW(ExprPredicate):
 class StationaryNEq(ExprPredicate):
     """
         Format: StationaryNEq, Can, Can(Hold)
+
+        Non-robot related
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.can, self.can_held = params
@@ -712,6 +730,12 @@ class StationaryNEq(ExprPredicate):
 class GraspValid(ExprPredicate):
     """
         Format: GraspValid EEPose Target
+
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]: dimension of robot attribute
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.ee_pose, self.target = params
@@ -727,8 +751,13 @@ class InContact(ExprPredicate):
     """
         Format: InContact robot EEPose target
 
-        Note: attr_inds needs to be provided
-        TODO: Needs to modify it to better fits the domains
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]: dimension of robot attribute
+            GRIPPER_CLOSE[Float]: Constants, specifying gripper value when gripper is closed
+            GRIPPER_OPEN[Float]: Constants, specifying gripper value when gripper is open
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
@@ -752,8 +781,16 @@ class InGripper(PosePredicate):
     """
         Format: InGripper, Robot, Can
 
-        Note: attr_inds needs to be provided
-        Note: Need to specify which check_fn is using [pos_check/rot_check]
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            set_robot_poses[Function]:Function that sets robot's poses
+            get_robot_info[Function]:Function that returns robot's transformations and arm indices
+            eval_f[Function]:Function returns predicate value
+            eval_grad[Function]:Function returns predicate gradient
+            coeff[Float]:In Gripper coeffitions, used during optimazation
+            opt_coeff[Float]:In Gripper coeffitions, used during optimazation
     """
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         assert len(params) == 2
@@ -764,11 +801,11 @@ class InGripper(PosePredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
-        f = lambda x: self.IN_GRIPPER_COEFF*self.eval_f(x)
-        grad = lambda x: self.IN_GRIPPER_COEFF*self.eval_grad(x)
+        f = lambda x: self.coeff*self.eval_f(x)
+        grad = lambda x: self.coeff*self.eval_grad(x)
 
-        self.opt_expr = EqExpr(Expr(lambda x: self.INGRIPPER_OPT_COEFF * f(x),
-                                    lambda x: self.INGRIPPER_OPT_COEFF*grad(x)),
+        self.opt_expr = EqExpr(Expr(lambda x: self.opt_coeff * f(x),
+                                    lambda x: self.opt_coeff*grad(x)),
                                 np.zeros((1,1)))
 
         pos_expr, val = Expr(f, grad), np.zeros((3,1))
@@ -783,9 +820,17 @@ class InGripper(PosePredicate):
 class EEReachable(PosePredicate):
     """
         Format: EEUnreachable Robot, StartPose, EEPose
-        checks robot.getEEPose = EEPose
 
-        Note: attr_inds needs to be provided
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            set_robot_poses[Function]:Function that sets robot's poses
+            get_robot_info[Function]:Function that returns robot's transformations and arm indices
+            eval_f[Function]:Function returns predicate value
+            eval_grad[Function]:Function returns predicate gradient
+            coeff[Float]:EEReachable coeffitions, used during optimazation
+            opt_coeff[Float]:EEReachable coeffitions, used during optimazation
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
         assert len(params) == 3
@@ -796,13 +841,13 @@ class EEReachable(PosePredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
         self._steps = steps
-        f = lambda x: self.EEREACHABLE_COEFF*self.eval_f(x)
-        grad = lambda x: self.EEREACHABLE_COEFF*self.eval_grad(x)
+        f = lambda x: self.coeff*self.eval_f(x)
+        grad = lambda x: self.coeff*self.eval_grad(x)
 
         pos_expr = Expr(f, grad)
         e = EqExpr(pos_expr, np.zeros((3*(2*self._steps+1),1)))
-        self.opt_expr = EqExpr(Expr(lambda x: self.EEREACHABLE_OPT_COEFF*f(x),
-                                    lambda x: self.EEREACHABLE_OPT_COEFF*grad(x)),
+        self.opt_expr = EqExpr(Expr(lambda x: self.opt_coeff*f(x),
+                                    lambda x: self.opt_coeff*grad(x)),
                                 np.zeros((1,1)))
         super(EEReachable, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(-self._steps, self._steps))
 
@@ -816,9 +861,19 @@ class EEReachable(PosePredicate):
         return ee_reachable_resample(self, negated, t, plan)
 
 class Obstructs(CollisionPredicate):
+    """
+        Format: Obstructs, Robot, RobotPose, RobotPose, Can
 
-    # Obstructs, Robot, RobotPose, RobotPose, Can
+        Robot related
 
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]:number of attribute in robot's full pose
+            set_robot_poses[Function]:Function that sets robot's poses
+            set_active_dof_inds[Function]:Function that sets robot's active dof indices
+            coeff[Float]:EEReachable coeffitions, used during optimazation
+            neg_coeff[Float]:EEReachable coeffitions, used during optimazation
+    """
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
         assert len(params) == 4
         self._env = env
@@ -831,12 +886,12 @@ class Obstructs(CollisionPredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.can: self.lazy_spawn_or_body(self.can, self.can.name, self.can.geom)}
 
-        f = lambda x: -self.robot_obj_collision(x)[0]
-        grad = lambda x: -self.robot_obj_collision(x)[1]
+        f = lambda x: self.coeff*self.robot_obj_collision(x)[0]
+        grad = lambda x: self.coeff*self.robot_obj_collision(x)[1]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.robot_obj_collision(x)[0]
-        grad_neg = lambda x: self.robot_obj_collision(x)[1]
+        f_neg = lambda x: self.neg_coeff*self.robot_obj_collision(x)[0]
+        grad_neg = lambda x: self.neg_coeff*self.robot_obj_collision(x)[1]
 
         col_expr = Expr(f, grad)
         links = len(self.robot.geom.col_links)
@@ -861,9 +916,18 @@ class Obstructs(CollisionPredicate):
         return resample_bp_around_target(self, t, plan, target_pose, dist=OBJ_RING_SAMPLING_RADIUS)
 
 class ObstructsHolding(CollisionPredicate):
+    """
+        Format: ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
 
-    # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
+        Robot related
 
+        Requires:
+            attr_dim[Int]:number of attribute in robot's full pose
+            attr_inds[OrderedDict]: robot attribute indices
+            set_robot_poses[Function]:Function that sets robot's poses
+            set_active_dof_inds[Function]:Function that sets robot's active dof indices
+            OBSTRUCTS_OPT_COEFF[Float]: Obstructs_holding coeffitions, used during optimazation problem
+    """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 5
         self._env = env
@@ -885,11 +949,11 @@ class ObstructsHolding(CollisionPredicate):
             col_fn, offset = self.robot_obj_held_collision, 0
             val = np.zeros((links+1,1))
 
-        f = lambda x: -col_fn(x)[0] + offset
-        grad = lambda x: -col_fn(x)[1]
+        f = lambda x: self.coeff * (col_fn(x)[0] - offset)
+        grad = lambda x: self.coeff * col_fn(x)[1]
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: col_fn(x)[0] - offset
-        grad_neg = lambda x: col_fn(x)[1]
+        f_neg = lambda x: self.neg_coeff * (col_fn(x)[0] - offset)
+        grad_neg = lambda x: self.neg_coeff * col_fn(x)[1]
 
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
@@ -910,9 +974,11 @@ class ObstructsHolding(CollisionPredicate):
                                         dist=OBJ_RING_SAMPLING_RADIUS)
 
 class Collides(CollisionPredicate):
+    """
+        Format: Collides Can Obstacle
 
-    # Collides Can Obstacle
-
+        Non-robot related
+    """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.can, self.obstacle = params
@@ -947,9 +1013,18 @@ class Collides(CollisionPredicate):
             return None
 
 class RCollides(CollisionPredicate):
+    """
+        Format: RCollides Robot Obstacle
 
-    # RCollides Robot Obstacle
+        Robot related
 
+        Requires:
+            attr_dim[Int]:number of attribute in robot's full pose
+            attr_inds[OrderedDict]: robot attribute indices
+            set_robot_poses[Function]:Function that sets robot's poses
+            set_active_dof_inds[Function]:Function that sets robot's active dof indices
+            RCOLLIDES_OPT_COEFF[Float]: Obstructs_holding coeffitions, used during optimazation problem
+    """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, self.obstacle = params
@@ -961,15 +1036,15 @@ class RCollides(CollisionPredicate):
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
-        f = lambda x: -self.robot_obj_collision(x)[0]
-        grad = lambda x: -self.robot_obj_collision(x)[1]
+        f = lambda x: self.coeff * self.robot_obj_collision(x)[0]
+        grad = lambda x: self.coeff * self.robot_obj_collision(x)[1]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.robot_obj_collision(x)[0]
-        grad_neg = lambda x: self.robot_obj_collision(x)[1]
+        f_neg = lambda x: self.neg_coeff * self.robot_obj_collision(x)[0]
+        grad_neg = lambda x: self.neg_coeff * self.robot_obj_collision(x)[1]
 
-        f_neg_opt = lambda x: self.RCOLLIDES_OPT_COEFF*self.robot_obj_collision(x)[0]
-        grad_neg_opt = lambda x: self.RCOLLIDES_OPT_COEFF*self.robot_obj_collision(x)[1]
+        f_neg_opt = lambda x: self.opt_coeff*self.robot_obj_collision(x)[0]
+        grad_neg_opt = lambda x: self.opt_coeff*self.robot_obj_collision(x)[1]
 
         col_expr = Expr(f, grad)
         links = len(self.robot.geom.col_links)

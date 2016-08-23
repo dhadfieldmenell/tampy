@@ -74,13 +74,26 @@ class BaxterIsMP(robot_predicates.IsMP):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type]))])
+        self.dof_cache = None
         super(BaxterIsMP, self).__init__(name, params, expected_param_types, env, debug)
+
+    def set_active_dof_inds(self, robot_body, reset = False):
+        robot = robot_body.env_body
+        if reset == True and self.dof_cache != None:
+            robot.SetActiveDOFs(self.dof_cache)
+            self.dof_cache = None
+        elif reset == False and self.dof_cache == None:
+            self.dof_cache = robot.GetActiveDOFIndices()
+            robot.SetActiveDOFs(list(range(2,18)))
+        else:
+            raise PredicateException("Incorrect Active DOF Setting")
 
     def setup_mov_limit_check(self):
         # Get upper joint limit and lower joint limit
         robot_body = self._param_to_body[self.robot]
         robot = robot_body.env_body
-        robot_body._set_active_dof_inds(list(range(2,2+JOINT_DIM)))
+        # robot_body._set_active_dof_inds(list(range(2,2+JOINT_DIM)))
+        self.set_active_dof_inds(robot_body, reset=False)
         dof_inds = robot.GetActiveDOFIndices()
         lb_limit, ub_limit = robot.GetDOFLimits()
         active_ub = ub_limit[dof_inds].reshape((JOINT_DIM,1))
@@ -92,7 +105,7 @@ class BaxterIsMP(robot_predicates.IsMP):
         val = np.vstack((joint_move, BASE_MOVE*np.ones((BASE_DIM, 1)), joint_move, BASE_MOVE*np.ones((BASE_DIM, 1))))
         A = np.eye(2*ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=-ROBOT_ATTR_DIM)
         b = np.zeros((2*ROBOT_ATTR_DIM,1))
-        robot_body._set_active_dof_inds(range(18))
+        self.set_active_dof_inds(robot_body, reset=True)
 
         # Setting attributes for testing
         self.base_step = BASE_MOVE*np.ones((BASE_DIM, 1))
@@ -105,14 +118,27 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
     # WithinJointLimit Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
         super(BaxterWithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
+
+    def set_active_dof_inds(self, robot_body, reset = False):
+        robot = robot_body.env_body
+        if reset == True and self.dof_cache != None:
+            robot.SetActiveDOFs(self.dof_cache)
+            self.dof_cache = None
+        elif reset == False and self.dof_cache == None:
+            self.dof_cache = robot.GetActiveDOFIndices()
+            robot.SetActiveDOFs(list(range(2,18)))
+        else:
+            raise PredicateException("Incorrect Active DOF Setting")
+
 
     def setup_mov_limit_check(self):
         # Get upper joint limit and lower joint limit
         robot_body = self._param_to_body[self.robot]
         robot = robot_body.env_body
-        robot_body._set_active_dof_inds(list(range(2,2+JOINT_DIM)))
+        self.set_active_dof_inds(robot_body, reset=False)
         dof_inds = robot.GetActiveDOFIndices()
         lb_limit, ub_limit = robot.GetDOFLimits()
         active_ub = ub_limit[dof_inds].reshape((JOINT_DIM,1))
@@ -124,7 +150,7 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
         A_up_limit = np.eye(JOINT_DIM)
         A = np.vstack((A_lb_limit, A_up_limit))
         b = np.zeros((2*JOINT_DIM,1))
-        robot_body._set_active_dof_inds(range(18))
+        self.set_active_dof_inds(robot_body, reset=True)
 
         joint_move = (active_ub-active_lb)/JOINT_MOVE_FACTOR
         self.base_step = BASE_MOVE*np.ones((BASE_DIM,1))
@@ -224,12 +250,11 @@ class BaxterInGripperPos(BaxterInGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.IN_GRIPPER_COEFF = IN_GRIPPER_COEFF
-        self.INGRIPPER_OPT_COEFF = INGRIPPER_OPT_COEFF
+        self.coeff = IN_GRIPPER_COEFF
+        self.opt_coeff = INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.pos_check(x)[0]
         self.eval_grad = lambda x: self.pos_check(x)[1]
         super(BaxterInGripperPos, self).__init__(name, params, expected_param_types, env, debug)
-
 
 class BaxterInGripperRot(BaxterInGripper):
 
@@ -237,12 +262,11 @@ class BaxterInGripperRot(BaxterInGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.IN_GRIPPER_COEFF = IN_GRIPPER_COEFF
-        self.INGRIPPER_OPT_COEFF = INGRIPPER_OPT_COEFF
+        self.coeff = IN_GRIPPER_COEFF
+        self.opt_coeff = INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.rot_check(x)[0]
         self.eval_grad = lambda x: self.rot_check(x)[1]
         super(BaxterInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
-
 
 class BaxterEEReachable(robot_predicates.EEReachable):
 
@@ -313,8 +337,8 @@ class BaxterEEReachablePos(BaxterEEReachable):
     # EEUnreachable Robot, StartPose, EEPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
-        self.EEREACHABLE_COEFF = 1
-        self.EEREACHABLE_OPT_COEFF = 1
+        self.coeff = 1
+        self.opt_coeff = 1
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.attr_dim = 26
@@ -325,8 +349,8 @@ class BaxterEEReachableRot(BaxterEEReachable):
     # EEUnreachable Robot, StartPose, EEPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
-        self.EEREACHABLE_COEFF = EEREACHABLE_COEFF
-        self.EEREACHABLE_OPT_COEFF = EEREACHABLE_ROT_OPT_COEFF
+        self.coeff = EEREACHABLE_COEFF
+        self.opt_coeff = EEREACHABLE_ROT_OPT_COEFF
         self.check_f = lambda x: self.ee_rot_check[0]
         self.check_grad = lambda x: self.ee_rot_check[1]
         super(BaxterEEReachableRot, self).__init__(name, params, expected_param_types, env, debug, steps)
@@ -338,10 +362,12 @@ class BaxterObstructs(robot_predicates.Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
         self.attr_dim = 17
         self.dof_cache = None
+        self.coeff = -1
+        self.neg_coeff = 1
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
-    
+
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
         if reset == True and self.dof_cache != None:
@@ -372,6 +398,8 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 17
         self.dof_cache = None
+        self.coeff = -1
+        self.neg_coeff = 1
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type])),
                                  (params[4], list(ATTRMAP[params[4]._type]))])
@@ -389,7 +417,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         dof[2:9], dof[9] = l_arm_pose.reshape((7,)), l_gripper
         dof[10:17], dof[17] = r_arm_pose.reshape((7,)), r_gripper
         body.SetActiveDOFValues(dof)
-    
+
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
         if reset == True and self.dof_cache != None:
@@ -438,5 +466,3 @@ class BaxterRCollides(robot_predicates.RCollides):
             robot.SetActiveDOFs(list(range(2,18))+ [0])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
-
-

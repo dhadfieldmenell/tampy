@@ -224,8 +224,8 @@ class PR2InGripperPos(PR2InGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.IN_GRIPPER_COEFF = IN_GRIPPER_COEFF
-        self.INGRIPPER_OPT_COEFF = INGRIPPER_OPT_COEFF
+        self.coeff = IN_GRIPPER_COEFF
+        self.opt_coeff = INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.pos_check(x)[0]
         self.eval_grad = lambda x: self.pos_check(x)[1]
         super(PR2InGripperPos, self).__init__(name, params, expected_param_types, env, debug)
@@ -236,8 +236,8 @@ class PR2InGripperRot(PR2InGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.IN_GRIPPER_COEFF = IN_GRIPPER_COEFF
-        self.INGRIPPER_OPT_COEFF = INGRIPPER_OPT_COEFF
+        self.coeff = IN_GRIPPER_COEFF
+        self.opt_coeff = INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.rot_check(x)[0]
         self.eval_grad = lambda x: self.rot_check(x)[1]
         super(PR2InGripperRot, self).__init__(name, params, expected_param_types, env, debug)
@@ -304,8 +304,8 @@ class PR2EEReachablePos(PR2EEReachable):
     # EEUnreachable Robot, StartPose, EEPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
-        self.EEREACHABLE_COEFF = 1
-        self.EEREACHABLE_OPT_COEFF = 1
+        self.coeff = 1
+        self.opt_coeff = 1
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.attr_dim = 26
@@ -316,8 +316,8 @@ class PR2EEReachableRot(PR2EEReachable):
     # EEUnreachable Robot, StartPose, EEPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
-        self.EEREACHABLE_COEFF = EEREACHABLE_COEFF
-        self.EEREACHABLE_OPT_COEFF = EEREACHABLE_ROT_OPT_COEFF
+        self.coeff = EEREACHABLE_COEFF
+        self.opt_coeff = EEREACHABLE_ROT_OPT_COEFF
         self.check_f = lambda x: self.ee_rot_check[0]
         self.check_grad = lambda x: self.ee_rot_check[1]
         super(PR2EEReachableRot, self).__init__(name, params, expected_param_types, env, debug, steps)
@@ -329,6 +329,8 @@ class PR2Obstructs(robot_predicates.Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
         self.attr_dim = 20
         self.dof_cache = None
+        self.coeff = -1
+        self.neg_coeff = 1
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(PR2Obstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
@@ -369,6 +371,8 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 20
         self.dof_cache = None
+        self.coeff = -1
+        self.neg_coeff = 1
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type])),
                                  (params[4], list(ATTRMAP[params[4]._type]))])
@@ -382,12 +386,13 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            dof_inds = np.ndarray(0, dtype=np.int)
-            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            # dof_inds = np.ndarray(0, dtype=np.int)
+            # dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            # dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
+            # dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
+            # dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
+            # dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            dof_inds = [12]+ list(range(15, 22)) + [22]+ list(range(27, 34)) + [34]
             robot.SetActiveDOFs(
                     dof_inds,
                     DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
@@ -414,9 +419,11 @@ class PR2RCollides(robot_predicates.RCollides):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 20
         self.dof_cache = None
+        self.coeff = -1
+        self.neg_coeff = 1
+        self.opt_coeff = RCOLLIDES_OPT_COEFF
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        self.RCOLLIDES_OPT_COEFF = RCOLLIDES_OPT_COEFF
         super(PR2RCollides, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_active_dof_inds(self, robot_body, reset = False):
