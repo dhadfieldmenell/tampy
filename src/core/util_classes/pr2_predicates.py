@@ -1,6 +1,7 @@
 from core.util_classes import robot_predicates
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
+from openravepy import DOFAffine
 import numpy as np
 
 """
@@ -327,6 +328,7 @@ class PR2Obstructs(robot_predicates.Obstructs):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
         self.attr_dim = 20
+        self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(PR2Obstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
@@ -340,17 +342,58 @@ class PR2Obstructs(robot_predicates.Obstructs):
         robot_body.set_pose(base_pose)
         robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
 
+    def set_active_dof_inds(self, robot_body, reset = False):
+        robot = robot_body.env_body
+        if reset == True and self.dof_cache != None:
+            robot.SetActiveDOFs(self.dof_cache)
+            self.dof_cache = None
+        elif reset == False and self.dof_cache == None:
+            self.dof_cache = robot.GetActiveDOFIndices()
+            dof_inds = np.ndarray(0, dtype=np.int)
+            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            robot.SetActiveDOFs(
+                    dof_inds,
+                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
+                    [0, 0, 1])
+        else:
+            raise PredicateException("Incorrect Active DOF Setting")
+
 class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
 
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 20
+        self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type])),
                                  (params[4], list(ATTRMAP[params[4]._type]))])
         self.OBSTRUCTS_OPT_COEFF = OBSTRUCTS_OPT_COEFF
         super(PR2ObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
+
+    def set_active_dof_inds(self, robot_body, reset = False):
+        robot = robot_body.env_body
+        if reset == True and self.dof_cache != None:
+            robot.SetActiveDOFs(self.dof_cache)
+            self.dof_cache = None
+        elif reset == False and self.dof_cache == None:
+            self.dof_cache = robot.GetActiveDOFIndices()
+            dof_inds = np.ndarray(0, dtype=np.int)
+            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            robot.SetActiveDOFs(
+                    dof_inds,
+                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
+                    [0, 0, 1])
+        else:
+            raise PredicateException("Incorrect Active DOF Setting")
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -370,10 +413,31 @@ class PR2RCollides(robot_predicates.RCollides):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 20
+        self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.RCOLLIDES_OPT_COEFF = RCOLLIDES_OPT_COEFF
         super(PR2RCollides, self).__init__(name, params, expected_param_types, env, debug)
+
+    def set_active_dof_inds(self, robot_body, reset = False):
+        robot = robot_body.env_body
+        if reset == True and self.dof_cache != None:
+            robot.SetActiveDOFs(self.dof_cache)
+            self.dof_cache = None
+        elif reset == False and self.dof_cache == None:
+            self.dof_cache = robot.GetActiveDOFIndices()
+            dof_inds = np.ndarray(0, dtype=np.int)
+            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            robot.SetActiveDOFs(
+                    dof_inds,
+                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
+                    [0, 0, 1])
+        else:
+            raise PredicateException("Incorrect Active DOF Setting")
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
