@@ -398,7 +398,7 @@ class TestPR2Predicates(unittest.TestCase):
         table = ParamSetup.setup_box()
         test_env = ParamSetup.setup_env()
         # test_env.SetViewer("qtcoin")
-        pred = pr2_predicates.PR2Collides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
+        pred = pr2_predicates.PR2RCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
         # self.assertEqual(pred.get_type(), "RCollides")
         # Since can is not yet defined
         self.assertFalse(pred.test(0))

@@ -164,7 +164,8 @@ class OpenRAVEBody(object):
         robot = self.env_body
         if inds == None:
             dof_inds = np.ndarray(0, dtype=np.int)
-            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            if robot.GetJoint("torso_lift_joint") != None:
+                dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
             dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
             dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
             dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]

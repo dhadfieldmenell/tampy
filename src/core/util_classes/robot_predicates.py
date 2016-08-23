@@ -71,14 +71,16 @@ class CollisionPredicate(ExprPredicate):
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
-        robot_body._set_active_dof_inds()
+        #robot_body._set_active_dof_inds()
+        self.set_active_dof_inds(robot_body, False)
         # Setup collision checkers
         self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
         collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
         # set active dof value back to its original state (For successive function call)
-        robot_body._set_active_dof_inds(range(39))
+        #robot_body._set_active_dof_inds(range(39))
+        self.set_active_dof_inds(robot_body, True)
         self._cache[flattened] = (col_val.copy(), col_jac.copy())
         return col_val, col_jac
 
@@ -140,7 +142,8 @@ class CollisionPredicate(ExprPredicate):
         obj = self.params[self.ind1]
         obj_body = self._param_to_body[obj]
         obj_body.set_pose(can_pos, can_rot)
-        robot_body._set_active_dof_inds()
+        #robot_body._set_active_dof_inds()
+        self.set_active_dof_inds(robot_body, False)
         self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
         # setup collision between robot and obstruct
         collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
@@ -157,7 +160,8 @@ class CollisionPredicate(ExprPredicate):
         # Stack these val and jac, and return
         val = np.vstack((col_val1, col_val2))
         jac = np.vstack((col_jac1, col_jac2))
-        robot_body._set_active_dof_inds(range(39))
+        #robot_body._set_active_dof_inds(range(39))
+        self.set_active_dof_inds(robot_body, True)
         self._cache[flattened] = (val.copy(), jac.copy())
         return val, jac
 
@@ -424,7 +428,7 @@ class PosePredicate(ExprPredicate):
         world_dir = robot_trans[:3,:3].dot(local_dir)
         obj_dir = obj_dir/np.linalg.norm(obj_dir)
         world_dir = world_dir/np.linalg.norm(world_dir)
-        rot_val = np.array([[np.dot(obj_dir, world_dir) - 1]])
+        rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
         # computing robot's jacobian
         arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
         arm_jac = arm_jac.reshape((1, len(arm_joints)))

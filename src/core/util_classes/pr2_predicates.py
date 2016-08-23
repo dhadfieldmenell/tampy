@@ -172,14 +172,14 @@ class PR2GraspValidPos(PR2GraspValid):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]),(params[1], [ATTRMAP[params[1]._type][0]])])
         self.attr_dim = 3
-        super(self).__init__(name, params, expected_param_types, env, debug)
+        super(PR2GraspValidPos, self).__init__(name, params, expected_param_types, env, debug)
 
 class PR2GraspValidRot(PR2GraspValid):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]]),(params[1], [ATTRMAP[params[1]._type][1]])])
         self.attr_dim = 3
-        super(self).__init__(name, params, expected_param_types, env, debug)
+        super(PR2GraspValidPos, self).__init__(name, params, expected_param_types, env, debug)
 
 class PR2InContact(robot_predicates.InContact):
 
@@ -364,7 +364,7 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
 class PR2Collides(robot_predicates.Collides):
     pass
 
-class PR2Collides(robot_predicates.RCollides):
+class PR2RCollides(robot_predicates.RCollides):
 
     # RCollides Robot Obstacle
 
@@ -373,7 +373,7 @@ class PR2Collides(robot_predicates.RCollides):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.RCOLLIDES_OPT_COEFF = RCOLLIDES_OPT_COEFF
-        super(PR2Collides, self).__init__(name, params, expected_param_types, env, debug)
+        super(PR2RCollides, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses

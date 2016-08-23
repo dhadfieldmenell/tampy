@@ -241,7 +241,7 @@
     <parent link="torso"/>
     <child link="pedestal"/>
   </joint>
-  <joint name="head_pan_joint" type="revolute">
+  <joint name="head_pan_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0.06 0 0.686"/>
     <axis xyz="0 0 1"/>
     <parent link="torso"/>
