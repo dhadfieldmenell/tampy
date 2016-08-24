@@ -27,14 +27,14 @@ class TestParseDomainConfig(unittest.TestCase):
         new_c["Attribute Import Paths"] = "RedCircle core.util_classes.circle"
         with self.assertRaises(DomainConfigException) as cm:
             parse_domain_config.ParseDomainConfig.parse(new_c)
-        self.assertEqual(cm.exception.message, "Need to provide attribute import path for non-primitive Vector2d.")
+        self.assertEqual(cm.exception.message, "Need to provide attribute import path for non-primitive BlueCircle.")
 
         del new_c["Attribute Import Paths"]
         with self.assertRaises(DomainConfigException) as cm:
             parse_domain_config.ParseDomainConfig.parse(new_c)
         self.assertTrue(cm.exception.message.startswith("Need to provide attribute import path for"))
 
-        new_c["Attribute Import Paths"] = "RedCircle core.internal_repr, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer"
+        new_c["Attribute Import Paths"] = "RedCircle core.internal_repr, BlueCircle core.util_classes.circle, GreenCircle core.util_classes.circle, Vector2d core.util_classes.matrix, GridWorldViewer core.util_classes.viewer, Wall core.util_classes.wall"
         with self.assertRaises(DomainConfigException) as cm:
             parse_domain_config.ParseDomainConfig.parse(new_c)
         self.assertTrue(cm.exception.message.startswith("RedCircle not found in module"))
