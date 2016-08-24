@@ -53,7 +53,7 @@ class Action(object):
     def satisfied(self, active_ts=None):
         if active_ts is None:
             active_ts = self.active_timesteps
-        if self.active_timesteps[0] >= active_ts[1] \
+        elif self.active_timesteps[0] >= active_ts[1] \
             or self.active_timesteps[1] <= active_ts[0]:
             return True
         return len(self.get_failed_preds(active_ts)) == 0
