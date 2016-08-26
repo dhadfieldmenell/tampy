@@ -2,6 +2,7 @@ import unittest
 from core.internal_repr import state
 from core.internal_repr import parameter
 from core.util_classes import common_predicates, namo_predicates
+from core.util_classes.namo_constants import CONTACT_DIST
 from core.util_classes.matrix import Vector2d
 from core.util_classes import circle
 from openravepy import Environment
@@ -44,10 +45,10 @@ class TestState(unittest.TestCase):
         self.assertTrue(self.s.is_concrete())
 
     def test_consistent(self):
-        self.can.pose = np.array([[3, 0], [4, 2]])
+        self.can.pose = np.array([[3, 0], [4-CONTACT_DIST, 2]])
         self.target.value = np.array([[3, 1], [3, 2]])
         self.assertFalse(self.s.is_consistent())
-        self.target.value = np.array([[3, 0], [4, 2]])
+        self.target.value = np.array([[3, 0], [4-CONTACT_DIST, 2]])
         self.assertTrue(self.s.is_consistent())
 
 if __name__ == "__main__":

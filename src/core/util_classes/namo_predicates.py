@@ -4,6 +4,8 @@ from core.internal_repr.plan import Plan
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes.namo_constants import DIST_SAFE, MAX_MOVE_DIST, \
+    CONTACT_DIST, RS_SCALE, N_DIGS
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
@@ -17,16 +19,8 @@ from pma.ll_solver import NAMOSolver
 This file implements the predicates for the 2D NAMO domain.
 """
 
-dsafe = 1e-1
-dmove = 5e-1
-contact_dist = 0
-
-RS_SCALE = 0.5
-N_DIGS = 3
-
-
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, env=None, dsafe = dsafe, debug = False, ind0=0, ind1=1):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, env=None, dsafe=DIST_SAFE, debug = False, ind0=0, ind1=1):
         self._debug = debug
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
@@ -198,13 +192,13 @@ class InContact(CollisionPredicate):
         grad = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        # val = np.ones((1, 1))*dsafe*INCONTACT_COEFF
-        val = np.zeros((1, 1))
+        val = np.ones((1, 1))*(DIST_SAFE-CONTACT_DIST)
         e = EqExpr(col_expr, val)
 
+        opt_val = np.ones((1, 1))*(DIST_SAFE-CONTACT_DIST)*INCONTACT_COEFF
         self.opt_expr = EqExpr(Expr(lambda x: INCONTACT_COEFF*f(x),
                                     lambda x: INCONTACT_COEFF*grad(x)),
-                                np.zeros((1,1)))
+                                opt_val)
 
         super(InContact, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, env=env,
@@ -653,7 +647,7 @@ class IsMP(ExprPredicate):
 
     # IsMP Robot
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=MAX_MOVE_DIST):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove

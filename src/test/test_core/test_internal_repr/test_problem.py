@@ -2,6 +2,7 @@ import unittest
 from core.internal_repr import problem
 from core.internal_repr import parameter
 from core.util_classes import common_predicates, namo_predicates
+from core.util_classes.namo_constants import CONTACT_DIST
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import state
 from errors_exceptions import ProblemConfigException
@@ -38,17 +39,17 @@ class TestProblem(unittest.TestCase):
         with self.assertRaises(ProblemConfigException) as cm:
             problem.Problem(self.init_state, None, None)
         self.assertEqual(cm.exception.message, "Initial state is not concrete. Have all non-symbol parameters been instantiated with a value?")
-        self.can.pose = np.array([[3, 0], [4, 2]])
+        self.can.pose = np.array([[3, 0], [4-CONTACT_DIST, 2]])
         self.target.value = np.array([[3, 1], [3, 2]])
         with self.assertRaises(ProblemConfigException) as cm:
             problem.Problem(self.init_state, None, None)
         self.assertEqual(cm.exception.message, "Initial state is not consistent (predicates are violated).")
-        self.target.value = np.array([[3, 0], [4, 2]])
+        self.target.value = np.array([[3, 0], [4-CONTACT_DIST, 2]])
         problem.Problem(self.init_state, None, None)
 
     def test_goal_test(self):
-        self.can.pose = np.array([[3, 0, 5], [4, 1, 1]])
-        self.target.value = np.array([[3, 0, 4], [4, 2, 0]])
+        self.can.pose = np.array([[3, 0, 5], [4-CONTACT_DIST, 1, 1]])
+        self.target.value = np.array([[3, 0, 4], [4-CONTACT_DIST, 2, 0]])
         p = problem.Problem(self.init_state, [self.at], None)
         # problems only consider timestep 0 in their goal test,
         # so this will be True even though the poses become different at timestep 1
