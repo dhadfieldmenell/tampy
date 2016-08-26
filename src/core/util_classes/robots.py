@@ -23,7 +23,7 @@ class PR2(Robot):
                               'r_wrist_roll_link', 'r_gripper_palm_link', 'r_gripper_l_finger_link',
                               'r_gripper_l_finger_tip_link', 'r_gripper_r_finger_link',
                               'r_gripper_r_finger_tip_link'])
-
+        self.dof_map = {"backHeight": [12], "lArmPose": list(range(15,22)), "lGripper": [22], "rArmPose": list(range(27,34)), "rGripper":[34]}
         super(PR2, self).__init__(pr2_shape)
 
 
@@ -46,5 +46,5 @@ class Baxter(Robot):
                               "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
                               "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
                               "left_gripper_r_finger_tip"])
-
+        self.dof_map = {"lArmPose": list(range(2,9)), "lGripper": [9], "rArmPose": list(range(10,17)), "rGripper":[17]}
         super(Baxter, self).__init__(baxter_shape)

@@ -19,7 +19,7 @@ CAN_GEOM = [CAN_RADIUS, CAN_HEIGHT]
 DIST_BETWEEN_CANS = 0.01
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]
-Baxter_END_POSE = [0]
+Baxter_END_POSE = [1.57]
 # referred to as side2 pose in rapprentice
 R_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
 # left arm is tucked

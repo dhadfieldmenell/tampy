@@ -209,7 +209,12 @@ class PR2InGripper(robot_predicates.InGripper):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        dof_value_map = {"backHeight": back_height,
+                         "lArmPose": l_arm_pose,
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose,
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
     def get_robot_info(self, robot_body):
         # Provide functionality of Obtaining Robot information
@@ -258,7 +263,12 @@ class PR2EEReachable(robot_predicates.EEReachable):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        dof_value_map = {"backHeight": back_height,
+                         "lArmPose": l_arm_pose,
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose,
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
     def get_robot_info(self, robot_body):
         # Provide functionality of Obtaining Robot information
@@ -342,7 +352,12 @@ class PR2Obstructs(robot_predicates.Obstructs):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        dof_value_map = {"backHeight": back_height,
+                         "lArmPose": l_arm_pose,
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose,
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -407,7 +422,12 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        dof_value_map = {"backHeight": back_height,
+                         "lArmPose": l_arm_pose,
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose,
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
 class PR2Collides(robot_predicates.Collides):
     pass
@@ -453,4 +473,9 @@ class PR2RCollides(robot_predicates.RCollides):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
+        dof_value_map = {"backHeight": back_height,
+                         "lArmPose": l_arm_pose,
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose,
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)

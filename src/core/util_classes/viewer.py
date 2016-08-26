@@ -2,7 +2,7 @@ from IPython import embed as shell
 from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
-from core.util_classes.pr2 import PR2
+from core.util_classes.robots import Robot, PR2, Baxter
 from core.util_classes.can import Can
 from core.util_classes.table import Table
 from core.util_classes.box import Box
@@ -111,16 +111,30 @@ class OpenRAVEViewer(Viewer):
 
     def _draw_rave_body(self, obj, name, t, transparency = 0.7):
         rotation = np.array([[0],[0],[0]])
-        assert isinstance(obj, Object)
+        pose = obj.pose[:,t]
+        assert isinstance(obj, Object) and not np.any(np.isnan(pose))
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
-        if isinstance(obj.geom, PR2):
-            self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
-        if isinstance(obj.geom, Can) or isinstance(obj.geom, Box) or isinstance(obj.geom, Table):
+        if isinstance(obj.geom, Robot):
+            dof_value_map = None
+            if isinstance(obj.geom, PR2):
+                dof_value_map = {"backHeight": obj.backHeight[:, t],
+                                 "lArmPose": obj.lArmPose[:, t],
+                                 "lGripper": obj.lGripper[:, t],
+                                 "rArmPose": obj.rArmPose[:, t],
+                                 "rGripper": obj.rGripper[:, t]}
+            elif isinstance(obj.geom, Baxter):
+                dof_value_map = {"lArmPose": obj.lArmPose[:, t],
+                                 "lGripper": obj.lGripper[:, t],
+                                 "rArmPose": obj.rArmPose[:, t],
+                                 "rGripper": obj.rGripper[:, t]}
+                pose = [0, 0, pose]
+            self.name_to_rave_body[name].set_dof(dof_value_map)
+        elif isinstance(obj.geom, Can) or isinstance(obj.geom, Box) or isinstance(obj.geom, Table):
             rotation = obj.rotation[:, t]
             assert not np.any(np.isnan(rotation))
-        assert not np.any(np.isnan(obj.pose[:, t]))
-        self.name_to_rave_body[name].set_pose(obj.pose[:, t], rotation)
+
+        self.name_to_rave_body[name].set_pose(pose, rotation)
         self.name_to_rave_body[name].set_transparency(transparency)
 
     def animate_plan(self, plan, delay=.1):

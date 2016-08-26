@@ -226,12 +226,13 @@ class BaxterInGripper(robot_predicates.InGripper):
         l_arm_pose, l_gripper = x[0:7], x[7]
         r_arm_pose, r_gripper = x[8:15], x[15]
         base_pose = x[16]
-        body = self._param_to_body[self.robot].env_body
-        dof = body.GetActiveDOFValues()
-        dof[0] = base_pose
-        dof[2:9], dof[9] = l_arm_pose.reshape((7,)), l_gripper
-        dof[10:17], dof[17] = r_arm_pose.reshape((7,)), r_gripper
-        body.SetActiveDOFValues(dof)
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
     def get_robot_info(self, robot_body):
         # Provide functionality of Obtaining Robot information
@@ -281,12 +282,13 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         l_arm_pose, l_gripper = x[0:7], x[7]
         r_arm_pose, r_gripper = x[8:15], x[15]
         base_pose = x[16]
-        body = self._param_to_body[self.robot].env_body
-        dof = body.GetActiveDOFValues()
-        dof[0] = base_pose
-        dof[2:9], dof[9] = l_arm_pose.reshape((7,)), l_gripper
-        dof[10:17], dof[17] = r_arm_pose.reshape((7,)), r_gripper
-        body.SetActiveDOFValues(dof)
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
     def get_robot_info(self, robot_body):
         # Provide functionality of Obtaining Robot information
@@ -383,12 +385,13 @@ class BaxterObstructs(robot_predicates.Obstructs):
         l_arm_pose, l_gripper = x[0:7], x[7]
         r_arm_pose, r_gripper = x[8:15], x[15]
         base_pose = x[16]
-        body = self._param_to_body[self.robot].env_body
-        dof = body.GetActiveDOFValues()
-        dof[0] = base_pose
-        dof[2:9], dof[9] = l_arm_pose.reshape((7,)), l_gripper
-        dof[10:17], dof[17] = r_arm_pose.reshape((7,)), r_gripper
-        body.SetActiveDOFValues(dof)
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
 class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
@@ -410,12 +413,13 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         l_arm_pose, l_gripper = x[0:7], x[7]
         r_arm_pose, r_gripper = x[8:15], x[15]
         base_pose = x[16]
-        body = self._param_to_body[self.robot].env_body
-        dof = body.GetActiveDOFValues()
-        dof[0] = base_pose
-        dof[2:9], dof[9] = l_arm_pose.reshape((7,)), l_gripper
-        dof[10:17], dof[17] = r_arm_pose.reshape((7,)), r_gripper
-        body.SetActiveDOFValues(dof)
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -450,12 +454,13 @@ class BaxterRCollides(robot_predicates.RCollides):
         l_arm_pose, l_gripper = x[0:7], x[7]
         r_arm_pose, r_gripper = x[8:15], x[15]
         base_pose = x[16]
-        body = self._param_to_body[self.robot].env_body
-        dof = body.GetActiveDOFValues()
-        dof[0] = base_pose
-        dof[2:9], dof[9] = l_arm_pose.reshape((7,)), l_gripper
-        dof[10:17], dof[17] = r_arm_pose.reshape((7,)), r_gripper
-        body.SetActiveDOFValues(dof)
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body

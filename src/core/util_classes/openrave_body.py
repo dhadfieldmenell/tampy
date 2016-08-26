@@ -5,7 +5,7 @@ from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
 RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
 IkFilterOptions, matrixFromAxisAngle
-from core.util_classes.robots import PR2, Baxter
+from core.util_classes.robots import Robot, PR2, Baxter
 from core.util_classes.box import Box
 from core.util_classes.can import Can, BlueCan, RedCan
 from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
@@ -27,7 +27,7 @@ class OpenRAVEBody(object):
             self._add_can(geom)
         elif isinstance(geom, Obstacle):
             self._add_obstacle(geom)
-        elif isinstance(geom, PR2) or isinstance(geom, Baxter):
+        elif isinstance(geom, Robot):
             self._add_robot(geom)
         elif isinstance(geom, Table):
             self._add_table(geom)
@@ -121,61 +121,27 @@ class OpenRAVEBody(object):
         trans = None
         if isinstance(self._geom, Circle) or isinstance(self._geom, Obstacle) or isinstance(self._geom, Wall):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
-        elif isinstance(self._geom, PR2):
+        elif isinstance(self._geom, Robot):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif isinstance(self._geom, Table) or isinstance(self._geom, Can) or isinstance(self._geom, Box):
             assert rotation != None
             trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)
 
-    def set_dof(self, back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper):
+    def set_dof(self, dof_value_map):
         """
-            This function assumed to be called when the self.env_body is a robot and its geom is type PR2
-            It sets the DOF values for important joint of PR2
-
-            back_height: back_height attribute of type Value
-            l_arm_pose: l_arm_pose attribute of type Vector7d
-            l_gripper: l_gripper attribute of type Value
-            r_arm_pose: r_arm_pose attribute of type Vector7d
-            r_gripper: r_gripper attribute of type Value
+            dof_value_map: A dict that maps robot attribute name to a list of corresponding values
         """
+        # make sure only sets dof for robot
+        assert isinstance(self._geom, Robot)
         # Get current dof value for each joint
         dof_val = self.env_body.GetActiveDOFValues()
-        # Obtain indices of left arm and right arm
-        l_arm_inds = self.env_body.GetManipulator('leftarm').GetArmIndices()
-        l_gripper_ind = self.env_body.GetJoint('l_gripper_l_finger_joint').GetDOFIndex()
-        r_arm_inds = self.env_body.GetManipulator('rightarm').GetArmIndices()
-        r_gripper_ind = self.env_body.GetJoint('r_gripper_l_finger_joint').GetDOFIndex()
-        b_height_ind = self.env_body.GetJoint('torso_lift_joint').GetDOFIndex()
-        # Update the DOF value
-        dof_val[b_height_ind] = back_height
-        dof_val[l_arm_inds], dof_val[l_gripper_ind] = l_arm_pose, l_gripper
-        dof_val[r_arm_inds], dof_val[r_gripper_ind] = r_arm_pose, r_gripper
+
+        for k, v in dof_value_map.iteritems():
+            inds = self._geom.dof_map[k]
+            dof_val[inds] = v
         # Set new DOF value to the robot
         self.env_body.SetActiveDOFValues(dof_val)
-
-    def _set_active_dof_inds(self, inds = None):
-        """
-            Set active dof index to the one we are interested
-            This function is implemented to simplify jacobian calculation in the CollisionPredicate
-
-            inds: Optional list of index specifying dof index we are interested in
-        """
-        robot = self.env_body
-        if inds == None:
-            dof_inds = np.ndarray(0, dtype=np.int)
-            if robot.GetJoint("torso_lift_joint") != None:
-                dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
-            robot.SetActiveDOFs(
-                    dof_inds,
-                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
-                    [0, 0, 1])
-        else:
-            robot.SetActiveDOFs(inds)
 
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
@@ -333,6 +299,13 @@ class OpenRAVEBody(object):
         q = quatFromAxisAngle((0, 0, rot)).tolist()
         pos = [x, y, 0]
         # pos = np.vstack((x,y,np.zeros(1)))
+        matrix = matrixFromPose(q + pos)
+        return matrix
+
+    @staticmethod
+    def angle_pose_to_mat(pose):
+        assert len(pose) == 1
+        q = quatFromAxisAngle((0, 0, pose)).tolist()
         matrix = matrixFromPose(q + pos)
         return matrix
 
