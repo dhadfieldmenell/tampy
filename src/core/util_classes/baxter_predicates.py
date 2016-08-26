@@ -31,7 +31,6 @@ OBSTRUCTS_OPT_COEFF = 1e2
 GRASP_VALID_COEFF = 1e1
 GRIPPER_OPEN_VALUE = 0.2
 GRIPPER_CLOSE_VALUE = 0.
-
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                      ("lGripper", np.array([0], dtype=np.int)),
@@ -167,8 +166,8 @@ class BaxterStationaryBase(robot_predicates.StationaryBase):
 
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][-1]])])
-        self.attr_dim = BASEDIM
-        super(BaxterStationaryBase, self).__init__(self, name, params, expected_param_types, env)
+        self.attr_dim = BASE_DIM
+        super(BaxterStationaryBase, self).__init__(name, params, expected_param_types, env)
 
 class BaxterStationaryArms(robot_predicates.StationaryArms):
 
@@ -177,7 +176,7 @@ class BaxterStationaryArms(robot_predicates.StationaryArms):
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
         self.attr_dim = TWOARMDIM
-        super(BaxterStationaryArms, self).__init__(self, name, params, expected_param_types, env)
+        super(BaxterStationaryArms, self).__init__(name, params, expected_param_types, env)
 
 class BaxterStationaryW(robot_predicates.StationaryW):
     pass
@@ -441,7 +440,9 @@ class BaxterRCollides(robot_predicates.RCollides):
         self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        self.RCOLLIDES_OPT_COEFF = RCOLLIDES_OPT_COEFF
+        self.coeff = -1
+        self.neg_coeff = 1
+        self.opt_coeff = RCOLLIDES_OPT_COEFF
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_robot_poses(self, x, robot_body):

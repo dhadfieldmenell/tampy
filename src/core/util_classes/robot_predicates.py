@@ -745,7 +745,7 @@ class GraspValid(ExprPredicate):
         b, val = np.zeros((self.attr_dim,1)), np.zeros((self.attr_dim,1))
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
-        super(GraspValidPos, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InContact(ExprPredicate):
     """
