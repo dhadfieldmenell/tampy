@@ -4,6 +4,7 @@ from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
 
 from core.util_classes import common_predicates
+from core.util_classes.namo_constants import CONTACT_DIST
 from core.util_classes.matrix import Vector, Vector2d
 
 import gurobipy as grb
@@ -16,7 +17,6 @@ MAX_PRIORITY=5
 WIDTH=7
 HEIGHT=2
 TRAJOPT_COEFF = 1e0
-dsafe = 1e-1
 
 class LLSolver(object):
     """
@@ -113,7 +113,6 @@ class LLParam(object):
                 value = self.get_param_val(attr)
                 free_vars = self.get_free_vars(attr)
                 for index, value in np.ndenumerate(value):
-                    # TODO: what's the purpose of _free_attrs (should they be the indices)?
                     if not free_vars[index]:
                         self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
 
@@ -270,7 +269,7 @@ class NAMOSolver(LLSolver):
                           np.array([1, 0]),
                           np.array([0, 1]),
                           np.array([-1, 0])]
-            grasp_len = plan.params['pr2'].geom.radius + targets[0].geom.radius - dsafe
+            grasp_len = plan.params['pr2'].geom.radius + targets[0].geom.radius + CONTACT_DIST
             for g_dir in grasp_dirs:
                 grasp = (g_dir*grasp_len).reshape((2, 1))
                 robot_poses.append(targets[0].value + grasp)
@@ -295,7 +294,9 @@ class NAMOSolver(LLSolver):
 
         if force_init or not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
-            self._solve_opt_prob(plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = self._solve_opt_prob(plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose)
+            if not success:
+                return success
             plan.initialized=True
         success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
         success = plan.satisfied(active_ts)

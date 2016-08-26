@@ -180,7 +180,7 @@ class TestLLSolver(unittest.TestCase):
         # this is a plan where the robot needs to end up
         # behind the obstruction (this means that the
         # default initialization should fail
-        _test_plan(self, self.putaway2, plot=False, animate=False)
+        _test_plan(self, self.putaway2)
 
 
     def test_early_converge(self):
@@ -214,12 +214,9 @@ def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=
         if method=='SQP':
             def callback():
                 namo_solver._update_ll_params()
-                # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
-                # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
-                viewer.draw_plan_range(plan, [0,19,38])
-                # viewer.draw_plan(plan)
+                viewer.draw_plan(plan)
                 # viewer.draw_cols(plan)
-                time.sleep(0.03)
+                # time.sleep(0.03)
         elif method == 'Backtrack':
             def callback(a):
                 namo_solver._update_ll_params()
@@ -241,7 +238,7 @@ def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
 
-    # test_obj.assertTrue(plan.satisfied())
+    test_obj.assertTrue(plan.satisfied())
 
 
 if __name__ == "__main__":
