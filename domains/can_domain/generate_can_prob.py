@@ -10,8 +10,8 @@ NUM_TARGETS = 14
 assert NUM_CANS <= NUM_TARGETS
 # GOAL = "(RobotAt pr2 pdp_target0)"
 # GOAL = "(RobotAt pr2 robot_end_pose)"
-# GOAL = "(At can0 target2)"
-GOAL = "(InGripper pr2 can0)"
+GOAL = "(PR2At can0 target2)"
+# GOAL = "(InGripper pr2 can0)"
 # GOAL = "(RobotAt pr2 robot_end_pose), (InGripper pr2 can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
@@ -149,24 +149,24 @@ def main():
         s += "(geom {} {}); ".format("table", TABLE_GEOM)
 
         for i in range(NUM_CANS):
-            s += "(At can{} target{}), ".format(i, i)
-            s += "(Stationary can{}), ".format(i)
+            s += "(PR2At can{} target{}), ".format(i, i)
+            s += "(PR2Stationary can{}), ".format(i)
             for j in range(NUM_CANS):
-                s += "(StationaryNEq can{} can{}), ".format(i, j)
+                s += "(PR2StationaryNEq can{} can{}), ".format(i, j)
             # s += "(InContact pr2 gp_can{} target{}), ".format(i, i)
             # s += "(GraspValid gp_can{} target{} grasp0), ".format(i, i)
         for i in range(NUM_TARGETS):
-            s += "(InContact pr2 ee_target{} target{}), ".format(i, i)
-            s += "(GraspValid ee_target{} target{}), ".format(i, i)
-            s += "(GraspValidRot ee_target{} target{}), ".format(i, i)
-            s += "(EEReachable pr2 pdp_target{} ee_target{}), ".format(i, i)
-            s += "(EEReachableRot pr2 pdp_target{} ee_target{}), ".format(i, i)
-        s += "(RobotAt pr2 robot_init_pose), "
-        s += "(StationaryArms pr2), "
-        s += "(StationaryBase pr2), "
-        s += "(IsMP pr2), "
-        s += "(WithinJointLimit pr2), "
-        s += "(StationaryW table) \n\n"
+            s += "(PR2InContact pr2 ee_target{} target{}), ".format(i, i)
+            s += "(PR2GraspValidPos ee_target{} target{}), ".format(i, i)
+            s += "(PR2GraspValidRot ee_target{} target{}), ".format(i, i)
+            s += "(PR2EEReachablePos pr2 pdp_target{} ee_target{}), ".format(i, i)
+            s += "(PR2EEReachableRot pr2 pdp_target{} ee_target{}), ".format(i, i)
+        s += "(PR2RobotAt pr2 robot_init_pose), "
+        s += "(PR2StationaryArms pr2), "
+        s += "(PR2StationaryBase pr2), "
+        s += "(PR2IsMP pr2), "
+        s += "(PR2WithinJointLimit pr2), "
+        s += "(PR2StationaryW table) \n\n"
 
         s += "Goal: {}".format(GOAL)
 

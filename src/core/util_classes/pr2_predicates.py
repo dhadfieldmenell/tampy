@@ -147,7 +147,7 @@ class PR2StationaryBase(robot_predicates.StationaryBase):
 
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][-1]])])
-        self.attr_dim = BASEDIM
+        self.attr_dim = BASE_DIM
         super(PR2StationaryBase, self).__init__(self, name, params, expected_param_types, env)
 
 class PR2StationaryArms(robot_predicates.StationaryArms):

@@ -143,6 +143,28 @@ class OpenRAVEBody(object):
         # Set new DOF value to the robot
         self.env_body.SetActiveDOFValues(dof_val)
 
+    def _set_active_dof_inds(self, inds = None):
+        """
+        Set active dof index to the one we are interested
+        This function is implemented to simplify jacobian calculation in the CollisionPredicate
+        inds: Optional list of index specifying dof index we are interested in
+        """
+        robot = self.env_body
+        if inds == None:
+            dof_inds = np.ndarray(0, dtype=np.int)
+            if robot.GetJoint("torso_lift_joint") != None:
+                dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            robot.SetActiveDOFs(
+                                dof_inds,
+                                DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
+                                [0, 0, 1])
+        else:
+            robot.SetActiveDOFs(inds)
+
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
         infocylinder = OpenRAVEBody.create_body_info(GeometryType.Cylinder, dims, color)
