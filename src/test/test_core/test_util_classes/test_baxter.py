@@ -15,6 +15,7 @@ class TestBaxter(unittest.TestCase):
         attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": Baxter}
         baxter = parameter.Object(attrs, attr_types)
         baxter.pose = np.zeros((1,1))
+        baxter.rArmPose = np.array([[0,-0.785,0.785,1.57,-0.785,-0.785,0]]).T
         baxter_body = OpenRAVEBody(env, baxter.name, baxter.geom)
         baxter_body.set_transparency(0.5)
         body = baxter_body.env_body
@@ -22,5 +23,5 @@ class TestBaxter(unittest.TestCase):
         """
         To check whether baxter model works, uncomment the following
         """
-        # env.SetViewer('qtcoin')
-        # import ipdb; ipdb.set_trace()
+        env.SetViewer('qtcoin')
+        import ipdb; ipdb.set_trace()

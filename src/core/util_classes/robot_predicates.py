@@ -282,7 +282,6 @@ class CollisionPredicate(ExprPredicate):
         ind = np.argmax(vals)
         val = vals[ind].reshape((1,1))
         grad = grads[ind].reshape((1,12))
-
         return val, grad
 
     def test(self, time, negated=False):
@@ -377,7 +376,6 @@ class PosePredicate(ExprPredicate):
         obj_jac = np.c_[-np.eye(3), obj_jac]
         # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
         dist_jac = np.hstack((base_jac, torso_jac, np.zeros((3, 8)), arm_jac, np.zeros((3, 1)), obj_jac))
-
         return dist_val, dist_jac
 
     def rot_check(self, x):
@@ -406,7 +404,6 @@ class PosePredicate(ExprPredicate):
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(can_pos, can_rot)
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]# axises = [axis_z, axis_y, axis_x]
         rot_val, rot_jac = self.rot_error(obj_trans, robot_trans, axises, arm_joints)
-
         return rot_val, rot_jac
 
     def rot_error(self, obj_trans, robot_trans, axises, arm_joints):

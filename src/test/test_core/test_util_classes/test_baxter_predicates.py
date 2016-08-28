@@ -116,7 +116,7 @@ class TestBaxterPredicates(unittest.TestCase):
     def test_in_gripper(self):
         
         tol = 1e-4
-        TEST_GRAD = False
+        TEST_GRAD = True
         # InGripper, Robot, Can
         robot = ParamSetup.setup_baxter()
         can = ParamSetup.setup_blue_can()
@@ -132,11 +132,11 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
         self.assertTrue(pred2.test(0))
         # check the gradient of the implementations (correct)
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
         # Now set can's pose and rotation to be the right things
         can.pose = np.array([[0.96897233, -1.10397558,  1.006976]]).T
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
         # A new robot arm pose
         robot.rArmPose = np.array([[0,-np.pi/4,np.pi/4,np.pi/2,-np.pi/4,-np.pi/4,0]]).T
         self.assertFalse(pred.test(0))
@@ -144,24 +144,47 @@ class TestBaxterPredicates(unittest.TestCase):
         # Only the pos is correct, rotation is not yet right
         can.pose = np.array([[1.08769922, -0.31906039,  1.21028557]]).T
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
         can.rotation = np.array([[-2.84786534,  0.25268026, -2.98976055]]).T
         self.assertTrue(pred.test(0))
         self.assertTrue(pred2.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
         # now rotate robot basepose
         robot.pose = np.array([[np.pi/3]]).T
         self.assertFalse(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
-        can.pose = np.array([[0.85016401,  0.73048344,  1.21028557]]).T
+        if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
+        can.pose = np.array([[0.82016401,  0.78244496,  1.21028557]]).T
         self.assertTrue(pred.test(0))
         self.assertFalse(pred2.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
         can.rotation = np.array([[-1.80066778,  0.25268026, -2.98976055]]).T
         self.assertTrue(pred2.test(0))
         self.assertTrue(pred.test(0))
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, tol)
+        if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
     
+    def test_ee_reachable(self):
+        
+        tol = 1e-4
+        TEST_GRAD = False
+        # InGripper, Robot, Can
+        robot = ParamSetup.setup_baxter()
+        test_env = ParamSetup.setup_env()
+        rPose = ParamSetup.setup_baxter_pose()
+        ee_pose = ParamSetup.setup_pr2_ee_pose()
+        # test_env.SetViewer("qtcoin")
+        pred = baxter_predicates.BaxterEEReachablePos("ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
+        pred2 = baxter_predicates.BaxterEEReachableRot("ee_reachable_rot", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
+        # Since this predicate is not yet concrete
+        self.assertFalse(pred.test(0))
+        ee_pose.value = np.array([[0,0,0]]).T
+        
+        # initialized pose value is not right
+        self.assertFalse(pred.test(0))
+        # This is not how this is tested
+        # self.assertTrue(pred2.test(0))
+        # check the gradient of the implementations (correct)
+        if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
+
     def test_obstructs(self):
 
         # Obstructs, Robot, RobotPose, RobotPose, Can

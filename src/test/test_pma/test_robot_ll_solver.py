@@ -20,7 +20,7 @@ FAKE_TOL = 1e-2 # Not used......
 
 class TestRobotLLSolver(unittest.TestCase):
     def setUp(self):
-        domain_fname = '../domains/baxter_domain/gen_baxter.domain'
+        domain_fname = '../domains/baxter_domain/baxter.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
@@ -42,7 +42,7 @@ class TestRobotLLSolver(unittest.TestCase):
             # objs.extend(cans)
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
-        self.prob = get_plan('../domains/baxter_domain/baxter_probs/can_1234_0.prob')
+        self.prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_0.prob')
         # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob', ['0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
         # self.grasp_obstructs1 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
         # self.grasp_obstructs0 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])

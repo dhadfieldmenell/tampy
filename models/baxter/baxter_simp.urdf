@@ -218,13 +218,10 @@
     <parent link="head"/>
     <child link="dummyhead1"/>
   </joint>
-  <joint name="torso_joint" type="revolute">
+  <joint name="torso_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0.06 0 0.686"/>
-    <axis xyz="0 0 1"/>
     <parent link="base"/>
     <child link="torso"/>
-    <limit effort="50000" lower="-3.01" upper="3.01" velocity="10000"/>
-    <dynamics damping="0.7" friction="0.0"/>
   </joint>
   <joint name="left_torso_itb_fixed" type="fixed">
     <origin rpy="-1.57079632679 3.1415 0" xyz="-0.08897 0.15593 0.389125"/>

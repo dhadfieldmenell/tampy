@@ -41,20 +41,23 @@ class TestCanSolver(unittest.TestCase):
             # objs = [robot, table]
             # objs.extend(cans)
             # view.draw(objs, 0, 0.7)
+            import ipdb;ipdb.set_trace()
+
             return hls.solve(abs_problem, domain, problem)
 
-        self.bmove = get_plan('../domains/can_domain/can_probs/can_1111_0.prob')
+        self.bmove = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
+
         # self.move_obs = get_plan('../domains/can_domain/can_probs/move_obs.prob')
 
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/move.prob')
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
         # self.grasp = get_plan('../domains/can_domain/can_probs/grasp.prob')
         # self.grasp = get_plan('../domains/can_domain/can_probs/grasp_rot.prob')
-        self.grasp_gen = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob')
+        # self.grasp_gen = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob')
         # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob', ['0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
         # # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
         # self.gen_plan = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
-        self.grasp_obstructs1 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
+        # self.grasp_obstructs1 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
         # self.grasp_obstructs0 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
 
         # self.grasp_obstructs = get_plan('../domains/can_domain/can_probs/can_grasp_1234_4.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
@@ -75,21 +78,21 @@ class TestCanSolver(unittest.TestCase):
 
 
     def test_move_obs(self):
-        pass
-        # _test_plan(self, self.move_obs)
+        # pass
+        _test_plan(self, self.bmove)
 
-    def test_grasp_gen(self):
-        np.random.seed(1)
-        _test_plan(self, self.grasp_gen, n_resamples=5)
+    # def test_grasp_gen(self):
+    #     np.random.seed(1)
+    #     _test_plan(self, self.grasp_gen, n_resamples=5)
 
-    def test_grasp(self):
-        np.random.seed(1)
-        _test_plan(self, self.grasp, n_resamples=0)
+    # def test_grasp(self):
+    #     np.random.seed(1)
+    #     _test_plan(self, self.grasp, n_resamples=0)
 
-    def test_grasp_resampling(self):
-        # np.random.seed(4)
-        np.random.seed(3) # demonstrates the need to use closest joint angles
-        _test_resampling(self, self.grasp_obstructs0, n_resamples=3)
+    # def test_grasp_resampling(self):
+    #     # np.random.seed(4)
+    #     np.random.seed(3) # demonstrates the need to use closest joint angles
+    #     _test_resampling(self, self.grasp_obstructs0, n_resamples=3)
 
         # demonstate base moving from farther away
         # np.random.seed(2)

@@ -83,7 +83,7 @@ class BaxterIsMP(robot_predicates.IsMP):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18)))
+            robot.SetActiveDOFs(list(range(1,17)))
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
@@ -105,7 +105,6 @@ class BaxterIsMP(robot_predicates.IsMP):
         A = np.eye(2*ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=-ROBOT_ATTR_DIM)
         b = np.zeros((2*ROBOT_ATTR_DIM,1))
         self.set_active_dof_inds(robot_body, reset=True)
-
         # Setting attributes for testing
         self.base_step = BASE_MOVE*np.ones((BASE_DIM, 1))
         self.joint_step = joint_move
@@ -128,7 +127,7 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18)))
+            robot.SetActiveDOFs(list(range(1,17)))
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
@@ -150,7 +149,6 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
         A = np.vstack((A_lb_limit, A_up_limit))
         b = np.zeros((2*JOINT_DIM,1))
         self.set_active_dof_inds(robot_body, reset=True)
-
         joint_move = (active_ub-active_lb)/JOINT_MOVE_FACTOR
         self.base_step = BASE_MOVE*np.ones((BASE_DIM,1))
         self.joint_step = joint_move
@@ -241,7 +239,7 @@ class BaxterInGripper(robot_predicates.InGripper):
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        arm_inds = list(range(10,17))
+        arm_inds = list(range(9,16))
         return robot_trans, arm_inds
 
 class BaxterInGripperPos(BaxterInGripper):
@@ -256,6 +254,31 @@ class BaxterInGripperPos(BaxterInGripper):
         self.eval_grad = lambda x: self.pos_check(x)[1]
         super(BaxterInGripperPos, self).__init__(name, params, expected_param_types, env, debug)
 
+    def pos_error(self, obj_trans, robot_trans, axises, arm_joints):
+        """
+            This function calculates the value and the jacobian of the displacement between center of gripper and center of object
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        gp = np.array([0,0,0])
+        robot_pos = robot_trans[:3, 3]
+        obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
+        dist_val = (robot_pos.flatten() - obj_pos.flatten()).reshape((3,1))
+        # Calculate the joint jacobian
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos.flatten() - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        # Calculate jacobian for the robot base
+        base_jac = np.cross(np.array([0, 0, 1]), robot_pos - np.zeros((3,))).reshape((3,1))
+        # Calculate object jacobian
+        obj_jac = -1*np.array([np.cross(axis, obj_pos - gp - obj_trans[:3,3].flatten()) for axis in axises]).T
+        obj_jac = np.c_[-np.eye(3), obj_jac]
+        # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
+        #import ipdb;ipdb.set_trace()
+        dist_jac = np.hstack((np.zeros((3, 8)), arm_jac, np.zeros((3, 1)), base_jac, obj_jac))
+        return dist_val, dist_jac
+
 class BaxterInGripperRot(BaxterInGripper):
 
     # InGripper, Robot, Can
@@ -268,6 +291,34 @@ class BaxterInGripperRot(BaxterInGripper):
         self.eval_grad = lambda x: self.rot_check(x)[1]
         super(BaxterInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
 
+    def rot_error(self, obj_trans, robot_trans, axises, arm_joints):
+        """
+            This function calculates the value and the jacobian of the rotational error between
+            robot gripper's rotational axis and object's rotational axis
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        local_dir = np.array([0.,0.,1.])
+        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+        world_dir = robot_trans[:3,:3].dot(local_dir)
+        obj_dir = obj_dir/np.linalg.norm(obj_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
+        # computing robot's jacobian
+        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
+        arm_jac = arm_jac.reshape((1, len(arm_joints)))
+        base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
+        # computing object's jacobian
+        obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+        obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
+        # Create final 1x26 jacobian matrix
+        rot_jac = np.hstack((np.zeros((1, 8)), arm_jac, np.zeros((1,1)), base_jac, obj_jac))
+        # import ipdb;ipdb.set_trace()
+        return (rot_val, rot_jac)
+
 class BaxterEEReachable(robot_predicates.EEReachable):
 
     # EEreachable Robot, StartPose, EEPose
@@ -275,6 +326,7 @@ class BaxterEEReachable(robot_predicates.EEReachable):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[2], list(ATTRMAP[params[2]._type]))])
+        self.attr_dim = 23
         super(BaxterEEReachable, self).__init__(name, params, expected_param_types, env, debug, steps)
 
     def set_robot_poses(self, x, robot_body):
@@ -297,7 +349,7 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        arm_inds = list(range(10,17))
+        arm_inds = list(range(9,16))
         return robot_trans, arm_inds
 
     def get_rel_pt(self, rel_step):
@@ -323,13 +375,13 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         t = (2*self._steps+1)
         k = 3
 
-        grad = np.zeros((k*t, self._dim*t))
+        grad = np.zeros((k*t, self.attr_dim*t))
         i = 0
         j = 0
         for s in range(start, end+1):
             rel_pt = self.get_rel_pt(s)
-            grad[j:j+k, i:i+self._dim] = self.ee_pose_check_rel_obj(x[i:i+self._dim], rel_pt)[1]
-            i += self._dim
+            grad[j:j+k, i:i+self.attr_dim] = self.ee_pose_check_rel_obj(x[i:i+self.attr_dim], rel_pt)[1]
+            i += self.attr_dim
             j += k
         return grad
 
@@ -342,19 +394,76 @@ class BaxterEEReachablePos(BaxterEEReachable):
         self.opt_coeff = 1
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
-        self.attr_dim = 26
         super(BaxterEEReachablePos, self).__init__(name, params, expected_param_types, env, debug, steps)
+
+    def pos_error_rel_to_obj(self, obj_trans, robot_trans, axises, arm_joints, rel_pt):
+        """
+            This function calculates the value and the jacobian of the displacement between center of gripper and a point relative to the object
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        gp = rel_pt
+        robot_pos = robot_trans[:3, 3]
+        obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
+        dist_val = (robot_pos.flatten() - obj_pos.flatten()).reshape((3,1))
+        # Calculate the joint jacobian
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos.flatten() - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        # Calculate jacobian for the robot base
+        base_jac = np.cross(np.array([0, 0, 1]), robot_pos - np.zeros((3,))).reshape((3,1))
+        # Calculate object jacobian
+        # obj_jac = -1*np.array([np.cross(axis, obj_pos - gp - obj_trans[:3,3].flatten()) for axis in axises]).T
+        obj_jac = -1*np.array([np.cross(axis, obj_pos - obj_trans[:3,3].flatten()) for axis in axises]).T
+        obj_jac = np.c_[-np.eye(3), obj_jac]
+        # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
+        dist_jac = np.hstack((np.zeros((3, 8)), arm_jac, np.zeros((3, 1)), base_jac, obj_jac))
+
+        return (dist_val, dist_jac)
 
 class BaxterEEReachableRot(BaxterEEReachable):
 
     # EEUnreachable Robot, StartPose, EEPose
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=0):
         self.coeff = EEREACHABLE_COEFF
         self.opt_coeff = EEREACHABLE_ROT_OPT_COEFF
-        self.check_f = lambda x: self.ee_rot_check[0]
-        self.check_grad = lambda x: self.ee_rot_check[1]
+        self.eval_f = lambda x: self.ee_rot_check(x)[0]
+        self.eval_grad = lambda x: self.ee_rot_check(x)[1]
         super(BaxterEEReachableRot, self).__init__(name, params, expected_param_types, env, debug, steps)
+
+    def rot_lock(self, obj_trans, robot_trans, axises, arm_joints):
+        """
+            This function calculates the value and the jacobian of the rotational error between
+            robot gripper's rotational axis and object's rotational axis
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        rot_vals = []
+        rot_jacs = []
+        for local_dir in np.eye(3):
+            obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+            world_dir = robot_trans[:3,:3].dot(local_dir)
+            rot_vals.append(np.array([[np.dot(obj_dir, world_dir) - 1]]))
+            # computing robot's jacobian
+            arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
+            arm_jac = arm_jac.reshape((1, len(arm_joints)))
+            base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir)))
+            base_jac = base_jac.reshape((1,1))
+            # computing object's jacobian
+            obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+            obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
+            # Create final 1x26 jacobian matrix
+            rot_jacs.append(np.hstack((np.zeros((1, 8)), arm_jac, np.zeros((1,1)), base_jac, obj_jac)))
+
+        rot_val = np.vstack(rot_vals)
+        rot_jac = np.vstack(rot_jacs)
+
+        return (rot_val, rot_jac)
 
 class BaxterObstructs(robot_predicates.Obstructs):
 
@@ -376,7 +485,7 @@ class BaxterObstructs(robot_predicates.Obstructs):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18))+ [0])
+            robot.SetActiveDOFs(list(range(1,17)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
@@ -428,7 +537,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18))+ [0])
+            robot.SetActiveDOFs(list(range(1,17)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
@@ -469,6 +578,6 @@ class BaxterRCollides(robot_predicates.RCollides):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18))+ [0])
+            robot.SetActiveDOFs(list(range(1,17)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")

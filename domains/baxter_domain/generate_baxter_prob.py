@@ -8,8 +8,8 @@ NUM_PROBS = 1
 NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
 NUM_TARGETS = 2
 assert NUM_CANS <= NUM_TARGETS
-GOAL = "(BaxterRobotAt baxter pdp_target0)"
-# GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose)"
+# GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"   
 # GOAL = "(RobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
@@ -47,10 +47,10 @@ TABLE_GEOM = [.325, .75, 0.1]
 
 class CollisionFreeTargetValueGenerator(object):
     def __init__(self):
-        self.max_x = TABLE_DIM[0]/2 - CAN_RADIUS
-        self.min_x = -self.max_x
-        self.max_y = TABLE_DIM[1]/2 - CAN_RADIUS
-        self.min_y = -self.max_y
+        self.max_x = 1.2+TABLE_DIM[0]/2 - CAN_RADIUS
+        self.min_x = 2.4-self.max_x
+        self.max_y = 0.08+TABLE_DIM[1]/2 - CAN_RADIUS
+        self.min_y = 0.16-self.max_y
         self._poses = []
 
     def __iter__(self):
@@ -139,7 +139,7 @@ def main():
 
         # table pose
         z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT
-        s += "(pose {} [1, 1, {}]), ".format("table", z)
+        s += "(pose {} [1.2, 0.08, {}]), ".format("table", z)
         s += "(rotation {} {}), ".format("table", CAN_ROTATION_INIT)
         s += "(geom {} {}); ".format("table", TABLE_GEOM)
 
@@ -165,7 +165,7 @@ def main():
 
         s += "Goal: {}".format(GOAL)
 
-        with open("baxter_probs/can_{}_{}.prob".format(SEED, iteration), "w") as f:
+        with open("baxter_probs/grasp_{}_{}.prob".format(SEED, iteration), "w") as f:
             f.write(s)
 
 if __name__ == "__main__":
