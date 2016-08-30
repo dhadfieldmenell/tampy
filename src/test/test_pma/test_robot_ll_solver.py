@@ -16,7 +16,6 @@ from core.internal_repr import parameter, plan
 import time, main
 
 VIEWER = True
-FAKE_TOL = 1e-2 # Not used......
 
 class TestRobotLLSolver(unittest.TestCase):
     def setUp(self):
@@ -57,7 +56,7 @@ class TestRobotLLSolver(unittest.TestCase):
     def test_move_prob(self):
         _test_plan(self, self.prob)
 
-   
+
     # def test_grasp_resampling(self):
     #     # np.random.seed(4)
     #     np.random.seed(3) # demonstrates the need to use closest joint angles
@@ -70,7 +69,7 @@ class TestRobotLLSolver(unittest.TestCase):
     #     # demonstrates base moving
     #     # np.random.seed(6) # forms right angle
     #     # _test_resampling(self, self.grasp_obstructs1, n_resamples=3)
-  
+
 def get_animate_fn(viewer, plan):
     def animate():
         viewer.animate_plan(plan)
@@ -148,7 +147,7 @@ def _test_resampling(test_obj, plan, n_resamples=0):
     #     if t < plan.horizon:
     #         viewer.draw_plan_ts(plan, t)
 
-    test_obj.assertTrue(plan.satisfied(FAKE_TOL))
+    test_obj.assertTrue(plan.satisfied())
 
 
 def _test_plan(test_obj, plan, n_resamples=0):
@@ -191,7 +190,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
             viewer.draw_plan_ts(plan, t)
     import ipdb; ipdb.set_trace()
 
-    test_obj.assertTrue(plan.satisfied(FAKE_TOL))
+    test_obj.assertTrue(plan.satisfied())
 
 if __name__ == "__main__":
     unittest.main()

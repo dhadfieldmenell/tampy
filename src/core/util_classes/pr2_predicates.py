@@ -148,7 +148,7 @@ class PR2StationaryBase(robot_predicates.StationaryBase):
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][-1]])])
         self.attr_dim = BASE_DIM
-        super(PR2StationaryBase, self).__init__(self, name, params, expected_param_types, env)
+        super(PR2StationaryBase, self).__init__(name, params, expected_param_types, env)
 
 class PR2StationaryArms(robot_predicates.StationaryArms):
 
@@ -157,7 +157,7 @@ class PR2StationaryArms(robot_predicates.StationaryArms):
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][1:-1]))])
         self.attr_dim = TWOARMDIM
-        super(PR2StationaryArms, self).__init__(self, name, params, expected_param_types, env)
+        super(PR2StationaryArms, self).__init__(name, params, expected_param_types, env)
 
 class PR2StationaryW(robot_predicates.StationaryW):
     pass
@@ -180,7 +180,7 @@ class PR2GraspValidRot(PR2GraspValid):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]]),(params[1], [ATTRMAP[params[1]._type][1]])])
         self.attr_dim = 3
-        super(PR2GraspValidPos, self).__init__(name, params, expected_param_types, env, debug)
+        super(PR2GraspValidRot, self).__init__(name, params, expected_param_types, env, debug)
 
 class PR2InContact(robot_predicates.InContact):
 
