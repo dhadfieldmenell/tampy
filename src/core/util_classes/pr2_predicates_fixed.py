@@ -1,9 +1,18 @@
+from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes import robot_predicates
+from core.util_classes.viewer import OpenRAVEViewer
+from errors_exceptions import PredicateException
+from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes.robots import PR2
+from core.util_classes.sampling import get_col_free_base_pose_around_target, \
+    get_col_free_torso_arm_pose, get_random_theta
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
-from openravepy import DOFAffine
 import numpy as np
-
+import ctrajoptpy
+import time
+import openravepy
+from core.util_classes.robot_predicates import PosePredicate, CollisionPredicate
 """
 This file Defines specific PR2 related predicates
 """
@@ -37,32 +46,25 @@ OBSTRUCTS_OPT_COEFF = 1e2
 GRASP_VALID_COEFF = 1e1
 
 # Attributes used in pr2 domain. (Tuple to avoid changes to the attr_inds)
-ATTRMAP = {"Robot": (("backHeight", np.array([0], dtype=np.int)),
+PR2_ATTRMAP = {"Robot": (("backHeight", np.array([0], dtype=np.int)),
                          ("lArmPose", np.array(range(7), dtype=np.int)),
                          ("lGripper", np.array([0], dtype=np.int)),
                          ("rArmPose", np.array(range(7), dtype=np.int)),
                          ("rGripper", np.array([0], dtype=np.int)),
                          ("pose", np.array([0,1,2], dtype=np.int))),
-           "RobotPose": (("backHeight", np.array([0], dtype=np.int)),
-                          ("lArmPose", np.array(range(7), dtype=np.int)),
-                          ("lGripper", np.array([0], dtype=np.int)),
-                          ("rArmPose", np.array(range(7), dtype=np.int)),
-                          ("rGripper", np.array([0], dtype=np.int)),
-                          ("value", np.array([0,1,2], dtype=np.int))),
-           "Can": (("pose", np.array([0,1,2], dtype=np.int)),
-                    ("rotation", np.array([0,1,2], dtype=np.int))),
-           "EEPose": (("value", np.array([0,1,2], dtype=np.int)),
-                    ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Target": (("value", np.array([0,1,2], dtype=np.int)),
-                    ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Table": (("pose", np.array([0,1,2], dtype=np.int)),
-                    ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Obstacle": (("pose", np.array([0,1,2], dtype=np.int)),
-                    ("rotation", np.array([0,1,2], dtype=np.int)))
+                "RobotPose": (("backHeight", np.array([0], dtype=np.int)),
+                              ("lArmPose", np.array(range(7), dtype=np.int)),
+                              ("lGripper", np.array([0], dtype=np.int)),
+                              ("rArmPose", np.array(range(7), dtype=np.int)),
+                              ("rGripper", np.array([0], dtype=np.int)),
+                              ("value", np.array([0,1,2], dtype=np.int))),
+                "Can": (("pose", np.array([0,1,2], dtype=np.int)),
+                        ("rotation", np.array([0,1,2], dtype=np.int))),
+                "EEPose": (("value", np.array([0,1,2], dtype=np.int)),
+                        ("rotation", np.array([0,1,2], dtype=np.int))),
+                "Table": (("pose", np.array([0,1,2], dtype=np.int)),
+                        ("rotation", np.array([0,1,2], dtype=np.int)))
               }
-
-class PR2At(robot_predicates.At):
-    pass
 
 class PR2RobotAt(robot_predicates.RobotAt):
 
@@ -70,8 +72,8 @@ class PR2RobotAt(robot_predicates.RobotAt):
 
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_dim = 20
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
-                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type])),
+                                 (params[1], list(PR2_ATTRMAP[params[1]._type]))])
         super(PR2RobotAt, self).__init__(name, params, expected_param_types, env)
 
 class PR2IsMP(robot_predicates.IsMP):
@@ -79,7 +81,7 @@ class PR2IsMP(robot_predicates.IsMP):
     # IsMP Robot (Just the Robot Base)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type]))])
         super(PR2IsMP, self).__init__(name, params, expected_param_types, env, debug)
 
     def setup_mov_limit_check(self):
@@ -111,7 +113,7 @@ class PR2WithinJointLimit(robot_predicates.WithinJointLimit):
     # WithinJointLimit Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type][:-1]))])
         super(PR2WithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
 
     def setup_mov_limit_check(self):
@@ -138,16 +140,13 @@ class PR2WithinJointLimit(robot_predicates.WithinJointLimit):
         self.lower_limit = active_lb
         return A, b, val
 
-class PR2Stationary(robot_predicates.Stationary):
-    pass
-
 class PR2StationaryBase(robot_predicates.StationaryBase):
 
     # StationaryBase, Robot (Only Robot Base)
 
     def __init__(self, name, params, expected_param_types, env=None):
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][-1]])])
-        self.attr_dim = BASE_DIM
+        self.attr_inds = OrderedDict([(params[0], [PR2_ATTRMAP[params[0]._type][-1]])])
+        self.attr_dim = BASEDIM
         super(PR2StationaryBase, self).__init__(self, name, params, expected_param_types, env)
 
 class PR2StationaryArms(robot_predicates.StationaryArms):
@@ -155,32 +154,9 @@ class PR2StationaryArms(robot_predicates.StationaryArms):
     # StationaryArms, Robot (Only Robot Arms)
 
     def __init__(self, name, params, expected_param_types, env=None):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][1:-1]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type][1:-1]))])
         self.attr_dim = TWOARMDIM
         super(PR2StationaryArms, self).__init__(self, name, params, expected_param_types, env)
-
-class PR2StationaryW(robot_predicates.StationaryW):
-    pass
-
-class PR2StationaryNEq(robot_predicates.StationaryNEq):
-    pass
-
-class PR2GraspValid(robot_predicates.GraspValid):
-    pass
-
-class PR2GraspValidPos(PR2GraspValid):
-
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]),(params[1], [ATTRMAP[params[1]._type][0]])])
-        self.attr_dim = 3
-        super(PR2GraspValidPos, self).__init__(name, params, expected_param_types, env, debug)
-
-class PR2GraspValidRot(PR2GraspValid):
-
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]]),(params[1], [ATTRMAP[params[1]._type][1]])])
-        self.attr_dim = 3
-        super(PR2GraspValidPos, self).__init__(name, params, expected_param_types, env, debug)
 
 class PR2InContact(robot_predicates.InContact):
 
@@ -190,7 +166,7 @@ class PR2InContact(robot_predicates.InContact):
         # Define constants
         self.GRIPPER_CLOSE = GRIPPER_CLOSE_VALUE
         self.GRIPPER_OPEN = GRIPPER_OPEN_VALUE
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][4]])])
+        self.attr_inds = OrderedDict([(params[0], [PR2_ATTRMAP[params[0]._type][4]])])
         super(PR2InContact, self).__init__(name, params, expected_param_types, env, debug)
 
 class PR2InGripper(robot_predicates.InGripper):
@@ -198,8 +174,8 @@ class PR2InGripper(robot_predicates.InGripper):
     # InGripper, Robot, Can
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
-                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type])),
+                                 (params[1], list(PR2_ATTRMAP[params[1]._type]))])
         super(PR2InGripper, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_robot_poses(self, x, robot_body):
@@ -209,12 +185,7 @@ class PR2InGripper(robot_predicates.InGripper):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        dof_value_map = {"backHeight": back_height,
-                         "lArmPose": l_arm_pose,
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose,
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
 
     def get_robot_info(self, robot_body):
         # Provide functionality of Obtaining Robot information
@@ -229,8 +200,8 @@ class PR2InGripperPos(PR2InGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.coeff = IN_GRIPPER_COEFF
-        self.opt_coeff = INGRIPPER_OPT_COEFF
+        self.IN_GRIPPER_COEFF = IN_GRIPPER_COEFF
+        self.INGRIPPER_OPT_COEFF = INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.pos_check(x)[0]
         self.eval_grad = lambda x: self.pos_check(x)[1]
         super(PR2InGripperPos, self).__init__(name, params, expected_param_types, env, debug)
@@ -241,8 +212,8 @@ class PR2InGripperRot(PR2InGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.coeff = IN_GRIPPER_COEFF
-        self.opt_coeff = INGRIPPER_OPT_COEFF
+        self.IN_GRIPPER_COEFF = IN_GRIPPER_COEFF
+        self.INGRIPPER_OPT_COEFF = INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.rot_check(x)[0]
         self.eval_grad = lambda x: self.rot_check(x)[1]
         super(PR2InGripperRot, self).__init__(name, params, expected_param_types, env, debug)
@@ -252,8 +223,8 @@ class PR2EEReachable(robot_predicates.EEReachable):
     # EEUnreachable Robot, StartPose, EEPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
-                                 (params[2], list(ATTRMAP[params[2]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type])),
+                                 (params[2], list(PR2_ATTRMAP[params[2]._type]))])
         super(PR2EEReachable, self).__init__(name, params, expected_param_types, env, debug, steps)
 
     def set_robot_poses(self, x, robot_body):
@@ -263,12 +234,7 @@ class PR2EEReachable(robot_predicates.EEReachable):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        dof_value_map = {"backHeight": back_height,
-                         "lArmPose": l_arm_pose,
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose,
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
 
     def get_robot_info(self, robot_body):
         # Provide functionality of Obtaining Robot information
@@ -314,20 +280,21 @@ class PR2EEReachablePos(PR2EEReachable):
     # EEUnreachable Robot, StartPose, EEPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
-        self.coeff = 1
-        self.opt_coeff = 1
+        self.EEREACHABLE_COEFF = 1
+        self.EEREACHABLE_OPT_COEFF = 1
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.attr_dim = 26
         super(PR2EEReachablePos, self).__init__(name, params, expected_param_types, env, debug, steps)
+
 
 class PR2EEReachableRot(PR2EEReachable):
 
     # EEUnreachable Robot, StartPose, EEPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
-        self.coeff = EEREACHABLE_COEFF
-        self.opt_coeff = EEREACHABLE_ROT_OPT_COEFF
+        self.EEREACHABLE_COEFF = EEREACHABLE_COEFF
+        self.EEREACHABLE_OPT_COEFF = EEREACHABLE_ROT_OPT_COEFF
         self.check_f = lambda x: self.ee_rot_check[0]
         self.check_grad = lambda x: self.ee_rot_check[1]
         super(PR2EEReachableRot, self).__init__(name, params, expected_param_types, env, debug, steps)
@@ -338,11 +305,8 @@ class PR2Obstructs(robot_predicates.Obstructs):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
         self.attr_dim = 20
-        self.dof_cache = None
-        self.coeff = -1
-        self.neg_coeff = 1
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
-                                 (params[3], list(ATTRMAP[params[3]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type])),
+                                 (params[3], list(PR2_ATTRMAP[params[3]._type]))])
         super(PR2Obstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
 
     def set_robot_poses(self, x, robot_body):
@@ -352,32 +316,7 @@ class PR2Obstructs(robot_predicates.Obstructs):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        dof_value_map = {"backHeight": back_height,
-                         "lArmPose": l_arm_pose,
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose,
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
-
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset == True and self.dof_cache != None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif reset == False and self.dof_cache == None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            dof_inds = np.ndarray(0, dtype=np.int)
-            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
-            robot.SetActiveDOFs(
-                    dof_inds,
-                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
-                    [0, 0, 1])
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
 
 class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
 
@@ -385,35 +324,11 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 20
-        self.dof_cache = None
-        self.coeff = -1
-        self.neg_coeff = 1
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
-                                 (params[3], list(ATTRMAP[params[3]._type])),
-                                 (params[4], list(ATTRMAP[params[4]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type])),
+                                 (params[3], list(PR2_ATTRMAP[params[3]._type])),
+                                 (params[4], list(PR2_ATTRMAP[params[4]._type]))])
         self.OBSTRUCTS_OPT_COEFF = OBSTRUCTS_OPT_COEFF
         super(PR2ObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset == True and self.dof_cache != None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif reset == False and self.dof_cache == None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            # dof_inds = np.ndarray(0, dtype=np.int)
-            # dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
-            # dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
-            # dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
-            # dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
-            # dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
-            dof_inds = [12]+ list(range(15, 22)) + [22]+ list(range(27, 34)) + [34]
-            robot.SetActiveDOFs(
-                    dof_inds,
-                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
-                    [0, 0, 1])
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -422,49 +337,18 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        dof_value_map = {"backHeight": back_height,
-                         "lArmPose": l_arm_pose,
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose,
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)
 
-class PR2Collides(robot_predicates.Collides):
-    pass
-
-class PR2RCollides(robot_predicates.RCollides):
+class PR2Collides(robot_predicates.RCollides):
 
     # RCollides Robot Obstacle
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 20
-        self.dof_cache = None
-        self.coeff = -1
-        self.neg_coeff = 1
-        self.opt_coeff = RCOLLIDES_OPT_COEFF
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
-                                 (params[1], list(ATTRMAP[params[1]._type]))])
-        super(PR2RCollides, self).__init__(name, params, expected_param_types, env, debug)
-
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset == True and self.dof_cache != None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif reset == False and self.dof_cache == None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            dof_inds = np.ndarray(0, dtype=np.int)
-            dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
-            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
-            robot.SetActiveDOFs(
-                    dof_inds,
-                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
-                    [0, 0, 1])
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
+        self.attr_inds = OrderedDict([(params[0], list(PR2_ATTRMAP[params[0]._type])),
+                                 (params[1], list(PR2_ATTRMAP[params[1]._type]))])
+        self.RCOLLIDES_OPT_COEFF = RCOLLIDES_OPT_COEFF
+        super(PR2Collides, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -473,9 +357,4 @@ class PR2RCollides(robot_predicates.RCollides):
         r_arm_pose, r_gripper = x[9:16], x[16]
         base_pose = x[17:20]
         robot_body.set_pose(base_pose)
-        dof_value_map = {"backHeight": back_height,
-                         "lArmPose": l_arm_pose,
-                         "lGripper": l_gripper,
-                         "rArmPose": r_arm_pose,
-                         "rGripper": r_gripper}
-        robot_body.set_dof(dof_value_map)
+        robot_body.set_dof(back_height, l_arm_pose, l_gripper, r_arm_pose, r_gripper)

@@ -4,30 +4,27 @@ import numpy as np
 import random
 
 SEED = 1234
-NUM_PROBS = 5
-NUM_CANS = 10 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
-NUM_TARGETS = 14
+NUM_PROBS = 1
+NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_TARGETS = 2
 assert NUM_CANS <= NUM_TARGETS
-# GOAL = "(RobotAt pr2 pdp_target0)"
-# GOAL = "(RobotAt pr2 robot_end_pose)"
-GOAL = "(PR2At can0 target2)"
-# GOAL = "(InGripper pr2 can0)"
-# GOAL = "(RobotAt pr2 robot_end_pose), (InGripper pr2 can0)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose)"
+# GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"   
+# GOAL = "(RobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
-CAN_RADIUS = 0.04
+CAN_RADIUS = 0.02
 CAN_HEIGHT = 0.25
 CAN_GEOM = [CAN_RADIUS, CAN_HEIGHT]
 DIST_BETWEEN_CANS = 0.01
-
-PR2_INIT_POSE = [-1,0,0]
-PR2_END_POSE = [-0,1,0]
-BACKHEIGHT_INIT = [0.3]
+# init and end robot pose(only the base)
+Baxter_INIT_POSE = [0]
+Baxter_END_POSE = [1.57]
 # referred to as side2 pose in rapprentice
-R_ARM_INIT = [-1.832, -0.332, -1.011, -1.437, -1.1, 0, -3.074]
+R_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
 # left arm is tucked
-L_ARM_INIT = [0.06, 1.25, 1.79, -1.68, -1.73, -0.10, -0.09]
-GRIPPER_INIT = [0.5]
+L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
+GRIPPER_INIT = [0.]
 
 ROBOT_DIST_FROM_TABLE = 0.05
 # rll table
@@ -50,10 +47,10 @@ TABLE_GEOM = [.325, .75, 0.1]
 
 class CollisionFreeTargetValueGenerator(object):
     def __init__(self):
-        self.max_x = TABLE_DIM[0]/2 - CAN_RADIUS
-        self.min_x = -self.max_x
-        self.max_y = TABLE_DIM[1]/2 - CAN_RADIUS
-        self.min_y = -self.max_y
+        self.max_x = 1.2+TABLE_DIM[0]/2 - CAN_RADIUS
+        self.min_x = 2.4-self.max_x
+        self.max_y = 0.08+TABLE_DIM[1]/2 - CAN_RADIUS
+        self.min_y = 0.16-self.max_y
         self._poses = []
 
     def __iter__(self):
@@ -77,18 +74,16 @@ class CollisionFreeTargetValueGenerator(object):
     def reset(self):
         self._poses = []
 
-def get_pr2_init_attrs_str(name):
+def get_baxter_init_attrs_str(name):
     s = ""
-    s += "(backHeight {} {}), ".format(name, BACKHEIGHT_INIT)
     s += "(lArmPose {} {}), ".format(name, L_ARM_INIT)
     s += "(lGripper {} {}), ".format(name, GRIPPER_INIT)
     s += "(rArmPose {} {}), ".format(name, R_ARM_INIT)
     s += "(rGripper {} {}), ".format(name, GRIPPER_INIT)
     return s
 
-def get_pr2_undefined_attrs_str(name):
+def get_baxter_undefined_attrs_str(name):
     s = ""
-    s += "(backHeight {} undefined)".format(name)
     s += "(lArmPose {} undefined), ".format(name)
     s += "(lGripper {} undefined), ".format(name)
     s += "(rArmPose {} undefined), ".format(name)
@@ -111,7 +106,7 @@ def main():
             if i < NUM_CANS:
                 s += "Can (name can{}); ".format(i)
                 # s += "RobotPose (name gp_can{}); ".format(i)
-        s += "Robot (name {}); ".format("pr2")
+        s += "Robot (name {}); ".format("baxter")
         s += "RobotPose (name {}); ".format("robot_init_pose")
         s += "RobotPose (name {}); ".format("robot_end_pose")
         s += "Obstacle (name {}) \n\n".format("table")
@@ -123,7 +118,7 @@ def main():
             s += "(value target{} {}), ".format(i, target_pos)
             s += "(rotation target{} {}),".format(i, CAN_ROTATION_INIT)
             s += "(value pdp_target{} undefined)".format(i)
-            s += get_pr2_undefined_attrs_str("pdp_target{}".format(i))
+            s += get_baxter_undefined_attrs_str("pdp_target{}".format(i))
             s += "(value ee_target{} undefined), ".format(i)
             s += "(rotation ee_target{} undefined), ".format(i)
 
@@ -132,45 +127,45 @@ def main():
                 s += "(pose can{} {}), ".format(i, target_pos)
                 s += "(rotation can{} {}),".format(i, CAN_ROTATION_INIT)
                 # s += "(value gp_can{} undefined), ".format(i)
-        s += "(geom {}), ".format("pr2")
+        s += "(geom {}), ".format("baxter")
         # setting intial state of robot
-        s += "(pose pr2 {}), ".format(PR2_INIT_POSE)
-        s += get_pr2_init_attrs_str('pr2')
+        s += "(pose baxter {}), ".format(Baxter_INIT_POSE)
+        s += get_baxter_init_attrs_str('baxter')
 
-        s += "(value {} {}), ".format("robot_init_pose", PR2_INIT_POSE)
-        s += get_pr2_init_attrs_str('robot_init_pose')
-        s += "(value {} {}), ".format("robot_end_pose", PR2_END_POSE)
-        s += get_pr2_init_attrs_str('robot_end_pose')
+        s += "(value {} {}), ".format("robot_init_pose", Baxter_INIT_POSE)
+        s += get_baxter_init_attrs_str('robot_init_pose')
+        s += "(value {} {}), ".format("robot_end_pose", Baxter_END_POSE)
+        s += get_baxter_init_attrs_str('robot_end_pose')
 
         # table pose
         z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT
-        s += "(pose {} [0, 0, {}]), ".format("table", z)
+        s += "(pose {} [1.2, 0.08, {}]), ".format("table", z)
         s += "(rotation {} {}), ".format("table", CAN_ROTATION_INIT)
         s += "(geom {} {}); ".format("table", TABLE_GEOM)
 
         for i in range(NUM_CANS):
-            s += "(PR2At can{} target{}), ".format(i, i)
-            s += "(PR2Stationary can{}), ".format(i)
+            s += "(BaxterAt can{} target{}), ".format(i, i)
+            s += "(BaxterStationary can{}), ".format(i)
             for j in range(NUM_CANS):
-                s += "(PR2StationaryNEq can{} can{}), ".format(i, j)
-            # s += "(InContact pr2 gp_can{} target{}), ".format(i, i)
+                s += "(BaxterStationaryNEq can{} can{}), ".format(i, j)
+            # s += "(InContact baxter gp_can{} target{}), ".format(i, i)
             # s += "(GraspValid gp_can{} target{} grasp0), ".format(i, i)
         for i in range(NUM_TARGETS):
-            s += "(PR2InContact pr2 ee_target{} target{}), ".format(i, i)
-            s += "(PR2GraspValidPos ee_target{} target{}), ".format(i, i)
-            s += "(PR2GraspValidRot ee_target{} target{}), ".format(i, i)
-            s += "(PR2EEReachablePos pr2 pdp_target{} ee_target{}), ".format(i, i)
-            s += "(PR2EEReachableRot pr2 pdp_target{} ee_target{}), ".format(i, i)
-        s += "(PR2RobotAt pr2 robot_init_pose), "
-        s += "(PR2StationaryArms pr2), "
-        s += "(PR2StationaryBase pr2), "
-        s += "(PR2IsMP pr2), "
-        s += "(PR2WithinJointLimit pr2), "
-        s += "(PR2StationaryW table) \n\n"
+            s += "(BaxterInContact baxter ee_target{} target{}), ".format(i, i)
+            s += "(BaxterGraspValidPos ee_target{} target{}), ".format(i, i)
+            s += "(BaxterGraspValidRot ee_target{} target{}), ".format(i, i)
+            s += "(BaxterEEReachablePos baxter pdp_target{} ee_target{}), ".format(i, i)
+            s += "(BaxterEEReachableRot baxter pdp_target{} ee_target{}), ".format(i, i)
+        s += "(BaxterRobotAt baxter robot_init_pose), "
+        s += "(BaxterStationaryArms baxter), "
+        s += "(BaxterStationaryBase baxter), "
+        s += "(BaxterIsMP baxter), "
+        s += "(BaxterWithinJointLimit baxter), "
+        s += "(BaxterStationaryW table) \n\n"
 
         s += "Goal: {}".format(GOAL)
 
-        with open("can_probs/can_{}_{}.prob".format(SEED, iteration), "w") as f:
+        with open("baxter_probs/grasp_{}_{}.prob".format(SEED, iteration), "w") as f:
             f.write(s)
 
 if __name__ == "__main__":

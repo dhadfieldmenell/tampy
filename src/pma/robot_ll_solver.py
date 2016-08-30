@@ -5,8 +5,7 @@ from sco.solver import Solver
 from openravepy import matrixFromAxisAngle
 from core.util_classes import common_predicates
 from core.util_classes.matrix import Vector
-from core.util_classes.pr2 import PR2
-from core.util_classes.namo_predicates import StationaryW, InContact
+from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
 from ll_solver import LLSolver, LLParam
 import itertools, random
@@ -24,8 +23,8 @@ SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
 
 
-attr_map = {'Robot': ['backHeight', 'lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
-            'RobotPose':['backHeight', 'lArmPose', 'lGripper','rArmPose', 'rGripper', 'value'],
+attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
+            'RobotPose':['lArmPose', 'lGripper','rArmPose', 'rGripper', 'value'],
             'EEPose': ['value', 'rotation'],
             'Can': ['pose', 'rotation'],
             'Target': ['value', 'rotation'],
@@ -53,191 +52,6 @@ class CanSolver(LLSolver):
             #     return success
         # return True
         return success
-
-    def backtrack_solve(self, plan, callback=None, anum=0, verbose=False):
-        if anum > len(plan.actions) - 1:
-            return True
-        a = plan.actions[anum]
-        active_ts = a.active_timesteps
-        inits = {}
-        # Moveto -> Grasp -> Movetoholding -> Putdown
-        robot = a.params[0]
-        lookup_preds = 'EEReachable'
-        if a.name == 'moveto':
-            ## moveto: (?robot - Robot ?start - RobotPose ?end - RobotPose)
-            ## sample ?end - RobotPose
-            rs_param = a.params[2]
-        elif a.name == 'movetoholding':
-            ## movetoholding: (?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can)
-            ## sample ?end - RobotPose
-            rs_param = a.params[2]
-        elif a.name == 'grasp':
-            ## grasp: (?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?ee - EEPose ?ep - RobotPose)
-            ## sample ?ee - EEPose
-            rs_param = a.params[4]
-            lookup_preds = 'InContact'
-        elif a.name == 'putdown':
-            ## putdown: (?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?ee - EEPose ?ep - RobotPose)
-            ## sample ?ep - RobotPose
-            rs_param = a.params[5]
-        else:
-            raise NotImplemented
-        def recursive_solve():
-            ## don't optimize over any params that are already set
-            old_params_free = {}
-            for p in plan.params.itervalues():
-                old_param_map = {}
-                if p.is_symbol():
-                    if p not in a.params: continue
-                    for attr in attr_map[getattr(p, '_type')]:
-                        old_param_map[attr] = p._free_attrs[attr].copy()
-                        p._free_attrs[attr][:] = 0
-                else:
-                    for attr in attr_map[getattr(p, '_type')]:
-                        old_param_map[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
-                        p._free_attrs[attr][:, active_ts[1]] = 0
-                old_params_free[p] = old_param_map
-            self.child_solver = CanSolver()
-            if self.child_solver.backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose):
-                return True
-            ## reset free_attrs
-            for p in a.params:
-                if p.is_symbol():
-                    if p not in a.params: continue
-                    for attr in attr_map[getattr(p, '_type')]:
-                        p._free_attrs[attr] = old_params_free[p][attr]
-                else:
-                    for attr in attr_map[getattr(p, '_type')]:
-                        p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
-            return False
-
-        if rs_param.is_fixed(attr_map[getattr(rs_param, '_type')]):
-            ## this parameter is fixed
-            if callback is not None:
-                callback_a = lambda: callback(a)
-            else:
-                callback_a = None
-            self.child_solver = CanSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
-                                              active_ts = active_ts, verbose=verbose, force_init=True)
-
-            if not success:
-                ## if planning fails we're done
-                return False
-            ## no other options, so just return here
-            return recursive_solve()
-
-        ## so that this won't be optimized over
-        rs_free = {}
-
-        for attr in attr_map[getattr(rs_param, '_type')]:
-            rs_free[attr] = rs_param._free_attrs[attr].copy()
-            rs_param._free_attrs[attr][:] = 0
-
-        if callback is not None:
-            callback_a = lambda: callback(a)
-        else:
-            callback_a = None
-
-        ######################################################################
-        # Want robot_poses to be a list of dict, mapping from attr to value
-        robot_poses = []
-
-        if a.name == 'moveto': #rs_param is ?end - RobotPose
-            ee_poses = plan.get_param(lookup_preds, 2, {1:rs_param})
-            # get a collision free base_pose, with all other pose stay the same
-        elif a.name == 'movetoholding': #rs_param is ?end - RobotPose
-            ee_poses = plan.get_param(lookup_preds, 2, {1:rs_param})
-            targets = plan.get_param('InContact', 2, {1: ee_poses})
-            # sample ee_pose associated to this target and sample robot_pose for it
-        elif a.name == 'grasp': #rs_param is ?ee - EEPose, robot_pose
-            ee_poses = [rs_param]
-            targets = plan.get_param(lookup_preds, 2, {1: rs_param})
-            # sample ee_pose associated to this target and sample robot_pose for it
-        elif a.name == 'putdown':
-            ee_poses = plan.get_param(lookup_preds, 2, {1:rs_param})
-            targets = []
-            # get a collision free base_pose, with all other pose stay the same
-        else:
-            raise NotImplemented
-        # import ipdb; ipdb.set_trace()
-
-        if len(ee_poses) > 1:
-            import pdb; pdb.set_trace()
-
-
-
-        if len(ee_poses) == 0 or np.all([ee_poses[0]._free_attrs[attr] for attr in attr_map[ee_poses[0]._type]]):
-            # Currently just sample reasonable robot end poses for the moveto action
-            t = active_ts[0]
-            ee_pose = ee_poses[0]
-            targets = plan.get_param('InContact', 2, {1: ee_pose})
-            if len(targets) == 0 or len(targets) > 1:
-                import ipdb; ipdb.set_trace()
-            sampled_ee_poses = sampling.get_ee_from_target(targets[0].value, targets[0].rotation)
-            cur_robot_pose = {'backHeight': robot.backHeight[:, t],
-                              'lArmPose': robot.lArmPose[:, t],
-                              'lGripper': robot.lGripper[: ,t],
-                              'rArmPose': robot.rArmPose[:, t],
-                              'rGripper': robot.rGripper[:, t]}
-            for ee_pose in sampled_ee_poses:
-                possible_base = sampling.get_base_poses_around_pos(t, robot, ee_pose[0], BASE_SAMPLE_SIZE, 0.6)
-                robot_base = sampling.closest_base_poses(possible_base, robot.pose[:,t])
-                robot_pose = cur_robot_pose.copy()
-                robot_pose['value'] = robot_base
-                robot_poses.append(robot_pose)
-
-        elif np.any([ee_poses[0]._free_attrs[attr] for attr in attr_map[ee_poses[0]._type]]):
-            ## there shouldn't be only some free_attrs set
-            raise NotImplementedError
-        else:
-            ee_pose = ee_poses[0]
-            targets = plan.get_param('InContact', 2, {1: ee_pose})
-            possible_ee_poses = sampling.get_ee_from_target(targets[0].value, targets[0].rotation)
-            for ee_pos, ee_rot in possible_ee_poses:
-                robot_poses.append({'value': ee_pos, 'rotation': ee_rot})
-            # import ipdb; ipdb.set_trace()
-
-        ##########################################################################
-
-        for rp in robot_poses:
-            for attr in attr_map[rs_param._type]:
-		dim = len(rp[attr])
-                setattr(rs_param, attr, rp[attr].reshape((dim, 1)))
-            success = False
-            self.child_solver = CanSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
-                                              active_ts = active_ts, verbose=verbose,
-                                              force_init=True)
-            if success:
-                if recursive_solve():
-                    break
-                else:
-                    success = False
-
-        for attr in attr_map[getattr(rs_param, '_type')]:
-            rs_param._free_attrs[attr] = rs_free[attr]
-
-        return success
-
-    def sample_rp_from_ee(t, plan, ee_poses, robot):
-        target_pose = target.value[:, 0]
-        dummy_body = OpenRAVEBody(plan.env, robot.name+'_dummy', robot.geom)
-        possible_rps = []
-        for ee_pose in ee_poses:
-            base_pose = sampling.get_col_free_base_pose_around_target(t, plan, ee_pose.value, robot).reshape((1,3))
-            ik_arm_poses = dummy_body.ik_arm_pose(ee_pose[0], ee_pose[1])
-            cur_arm_poses = np.c_[robot.backHeight, robot.rArmPose].reshape((8,))
-            chosen_pose = sampling.closest_arm_pose(ik_arm_poses, cur_arm_poses)
-            torso_pose, arm_pose = chosen_pose[0], chosen_pose[1:]
-            possible_rp = np.hstack((base_pose, torso_pose, robot.lArmPose[:,t], robot.lGripper[:,t], rArmPose, robot.rGripper[:,t]))
-            possible_rps.append(possible_rp)
-
-        dummy_body.delete()
-        if len(possible_rps) <= 0:
-            import ipdb; ipdb.set_trace()
-
-        return possible_rps
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, force_init=False):
         success = False
