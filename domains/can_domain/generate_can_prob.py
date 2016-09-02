@@ -24,9 +24,9 @@ PR2_INIT_POSE = [-1,0,0]
 PR2_END_POSE = [-0,1,0]
 BACKHEIGHT_INIT = [0.3]
 # referred to as side2 pose in rapprentice
-R_ARM_INIT = [-1.832, -0.332, -1.011, -1.437, -1.1, 0, -3.074]
+R_ARM_INIT = [-1.832, -0.332, -1.011, -1.437, -1.1, -0.11, -3.074]
 # left arm is tucked
-L_ARM_INIT = [0.06, 1.25, 1.79, -1.68, -1.73, -0.10, -0.09]
+L_ARM_INIT = [0.06, 1.25, 1.79, -1.68, -1.73, -0.11, -0.09]
 GRIPPER_INIT = [0.5]
 
 ROBOT_DIST_FROM_TABLE = 0.05
