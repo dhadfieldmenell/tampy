@@ -139,7 +139,12 @@ class TestOpenRAVEBody(unittest.TestCase):
         # robot.pose = np.array([-.5, 0, 0]).reshape((3,1))
         robot.pose = np.array([-0., 0, 0]).reshape((3,1))
         robot_body.set_pose(robot.pose)
-        robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
+        dof_value_map = {"backHeight": robot.backHeight,
+                         "lArmPose": robot.lArmPose.flatten(),
+                         "lGripper": robot.lGripper,
+                         "rArmPose": robot.rArmPose.flatten(),
+                         "rGripper": robot.rGripper}
+        robot_body.set_dof(dof_value_map)
         # can.pose = np.array([-0.31622543, -0.38142561,  1.19321209]).reshape((3,1))
         # can.pose = np.array([0.5, -0.2,  .8]).reshape((3,1))
         can.pose = np.array([.5, .2, .8]).reshape((3,1))
@@ -182,10 +187,22 @@ class TestOpenRAVEBody(unittest.TestCase):
         # Set the poses and dof values for each body
         can_body.set_pose(can.pose, can.rotation)
         robot_body.set_pose(robot.pose)
-        robot_body.set_dof(robot.backHeight, robot.lArmPose, robot.lGripper, robot.rArmPose, robot.rGripper)
+        dof_value_map = {"backHeight": robot.backHeight,
+                         "lArmPose": robot.lArmPose.flatten(),
+                         "lGripper": robot.lGripper,
+                         "rArmPose": robot.rArmPose.flatten(),
+                         "rGripper": robot.rGripper}
+        robot_body.set_dof(dof_value_map)
         # Solve the IK solution
         ik_arm = robot_body.get_ik_arm_pose(can.pose, can.rotation)[0]
-        robot_body.set_dof(ik_arm[:1], robot.lArmPose, robot.lGripper, ik_arm[1:], robot.rGripper)
+
+        dof_value_map = {"backHeight": ik_arm[:1],
+                         "lArmPose": robot.lArmPose.flatten(),
+                         "lGripper": robot.lGripper,
+                         "rArmPose": ik_arm[1:],
+                         "rGripper": robot.rGripper}
+        robot_body.set_dof(dof_value_map)
+        # robot_body.set_dof(ik_arm[:1], robot.lArmPose, robot.lGripper, ik_arm[1:], robot.rGripper)
         robot_trans = robot_body.env_body.GetLink("r_gripper_tool_frame").GetTransform()
         robot_pos = OpenRAVEBody.obj_pose_from_transform(robot_trans)
         # resulted robot eepose should be exactly the same as that can pose

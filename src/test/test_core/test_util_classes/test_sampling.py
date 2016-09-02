@@ -29,7 +29,12 @@ class TestSampling(unittest.TestCase):
         robot_body = OpenRAVEBody(env, robot.name, robot.geom)
         robot_body.set_transparency(.7)
         robot_body.set_pose(robot.pose.flatten())
-        robot_body.set_dof(robot.backHeight, robot.lArmPose.flatten(), robot.lGripper, robot.rArmPose.flatten(), robot.rGripper)
+        dof_value_map = {"backHeight": robot.backHeight,
+                         "lArmPose": robot.lArmPose.flatten(),
+                         "lGripper": robot.lGripper,
+                         "rArmPose": robot.rArmPose.flatten(),
+                         "rGripper": robot.rGripper}
+        robot_body.set_dof(dof_value_map)
 
         dummy_ee_pose_geom = can.GreenCan(.03,.3)
         ee_list = list(enumerate(sampling.get_ee_from_target(target.value, target.rotation)))
@@ -52,11 +57,21 @@ class TestSampling(unittest.TestCase):
         robot_body = OpenRAVEBody(env, robot.name, robot.geom)
         robot_body.set_transparency(.7)
         robot_body.set_pose(robot.pose.flatten())
-        robot_body.set_dof(robot.backHeight, robot.lArmPose.flatten(), robot.lGripper, robot.rArmPose.flatten(), robot.rGripper)
+        dof_value_map = {"backHeight": robot.backHeight,
+                         "lArmPose": robot.lArmPose.flatten(),
+                         "lGripper": robot.lGripper,
+                         "rArmPose": robot.rArmPose.flatten(),
+                         "rGripper": robot.rGripper}
+        robot_body.set_dof(dof_value_map)
         can_trans = OpenRAVEBody.transform_from_obj_pose(can.pose, can.rotation)
         rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
         rot_mat = can_trans[:3, :3].dot(rot_mat[:3, :3])
         can_trans[:3, :3] = rot_mat
         torso_pose, arm_pose = sampling.get_torso_arm_ik(robot_body, can_trans, robot.rArmPose)
-        robot_body.set_dof(robot.backHeight, robot.lArmPose.flatten(), robot.lGripper, arm_pose, robot.rGripper)
+        dof_value_map = {"backHeight": robot.backHeight,
+                         "lArmPose": robot.lArmPose.flatten(),
+                         "lGripper": robot.lGripper,
+                         "rArmPose": robot.rArmPose.flatten(),
+                         "rGripper": robot.rGripper}
+        robot_body.set_dof(dof_value_map)
         # import ipdb; ipdb.set_trace()

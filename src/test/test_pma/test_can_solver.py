@@ -41,8 +41,6 @@ class TestCanSolver(unittest.TestCase):
             # objs = [robot, table]
             # objs.extend(cans)
             # view.draw(objs, 0, 0.7)
-            import ipdb;ipdb.set_trace()
-
             return hls.solve(abs_problem, domain, problem)
 
         self.bmove = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
