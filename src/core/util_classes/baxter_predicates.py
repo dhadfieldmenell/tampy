@@ -29,8 +29,8 @@ INGRIPPER_OPT_COEFF = 3e2
 RCOLLIDES_OPT_COEFF = 1e2
 OBSTRUCTS_OPT_COEFF = 1e2
 GRASP_VALID_COEFF = 1e1
-GRIPPER_OPEN_VALUE = 0.2
-GRIPPER_CLOSE_VALUE = 0.
+GRIPPER_OPEN_VALUE = 0.02
+GRIPPER_CLOSE_VALUE = 0.0
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                      ("lGripper", np.array([0], dtype=np.int)),
