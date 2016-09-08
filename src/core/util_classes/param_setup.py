@@ -40,7 +40,7 @@ class ParamSetup(object):
 
     @staticmethod
     def setup_baxter(name = "baxter"):
-        attrs = {"name": [name], "pose": [(0)], "_type": ["Robot"], "geom": [], "lGripper": [0.2], "rGripper": [0.2]}
+        attrs = {"name": [name], "pose": [(0)], "_type": ["Robot"], "geom": [], "lGripper": [0.02], "rGripper": [0.02]}
         attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
         attr_types = {"name": str, "pose": matrix.Value, "_type": str, "geom": robots.Baxter, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
@@ -49,7 +49,7 @@ class ParamSetup(object):
 
     @staticmethod
     def setup_baxter_pose(name = "baxter_pose"):
-        attrs = {"name": [name], "value": [(0)], "_type": ["RobotPose"], "geom": [], "lGripper": [0.2], "rGripper": [0.2]}
+        attrs = {"name": [name], "value": [(0)], "_type": ["RobotPose"], "geom": [], "lGripper": [0.02], "rGripper": [0.02]}
         attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
         attr_types = {"name": str, "value": matrix.Value, "_type": str, "geom": robots.Baxter, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}

@@ -46,5 +46,5 @@ class Baxter(Robot):
                               "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
                               "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
                               "left_gripper_r_finger_tip"])
-        self.dof_map = {"lArmPose": list(range(1,8)), "lGripper": [8], "rArmPose": list(range(9,16)), "rGripper":[16]}
+        self.dof_map = {"lArmPose": list(range(2,9)), "lGripper": [9], "rArmPose": list(range(10,17)), "rGripper":[17]}
         super(Baxter, self).__init__(baxter_shape)
