@@ -307,13 +307,14 @@ class BaxterInGripperRot(BaxterInGripper):
         obj_dir = obj_dir/np.linalg.norm(obj_dir)
         world_dir = world_dir/np.linalg.norm(world_dir)
         rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
+        sign = np.sign(np.dot(obj_dir, world_dir))
         # computing robot's jacobian
-        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
+        arm_jac = np.array([sign*np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
         arm_jac = arm_jac.reshape((1, len(arm_joints)))
         base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
         # computing object's jacobian
         obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
-        obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
+        obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
         # Create final 1x26 jacobian matrix
         rot_jac = np.hstack((np.zeros((1, 8)), arm_jac, np.zeros((1,1)), base_jac, obj_jac))
         # import ipdb;ipdb.set_trace()
