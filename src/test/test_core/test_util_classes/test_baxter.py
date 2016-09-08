@@ -23,5 +23,5 @@ class TestBaxter(unittest.TestCase):
         """
         To check whether baxter model works, uncomment the following
         """
-        # env.SetViewer('qtcoin')
-        # import ipdb; ipdb.set_trace()
+        env.SetViewer('qtcoin')
+        import ipdb; ipdb.set_trace()
