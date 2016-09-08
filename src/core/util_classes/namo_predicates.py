@@ -29,7 +29,7 @@ class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
         self._debug = debug
         # if self._debug:
-        #     self._env.SetViewer("qtcoin")
+        #     self._env.SetViewer("qtosg")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0

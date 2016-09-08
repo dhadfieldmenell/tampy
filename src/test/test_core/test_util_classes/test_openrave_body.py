@@ -59,7 +59,7 @@ class TestOpenRAVEBody(unittest.TestCase):
         to ensure the _add_circle and create_cylinder is working, uncomment the
         line below to make sure cylinders are being created
         """
-        # env.SetViewer('qtcoin')
+        # env.SetViewer('qtosg')
 
         green_body = OpenRAVEBody(env, "can0", green_can.geom)
         blue_body = OpenRAVEBody(env, "can1", blue_can.geom)
@@ -83,7 +83,7 @@ class TestOpenRAVEBody(unittest.TestCase):
         to ensure the _add_obstacle is working, uncomment the line below to make
         sure the obstacle is being created
         """
-        # env.SetViewer('qtcoin')
+        # env.SetViewer('qtosg')
 
         obstacle_body = OpenRAVEBody(env, obstacle.name, obstacle.geom)
         obstacle_body.set_pose([2,0])
@@ -213,7 +213,7 @@ class TestOpenRAVEBody(unittest.TestCase):
         """
         # robot_body.set_transparency(.7)
         # can_body.set_transparency(.7)
-        # env.SetViewer("qtcoin")
+        # env.SetViewer("qtosg")
         # import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ class TestSampling(unittest.TestCase):
     def test_sample_ee_from_target(self):
         solver = can_solver.CanSolver()
         env = ParamSetup.setup_env()
-        # env.SetViewer('qtcoin')
+        # env.SetViewer('qtosg')
         target = ParamSetup.setup_target()
         target.value = np.array([[0,0,0]]).T
         target.rotation = np.array([[1.1,.3,0]]).T
@@ -46,7 +46,7 @@ class TestSampling(unittest.TestCase):
 
     def test_closest_arm_pose(self):
         env = ParamSetup.setup_env()
-        # env.SetViewer('qtcoin')
+        # env.SetViewer('qtosg')
         can = ParamSetup.setup_blue_can()
         robot = ParamSetup.setup_pr2()
         can.pose = np.array([[0,-.2,.8]]).T

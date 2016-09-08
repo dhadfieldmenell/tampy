@@ -121,7 +121,7 @@ class TestBaxterPredicates(unittest.TestCase):
         robot = ParamSetup.setup_baxter()
         can = ParamSetup.setup_blue_can()
         test_env = ParamSetup.setup_env()
-        # test_env.SetViewer("qtcoin")
+        # test_env.SetViewer("qtosg")
         pred = baxter_predicates.BaxterInGripperPos("InGripper", [robot, can], ["Robot", "Can"], test_env)
         pred2 = baxter_predicates.BaxterInGripperRot("InGripper_rot", [robot, can], ["Robot", "Can"], test_env)
         # Since this predicate is not yet concrete
@@ -171,7 +171,7 @@ class TestBaxterPredicates(unittest.TestCase):
         test_env = ParamSetup.setup_env()
         rPose = ParamSetup.setup_baxter_pose()
         ee_pose = ParamSetup.setup_pr2_ee_pose()
-        # test_env.SetViewer("qtcoin")
+        # test_env.SetViewer("qtosg")
         pred = baxter_predicates.BaxterEEReachablePos("ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
         pred2 = baxter_predicates.BaxterEEReachableRot("ee_reachable_rot", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
         # Since this predicate is not yet concrete
@@ -323,7 +323,7 @@ class TestBaxterPredicates(unittest.TestCase):
         rPose = ParamSetup.setup_baxter_pose()
         table = ParamSetup.setup_box()
         test_env = ParamSetup.setup_env()
-        # test_env.SetViewer("qtcoin")
+        # test_env.SetViewer("qtosg")
         pred = baxter_predicates.BaxterRCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
         # self.assertEqual(pred.get_type(), "RCollides")
         # Since can is not yet defined

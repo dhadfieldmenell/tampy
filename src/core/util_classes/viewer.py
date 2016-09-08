@@ -31,7 +31,7 @@ class OpenRAVEViewer(Viewer):
             self.env = Environment()
         else:
             self.env = env
-        self.env.SetViewer('qtcoin')
+        self.env.SetViewer('qtosg')
         self.name_to_rave_body = {}
         OpenRAVEViewer._viewer = self
 

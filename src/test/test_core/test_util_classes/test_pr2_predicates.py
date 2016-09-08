@@ -317,7 +317,7 @@ class TestPR2Predicates(unittest.TestCase):
         can = ParamSetup.setup_blue_can("can1")
         can_held = ParamSetup.setup_blue_can("can2")
         test_env = ParamSetup.setup_env()
-        # test_env.SetViewer('qtcoin')
+        # test_env.SetViewer('qtosg')
         pred = pr2_predicates.PR2ObstructsHolding("test_obstructs", [robot, rPose, rPose, can, can_held], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], test_env, debug = True)
         self.assertEqual(pred.get_type(), "PR2ObstructsHolding")
         # Since can is not yet defined
@@ -397,7 +397,7 @@ class TestPR2Predicates(unittest.TestCase):
         rPose = ParamSetup.setup_pr2_pose()
         table = ParamSetup.setup_box()
         test_env = ParamSetup.setup_env()
-        # test_env.SetViewer("qtcoin")
+        # test_env.SetViewer("qtosg")
         pred = pr2_predicates.PR2RCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
         # self.assertEqual(pred.get_type(), "RCollides")
         # Since can is not yet defined

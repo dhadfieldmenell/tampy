@@ -58,7 +58,7 @@ class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, tol=COLLISION_TOL):
         self._debug = debug
         # if self._debug:
-        #     self._env.SetViewer("qtcoin")
+        #     self._env.SetViewer("qtosg")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
@@ -371,7 +371,7 @@ class PosePredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = 0.05, debug = False, ind0=0, ind1=1, tol=POSE_TOL, active_range=(0,0)):
         self._debug = debug
         if self._debug:
-            self._env.SetViewer("qtcoin")
+            self._env.SetViewer("qtosg")
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
