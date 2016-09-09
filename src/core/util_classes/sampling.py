@@ -1,6 +1,6 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
-from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions
+from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, databases
 from sco.expr import Expr
 import math
 import numpy as np
@@ -88,6 +88,11 @@ def get_torso_arm_ik(robot_body, target_trans, old_arm_pose=None):
     manip = robot_body.env_body.GetManipulator('rightarm_torso')
     iktype = IkParameterizationType.Transform6D
 
+    robot_body.env_body.SetActiveManipulator('rightarm_torso')
+    ikmodel = databases.inversekinematics.InverseKinematicsModel(
+            robot_body.env_body, iktype=iktype)
+    if not ikmodel.load():
+        ikmodel.autogenerate()
     solution = manip.FindIKSolution(IkParameterization(target_trans, iktype),IkFilterOptions.CheckEnvCollisions)
     if solution is None:
         return None, None

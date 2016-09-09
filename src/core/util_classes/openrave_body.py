@@ -4,7 +4,7 @@ from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
 RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
-IkFilterOptions, matrixFromAxisAngle
+IkFilterOptions, matrixFromAxisAngle, databases
 from core.util_classes.robots import Robot, PR2, Baxter
 from core.util_classes.box import Box
 from core.util_classes.can import Can, BlueCan, RedCan
@@ -404,5 +404,11 @@ class OpenRAVEBody(object):
     def get_ik_solutions(self, manip_name, trans):
         manip = self.env_body.GetManipulator(manip_name)
         iktype = IkParameterizationType.Transform6D
+
+        self.env_body.SetActiveManipulator(manip_name)
+        ikmodel = databases.inversekinematics.InverseKinematicsModel(
+                self.env_body, iktype=iktype)
+        if not ikmodel.load():
+            ikmodel.autogenerate()
         solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
         return solutions
