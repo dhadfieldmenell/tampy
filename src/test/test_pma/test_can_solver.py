@@ -16,7 +16,6 @@ from core.internal_repr import parameter, plan
 import time, main
 
 VIEWER = True
-FAKE_TOL = 1e-2 # Not used......
 
 class TestCanSolver(unittest.TestCase):
     def setUp(self):
@@ -31,21 +30,11 @@ class TestCanSolver(unittest.TestCase):
             abs_problem = hls.translate_problem(problem)
             if plan_str is not None:
                 return hls.get_plan(plan_str, domain, problem)
-            # view = OpenRAVEViewer()
-            # robot = problem.init_state.params['pr2']
-            # table = problem.init_state.params['table']
-            # cans = []
-            # for param_name, param in problem.init_state.params.iteritems():
-            #     if "can" in param_name:
-            #         cans.append(param)
-            # objs = [robot, table]
-            # objs.extend(cans)
-            # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
 
-        self.bmove = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
+        # self.bmove = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
 
-        # self.move_obs = get_plan('../domains/can_domain/can_probs/move_obs.prob')
+        self.move_obs = get_plan('../domains/can_domain/can_probs/move_obs.prob')
 
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/move.prob')
         # self.move_no_obs = get_plan('../domains/can_domain/can_probs/can_1234_0.prob')
@@ -76,8 +65,7 @@ class TestCanSolver(unittest.TestCase):
 
 
     def test_move_obs(self):
-        # pass
-        _test_plan(self, self.bmove)
+        _test_plan(self, self.move_obs)
 
     # def test_grasp_gen(self):
     #     np.random.seed(1)
@@ -100,17 +88,16 @@ class TestCanSolver(unittest.TestCase):
         # np.random.seed(6) # forms right angle
         # _test_resampling(self, self.grasp_obstructs1, n_resamples=3)
 
-    def test_grasp_obstructs(self):
-        pass
-        # _test_plan(self, self.grasp, n_resamples=3)
+    # def test_grasp_obstructs(self):
+    #     pass
+    #     # _test_plan(self, self.grasp, n_resamples=3)
+    #
+    # def test_moveholding(self):
+    #     pass
+    #     # _test_plan(self, self.moveholding)
 
-    def test_moveholding(self):
-        pass
-        # _test_plan(self, self.moveholding)
-
-    def test_gen_plan(self):
-        pass
-        # _test_plan(self, self.gen_plan)
+    # def test_gen_plan(self):
+    #     _test_plan(self, self.gen_plan)
 
 def get_animate_fn(viewer, plan):
     def animate():
@@ -189,7 +176,7 @@ def _test_resampling(test_obj, plan, n_resamples=0):
     #     if t < plan.horizon:
     #         viewer.draw_plan_ts(plan, t)
 
-    test_obj.assertTrue(plan.satisfied(FAKE_TOL))
+    test_obj.assertTrue(plan.satisfied())
 
 
 def _test_plan(test_obj, plan, n_resamples=0):
@@ -205,14 +192,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
     draw_cols_ts = get_draw_cols_ts_fn(viewer, plan)
     def callback(set_trace=False):
         solver._update_ll_params()
-    # #     obj_list = viewer._get_plan_obj_list(plan)
-    # #     # viewer.draw_traj(obj_list, [0,9,19,20,29,38])
-    # #     # viewer.draw_traj(obj_list, range(19,30))
-    # #     # viewer.draw_traj(obj_list, range(29,39))
-    # #     # viewer.draw_traj(obj_list, [38])
-    # #     # viewer.draw_traj(obj_list, range(19,39))
-    # #     # viewer.draw_plan_range(plan, [0,19,38])
-        # draw_ts(50)
+
         if set_trace:
             animate()
             import ipdb; ipdb.set_trace()
@@ -226,13 +206,12 @@ def _test_plan(test_obj, plan, n_resamples=0):
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
-    #
+
     if viewer != None:
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
-    import ipdb; ipdb.set_trace()
 
-    # test_obj.assertTrue(plan.satisfied(FAKE_TOL))
+    test_obj.assertTrue(plan.satisfied())
 
 def _test_backtrack_plan(test_obj, plan, n_resamples=0):
     print "testing plan: {}".format(plan.actions)

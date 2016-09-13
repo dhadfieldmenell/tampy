@@ -36,7 +36,7 @@ class CanSolver(LLSolver):
         self.transfer_coeff = 1e1
         self.rs_coeff = 1e10
         self.initial_trust_region_size = 1e-2
-        self.init_penalty_coeff = 1e1
+        self.init_penalty_coeff = 1e2
         # self.init_penalty_coeff = 1e5
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
