@@ -12,13 +12,14 @@ import time
 POSE_TOL = 2e-2
 EEREACHABLE_STEPS = 3
 DIST_SAFE = 1e-2
-COLLISION_TOL = 3e-3
+COLLISION_TOL = 1e-3
 MAX_CONTACT_DISTANCE = .1
 
 
 class CollisionPredicate(ExprPredicate):
 
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = DIST_SAFE, debug = False, ind0=0, ind1=1, tol=COLLISION_TOL):
+    def __init__(self, name, e, attr_inds, params, expected_param_types,
+            dsafe=DIST_SAFE,  debug=False, ind0=0, ind1=1, tol=COLLISION_TOL):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtosg")
@@ -32,7 +33,7 @@ class CollisionPredicate(ExprPredicate):
 
     def robot_obj_collision(self, x):
         """
-            This function is used to calculae collisiosn between Robot and Can
+            This function is used to calculate collisions between Robot and Can
             This function calculates the collision distance gradient associated to it
             x: 26 dimensional list of values aligned in following order,
             BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
@@ -315,7 +316,9 @@ class CollisionPredicate(ExprPredicate):
 
 class PosePredicate(ExprPredicate):
 
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = DIST_SAFE, debug = False, ind0=0, ind1=1, tol=POSE_TOL, active_range=(0,0)):
+    def __init__(self, name, e, attr_inds, params, expected_param_types,
+                dsafe=DIST_SAFE, debug=False, ind0=0, ind1=1, tol=POSE_TOL,
+                active_range=(0,0)):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtosg")
@@ -787,8 +790,8 @@ class InGripper(PosePredicate):
             get_robot_info[Function]:Function that returns robot's transformations and arm indices
             eval_f[Function]:Function returns predicate value
             eval_grad[Function]:Function returns predicate gradient
-            coeff[Float]:In Gripper coeffitions, used during optimazation
-            opt_coeff[Float]:In Gripper coeffitions, used during optimazation
+            coeff[Float]:In Gripper coefficients, used during optimization
+            opt_coeff[Float]:In Gripper coefficients, used during optimization
     """
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         assert len(params) == 2
@@ -827,8 +830,8 @@ class EEReachable(PosePredicate):
             get_robot_info[Function]:Function that returns robot's transformations and arm indices
             eval_f[Function]:Function returns predicate value
             eval_grad[Function]:Function returns predicate gradient
-            coeff[Float]:EEReachable coeffitions, used during optimazation
-            opt_coeff[Float]:EEReachable coeffitions, used during optimazation
+            coeff[Float]:EEReachable coefficients, used during optimization
+            opt_coeff[Float]:EEReachable coefficients, used during optimization
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
         assert len(params) == 3
@@ -869,10 +872,11 @@ class Obstructs(CollisionPredicate):
             attr_dim[Int]:number of attribute in robot's full pose
             set_robot_poses[Function]:Function that sets robot's poses
             set_active_dof_inds[Function]:Function that sets robot's active dof indices
-            coeff[Float]:EEReachable coeffitions, used during optimazation
-            neg_coeff[Float]:EEReachable coeffitions, used during optimazation
+            coeff[Float]:EEReachable coefficients, used during optimization
+            neg_coeff[Float]:EEReachable coefficients, used during optimization
     """
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
+    def __init__(self, name, params, expected_param_types, env=None,
+                debug=False, tol=COLLISION_TOL, dsafe=DIST_SAFE):
         assert len(params) == 4
         self._env = env
         self.robot, self.startp, self.endp, self.can = params
@@ -900,7 +904,8 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol)
+                                        expected_param_types, ind0=0, ind1=3,
+                                        debug=debug, tol=tol, dsafe=dsafe)
         self.priority = 2
 
     def get_expr(self, negated):
@@ -924,9 +929,10 @@ class ObstructsHolding(CollisionPredicate):
             attr_inds[OrderedDict]: robot attribute indices
             set_robot_poses[Function]:Function that sets robot's poses
             set_active_dof_inds[Function]:Function that sets robot's active dof indices
-            OBSTRUCTS_OPT_COEFF[Float]: Obstructs_holding coeffitions, used during optimazation problem
+            OBSTRUCTS_OPT_COEFF[Float]: Obstructs_holding coefficients, used during optimization problem
     """
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None,
+            debug=False, dsafe=DIST_SAFE, tol=COLLISION_TOL):
         assert len(params) == 5
         self._env = env
         self.robot, self.startp, self.endp, self.obstruct, self.held = params
@@ -941,22 +947,23 @@ class ObstructsHolding(CollisionPredicate):
 
         links = len(self.robot.geom.col_links)
         if self.held.name == self.obstruct.name:
-            col_fn, offset = self.robot_obj_collision, DIST_SAFE - COLLISION_TOL
+            col_fn = self.robot_obj_collision
+            dsafe = 0
             val = np.zeros((links,1))
         else:
-            col_fn, offset = self.robot_obj_held_collision, 0
+            col_fn = self.robot_obj_held_collision
             val = np.zeros((links+1,1))
 
-        f = lambda x: self.coeff * (col_fn(x)[0] - offset)
+        f = lambda x: self.coeff * col_fn(x)[0]
         grad = lambda x: self.coeff * col_fn(x)[1]
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.neg_coeff * (col_fn(x)[0] - offset)
+        f_neg = lambda x: self.neg_coeff * col_fn(x)[0]
         grad_neg = lambda x: self.neg_coeff * col_fn(x)[1]
 
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
         self.neg_expr_opt = LEqExpr(get_expr_mult(self.OBSTRUCTS_OPT_COEFF, col_expr_neg), val)
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, dsafe=dsafe, tol=tol, ind0=0, ind1=3, debug = debug)
 
         self.priority = 2
 
@@ -977,7 +984,8 @@ class Collides(CollisionPredicate):
 
         Non-robot related
     """
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None,
+                debug=False, dsafe=DIST_SAFE, tol=COLLISION_TOL):
         self._env = env
         self.can, self.obstacle = params
         attr_inds = OrderedDict([(self.can, [("pose", np.array([0, 1, 2], dtype=np.int)),
@@ -1021,9 +1029,10 @@ class RCollides(CollisionPredicate):
             attr_inds[OrderedDict]: robot attribute indices
             set_robot_poses[Function]:Function that sets robot's poses
             set_active_dof_inds[Function]:Function that sets robot's active dof indices
-            RCOLLIDES_OPT_COEFF[Float]: Obstructs_holding coeffitions, used during optimazation problem
+            RCOLLIDES_OPT_COEFF[Float]: Obstructs_holding coefficients, used during optimization problem
     """
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None,
+                debug=False, dsafe=DIST_SAFE, tol=COLLISION_TOL):
         self._env = env
         self.robot, self.obstacle = params
         # attr_inds for the robot must be in this exact order do to assumptions
@@ -1055,7 +1064,7 @@ class RCollides(CollisionPredicate):
         self.neg_expr_opt = LEqExpr(col_expr_neg_opt, val)
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, dsafe=dsafe, tol=tol, ind0=0, ind1=1)
 
         self.priority = 2
 

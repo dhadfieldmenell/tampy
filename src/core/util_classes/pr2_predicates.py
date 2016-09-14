@@ -24,7 +24,7 @@ APPROACH_DIST = 0.05
 RETREAT_DIST = 0.075
 EEREACHABLE_STEPS = 3
 # Collision Constants
-DIST_SAFE = 1e-2
+DIST_SAFE = 5e-2
 COLLISION_TOL = 1e-3
 #Plan Coefficient
 IN_GRIPPER_COEFF = 1.
@@ -336,14 +336,16 @@ class PR2Obstructs(robot_predicates.Obstructs):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
+    def __init__(self, name, params, expected_param_types, env=None,
+                debug=False, dsafe=DIST_SAFE, tol=COLLISION_TOL):
         self.attr_dim = 20
         self.dof_cache = None
         self.coeff = -1
         self.neg_coeff = 1
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
-        super(PR2Obstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
+        super(PR2Obstructs, self).__init__(name, params, expected_param_types,
+                                env=env, debug=debug, dsafe=dsafe, tol=tol)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -383,7 +385,8 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
 
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None,
+                debug=False, dsafe=DIST_SAFE, tol=COLLISION_TOL):
         self.attr_dim = 20
         self.dof_cache = None
         self.coeff = -1
@@ -392,7 +395,8 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
                                  (params[3], list(ATTRMAP[params[3]._type])),
                                  (params[4], list(ATTRMAP[params[4]._type]))])
         self.OBSTRUCTS_OPT_COEFF = OBSTRUCTS_OPT_COEFF
-        super(PR2ObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
+        super(PR2ObstructsHolding, self).__init__(name, params,
+            expected_param_types, env=env, debug=debug, dsafe=dsafe, tol=tol)
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -436,7 +440,8 @@ class PR2RCollides(robot_predicates.RCollides):
 
     # RCollides Robot Obstacle
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None,
+                 debug=False, dsafe=DIST_SAFE, tol=COLLISION_TOL):
         self.attr_dim = 20
         self.dof_cache = None
         self.coeff = -1
@@ -444,7 +449,8 @@ class PR2RCollides(robot_predicates.RCollides):
         self.opt_coeff = RCOLLIDES_OPT_COEFF
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        super(PR2RCollides, self).__init__(name, params, expected_param_types, env, debug)
+        super(PR2RCollides, self).__init__(name, params, expected_param_types,
+                                    env=env, debug=debug, dsafe=dsafe, tol=tol)
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body

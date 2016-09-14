@@ -293,7 +293,7 @@ class TestPR2Predicates(unittest.TestCase):
         # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
 
         # Move can away from the gripper, no collision
-        can.pose = np.array([[.700,  -.127,   .838]]).T
+        can.pose = np.array([[.740,  -.127,   .838]]).T
         self.assertFalse(pred.test(0))
         self.assertTrue(pred.test(0, negated = True))
         # This gradient test passed
@@ -343,7 +343,7 @@ class TestPR2Predicates(unittest.TestCase):
         # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
 
         # Move can away from the gripper, no collision
-        can.pose = np.array([[.700,  -.127,   .838]]).T
+        can.pose = np.array([[.750,  -.127,   .838]]).T
         self.assertFalse(pred.test(0))
         self.assertTrue(pred.test(0, negated = True))
         # This Gradient test passed
@@ -449,9 +449,3 @@ class TestPR2Predicates(unittest.TestCase):
         self.assertFalse(pred.test(0, negated = True))
         # This gradient test passed with a box
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[table].set_pose(table.pose, table.rotation)
-        # import ipdb; ipdb.set_trace()
