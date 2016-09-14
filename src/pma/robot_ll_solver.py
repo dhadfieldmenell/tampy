@@ -30,7 +30,7 @@ attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
             'Target': ['value', 'rotation'],
             'Obstacle': ['pose', 'rotation']}
 
-class CanSolver(LLSolver):
+class RobotLLSolver(LLSolver):
     def __init__(self, early_converge=False):
         self.transfer_coeff = 1e1
         self.rs_coeff = 1e10

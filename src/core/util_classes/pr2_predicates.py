@@ -8,14 +8,14 @@ import numpy as np
 This file Defines specific PR2 related predicates
 """
 
-# Dimensional Constants
-BASE_DIM = 3e0
-JOINT_DIM = 1.7e1
-ROBOT_ATTR_DIM = 2e1
+# Dimensional Constants, must be integer
+BASE_DIM = 3
+JOINT_DIM = 17
+ROBOT_ATTR_DIM = 20
 # Movement Constraints Constants
-BASE_MOVE = 1e0
-JOINT_MOVE_FACTOR = 1e1
-TWOARMDIM = 1.6e1
+BASE_MOVE = 1
+JOINT_MOVE_FACTOR = 10
+TWOARMDIM = 16
 # InGripper Constants
 GRIPPER_OPEN_VALUE = 0.5
 GRIPPER_CLOSE_VALUE = 0.46

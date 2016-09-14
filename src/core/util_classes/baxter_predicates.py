@@ -29,8 +29,8 @@ INGRIPPER_OPT_COEFF = 3e2
 RCOLLIDES_OPT_COEFF = 1e2
 OBSTRUCTS_OPT_COEFF = 1e2
 GRASP_VALID_COEFF = 1e1
-GRIPPER_OPEN_VALUE = 0.2
-GRIPPER_CLOSE_VALUE = 0.
+GRIPPER_OPEN_VALUE = 0.02
+GRIPPER_CLOSE_VALUE = 0.0
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                      ("lGripper", np.array([0], dtype=np.int)),
@@ -239,7 +239,7 @@ class BaxterInGripper(robot_predicates.InGripper):
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        arm_inds = list(range(9,16))
+        arm_inds = list(range(10,17))
         return robot_trans, arm_inds
 
 class BaxterInGripperPos(BaxterInGripper):
@@ -307,13 +307,14 @@ class BaxterInGripperRot(BaxterInGripper):
         obj_dir = obj_dir/np.linalg.norm(obj_dir)
         world_dir = world_dir/np.linalg.norm(world_dir)
         rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
+        sign = np.sign(np.dot(obj_dir, world_dir))
         # computing robot's jacobian
-        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
+        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign*world_dir)) for joint in arm_joints]).T.copy()
         arm_jac = arm_jac.reshape((1, len(arm_joints)))
         base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
         # computing object's jacobian
         obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
-        obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
+        obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
         # Create final 1x26 jacobian matrix
         rot_jac = np.hstack((np.zeros((1, 8)), arm_jac, np.zeros((1,1)), base_jac, obj_jac))
         # import ipdb;ipdb.set_trace()
@@ -349,7 +350,7 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        arm_inds = list(range(9,16))
+        arm_inds = list(range(10,17))
         return robot_trans, arm_inds
 
     def get_rel_pt(self, rel_step):
@@ -485,7 +486,7 @@ class BaxterObstructs(robot_predicates.Obstructs):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(1,17)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
@@ -537,7 +538,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(1,17)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
@@ -578,6 +579,6 @@ class BaxterRCollides(robot_predicates.RCollides):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(1,17)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
