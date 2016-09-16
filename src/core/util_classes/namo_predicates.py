@@ -4,6 +4,8 @@ from core.internal_repr.plan import Plan
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes.namo_constants import DIST_SAFE, MAX_MOVE_DIST, \
+    CONTACT_DIST, RS_SCALE, N_DIGS
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
@@ -17,19 +19,9 @@ from pma.ll_solver import NAMOSolver
 This file implements the predicates for the 2D NAMO domain.
 """
 
-dsafe = 1e-1
-dmove = 2e-1
-contact_dist = 0
-
-RS_SCALE = 0.5
-N_DIGS = 3
-
-
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, env=None, dsafe=DIST_SAFE, debug = False, ind0=0, ind1=1):
         self._debug = debug
-        # if self._debug:
-        #     self._env.SetViewer("qtosg")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
@@ -38,7 +30,7 @@ class CollisionPredicate(ExprPredicate):
         self._cache = {}
         self.n_cols = 1
 
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, env=env)
 
     def test(self, time, negated=False):
         # This test is overwritten so that collisions can be calculated correctly
@@ -80,7 +72,6 @@ class CollisionPredicate(ExprPredicate):
         collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
 
         col_val, jac01 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
-        # val = np.array([col_val])
         val = col_val
         jac = jac01
         self._cache[flattened] = (val.copy(), jac.copy())
@@ -93,22 +84,24 @@ class CollisionPredicate(ExprPredicate):
         jacs = np.zeros((self.n_cols, 4))
 
         val = -1 * float("inf")
-        # jac0 = np.zeros(2)
-        # jac1 = np.zeros(2)
         results = []
         n_cols = len(collisions)
         assert n_cols <= self.n_cols
         jac = np.zeros((1, 4))
+        self.handles = []
         for i, c in enumerate(collisions):
             linkA = c.GetLinkAParentName()
             linkB = c.GetLinkBParentName()
 
+            sign = 0
             if linkA == name0 and linkB == name1:
                 pt0 = c.GetPtA()
                 pt1 = c.GetPtB()
+                sign = -1
             elif linkB == name0 and linkA == name1:
                 pt0 = c.GetPtB()
                 pt1 = c.GetPtA()
+                sign = 1
             else:
                 continue
 
@@ -127,28 +120,20 @@ class CollisionPredicate(ExprPredicate):
                 print "normal = ", normal
 
             vals[i, 0] = self.dsafe - distance
-            jacs[i, :2] = -1*normal[:2]
-            jacs[i, 2:] = normal[:2]
+            jacs[i, :2] = sign*normal[:2]
+            jacs[i, 2:] = -sign*normal[:2]
 
-        if self._debug:
-            print "options: ", results
-            print "selected: ", chosen_pt0, chosen_pt1
-            print "selected distance: ", chosen_distance
-            self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
-
-        # if jac0 is None or jac1 is None or val is None:
-        #     import ipdb; ipdb.set_trace()
-
-        return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
+        return vals, jacs
 
     def _plot_collision(self, ptA, ptB, distance):
-        self.handles = []
         if not np.allclose(ptA, ptB, atol=1e-3):
             if distance < 0:
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(1, 0, 0)))
             else:
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(0, 0, 0)))
 
+    def copy(self, param_to_copy):
+        raise NotImplementedError
 
 class At(ExprPredicate):
 
@@ -164,6 +149,10 @@ class At(ExprPredicate):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def copy(self, param_to_copy):
+        params = self._get_param_copy(param_to_copy)
+        return At(self.name, params, self.expected_param_types[:])
 
 class RobotAt(At):
 
@@ -182,6 +171,10 @@ class RobotAt(At):
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+    def copy(self, param_to_copy):
+        params = self._get_param_copy(param_to_copy)
+        return RobotAt(self.name, params, self.expected_param_types[:])
+
 class InContact(CollisionPredicate):
 
     # InContact, Robot, RobotPose, Target
@@ -195,17 +188,33 @@ class InContact(CollisionPredicate):
                                self.targ: self.lazy_spawn_or_body(self.targ, self.targ.name, self.targ.geom)}
 
         INCONTACT_COEFF = 1e1
-        f = lambda x: INCONTACT_COEFF*self.distance_from_obj(x)[0]
-        grad = lambda x: INCONTACT_COEFF*self.distance_from_obj(x)[1]
+        f = lambda x: self.distance_from_obj(x)[0]
+        grad = lambda x: self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
-        val = np.ones((1, 1))*dsafe*INCONTACT_COEFF
-        # val = np.zeros((1, 1))
+        val = np.ones((1, 1))*(DIST_SAFE-CONTACT_DIST)
         e = EqExpr(col_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
+
+        opt_val = np.ones((1, 1))*(DIST_SAFE-CONTACT_DIST)*INCONTACT_COEFF
+        self.opt_expr = EqExpr(Expr(lambda x: INCONTACT_COEFF*f(x),
+                                    lambda x: INCONTACT_COEFF*grad(x)),
+                                opt_val)
+
+        super(InContact, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, env=env,
+                                        debug=debug, ind0=1, ind1=2)
+
+    def get_expr(self, negated):
+        if negated:
+            return None
+        else:
+            return self.opt_expr
 
     def test(self, time, negated=False):
         return super(CollisionPredicate, self).test(time, negated)
+
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
 
 class Collides(CollisionPredicate):
 
@@ -225,8 +234,7 @@ class Collides(CollisionPredicate):
         ## so we have an expr for the negated predicate
         f_neg = lambda x: self.distance_from_obj(x)[0]
         def grad_neg(x):
-            # print self.distance_from_obj(x)
-            return -self.distance_from_obj(x)[1]
+            return self.distance_from_obj(x)[1]
 
 
         N_COLS = 8
@@ -241,7 +249,8 @@ class Collides(CollisionPredicate):
 
 
         super(Collides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, env=env,
+                                        ind0=0, ind1=1)
         self.n_cols = N_COLS
         # self.priority = 1
 
@@ -251,6 +260,8 @@ class Collides(CollisionPredicate):
         else:
             return None
 
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
 
 class RCollides(CollisionPredicate):
 
@@ -270,14 +281,10 @@ class RCollides(CollisionPredicate):
         ## so we have an expr for the negated predicate
         def f_neg(x):
             d = self.distance_from_obj(x)[0]
-            # if d > 0:
-            #     import pdb; pdb.set_trace()
-            #     self.distance_from_obj(x)
             return d
 
         def grad_neg(x):
-            # print self.distance_from_obj(x)
-            return -self.distance_from_obj(x)[1]
+            return self.distance_from_obj(x)[1]
 
         N_COLS = 8
         col_expr = Expr(f, grad)
@@ -289,7 +296,8 @@ class RCollides(CollisionPredicate):
 
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, env=env,
+                                        ind0=0, ind1=1)
         self.n_cols = N_COLS
 
         # self.priority = 1
@@ -300,7 +308,8 @@ class RCollides(CollisionPredicate):
         else:
             return None
 
-
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
 
 class Obstructs(CollisionPredicate):
 
@@ -322,7 +331,6 @@ class Obstructs(CollisionPredicate):
         ## so we have an expr for the negated predicate
         f_neg = lambda x: self.distance_from_obj(x)[0]
         def grad_neg(x):
-            # print self.distance_from_obj(x)
             return self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
@@ -333,7 +341,8 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3)
+                                        expected_param_types, env=env,
+                                        ind0=0, ind1=3)
         # self.priority=1
 
     def resample(self, negated, time, plan):
@@ -357,6 +366,9 @@ class Obstructs(CollisionPredicate):
         else:
             return None
 
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
+
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
     # http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
@@ -366,14 +378,13 @@ def sample_pose(plan, pose, robot, rs_scale):
         # print "one target", pose
         random_dir = np.random.rand(2,1) - 0.5
         random_dir = random_dir/np.linalg.norm(random_dir)
-                # assumes targets are symbols
+        # assumes targets are symbols
         val = targets[0].value + random_dir*3*robot.geom.radius
     elif len(targets) == 0:
                 ## old generator -- just add a random perturbation
         # print "no targets", pose
         val = np.random.normal(pose.value[:, 0], scale=rs_scale)[:, None]
     else:
-        # import pdb; pdb.set_trace()
         raise NotImplementedError
     # print pose, val
     pose.value = val
@@ -458,7 +469,7 @@ class ObstructsHolding(CollisionPredicate):
         col_expr_neg = Expr(f_neg, grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, env=env)
         # self.priority=1
 
     def resample(self, negated, time, plan):
@@ -485,6 +496,9 @@ class ObstructsHolding(CollisionPredicate):
             return self.neg_expr
         else:
             return None
+
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
 
     def distance_from_obj(self, x):
         # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
@@ -547,6 +561,9 @@ class InGripper(ExprPredicate):
 
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
+
 class GraspValid(ExprPredicate):
 
     # GraspValid RobotPose Target Grasp
@@ -567,6 +584,9 @@ class GraspValid(ExprPredicate):
 
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
+
 class Stationary(ExprPredicate):
 
     # Stationary, Can
@@ -579,6 +599,9 @@ class Stationary(ExprPredicate):
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
         super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
 
 class StationaryNEq(ExprPredicate):
 
@@ -600,6 +623,9 @@ class StationaryNEq(ExprPredicate):
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
+
 class StationaryW(ExprPredicate):
 
     # StationaryW, Wall(Obstacle)
@@ -613,13 +639,15 @@ class StationaryW(ExprPredicate):
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
 
+    def copy(self, param_to_copy):
+        return copy_pred_w_env_debug(self, param_to_copy)
 
 
 class IsMP(ExprPredicate):
 
     # IsMP Robot
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=MAX_MOVE_DIST):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
@@ -630,5 +658,15 @@ class IsMP(ExprPredicate):
                       [0, -1, 0, 1]])
         b = np.zeros((4, 1))
 
+        self._dmove = dmove
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+
+    def copy(self, param_to_copy):
+        params = self._get_param_copy(param_to_copy)
+        return IsMP(self.name, params, self.expected_param_types[:],
+                    env=self._env, debug=self._debug, dmove=self.dmove)
+
+def copy_pred_w_env_debug(pred, param_to_copy):
+    params = pred._get_param_copy(param_to_copy)
+    return pred.__class__(pred.name, params, pred.expected_param_types[:], env=pred._env, debug=pred._debug)

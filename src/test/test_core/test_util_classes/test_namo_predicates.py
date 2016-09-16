@@ -131,6 +131,7 @@ class TestNamoPredicates(unittest.TestCase):
 
         env = Environment()
         pred = namo_predicates.Obstructs("obstructs", [robot, robotPose, robotPose, can], ["Robot", "RobotPose", "RobotPose", "Can"], env)
+        self.assertTrue(pred._env == env)
         pred.expr.expr.grad(np.array([1.9,0,0,0]), True, 1e-2)
         # val, jac = pred.distance_from_obj(np.array([1.9,0,0,0]))
         # self.assertTrue(np.allclose(np.array(val), .11, atol=1e-2))
@@ -163,6 +164,8 @@ class TestNamoPredicates(unittest.TestCase):
 
         env = Environment()
         pred = namo_predicates.InContact("InContact", [robot, robotPose, target], ["Robot", "RobotPose", "Target"], env=env)
+        self.assertTrue(pred._env == env)
+
         #First test should fail because all objects's positions are in (0,0)
         self.assertFalse(pred.test(time = 0))
         # Test Gradient for it
@@ -212,6 +215,8 @@ class TestNamoPredicates(unittest.TestCase):
 
         env = Environment()
         pred = namo_predicates.ObstructsHolding("ObstructsHolding", [robot, robotPose, robotPose, can1, can2], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], env)
+        self.assertTrue(pred._env == env)
+
         #First test should fail because all objects's positions are in (0,0)
         self.assertTrue(pred.test(time = 0))
         # This predicate has two expressions
@@ -433,6 +438,7 @@ class TestNamoPredicates(unittest.TestCase):
         border = parameter.Object(attrs, attr_types)
 
         pred = namo_predicates.Collides("collides", [can, border], ["Can", "Obstacle"], env)
+        self.assertTrue(pred._env == env)
         self.assertTrue(pred.test(0))
         border.pose = np.zeros((2,4))
         can.pose = np.array([[1+pred.dsafe, 1+2*pred.dsafe, 1, 1-pred.dsafe],
@@ -443,6 +449,20 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertTrue(pred.test(2))
         self.assertTrue(pred.test(3))
 
+        # testing collides copy
+        params = [can, border]
+        param_to_copy = {}
+        for p in params:
+            param_to_copy[p] = p.copy_ts((0,3))
+        pred_copy = pred.copy(param_to_copy)
+        for p in params:
+            self.assertTrue(p not in pred_copy.params)
+            self.assertTrue(param_to_copy[p] in pred_copy.params)
+
+        self.assertTrue(pred_copy.test(0))
+        self.assertFalse(pred_copy.test(1))
+        self.assertTrue(pred_copy.test(2))
+        self.assertTrue(pred_copy.test(3))
         """
             Uncomment the following to see the graph
         """
@@ -461,6 +481,7 @@ class TestNamoPredicates(unittest.TestCase):
         border = parameter.Object(attrs, attr_types)
 
         pred = namo_predicates.RCollides("collides", [robot, border], ["Robot", "Obstacle"], env)
+        self.assertTrue(pred._env == env)
         self.assertTrue(pred.test(0))
         border.pose = np.zeros((2,4))
         robot.pose = np.array([[1+pred.dsafe, 1+2*pred.dsafe, 1, 1-pred.dsafe],

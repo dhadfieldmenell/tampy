@@ -97,6 +97,20 @@ class Object(Parameter):
     def is_defined(self):
         return self.pose is not "undefined"
 
+    def copy_ts(self, active_ts):
+        start, end = active_ts
+        horizon = end - start + 1
+        copy_obj = self.copy(end+1)
+        new = Object()
+        for attr_name, v in copy_obj.__dict__.items():
+            attr_type = self.get_attr_type(attr_name)
+            if issubclass(attr_type, Vector):
+                new_value = v[:v.shape[0], start:end+1].copy()
+                setattr(new, attr_name, new_value)
+            else:
+                setattr(new, attr_name, v)
+        return new
+
     def copy(self, new_horizon):
         new = Object()
         for attr_name, v in self.__dict__.items():
@@ -134,6 +148,10 @@ class Symbol(Parameter):
     def is_symbol(self):
         return True
 
+    def copy_ts(self, ts):
+        start, end = ts
+        return self.copy(end-start+1)
+
     def copy(self, new_horizon):
         new = Symbol()
         for k, v in self.__dict__.items():
@@ -144,5 +162,9 @@ class Symbol(Parameter):
                 val[:] = np.NaN
                 setattr(new, k, val)
             else:
-                setattr(new, k, v)
+                attr_type = self.get_attr_type(k)
+                if issubclass(attr_type, Vector):
+                    setattr(new, k, v.copy())
+                else:
+                    setattr(new, k, v)
         return new
