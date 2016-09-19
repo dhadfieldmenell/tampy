@@ -111,6 +111,7 @@ class OpenRAVEBody(object):
         self.env_body = self._env.ReadRobotXMLFile(geom.shape)
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
+        geom.setup(self.env_body)
 
     def _add_table(self, geom):
         self.env_body = OpenRAVEBody.create_table(self._env, geom)

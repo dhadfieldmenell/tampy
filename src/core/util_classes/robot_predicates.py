@@ -2,6 +2,7 @@ from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.sampling import get_expr_mult, resample_bp_around_target, ee_reachable_resample
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
+from errors_exceptions import PredicateException
 from collections import OrderedDict
 import numpy as np
 import ctrajoptpy

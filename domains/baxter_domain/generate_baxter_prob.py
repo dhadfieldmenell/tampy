@@ -4,12 +4,13 @@ import numpy as np
 import random
 
 SEED = 1234
-NUM_PROBS = 1
-NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
-NUM_TARGETS = 2
+NUM_PROBS = 5
+NUM_CANS = 1 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_TARGETS = 1
+filename = "baxter_probs/move"
 assert NUM_CANS <= NUM_TARGETS
 GOAL = "(BaxterRobotAt baxter robot_end_pose)"
-# GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"   
+# GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 # GOAL = "(RobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
@@ -20,10 +21,12 @@ DIST_BETWEEN_CANS = 0.01
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]
 Baxter_END_POSE = [1.57]
+Baxter_END_LARM = [0, 0, 0, 0, 0, 0, 0]
+Baxter_END_RARM = [0,-0.785,0.785,1.57,-0.785,-0.785,0]
 # referred to as side2 pose in rapprentice
-R_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
+R_ARM_INIT = [0, -1.57, 0, 1.57, 0, 1.57, 0]
 # left arm is tucked
-L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
+L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 GRIPPER_INIT = [0.]
 
 ROBOT_DIST_FROM_TABLE = 0.05
@@ -47,10 +50,10 @@ TABLE_GEOM = [.325, .75, 0.1]
 
 class CollisionFreeTargetValueGenerator(object):
     def __init__(self):
-        self.max_x = 1.2+TABLE_DIM[0]/2 - CAN_RADIUS
-        self.min_x = 2.4-self.max_x
-        self.max_y = 0.08+TABLE_DIM[1]/2 - CAN_RADIUS
-        self.min_y = 0.16-self.max_y
+        self.max_x = 0.75+TABLE_DIM[0]/2 - CAN_RADIUS
+        self.min_x = 1.5-self.max_x
+        self.max_y = 0.02+TABLE_DIM[1]/2 - CAN_RADIUS
+        self.min_y = 0.04-self.max_y
         self._poses = []
 
     def __iter__(self):
@@ -74,11 +77,11 @@ class CollisionFreeTargetValueGenerator(object):
     def reset(self):
         self._poses = []
 
-def get_baxter_init_attrs_str(name):
+def get_baxter_init_attrs_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT):
     s = ""
-    s += "(lArmPose {} {}), ".format(name, L_ARM_INIT)
+    s += "(lArmPose {} {}), ".format(name, LArm)
     s += "(lGripper {} {}), ".format(name, GRIPPER_INIT)
-    s += "(rArmPose {} {}), ".format(name, R_ARM_INIT)
+    s += "(rArmPose {} {}), ".format(name, RArm)
     s += "(rGripper {} {}), ".format(name, GRIPPER_INIT)
     return s
 
@@ -133,13 +136,13 @@ def main():
         s += get_baxter_init_attrs_str('baxter')
 
         s += "(value {} {}), ".format("robot_init_pose", Baxter_INIT_POSE)
-        s += get_baxter_init_attrs_str('robot_init_pose')
+        s += get_baxter_init_attrs_str('robot_init_pose',LArm = L_ARM_INIT, RArm= R_ARM_INIT)
         s += "(value {} {}), ".format("robot_end_pose", Baxter_END_POSE)
-        s += get_baxter_init_attrs_str('robot_end_pose')
+        s += get_baxter_init_attrs_str('robot_end_pose', LArm = Baxter_END_LARM, RArm=Baxter_END_RARM)
 
         # table pose
         z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT
-        s += "(pose {} [1.2, 0.08, {}]), ".format("table", z)
+        s += "(pose {} [0.75, 0.02, {}]), ".format("table", z)
         s += "(rotation {} {}), ".format("table", CAN_ROTATION_INIT)
         s += "(geom {} {}); ".format("table", TABLE_GEOM)
 
@@ -157,15 +160,15 @@ def main():
             s += "(BaxterEEReachablePos baxter pdp_target{} ee_target{}), ".format(i, i)
             s += "(BaxterEEReachableRot baxter pdp_target{} ee_target{}), ".format(i, i)
         s += "(BaxterRobotAt baxter robot_init_pose), "
-        s += "(BaxterStationaryArms baxter), "
-        s += "(BaxterStationaryBase baxter), "
-        s += "(BaxterIsMP baxter), "
-        s += "(BaxterWithinJointLimit baxter), "
+        # s += "(BaxterStationaryArms baxter), "
+        # s += "(BaxterStationaryBase baxter), "
+        # s += "(BaxterIsMP baxter), "
+        # s += "(BaxterWithinJointLimit baxter), "
         s += "(BaxterStationaryW table) \n\n"
 
         s += "Goal: {}".format(GOAL)
 
-        with open("baxter_probs/grasp_{}_{}.prob".format(SEED, iteration), "w") as f:
+        with open(filename+"_{}_{}.prob".format(SEED, iteration), "w") as f:
             f.write(s)
 
 if __name__ == "__main__":

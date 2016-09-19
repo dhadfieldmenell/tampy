@@ -204,7 +204,7 @@ def get_torso_arm_ik(robot_body, target_trans, old_arm_pose=None):
     manip = robot_body.env_body.GetManipulator('rightarm_torso')
     iktype = IkParameterizationType.Transform6D
 
-    solution = manip.FindIKSolution(IkParametxerization(target_trans, iktype),IkFilterOptions.CheckEnvCollisions)
+    solution = manip.FindIKSolution(IkParameterization(target_trans, iktype),IkFilterOptions.CheckEnvCollisions)
     if solution is None:
         return None, None
     torso_pose, arm_pose = get_torso_and_arm_pose_from_ik_soln(solution)
