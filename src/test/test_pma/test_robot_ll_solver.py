@@ -42,8 +42,10 @@ class TestRobotLLSolver(unittest.TestCase):
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
         self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/move_1234_3.prob')
-        self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
-        self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
+        # self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
+        # self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
+
+
         # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob', ['0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
         # self.grasp_obstructs1 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
         # self.grasp_obstructs0 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
@@ -194,7 +196,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
     import ipdb; ipdb.set_trace()
-
+    baxter = plan.actions[0].params[0]
     print(plan.satisfied())
 
 if __name__ == "__main__":

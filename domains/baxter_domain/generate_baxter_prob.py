@@ -21,13 +21,12 @@ DIST_BETWEEN_CANS = 0.01
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]
 Baxter_END_POSE = [1.57]
-Baxter_END_LARM = [0, 0, 0, 0, 0, 0, 0]
-Baxter_END_RARM = [0,-0.785,0.785,1.57,-0.785,-0.785,0]
-# referred to as side2 pose in rapprentice
-R_ARM_INIT = [0, -1.57, 0, 1.57, 0, 1.57, 0]
-# left arm is tucked
+R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-GRIPPER_INIT = [0.]
+Baxter_END_LARM = [-np.pi/10,-np.pi/3,-np.pi/4,np.pi/4,np.pi/2,-np.pi/4,np.pi/4]
+Baxter_END_RARM = [np.pi/10, -np.pi/3,np.pi/4,np.pi/4,np.pi/2,np.pi/4,np.pi/4]
+INT_GRIPPER = [0]
+END_GRIPPER = [0.02]
 
 ROBOT_DIST_FROM_TABLE = 0.05
 # rll table
@@ -77,12 +76,12 @@ class CollisionFreeTargetValueGenerator(object):
     def reset(self):
         self._poses = []
 
-def get_baxter_init_attrs_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT):
+def get_baxter_init_attrs_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER):
     s = ""
     s += "(lArmPose {} {}), ".format(name, LArm)
-    s += "(lGripper {} {}), ".format(name, GRIPPER_INIT)
+    s += "(lGripper {} {}), ".format(name, G)
     s += "(rArmPose {} {}), ".format(name, RArm)
-    s += "(rGripper {} {}), ".format(name, GRIPPER_INIT)
+    s += "(rGripper {} {}), ".format(name, G)
     return s
 
 def get_baxter_undefined_attrs_str(name):
@@ -136,9 +135,9 @@ def main():
         s += get_baxter_init_attrs_str('baxter')
 
         s += "(value {} {}), ".format("robot_init_pose", Baxter_INIT_POSE)
-        s += get_baxter_init_attrs_str('robot_init_pose',LArm = L_ARM_INIT, RArm= R_ARM_INIT)
+        s += get_baxter_init_attrs_str('robot_init_pose')
         s += "(value {} {}), ".format("robot_end_pose", Baxter_END_POSE)
-        s += get_baxter_init_attrs_str('robot_end_pose', LArm = Baxter_END_LARM, RArm=Baxter_END_RARM)
+        s += get_baxter_init_attrs_str('robot_end_pose', LArm = Baxter_END_LARM, RArm=Baxter_END_RARM, G=END_GRIPPER)
 
         # table pose
         z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT
