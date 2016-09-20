@@ -19,7 +19,8 @@ MAX_CONTACT_DISTANCE = .1
 class CollisionPredicate(ExprPredicate):
 
     def __init__(self, name, e, attr_inds, params, expected_param_types,
-            dsafe=DIST_SAFE,  debug=False, ind0=0, ind1=1, tol=COLLISION_TOL):
+            env=None, dsafe=DIST_SAFE,  debug=False, ind0=0, ind1=1,
+            tol=COLLISION_TOL):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtosg")
@@ -29,7 +30,7 @@ class CollisionPredicate(ExprPredicate):
         self.ind1 = ind1
         self._plot_handles = []
         self._cache = {}
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, tol=tol)
 
     def robot_obj_collision(self, x):
         """
@@ -904,8 +905,9 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3,
-                                        debug=debug, tol=tol, dsafe=dsafe)
+                                        expected_param_types, env=env, ind0=0,
+                                        ind1=3, debug=debug, tol=tol,
+                                        dsafe=dsafe)
         self.priority = 2
 
     def get_expr(self, negated):
@@ -963,7 +965,9 @@ class ObstructsHolding(CollisionPredicate):
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
         self.neg_expr_opt = LEqExpr(get_expr_mult(self.OBSTRUCTS_OPT_COEFF, col_expr_neg), val)
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, dsafe=dsafe, tol=tol, ind0=0, ind1=3, debug = debug)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params,
+            expected_param_types, env=env, dsafe=dsafe, tol=tol, ind0=0, ind1=3,
+            debug = debug)
 
         self.priority = 2
 
@@ -1009,7 +1013,8 @@ class Collides(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Collides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1, debug=debug)
+                                        expected_param_types, env=env, ind0=0,
+                                        ind1=1, debug=debug)
         self.priority = 2
 
     def get_expr(self, negated):
@@ -1064,7 +1069,8 @@ class RCollides(CollisionPredicate):
         self.neg_expr_opt = LEqExpr(col_expr_neg_opt, val)
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, dsafe=dsafe, tol=tol, ind0=0, ind1=1)
+                                        expected_param_types, env=env,
+                                        dsafe=dsafe, tol=tol, ind0=0, ind1=1)
 
         self.priority = 2
 
