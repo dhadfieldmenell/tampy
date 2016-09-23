@@ -133,9 +133,22 @@ class Plan(object):
                 res.extend(a.get_active_preds(t))
         return res
 
-    def get_action_plans(self):
+    def get_action_plans(self, consensus_dict, nonconsensus_dict):
+        """
+        Returns a list of one action plans and builds the consensus_dict and
+        the nonconsensus_dict.
+
+        The consensus_dict keeps track of the mapping from consensus variables
+        to their local counterparts in the one action plans. The consensus_dict
+        is a mapping from params to dictionaries which maps timesteps to a list
+        of (plan, parameter copy, action plan timestep) triple.
+
+        The nonconsensus_dict keeps track of the mapping from nonconsensus
+        variables to their local counter parts in the on action plans. The
+        nonconsensus_dict is a mapping from params to dictionaries which maps
+        time ranges to a (plan, parameter copy, action plan timestep) triple.
+        """
         plans = []
-        param_to_copies = {}
         param_to_name = {param: name for name, param in self.params.items()}
         for a in self.actions:
             active_timesteps = a.active_timesteps
@@ -145,16 +158,41 @@ class Plan(object):
                 param_copy = param.copy_ts(active_timesteps)
                 action_param_to_copy[param] = param_copy
 
-                param_ts_tuple = (start, param_copy)
-                if param in param_to_copies:
-                    param_to_copies[param].append(param_ts_tuple)
-                else:
-                    param_to_copies[param] = [param_ts_tuple]
-
             actions = [a.copy(0, action_param_to_copy)]
             horizon = end - start + 1
 
             params_dict = {param_to_name[param]: param_copy \
                             for param, param_copy in action_param_to_copy.items()}
-            plans.append(Plan(params_dict, actions, horizon, self.env))
-        return plans, param_to_copies
+            plan = Plan(params_dict, actions, horizon, self.env)
+            plans.append(plan)
+
+            # update consensus dictionary
+            for param in a.params:
+                param_copy = action_param_to_copy[param]
+                if param in consensus_dict:
+                    if param.is_symbol():
+                        param_info = (plan, param_copy, 0)
+                        consensus_dict[param][0].append(param_info)
+                    else:
+                        for t in consensus_dict[param].keys():
+                            if start <= t <= end:
+                                param_copy = action_param_to_copy[param]
+                                param_info = (plan, param_copy, t-start)
+                                consensus_dict[param][t].append(param_info)
+
+                if param in nonconsensus_dict:
+                    if param.is_symbol():
+                        param_info = (plan, param_copy, (0,0))
+                        assert nonconsensus_dict[param][(0,0)] is None
+                        nonconsensus_dict[param][(0,0)] = param_info
+                    else:
+                        for s, e in nonconsensus_dict[param].keys():
+                            if start <= s <= end and start <= e <= end:
+                                param_copy = action_param_to_copy[param]
+                                param_info = (plan, param_copy, (s-start, e-start))
+                                assert (s,e) in nonconsensus_dict[param]
+                                assert nonconsensus_dict[param][(s,e)] is None
+                                nonconsensus_dict[param][(s,e)] = param_info
+                            else:
+                                assert s > end or e < start
+        return plans

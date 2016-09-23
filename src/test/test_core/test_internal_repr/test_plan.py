@@ -121,49 +121,68 @@ class TestPlan(unittest.TestCase):
         params = [self.can2, self.target]
         pred_dict = [{'pred': self.pred1, 'negated': False, 'hl_info': 'pre', 'active_timesteps': (3, 7)}]
         act1 = action.Action(1, 'test_action1', (3,7), params, pred_dict)
-        params = [self.robot, self.rpose]
-        pred_dict = [{'pred': self.pred2, 'negated': False, 'hl_info': 'pre', 'active_timesteps': (4, 9)}]
-        act2 = action.Action(2, 'test_action2', (4,9), params, pred_dict)
-        plan_params = {"robot": self.robot, "can1": self.can1, "can2": self.can2, "target": self.target, "rpose": self.rpose}
-        plan_actions = [act0, act1, act2]
-        test_plan = Plan(plan_params, plan_actions, 10, 1) #1 is a dummy_env
-        plans, param_to_copies = test_plan.get_action_plans()
 
-        self.assertTrue(len(param_to_copies[self.can1]) == 1)
-        start, can1_copy = param_to_copies[self.can1][0]
-        self.assertTrue(start == 0)
+        plan_actions = [act0, act1]
+        plan_params = {"can1": self.can1,
+                       "can2": self.can2,
+                       "target": self.target}
+        test_plan = Plan(plan_params, plan_actions, 8, 1) #1 is a dummy_env
 
-        self.assertTrue(len(param_to_copies[self.can2]) == 1)
-        start, can2_copy = param_to_copies[self.can2][0]
-        self.assertTrue(start == 3)
+        # building consensus_dict
+        consensus_dict = {}
+        shared_timesteps = [3, 4, 5]
+        shared_ts_dict = {t: [] for t in shared_timesteps}
+        consensus_dict[self.can1] = shared_ts_dict.copy()
+        consensus_dict[self.can2] = shared_ts_dict.copy()
+        consensus_dict[self.target] = {0: []}
 
-        self.assertTrue(len(param_to_copies[self.robot]) == 1)
-        start, robot_copy = param_to_copies[self.robot][0]
-        self.assertTrue(start == 4)
+        # building nonconsensus_dict
+        nonconsensus_dict = {}
+        unshared_time_ranges = [(0,2), (6,7)]
+        unshared_ts_dict = {r: None for r in unshared_time_ranges}
+        nonconsensus_dict[self.can1] = unshared_ts_dict.copy()
+        nonconsensus_dict[self.can2] = unshared_ts_dict.copy()
 
-        self.assertTrue(len(param_to_copies[self.target]) == 2)
-        start1, target_copy1 = param_to_copies[self.target][0]
-        start2, target_copy2 = param_to_copies[self.target][1]
-        self.assertTrue(start1 == 0)
-        self.assertTrue(start2 == 3)
+        plans = test_plan.get_action_plans(consensus_dict, nonconsensus_dict)
+        act0_plan = plans[0]
+        self.assertTrue(act0_plan.horizon == 6)
+        act1_plan = plans[1]
+        self.assertTrue(act1_plan.horizon == 5)
 
-        self.assertTrue(len(plans) == 3)
-        for i, plan in enumerate(plans):
-            self.assertTrue(len(plan.actions) == 1)
-            plan_params = plan.params.values()
-            if i == 0:
-                self.assertTrue(plan.horizon == 6)
-                self.assertTrue(can1_copy in plan_params)
-                self.assertTrue(target_copy1 in plan_params)
-                self.assertFalse(target_copy2 in plan_params)
-            elif i == 1:
-                self.assertTrue(plan.horizon == 5)
-                self.assertTrue(can2_copy in plan_params)
-                self.assertTrue(target_copy2 in plan_params)
-                self.assertFalse(target_copy1 in plan_params)
-            elif i == 2:
-                self.assertTrue(plan.horizon == 6)
-                self.assertTrue(robot_copy in plan_params)
+        # tests for the consensus_dict
+        for t in shared_timesteps:
+            for obj_param in [self.can1, self.can2]:
+                self.assertTrue(len(consensus_dict[obj_param][t]) == 2)
+                for i, act_plan in enumerate(plans):
+                    start, end = plan_actions[i].active_timesteps
+                    plan, param_copy, t_local = consensus_dict[obj_param][t][i]
+                    self.assertTrue(param_copy in plan.params.values())
+                    self.assertTrue(plan == act_plan)
+                    self.assertTrue(t_local == t-start)
+        for sym_param in [self.target]:
+            self.assertTrue(len(consensus_dict[sym_param][0]) == 2)
+            for i, act_plan in enumerate(plans):
+                plan, param_copy, t_local = consensus_dict[sym_param][0][i]
+                self.assertTrue(param_copy in plan.params.values())
+                self.assertTrue(plan == act_plan)
+                self.assertTrue(t_local == 0)
+
+        # tests for the nonconsensus_dict
+        obj_param = self.can1
+        self.assertTrue(len(nonconsensus_dict[obj_param][(0,2)]) == 3)
+        self.assertTrue(nonconsensus_dict[obj_param][(6,7)] == None)
+        plan, param_copy, t_range_local = nonconsensus_dict[obj_param][(0,2)]
+        self.assertTrue(param_copy in plan.params.values())
+        self.assertTrue(plan == plans[0])
+        self.assertTrue(t_range_local == (0,2))
+
+        obj_param = self.can2
+        self.assertTrue(nonconsensus_dict[obj_param][(0,2)] == None)
+        self.assertTrue(len(nonconsensus_dict[obj_param][(6,7)]) == 3)
+        plan, param_copy, t_range_local = nonconsensus_dict[obj_param][(6,7)]
+        self.assertTrue(param_copy in plan.params.values())
+        self.assertTrue(plan == plans[1])
+        self.assertTrue(t_range_local == (3,4))
 
 if __name__ == "__main__":
     unittest.main()
