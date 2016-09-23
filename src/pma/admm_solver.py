@@ -125,9 +125,10 @@ class NAMOADMMSolver(NAMOSolver):
 
     def _compute_shared_timesteps(self, plan):
         shared_timesteps = []
-        a_to_unshared_ranges = {}
+        unshared_ranges = []
+
         if len(plan.actions) == 1:
-            a_to_unshared_ranges[plan.actions[0]] = (0, plan.horizon-1)
+            unshared_ranges.append((0, plan.horizon-1))
         elif len(plan.actions) > 1:
             for i, action in enumerate(plan.actions):
                 start, end = action.active_timesteps
@@ -135,12 +136,12 @@ class NAMOADMMSolver(NAMOSolver):
                     shared_timesteps.append(start)
 
                 if i == 0:
-                    a_to_unshared_ranges[action] = (0, end-1)
+                    unshared_ranges.append((0, end-1))
                 elif i < len(plan.actions) - 1:
-                    a_to_unshared_ranges[action] = (start+1, end-1)
+                    unshared_ranges.append((start+1, end-1))
                 elif i == len(plan.actions) - 1:
-                    a_to_unshared_ranges[action] = (start+1, end)
-        return shared_timesteps, a_to_unshared_ranges
+                    unshared_ranges.append((start+1, end))
+        return shared_timesteps, unshared_ranges
 
     def _classify_variables(self, plan):
         """

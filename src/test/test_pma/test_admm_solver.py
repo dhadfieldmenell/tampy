@@ -59,27 +59,28 @@ class TestADMMSolver(unittest.TestCase):
     def test_compute_shared_timesteps(self):
         nas = NAMOADMMSolver()
         plan = self.move_no_obs
-        shared_timesteps, a_to_unshared_ranges = nas._compute_shared_timesteps(plan)
+        shared_timesteps, unshared_ranges = nas._compute_shared_timesteps(plan)
         self.assertTrue(len(shared_timesteps) == 0)
+        self.assertTrue(len(unshared_ranges) == 1)
         action = plan.actions[0]
-        self.assertTrue(action in a_to_unshared_ranges)
-        self.assertTrue(a_to_unshared_ranges[action] == (0, plan.horizon-1))
+        self.assertTrue((0, plan.horizon-1) in unshared_ranges)
 
         plan = self.move_grasp_moveholding
-        shared_timesteps, a_to_unshared_ranges = nas._compute_shared_timesteps(plan)
+        shared_timesteps, unshared_ranges = nas._compute_shared_timesteps(plan)
         self.assertTrue(len(plan.actions) == 3)
         self.assertTrue(len(shared_timesteps) == 2)
+        self.assertTrue(len(unshared_ranges) == 3)
         self.assertTrue(plan.actions[0].active_timesteps[1] in shared_timesteps)
         self.assertTrue(plan.actions[1].active_timesteps[1] in shared_timesteps)
 
         for i, action in enumerate(plan.actions):
             start, end = action.active_timesteps
             if i == 0:
-                self.assertTrue(a_to_unshared_ranges[action] == (start, end-1))
+                self.assertTrue((start, end-1) in unshared_ranges)
             elif i == len(plan.actions) - 1:
-                self.assertTrue(a_to_unshared_ranges[action] == (start+1, end))
+                self.assertTrue((start+1, end) in unshared_ranges)
             else:
-                self.assertTrue(a_to_unshared_ranges[action] == (start+1, end-1))
+                self.assertTrue((start+1, end-1) in unshared_ranges)
 
     def test_classify_variables(self):
         pass
