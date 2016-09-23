@@ -83,6 +83,40 @@ class TestADMMSolver(unittest.TestCase):
                 self.assertTrue((start+1, end-1) in unshared_ranges)
 
     def test_classify_variables(self):
-        pass
-        # test that all variables or nonconsensus for self.move_no_obs
+        nas = NAMOADMMSolver()
+
+        # test that all variables are nonconsensus for self.move_no_obs
+        plan = self.move_no_obs
+        consensus_dict, nonconsensus_dict = nas._classify_variables(plan)
+        param = plan.params['robot_init_pose']
+        self.assertTrue(param not in consensus_dict)
+        self.assertTrue(param in nonconsensus_dict)
+        self.assertTrue((0,0) in nonconsensus_dict[param])
+        param = plan.params['robot_end_pose']
+        self.assertTrue(param not in consensus_dict)
+        self.assertTrue(param in nonconsensus_dict)
+        self.assertTrue((0,0) in nonconsensus_dict[param])
+        param = plan.params['pr2']
+        self.assertTrue(param not in consensus_dict)
+        self.assertTrue(param in nonconsensus_dict)
+        self.assertTrue((0,19) in nonconsensus_dict[param])
+
         # test that some variables are consensus for self.move_grasp_moveholding
+        plan = self.move_grasp_moveholding
+        consensus_dict, nonconsensus_dict = nas._classify_variables(plan)
+        param = plan.params['pr2']
+        self.assertTrue(param in consensus_dict)
+        self.assertTrue(param in nonconsensus_dict)
+        self.assertTrue(19 in consensus_dict[param])
+        self.assertTrue(38 in consensus_dict[param])
+        self.assertTrue((0,18) in nonconsensus_dict[param])
+        self.assertTrue((20,37) in nonconsensus_dict[param])
+        self.assertTrue((39,57) in nonconsensus_dict[param])
+        param = plan.params['target1']
+        self.assertTrue(param not in consensus_dict)
+        self.assertTrue(param in nonconsensus_dict)
+        self.assertTrue((0,0) in nonconsensus_dict[param])
+        param = plan.params['robot_end_pose']
+        self.assertTrue(param in consensus_dict)
+        self.assertTrue(param not in nonconsensus_dict)
+        self.assertTrue(0 in consensus_dict[param])

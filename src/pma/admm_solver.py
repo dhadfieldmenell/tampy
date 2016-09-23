@@ -154,7 +154,7 @@ class NAMOADMMSolver(NAMOSolver):
         shared_timesteps, unshared_ranges = self._compute_shared_timesteps(plan)
         shared_ts_dict = {t: [] for t in shared_timesteps}
         unshared_ts_dict = {r: None for r in unshared_ranges}
-        for param in plan.params:
+        for param in plan.params.values():
             if param.is_symbol():
                 # loop through each symbolic parameter and check if its in multiple actions
                 if self._param_in_multiple_actions(plan, param):
@@ -164,8 +164,10 @@ class NAMOADMMSolver(NAMOSolver):
                     nonconsensus_dict[param] = {(0,0): None}
             else:
                 # object parameters with shared timesteps are consensus variables
-                consensus_dict[param] = shared_ts_dict.copy()
-                nonconsensus_dict[param] = unshared_ts_dict.copy()
+                if len(shared_ts_dict) > 0:
+                    consensus_dict[param] = shared_ts_dict.copy()
+                if len(unshared_ts_dict) > 0:
+                    nonconsensus_dict[param] = unshared_ts_dict.copy()
         return consensus_dict, nonconsensus_dict
 
     # http://stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf page 48
