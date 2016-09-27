@@ -5,7 +5,7 @@ from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.namo_constants import DIST_SAFE, MAX_MOVE_DIST, \
-    CONTACT_DIST, RS_SCALE, N_DIGS
+    CONTACT_DIST, RS_SCALE, N_DIGS, DEBUG
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
@@ -20,8 +20,7 @@ This file implements the predicates for the 2D NAMO domain.
 """
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, env=None, dsafe=DIST_SAFE, debug = False, ind0=0, ind1=1):
-        self._debug = debug
+    def __init__(self, name, e, attr_inds, params, expected_param_types, env=None, dsafe=DIST_SAFE, debug=DEBUG, ind0=0, ind1=1):
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
@@ -30,7 +29,7 @@ class CollisionPredicate(ExprPredicate):
         self._cache = {}
         self.n_cols = 1
 
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, env=env)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, debug=debug)
 
     def test(self, time, negated=False):
         # This test is overwritten so that collisions can be calculated correctly
@@ -179,7 +178,7 @@ class InContact(CollisionPredicate):
 
     # InContact, Robot, RobotPose, Target
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self._env = env
         self.robot, self.rp, self.targ = params
         attr_inds = OrderedDict([(self.rp, [("value", np.array([0,1], dtype=np.int))]),
@@ -220,7 +219,7 @@ class Collides(CollisionPredicate):
 
     # Collides Can Obstacle (wall)
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self._env = env
         self.c, self.w = params
         attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]),
@@ -250,7 +249,7 @@ class Collides(CollisionPredicate):
 
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, env=env,
-                                        ind0=0, ind1=1)
+                                        ind0=0, ind1=1, debug=debug)
         self.n_cols = N_COLS
         # self.priority = 1
 
@@ -267,7 +266,7 @@ class RCollides(CollisionPredicate):
 
     # RCollides Robot Obstacle (Wall)
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self._env = env
         self.r, self.w = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
@@ -297,7 +296,7 @@ class RCollides(CollisionPredicate):
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, env=env,
-                                        ind0=0, ind1=1)
+                                        ind0=0, ind1=1, debug=debug)
         self.n_cols = N_COLS
 
         # self.priority = 1
@@ -315,7 +314,7 @@ class Obstructs(CollisionPredicate):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can;
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self._env = env
         self.r, self.startp, self.endp, self.c = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
@@ -342,7 +341,7 @@ class Obstructs(CollisionPredicate):
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, env=env,
-                                        ind0=0, ind1=3)
+                                        ind0=0, ind1=3, debug=debug)
         # self.priority=1
 
     def resample(self, negated, time, plan):
@@ -436,7 +435,7 @@ def sample_pose(plan, pose, robot, rs_scale):
 class ObstructsHolding(CollisionPredicate):
 
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can;
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self._env = env
         r, startp, endp, obstr, held = params
         self.r = r
@@ -469,7 +468,7 @@ class ObstructsHolding(CollisionPredicate):
         col_expr_neg = Expr(f_neg, grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, env=env)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, debug=debug)
         # self.priority=1
 
     def resample(self, negated, time, plan):
@@ -545,7 +544,7 @@ class InGripper(ExprPredicate):
 
     # InGripper, Robot, Can, Grasp
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self.r, self.can, self.grasp = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.can, [("pose", np.array([0, 1], dtype=np.int))]),
@@ -559,7 +558,8 @@ class InGripper(ExprPredicate):
         e = AffExpr(A, b)
         e = EqExpr(e, np.zeros((2,1)))
 
-        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(InGripper, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, debug=debug)
 
     def copy(self, param_to_copy):
         return copy_pred_w_env_debug(self, param_to_copy)
@@ -568,7 +568,7 @@ class GraspValid(ExprPredicate):
 
     # GraspValid RobotPose Target Grasp
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self.rp, self.target,  self.grasp = params
         attr_inds = OrderedDict([(self.rp, [("value", np.array([0, 1], dtype=np.int))]),
                      (self.target, [("value", np.array([0, 1], dtype=np.int))]),
@@ -582,7 +582,8 @@ class GraspValid(ExprPredicate):
         e = AffExpr(A, b)
         e = EqExpr(e, np.zeros((2,1)))
 
-        super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(GraspValid, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, debug=debug)
 
     def copy(self, param_to_copy):
         return copy_pred_w_env_debug(self, param_to_copy)
@@ -591,14 +592,14 @@ class Stationary(ExprPredicate):
 
     # Stationary, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self.c,  = params
         attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))])])
         A = np.array([[1, 0, -1, 0],
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), debug=debug)
 
     def copy(self, param_to_copy):
         return copy_pred_w_env_debug(self, param_to_copy)
@@ -610,7 +611,7 @@ class StationaryNEq(ExprPredicate):
     # it checks whether the can in the first argument is stationary
     # if that first can is not the second can which robot is holding
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self.c, self.c_held = params
         attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))])])
         if self.c.name == self.c_held.name:
@@ -621,7 +622,7 @@ class StationaryNEq(ExprPredicate):
                           [0, 1, 0, -1]])
             b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), debug=debug)
 
     def copy(self, param_to_copy):
         return copy_pred_w_env_debug(self, param_to_copy)
@@ -630,14 +631,14 @@ class StationaryW(ExprPredicate):
 
     # StationaryW, Wall(Obstacle)
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG):
         self.w, = params
         attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1], dtype=np.int))])])
         A = np.array([[1, 0, -1, 0],
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), debug=debug)
 
     def copy(self, param_to_copy):
         return copy_pred_w_env_debug(self, param_to_copy)
@@ -647,7 +648,7 @@ class IsMP(ExprPredicate):
 
     # IsMP Robot
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=MAX_MOVE_DIST):
+    def __init__(self, name, params, expected_param_types, env=None, debug=DEBUG, dmove=MAX_MOVE_DIST):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove

@@ -4,3 +4,5 @@ CONTACT_DIST = 0
 
 RS_SCALE = 0.5
 N_DIGS = 3
+
+DEBUG = False

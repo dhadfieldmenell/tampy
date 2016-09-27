@@ -37,7 +37,7 @@ class ExprPredicate(Predicate):
     Predicates which are defined by a target value for a set expression.
     """
 
-    def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None, active_range=(0,0), tol=DEFAULT_TOL):
+    def __init__(self, name, expr, attr_inds, params, expected_param_types, env=None, active_range=(0,0), tol=DEFAULT_TOL, debug=False):
         """
         attr2inds is a dictionary that maps each parameter name to a
         list of (attr, active_inds) pairs. This defines the mapping
@@ -48,6 +48,7 @@ class ExprPredicate(Predicate):
         self.expr = expr
         self.attr_inds = attr_inds
         self.tol = tol
+        self._debug = debug
 
         self.x_dim = sum(len(active_inds)
                          for p_attrs in attr_inds.values()
