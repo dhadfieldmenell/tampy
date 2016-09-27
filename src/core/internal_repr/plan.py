@@ -154,7 +154,7 @@ class Plan(object):
             active_timesteps = a.active_timesteps
             start, end = active_timesteps
             action_param_to_copy = {}
-            for param in a.params:
+            for param in self.params.values():
                 param_copy = param.copy_ts(active_timesteps)
                 action_param_to_copy[param] = param_copy
 
@@ -181,18 +181,14 @@ class Plan(object):
                                 consensus_dict[param][t].append(param_info)
 
                 if param in nonconsensus_dict:
-                    if param.is_symbol():
-                        param_info = (plan, param_copy, (0,0))
-                        assert nonconsensus_dict[param][(0,0)] is None
-                        nonconsensus_dict[param][(0,0)] = param_info
-                    else:
-                        for s, e in nonconsensus_dict[param].keys():
-                            if start <= s <= end and start <= e <= end:
-                                param_copy = action_param_to_copy[param]
-                                param_info = (plan, param_copy, (s-start, e-start))
-                                assert (s,e) in nonconsensus_dict[param]
-                                assert nonconsensus_dict[param][(s,e)] is None
-                                nonconsensus_dict[param][(s,e)] = param_info
-                            else:
-                                assert s > end or e < start
+                    assert not param.is_symbol()
+                    for s, e in nonconsensus_dict[param].keys():
+                        if start <= s <= end and start <= e <= end:
+                            param_copy = action_param_to_copy[param]
+                            param_info = (plan, param_copy, (s-start, e-start))
+                            assert (s,e) in nonconsensus_dict[param]
+                            assert nonconsensus_dict[param][(s,e)] is None
+                            nonconsensus_dict[param][(s,e)] = param_info
+                        else:
+                            assert s > end or e < start
         return plans
