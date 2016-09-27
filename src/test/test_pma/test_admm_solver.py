@@ -35,27 +35,6 @@ class TestADMMSolver(unittest.TestCase):
                 '2: MOVETOHOLDING PR2 PDP_TARGET0 PDP_TARGET2 CAN0 GRASP0',
                 '3: PUTDOWN PR2 CAN0 TARGET2 PDP_TARGET2 ROBOT_END_POSE GRASP0'])
 
-
-    def test_param_in_multiple_actions(self):
-        nas = NAMOADMMSolver()
-        plan = self.move_no_obs
-        param = plan.params['robot_init_pose']
-        self.assertFalse(nas._param_in_multiple_actions(plan, param))
-        param = plan.params['robot_end_pose']
-        self.assertFalse(nas._param_in_multiple_actions(plan, param))
-
-        plan = self.move_grasp_moveholding
-        param = plan.params['robot_init_pose']
-        self.assertFalse(nas._param_in_multiple_actions(plan, param))
-        param = plan.params['target1']
-        self.assertFalse(nas._param_in_multiple_actions(plan, param))
-        param = plan.params['robot_end_pose']
-        self.assertTrue(nas._param_in_multiple_actions(plan, param))
-        param = plan.params['grasp0']
-        self.assertTrue(nas._param_in_multiple_actions(plan, param))
-        param = plan.params['can1']
-        self.assertTrue(nas._param_in_multiple_actions(plan, param))
-
     def test_compute_shared_timesteps(self):
         nas = NAMOADMMSolver()
         plan = self.move_no_obs
@@ -89,13 +68,13 @@ class TestADMMSolver(unittest.TestCase):
         plan = self.move_no_obs
         consensus_dict, nonconsensus_dict = nas._classify_variables(plan)
         param = plan.params['robot_init_pose']
-        self.assertTrue(param not in consensus_dict)
-        self.assertTrue(param in nonconsensus_dict)
-        self.assertTrue((0,0) in nonconsensus_dict[param])
+        self.assertTrue(param in consensus_dict)
+        self.assertTrue(param not in nonconsensus_dict)
+        self.assertTrue(0 in consensus_dict[param])
         param = plan.params['robot_end_pose']
-        self.assertTrue(param not in consensus_dict)
-        self.assertTrue(param in nonconsensus_dict)
-        self.assertTrue((0,0) in nonconsensus_dict[param])
+        self.assertTrue(param in consensus_dict)
+        self.assertTrue(param not in nonconsensus_dict)
+        self.assertTrue(0 in consensus_dict[param])
         param = plan.params['pr2']
         self.assertTrue(param not in consensus_dict)
         self.assertTrue(param in nonconsensus_dict)
@@ -113,9 +92,9 @@ class TestADMMSolver(unittest.TestCase):
         self.assertTrue((20,37) in nonconsensus_dict[param])
         self.assertTrue((39,57) in nonconsensus_dict[param])
         param = plan.params['target1']
-        self.assertTrue(param not in consensus_dict)
-        self.assertTrue(param in nonconsensus_dict)
-        self.assertTrue((0,0) in nonconsensus_dict[param])
+        self.assertTrue(param in consensus_dict)
+        self.assertTrue(param not in nonconsensus_dict)
+        self.assertTrue(0 in consensus_dict[param])
         param = plan.params['robot_end_pose']
         self.assertTrue(param in consensus_dict)
         self.assertTrue(param not in nonconsensus_dict)

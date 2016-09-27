@@ -113,16 +113,6 @@ class ADMMHelper(object):
         return admm_objs
 
 class NAMOADMMSolver(NAMOSolver):
-    def _param_in_multiple_actions(self, plan, param):
-        in_one_action = False
-        for action in plan.actions:
-            if param in action.params:
-                if in_one_action:
-                    return True
-                else:
-                    in_one_action = True
-        return False
-
     def _compute_shared_timesteps(self, plan):
         shared_timesteps = []
         unshared_ranges = []
@@ -145,9 +135,19 @@ class NAMOADMMSolver(NAMOSolver):
 
     def _classify_variables(self, plan):
         """
-        Returns a dictionary where the keys are parameters which contain
-        consensus variables and the values are the timesteps for the consensus
-        variables.
+        Returns two dictionaries, a consensus dictionary and a nonconsensus
+        dictionary. The purpose is to track the mapping between the plan
+        parameters and their local action counterparts.
+
+        consensus_dict: {parameter: {timestep: []}}
+        nonconsensus_dict: {parameter: {(start ts, end ts): None}}
+        The consensus dictionary keys and values are respectively a parameter
+        and a dictionary with the timestep as the key and a list as the value.
+        The nonconsensus dictionary keys and values are respectively a parameter
+        and a dictionary with a tuple indicating the time range as the key and
+        a value of None.
+
+        Note: symbols are assumed to be consensus variables.
         """
         consensus_dict = {}
         nonconsensus_dict = {}
@@ -156,12 +156,8 @@ class NAMOADMMSolver(NAMOSolver):
         unshared_ts_dict = {r: None for r in unshared_ranges}
         for param in plan.params.values():
             if param.is_symbol():
-                # loop through each symbolic parameter and check if its in multiple actions
-                if self._param_in_multiple_actions(plan, param):
-                    consensus_dict[param] = {0: []}
-                else:
-                    assert param not in nonconsensus_dict
-                    nonconsensus_dict[param] = {(0,0): None}
+                # assumes symbols are shared between different actions
+                consensus_dict[param] = {0: []}
             else:
                 # object parameters with shared timesteps are consensus variables
                 if len(shared_ts_dict) > 0:
@@ -183,7 +179,6 @@ class NAMOADMMSolver(NAMOSolver):
 
         solv = Solver()
         solv.initial_penalty_coeff = self.init_penalty_coeff
-        action_solvers = self._setup_action_solvers(plan)
         action_plans = plan.get_action_plans(consensus_dict, nonconsensus_dict)
         admm_help = ADMMHelper(consensus_dict, nonconsensus_dict)
         for i in range(MAX_ITERS):
