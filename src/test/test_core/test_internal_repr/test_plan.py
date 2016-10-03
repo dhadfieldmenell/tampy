@@ -21,6 +21,9 @@ class TestPlan(unittest.TestCase):
         attr_types = {"name": str, "geom": circle.RedCircle, "pose": Vector2d, "_type": str}
         self.can1 = parameter.Object(attrs, attr_types)
 
+        # setup for testing that get_action_plans doesn't modify _free_attrs
+        self.can1 = self.can1.copy(7)
+
         attrs = {"name": ["can2"], "geom": [1], "pose": [(3,4)], "_type": ["Can"]}
         attr_types = {"name": str, "geom": circle.RedCircle, "pose": Vector2d, "_type": str}
         self.can2 = parameter.Object(attrs, attr_types)
@@ -143,7 +146,13 @@ class TestPlan(unittest.TestCase):
         nonconsensus_dict[self.can1] = unshared_ts_dict.copy()
         nonconsensus_dict[self.can2] = unshared_ts_dict.copy()
 
+        old_free_attrs = self.can1._free_attrs['pose']
         plans = test_plan.get_action_plans(consensus_dict, nonconsensus_dict)
+        new_free_attrs = self.can1._free_attrs['pose']
+        # testing that get_action_plans doesn't change free_attrs
+        self.assertTrue(old_free_attrs.shape == new_free_attrs.shape)
+        self.assertTrue(np.allclose(old_free_attrs, new_free_attrs))
+
         act0_plan = plans[0]
         self.assertTrue(act0_plan.horizon == 6)
         act1_plan = plans[1]

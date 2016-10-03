@@ -163,7 +163,7 @@ class Plan(object):
 
             params_dict = {param_to_name[param]: param_copy \
                             for param, param_copy in action_param_to_copy.items()}
-            plan = Plan(params_dict, actions, horizon, self.env)
+            plan = Plan(params_dict, actions, horizon, self.env, determine_free=False)
             plans.append(plan)
 
             # update consensus dictionary
