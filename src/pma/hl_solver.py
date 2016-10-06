@@ -142,7 +142,6 @@ class FFSolver(HLSolver):
         params = self._spawn_plan_params(concr_prob, plan_horizon)
         actions = self._spawn_actions(plan_str, domain, params, plan_horizon, concr_prob, openrave_env)
         return Plan(params, actions, plan_horizon, openrave_env)
-        
 
     def _extract_horizon(self, plan_str, domain):
         hor = 1
@@ -190,17 +189,18 @@ class FFSolver(HLSolver):
                     assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
                     # if list(types) != pred_schema.expected_params:
                     #     import pdb; pdb.set_trace()
-                    pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)
+                    pred_params = [params[v] for v in val]
+                    pred = pred_schema.pred_class("placeholder", pred_params, pred_schema.expected_params, env=env)
                     ts = (p_d["active_timesteps"][0] + curr_h, p_d["active_timesteps"][1] + curr_h)
                     preds.append({"negated": p_d["negated"], "hl_info": p_d["hl_info"], "active_timesteps": ts, "pred": pred})
             # adding predicates from the hl state to action's preds
             action_pred_rep = [HLState.get_rep(pred_dict["pred"]) for pred_dict in preds]
-            for pred in hl_state.get_preds():
-                if HLState.get_rep(pred) not in action_pred_rep:
-                    preds.append({"negated": False, "hl_info": "hl_state", "active_timesteps": (curr_h, curr_h + a_schema.horizon - 1), "pred": pred})
-            # updating hl_state
+            # for pred in hl_state.get_preds():
+            #     if HLState.get_rep(pred) not in action_pred_rep:
+            #         preds.append({"negated": False, "hl_info": "hl_state", "active_timesteps": (curr_h, curr_h + a_schema.horizon - 1), "pred": pred})
             hl_state.update(preds)
-            actions.append(Action(step, a_name, (curr_h, curr_h + a_schema.horizon - 1), [params[arg] for arg in a_args], preds))
+            action = Action(step, a_name, (curr_h, curr_h + a_schema.horizon - 1), [params[arg] for arg in a_args], preds)
+            actions.append(action)
             curr_h += a_schema.horizon - 1
         return actions
 

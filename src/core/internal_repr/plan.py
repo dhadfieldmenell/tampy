@@ -154,7 +154,12 @@ class Plan(object):
             active_timesteps = a.active_timesteps
             start, end = active_timesteps
             action_param_to_copy = {}
-            for param in self.params.values():
+            plan_params = self.params.values()
+            for pred_dict in a.preds:
+                pred = pred_dict['pred']
+                for param in pred.params:
+                    assert param in plan_params
+            for param in plan_params:
                 param_copy = param.copy_ts(active_timesteps)
                 action_param_to_copy[param] = param_copy
 
