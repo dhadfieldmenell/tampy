@@ -666,7 +666,7 @@ class IsMP(ExprPredicate):
     def copy(self, param_to_copy):
         params = self._get_param_copy(param_to_copy)
         return IsMP(self.name, params, self.expected_param_types[:],
-                    env=self._env, debug=self._debug, dmove=self.dmove)
+                    env=self._env, debug=self._debug, dmove=self._dmove)
 
 def copy_pred_w_env_debug(pred, param_to_copy):
     params = pred._get_param_copy(param_to_copy)
