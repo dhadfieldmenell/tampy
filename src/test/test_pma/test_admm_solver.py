@@ -4,6 +4,7 @@ from pma import hl_solver
 from pma.admm_solver import ADMMHelper, NAMOADMMSolver
 from core.parsing import parse_domain_config
 from core.parsing import parse_problem_config
+from core.util_classes.viewer import OpenRAVEViewer
 
 class TestADMMSolver(unittest.TestCase):
     def setUp(self):
@@ -99,3 +100,36 @@ class TestADMMSolver(unittest.TestCase):
         self.assertTrue(param in consensus_dict)
         self.assertTrue(param not in nonconsensus_dict)
         self.assertTrue(0 in consensus_dict[param])
+
+    def test_move_no_obs(self):
+        plan = self.move_no_obs
+        _test_plan(self, self.move_no_obs, method='ADMM', plot=True,
+                   animate=True, verbose=True)
+
+def _test_plan(test_obj, plan, method='ADMM', plot=False, animate=False, verbose=False,
+               early_converge=False):
+    print "testing plan: {}".format(plan.actions)
+    if not plot:
+        callback = None
+        viewer = None
+    else:
+        viewer = OpenRAVEViewer.create_viewer()
+        if method=='ADMM':
+            def callback_solv_and_plan(solver, plan):
+                solver._update_ll_params()
+                viewer.draw_plan(plan)
+    admm_solver = NAMOADMMSolver()
+    start = time.time()
+    if method == 'ADMM':
+        admm_solver.solve(plan, n_resamples=0, callback=callback_solv_and_plan,
+                          verbose=verbose)
+    print "Solve Took: {}".format(time.time() - start)
+    fp = plan.get_failed_preds()
+    _, _, t = plan.get_failed_pred()
+    if animate:
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
+
+    test_obj.assertTrue(plan.satisfied())

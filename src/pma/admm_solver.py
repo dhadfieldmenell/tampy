@@ -7,8 +7,12 @@ from core.util_classes.matrix import Vector
 
 from pma.ll_solver import NAMOSolver
 
+import gurobipy as grb
+import numpy as np
 from collections import defaultdict
-from copy import deepcopy
+
+TOL = 1e-3
+RO = 300
 
 class ADMMHelper(object):
     def __init__(self, consensus_dict, nonconsensus_dict):
@@ -22,23 +26,23 @@ class ADMMHelper(object):
                 attr_type = param.get_attr_type(attr_name)
                 if issubclass(attr_type, Vector):
                     attr_val = getattr(param, attr_name)
-                    val = attr_val[:, ts]
                     dim = attr_type.dim
-                    for ts, triples in ts_to_triple.iteritems():
+                    for ts, triples in ts_to_triples.iteritems():
+                        val = attr_val[:, ts]
                         self._param_attr_ts_x_bar[param][attr_name][ts] = val
                         for plan, param_copy, local_ts in triples:
                             # adding entry in self._param_attr_ts_x_bar
                             self._lp_attr_lts_x_bar[param_copy][attr_name][local_ts] = val
-                            self._lp_attr_lts_y[param_copy][attr_name][local_ts] = np.zeros(3)
+                            self._lp_attr_lts_y[param_copy][attr_name][local_ts] = np.zeros(dim)
         """
         param_ts_(plan, param_copy, local_ts) is good for updates
         x_bar mapping param_copy, attr_name, local_ts
         y mapping param_copy, attr_name, local_ts
         """
-        self._consensus_dict = copy.deepcopy(consensus_dict)
-        self._nonconsensus_dict = copy.deepcopy(nonconsensus_dict)
+        self._consensus_dict = consensus_dict
+        self._nonconsensus_dict = nonconsensus_dict
 
-    def admm_step(self):
+    def admm_step(self, ro=RO):
         """
         Updates x_bar and y
         """
@@ -47,10 +51,10 @@ class ADMMHelper(object):
                 attr_type = param.get_attr_type(attr_name)
                 if issubclass(attr_type, Vector):
                     attr_val = getattr(param, attr_name)
-                    val = attr_val[:, ts]
                     dim = attr_type.dim
                     for ts, triples in ts_to_triple.iteritems():
-                        assert len(triples) >= 2
+                        val = attr_val[:, ts]
+                        # assert len(triples) >= 2
 
                         x_bar = np.zeros(dim)
                         for plan, param_copy, local_ts in triples:
@@ -77,13 +81,15 @@ class ADMMHelper(object):
                     p_attr[:, ts] = x_bar
 
     def _update_nonconsensus(self):
-        for param, ts_triple_dict in nonconsensus_dict.iteritems():
+        for param, ts_triple_dict in self._nonconsensus_dict.iteritems():
             for attr_name in param.__dict__.iterkeys():
                 attr_type = param.get_attr_type(attr_name)
                 if issubclass(attr_type, Vector):
                     for ts, triple in ts_triple_dict.iteritems():
                         start, end = ts
-                        triple = (plan, param_copy, (s, e))
+                        if triple is None:
+                            continue
+                        plan, param_copy, (s, e) = triple
                         p_attr = getattr(param, attr_name)
                         p_attr[:, start:end+1] = getattr(param_copy, attr_name)[:, s:e+1]
 
@@ -100,13 +106,13 @@ class ADMMHelper(object):
 
                 # QuadExpr is 0.5*x^Tx + Ax + b
                 Q = ro*np.eye(K)
-                A = np.transpose(yi - 2*x_bar)
+                A = (yi - 2*x_bar).reshape((1,K))
                 quad_expr = QuadExpr(Q, A, np.zeros((1,1)))
 
                 ll_attr_val = getattr(ll_param, attr_name)[:, local_ts]
 
                 param_ll_grb_vars = ll_attr_val.reshape((K, 1), order='F')
-                sco_var = Variable(param_ll_grb_vars, x_bar)
+                sco_var = Variable(param_ll_grb_vars, x_bar.reshape((K,1)))
                 bexpr = BoundExpr(quad_expr, sco_var)
                 admm_objs.append(bexpr)
 
@@ -166,47 +172,72 @@ class NAMOADMMSolver(NAMOSolver):
                     nonconsensus_dict[param] = unshared_ts_dict.copy()
         return consensus_dict, nonconsensus_dict
 
-    # http://stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf page 48
-    # Global variable consensus optimization
-    def admm_solve(self, plan, callback, verbose=False):
-        penalty_coeff = 1e2
-        consensus_trust = 0.1
-        eps_primal = 1e-3
-        eps_dual = 1e-3
-        ro = 300
-        MAX_ITERS = 5
-        consensus_dict, nonconsensus_dict = self._classify_variables(plan)
+    def _solve_opt_prob(self, plan, priority, ro=RO, callback=None, active_ts=None,
+                        verbose=False, resample=True):
+        """
+        Solves optimization problem of a plan at a given priority.
 
-        solv = Solver()
-        solv.initial_penalty_coeff = self.init_penalty_coeff
-        action_plans = plan.get_action_plans(consensus_dict, nonconsensus_dict)
-        admm_help = ADMMHelper(consensus_dict, nonconsensus_dict)
-        for i in range(MAX_ITERS):
-            for action_plan in action_plans:
-                self._solve_admm_subproblem(action_plan, admm_help)
+        callback(solver, plan) is a function that takes in the solver and plan
+        and plots the current solution.
+        """
+        # for priority -1 and 0, we use the default solve method (not ADMM)
+        def callback_no_args():
+            return callback(self, plan)
 
-            # compute x_bar and y's
-            admm_help.admm_step()
+        if priority == -1:
+            return super(NAMOADMMSolver, self)._solve_opt_prob(plan, priority=-1,
+                callback=callback_no_args, active_ts=active_ts, verbose=verbose,
+                resample=resample)
+        elif priority == 0:
+            callback = lambda: callback(self)
+            return super(NAMOADMMSolver, self)._solve_opt_prob(plan, priority=0,
+                callback=callback_no_args, active_ts=active_ts, verbose=verbose,
+                resample=resample)
+        elif priority == 1:
+            # http://stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf page 48
+            # Global variable consensus optimization
+            penalty_coeff = 1e2
+            consensus_trust = 0.1
+            eps_primal = 1e-3
+            eps_dual = 1e-3
+            MAX_ITERS = 5
+            consensus_dict, nonconsensus_dict = self._classify_variables(plan)
+
+            action_plans = plan.get_action_plans(consensus_dict, nonconsensus_dict)
+            admm_help = ADMMHelper(consensus_dict, nonconsensus_dict)
+            for i in range(MAX_ITERS):
+                for action_plan in action_plans:
+                    print "ADMM iteration {}".format(i)
+                    self._solve_admm_subproblem(action_plan, admm_help, ro=ro,
+                        verbose=verbose, callback=callback)
+
+                # compute x_bar and y's
+                admm_help.admm_step(ro=ro)
             # update variable values in the consensus variable optimization
             admm_help.update_params()
 
-    def _solve_admm_subproblem(self, plan, admm_help, ro):
+    def _solve_admm_subproblem(self, plan, admm_help, ro=RO, tol=TOL,
+                               verbose=False, callback=None):
+        def callback_no_args():
+            return callback(namo_solver, plan)
         active_ts = (0, plan.horizon-1)
         model = grb.Model()
         model.params.OutputFlag = 0
         namo_solver = NAMOSolver()
-        namo_solver._prob = Prob(model, callback=callback)
-        # param_to_ll_old = self._param_to_ll.copy()
+        namo_solver._prob = Prob(model, callback=callback_no_args)
         namo_solver._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
+        namo_solver._bexpr_to_pred = {}
 
         obj_bexprs = namo_solver._get_trajopt_obj(plan, active_ts)
-        cnt_bexprs = []
-        for param in plan.params:
+        for param in plan.params.values():
             ll_param = namo_solver._param_to_ll[param]
             admm_objs = admm_help.get_admm_exprs(param, ll_param, ro)
             obj_bexprs.extend(admm_objs)
         namo_solver._add_obj_bexprs(obj_bexprs)
+
+        namo_solver._add_all_timesteps_of_actions(plan, priority=1,
+            add_nonlin=True, active_ts=active_ts, verbose=verbose)
 
         solv = Solver()
         solv.initial_penalty_coeff = namo_solver.init_penalty_coeff
