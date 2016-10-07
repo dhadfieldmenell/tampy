@@ -102,9 +102,12 @@ class TestADMMSolver(unittest.TestCase):
         self.assertTrue(0 in consensus_dict[param])
 
     def test_move_no_obs(self):
-        plan = self.move_no_obs
         _test_plan(self, self.move_no_obs, method='ADMM', plot=True,
                    animate=True, verbose=True)
+
+    def test_move_grasp(self):
+        _test_plan(self, self.move_grasp, method='ADMM', plot=True,
+                   animate=True, verbose=False)
 
 def _test_plan(test_obj, plan, method='ADMM', plot=False, animate=False, verbose=False,
                early_converge=False):

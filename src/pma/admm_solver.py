@@ -106,7 +106,7 @@ class ADMMHelper(object):
 
                 # QuadExpr is 0.5*x^Tx + Ax + b
                 Q = ro*np.eye(K)
-                A = (yi - 2*x_bar).reshape((1,K))
+                A = (yi - ro*x_bar).reshape((1,K))
                 quad_expr = QuadExpr(Q, A, np.zeros((1,1)))
 
                 ll_attr_val = getattr(ll_param, attr_name)[:, local_ts]
@@ -189,7 +189,6 @@ class NAMOADMMSolver(NAMOSolver):
                 callback=callback_no_args, active_ts=active_ts, verbose=verbose,
                 resample=resample)
         elif priority == 0:
-            callback = lambda: callback(self)
             return super(NAMOADMMSolver, self)._solve_opt_prob(plan, priority=0,
                 callback=callback_no_args, active_ts=active_ts, verbose=verbose,
                 resample=resample)
@@ -219,7 +218,7 @@ class NAMOADMMSolver(NAMOSolver):
     def _solve_admm_subproblem(self, plan, admm_help, ro=RO, tol=TOL,
                                verbose=False, callback=None):
         def callback_no_args():
-            return callback(namo_solver, plan)
+            callback(namo_solver, plan)
         active_ts = (0, plan.horizon-1)
         model = grb.Model()
         model.params.OutputFlag = 0
