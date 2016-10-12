@@ -158,18 +158,16 @@ class NAMOADMMSolver(NAMOSolver):
         consensus_dict = {}
         nonconsensus_dict = {}
         shared_timesteps, unshared_ranges = self._compute_shared_timesteps(plan)
-        shared_ts_dict = {t: [] for t in shared_timesteps}
-        unshared_ts_dict = {r: None for r in unshared_ranges}
         for param in plan.params.values():
             if param.is_symbol():
                 # assumes symbols are shared between different actions
                 consensus_dict[param] = {0: []}
             else:
                 # object parameters with shared timesteps are consensus variables
-                if len(shared_ts_dict) > 0:
-                    consensus_dict[param] = shared_ts_dict.copy()
-                if len(unshared_ts_dict) > 0:
-                    nonconsensus_dict[param] = unshared_ts_dict.copy()
+                if len(shared_timesteps) > 0:
+                    consensus_dict[param] = {t: [] for t in shared_timesteps}
+                if len(unshared_ranges) > 0:
+                    nonconsensus_dict[param] = {r: None for r in unshared_ranges}
         return consensus_dict, nonconsensus_dict
 
     def _solve_opt_prob(self, plan, priority, ro=RO, callback=None, active_ts=None,

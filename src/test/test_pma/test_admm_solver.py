@@ -101,6 +101,18 @@ class TestADMMSolver(unittest.TestCase):
         self.assertTrue(param not in nonconsensus_dict)
         self.assertTrue(0 in consensus_dict[param])
 
+        # checks to ensure that modifying consensus_dict of a parameter doesn't
+        # modify the consensus_dict for another parameter
+        target1 = plan.params['target1']
+        consensus_dict[target1][0].append(3)
+        robot_end_pose = plan.params['robot_end_pose']
+        self.assertTrue(len(consensus_dict[robot_end_pose][0]) == 0)
+
+        pr2 = plan.params['pr2']
+        consensus_dict[pr2][19].append(3)
+        can1 = plan.params['can1']
+        self.assertTrue(len(consensus_dict[can1][19]) == 0)
+
     def test_move_no_obs(self):
         _test_plan(self, self.move_no_obs, method='ADMM', plot=True,
                    animate=True, verbose=True)
