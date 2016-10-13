@@ -67,18 +67,25 @@ class Action(object):
                 t_min = t
         return t_min
 
-    def copy(self, start_ts, param_copy_dict):
+    def copy(self, start_ts, param_copy_dict, preds=None):
         start, end = self.active_timesteps
         active_timesteps = start_ts, end - start + start_ts
         params = [param_copy_dict[param] for param in self.params]
-        preds = []
-        for pred_dict in self.preds:
+        if preds is None:
+            preds = self.preds
+        act_preds = []
+        for pred_dict in preds:
+            pred_start, pred_end = pred_dict['active_timesteps']
+            if pred_start > end or pred_end < start:
+                continue
+            pred_start = max(start, pred_start)
+            pred_end = min(end, pred_end)
+
             pred_dict_copy = {}
+            pred_dict_copy['active_timesteps'] = (pred_start - start + start_ts,
+                                                  pred_end - start + start_ts)
             pred_dict_copy['pred'] = pred_dict['pred'].copy(param_copy_dict)
             pred_dict_copy['negated'] = pred_dict['negated']
             pred_dict_copy['hl_info'] = pred_dict['hl_info']
-            pred_start, pred_end = pred_dict['active_timesteps']
-            pred_dict_copy['active_timesteps'] = (pred_start - start + start_ts,
-                                                  pred_end - start + start_ts)
-            preds.append(pred_dict_copy)
-        return Action(self.step_num, self.name, active_timesteps, params, preds)
+            act_preds.append(pred_dict_copy)
+        return Action(self.step_num, self.name, active_timesteps, params, act_preds)

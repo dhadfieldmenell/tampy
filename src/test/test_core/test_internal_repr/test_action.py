@@ -157,6 +157,40 @@ class TestAction(unittest.TestCase):
                 self.assertTrue(pred_copy_dict['hl_info'] == 'post')
                 self.assertTrue(pred_copy_dict['active_timesteps'] == (2,8))
 
+    def test_copy_with_preds_arg(self):
+        self.setup()
+        params = [self.robot, self.can1, self.can2, self.target, self.rpose]
+        #Precticates happened in sequences, pred0->pred1->pred2, pred1 and pred2, has a timestep of overlap
+        pred_dict = [{'pred': self.pred0, 'negated': False, 'hl_info': 'pre', 'active_timesteps': (1, 5)},
+                     {'pred': self.pred1, 'negated': True, 'hl_info': 'pre', 'active_timesteps': (4, 7)},
+                     {'pred': self.pred2, 'negated': False, 'hl_info': 'post', 'active_timesteps': (3, 9)}]
+        act = action.Action(4, 'test_action', (2,8), params, [])
+        assert act.preds == []
+        param_copy_dict = {p: p.copy_ts((2,8)) for p in params}
+        act_copy = act.copy(0, param_copy_dict, preds=pred_dict)
+        self.assertTrue(act_copy.step_num == act.step_num)
+        self.assertTrue(act_copy.name == act.name)
+        self.assertTrue(act_copy.active_timesteps == (0,6))
+        for p in params:
+            self.assertTrue(p not in act_copy.params)
+            self.assertTrue(param_copy_dict[p] in act_copy.params)
+        for pred_copy_dict in act_copy.preds:
+            pred = pred_copy_dict['pred']
+            if pred.name == "At_0": # pred0
+                self.assertFalse(pred == pred_dict[0])
+                self.assertTrue(pred_copy_dict['negated'] == False)
+                self.assertTrue(pred_copy_dict['hl_info'] == 'pre')
+                self.assertTrue(pred_copy_dict['active_timesteps'] == (0,3))
+            if pred.name == "At_1": # pred1
+                self.assertFalse(pred == pred_dict[1])
+                self.assertTrue(pred_copy_dict['negated'] == True)
+                self.assertTrue(pred_copy_dict['hl_info'] == 'pre')
+                self.assertTrue(pred_copy_dict['active_timesteps'] == (2,5))
+            if pred.name == "RobotAt_0": # pred2
+                self.assertFalse(pred == pred_dict[2])
+                self.assertTrue(pred_copy_dict['negated'] == False)
+                self.assertTrue(pred_copy_dict['hl_info'] == 'post')
+                self.assertTrue(pred_copy_dict['active_timesteps'] == (1,6))
 
 if __name__ == "__main__":
     unittest.main()
