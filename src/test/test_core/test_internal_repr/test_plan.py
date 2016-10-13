@@ -193,5 +193,25 @@ class TestPlan(unittest.TestCase):
         self.assertTrue(plan == plans[1])
         self.assertTrue(t_range_local == (3,4))
 
+        # timesteps with more than one action have the predicates from all the
+        # actions in those timesteps
+        # testing that self.pred1 in act0's predicates
+        pred1_in_act0 = False
+        act0 = act0_plan.actions[0]
+        for pred_dict in act0.preds:
+            if pred_dict['pred'].name == self.pred1.name:
+                pred1_in_act0 = True
+                self.assertTrue(pred_dict['active_timesteps'] == (3,5))
+        self.assertTrue(pred1_in_act0)
+
+        # testing that self.pred0 in act1's predicates
+        pred0_in_act1 = False
+        act1 = act1_plan.actions[0]
+        for pred_dict in act1.preds:
+            if pred_dict['pred'].name == self.pred0.name:
+                pred0_in_act1 = True
+                self.assertTrue(pred_dict['active_timesteps'] == (0,2))
+        self.assertTrue(pred0_in_act1)
+
 if __name__ == "__main__":
     unittest.main()

@@ -138,6 +138,9 @@ class Plan(object):
         Returns a list of one action plans and builds the consensus_dict and
         the nonconsensus_dict.
 
+        The one action plans includes predicates from other actions that it
+        shares timesteps with.
+
         The consensus_dict keeps track of the mapping from consensus variables
         to their local counterparts in the one action plans. The consensus_dict
         is a mapping from params to dictionaries which maps timesteps to a list
@@ -150,6 +153,10 @@ class Plan(object):
         """
         plans = []
         param_to_name = {param: name for name, param in self.params.items()}
+        all_preds = []
+        for a in self.actions:
+            all_preds.extend(a.preds)
+
         for a in self.actions:
             active_timesteps = a.active_timesteps
             start, end = active_timesteps
@@ -163,7 +170,7 @@ class Plan(object):
                 param_copy = param.copy_ts(active_timesteps)
                 action_param_to_copy[param] = param_copy
 
-            actions = [a.copy(0, action_param_to_copy)]
+            actions = [a.copy(0, action_param_to_copy, preds=all_preds)]
             horizon = end - start + 1
 
             params_dict = {param_to_name[param]: param_copy \
