@@ -1,0 +1,9 @@
+Put Kinematics folder in your ~/.openrave file so openrave can load the iksolver from it.
+
+This iksolver file has to match following model and openrave version
+
+1. Corresponding Baxter Model Hash: cc1f481618b80f78c7d4068a2a9b1212
+2. With Ikfast version: 69
+3. Corresponding Openrave Github commit: 38a20cf3a8c612efd8c3dfab9c6220ee7a273237
+
+
