@@ -60,7 +60,7 @@ class TestBaxter(unittest.TestCase):
         domain_fname = '../domains/baxter_domain/baxter.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        p_fname = '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob'
+        p_fname = '../domains/baxter_domain/baxter_probs/grasp.prob'
         p_c = main.parse_file_to_dict(p_fname)
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         params = problem.init_state.params
@@ -73,14 +73,16 @@ class TestBaxter(unittest.TestCase):
         baxter_body = view.name_to_rave_body["baxter"]
         can = can_body.env_body
         robot = baxter_body.env_body
-        import ipdb;ipdb.set_trace()
+        #
+        # iktype = IkParameterizationType.Transform6D
+        # manip = baxter_body.env_body.GetManipulator('right_arm')
+        #
+        # target_trans = can.GetTransform()
+        # target_trans[:3,:3]  = target_trans[:3,:3].dot(matrixFromAxisAngle([0, np.pi/2, 0])[:3,:3])
+        # can_trans = target_trans.copy()
+        # dof = robot.GetActiveDOFValues()
+        # solution =  manip.FindIKSolutions(IkParameterization(can_trans, iktype), IkFilterOptions.CheckEnvCollisions)
 
-        iktype = IkParameterizationType.Transform6D
-        manip = baxter_body.env_body.GetManipulator('right_arm')
-
-        target_trans = can.GetTransform()
-        target_trans[:3,:3]  = target_trans[:3,:3].dot(matrixFromAxisAngle([0, np.pi/2, 0])[:3,:3])
-        can_trans = target_trans.copy()
-        dof = robot.GetActiveDOFValues()
-        solution =  manip.FindIKSolutions(IkParameterization(can_trans, iktype), IkFilterOptions.CheckEnvCollisions)
+        can_pose = OpenRAVEBody.obj_pose_from_transform(can.GetTransform())
+        solution = baxter_body.get_ik_from_pose(can_pose[:3], can_pose[3:], "right_arm")
         import ipdb;ipdb.set_trace()

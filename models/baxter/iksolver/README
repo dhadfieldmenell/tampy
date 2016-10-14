@@ -6,4 +6,6 @@ This iksolver file has to match following model and openrave version
 2. With Ikfast version: 69
 3. Corresponding Openrave Github commit: 38a20cf3a8c612efd8c3dfab9c6220ee7a273237
 
-
+Note: baxter.dae was uploaded through github lfs. Pull this file can be done by
+  1. installing git lfs
+  2. type git lfs pull on the terminal. 

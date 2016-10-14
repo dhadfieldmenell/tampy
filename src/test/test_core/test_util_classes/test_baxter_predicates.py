@@ -164,46 +164,42 @@ class TestBaxterPredicates(unittest.TestCase):
         if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, tol)
 
     def test_ee_reachable(self):
-
+        # InGripper, Robot, Can
+        debug = False
         tol = 1e-4
         TEST_GRAD = True
-        # InGripper, Robot, Can
         robot = ParamSetup.setup_baxter()
         test_env = ParamSetup.setup_env()
         rPose = ParamSetup.setup_baxter_pose()
         ee_pose = ParamSetup.setup_pr2_ee_pose()
-        test_env.SetViewer("qtcoin")
+        if debug == True:
+            test_env.SetViewer("qtcoin")
         pred = baxter_predicates.BaxterEEReachablePos("ee_reachable", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
         pred2 = baxter_predicates.BaxterEEReachableRot("ee_reachable_rot", [robot, rPose, ee_pose], ["Robot", "RobotPose", "EEPose"], test_env)
+        baxter = pred._param_to_body[robot]
         # Since this predicate is not yet concrete
         self.assertFalse(pred.test(0))
 
-        ee_pose.value = np.array([[0.89, -0.2 ,  1.1]]).T
+        ee_pose.value = np.array([[1.2, -0.1, 0.925]]).T
         ee_pose.rotation = np.array([[0,0,0]]).T
+        ee_pos = ParamSetup.setup_green_can()
+        ee_body = OpenRAVEBody(test_env, "EE_Pose", ee_pos.geom)
+        ee_body.set_pose(ee_pose.value[:, 0], ee_pose.rotation[:, 0])
 
         robot.lArmPose = np.zeros((7,7))
-        robot.lGripper = np.zeros((1,7))
-        robot.rGripper = np.array([[0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02]])
+        robot.lGripper = np.ones((1, 7))*0.02
+        robot.rGripper = np.ones((1, 7))*0.02
         robot.pose = np.zeros((1,7))
         robot.rArmPose = np.zeros((7,7))
-
         # initialized pose value is not right
         self.assertFalse(pred.test(0))
-        # This is not how this is tested
-        robot.rArmPose = np.array([[ 0.        , -0.98168334,  1.20241144,  2.38438119, -2.82705195,
-         1.2524266 ,  2.46695004],
-         [ 0.        , -0.98168334,  1.20241144,  2.38438119, -2.82705195,
-         1.2524266 ,  2.46695004],
-         [ 0.        , -0.98168334,  1.20241144,  2.38438119, -2.82705195,
-         1.2524266 ,  2.46695004],
-         [ 0.        , -0.98168334,  1.20241144,  2.38438119, -2.82705195,
-         1.2524266 ,  2.46695004],
-         [ 0.        , -0.98168334,  1.20241144,  2.38438119, -2.82705195,
-         1.2524266 ,  2.46695004],
-         [ 0.        , -0.98168334,  1.20241144,  2.38438119, -2.82705195,
-         1.2524266 ,  2.46695004],
-         [ 0.        , -0.98168334,  1.20241144,  2.38438119, -2.82705195,
-         1.2524266 ,  2.46695004]])
+
+        # Find IK Solution
+        solution = baxter.get_ik_from_pose([1.2, -0.1, 0.925], [0,0,0], "right_arm")
+        robot.rArmPose = np.repeat(solution[3].reshape((7,1)), 7, axis=1)
+
+        dof_value_map = {"lArmPose": robot.lArmPose[:,0], "lGripper": robot.lGripper[:,0], "rArmPose": robot.rArmPose[:,0], "rGripper":robot.rGripper[:,0]}
+        baxter.set_dof(dof_value_map)
         # self.assertTrue(pred2.test(0))
         # check the gradient of the implementations (correct)
         if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(3), True, tol)

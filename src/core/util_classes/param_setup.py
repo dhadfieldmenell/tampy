@@ -54,24 +54,24 @@ class ParamSetup(object):
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
         attr_types = {"name": str, "value": matrix.Value, "_type": str, "geom": robots.Baxter, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
         robot = parameter.Symbol(attrs, attr_types)
-        return robot    
+        return robot
 
     @staticmethod
-    def setup_green_can(name = "green_can",  geom = (0.04,0.25)):
+    def setup_green_can(name = "green_can",  geom = (0.02,0.25)):
         attrs = {"name": [name], "geom": geom, "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
         attr_types = {"name": str, "geom": can.GreenCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         can_obj = parameter.Object(attrs, attr_types)
         return can_obj
 
     @staticmethod
-    def setup_blue_can(name = "blue_can",  geom = (0.04,0.25)):
+    def setup_blue_can(name = "blue_can",  geom = (0.02,0.25)):
         attrs = {"name": [name], "geom": geom, "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
         attr_types = {"name": str, "geom": can.BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         can_obj = parameter.Object(attrs, attr_types)
         return can_obj
 
     @staticmethod
-    def setup_red_can(name = "red_can", geom = (0.04,0.25)):
+    def setup_red_can(name = "red_can", geom = (0.02,0.25)):
         attrs = {"name": [name], "geom": geom, "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
         attr_types = {"name": str, "geom": can.RedCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         can_obj = parameter.Object(attrs, attr_types)
