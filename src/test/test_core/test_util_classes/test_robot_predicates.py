@@ -88,6 +88,46 @@ class TestRobotPredicates(unittest.TestCase):
         self.assertFalse(pred.test(time = 2))
         self.assertTrue(pred.test(time = 3))
 
+    def test_stationaryNeq(self):
+        can = ParamSetup.setup_blue_can()
+        can_held = ParamSetup.setup_green_can()
+        pred = robot_predicates.StationaryNEq("test_stay", [can, can_held], ["Can", "Can"])
+        self.assertEqual(pred.get_type(), "StationaryNeq")
+        # Since pose of can is undefined, predicate is not concrete
+        self.assertFalse(pred.test(0))
+        can.pose = np.array([[0], [0], [0]])
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(0)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary blue_can)' at the timestep.")
+        can.rotation = np.array([[1, 1, 1, 4, 4],
+                                      [2, 2, 2, 5, 5],
+                                      [3, 3, 3, 6, 6]])
+        can.pose = np.array([[1, 2],
+                                  [4, 4],
+                                  [5, 7]])
+        self.assertFalse(pred.test(time = 0))
+        can.pose = np.array([[1, 1, 2],
+                                  [2, 2, 2],
+                                  [3, 3, 7]])
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(1))
+        with self.assertRaises(PredicateException) as cm:
+            pred.test(time=2)
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_stay: (Stationary blue_can)' at the timestep.")
+        can.pose = np.array([[1, 4, 5, 5, 5],
+                                  [2, 5, 6, 6, 6],
+                                  [3, 6, 7, 7, 7]])
+        self.assertFalse(pred.test(time = 0))
+        self.assertFalse(pred.test(time = 1))
+        self.assertFalse(pred.test(time = 2))
+        self.assertTrue(pred.test(time = 3))
+
+        pred2 = robot_predicates.StationaryNEq("test_stay", [can, can], ["Can", "Can"])
+        self.assertTrue(pred.test(time = 0))
+        self.assertTrue(pred.test(time = 1))
+        self.assertTrue(pred.test(time = 2))
+        self.assertTrue(pred.test(time = 3))
+
     def test_stationary_w(self):
         table = ParamSetup.setup_box()
         pred = robot_predicates.StationaryW("test_stay_w", [table], ["Table"])

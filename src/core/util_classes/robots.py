@@ -53,15 +53,14 @@ class Baxter(Robot):
         super(Baxter, self).__init__(baxter_shape)
 
     def setup(self, robot):
+
       from openravepy import IkParameterizationType, databases
       manip = robot.GetManipulator('right_arm')
       iktype = IkParameterizationType.Transform6D
       ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
-
       if not ikmodel.load():
           print 'Something went wrong'
-          import ipdb;ipdb.set_trace()
-          # ikmodel.autogenerate()
+        #   ikmodel.autogenerate()
 
       ikmodel.manip = robot.GetManipulator('right_arm')
       manip.SetIkSolver(ikmodel.iksolver)
