@@ -155,10 +155,10 @@ class Move(Action):
             # ('(BaxterStationaryArms ?robot)', '0:{s}'.format(end-1)),
             # ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             # ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
-            # ('(forall (?w - Obstacle)\
-            #     (forall (?obj - Can)\
-            #         (not (BaxterCollides ?obj ?w))\
-            #     ))','0:19'),
+            ('(forall (?w - Obstacle)\
+                (forall (?obj - Can)\
+                    (not (BaxterCollides ?obj ?w))\
+                ))','0:19'),
             ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '0:{}'.format(end))
         ]
         self.eff = [\
