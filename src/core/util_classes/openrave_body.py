@@ -37,6 +37,7 @@ class OpenRAVEBody(object):
             self._add_box(geom)
         else:
             raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
+        self.set_transparency(0.7)
 
     def delete(self):
         self._env.Remove(self.env_body)
@@ -398,8 +399,12 @@ class OpenRAVEBody(object):
 
     def get_ik_arm_pose(self, pos, rot):
         assert isinstance(self._geom, PR2)
+        solutions = self.get_ik_from_pose(pos, rot, 'rightarm_torso')
+        return solutions
+
+    def get_ik_from_pose(self, pos, rot, manip_name):
         trans = OpenRAVEBody.get_ik_transform(pos, rot)
-        solutions = self.get_ik_solutions('rightarm_torso', trans)
+        solutions = self.get_ik_solutions(manip_name, trans)
         return solutions
 
     def get_ik_solutions(self, manip_name, trans):
