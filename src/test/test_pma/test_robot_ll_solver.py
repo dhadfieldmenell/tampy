@@ -42,7 +42,7 @@ class TestRobotLLSolver(unittest.TestCase):
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
         self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/move_1234_3.prob')
-        # self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
+        self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
         # self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
 
 
@@ -57,11 +57,14 @@ class TestRobotLLSolver(unittest.TestCase):
         else:
             self.viewer = None
 
+    # def test_move_prob(self):
+    #     _test_plan(self, self.move_prob)
+
     def test_move_prob(self):
-        _test_plan(self, self.move_prob)
+        _test_plan(self, self.grab_prob)
 
     # def test_grasp_prob(self):
-        # _test_plan(self, self.simple_grab_prob)
+    #     _test_resampling(self, self.grab_prob)
 
 
     # def test_grasp_resampling(self):
@@ -148,12 +151,12 @@ def _test_resampling(test_obj, plan, n_resamples=0):
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
     #
-    # if viewer != None:
-    #     viewer = OpenRAVEViewer.create_viewer()
-    #     viewer.animate_plan(plan)
-    #     if t < plan.horizon:
-    #         viewer.draw_plan_ts(plan, t)
-
+    if viewer != None:
+        viewer = OpenRAVEViewer.create_viewer()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
+    import ipdb;ipdb.set_trace()
     print(plan.satisfied())
 
 
