@@ -3,6 +3,7 @@ from errors_exceptions import DomainConfigException
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 
+import h5py
 import numpy as np
 
 class Parameter(object):
