@@ -12,7 +12,7 @@ import numpy as np
 from collections import defaultdict
 
 TOL = 1e-3
-RO = 300
+RO = 30
 
 class ADMMHelper(object):
     def __init__(self, consensus_dict, nonconsensus_dict):
@@ -42,11 +42,12 @@ class ADMMHelper(object):
         self._consensus_dict = consensus_dict
         self._nonconsensus_dict = nonconsensus_dict
 
-    def admm_step(self, ro=RO):
+    def admm_step(self, ro=RO, verbose=False):
         """
         Updates x_bar and y
         """
         for param, ts_to_triple in self._consensus_dict.iteritems():
+            if verbose: print "param: {}".format(param.name)
             for attr_name in param.__dict__.iterkeys():
                 attr_type = param.get_attr_type(attr_name)
                 if issubclass(attr_type, Vector):
@@ -60,6 +61,8 @@ class ADMMHelper(object):
                         if len(triples) == 0:
                             continue
                         for plan, param_copy, local_ts in triples:
+                            if verbose:
+                                print getattr(param_copy, attr_name)[:, local_ts]
                             x_bar += getattr(param_copy, attr_name)[:, local_ts]
                         x_bar = x_bar/len(triples)
                         self._param_attr_ts_x_bar[param][attr_name][ts] = x_bar
@@ -172,6 +175,33 @@ class NAMOADMMSolver(NAMOSolver):
                     nonconsensus_dict[param] = {r: None for r in unshared_ranges}
         return consensus_dict, nonconsensus_dict
 
+    def solve(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, force_init=False):
+        success = False
+
+        if force_init or not plan.initialized:
+             ## solve at priority -1 to get an initial value for the parameters
+            success = self._solve_opt_prob(plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose)
+            if not success:
+                return success
+            plan.initialized=True
+        success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+        success = self._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
+        success = plan.satisfied(active_ts)
+        if success:
+            return success
+
+
+        for _ in range(n_resamples):
+        ## refinement loop
+            ## priority 0 resamples the first failed predicate in the plan
+            ## and then solves a transfer optimization that only includes linear constraints
+            self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = plan.satisfied(active_ts)
+            if success:
+                return success
+        return success
+
     def _solve_opt_prob(self, plan, priority, ro=RO, callback=None, active_ts=None,
                         verbose=False, resample=True):
         """
@@ -182,6 +212,13 @@ class NAMOADMMSolver(NAMOSolver):
         """
         # for priority -1 and 0, we use the default solve method (not ADMM)
         def callback_no_args():
+            self._update_ll_params()
+            return callback(self, plan)
+
+        def callback_no_args_admm():
+            # no update because LL params aren't updated during the admm solve.
+            # The update will cause the plan to have the values from the
+            # initialization.
             return callback(self, plan)
 
         if priority == -1:
@@ -193,6 +230,36 @@ class NAMOADMMSolver(NAMOSolver):
                 callback=callback_no_args, active_ts=active_ts, verbose=verbose,
                 resample=resample)
         elif priority == 1:
+
+            ## active_ts is the inclusive timesteps to include
+            ## in the optimization
+            if active_ts==None:
+                active_ts = (0, plan.horizon-1)
+
+            model = grb.Model()
+            model.params.OutputFlag = 0
+            self._prob = Prob(model, callback=callback_no_args)
+            # param_to_ll_old = self._param_to_ll.copy()
+            self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
+            model.update()
+
+            self._bexpr_to_pred = {}
+
+            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
+            self._add_obj_bexprs(obj_bexprs)
+            self._add_first_and_last_timesteps_of_actions(
+                plan, priority=1, add_nonlin=True, verbose=verbose)
+            self._add_all_timesteps_of_actions(
+                plan, priority=0, add_nonlin=False, verbose=verbose)
+
+            solv = Solver()
+            solv.initial_penalty_coeff = self.init_penalty_coeff
+            success = solv.solve(self._prob, method='penalty_sqp', tol=1e-2, verbose=verbose)
+            self._update_ll_params()
+            self._failed_groups = self._prob.nonconverged_groups
+            return success
+
+        elif priority == 2:
             # http://stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf page 48
             # Global variable consensus optimization
             penalty_coeff = 1e2
@@ -205,19 +272,22 @@ class NAMOADMMSolver(NAMOSolver):
             action_plans = plan.get_action_plans(consensus_dict, nonconsensus_dict)
             admm_help = ADMMHelper(consensus_dict, nonconsensus_dict)
             for i in range(MAX_ITERS):
+                if verbose: print "ADMM iteration {}".format(i)
                 for action_plan in action_plans:
-                    print "ADMM iteration {}".format(i)
                     self._solve_admm_subproblem(action_plan, admm_help, ro=ro,
                         verbose=verbose, callback=callback)
 
                 # compute x_bar and y's
                 admm_help.admm_step(ro=ro)
+                admm_help.update_params()
+                callback_no_args_admm()
             # update variable values in the consensus variable optimization
             admm_help.update_params()
 
     def _solve_admm_subproblem(self, plan, admm_help, ro=RO, tol=TOL,
                                verbose=False, callback=None):
         def callback_no_args():
+            namo_solver._update_ll_params()
             callback(namo_solver, plan)
         active_ts = (0, plan.horizon-1)
         model = grb.Model()

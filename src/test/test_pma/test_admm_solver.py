@@ -121,6 +121,10 @@ class TestADMMSolver(unittest.TestCase):
         _test_plan(self, self.move_grasp, method='ADMM', plot=True,
                    animate=True, verbose=False)
 
+    def test_move_holding(self):
+        _test_plan(self, self.move_grasp_moveholding, method='ADMM', plot=True,
+                   animate=True, verbose=False)
+
 def _test_plan(test_obj, plan, method='ADMM', plot=False, animate=False, verbose=False,
                early_converge=False):
     print "testing plan: {}".format(plan.actions)
@@ -130,9 +134,12 @@ def _test_plan(test_obj, plan, method='ADMM', plot=False, animate=False, verbose
     else:
         viewer = OpenRAVEViewer.create_viewer()
         if method=='ADMM':
-            def callback_solv_and_plan(solver, plan):
-                solver._update_ll_params()
+            def callback_solv_and_plan(solver, plan, plot_cols=False):
+                # solver._update_ll_params()
                 viewer.draw_plan(plan)
+                time.sleep(.1)
+                if plot_cols:
+                    viewer.draw_cols(plan)
     admm_solver = NAMOADMMSolver()
     start = time.time()
     if method == 'ADMM':
