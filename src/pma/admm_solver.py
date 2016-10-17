@@ -57,6 +57,8 @@ class ADMMHelper(object):
                         # assert len(triples) >= 2
 
                         x_bar = np.zeros(dim)
+                        if len(triples) == 0:
+                            continue
                         for plan, param_copy, local_ts in triples:
                             x_bar += getattr(param_copy, attr_name)[:, local_ts]
                         x_bar = x_bar/len(triples)
@@ -66,7 +68,7 @@ class ADMMHelper(object):
                             self._lp_attr_lts_x_bar[param_copy][attr_name][local_ts] = x_bar
                             y_old = self._lp_attr_lts_y[param_copy][attr_name][local_ts]
                             x = getattr(param_copy, attr_name)[:, local_ts]
-                            y = y_old + ro*(x_bar - x)
+                            y = y_old + ro*(x - x_bar)
                             self._lp_attr_lts_y[param_copy][attr_name][local_ts] = y
 
     def update_params(self):
