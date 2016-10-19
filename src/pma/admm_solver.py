@@ -13,7 +13,7 @@ from numpy.linalg import norm
 from collections import defaultdict
 
 TOL = 1e-3
-RO = 30
+RO = 300
 EPS_PRIMAL = 1e-5
 EPS_DUAL = 1e-5
 MAX_ADMM_ITERS = 100

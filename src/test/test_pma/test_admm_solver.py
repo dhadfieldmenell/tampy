@@ -125,6 +125,18 @@ class TestADMMSolver(unittest.TestCase):
         _test_plan(self, self.move_grasp_moveholding, method='ADMM', plot=True,
                    animate=True, verbose=False)
 
+    def test_place(self):
+        _test_plan(self, self.place, method='ADMM', plot=True,
+                   animate=True, verbose=False)
+
+    def test_putaway(self):
+        _test_plan(self, self.putaway, method='ADMM', plot=True,
+                   animate=True, verbose=False)
+
+    def test_putaway3(self):
+        _test_plan(self, self.putaway3, method='ADMM', plot=True,
+                   animate=True, verbose=False)
+
 def _test_plan(test_obj, plan, method='ADMM', plot=False, animate=False, verbose=False,
                early_converge=False):
     print "testing plan: {}".format(plan.actions)
