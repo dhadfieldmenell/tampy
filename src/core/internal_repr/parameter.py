@@ -3,6 +3,7 @@ from errors_exceptions import DomainConfigException
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 
+import h5py
 import numpy as np
 
 class Parameter(object):
@@ -111,6 +112,14 @@ class Object(Parameter):
             else:
                 setattr(new, attr_name, v)
         return new
+
+    def write_to_hdf5(self, file_name):
+        hdf5_file = h5py.File(file_name, 'w')
+        group = hdf5_file.create_group('trajectory')
+        for attr_name, value in self.__dict__.items():
+            if issubclass(self.get_attr_type(attr_name), Vector):
+                group.create_dataset(attr_name, data=value)
+        hdf5_file.close()
 
 class Symbol(Parameter):
     """
