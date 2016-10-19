@@ -37,18 +37,23 @@ class TestBaxter(unittest.TestCase):
         To check whether baxter ik model works, uncomment the following
         """
         # env.SetViewer('qtcoin')
-        # for theta in thetas:
-        #     can_trans[:3,:3] = target_trans[:3,:3].dot(matrixFromAxisAngle([theta,0,0])[:3,:3])
-        #     solution =  manip.FindIKSolutions(IkParameterization(can_trans, iktype), IkFilterOptions.CheckEnvCollisions)
-        #     if len(solution) > 0:
-        #         print OpenRAVEBody.obj_pose_from_transform(can_trans)
-        #     for sols in solution:
-        #         dof[10:17] = sols
-        #         robot.SetActiveDOFValues(dof)
-        #         time.sleep(.2)
-        #         body_trans[:3,:3] = can_trans[:3,:3].dot(matrixFromAxisAngle([0, -np.pi/2, 0])[:3,:3])
-        #         can_body.env_body.SetTransform(body_trans)
-        #         import ipdb; ipdb.set_trace()
+        for theta in thetas:
+            can_trans[:3,:3] = target_trans[:3,:3].dot(matrixFromAxisAngle([theta,0,0])[:3,:3])
+            solution =  manip.FindIKSolutions(IkParameterization(can_trans, iktype), IkFilterOptions.CheckEnvCollisions)
+            if len(solution) > 0:
+                print "Solution found with pose and rotation:"
+                print OpenRAVEBody.obj_pose_from_transform(can_trans)
+            else:
+                print "Solution not found with pose and rotation:"
+                print OpenRAVEBody.obj_pose_from_transform(can_trans)
+            for sols in solution:
+                dof[10:17] = sols
+                robot.SetActiveDOFValues(dof)
+                time.sleep(.2)
+                body_trans[:3,:3] = can_trans[:3,:3].dot(matrixFromAxisAngle([0, -np.pi/2, 0])[:3,:3])
+                can_body.env_body.SetTransform(body_trans)
+                self.assertTrue(np.allclose([0.9,-0.23,0.93], manip.GetTransform()[:3,3]))
+                # import ipdb; ipdb.set_trace()
 
     def test_can_world(self):
         import main
@@ -60,7 +65,7 @@ class TestBaxter(unittest.TestCase):
         domain_fname = '../domains/baxter_domain/baxter.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        p_fname = '../domains/baxter_domain/baxter_probs/grasp.prob'
+        p_fname = '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob'
         p_c = main.parse_file_to_dict(p_fname)
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         params = problem.init_state.params
@@ -75,5 +80,13 @@ class TestBaxter(unittest.TestCase):
         robot = baxter_body.env_body
 
         can_pose = OpenRAVEBody.obj_pose_from_transform(can.GetTransform())
-        solution = baxter_body.get_ik_from_pose(can_pose[:3], can_pose[3:], "right_arm")
+        solution = baxter_body.get_ik_from_pose(can_pose[:3] + np.array([-0.2,0,0]), can_pose[3:], "right_arm")
+        # solution = baxter_body.get_ik_from_pose(can_pose[:3], can_pose[3:], "right_arm")
+        print "Feasible Right Arm Pose Would be:"
+        print np.round(solution[0], 3)
+        print "Coresponding can pose is:"
+        print params["can0"].pose.flatten()
+        dof = robot.GetActiveDOFValues()
+        dof[-8:-1] = solution[0]
+        robot.SetActiveDOFValues(dof)
         import ipdb;ipdb.set_trace()
