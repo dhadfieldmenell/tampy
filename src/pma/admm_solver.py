@@ -286,6 +286,7 @@ class NAMOADMMSolver(NAMOSolver):
 
             action_plans = plan.get_action_plans(consensus_dict, nonconsensus_dict)
             admm_help = ADMMHelper(consensus_dict, nonconsensus_dict)
+            callback(self, plan, clear=True)
             for i in range(MAX_ADMM_ITERS):
                 if verbose: print "ADMM iteration {}".format(i)
                 for action_plan in action_plans:

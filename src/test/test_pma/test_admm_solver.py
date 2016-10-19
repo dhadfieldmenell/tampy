@@ -134,12 +134,13 @@ def _test_plan(test_obj, plan, method='ADMM', plot=False, animate=False, verbose
     else:
         viewer = OpenRAVEViewer.create_viewer()
         if method=='ADMM':
-            def callback_solv_and_plan(solver, plan, plot_cols=False):
+            def callback_solv_and_plan(solver, plan, plot_cols=False, clear=False):
                 # solver._update_ll_params()
                 viewer.draw_plan(plan)
                 time.sleep(.1)
                 if plot_cols:
                     viewer.draw_cols(plan)
+                if clear: viewer.clear()
     admm_solver = NAMOADMMSolver()
     start = time.time()
     if method == 'ADMM':
