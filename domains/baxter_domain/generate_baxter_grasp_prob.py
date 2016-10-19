@@ -7,9 +7,11 @@ SEED = 1234
 NUM_PROBS = 5
 NUM_CANS = 1 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
 NUM_TARGETS = 1
-filename = "baxter_probs/move"
+filename = "baxter_probs/grasp"
 assert NUM_CANS <= NUM_TARGETS
-GOAL = "(BaxterRobotAt baxter robot_end_pose)"
+# GOAL = "(BaxterRobotAt baxter robot_end_pose)"
+# GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
 CAN_RADIUS = 0.02
@@ -19,11 +21,11 @@ DIST_BETWEEN_CANS = 0.01
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]
 Baxter_END_POSE = [1.57]
-R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
+R_ARM_INIT = [ 1.,   -0.723, 0.131, 1.977,-2.829, 1.294, 2.951]
 L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 Baxter_END_LARM = [-np.pi/10,-np.pi/3,-np.pi/4,np.pi/4,np.pi/2,-np.pi/4,np.pi/4]
-Baxter_END_RARM = [np.pi/10, -np.pi/3,np.pi/4,np.pi/4,np.pi/2,np.pi/4,np.pi/4]
-INT_GRIPPER = [0]
+Baxter_END_RARM = [ 0.5  , -0.881,  0.814,  1.669, -2.672,  0.864,  2.308]
+INT_GRIPPER = [0.02]
 END_GRIPPER = [0.02]
 
 ROBOT_DIST_FROM_TABLE = 0.05
@@ -115,16 +117,16 @@ def main():
         for i in range(NUM_TARGETS):
             target_pos = target_gen.next()
             s += "(geom target{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
-            s += "(value target{} {}), ".format(i, target_pos)
+            s += "(value target{} {}), ".format(i, [1.1, -0.1, 0.925])
             s += "(rotation target{} {}),".format(i, CAN_ROTATION_INIT)
-            s += "(value pdp_target{} undefined)".format(i)
+            s += "(value pdp_target{} undefined), ".format(i)
             s += get_baxter_undefined_attrs_str("pdp_target{}".format(i))
             s += "(value ee_target{} undefined), ".format(i)
             s += "(rotation ee_target{} undefined), ".format(i)
 
             if i < NUM_CANS:
                 s += "(geom can{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
-                s += "(pose can{} {}), ".format(i, target_pos)
+                s += "(pose can{} {}), ".format(i, [1.1, -0.1, 0.925])
                 s += "(rotation can{} {}),".format(i, CAN_ROTATION_INIT)
                 # s += "(value gp_can{} undefined), ".format(i)
         s += "(geom {}), ".format("baxter")
@@ -139,7 +141,7 @@ def main():
 
         # table pose
         z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT
-        s += "(pose {} [0.75, 0.02, {}]), ".format("table", z)
+        s += "(pose {} [1, 0.02, {}]), ".format("table", z)
         s += "(rotation {} {}), ".format("table", CAN_ROTATION_INIT)
         s += "(geom {} {}); ".format("table", TABLE_GEOM)
 
@@ -151,11 +153,13 @@ def main():
             # s += "(InContact baxter gp_can{} target{}), ".format(i, i)
             # s += "(GraspValid gp_can{} target{} grasp0), ".format(i, i)
         for i in range(NUM_TARGETS):
-            s += "(BaxterInContact baxter ee_target{} target{}), ".format(i, i)
-            s += "(BaxterGraspValidPos ee_target{} target{}), ".format(i, i)
-            s += "(BaxterGraspValidRot ee_target{} target{}), ".format(i, i)
+            # s += "(BaxterInContact baxter ee_target{} target{}), ".format(i, i)
+            # s += "(BaxterGraspValidPos ee_target{} target{}), ".format(i, i)
+            # s += "(BaxterGraspValidRot ee_target{} target{}), ".format(i, i)
             s += "(BaxterEEReachablePos baxter pdp_target{} ee_target{}), ".format(i, i)
             s += "(BaxterEEReachableRot baxter pdp_target{} ee_target{}), ".format(i, i)
+        # s += "(BaxterInGripperPos baxter can0), "
+        s += "(BaxterInGripperRot baxter can0), "
         s += "(BaxterRobotAt baxter robot_init_pose), "
         # s += "(BaxterStationaryArms baxter), "
         # s += "(BaxterStationaryBase baxter), "
