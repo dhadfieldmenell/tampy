@@ -73,15 +73,6 @@ class TestBaxter(unittest.TestCase):
         baxter_body = view.name_to_rave_body["baxter"]
         can = can_body.env_body
         robot = baxter_body.env_body
-        #
-        # iktype = IkParameterizationType.Transform6D
-        # manip = baxter_body.env_body.GetManipulator('right_arm')
-        #
-        # target_trans = can.GetTransform()
-        # target_trans[:3,:3]  = target_trans[:3,:3].dot(matrixFromAxisAngle([0, np.pi/2, 0])[:3,:3])
-        # can_trans = target_trans.copy()
-        # dof = robot.GetActiveDOFValues()
-        # solution =  manip.FindIKSolutions(IkParameterization(can_trans, iktype), IkFilterOptions.CheckEnvCollisions)
 
         can_pose = OpenRAVEBody.obj_pose_from_transform(can.GetTransform())
         solution = baxter_body.get_ik_from_pose(can_pose[:3], can_pose[3:], "right_arm")

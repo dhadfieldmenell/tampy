@@ -165,7 +165,12 @@ class TestBaxterPredicates(unittest.TestCase):
 
     def test_ee_reachable(self):
         # InGripper, Robot, Can
-        debug = False
+
+        APPROACH_DIST = 0.05
+        RETREAT_DIST = 0.075
+        EEREACHABLE_STEPS = 3
+
+        debug = True
         tol = 1e-4
         TEST_GRAD = True
         robot = ParamSetup.setup_baxter()
@@ -195,13 +200,35 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
 
         # Find IK Solution
-        solution = baxter.get_ik_from_pose([1.2, -0.1, 0.925], [0,0,0], "right_arm")
-        robot.rArmPose = np.repeat(solution[3].reshape((7,1)), 7, axis=1)
+        # trajectory = []
+        # trajectory.append(baxter.get_ik_from_pose([1.2-3*APPROACH_DIST, -0.1, 0.925], [0,0,0], "right_arm")[0])    #s=-3
+        # trajectory.append(baxter.get_ik_from_pose([1.2-2*APPROACH_DIST, -0.1, 0.925], [0,0,0], "right_arm")[0])    #s=-2
+        # trajectory.append(baxter.get_ik_from_pose([1.2-APPROACH_DIST, -0.1, 0.925], [0,0,0], "right_arm")[0])       #s=-1
+        # trajectory.append(baxter.get_ik_from_pose([1.2, -0.1, 0.925], [0,0,0], "right_arm")[0])                     #s=0
+        # trajectory.append(baxter.get_ik_from_pose([1.2, -0.1, 0.925+RETREAT_DIST], [0,0,0], "right_arm")[0])        #s=1
+        # trajectory.append(baxter.get_ik_from_pose([1.2, -0.1, 0.925+2*RETREAT_DIST], [0,0,0], "right_arm")[0])      #s=2
+        # trajectory.append(baxter.get_ik_from_pose([1.2, -0.1, 0.925+3*RETREAT_DIST], [0,0,0], "right_arm")[0])      #s=3
+        # trajectory = np.array(trajectory)
 
-        dof_value_map = {"lArmPose": robot.lArmPose[:,0], "lGripper": robot.lGripper[:,0], "rArmPose": robot.rArmPose[:,0], "rGripper":robot.rGripper[:,0]}
-        baxter.set_dof(dof_value_map)
-        # self.assertTrue(pred2.test(0))
-        # check the gradient of the implementations (correct)
+        trajectory = np.array([ [ 1.2       , -0.66775957, -0.17303322,  1.76317334,  0.34777659, -1.07165615, -0.02965195],
+                                [ 0.7       , -0.52284073,  0.49408572,  1.6187174 , -2.96184523,  1.11901404,  2.63306623],
+                                [ 0.6       , -0.36531823,  0.68122615,  1.40221106, -3.04906318,  1.00349484,  2.4607322 ],
+                                [ 0.9       , -0.41957516,  0.18658737,  1.13732271,  0.27464322, -0.76306282, -0.3742298 ],
+                                [ 0.8       , -0.54378935,  0.35337336,  1.20946449,  0.29660299, -0.7200256 , -0.53242542],
+                                [ 0.5       ,  0.47193719,  2.18166327,  1.19676408, -0.30601498, -0.70770242, -2.06691973],
+                                [ 0.5       , -0.55736808,  0.98450067,  1.22984612, -2.71983422,  0.71059423,  1.99023137]])
+
+        robot.rArmPose = trajectory.T
+        # Predicate should succeed in the grasping post at t=3,
+        # EEreachableRot should always pass since rotation is right all the time
+        self.assertFalse(pred.test(0))
+        self.assertTrue(pred2.test(0))
+        self.assertFalse(pred.test(1))
+        self.assertTrue(pred2.test(1))
+        self.assertFalse(pred.test(2))
+        self.assertTrue(pred2.test(2))
+        self.assertTrue(pred.test(3))
+        self.assertTrue(pred2.test(3))
         if TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(3), True, tol)
 
     def test_obstructs(self):
