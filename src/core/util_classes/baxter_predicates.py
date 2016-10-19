@@ -449,15 +449,16 @@ class BaxterEEReachableRot(BaxterEEReachable):
         for local_dir in np.eye(3):
             obj_dir = np.dot(obj_trans[:3,:3], local_dir)
             world_dir = robot_trans[:3,:3].dot(local_dir)
-            rot_vals.append(np.array([[np.dot(obj_dir, world_dir) - 1]]))
+            rot_vals.append(np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]]))
+            sign = np.sign(np.dot(obj_dir, world_dir))
             # computing robot's jacobian
-            arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
+            arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign*world_dir)) for joint in arm_joints]).T.copy()
             arm_jac = arm_jac.reshape((1, len(arm_joints)))
             base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir)))
             base_jac = base_jac.reshape((1,1))
             # computing object's jacobian
             obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
-            obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
+            obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
             # Create final 1x26 jacobian matrix
             rot_jacs.append(np.hstack((np.zeros((1, 8)), arm_jac, np.zeros((1,1)), base_jac, obj_jac)))
 
@@ -465,6 +466,37 @@ class BaxterEEReachableRot(BaxterEEReachable):
         rot_jac = np.vstack(rot_jacs)
 
         return (rot_val, rot_jac)
+
+
+# def rot_error(self, obj_trans, robot_trans, axises, arm_joints):
+#     """
+#         This function calculates the value and the jacobian of the rotational error between
+#         robot gripper's rotational axis and object's rotational axis
+#
+#         obj_trans: object's rave_body transformation
+#         robot_trans: robot gripper's rave_body transformation
+#         axises: rotational axises of the object
+#         arm_joints: list of robot joints
+#     """
+#     local_dir = np.array([0.,0.,1.])
+#     obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+#     world_dir = robot_trans[:3,:3].dot(local_dir)
+#     obj_dir = obj_dir/np.linalg.norm(obj_dir)
+#     world_dir = world_dir/np.linalg.norm(world_dir)
+#     rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
+#     sign = np.sign(np.dot(obj_dir, world_dir))
+#     # computing robot's jacobian
+#     arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign*world_dir)) for joint in arm_joints]).T.copy()
+#     arm_jac = arm_jac.reshape((1, len(arm_joints)))
+#     base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
+#     # computing object's jacobian
+#     obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+#     obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
+#     # Create final 1x26 jacobian matrix
+#     rot_jac = np.hstack((np.zeros((1, 8)), arm_jac, np.zeros((1,1)), base_jac, obj_jac))
+#     # import ipdb;ipdb.set_trace()
+#     return (rot_val, rot_jac)
+
 
 class BaxterObstructs(robot_predicates.Obstructs):
 
