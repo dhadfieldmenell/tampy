@@ -9,10 +9,14 @@ from pma.ll_solver import NAMOSolver
 
 import gurobipy as grb
 import numpy as np
+from numpy.linalg import norm
 from collections import defaultdict
 
 TOL = 1e-3
 RO = 30
+EPS_PRIMAL = 1e-5
+EPS_DUAL = 1e-5
+MAX_ADMM_ITERS = 100
 
 class ADMMHelper(object):
     def __init__(self, consensus_dict, nonconsensus_dict):
@@ -21,6 +25,8 @@ class ADMMHelper(object):
         self._lp_attr_lts_x_bar = recursive_default_dict()
         self._lp_attr_lts_y = recursive_default_dict()
         self._param_attr_ts_x_bar = recursive_default_dict()
+        self._param_attr_ts_primal_res = recursive_default_dict()
+        self._param_attr_ts_dual_res = recursive_default_dict()
         for param, ts_to_triples in consensus_dict.iteritems():
             for attr_name in param.__dict__.iterkeys():
                 attr_type = param.get_attr_type(attr_name)
@@ -46,6 +52,7 @@ class ADMMHelper(object):
         """
         Updates x_bar and y
         """
+        converged = True
         for param, ts_to_triple in self._consensus_dict.iteritems():
             if verbose: print "param: {}".format(param.name)
             for attr_name in param.__dict__.iterkeys():
@@ -58,13 +65,25 @@ class ADMMHelper(object):
                         # assert len(triples) >= 2
 
                         x_bar = np.zeros(dim)
-                        if len(triples) == 0:
+                        x_bar_old = self._param_attr_ts_x_bar[param][attr_name][ts]
+                        primal_res = 0.0
+                        N = len(triples)
+                        if N == 0:
                             continue
                         for plan, param_copy, local_ts in triples:
                             if verbose:
                                 print getattr(param_copy, attr_name)[:, local_ts]
-                            x_bar += getattr(param_copy, attr_name)[:, local_ts]
-                        x_bar = x_bar/len(triples)
+                            x = getattr(param_copy, attr_name)[:, local_ts]
+                            x_bar += x
+                            primal_res += norm(x-x_bar_old, 2)**2
+                        x_bar = x_bar/N
+
+                        dual_res = N*(ro**2)*(norm(x_bar-x_bar_old, 2)**2)
+                        if primal_res > EPS_PRIMAL or dual_res > EPS_DUAL:
+                            converged = False
+                        self._param_attr_ts_primal_res[param][attr_name][ts] = primal_res
+                        self._param_attr_ts_dual_res[param][attr_name][ts] = dual_res
+
                         self._param_attr_ts_x_bar[param][attr_name][ts] = x_bar
 
                         for plan, param_copy, local_ts in triples:
@@ -73,6 +92,7 @@ class ADMMHelper(object):
                             x = getattr(param_copy, attr_name)[:, local_ts]
                             y = y_old + ro*(x - x_bar)
                             self._lp_attr_lts_y[param_copy][attr_name][local_ts] = y
+        return converged
 
     def update_params(self):
         self._update_consensus()
@@ -254,7 +274,7 @@ class NAMOADMMSolver(NAMOSolver):
 
             solv = Solver()
             solv.initial_penalty_coeff = self.init_penalty_coeff
-            success = solv.solve(self._prob, method='penalty_sqp', tol=1e-2, verbose=verbose)
+            success = solv.solve(self._prob, method='penalty_sqp', tol=1e-3, verbose=verbose)
             self._update_ll_params()
             self._failed_groups = self._prob.nonconverged_groups
             return success
@@ -262,27 +282,23 @@ class NAMOADMMSolver(NAMOSolver):
         elif priority == 2:
             # http://stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf page 48
             # Global variable consensus optimization
-            penalty_coeff = 1e2
-            consensus_trust = 0.1
-            eps_primal = 1e-3
-            eps_dual = 1e-3
-            MAX_ITERS = 5
             consensus_dict, nonconsensus_dict = self._classify_variables(plan)
 
             action_plans = plan.get_action_plans(consensus_dict, nonconsensus_dict)
             admm_help = ADMMHelper(consensus_dict, nonconsensus_dict)
-            for i in range(MAX_ITERS):
+            for i in range(MAX_ADMM_ITERS):
                 if verbose: print "ADMM iteration {}".format(i)
                 for action_plan in action_plans:
                     self._solve_admm_subproblem(action_plan, admm_help, ro=ro,
                         verbose=verbose, callback=callback)
 
                 # compute x_bar and y's
-                admm_help.admm_step(ro=ro)
+                converged = admm_help.admm_step(ro=ro)
                 admm_help.update_params()
-                callback_no_args_admm()
+                # callback_no_args_admm()
+                if converged:
+                    break
             # update variable values in the consensus variable optimization
-            admm_help.update_params()
 
     def _solve_admm_subproblem(self, plan, admm_help, ro=RO, tol=TOL,
                                verbose=False, callback=None):
