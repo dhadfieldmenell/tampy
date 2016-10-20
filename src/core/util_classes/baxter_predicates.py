@@ -76,24 +76,12 @@ class BaxterIsMP(robot_predicates.IsMP):
         self.dof_cache = None
         super(BaxterIsMP, self).__init__(name, params, expected_param_types, env, debug)
 
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset == True and self.dof_cache != None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif reset == False and self.dof_cache == None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(1,17)))
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
-
     def setup_mov_limit_check(self):
         # Get upper joint limit and lower joint limit
         robot_body = self._param_to_body[self.robot]
         robot = robot_body.env_body
-        # robot_body._set_active_dof_inds(list(range(2,2+JOINT_DIM)))
-        self.set_active_dof_inds(robot_body, reset=False)
-        dof_inds = robot.GetActiveDOFIndices()
+        dof_map = robot_body._geom.dof_map
+        dof_inds = np.r_[dof_map["lArmPose"], dof_map["lGripper"], dof_map["rArmPose"], dof_map["rGripper"]]
         lb_limit, ub_limit = robot.GetDOFLimits()
         active_ub = ub_limit[dof_inds].reshape((JOINT_DIM,1))
         active_lb = lb_limit[dof_inds].reshape((JOINT_DIM,1))
@@ -104,8 +92,6 @@ class BaxterIsMP(robot_predicates.IsMP):
         val = np.vstack((joint_move, BASE_MOVE*np.ones((BASE_DIM, 1)), joint_move, BASE_MOVE*np.ones((BASE_DIM, 1))))
         A = np.eye(2*ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=-ROBOT_ATTR_DIM)
         b = np.zeros((2*ROBOT_ATTR_DIM,1))
-        self.set_active_dof_inds(robot_body, reset=True)
-        # Setting attributes for testing
         self.base_step = BASE_MOVE*np.ones((BASE_DIM, 1))
         self.joint_step = joint_move
         self.lower_limit = active_lb
@@ -120,24 +106,12 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
         super(BaxterWithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
 
-    def set_active_dof_inds(self, robot_body, reset = False):
-        robot = robot_body.env_body
-        if reset == True and self.dof_cache != None:
-            robot.SetActiveDOFs(self.dof_cache)
-            self.dof_cache = None
-        elif reset == False and self.dof_cache == None:
-            self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(1,17)))
-        else:
-            raise PredicateException("Incorrect Active DOF Setting")
-
-
     def setup_mov_limit_check(self):
         # Get upper joint limit and lower joint limit
         robot_body = self._param_to_body[self.robot]
         robot = robot_body.env_body
-        self.set_active_dof_inds(robot_body, reset=False)
-        dof_inds = robot.GetActiveDOFIndices()
+        dof_map = robot_body._geom.dof_map
+        dof_inds = np.r_[dof_map["lArmPose"], dof_map["lGripper"], dof_map["rArmPose"], dof_map["rGripper"]]
         lb_limit, ub_limit = robot.GetDOFLimits()
         active_ub = ub_limit[dof_inds].reshape((JOINT_DIM,1))
         active_lb = lb_limit[dof_inds].reshape((JOINT_DIM,1))
@@ -148,7 +122,6 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
         A_up_limit = np.eye(JOINT_DIM)
         A = np.vstack((A_lb_limit, A_up_limit))
         b = np.zeros((2*JOINT_DIM,1))
-        self.set_active_dof_inds(robot_body, reset=True)
         joint_move = (active_ub-active_lb)/JOINT_MOVE_FACTOR
         self.base_step = BASE_MOVE*np.ones((BASE_DIM,1))
         self.joint_step = joint_move

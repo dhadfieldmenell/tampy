@@ -62,6 +62,7 @@ class TestBaxterPredicates(unittest.TestCase):
         lrA_l, rA_m = pred.lower_limit[8:15], pred.joint_step[8:15]
         llG_l, lG_m = pred.lower_limit[7], pred.joint_step[7]
         lrG_l, rG_m = pred.lower_limit[15], pred.joint_step[15]
+
         # Base pose is valid in the timestep: 1,2,3,4,5
         robot.pose = np.array([[0,2,3,4,5,6,7]])
 
@@ -86,7 +87,7 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_isMP: (BaxterIsMP baxter)' at the timestep.")
 
     def test_within_joint_limit(self):
-        robot = ParamSetup.setup_pr2()
+        robot = ParamSetup.setup_baxter()
         test_env = ParamSetup.setup_env()
         pred = baxter_predicates.BaxterWithinJointLimit("test_joint_limit", [robot], ["Robot"], test_env)
         self.assertEqual(pred.get_type(), "BaxterWithinJointLimit")
@@ -95,20 +96,19 @@ class TestBaxterPredicates(unittest.TestCase):
         lrA_l, rA_m = pred.lower_limit[8:15], pred.joint_step[8:15]
         llG_l, lG_m = pred.lower_limit[7], pred.joint_step[7]
         lrG_l, rG_m = pred.lower_limit[15], pred.joint_step[15]
-        # Base pose is valid in the timestep: 1,2,3,4,5
-        robot.pose = np.array([[0,2,3,4,5,6,7]])
-
-        # timestep 6 should fail
-        robot.rArmPose = np.hstack((lrA_l+rA_m, lrA_l+2*rA_m, lrA_l+3*rA_m, lrA_l+4*rA_m, lrA_l+3*rA_m, lrA_l+5*rA_m, lrA_l+100*rA_m))
+        # Base pose is valid in the timestep: 0,1,2,3,4,5
+        robot.pose = np.zeros((7,1))
+        # timestep 0, 3, 6 should fail
+        robot.rArmPose = np.hstack((lrA_l+11*rA_m, lrA_l+2*rA_m, lrA_l+3*rA_m, lrA_l-1*rA_m, lrA_l+3*rA_m, lrA_l+5*rA_m, lrA_l+100*rA_m))
         # timestep 1 should fail
         robot.lArmPose = np.hstack((llA_l+lA_m, llA_l-lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m))
         robot.rGripper = np.matrix([lrG_l, lrG_l+rG_m, lrG_l+2*rG_m, lrG_l+5*rG_m, lrG_l+4*rG_m, lrG_l+3*rG_m, lrG_l+2*rG_m]).reshape((1,7))
         robot.lGripper = np.matrix([llG_l, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m]).reshape((1,7))
-        # Thus timestep 1, 6 should fail
-        self.assertTrue(pred.test(0))
+        # Thus timestep 0, 1, 3, 6 should fail
+        self.assertFalse(pred.test(0))
         self.assertFalse(pred.test(1))
         self.assertTrue(pred.test(2))
-        self.assertTrue(pred.test(3))
+        self.assertFalse(pred.test(3))
         self.assertTrue(pred.test(4))
         self.assertTrue(pred.test(5))
         self.assertFalse(pred.test(6))
