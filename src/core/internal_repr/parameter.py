@@ -2,6 +2,7 @@ from IPython import embed as shell
 from errors_exceptions import DomainConfigException
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
+from copy import deepcopy
 
 import numpy as np
 
@@ -104,11 +105,18 @@ class Object(Parameter):
         new = Object()
         for attr_name, v in copy_obj.__dict__.items():
             attr_type = self.get_attr_type(attr_name)
-            if issubclass(attr_type, Vector):
-                new_value = v[:v.shape[0], start:end+1].copy()
-                setattr(new, attr_name, new_value)
+            if attr_name == '_free_attrs':
+                new_free_attrs = {}
+                for free_attr_name, free_attrs in v.iteritems():
+                    new_free_attrs[free_attr_name] = \
+                        free_attrs[:free_attrs.shape[0], start:end+1].copy()
+                new._free_attrs = new_free_attrs
             else:
-                setattr(new, attr_name, v)
+                if issubclass(attr_type, Vector):
+                    new_value = v[:v.shape[0], start:end+1].copy()
+                    setattr(new, attr_name, new_value)
+                else:
+                    setattr(new, attr_name, v)
         return new
 
     def copy(self, new_horizon):
@@ -154,17 +162,19 @@ class Symbol(Parameter):
 
     def copy(self, new_horizon):
         new = Symbol()
-        for k, v in self.__dict__.items():
+        for attr_name, v in self.__dict__.items():
             if v == 'undefined':
-                attr_type = self.get_attr_type(k)
+                attr_type = self.get_attr_type(attr_name)
                 assert issubclass(attr_type, Vector)
                 val = np.empty((attr_type.dim, 1))
                 val[:] = np.NaN
-                setattr(new, k, val)
+                setattr(new, attr_name, val)
             else:
-                attr_type = self.get_attr_type(k)
-                if issubclass(attr_type, Vector):
-                    setattr(new, k, v.copy())
+                attr_type = self.get_attr_type(attr_name)
+                if attr_name == '_free_attrs':
+                    setattr(new, attr_name, deepcopy(v))
+                elif issubclass(attr_type, Vector):
+                    setattr(new, attr_name, v.copy())
                 else:
-                    setattr(new, k, v)
+                    setattr(new, attr_name, v)
         return new

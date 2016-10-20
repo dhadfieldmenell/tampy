@@ -122,6 +122,11 @@ class TestParameter(unittest.TestCase):
                 "rotation": [[[1, 2, 3],[4, 5, 6]]], "_type": ["Can"]}
         attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "pose": matrix.Vector3d, "rotation": matrix.Vector2d, "_type": str}
         p = parameter.Object(attrs, attr_types)
+        # setting up _free_attrs
+        free_attrs = np.ones((3,4))
+        free_attrs[:,0] = 0
+        p._free_attrs = {'pose': free_attrs}
+
         p2 = p.copy_ts((1,2))
         self.assertTrue(np.allclose(p2.pose, p.pose[:, 1:3]))
         self.assertTrue(np.allclose(p2.rotation, p.rotation[:, 1:3]))
@@ -130,10 +135,22 @@ class TestParameter(unittest.TestCase):
         self.assertFalse(np.allclose(p2.pose, p.pose[:, 1:3]))
         self.assertFalse(np.allclose(p2.rotation, p.rotation[:, 1:3]))
 
+        # testing that free_attrs are copied correctly
+        self.assertTrue(p2._free_attrs['pose'].shape == (3,2))
+        self.assertTrue(np.allclose(p2._free_attrs['pose'], np.ones((3,2))))
+        p2._free_attrs['pose'][0,0] = 0
+        self.assertTrue(p._free_attrs['pose'][0,1] != 0)
+        p._free_attrs['rotation'] = 0
+        self.assertTrue('rotation' not in p2._free_attrs)
+
     def test_copy_symbol(self):
         attrs = {"name": ["param"], "circ": [1], "test": [3.7], "test2": [5.3], "test3": [6.5], "value": ["(3, 6)"], "rotation": ["(1,2,3)"], "_type": ["Can"]}
         attr_types = {"name": str, "test": float, "test3": str, "test2": int, "circ": circle.BlueCircle, "value": matrix.Vector2d, "rotation": matrix.Vector3d, "_type": str}
         p = parameter.Symbol(attrs, attr_types)
+        # setting up _free_attrs
+        pose_free_attrs = np.zeros((2,1))
+        p._free_attrs = {'pose': pose_free_attrs}
+
         p2 = p.copy(new_horizon=7)
         self.assertEqual(p2.name, "param")
         self.assertEqual(p2.test, 3.7)
@@ -142,6 +159,14 @@ class TestParameter(unittest.TestCase):
         p2 = p.copy(new_horizon=2)
         self.assertTrue(np.allclose(p2.value, [[3], [6]]))
         self.assertTrue(np.allclose(p2.rotation, [[1], [2], [3]]))
+
+        # testing that _free_attrs are copied correctly
+        self.assertTrue(np.allclose(p2._free_attrs['pose'], np.zeros((2,1))))
+        p2._free_attrs['pose'][0,0] = 1
+        self.assertTrue(p._free_attrs['pose'][0,0] == 0)
+        p2._free_attrs['rotation'] = 1
+        self.assertTrue('rotation' not in p._free_attrs)
+
         attrs["value"] = ["undefined"]
         attrs["rotation"] = ["undefined"]
         p = parameter.Symbol(attrs, attr_types)
