@@ -170,7 +170,8 @@ class Plan(object):
                 param_copy = param.copy_ts(active_timesteps)
                 action_param_to_copy[param] = param_copy
 
-            actions = [a.copy(0, action_param_to_copy, preds=all_preds)]
+            # actions = [a.copy(0, action_param_to_copy, preds=all_preds)]
+            actions = [a.copy(0, action_param_to_copy)]
             horizon = end - start + 1
 
             params_dict = {param_to_name[param]: param_copy \
