@@ -20,8 +20,6 @@ class Plan(object):
         self.horizon = horizon
         self.env = env
         self.initialized = False
-        self._free_attrs = {}
-        self._saved_free_attrs = {}
         if determine_free:
             self._determine_free_attrs()
 
@@ -162,10 +160,12 @@ class Plan(object):
             start, end = active_timesteps
             action_param_to_copy = {}
             plan_params = self.params.values()
+            action_params = set()
             for pred_dict in a.preds:
                 pred = pred_dict['pred']
                 for param in pred.params:
                     assert param in plan_params
+                    action_params.add(param)
             for param in plan_params:
                 param_copy = param.copy_ts(active_timesteps)
                 action_param_to_copy[param] = param_copy
@@ -180,7 +180,7 @@ class Plan(object):
             plans.append(plan)
 
             # update consensus dictionary
-            for param in a.params:
+            for param in action_params:
                 param_copy = action_param_to_copy[param]
                 if param in consensus_dict:
                     if param.is_symbol():

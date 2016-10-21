@@ -118,7 +118,7 @@ class TestPlan(unittest.TestCase):
 
     def test_get_action_plans(self):
         self.setup()
-        params = [self.can1, self.target]
+        params = [self.can1]
         pred_dict = [{'pred': self.pred0, 'negated': False, 'hl_info': 'pre', 'active_timesteps': (0, 5)}]
         act0 = action.Action(0, 'test_action0', (0,5), params, pred_dict)
         params = [self.can2, self.target]
