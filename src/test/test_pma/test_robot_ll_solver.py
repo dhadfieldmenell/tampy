@@ -10,6 +10,7 @@ from sco.solver import Solver
 from sco.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
+from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import circle
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter, plan
@@ -42,7 +43,7 @@ class TestRobotLLSolver(unittest.TestCase):
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
         self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/move_1234_3.prob')
-        self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
+        self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
         # self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
 
 
@@ -198,9 +199,15 @@ def _test_plan(test_obj, plan, n_resamples=0):
     if viewer != None:
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
-    import ipdb; ipdb.set_trace()
-    baxter = plan.actions[0].params[0]
+
+    # draw_ts(20)
+    # baxter = plan.actions[0].params[0]
+    # body = viewer.name_to_rave_body["baxter"]
+    # manip = body.env_body.GetManipulator("right_arm")
+    # ee_pose = OpenRAVEBody.obj_pose_from_transform(manip.GetTransform())
+
     print(plan.satisfied())
+    # import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":
     unittest.main()
