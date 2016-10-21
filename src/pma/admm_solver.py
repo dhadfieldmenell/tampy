@@ -16,7 +16,7 @@ TOL = 1e-3
 RO = 300
 EPS_PRIMAL = 1e-5
 EPS_DUAL = 1e-5
-MAX_ADMM_ITERS = 100
+MAX_ADMM_ITERS = 5
 
 class ADMMHelper(object):
     def __init__(self, consensus_dict, nonconsensus_dict):
@@ -216,7 +216,7 @@ class NAMOADMMSolver(NAMOSolver):
             ## priority 0 resamples the first failed predicate in the plan
             ## and then solves a transfer optimization that only includes linear constraints
             self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
-            success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = self._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
             success = plan.satisfied(active_ts)
             if success:
                 return success
