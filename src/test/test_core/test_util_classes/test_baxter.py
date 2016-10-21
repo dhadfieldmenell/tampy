@@ -89,4 +89,7 @@ class TestBaxter(unittest.TestCase):
         dof = robot.GetActiveDOFValues()
         dof[-8:-1] = solution[0]
         robot.SetActiveDOFValues(dof)
+
+        dof[-8:-1] = baxter_body.get_ik_from_pose(can_pose[:3] + np.array([0,0,0]), can_pose[3:], "right_arm")[0]
+        robot.SetActiveDOFValues(dof)
         import ipdb;ipdb.set_trace()

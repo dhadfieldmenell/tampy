@@ -14,17 +14,18 @@ assert NUM_CANS <= NUM_TARGETS
 GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
+CAN_POSE_INIT = [1.0, -0.1, 0.925]
 CAN_RADIUS = 0.02
 CAN_HEIGHT = 0.25
 CAN_GEOM = [CAN_RADIUS, CAN_HEIGHT]
 DIST_BETWEEN_CANS = 0.01
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]
-Baxter_END_POSE = [1.57]
-R_ARM_INIT = [ 1.,   -0.723, 0.131, 1.977,-2.829, 1.294, 2.951]
-L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-Baxter_END_LARM = [-np.pi/10,-np.pi/3,-np.pi/4,np.pi/4,np.pi/2,-np.pi/4,np.pi/4]
-Baxter_END_RARM = [ 0.5  , -0.881,  0.814,  1.669, -2.672,  0.864,  2.308]
+Baxter_END_POSE = [0]
+R_ARM_INIT = [ 0.   ,  0.569,  1.181,  2.354,  2.47 ,  1.63 ,  1.417]
+L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
+Baxter_END_RARM = [ 0.7  , -1.029,  0.527,  2.052, -2.731,  1.1  ,  2.666]
+Baxter_END_LARM = [0, 0, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
 END_GRIPPER = [0.02]
 
@@ -117,7 +118,7 @@ def main():
         for i in range(NUM_TARGETS):
             target_pos = target_gen.next()
             s += "(geom target{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
-            s += "(value target{} {}), ".format(i, [1.1, -0.1, 0.925])
+            s += "(value target{} {}), ".format(i, CAN_POSE_INIT)
             s += "(rotation target{} {}),".format(i, CAN_ROTATION_INIT)
             s += "(value pdp_target{} undefined), ".format(i)
             s += get_baxter_undefined_attrs_str("pdp_target{}".format(i))
@@ -126,7 +127,7 @@ def main():
 
             if i < NUM_CANS:
                 s += "(geom can{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
-                s += "(pose can{} {}), ".format(i, [1.1, -0.1, 0.925])
+                s += "(pose can{} {}), ".format(i, CAN_POSE_INIT)
                 s += "(rotation can{} {}),".format(i, CAN_ROTATION_INIT)
                 # s += "(value gp_can{} undefined), ".format(i)
         s += "(geom {}), ".format("baxter")
@@ -154,17 +155,17 @@ def main():
             # s += "(GraspValid gp_can{} target{} grasp0), ".format(i, i)
         for i in range(NUM_TARGETS):
             # s += "(BaxterInContact baxter ee_target{} target{}), ".format(i, i)
-            # s += "(BaxterGraspValidPos ee_target{} target{}), ".format(i, i)
-            # s += "(BaxterGraspValidRot ee_target{} target{}), ".format(i, i)
+            s += "(BaxterGraspValidPos ee_target{} target{}), ".format(i, i)
+            s += "(BaxterGraspValidRot ee_target{} target{}), ".format(i, i)
             s += "(BaxterEEReachablePos baxter pdp_target{} ee_target{}), ".format(i, i)
             s += "(BaxterEEReachableRot baxter pdp_target{} ee_target{}), ".format(i, i)
         # s += "(BaxterInGripperPos baxter can0), "
         s += "(BaxterInGripperRot baxter can0), "
         s += "(BaxterRobotAt baxter robot_init_pose), "
         # s += "(BaxterStationaryArms baxter), "
-        # s += "(BaxterStationaryBase baxter), "
+        s += "(BaxterStationaryBase baxter), "
         # s += "(BaxterIsMP baxter), "
-        # s += "(BaxterWithinJointLimit baxter), "
+        s += "(BaxterWithinJointLimit baxter), "
         s += "(BaxterStationaryW table) \n\n"
 
         s += "Goal: {}".format(GOAL)

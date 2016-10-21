@@ -153,8 +153,8 @@ class Move(Action):
                 (BaxterStationary ?obj))', '0:{}'.format(end-1)),
             ('(forall (?w - Obstacle) (BaxterStationaryW ?w))', '0:{}'.format(end-1)),
             # ('(BaxterStationaryArms ?robot)', '0:{s}'.format(end-1)),
-            # ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
-            # ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
                     (not (BaxterCollides ?obj ?w))\
@@ -218,9 +218,9 @@ class Grasp(Action):
             ('(forall (?obj - Can)\
                 (not (BaxterInGripperPos ?robot ?obj))\
             )', '0:0'),
-            # ('(forall (?obj - Can)\
-            #     (not (BaxterInGripperRot ?robot ?obj))\
-            # )', '0:0'),
+            ('(forall (?obj - Can)\
+                (not (BaxterInGripperRot ?robot ?obj))\
+            )', '0:0'),
             ('(forall (?obj - Can) \
                 (BaxterStationary ?obj)\
             )', '0:{}'.format(grasp_time-1)),
@@ -230,7 +230,7 @@ class Grasp(Action):
             )', '0:38'),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
             # ('(BaxterIsMP ?robot)', '0:38'),
-            # ('(BaxterWithinJointLimit ?robot)', '0:39'),
+            ('(BaxterWithinJointLimit ?robot)', '0:39'),
             # ('(forall (?w - Obstacle)\
             #     (forall (?obj - Can)\
             #         (not (BaxterCollides ?obj ?w))\
