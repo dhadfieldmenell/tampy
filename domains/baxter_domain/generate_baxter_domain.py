@@ -207,7 +207,7 @@ class Grasp(Action):
             ('(BaxterAt ?can ?target)', '0:0'),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachablePos ?robot ?sp ?ee)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEReachableRot ?robot ?sp ?ee)', '{}:{}'.format(approach_time, retreat_time)),
+            ('(BaxterEEReachableRot ?robot ?sp ?ee)', '{}:{}'.format(grasp_time, grasp_time)),
             # TODO: not sure why InContact to 39 fails
             # ('(BaxterInContact ?robot ?ee ?target)', '{}:38'.format(grasp_time)),
             ('(BaxterGraspValidPos ?ee ?target)', '{}:{}'.format(grasp_time, grasp_time)),
@@ -218,9 +218,6 @@ class Grasp(Action):
             ('(forall (?obj - Can)\
                 (not (BaxterInGripperPos ?robot ?obj))\
             )', '0:0'),
-            ('(forall (?obj - Can)\
-                (not (BaxterInGripperRot ?robot ?obj))\
-            )', '0:0'),
             ('(forall (?obj - Can) \
                 (BaxterStationary ?obj)\
             )', '0:{}'.format(grasp_time-1)),
@@ -229,16 +226,17 @@ class Grasp(Action):
                 (BaxterStationaryW ?w)\
             )', '0:38'),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
-            # ('(BaxterIsMP ?robot)', '0:38'),
+            ('(BaxterIsMP ?robot)', '0:38'),
             ('(BaxterWithinJointLimit ?robot)', '0:39'),
+            #TODO BaxterCollides has bug
             # ('(forall (?w - Obstacle)\
             #     (forall (?obj - Can)\
             #         (not (BaxterCollides ?obj ?w))\
             #     )\
             # )', '0:38'),
-            # ('(forall (?w - Obstacle)\
-            #     (not (BaxterRCollides ?robot ?w))\
-            # )', '0:39'),
+            ('(forall (?w - Obstacle)\
+                (not (BaxterRCollides ?robot ?w))\
+            )', '0:39'),
             ('(forall (?obj - Can)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
             )', '0:{}'.format(approach_time)),

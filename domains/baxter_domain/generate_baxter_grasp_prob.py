@@ -14,7 +14,7 @@ assert NUM_CANS <= NUM_TARGETS
 GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
 CAN_ROTATION_INIT = [0,0,0]
-CAN_POSE_INIT = [1.0, -0.1, 0.925]
+CAN_POSE_INIT = [1.1, -0.1, 0.925]
 CAN_RADIUS = 0.02
 CAN_HEIGHT = 0.25
 CAN_GEOM = [CAN_RADIUS, CAN_HEIGHT]
@@ -22,10 +22,10 @@ DIST_BETWEEN_CANS = 0.01
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]
 Baxter_END_POSE = [0]
-R_ARM_INIT = [ 0.   ,  0.569,  1.181,  2.354,  2.47 ,  1.63 ,  1.417]
+R_ARM_INIT = [ 1.,   -0.723, 0.131, 1.977,-2.829, 1.294, 2.951]
 L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
-Baxter_END_RARM = [ 0.7  , -1.029,  0.527,  2.052, -2.731,  1.1  ,  2.666]
 Baxter_END_LARM = [0, 0, 0, 0, 0, 0, 0]
+Baxter_END_RARM = [ 0.5  , -0.881,  0.814,  1.669, -2.672,  0.864,  2.308]
 INT_GRIPPER = [0.02]
 END_GRIPPER = [0.02]
 
