@@ -93,6 +93,13 @@ class ParamSetup(object):
         return ee_pose
 
     @staticmethod
+    def setup_ee_pose(name = "ee_pose"):
+        attrs = {"name": [name], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["EEPose"]}
+        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        ee_pose = parameter.Symbol(attrs, attr_types)
+        return ee_pose
+
+    @staticmethod
     def setup_table(name = "table"):
         attrs = {"name": [name], "geom": [[1.5, 0.94, 0.15, .2, 0.2, 0.6, False]], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
         attr_types = {"name": str, "geom": Table, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}

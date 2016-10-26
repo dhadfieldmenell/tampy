@@ -207,6 +207,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
     # ee_pose = OpenRAVEBody.obj_pose_from_transform(manip.GetTransform())
 
     print(plan.satisfied())
+    assert plan.satisfied()
     # import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":

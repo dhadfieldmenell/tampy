@@ -1,4 +1,5 @@
 from IPython import embed as shell
+
 import itertools
 import numpy as np
 import random
@@ -9,12 +10,13 @@ NUM_CANS = 1 # each can i starts at target i, so we must have NUM_CANS <= NUM_TA
 NUM_TARGETS = 1
 filename = "baxter_probs/grasp"
 assert NUM_CANS <= NUM_TARGETS
-# GOAL = "(BaxterRobotAt baxter robot_end_pose)"
 # GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
+DIST_SAFE = 5e-3
+
 CAN_ROTATION_INIT = [0,0,0]
-CAN_POSE_INIT = [1.1, -0.1, 0.925]
+CAN_POSE_INIT = [1.1, 0.3, 0.925]
 CAN_RADIUS = 0.02
 CAN_HEIGHT = 0.25
 CAN_GEOM = [CAN_RADIUS, CAN_HEIGHT]
@@ -27,7 +29,7 @@ L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
 Baxter_END_LARM = [0, 0, 0, 0, 0, 0, 0]
 Baxter_END_RARM = [ 0.5  , -0.881,  0.814,  1.669, -2.672,  0.864,  2.308]
 INT_GRIPPER = [0.02]
-END_GRIPPER = [0.02]
+END_GRIPPER = [0.015]
 
 ROBOT_DIST_FROM_TABLE = 0.05
 # rll table
@@ -141,7 +143,7 @@ def main():
         s += get_baxter_init_attrs_str('robot_end_pose', LArm = Baxter_END_LARM, RArm=Baxter_END_RARM, G=END_GRIPPER)
 
         # table pose
-        z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT
+        z = TABLE_THICKNESS/2 + TABLE_LEG_HEIGHT - DIST_SAFE
         s += "(pose {} [1, 0.02, {}]), ".format("table", z)
         s += "(rotation {} {}), ".format("table", CAN_ROTATION_INIT)
         s += "(geom {} {}); ".format("table", TABLE_GEOM)
@@ -160,11 +162,11 @@ def main():
             s += "(BaxterEEReachablePos baxter pdp_target{} ee_target{}), ".format(i, i)
             s += "(BaxterEEReachableRot baxter pdp_target{} ee_target{}), ".format(i, i)
         # s += "(BaxterInGripperPos baxter can0), "
-        s += "(BaxterInGripperRot baxter can0), "
+        # s += "(BaxterInGripperRot baxter can0), "
         s += "(BaxterRobotAt baxter robot_init_pose), "
         # s += "(BaxterStationaryArms baxter), "
         s += "(BaxterStationaryBase baxter), "
-        # s += "(BaxterIsMP baxter), "
+        s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "
         s += "(BaxterStationaryW table) \n\n"
 

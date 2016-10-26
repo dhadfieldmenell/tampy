@@ -143,9 +143,6 @@ class Move(Action):
             ('(forall (?c - Can)\
                 (not (BaxterInGripperPos ?robot ?c))\
             )', '0:0'),
-            # ('(forall (?c - Can)\
-            #     (not (BaxterInGripperRot ?robot ?c))\
-            # )', '0:0'),
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             ('(forall (?obj - Can )\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '0:{}'.format(end-1)),
@@ -228,12 +225,11 @@ class Grasp(Action):
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
             ('(BaxterIsMP ?robot)', '0:38'),
             ('(BaxterWithinJointLimit ?robot)', '0:39'),
-            #TODO BaxterCollides has bug
-            # ('(forall (?w - Obstacle)\
-            #     (forall (?obj - Can)\
-            #         (not (BaxterCollides ?obj ?w))\
-            #     )\
-            # )', '0:38'),
+            ('(forall (?w - Obstacle)\
+                (forall (?obj - Can)\
+                    (not (BaxterCollides ?obj ?w))\
+                )\
+            )', '0:38'),
             ('(forall (?w - Obstacle)\
                 (not (BaxterRCollides ?robot ?w))\
             )', '0:39'),
