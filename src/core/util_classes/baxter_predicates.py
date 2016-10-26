@@ -19,6 +19,7 @@ RETREAT_DIST = 0.025
 EEREACHABLE_STEPS = 3
 # Collision Constants
 DIST_SAFE = 5e-3
+RCOLLIDES_DSAFE = 1e-2
 COLLISION_TOL = 1e-3
 #Plan Coefficient
 IN_GRIPPER_COEFF = 1.
@@ -27,6 +28,7 @@ EEREACHABLE_OPT_COEFF = 1.3e3
 EEREACHABLE_ROT_OPT_COEFF = 3e2
 INGRIPPER_OPT_COEFF = 3e2
 RCOLLIDES_OPT_COEFF = 1e2
+OBSTRUCTS_COEEF = 1
 OBSTRUCTS_OPT_COEFF = 1e2
 GRASP_VALID_COEFF = 1e1
 GRIPPER_OPEN_VALUE = 0.015
@@ -447,8 +449,8 @@ class BaxterObstructs(robot_predicates.Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
         self.attr_dim = 17
         self.dof_cache = None
-        self.coeff = -1
-        self.neg_coeff = 1
+        self.coeff = -OBSTRUCTS_COEEF
+        self.neg_coeff = OBSTRUCTS_COEEF
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
@@ -539,7 +541,7 @@ class BaxterRCollides(robot_predicates.RCollides):
         self.neg_coeff = 1
         self.opt_coeff = RCOLLIDES_OPT_COEFF
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = DIST_SAFE
+        self.dsafe = RCOLLIDES_DSAFE
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses

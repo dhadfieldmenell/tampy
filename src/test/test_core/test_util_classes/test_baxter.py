@@ -65,7 +65,8 @@ class TestBaxter(unittest.TestCase):
         domain_fname = '../domains/baxter_domain/baxter.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        p_fname = '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob'
+        # p_fname = '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob'
+        p_fname = '../domains/baxter_domain/baxter_probs/move_1234_3.prob'
         p_c = main.parse_file_to_dict(p_fname)
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         params = problem.init_state.params
@@ -78,18 +79,22 @@ class TestBaxter(unittest.TestCase):
         baxter_body = view.name_to_rave_body["baxter"]
         can = can_body.env_body
         robot = baxter_body.env_body
-
-        can_pose = OpenRAVEBody.obj_pose_from_transform(can.GetTransform())
-        solution = baxter_body.get_ik_from_pose(can_pose[:3] + np.array([-0.2,0,0]), can_pose[3:], "right_arm")
-        # solution = baxter_body.get_ik_from_pose(can_pose[:3], can_pose[3:], "right_arm")
-        print "Feasible Right Arm Pose Would be:"
-        print np.round(solution[0], 3)
-        print "Coresponding can pose is:"
-        print params["can0"].pose.flatten()
         dof = robot.GetActiveDOFValues()
-        dof[-8:-1] = solution[0]
-        robot.SetActiveDOFValues(dof)
 
-        dof[-8:-1] = baxter_body.get_ik_from_pose(can_pose[:3] + np.array([0,0,0]), can_pose[3:], "right_arm")[0]
-        robot.SetActiveDOFValues(dof)
-        import ipdb;ipdb.set_trace()
+        # For Fining Initial Pose in Move Action
+        # robot.SetActiveDOFValues(dof)
+        # import ipdb; ipdb.set_trace()
+
+
+        # For Finding Initial Pose in Grasp Action
+        # can_pose = OpenRAVEBody.obj_pose_from_transform(can.GetTransform())
+        # solution = baxter_body.get_ik_from_pose(can_pose[:3] + np.array([-0.2,0,0]), can_pose[3:], "right_arm")
+        # print "Feasible Right Arm Pose Would be:"
+        # print np.round(solution[0], 3)
+        # print "Coresponding can pose is:"
+        # print params["can0"].pose.flatten()
+        # dof[-8:-1] = solution[0]
+        # robot.SetActiveDOFValues(dof)
+        # dof[-8:-1] = baxter_body.get_ik_from_pose(can_pose[:3] + np.array([0,0,0]), can_pose[3:], "right_arm")[0]
+        # robot.SetActiveDOFValues(dof)
+        # import ipdb;ipdb.set_trace()
