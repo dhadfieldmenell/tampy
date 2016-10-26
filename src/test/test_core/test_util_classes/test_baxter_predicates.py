@@ -113,6 +113,29 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(pred.test(5))
         self.assertFalse(pred.test(6))
 
+    def test_in_contact(self):
+
+        # InContact robot EEPose target
+        
+        robot = ParamSetup.setup_baxter()
+        ee_pose = ParamSetup.setup_ee_pose()
+        target = ParamSetup.setup_target()
+        env = ParamSetup.setup_env()
+        pred = baxter_predicates.BaxterInContact("testInContact", [robot, ee_pose, target], ["Robot", "EEPose", "Target"])
+        self.assertEqual(pred.get_type(), "BaxterInContact")
+        # EEPose and target is not yet initialized, thus pred will not pass
+        self.assertFalse(pred.test(0))
+        ee_pose.value = np.zeros((3, 1))
+        target.value = np.zeros((3, 1))
+        # Baxter gets initialized with closed gripper, thus will not pass
+        self.assertFalse(pred.test(0))
+        # Set baxter's gripper to fully open
+        robot.rGripper = np.array([[0.02]])
+        self.assertFalse(pred.test(0))
+        # Set baxter's gripper to be just enough to grasp the can
+        robot.rGripper = np.array([[0.015]])
+        self.assertTrue(pred.test(0))
+
     def test_in_gripper(self):
 
         tol = 1e-4
