@@ -42,8 +42,8 @@ class TestRobotLLSolver(unittest.TestCase):
             # objs.extend(cans)
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
-        self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/move_1234_0.prob')
-        self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+        self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move.prob')
+        self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
         # self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
 
 
