@@ -1,6 +1,6 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
-from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions
+from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory
 from sco.expr import Expr
 import math
 import numpy as np
@@ -160,263 +160,87 @@ def get_expr_mult(coeff, expr):
     new_grad = lambda x: coeff*expr.grad(x)
     return Expr(new_f, new_grad)
 
-# Baxter Specific sampling functions
-def sample_base_pose(target_pose, base_pose_seed=None, dist=DEFAULT_DIST):
-    target
-    base_pose = get_random_dir()
-    bp = rand_dir*dist+target_pose[:2]
-
-    vec = target_pose[:2] - np.zeros((1,))
+# Sample base values to face the target
+def sample_base(target_pose, base_pose):
+    vec = target_pose[:2] - np.zeros((2,))
     vec = vec / np.linalg.norm(vec)
     theta = math.atan2(vec[1], vec[0])
-    if base_pose_seed is not None:
-        theta = closer_ang(theta, base_pose_seed[2])
-    pose = np.array([theta])
-    return pose
+    return theta
 
-#PR2 Specific
-def sample_base_pose(target_pose, base_pose_seed=None, dist=DEFAULT_DIST):
-    rand_dir = get_random_dir()
-    bp = rand_dir*dist+target_pose[:2]
+# Resampling For IK
+def get_ik_transform(pos, rot):
+    trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
+    # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
+    rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+    trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
+    trans[:3, :3] = trans_mat
+    return trans
 
-    vec = target_pose[:2] - bp
-    vec = vec / np.linalg.norm(vec)
-    theta = math.atan2(vec[1], vec[0])
-    if base_pose_seed is not None:
-        theta = closer_ang(theta, base_pose_seed[2])
-    pose = np.array([bp[0], bp[1], theta])
-    return pose
+def get_ik_from_pose(pos, rot, robot, manip_name):
+    trans = get_ik_transform(pos, rot)
+    solution = get_ik_solutions(robot, manip_name, trans)
+    return solution
 
-def set_torso_and_arm_to_ik_soln(robot, torso_arm_pose, t):
-    torso_pose = torso_arm_pose[:1]
-    arm_pose = torso_arm_pose[1:]
-    robot.rArmPose[:, t] = arm_pose[:]
-    robot.backHeight[:, t] = torso_pose[:]
-
-def get_torso_and_arm_pose_from_ik_soln(ik_solution):
-    if ik_solution is None:
-        return None, None
-    torso_pose = ik_solution[:1]
-    arm_pose = ik_solution[1:]
-    return torso_pose, arm_pose
-
-def get_torso_arm_ik(robot_body, target_trans, old_arm_pose=None):
-    manip = robot_body.env_body.GetManipulator('rightarm_torso')
+def get_ik_solutions(robot, manip_name, trans):
+    manip = robot.GetManipulator(manip_name)
     iktype = IkParameterizationType.Transform6D
+    solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
+    return closest_arm_pose(solutions, robot.GetActiveDOFValues()[manip.GetArmIndices])
 
-    solution = manip.FindIKSolution(IkParameterization(target_trans, iktype),IkFilterOptions.CheckEnvCollisions)
-    if solution is None:
-        return None, None
-    torso_pose, arm_pose = get_torso_and_arm_pose_from_ik_soln(solution)
-    if old_arm_pose is not None:
-        arm_pose = closer_joint_angles(arm_pose, old_arm_pose)
-    return torso_pose, arm_pose
+# Get RRT Planning Result
+def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
+    # assert body in env.GetRobot()
+    robot.SetActiveDOFs(active_dof)
+    robot.SetActiveDOFValues(init_dof)
 
-def get_col_free_base_pose_around_target(t, plan, target_pose, robot, callback=None, save=False, dist=DEFAULT_DIST):
-    base_pose = None
-    old_base_pose = robot.pose[:, t].copy()
-    for i in range(NUM_BASE_RESAMPLES):
-        base_pose = sample_base_pose(target_pose, base_pose_seed=old_base_pose, dist=dist)
-        robot.pose[:, t] = base_pose
-        if callback is not None: callback()
-        _, collision_preds = plan.get_param('RCollides', 1, negated=True, return_preds=True)
-        # check to ensure collision_preds are correct
+    params = Planner.PlannerParameters()
+    params.SetRobotActiveJoints(robot)
+    params.SetGoalConfig(end_dof) # set goal to all ones
+    # forces parabolic planning with 40 iterations
+    params.SetExtraParameters("""<_postprocessing planner="parabolicsmoother">
+        <_nmaxiterations>40</_nmaxiterations>
+    </_postprocessing>""")
 
-        collision_free = True
-        for pred in collision_preds:
-            if not pred.test(t, negated=True):
-                collision_free = False
-                base_pose = None
-                break
-        if collision_free:
-            break
+    planner=RaveCreatePlanner(env,'birrt')
+    planner.InitPlan(robot, params)
 
-    if not save:
-        robot.pose[:, t] = old_base_pose
-    return base_pose
+    traj = RaveCreateTrajectory(env,'')
+    result = planner.PlanPath(traj)
+    traj_list = []
+    for i in range(traj.GetNumWaypoints()):
+        # get the waypoint values, this holds velocites, time stamps, etc
+        data=traj.GetWaypoint(i)
+        # extract the robot joint values only
+        dofvalues = traj.GetConfigurationSpecification().ExtractJointValues(data,robot,robot.GetActiveDOFIndices())
+        # raveLogInfo('waypint %d is %s'%(i,np.round(dofvalues, 3)))
+        traj_list.append(np.round(dofvalues, 3))
+    return traj_list
 
-def get_col_free_torso_arm_pose(t, pos, rot, robot_param, robot_body,
-                                arm_pose_seed=None, save=False, callback=None):
-    target_trans = get_ee_transform_from_pose(pos, rot)
+def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
+    # assert body in env.GetRobot()
+    robot.SetActiveDOFs(active_dof)
+    robot.SetActiveDOFValues(init_dof)
 
-    # save arm pose and back height
-    old_arm_pose = robot_param.rArmPose[:,t].copy()
-    old_back_height = robot_param.backHeight[:,t].copy()
+    params = Planner.PlannerParameters()
+    params.SetRobotActiveJoints(robot)
+    params.SetGoalConfig(end_dof) # set goal to all ones
+    # forces parabolic planning with 40 iterations
+    planner=RaveCreatePlanner(env,'OMPL_RRTConnect')
+    simplifier = RaveCreatePlanner(env, 'OMPL_Simplifier')
+    planner.InitPlan(robot, params)
+    traj = RaveCreateTrajectory(env,'')
+    planner.PlanPath(traj)
+    simplifier.InitPlan(robot, Planner.PlannerParameters())
+    simplifier.PlanPath(traj)
+    planningutils.RetimeTrajectory(traj)
+    planner.PlanPath(traj)
 
-    if arm_pose_seed is None:
-        arm_pose_seed = old_arm_pose
-
-    torso_pose, arm_pose = get_torso_arm_ik(robot_body, target_trans,
-                                            old_arm_pose=arm_pose_seed)
-    if torso_pose is not None:
-        robot_param.rArmPose[:, t] = arm_pose
-        robot_param.backHeight[:, t] = torso_pose
-        if callback is not None:
-            trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
-            callback(trans)
-            # callback(target_trans)
-
-    # setting parameter values back
-    robot_param.rArmPose[:,t] = old_arm_pose
-    robot_param.backHeight[:,t] = old_back_height
-    return torso_pose, arm_pose
-
-def get_base_poses_around_pos(t, robot, pos, sample_size, dist=DEFAULT_DIST):
-    base_poses = []
-    old_base_pose = robot.pose[:,t].copy()
-    for i in range(sample_size):
-        if np.any(old_base_pose):
-            base_pose = sample_base_pose(pos.flatten(), dist=dist)
-        else:
-            base_pose = sample_base_pose(pos.flatten(), base_pose_seed=old_base_pose.flatten(), dist=dist)
-        if base_pose is not None:
-            base_poses.append(base_pose)
-    return base_poses
-
-
-
-# Obtain constants for EEReachable in robot_predicates
-# from core.util_classes.robot_predicates import OBJ_RING_SAMPLING_RADIUS, NUM_EEREACHABLE_RESAMPLE_ATTEMPTS
-
-
-def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
-    param_attr_inds = []
-    if param.is_symbol():
-        t = 0
-    for attr_name, val in attr_name_val_tuples:
-        inds = np.where(param._free_attrs[attr_name][:, t])[0]
-        getattr(param, attr_name)[inds, t] = val[inds]
-        res.extend(val[inds].flatten().tolist())
-        param_attr_inds.append((attr_name, inds, t))
-    if param in attr_inds:
-        attr_inds[param].extend(param_attr_inds)
-    else:
-        attr_inds[param] = param_attr_inds
-
-def set_robot_body_to_pred_values(pred, t):
-    robot_body = pred._param_to_body[pred.robot]
-    robot_body.set_pose(pred.robot.pose[:, t])
-    robot_body.set_dof(pred.robot.backHeight[:, t], pred.robot.lArmPose[:, t], pred.robot.lGripper[:, t], pred.robot.rArmPose[:, t], pred.robot.rGripper[:, t])
-#Nope
-
-
-def resample_bp_around_target(pred, t, plan, target_pose, dist=OBJ_RING_SAMPLING_RADIUS):
-    v = OpenRAVEViewer.create_viewer()
-
-    bp = get_col_free_base_pose_around_target(t, plan, target_pose, pred.robot,
-                                        save=True, dist=dist)
-    v.draw_plan_ts(plan, t)
-
-    attr_inds = OrderedDict()
-    res = []
-    robot_attr_name_val_tuples = [('pose', bp)]
-    add_to_attr_inds_and_res(t, attr_inds, res, pred.robot,
-                            robot_attr_name_val_tuples)
-    return np.array(res), attr_inds
-
-
-
-def ee_reachable_resample(pred, negated, t, plan):
-    assert not negated
-    handles = []
-    v = OpenRAVEViewer.create_viewer()
-
-    def target_trans_callback(target_trans):
-        handles.append(plot_transform(v.env, target_trans))
-        v.draw_plan_ts(plan, t)
-
-    def plot_time_step_callback():
-        v.draw_plan_ts(plan, t)
-    plot_time_step_callback()
-
-    targets = plan.get_param('GraspValid', 1, {0: pred.ee_pose})
-    assert len(targets) == 1
-    # confirm target is correct
-    target_pose = targets[0].value[:, 0]
-    set_robot_body_to_pred_values(pred, t)
-
-    theta = 0
-    robot = pred.robot
-    robot_body = pred._param_to_body[robot]
-    for _ in range(NUM_EEREACHABLE_RESAMPLE_ATTEMPTS):
-        # generate collision free base pose
-        base_pose = get_col_free_base_pose_around_target(t, plan, target_pose, robot, save=True,
-                                                  dist=OBJ_RING_SAMPLING_RADIUS,
-                                                  callback=plot_time_step_callback)
-        if base_pose is None:
-            print "we should always be able to sample a collision-free base pose"
-            st()
-        # generate collision free arm pose
-        target_rot = np.array([get_random_theta(), 0, 0])
-
-        torso_pose, arm_pose = get_col_free_torso_arm_pose(t, target_pose, target_rot,
-                                                           robot, robot_body, save=True,
-                                                           arm_pose_seed=None,
-                                                           callback=target_trans_callback)
-        st()
-        if torso_pose is None:
-            print "we should be able to find an IK"
-            continue
-
-        # generate approach IK
-        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot)
-        rel_pt = pred.get_rel_pt(-pred._steps)
-        target_pose_approach = np.dot(ee_trans, np.r_[rel_pt, 1])[:3]
-
-        torso_pose_approach, arm_pose_approach = get_col_free_torso_arm_pose(
-                                                    t, target_pose_approach, target_rot,
-                                                    robot, robot_body, save=True,
-                                                    arm_pose_seed=arm_pose,
-                                                    callback=target_trans_callback)
-        st()
-        if torso_pose_approach is None:
-            continue
-
-        # generate retreat IK
-        ee_trans = OpenRAVEBody.transform_from_obj_pose(target_pose, target_rot)
-        rel_pt = pred.get_rel_pt(pred._steps)
-        target_pose_retreat = np.dot(ee_trans, np.r_[rel_pt, 1])[:3]
-
-        torso_pose_retreat, arm_pose_retreat = get_col_free_torso_arm_pose(
-                                                    t, target_pose_retreat, target_rot,
-                                                    robot, robot_body, save=True,
-                                                    arm_pose_seed=arm_pose,
-                                                    callback=target_trans_callback)
-        st()
-        if torso_pose_retreat is not None:
-            break
-    else:
-        print "we should always be able to sample a collision-free base and arm pose"
-        st()
-
-    attr_inds = OrderedDict()
-    res = []
-    arm_approach_traj = lin_interp_traj(arm_pose_approach, arm_pose, pred._steps)
-    torso_approach_traj = lin_interp_traj(torso_pose_approach, torso_pose, pred._steps)
-    base_approach_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
-
-    arm_retreat_traj = lin_interp_traj(arm_pose, arm_pose_retreat, pred._steps)
-    torso_retreat_traj = lin_interp_traj(torso_pose, torso_pose_retreat, pred._steps)
-    base_retreat_traj = lin_interp_traj(base_pose, base_pose, pred._steps)
-
-    arm_traj = np.hstack((arm_approach_traj, arm_retreat_traj[:, 1:]))
-    torso_traj = np.hstack((torso_approach_traj, torso_retreat_traj[:, 1:]))
-    base_traj = np.hstack((base_approach_traj, base_retreat_traj[:, 1:]))
-
-    # add attributes for approach and retreat
-    for ind in range(2*pred._steps+1):
-        robot_attr_name_val_tuples = [('rArmPose', arm_traj[:, ind]),
-                                      ('backHeight', torso_traj[:, ind]),
-                                      ('pose', base_traj[:, ind])]
-        add_to_attr_inds_and_res(t+ind-pred._steps, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
-    st()
-
-    ee_pose_attr_name_val_tuples = [('value', target_pose),
-                                    ('rotation', target_rot)]
-    add_to_attr_inds_and_res(t, attr_inds, res, pred.ee_pose, ee_pose_attr_name_val_tuples)
-    # v.draw_plan_ts(plan, t)
-    v.animate_range(plan, (t-pred._steps, t+pred._steps))
-    # check that indexes are correct
-    import ipdb; ipdb.set_trace()
-
-    return np.array(res), attr_inds
+    traj_list = []
+    for i in range(traj.GetNumWaypoints()):
+        # get the waypoint values, this holds velocites, time stamps, etc
+        data=traj.GetWaypoint(i)
+        # extract the robot joint values only
+        dofvalues = traj.GetConfigurationSpecification().ExtractJointValues(data,robot,robot.GetActiveDOFIndices())
+        # raveLogInfo('waypint %d is %s'%(i,np.round(dofvalues, 3)))
+        traj_list.append(np.round(dofvalues, 3))
+    return traj_list
