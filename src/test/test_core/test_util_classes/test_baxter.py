@@ -98,3 +98,71 @@ class TestBaxter(unittest.TestCase):
         # dof[-8:-1] = baxter_body.get_ik_from_pose(can_pose[:3] + np.array([0,0,0]), can_pose[3:], "right_arm")[0]
         # robot.SetActiveDOFValues(dof)
         # import ipdb;ipdb.set_trace()
+
+    def test_rrt_planner(self):
+        # Adopting examples from openrave
+        import main
+        from core.parsing import parse_domain_config
+        from core.parsing import parse_problem_config
+        from core.util_classes.viewer import OpenRAVEViewer
+        from openravepy import *
+
+
+        domain_fname = '../domains/baxter_domain/baxter.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        # p_fname = '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob'
+        p_fname = '../domains/baxter_domain/baxter_probs/move_1234_3.prob'
+        p_c = main.parse_file_to_dict(p_fname)
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        params = problem.init_state.params
+
+
+        env = Environment() # create openrave environment
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        view = OpenRAVEViewer(env)
+        view.draw(objLst, 0, 0.7)
+        can_body = view.name_to_rave_body["can0"]
+        baxter_body = view.name_to_rave_body["baxter"]
+        can = can_body.env_body
+        robot = baxter_body.env_body
+        dof = robot.GetActiveDOFValues()
+        inds = [10, 11, 12, 13, 14, 15, 16]
+        dof[inds] = [0,0,0,0,0,0,0]
+        robot.SetActiveDOFs(dof)
+        robot.SetActiveDOFs([10, 11, 12, 13, 14, 15, 16]) # set joints the first 4 dofs
+        params = Planner.PlannerParameters()
+        params.SetRobotActiveJoints(robot)
+        params.SetGoalConfig([np.pi/4,0,0,0,0,0,0]) # set goal to all ones
+        # forces parabolic planning with 40 iterations
+        params.SetExtraParameters("""<_postprocessing planner="parabolicsmoother">
+            <_nmaxiterations>40</_nmaxiterations>
+        </_postprocessing>""")
+
+        planner=RaveCreatePlanner(env,'birrt')
+        planner.InitPlan(robot, params)
+
+        # Using OMPL
+        # env = view.env
+        # planner=RaveCreatePlanner(env,'OMPL_RRTConnect')
+        # simplifier = RaveCreatePlanner(env, 'OMPL_Simplifier')
+        # planner.InitPlan(robot, params)
+        # traj = RaveCreateTrajectory(env,'')
+        # result = planner.PlanPath(traj)
+        # simplifier.InitPlan(robot, Planner.PlannerParameters())
+        # result = simplifier.PlanPath(traj)
+        # result = planningutils.RetimeTrajectory(traj)
+        
+        traj = RaveCreateTrajectory(env,'')
+        result = planner.PlanPath(traj)
+        traj_list = []
+        for i in range(traj.GetNumWaypoints()):
+            # get the waypoint values, this holds velocites, time stamps, etc
+            data=traj.GetWaypoint(i)
+            # extract the robot joint values only
+            dofvalues = traj.GetConfigurationSpecification().ExtractJointValues(data,robot,robot.GetActiveDOFIndices())
+            raveLogInfo('waypint %d is %s'%(i,np.round(dofvalues, 3)))
+            traj_list.append(np.round(dofvalues, 3))
+        # import ipdb; ipdb.set_trace()
+        for step in traj_list:
+            robot.SetActiveDOFs(step)
