@@ -6,6 +6,6 @@
 
 # nose2 test.test_core.test_util_classes.test_baxter.TestBaxter.test_baxter_ik
 
-# nose2 test.test_core.test_util_classes.test_baxter.TestBaxter.test_can_world
+nose2 test.test_core.test_util_classes.test_baxter.TestBaxter.test_rrt_planner
 
-nose2 test.test_pma.test_robot_ll_solver
+# nose2 test.test_pma.test_robot_ll_solver

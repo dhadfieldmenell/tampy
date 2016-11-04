@@ -4,7 +4,7 @@ from core.util_classes.param_setup import ParamSetup
 from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.internal_repr import parameter
-from openravepy import Environment
+from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory
 import numpy as np
 import time
 
@@ -105,7 +105,6 @@ class TestBaxter(unittest.TestCase):
         from core.parsing import parse_domain_config
         from core.parsing import parse_problem_config
         from core.util_classes.viewer import OpenRAVEViewer
-        from openravepy import *
 
 
         domain_fname = '../domains/baxter_domain/baxter.domain'
@@ -138,31 +137,48 @@ class TestBaxter(unittest.TestCase):
         params.SetExtraParameters("""<_postprocessing planner="parabolicsmoother">
             <_nmaxiterations>40</_nmaxiterations>
         </_postprocessing>""")
-
-        planner=RaveCreatePlanner(env,'birrt')
-        planner.InitPlan(robot, params)
-
-        # Using OMPL
-        # env = view.env
-        # planner=RaveCreatePlanner(env,'OMPL_RRTConnect')
-        # simplifier = RaveCreatePlanner(env, 'OMPL_Simplifier')
+        params.SetExtraParameters('<range>0.2</range>')
+        # planner=RaveCreatePlanner(env,'birrt')
         # planner.InitPlan(robot, params)
-        # traj = RaveCreateTrajectory(env,'')
-        # result = planner.PlanPath(traj)
-        # simplifier.InitPlan(robot, Planner.PlannerParameters())
-        # result = simplifier.PlanPath(traj)
-        # result = planningutils.RetimeTrajectory(traj)
-        
         traj = RaveCreateTrajectory(env,'')
-        result = planner.PlanPath(traj)
-        traj_list = []
-        for i in range(traj.GetNumWaypoints()):
-            # get the waypoint values, this holds velocites, time stamps, etc
-            data=traj.GetWaypoint(i)
-            # extract the robot joint values only
-            dofvalues = traj.GetConfigurationSpecification().ExtractJointValues(data,robot,robot.GetActiveDOFIndices())
-            raveLogInfo('waypint %d is %s'%(i,np.round(dofvalues, 3)))
-            traj_list.append(np.round(dofvalues, 3))
+        # Using openrave built in planner
+
+
+
+        traj2 = planing(env, robot, params, traj, 'ExplorationRRT') # 0.03s
+        traj3 = planing(env, robot, params, traj, 'OMPL_RRTConnect') # 1.5s
+        traj0 = planing(env, robot, params, traj, 'BiRRT')  # 3.5s
+
+        # traj1 = planing(env, robot, params, traj, 'BasicRRT') # 0.05s can't run it by its own
+        # traj4 = planing(env, robot, params, traj, 'OMPL_RRT') # 10s
+        # traj5 = planing(env, robot, params, traj, 'OMPL_RRTstar') # 10s
+        # traj6 = planing(env, robot, params, traj, 'OMPL_TRRT')  # 10s
+        # traj7 = planing(env, robot, params, traj, 'OMPL_pRRT') # Having issue, freeze
+        # traj8 = planing(env, robot, params, traj, 'OMPL_LazyRRT') # 1.5s - 10s unsatble
         # import ipdb; ipdb.set_trace()
-        for step in traj_list:
-            robot.SetActiveDOFs(step)
+        # for step in traj0:
+        #     robot.SetActiveDOFValues(step)
+        # import ipdb; ipdb.set_trace()
+        # for step in traj1:
+        #     robot.SetActiveDOFValues(step)
+        # import ipdb; ipdb.set_trace()
+        # for step in traj2:
+        #     robot.SetActiveDOFValues(step)
+        import ipdb; ipdb.set_trace()
+
+        for step in traj3:
+            robot.SetActiveDOFValues(step)
+
+def planing(env, robot, params, traj, planner):
+    t0 = time.time()
+    planner=RaveCreatePlanner(env, planner)
+    planner.InitPlan(robot, params)
+    planner.PlanPath(traj)
+    traj_list = []
+    for i in range(traj.GetNumWaypoints()):
+        dofvalues = traj.GetConfigurationSpecification().ExtractJointValues(traj.GetWaypoint(i),robot,robot.GetActiveDOFIndices())
+        traj_list.append(np.round(dofvalues, 3))
+    t1 = time.time()
+    total = t1-t0
+    print "{} Proforms: {}s".format(planner, total)
+    return traj_list
