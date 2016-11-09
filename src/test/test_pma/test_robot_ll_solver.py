@@ -44,6 +44,7 @@ class TestRobotLLSolver(unittest.TestCase):
             return hls.solve(abs_problem, domain, problem)
         self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move.prob')
         self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+        self.complex_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
         # self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
 
 
@@ -58,11 +59,16 @@ class TestRobotLLSolver(unittest.TestCase):
         else:
             self.viewer = None
 
-    def test_move_prob(self):
-        _test_plan(self, self.move_prob)
+    # def test_move_prob(self):
+    #     _test_plan(self, self.move_prob)
+    #
+    # def test_grab_prob(self):
+    #     _test_plan(self, self.grab_prob)
 
-    def test_move_prob(self):
-        _test_plan(self, self.grab_prob)
+    def test_complex_grab_prob(self):
+        _test_plan(self, self.complex_grab_prob)
+
+
 
     # def test_grasp_prob(self):
     #     _test_resampling(self, self.grab_prob)
@@ -207,8 +213,9 @@ def _test_plan(test_obj, plan, n_resamples=0):
     # ee_pose = OpenRAVEBody.obj_pose_from_transform(manip.GetTransform())
 
     print(plan.get_failed_preds())
-    assert plan.satisfied()
-    # import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
+    # assert plan.satisfied()
+
 
 if __name__ == "__main__":
     unittest.main()

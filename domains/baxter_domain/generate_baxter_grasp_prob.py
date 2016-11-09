@@ -6,8 +6,8 @@ import random
 
 SEED = 1234
 NUM_PROBS = 5
-NUM_CANS = 1 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
-NUM_TARGETS = 1
+NUM_CANS = 3 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_TARGETS = 3
 filename = "baxter_probs/grasp"
 assert NUM_CANS <= NUM_TARGETS
 # GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
@@ -16,7 +16,7 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0),
 DIST_SAFE = 5e-3
 
 CAN_ROTATION_INIT = [0,0,0]
-CAN_POSE_INIT = [1.1, 0.3, 0.925]
+CAN_POSE_INIT = [[1.1, 0.2, 0.925],[1.2, -0.3, 0.925], [1.0, -0.3, 0.925]]
 CAN_RADIUS = 0.02
 CAN_HEIGHT = 0.25
 CAN_GEOM = [CAN_RADIUS, CAN_HEIGHT]
@@ -24,10 +24,12 @@ DIST_BETWEEN_CANS = 0.01
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]
 Baxter_END_POSE = [0]
-R_ARM_INIT = [ 1.,   -0.723, 0.131, 1.977,-2.829, 1.294, 2.951]
+R_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
 L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
 Baxter_END_LARM = [0, 0, 0, 0, 0, 0, 0]
-Baxter_END_RARM = [ 0.5  , -0.881,  0.814,  1.669, -2.672,  0.864,  2.308]
+Baxter_END_RARM = [ 0.7  ,  0.258,  2.272,  1.195,  0.377, -0.604, -2.6  ]
+Baxter_Grasp_ArmPose = [ 0.7  , -0.204,  0.862,  1.217,  2.731,  0.665,  2.598]
+
 INT_GRIPPER = [0.02]
 END_GRIPPER = [0.015]
 
@@ -120,7 +122,7 @@ def main():
         for i in range(NUM_TARGETS):
             target_pos = target_gen.next()
             s += "(geom target{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
-            s += "(value target{} {}), ".format(i, CAN_POSE_INIT)
+            s += "(value target{} {}), ".format(i, CAN_POSE_INIT[i])
             s += "(rotation target{} {}),".format(i, CAN_ROTATION_INIT)
             s += "(value pdp_target{} undefined), ".format(i)
             s += get_baxter_undefined_attrs_str("pdp_target{}".format(i))
@@ -129,7 +131,7 @@ def main():
 
             if i < NUM_CANS:
                 s += "(geom can{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
-                s += "(pose can{} {}), ".format(i, CAN_POSE_INIT)
+                s += "(pose can{} {}), ".format(i, CAN_POSE_INIT[i])
                 s += "(rotation can{} {}),".format(i, CAN_ROTATION_INIT)
                 # s += "(value gp_can{} undefined), ".format(i)
         s += "(geom {}), ".format("baxter")
