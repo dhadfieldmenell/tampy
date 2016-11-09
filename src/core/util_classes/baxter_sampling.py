@@ -226,13 +226,8 @@ def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
     params.SetGoalConfig(end_dof) # set goal to all ones
     # forces parabolic planning with 40 iterations
     planner=RaveCreatePlanner(env,'OMPL_RRTConnect')
-    simplifier = RaveCreatePlanner(env, 'OMPL_Simplifier')
     planner.InitPlan(robot, params)
     traj = RaveCreateTrajectory(env,'')
-    planner.PlanPath(traj)
-    simplifier.InitPlan(robot, Planner.PlannerParameters())
-    simplifier.PlanPath(traj)
-    planningutils.RetimeTrajectory(traj)
     planner.PlanPath(traj)
 
     traj_list = []

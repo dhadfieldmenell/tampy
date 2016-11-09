@@ -197,7 +197,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
     """
     """
     solver = robot_ll_solver.RobotLLSolver()
-    solver.solve(plan, callback=callback, n_resamples=n_resamples, verbose=False)
+    solver.solve(plan, callback=callback, n_resamples=5, verbose=False)
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()

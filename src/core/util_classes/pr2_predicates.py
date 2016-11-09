@@ -1,5 +1,6 @@
 from core.util_classes import robot_predicates
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
+from core.util_classes.sampling import ee_reachable_resample, resample_bp_around_target
 from collections import OrderedDict
 from openravepy import DOFAffine
 import numpy as np
@@ -35,6 +36,9 @@ INGRIPPER_OPT_COEFF = 3e2
 RCOLLIDES_OPT_COEFF = 1e2
 OBSTRUCTS_OPT_COEFF = 1e2
 GRASP_VALID_COEFF = 1e1
+
+TABLE_SAMPLING_RADIUS = 2.0
+OBJ_RING_SAMPLING_RADIUS = 0.6
 
 # Attributes used in pr2 domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("backHeight", np.array([0], dtype=np.int)),
@@ -256,6 +260,9 @@ class PR2EEReachable(robot_predicates.EEReachable):
                                  (params[2], list(ATTRMAP[params[2]._type]))])
         super(PR2EEReachable, self).__init__(name, params, expected_param_types, env, debug, steps)
 
+    def resample(self, negated, t, plan):
+        return ee_reachable_resample(self, negated, t, plan)
+
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
         back_height = x[0]
@@ -345,6 +352,10 @@ class PR2Obstructs(robot_predicates.Obstructs):
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(PR2Obstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
 
+    def resample(self, negated, t, plan):
+        target_pose = self.can.pose[:, t]
+        return resample_bp_around_target(self, t, plan, target_pose, dist=OBJ_RING_SAMPLING_RADIUS)
+
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
         back_height = x[0]
@@ -393,6 +404,11 @@ class PR2ObstructsHolding(robot_predicates.ObstructsHolding):
                                  (params[4], list(ATTRMAP[params[4]._type]))])
         self.OBSTRUCTS_OPT_COEFF = OBSTRUCTS_OPT_COEFF
         super(PR2ObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
+
+    def resample(self, negated, t, plan):
+        target_pose = self.obstruct.pose[:, t]
+        return resample_bp_around_target(self, t, plan, target_pose,
+                                        dist=OBJ_RING_SAMPLING_RADIUS)
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -445,6 +461,11 @@ class PR2RCollides(robot_predicates.RCollides):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(PR2RCollides, self).__init__(name, params, expected_param_types, env, debug)
+
+    def resample(self, negated, t, plan):
+        target_pose = self.obstacle.pose[:, t]
+        return resample_bp_around_target(self, t, plan, target_pose,
+                                        dist=TABLE_SAMPLING_RADIUS)
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body

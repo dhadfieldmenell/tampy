@@ -1,6 +1,6 @@
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.sampling import get_expr_mult, resample_bp_around_target, ee_reachable_resample
+from core.util_classes.sampling import get_expr_mult
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from errors_exceptions import PredicateException
 from collections import OrderedDict
@@ -855,8 +855,7 @@ class EEReachable(PosePredicate):
         else:
             return self.opt_expr
 
-    def resample(self, negated, t, plan):
-        return ee_reachable_resample(self, negated, t, plan)
+
 
 class Obstructs(CollisionPredicate):
     """
@@ -909,9 +908,7 @@ class Obstructs(CollisionPredicate):
         else:
             return None
 
-    def resample(self, negated, t, plan):
-        target_pose = self.can.pose[:, t]
-        return resample_bp_around_target(self, t, plan, target_pose, dist=OBJ_RING_SAMPLING_RADIUS)
+
 
 class ObstructsHolding(CollisionPredicate):
     """
@@ -965,11 +962,6 @@ class ObstructsHolding(CollisionPredicate):
             return self.neg_expr_opt
         else:
             return None
-
-    def resample(self, negated, t, plan):
-        target_pose = self.obstruct.pose[:, t]
-        return resample_bp_around_target(self, t, plan, target_pose,
-                                        dist=OBJ_RING_SAMPLING_RADIUS)
 
 class Collides(CollisionPredicate):
     """
@@ -1064,8 +1056,3 @@ class RCollides(CollisionPredicate):
             return self.neg_expr_opt
         else:
             return None
-
-    def resample(self, negated, t, plan):
-        target_pose = self.obstacle.pose[:, t]
-        return resample_bp_around_target(self, t, plan, target_pose,
-                                        dist=TABLE_SAMPLING_RADIUS)

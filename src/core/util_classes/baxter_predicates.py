@@ -15,7 +15,7 @@ JOINT_MOVE_FACTOR = 10
 TWOARMDIM = 16
 # EEReachable Constants
 APPROACH_DIST = 0.005
-RETREAT_DIST = 0.025
+RETREAT_DIST = 0.035
 EEREACHABLE_STEPS = 3
 # Collision Constants
 DIST_SAFE = 5e-3
@@ -305,6 +305,10 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         self.attr_dim = 23
         super(BaxterEEReachable, self).__init__(name, params, expected_param_types, env, debug, steps)
 
+    def resample(self, negated, t, plan):
+        # TODO write resample function
+        return [1], [2]
+
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
         l_arm_pose, l_gripper = x[0:7], x[7]
@@ -456,6 +460,10 @@ class BaxterObstructs(robot_predicates.Obstructs):
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = DIST_SAFE
 
+    def resample(self, negated, t, plan):
+        # TODO Write resample function
+        pass
+
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
         if reset == True and self.dof_cache != None:
@@ -495,6 +503,10 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         self.OBSTRUCTS_OPT_COEFF = OBSTRUCTS_OPT_COEFF
         super(BaxterObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = DIST_SAFE
+
+    def resample(self, negated, t, plan):
+        # TODO write resample function
+        pass
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -542,6 +554,10 @@ class BaxterRCollides(robot_predicates.RCollides):
         self.opt_coeff = RCOLLIDES_OPT_COEFF
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = RCOLLIDES_DSAFE
+
+    def resample(self, negated, t, plan):
+        # TODO write resample function
+        pass
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
