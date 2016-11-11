@@ -55,7 +55,6 @@ class RobotLLSolver(LLSolver):
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, force_init=False):
         success = False
-
         if force_init or not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
             self._solve_opt_prob(plan, priority=-2, callback=callback, active_ts=active_ts, verbose=verbose)
@@ -198,6 +197,8 @@ class RobotLLSolver(LLSolver):
 
     def _resample(self, plan, preds):
         val, attr_inds = None, None
+        import ipdb; ipdb.set_trace()
+
         for negated, pred, t in preds:
             ## returns a vector of new values and an
             ## attr_inds (OrderedDict) that gives the mapping

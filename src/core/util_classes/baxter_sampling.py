@@ -1,6 +1,7 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory
+from collections import OrderedDict
 from sco.expr import Expr
 import math
 import numpy as np
@@ -239,3 +240,64 @@ def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
         # raveLogInfo('waypint %d is %s'%(i,np.round(dofvalues, 3)))
         traj_list.append(np.round(dofvalues, 3))
     return traj_list
+
+
+NUM_RESAMPLES = 5
+def get_col_free_armPose(negated, t, plan, robot, body):
+    arm_pose = None
+    old_arm_pose = robot.rArmPose[:, t].copy()
+
+    for i in range(NUM_RESAMPLES):
+        arm_pose = sample_arm_pose(body.env_body)
+
+        robot.rArmPose[:, t] = arm_pose
+        # if callback is not None: callback()
+        _, collision_preds = plan.get_param('Obstructs', 1, negated=negated, return_preds=True)
+        # check to ensure collision_preds are correct
+
+        collision_free = True
+        for pred in collision_preds:
+            if not pred.test(t, negated=negated):
+                collision_free = False
+                base_pose = None
+                break
+        if collision_free:
+            break
+
+    # if not save:
+    #     robot.rArmPose[:, t] = old_arm_pose
+    return arm_pose
+
+def sample_arm_pose(robot_body):
+    dof_inds = robot_body.GetManipulator("right_arm").GetArmIndices()
+    lb_limit, ub_limit = robot_body.GetDOFLimits()
+    active_ub = ub_limit[dof_inds].flatten()
+    active_lb = lb_limit[dof_inds].flatten()
+
+    arm_pose = np.random.random_sample((len(dof_inds),))
+    arm_pose = np.multiply(arm_pose, active_ub - active_lb) + active_lb
+    return arm_pose
+
+def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
+    param_attr_inds = []
+    if param.is_symbol():
+        t = 0
+    for attr_name, val in attr_name_val_tuples:
+        inds = np.where(param._free_attrs[attr_name][:, t])[0]
+        getattr(param, attr_name)[inds, t] = val[inds]
+        res.extend(val[inds].flatten().tolist())
+        param_attr_inds.append((attr_name, inds, t))
+    if param in attr_inds:
+        attr_inds[param].extend(param_attr_inds)
+    else:
+        attr_inds[param] = param_attr_inds
+
+def resample_obstructs(pred, negated, t, plan):
+    robot = pred.robot
+    arm_pose = get_col_free_armPose(negated, t, plan, robot, pred._param_to_body[robot])
+    attr_inds = OrderedDict()
+    res = []
+    robot_attr_name_val_tuples = [('rArmPose', arm_pose)]
+    add_to_attr_inds_and_res(t, attr_inds, res, pred.robot,
+                            robot_attr_name_val_tuples)
+    return np.array(res), attr_inds
