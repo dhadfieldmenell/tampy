@@ -374,18 +374,31 @@ def resample_rrt_planner(pred, netgated, t, plan):
             continue
 
 def process_traj(raw_traj, timesteps):
-    result_traj = None
+    result_traj = []
     if len(raw_traj) > timesteps:
         traj_arr = [0]
+        result_traj.append(raw_traj[0])
         for i in range(len(raw_traj)-1):
-            traj_dist.append(traj_dist[-1] + np.linalg.norm(raw_traj[i+1] - raw_traj[i]))
-        step_dist = traj_dist[-1]/timesteps
-        import ipdb; ipdb.set_trace()
-
+            traj_arr.append(traj_arr[-1] + np.linalg.norm(raw_traj[i+1] - raw_traj[i]))
+        step_dist = traj_arr[-1]/(timesteps - 1)
+        process_dist, i = 0, 1
+        while i < len(traj_arr)-1:
+            if traj_arr[i] == process_dist + step_dist:
+                result_traj.append(raw_traj[i])
+                process_dist += step_dist
+            elif traj_arr[i] < process_dist+step_dist < traj_arr[i+1]:
+                dist = process_dist+step_dist - traj_arr[i]
+                displacement = (raw_traj[i+1] - raw_traj[i])/(traj_arr[i+1]-traj_arr[i])*dist
+                result_traj.append(raw_traj[i]+displacement)
+                process_dist += step_dist
+            else:
+                i += 1
+        result_traj.append(raw_traj[-1])
     elif len(raw_traj) < timesteps:
         result_traj = raw_traj.copy()
         for _ in range(timesteps - len(raw_traj)):
             result_traj.append(raw_traj[-1])
     else:
         result_traj = raw_traj.copy()
-    return result_traj
+    import ipdb; ipdb.set_trace()
+    return np.array(result_traj).T
