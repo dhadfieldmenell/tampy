@@ -1,7 +1,7 @@
 from core.util_classes import robot_predicates
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.baxter_sampling import resample_obstructs
+from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable, resample_rrt_planner
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 from openravepy import DOFAffine
@@ -15,8 +15,8 @@ BASE_MOVE = 1
 JOINT_MOVE_FACTOR = 10
 TWOARMDIM = 16
 # EEReachable Constants
-APPROACH_DIST = 0.005
-RETREAT_DIST = 0.035
+APPROACH_DIST = 0.05
+RETREAT_DIST = 0.050
 EEREACHABLE_STEPS = 3
 # Collision Constants
 DIST_SAFE = 5e-3
@@ -307,8 +307,7 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         super(BaxterEEReachable, self).__init__(name, params, expected_param_types, env, debug, steps)
 
     def resample(self, negated, t, plan):
-        # TODO write resample function
-        return None, None
+        return resample_eereachable(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -462,7 +461,9 @@ class BaxterObstructs(robot_predicates.Obstructs):
         self.dsafe = DIST_SAFE
 
     def resample(self, negated, t, plan):
+        # return resample_obstructs(self, negated, t, plan)
         return resample_obstructs(self, negated, t, plan)
+
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -505,8 +506,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         self.dsafe = DIST_SAFE
 
     def resample(self, negated, t, plan):
-        # TODO write resample function
-        return None, None
+        return resample_obstructs(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -556,8 +556,7 @@ class BaxterRCollides(robot_predicates.RCollides):
         self.dsafe = RCOLLIDES_DSAFE
 
     def resample(self, negated, t, plan):
-        # TODO write resample function
-        return None, None
+        return resample_obstructs(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
