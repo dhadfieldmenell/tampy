@@ -53,7 +53,6 @@ class TestRobotLLSolver(unittest.TestCase):
         # self.grasp_obstructs0 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
 
         # self.grasp_obstructs = get_plan('../domains/can_domain/can_probs/can_grasp_1234_4.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
-
         if VIEWER:
             self.viewer = OpenRAVEViewer.create_viewer()
         else:
@@ -180,8 +179,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
     draw_cols_ts = get_draw_cols_ts_fn(viewer, plan)
     def callback(set_trace=False):
         solver._update_ll_params()
-    # #     obj_list = viewer._get_plan_obj_list(plan)
-    # #     # viewer.draw_traj(obj_list, [0,9,19,20,29,38])
+        # viewer.draw_traj(obj_list, [5,10, 15, 17, 18, 19,20,21])
     # #     # viewer.draw_traj(obj_list, range(19,30))
     # #     # viewer.draw_traj(obj_list, range(29,39))
     # #     # viewer.draw_traj(obj_list, [38])
@@ -190,6 +188,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
         # draw_ts(50)
         if set_trace:
             animate()
+        return viewer
             # import ipdb; ipdb.set_trace()
 
         # viewer.draw_plan(plan)

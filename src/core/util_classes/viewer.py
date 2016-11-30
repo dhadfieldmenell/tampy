@@ -50,6 +50,14 @@ class OpenRAVEViewer(Viewer):
         OpenRAVEViewer._viewer.clear()
         return OpenRAVEViewer._viewer
 
+    def lazy_spawn_or_body(self, param, name, geom):
+        if param.openrave_body is not None:
+            assert geom == param.openrave_body._geom
+            assert self.env == param.openrave_body.env_body.GetEnv()
+        else:
+            param.openrave_body = OpenRAVEBody(self.env, name, geom)
+        return param.openrave_body
+
     def record_plan(self, plan, outf, res = (640, 480), cam=None):
         """
         creates a video of a plan and stores it in outf

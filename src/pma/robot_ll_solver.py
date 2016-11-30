@@ -4,6 +4,7 @@ from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
 from openravepy import matrixFromAxisAngle
 from core.util_classes import common_predicates
+from core.util_classes import baxter_predicates
 from core.util_classes.matrix import Vector
 from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
@@ -15,6 +16,8 @@ GRB = grb.GRB
 from IPython import embed as shell
 from core.util_classes import sampling
 from core.util_classes.viewer import OpenRAVEViewer
+from core.util_classes import baxter_sampling
+
 
 MAX_PRIORITY=5
 BASE_MOVE_COEFF = 10
@@ -53,7 +56,7 @@ class RobotLLSolver(LLSolver):
         # return True
         return success
 
-    def solve(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, force_init=False):
+    def solve(self, plan, callback=None, n_resamples=1, active_ts=None, verbose=False, force_init=False):
         success = False
         if force_init or not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
@@ -96,23 +99,31 @@ class RobotLLSolver(LLSolver):
         # param_to_ll_old = self._param_to_ll.copy()
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
-
         self._bexpr_to_pred = {}
-
         if priority == -2:
+            """
+            Initialize the trajectory while enforce only the linear constraints
+            """
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
             self._add_first_and_last_timesteps_of_actions(plan, priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
             # self._add_all_timesteps_of_actions(plan, priority=1, add_nonlin=False, verbose=verbose)
             tol = 1e-1
         elif priority == -1:
+            """
+            Solve the optimization problem while enforcing every constraints.
+            """
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
             self._add_first_and_last_timesteps_of_actions(plan, priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=True)
             tol = 1e-1
         elif priority == 0:
+            """
+            When Optimization fails, resample new values for certain timesteps of the trajectory and solver as initialization
+            """
+
             ## this should only get called with a full plan for now
-            assert active_ts == (0, plan.horizon-1)
+            # assert active_ts == (0, plan.horizon-1)
 
             failed_preds = plan.get_failed_preds()
             ## this is an objective that places
@@ -197,7 +208,6 @@ class RobotLLSolver(LLSolver):
 
     def _resample(self, plan, preds):
         val, attr_inds = None, None
-        import ipdb; ipdb.set_trace()
 
         for negated, pred, t in preds:
             ## returns a vector of new values and an
@@ -208,6 +218,7 @@ class RobotLLSolver(LLSolver):
             if val is not None: break
         if val is None:
             return []
+
 
         bexprs = []
         i = 0

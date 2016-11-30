@@ -1,6 +1,6 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
-from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory
+from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle
 from collections import OrderedDict
 from sco.expr import Expr
 import math
@@ -8,11 +8,15 @@ import numpy as np
 pi = np.pi
 
 DEFAULT_DIST = 0.6
-NUM_BASE_RESAMPLES = 10
 EE_ANGLE_SAMPLE_SIZE = 5
 
 OBJ_RING_SAMPLING_RADIUS = 0.6
 NUM_EEREACHABLE_RESAMPLE_ATTEMPTS = 10
+
+APPROACH_DIST = 0.05
+RETREAT_DIST = 0.050
+EEREACHABLE_STEPS = 3
+
 #These functions are helper functions that can be used by many robots
 def get_random_dir():
     """
@@ -100,7 +104,7 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
     min_change = np.inf
     chosen_arm_pose = None
     for arm_pose in arm_poses:
-        change = sum((arm_pose - cur_arm_poses)**2)
+        change = sum((arm_pose - cur_arm_pose)**2)
         if change < min_change:
             chosen_arm_pose = arm_pose
             min_change = change
@@ -186,7 +190,9 @@ def get_ik_solutions(robot, manip_name, trans):
     manip = robot.GetManipulator(manip_name)
     iktype = IkParameterizationType.Transform6D
     solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
-    return closest_arm_pose(solutions, robot.GetActiveDOFValues()[manip.GetArmIndices])
+    if len(solutions) == 0:
+        return None
+    return closest_arm_pose(solutions, robot.GetActiveDOFValues()[manip.GetArmIndices()])
 
 # Get RRT Planning Result
 def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
@@ -199,7 +205,7 @@ def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
     params.SetGoalConfig(end_dof) # set goal to all ones
     # forces parabolic planning with 40 iterations
     params.SetExtraParameters("""<_postprocessing planner="parabolicsmoother">
-        <_nmaxiterations>40</_nmaxiterations>
+        <_nmaxiterations>17</_nmaxiterations>
     </_postprocessing>""")
 
     planner=RaveCreatePlanner(env,'birrt')
@@ -219,6 +225,7 @@ def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
 
 def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
     # assert body in env.GetRobot()
+    dof_inds = robot.GetActiveDOFIndices()
     robot.SetActiveDOFs(active_dof)
     robot.SetActiveDOFValues(init_dof)
 
@@ -239,43 +246,42 @@ def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
         dofvalues = traj.GetConfigurationSpecification().ExtractJointValues(data,robot,robot.GetActiveDOFIndices())
         # raveLogInfo('waypint %d is %s'%(i,np.round(dofvalues, 3)))
         traj_list.append(np.round(dofvalues, 3))
+    robot.SetActiveDOFs(dof_inds)
     return traj_list
 
 
-NUM_RESAMPLES = 5
+NUM_RESAMPLES = 10
+MAX_ITERATION_STEP = 20
+BIAS_RADIUS = 0.4
+ROT_BIAS = np.pi/4
 def get_col_free_armPose(negated, t, plan, robot, body):
     arm_pose = None
-    old_arm_pose = robot.rArmPose[:, t].copy()
-
-    for i in range(NUM_RESAMPLES):
-        arm_pose = sample_arm_pose(body.env_body)
-
-        robot.rArmPose[:, t] = arm_pose
-        # if callback is not None: callback()
-        _, collision_preds = plan.get_param('Obstructs', 1, negated=negated, return_preds=True)
-        # check to ensure collision_preds are correct
-
-        collision_free = True
-        for pred in collision_preds:
-            if not pred.test(t, negated=negated):
-                collision_free = False
-                base_pose = None
-                break
-        if collision_free:
-            break
-
-    # if not save:
-    #     robot.rArmPose[:, t] = old_arm_pose
+    # old_arm_pose = robot.rArmPose[:, t].copy()
+    ee_pose = OpenRAVEBody.obj_pose_from_transform(body.env_body.GetManipulator('right_arm').GetTransform())
+    pos, rot = ee_pose[:3], ee_pose[3:]
+    arm_pose = None
+    iteration = 0
+    while arm_pose is None and iteration < MAX_ITERATION_STEP:
+    # for i in range(NUM_RESAMPLES):
+        pos_bias = np.random.random_sample((3,))*BIAS_RADIUS*2 - BIAS_RADIUS
+        # rot_bias = np.random.random_sample((3,))*ROT_BIAS*2 - ROT_BIASd
+        print pos_bias, rot_bias, iteration
+        iteration += 1
+        arm_pose = get_ik_from_pose(pos + pos_bias, rot, body.env_body, 'right_arm')
     return arm_pose
 
-def sample_arm_pose(robot_body):
+
+def sample_arm_pose(robot_body, old_arm_pose=None):
     dof_inds = robot_body.GetManipulator("right_arm").GetArmIndices()
     lb_limit, ub_limit = robot_body.GetDOFLimits()
     active_ub = ub_limit[dof_inds].flatten()
     active_lb = lb_limit[dof_inds].flatten()
-
-    arm_pose = np.random.random_sample((len(dof_inds),))
-    arm_pose = np.multiply(arm_pose, active_ub - active_lb) + active_lb
+    if old_arm_pose is not None:
+        arm_pose = np.random.random_sample((len(dof_inds),))
+        arm_pose = np.multiply(arm_pose, (active_ub - active_lb)/5) + old_arm_pose
+    else:
+        arm_pose = np.random.random_sample((len(dof_inds),))
+        arm_pose = np.multiply(arm_pose, active_ub - active_lb) + active_lb
     return arm_pose
 
 def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
@@ -295,9 +301,91 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
 def resample_obstructs(pred, negated, t, plan):
     robot = pred.robot
     arm_pose = get_col_free_armPose(negated, t, plan, robot, pred._param_to_body[robot])
+    # arm_pose = get_rrt_armPose(negated, active_ts, plan, robot, pred._param_to_body[robot])
+
     attr_inds = OrderedDict()
     res = []
     robot_attr_name_val_tuples = [('rArmPose', arm_pose)]
     add_to_attr_inds_and_res(t, attr_inds, res, pred.robot,
                             robot_attr_name_val_tuples)
     return np.array(res), attr_inds
+
+
+def resample_eereachable(pred, negated, t, plan):
+    robot = pred.robot
+    target_pos, target_rot = pred.ee_pose.value.flatten(), pred.ee_pose.rotation.flatten()
+    body = pred._param_to_body[robot].env_body
+    manip_trans = body.GetManipulator("right_arm").GetTransform()
+    pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+    manip_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+    gripper_direction = manip_trans[:3,:3].dot(np.array([-1,1,0]))
+    lift_direction = manip_trans[:3,:3].dot(np.array([0,0,-1]))
+
+    attr_inds = OrderedDict()
+    res = []
+    grasp_arm_pose = get_ik_from_pose(target_pos, target_rot, body, 'right_arm')
+    add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', grasp_arm_pose)])
+
+    for i in range(EEREACHABLE_STEPS):
+        approach_pos = target_pos - gripper_direction/np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
+        approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body, 'right_arm')
+        add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot,[('rArmPose', approach_arm_pose)])
+
+        retreat_pos = target_pos + lift_direction/np.linalg.norm(lift_direction) * RETREAT_DIST * (i+1)
+        retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
+        add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
+
+    robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS] = 0
+    return np.array(res), attr_inds
+
+GRASP_STEP = 20
+def resample_rrt_planner(pred, netgated, t, plan):
+    startp, endp = pred.startp, pred.endp
+    robot = pred.robot
+    body = pred._param_to_body[robot].env_body
+    manip_trans = body.GetManipulator("right_arm").GetTransform()
+    pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+    manip_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+    gripper_direction = manip_trans[:3,:3].dot(np.array([-1,1,0]))
+    lift_direction = manip_trans[:3,:3].dot(np.array([0,0,-1]))
+    active_dof = body.GetManipulator("right_arm").GetArmIndices()
+    attr_inds = OrderedDict()
+    res = []
+    possible_poses = get_ee_from_target(pred.can.pose.flatten(), pred.can.rotation.flatten())
+    for target_pos, target_rot in possible_poses:
+        try:
+            arm_pose = get_ik_from_pose(target_pos, target_rot, body, 'right_arm')
+            if arm_pose == None:    continue
+            add_to_attr_inds_and_res(GRASP_STEP, attr_inds, res, robot,[('rArmPose', arm_pose)])
+            for i in range(EEREACHABLE_STEPS):
+                approach_pos = target_pos - gripper_direction/np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
+                approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body, 'right_arm')
+                if approach_arm_pose == None:    continue
+                add_to_attr_inds_and_res(GRASP_STEP-3+i, attr_inds, res, robot,[('rArmPose', approach_arm_pose)])
+
+                retreat_pos = target_pos + lift_direction/np.linalg.norm(lift_direction) * RETREAT_DIST * (i+1)
+                retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
+                if retreat_arm_pose == None:    continue
+                add_to_attr_inds_and_res(GRASP_STEP+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
+            import ipdb; ipdb.set_trace()
+            raw_trajectory = get_rrt_traj(pred._env, body, active_dof, startp.rArmPose[:], robot.rArmPose[:,17])
+
+        except:
+            continue
+
+def process_traj(raw_traj, timesteps):
+    result_traj = None
+    if len(raw_traj) > timesteps:
+        traj_arr = [0]
+        for i in range(len(raw_traj)-1):
+            traj_dist.append(traj_dist[-1] + np.linalg.norm(raw_traj[i+1] - raw_traj[i]))
+        step_dist = traj_dist[-1]/timesteps
+        import ipdb; ipdb.set_trace()
+
+    elif len(raw_traj) < timesteps:
+        result_traj = raw_traj.copy()
+        for _ in range(timesteps - len(raw_traj)):
+            result_traj.append(raw_traj[-1])
+    else:
+        result_traj = raw_traj.copy()
+    return result_traj

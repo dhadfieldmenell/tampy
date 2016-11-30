@@ -8,10 +8,11 @@ from core.util_classes import box, matrix
 from core.util_classes.param_setup import ParamSetup
 from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes.baxter_sampling import process_traj
 from core.util_classes.viewer import OpenRAVEViewer
 from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
 
-def load_environment(domian_file, problem_file):
+def load_environment(domain_file, problem_file):
     domain_fname = domain_file
     d_c = main.parse_file_to_dict(domain_fname)
     domain = parse_domain_config.ParseDomainConfig.parse(d_c)
@@ -147,24 +148,27 @@ class TestBaxter(unittest.TestCase):
         # Using openrave built in planner
         trajectory  = {}
         plan_params.SetExtraParameters("""  <_postprocessing planner="parabolicsmoother">
-                                                <_nmaxiterations>40</_nmaxiterations>
+                                                <_nmaxiterations>17</_nmaxiterations>
                                             </_postprocessing>""")
         trajectory["BiRRT"] = planing(env, robot, plan_params, traj, 'BiRRT')  # 3.5s
         # trajectory["BasicRRT"] = planing(env, robot, plan_params, traj, 'BasicRRT') # 0.05s can't run it by its own
         # trajectory["ExplorationRRT"] = planing(env, robot, plan_params, traj, 'ExplorationRRT') # 0.03s
 
-        plan_params.SetExtraParameters('<range>0.2</range>')
+        # plan_params.SetExtraParameters('<range>0.2</range>')
         # Using OMPL planner
-        trajectory["OMPL_RRTConnect"] = planing(env, robot, plan_params, traj, 'OMPL_RRTConnect') # 1.5s
+        # trajectory["OMPL_RRTConnect"] = planing(env, robot, plan_params, traj, 'OMPL_RRTConnect') # 1.5s
         # trajectory["OMPL_RRT"] = planing(env, robot, plan_params, traj, 'OMPL_RRT') # 10s
         # trajectory["OMPL_RRTstar"] = planing(env, robot, plan_params, traj, 'OMPL_RRTstar') # 10s
         # trajectory["OMPL_TRRT"] = planing(env, robot, plan_params, traj, 'OMPL_TRRT')  # 10s
         # trajectory["OMPL_pRRT"] = planing(env, robot, plan_params, traj, 'OMPL_pRRT') # Having issue, freeze
         # trajectory["OMPL_LazyRRT"] = planing(env, robot, plan_params, traj, 'OMPL_LazyRRT') # 1.5s - 10s unsatble
-
+        # ompl_traj = trajectory["OMPL_RRTConnect"]
         or_traj = trajectory["BiRRT"]
-        ompl_traj = trajectory["OMPL_RRTConnect"]
-        import ipdb; ipdb.set_trace()
+
+        result = process_traj(or_traj, 20)
+
+
+
 
     def test_random_init(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain', '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
@@ -182,4 +186,4 @@ class TestBaxter(unittest.TestCase):
 
         lb_limit, ub_limit = robot.GetDOFLimits()
         active_ub = ub_limit[dof_inds].flatten()
-        active_lb = lb_limit[dof_inds]flatten()
+        active_lb = lb_limit[dof_inds].flatten()
