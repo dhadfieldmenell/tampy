@@ -194,6 +194,9 @@ def get_ik_solutions(robot, manip_name, trans):
         return None
     return closest_arm_pose(solutions, robot.GetActiveDOFValues()[manip.GetArmIndices()])
 
+
+
+
 # Get RRT Planning Result
 def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
     # assert body in env.GetRobot()
@@ -325,7 +328,6 @@ def resample_eereachable(pred, negated, t, plan):
     res = []
     grasp_arm_pose = get_ik_from_pose(target_pos, target_rot, body, 'right_arm')
     add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', grasp_arm_pose)])
-
     for i in range(EEREACHABLE_STEPS):
         approach_pos = target_pos - gripper_direction/np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
         approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body, 'right_arm')
@@ -335,7 +337,7 @@ def resample_eereachable(pred, negated, t, plan):
         retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
 
-    robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS] = 0
+    robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
     return np.array(res), attr_inds
 
 GRASP_STEP = 20
@@ -367,7 +369,6 @@ def resample_rrt_planner(pred, netgated, t, plan):
                 retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
                 if retreat_arm_pose == None:    continue
                 add_to_attr_inds_and_res(GRASP_STEP+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
-            import ipdb; ipdb.set_trace()
             raw_trajectory = get_rrt_traj(pred._env, body, active_dof, startp.rArmPose[:], robot.rArmPose[:,17])
 
         except:
@@ -393,12 +394,10 @@ def process_traj(raw_traj, timesteps):
                 process_dist += step_dist
             else:
                 i += 1
-        result_traj.append(raw_traj[-1])
     elif len(raw_traj) < timesteps:
         result_traj = raw_traj.copy()
         for _ in range(timesteps - len(raw_traj)):
             result_traj.append(raw_traj[-1])
     else:
         result_traj = raw_traj.copy()
-    import ipdb; ipdb.set_trace()
     return np.array(result_traj).T

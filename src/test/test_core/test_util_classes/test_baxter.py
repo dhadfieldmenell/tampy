@@ -166,6 +166,7 @@ class TestBaxter(unittest.TestCase):
         or_traj = trajectory["BiRRT"]
 
         result = process_traj(or_traj, 20)
+        self.assertTrue(len(result) == 20)
 
 
 
