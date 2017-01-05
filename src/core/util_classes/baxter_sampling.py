@@ -9,7 +9,7 @@ pi = np.pi
 
 DEFAULT_DIST = 0.6
 EE_ANGLE_SAMPLE_SIZE = 5
-
+JOINT_MOVE_FACTOR = 10
 OBJ_RING_SAMPLING_RADIUS = 0.6
 NUM_EEREACHABLE_RESAMPLE_ATTEMPTS = 10
 
@@ -340,8 +340,26 @@ def resample_eereachable(pred, negated, t, plan):
     robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
     return np.array(res), attr_inds
 
+def resample_armpose_step(pred, negated, t, plan):
+    # Variable that needs to added to BoundExpr and latter pass to the planner
+    attr_inds = OrderedDict()
+    res = []
+    robot = pred.robot
+    body = pred._param_to_body[robot].env_body
+    manip = body.GetManipulator("right_arm")
+    arm_inds = manip.GetArmIndices()
+    lb_limit, ub_limit = body.GetDOFLimits()
+    joint_step = (ub_limit[dof_inds] - lb_limit[dof_inds])/JOINT_MOVE_FACTOR
+    step_sign = np.random.randint(0,2, len(arm_inds))
+    # Ask in collision pose to randomly move a step, hopefully out of collision
+    arm_pose = body.GetActiveDOFValues()[arm_inds] + np.multiply(step_sign, joint_step)
+    add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
+    return np.array(res), attr_inds
+
+
 GRASP_STEP = 20
 def resample_rrt_planner(pred, netgated, t, plan):
+
     startp, endp = pred.startp, pred.endp
     robot = pred.robot
     body = pred._param_to_body[robot].env_body
@@ -375,6 +393,13 @@ def resample_rrt_planner(pred, netgated, t, plan):
             continue
 
 def process_traj(raw_traj, timesteps):
+    """
+        Process raw_trajectory so that it's length is desired timesteps
+        when len(raw_traj) > timesteps
+            sample Trajectory by space to reduce trajectory size
+        when len(raw_traj) < timesteps
+            append last timestep pose util the size fits
+    """
     result_traj = []
     if len(raw_traj) > timesteps:
         traj_arr = [0]
