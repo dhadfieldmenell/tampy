@@ -1,5 +1,6 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes.robot_predicates import RCollides
 from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle
 from collections import OrderedDict
 from sco.expr import Expr
@@ -264,39 +265,60 @@ def get_col_free_armPose(pred, negated, t, plan):
     old_arm_pose = robot.rArmPose[:, t].copy()
     body.set_pose([0,0, robot.pose[0, t]])
     body.set_dof({'rArmPose': robot.rArmPose[:, t].flatten()})
-    dof_inds = robot_body.GetManipulator("right_arm").GetArmIndices()
+    dof_inds = body.env_body.GetManipulator("right_arm").GetArmIndices()
+
     arm_pose = np.random.random_sample((len(dof_inds),))*1 - 0.5
     arm_pose = arm_pose + old_arm_pose
-
-    # ee_pose = OpenRAVEBody.obj_pose_from_transform(body.env_body.GetManipulator('right_arm').GetTransform())
-    # pos, rot = ee_pose[:3], ee_pose[3:]
-    # while arm_pose is None and iteration < MAX_ITERATION_STEP:
-    # # for i in range(NUM_RESAMPLES):
-    #     pos_bias = np.random.random_sample((3,))*BIAS_RADIUS*2 - BIAS_RADIUS
-    #     rot_bias = np.random.random_sample((3,))*ROT_BIAS*2 - ROT_BIAS
-    #     # print pos_bias, rot_bias, iteration
-    #     print pos_bias, rot_bias
-    #     iteration += 1
-    #     arm_pose = get_ik_from_pose(pos + pos_bias, rot + rot_bias, body.env_body, 'right_arm')
-    #     if arm_pose is not None:
-    #         print iteration
-    #         body.set_dof({'rArmPose': arm_pose})
     return arm_pose
 
+def resample_armpose_step(pred, negated, t, plan):
+    # Variable that needs to added to BoundExpr and latter pass to the planner
+    robot = pred.robot
+    body = pred._param_to_body[robot].env_body
+    manip = body.GetManipulator("right_arm")
+    arm_inds = manip.GetArmIndices()
+    lb_limit, ub_limit = body.GetDOFLimits()
+    joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/10
+
+    obstacle_col_pred = [pred for pred in plan.get_preds(True) if isinstance(pred, RCollides)]
+    if len(obstacle_col_pred) == 0:
+        obstacle_col_pred = None
+    else:
+        obstacle_col_pred = obstacle_col_pred[0]
+    arm_pose = None
+    while not pred.test(t, negated) or (obstacle_col_pred is None or not obstacle_col_pred.test(t, negated)):
+        step_sign = np.ones(len(arm_inds))
+        step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
+        # Ask in collision pose to randomly move a step, hopefully out of collision
+        arm_pose = body.GetActiveDOFValues()[arm_inds] + np.multiply(step_sign, joint_step)
+    pred._param_to_body[robot].set_dof({"rArmPose": arm_pose})
+    return arm_pose
+
+
+# Alternative approaches, frequently failed, Not used
+def get_col_free_armPose_ik(pred, negated, t, plan):
+    ee_pose = OpenRAVEBody.obj_pose_from_transform(body.env_body.GetManipulator('right_arm').GetTransform())
+    pos, rot = ee_pose[:3], ee_pose[3:]
+    while arm_pose is None and iteration < MAX_ITERATION_STEP:
+    # for i in range(NUM_RESAMPLES):
+        pos_bias = np.random.random_sample((3,))*BIAS_RADIUS*2 - BIAS_RADIUS
+        rot_bias = np.random.random_sample((3,))*ROT_BIAS*2 - ROT_BIAS
+        # print pos_bias, rot_bias, iteration
+        print pos_bias, rot_bias
+        iteration += 1
+        arm_pose = get_ik_from_pose(pos + pos_bias, rot + rot_bias, body.env_body, 'right_arm')
+        if arm_pose is not None:
+            print iteration
+            body.set_dof({'rArmPose': arm_pose})
+
 def resample_random(pred, negated, t, plan):
+    import ipdb; ipdb.set_trace()
     attr_inds = OrderedDict()
     res = []
-    plan.env.GetRobot('baxter')
-    baxter = plan.params['baxter']
-    import ipdb; ipdb.set_trace()
-    while pred.test(t, negated) != True:
-        arm_pose = get_col_free_armPose(pred, negated, t, plan)
-        baxter.rArmPose[:, t] = arm_pose
-
+    robot = pred.robot
+    arm_pose = resample_armpose_step(pred, negated, t, plan)
     add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
-    import ipdb; ipdb.set_trace()
-    body.set_dof({'rArmPose':arm_pose})
-    baxter._free_attrs[:, t] = 0
+    robot._free_attrs['rArmPose'][:, t] = 0
     return np.array(res), attr_inds
 
 
@@ -371,21 +393,7 @@ def resample_eereachable(pred, negated, t, plan):
     robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
     return np.array(res), attr_inds
 
-def resample_armpose_step(pred, negated, t, plan):
-    # Variable that needs to added to BoundExpr and latter pass to the planner
-    attr_inds = OrderedDict()
-    res = []
-    robot = pred.robot
-    body = pred._param_to_body[robot].env_body
-    manip = body.GetManipulator("right_arm")
-    arm_inds = manip.GetArmIndices()
-    lb_limit, ub_limit = body.GetDOFLimits()
-    joint_step = (ub_limit[dof_inds] - lb_limit[dof_inds])/JOINT_MOVE_FACTOR
-    step_sign = np.random.randint(0,2, len(arm_inds))
-    # Ask in collision pose to randomly move a step, hopefully out of collision
-    arm_pose = body.GetActiveDOFValues()[arm_inds] + np.multiply(step_sign, joint_step)
-    add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
-    return np.array(res), attr_inds
+
 
 
 GRASP_STEP = 20
