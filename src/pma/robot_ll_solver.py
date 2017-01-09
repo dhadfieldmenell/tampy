@@ -56,7 +56,7 @@ class RobotLLSolver(LLSolver):
         # return True
         return success
 
-    def solve(self, plan, callback=None, n_resamples=1, active_ts=None, verbose=False, force_init=False):
+    def solve(self, plan, callback=None, n_resamples=10, active_ts=None, verbose=False, force_init=False):
         success = False
         if force_init or not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
@@ -75,10 +75,13 @@ class RobotLLSolver(LLSolver):
             ## refinement loop
             ## priority 0 resamples the first failed predicate in the plan
             ## and then solves a transfer optimization that only includes linear constraints
-            self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
 
+            self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+            # self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
+            #
             # self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
-            success = self._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
+            # success = self._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
             # fp = plan.get_failed_preds()
             # if len(fp) == 0:
             #     return True
@@ -124,17 +127,34 @@ class RobotLLSolver(LLSolver):
 
             ## this should only get called with a full plan for now
             # assert active_ts == (0, plan.horizon-1)
-
             failed_preds = plan.get_failed_preds()
             ## this is an objective that places
             ## a high value on matching the resampled values
+
+            baxter = plan.params['baxter']
+            body = plan.env.GetRobot("baxter")
+            viewer = callback()
+            # import ipdb; ipdb.set_trace()
+
             obj_bexprs = []
             obj_bexprs.extend(self._resample(plan, failed_preds))
             ## solve an optimization movement primitive to
             ## transfer current trajectories
             obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             # obj_bexprs.extend(self._get_transfer_obj(plan, 'min-vel'))
+
+            # active_dof = body.GetManipulator("right_arm").GetArmIndices()
+            # init_dof = plan.params['robot_init_pose'].rArmPose
+            # raw_traj = baxter_sampling.get_rrt_traj(plan.env, body, active_dof, init_dof, baxter.rArmPose[:,17])
+            # traj = baxter_sampling.process_traj(raw_traj, 17)
+            # baxter.rArmPose[:, 0:17] = traj
+
             self._add_obj_bexprs(obj_bexprs)
+
+
+
+            # self._update_ll_params()
+
             # self._add_first_and_last_timesteps_of_actions(
             #     plan, priority=0, add_nonlin=False)
 
@@ -218,7 +238,7 @@ class RobotLLSolver(LLSolver):
             if val is not None: break
         if val is None:
             return []
-
+        # import ipdb; ipdb.set_trace()
 
         bexprs = []
         i = 0

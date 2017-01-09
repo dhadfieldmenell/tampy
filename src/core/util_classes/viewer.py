@@ -41,12 +41,12 @@ class OpenRAVEViewer(Viewer):
         self.name_to_rave_body = {}
 
     @staticmethod
-    def create_viewer():
+    def create_viewer(env = None):
         # if reset and OpenRAVEViewer._viewer != None:
         #     ## close the old viewer to avoid a threading error
         #     OpenRAVEViewer._viewer = None
         if OpenRAVEViewer._viewer == None:
-            return OpenRAVEViewer()
+            return OpenRAVEViewer(env)
         OpenRAVEViewer._viewer.clear()
         return OpenRAVEViewer._viewer
 

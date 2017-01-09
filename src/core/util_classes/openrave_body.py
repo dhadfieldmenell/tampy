@@ -21,22 +21,28 @@ class OpenRAVEBody(object):
         self.name = name
         self._env = env
         self._geom = geom
-        if isinstance(geom, Circle):
-            self._add_circle(geom)
-        elif isinstance(geom, Can):
-            self._add_can(geom)
-        elif isinstance(geom, Obstacle):
-            self._add_obstacle(geom)
-        elif isinstance(geom, Robot):
-            self._add_robot(geom)
-        elif isinstance(geom, Table):
-            self._add_table(geom)
-        elif isinstance(geom, Wall):
-            self._add_wall(geom)
-        elif isinstance(geom, Box):
-            self._add_box(geom)
+
+        if env.GetKinBody(name) == None and env.GetRobot(name) == None:
+            if isinstance(geom, Circle):
+                self._add_circle(geom)
+            elif isinstance(geom, Can):
+                self._add_can(geom)
+            elif isinstance(geom, Obstacle):
+                self._add_obstacle(geom)
+            elif isinstance(geom, Robot):
+                self._add_robot(geom)
+            elif isinstance(geom, Table):
+                self._add_table(geom)
+            elif isinstance(geom, Wall):
+                self._add_wall(geom)
+            elif isinstance(geom, Box):
+                self._add_box(geom)
+            else:
+                raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
+        elif env.GetKinBody(name) != None:
+            self.env_body = env.GetKinBody(name)
         else:
-            raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
+            self.env_body = env.GetRobot(name)
         self.set_transparency(0.7)
 
     def delete(self):

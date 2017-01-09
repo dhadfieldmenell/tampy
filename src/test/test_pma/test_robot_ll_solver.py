@@ -16,7 +16,7 @@ from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter, plan
 import time, main
 
-VIEWER = True
+VIEWER = False
 
 class TestRobotLLSolver(unittest.TestCase):
     def setUp(self):
@@ -42,8 +42,10 @@ class TestRobotLLSolver(unittest.TestCase):
             # objs.extend(cans)
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
-        self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move.prob')
-        self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+
+        # self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move.prob')
+        # self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+
         self.complex_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
         # self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
 
@@ -166,14 +168,16 @@ def _test_resampling(test_obj, plan, n_resamples=0):
     print(plan.satisfied())
 
 
-def _test_plan(test_obj, plan, n_resamples=0):
+def _test_plan(test_obj, plan, n_resamples=10):
     print "testing plan: {}".format(plan.actions)
     callback = None
     viewer = None
     """
     Uncomment out lines below to see optimization.
     """
-    viewer = test_obj.viewer
+    # viewer = test_obj.viewer
+    viewer = OpenRAVEViewer(plan.env)
+
     animate = get_animate_fn(viewer, plan)
     draw_ts = get_draw_ts_fn(viewer, plan)
     draw_cols_ts = get_draw_cols_ts_fn(viewer, plan)

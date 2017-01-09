@@ -1,7 +1,7 @@
 from core.util_classes import robot_predicates
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable, resample_rrt_planner
+from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 from openravepy import DOFAffine
@@ -32,8 +32,8 @@ RCOLLIDES_OPT_COEFF = 1e2
 OBSTRUCTS_COEEF = 1
 OBSTRUCTS_OPT_COEFF = 1e2
 GRASP_VALID_COEFF = 1e1
-GRIPPER_OPEN_VALUE = 0.015
-GRIPPER_CLOSE_VALUE = 0.0
+GRIPPER_OPEN_VALUE = 0.02
+GRIPPER_CLOSE_VALUE = 0.02
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                      ("lGripper", np.array([0], dtype=np.int)),
@@ -461,9 +461,8 @@ class BaxterObstructs(robot_predicates.Obstructs):
         self.dsafe = DIST_SAFE
 
     def resample(self, negated, t, plan):
-        # return resample_obstructs(self, negated, t, plan)
         return resample_obstructs(self, negated, t, plan)
-
+        # return None, None
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -507,6 +506,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
     def resample(self, negated, t, plan):
         return resample_obstructs(self, negated, t, plan)
+        # return None, None
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
