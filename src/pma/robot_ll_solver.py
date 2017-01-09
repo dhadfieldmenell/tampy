@@ -91,6 +91,12 @@ class RobotLLSolver(LLSolver):
 
     def _solve_opt_prob(self, plan, priority, callback=None, init=True, active_ts=None,
                         verbose=False):
+        robot = plan.params['baxter']
+        body = plan.env.GetRobot("baxter")
+        viewer = callback()
+        ## Backup the free_attrs value
+        plan.save_free_attrs()
+
         ## active_ts is the inclusive timesteps to include
         ## in the optimization
         if active_ts==None:
@@ -124,18 +130,12 @@ class RobotLLSolver(LLSolver):
             """
             When Optimization fails, resample new values for certain timesteps of the trajectory and solver as initialization
             """
-
             ## this should only get called with a full plan for now
             # assert active_ts == (0, plan.horizon-1)
             failed_preds = plan.get_failed_preds()
+            random.shuffle(failed_preds)
             ## this is an objective that places
             ## a high value on matching the resampled values
-
-            baxter = plan.params['baxter']
-            body = plan.env.GetRobot("baxter")
-            viewer = callback()
-            # import ipdb; ipdb.set_trace()
-
             obj_bexprs = []
             obj_bexprs.extend(self._resample(plan, failed_preds))
             ## solve an optimization movement primitive to
@@ -185,7 +185,11 @@ class RobotLLSolver(LLSolver):
         self._update_ll_params()
         print "priority: {}".format(priority)
         # if callback is not None: callback(True)
+
+        ##Restore free_attrs values
+        plan.restore_free_attrs()
         return success
+
 
     def _get_transfer_obj(self, plan, norm):
         transfer_objs = []
