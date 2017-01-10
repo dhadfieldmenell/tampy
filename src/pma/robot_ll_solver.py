@@ -186,8 +186,9 @@ class RobotLLSolver(LLSolver):
         print "priority: {}".format(priority)
         # if callback is not None: callback(True)
 
-        ##Restore free_attrs values
-        plan.restore_free_attrs()
+        if priority >= 1:
+            ##Restore free_attrs values
+            plan.restore_free_attrs()
         return success
 
 
