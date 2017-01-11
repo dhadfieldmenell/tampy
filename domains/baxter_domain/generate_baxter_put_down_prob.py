@@ -7,9 +7,9 @@ SEED = 1234
 NUM_PROBS = 5
 NUM_CANS = 1 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
 NUM_TARGETS = 1
-filename = "baxter_probs/move"
+filename = "baxter_probs/putdown"
 assert NUM_CANS <= NUM_TARGETS
-GOAL = "(BaxterRobotAt baxter robot_end_pose)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt can1 target2)"
 
 DIST_SAFE = 5e-3
 
@@ -22,11 +22,11 @@ DIST_BETWEEN_CANS = 0.01
 Baxter_INIT_POSE = [0]
 Baxter_END_POSE = [0]
 L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
-R_ARM_INIT = [-np.pi/6, np.pi/4,np.pi/4,np.pi/10,np.pi/4,np.pi/4,0]
-# R_ARM_INIT = [0,0,0,0,0,0,0]
-Baxter_END_LARM = [-np.pi/10,-np.pi/3,-np.pi/4,np.pi/4,np.pi/2,-np.pi/4,np.pi/4]
+# R_ARM_INIT = [-np.pi/6, np.pi/4,np.pi/4,np.pi/10,np.pi/4,np.pi/4,0]
+R_ARM_INIT = [0,0,0,0,0,0,0]
+Baxter_END_LARM = [0,0,0,0,0,0,0]
 Baxter_END_RARM = [np.pi/10,0,0,0,0,0,0]
-INT_GRIPPER = [0]
+INT_GRIPPER = [0.015]
 END_GRIPPER = [0.02]
 
 ROBOT_DIST_FROM_TABLE = 0.05
@@ -161,7 +161,7 @@ def main():
             s += "(BaxterEEReachableRot baxter pdp_target{} ee_target{}), ".format(i, i)
         s += "(BaxterRobotAt baxter robot_init_pose), "
         # s += "(BaxterStationaryArms baxter), "
-        # s += "(BaxterStationaryBase baxter), "
+        s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "
         s += "(BaxterStationaryW table) \n\n"

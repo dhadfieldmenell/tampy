@@ -171,20 +171,20 @@ class MoveHolding(Action):
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             ('(BaxterInGripperPos ?robot ?c)', '0:19'),
             ('(BaxterInGripperRot ?robot ?c)', '0:19'),
-            # ('(forall (?obj - Can)\
-            #     (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?c))\
-            # )', '0:19'),
+            ('(forall (?obj - Can)\
+                (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?c))\
+            )', '0:19'),
             ('(forall (?obj - Can) (BaxterStationaryNEq ?obj ?c))', '0:18'),
             ('(forall (?w - Obstacle) (BaxterStationaryW ?w))', '0:18'),
-            ('(BaxterStationaryArms ?robot)', '0:18'),
+            # ('(BaxterStationaryArms ?robot)', '0:18'),
             ('(BaxterIsMP ?robot)', '0:18'),
-            ('(BaxterWithinJointLimit ?robot)', '0:19')
-            # ('(forall (?w - Obstacle)\
-            #     (forall (?obj - Can)\
-            #         (not (BaxterCollides ?obj ?w))\
-            #     )\
-            # )', '0:19')
-            # ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '0:19')
+            ('(BaxterWithinJointLimit ?robot)', '0:19'),
+            ('(forall (?w - Obstacle)\
+                (forall (?obj - Can)\
+                    (not (BaxterCollides ?obj ?w))\
+                )\
+            )', '0:19'),
+            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '0:19')
         ]
         self.eff = [\
             ('(not (BaxterRobotAt ?robot ?start))', '19:19'),

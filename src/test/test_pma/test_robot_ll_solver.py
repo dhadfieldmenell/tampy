@@ -43,32 +43,44 @@ class TestRobotLLSolver(unittest.TestCase):
             # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
 
-        # self.move_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move.prob')
+        # Successful Problem
+        # self.move_arm_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move_arm.prob')
         # self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+        # self.move_hold_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move_holding.prob', ['0: MOVETOHOLDING BAXTER ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
 
-        self.complex_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+        # Problem for testing
+        # self.complex_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+
+        self.putdown_prob = get_plan('../domains/baxter_domain/baxter_probs/putdown_1234_0.prob', ['0: PUTDOWN BAXTER CAN0 TARGET2 ROBOT_INIT_POSE EE_TARGET2 ROBOT_END_POSE'])
+
         # self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
 
 
-        # self.moveholding = get_plan('../domains/can_domain/can_probs/can_1234_0.prob', ['0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
+        #
         # self.grasp_obstructs1 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
         # self.grasp_obstructs0 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
 
         # self.grasp_obstructs = get_plan('../domains/can_domain/can_probs/can_grasp_1234_4.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
+
         if VIEWER:
             self.viewer = OpenRAVEViewer.create_viewer()
         else:
             self.viewer = None
 
+    # Successful plan
     # def test_move_prob(self):
-    #     _test_plan(self, self.move_prob)
-    #
+    #     _test_plan(self, self.move_arm_prob)
     # def test_grab_prob(self):
-    #     _test_plan(self, self.grab_prob)
+        # _test_plan(self, self.grab_prob)
+    # def test_move_holding(self):
+    #     _test_plan(self, self.move_hold_prob)
 
-    def test_complex_grab_prob(self):
-        _test_plan(self, self.complex_grab_prob)
+    # Testing plan
+    # def test_complex_grab_prob(self):
+    #     _test_plan(self, self.complex_grab_prob)
 
+    def test_simple_putdown(self):
+        _test_plan(self, self.putdown_prob)
 
 
     # def test_grasp_prob(self):
@@ -90,7 +102,7 @@ class TestRobotLLSolver(unittest.TestCase):
 
 def get_animate_fn(viewer, plan):
     def animate():
-        viewer.animate_plan(plan)
+        viewer.animate_plan(plan, delay = 0.5)
     return animate
 
 def get_draw_ts_fn(viewer, plan):

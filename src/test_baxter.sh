@@ -10,6 +10,9 @@
 
 # nose2 test.test_core.test_util_classes.test_baxter.TestBaxter.test_rrt_planner
 
+# nose2 test.test_core.test_util_classes.test_baxter.TestBaxter.test_move_holding_env --debug
+
+
 nose2 test.test_pma.test_robot_ll_solver --debug
 
 # nose2 test.test_core.test_util_classes.test_baxter_sampling.TestBaxterSampling.test_resampling_rrt --debug

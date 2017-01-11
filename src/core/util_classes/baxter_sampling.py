@@ -285,9 +285,7 @@ def resample_random(pred, negated, t, plan):
     joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/40
     original_pose, arm_pose = robot.rArmPose[:, t], robot.rArmPose[:, t]
 
-
-
-    obstacle_col_pred = [pred for pred in plan.get_preds(True) if isinstance(pred, RCollides)]
+    obstacle_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, RCollides)]
     if len(obstacle_col_pred) == 0:
         obstacle_col_pred = None
     else:
