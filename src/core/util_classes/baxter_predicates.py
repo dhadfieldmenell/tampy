@@ -1,7 +1,7 @@
 from core.util_classes import robot_predicates
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable
+from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable, resample_rcollides
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 from openravepy import DOFAffine
@@ -556,7 +556,7 @@ class BaxterRCollides(robot_predicates.RCollides):
         self.dsafe = RCOLLIDES_DSAFE
 
     def resample(self, negated, t, plan):
-        return resample_obstructs(self, negated, t, plan)
+        return resample_rcollides(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses

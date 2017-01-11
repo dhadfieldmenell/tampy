@@ -1,6 +1,6 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.robot_predicates import RCollides
+from core.util_classes import robot_predicates
 from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle
 from collections import OrderedDict
 from sco.expr import Expr
@@ -273,8 +273,9 @@ def get_col_free_armPose(pred, negated, t, plan):
 
 
 
-def resample_random(pred, negated, t, plan):
+def resample_obstructs(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner
+    import ipdb; ipdb.set_trace()
     attr_inds = OrderedDict()
     res = []
     robot = pred.robot
@@ -285,24 +286,55 @@ def resample_random(pred, negated, t, plan):
     joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/40
     original_pose, arm_pose = robot.rArmPose[:, t], robot.rArmPose[:, t]
 
-    obstacle_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, RCollides)]
+    obstacle_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, robot_predicates.RCollides)]
     if len(obstacle_col_pred) == 0:
         obstacle_col_pred = None
     else:
         obstacle_col_pred = obstacle_col_pred[0]
 
-    viewer = OpenRAVEViewer.create_viewer(plan.env)
-    while not pred.test(t, negated) or (obstacle_col_pred is not None and obstacle_col_pred.test(t)):
+    import ipdb; ipdb.set_trace()
+    while not pred.test(t, negated) or (obstacle_col_pred is not None and not obstacle_col_pred.test(t, negated)):
         step_sign = np.ones(len(arm_inds))
         step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
         # Ask in collision pose to randomly move a step, hopefully out of collision
         arm_pose = original_pose + np.multiply(step_sign, joint_step)
         add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
 
+    robot._free_attrs['rArmPose'][:, t] = 0
+    pred._param_to_body[robot].set_dof({"rArmPose": arm_pose})
+    return np.array(res), attr_inds
+
+def resample_rcollides(pred, negated, t, plan):
+    # Variable that needs to added to BoundExpr and latter pass to the planner
+    attr_inds = OrderedDict()
+    res = []
+
+    robot = pred.robot
+    body = pred._param_to_body[robot].env_body
+    manip = body.GetManipulator("right_arm")
+    arm_inds = manip.GetArmIndices()
+    lb_limit, ub_limit = body.GetDOFLimits()
+    joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/40
+    original_pose, arm_pose = robot.rArmPose[:, t], robot.rArmPose[:, t]
+
+    obstruct_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, robot_predicates.Obstructs)]
+    if len(obstruct_col_pred) == 0:
+        obstruct_col_pred = None
+    else:
+        obstruct_col_pred = obstruct_col_pred[0]
+
+    import ipdb; ipdb.set_trace()
+    while not pred.test(t, negated) or (obstruct_col_pred is not None and not obstruct_col_pred.test(t, negated)):
+        step_sign = np.ones(len(arm_inds))
+        step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
+        # Ask in collision pose to randomly move a step, hopefully out of collision
+        arm_pose = original_pose + np.multiply(step_sign, joint_step)
+        add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
 
     robot._free_attrs['rArmPose'][:, t] = 0
     pred._param_to_body[robot].set_dof({"rArmPose": arm_pose})
     return np.array(res), attr_inds
+
 
 
 # Alternative approaches, frequently failed, Not used
@@ -320,16 +352,6 @@ def get_col_free_armPose_ik(pred, negated, t, plan):
         if arm_pose is not None:
             print iteration
             body.set_dof({'rArmPose': arm_pose})
-
-def resample_random_step(pred, negated, t, plan):
-    attr_inds = OrderedDict()
-    res = []
-    robot = pred.robot
-    arm_pose = resample_armpose_step(pred, negated, t, plan)
-    add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
-    robot._free_attrs['rArmPose'][:, t] = 0
-    return np.array(res), attr_inds
-
 
 def sample_arm_pose(robot_body, old_arm_pose=None):
     dof_inds = robot_body.GetManipulator("right_arm").GetArmIndices()
