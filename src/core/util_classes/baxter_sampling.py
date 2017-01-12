@@ -275,7 +275,6 @@ def get_col_free_armPose(pred, negated, t, plan):
 
 def resample_obstructs(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner
-    import ipdb; ipdb.set_trace()
     attr_inds = OrderedDict()
     res = []
     robot = pred.robot
@@ -283,7 +282,7 @@ def resample_obstructs(pred, negated, t, plan):
     manip = body.GetManipulator("right_arm")
     arm_inds = manip.GetArmIndices()
     lb_limit, ub_limit = body.GetDOFLimits()
-    joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/40
+    joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/20.
     original_pose, arm_pose = robot.rArmPose[:, t], robot.rArmPose[:, t]
 
     obstacle_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, robot_predicates.RCollides)]
@@ -292,7 +291,6 @@ def resample_obstructs(pred, negated, t, plan):
     else:
         obstacle_col_pred = obstacle_col_pred[0]
 
-    import ipdb; ipdb.set_trace()
     while not pred.test(t, negated) or (obstacle_col_pred is not None and not obstacle_col_pred.test(t, negated)):
         step_sign = np.ones(len(arm_inds))
         step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
@@ -301,7 +299,6 @@ def resample_obstructs(pred, negated, t, plan):
         add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
 
     robot._free_attrs['rArmPose'][:, t] = 0
-    pred._param_to_body[robot].set_dof({"rArmPose": arm_pose})
     return np.array(res), attr_inds
 
 def resample_rcollides(pred, negated, t, plan):
@@ -314,8 +311,8 @@ def resample_rcollides(pred, negated, t, plan):
     manip = body.GetManipulator("right_arm")
     arm_inds = manip.GetArmIndices()
     lb_limit, ub_limit = body.GetDOFLimits()
-    joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/40
-    original_pose, arm_pose = robot.rArmPose[:, t], robot.rArmPose[:, t]
+    joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/20.
+    original_pose, arm_pose = robot.rArmPose[:, t].copy(), robot.rArmPose[:, t].copy()
 
     obstruct_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, robot_predicates.Obstructs)]
     if len(obstruct_col_pred) == 0:
@@ -323,7 +320,6 @@ def resample_rcollides(pred, negated, t, plan):
     else:
         obstruct_col_pred = obstruct_col_pred[0]
 
-    import ipdb; ipdb.set_trace()
     while not pred.test(t, negated) or (obstruct_col_pred is not None and not obstruct_col_pred.test(t, negated)):
         step_sign = np.ones(len(arm_inds))
         step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
@@ -332,7 +328,6 @@ def resample_rcollides(pred, negated, t, plan):
         add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
 
     robot._free_attrs['rArmPose'][:, t] = 0
-    pred._param_to_body[robot].set_dof({"rArmPose": arm_pose})
     return np.array(res), attr_inds
 
 
@@ -380,10 +375,6 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
     else:
         attr_inds[param] = param_attr_inds
 
-def resample_obstructs(pred, negated, t, plan):
-    return resample_random(pred, negated, t, plan)
-    # return resample_rrt(pred, negated, t, plan)
-
 
 def resample_eereachable(pred, negated, t, plan):
     attr_inds = OrderedDict()
@@ -395,7 +386,7 @@ def resample_eereachable(pred, negated, t, plan):
     rave_body.set_pose([0,0,robot.pose[0, t]])
 
     grasp_arm_pose = get_ik_from_pose(target_pos, target_rot, body, 'right_arm')
-    add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', grasp_arm_pose)])
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('rArmPose', grasp_arm_pose)])
 
     dof_value_map = {"lArmPose": robot.lArmPose[:,t].reshape((7,)),
                      "lGripper": 0.02,
@@ -411,18 +402,18 @@ def resample_eereachable(pred, negated, t, plan):
 
     for i in range(EEREACHABLE_STEPS):
         approach_pos = target_pos - gripper_direction/np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
-        rave_body.set_pose([0,0,robot.pose[0, t-3+i]])
+        # rave_body.set_pose([0,0,robot.pose[0, t-3+i]])
         approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body, 'right_arm')
-        rave_body.set_dof({"rArmPose": approach_arm_pose})
+        # rave_body.set_dof({"rArmPose": approach_arm_pose})
         add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot,[('rArmPose', approach_arm_pose)])
 
         retreat_pos = target_pos + lift_direction/np.linalg.norm(lift_direction) * RETREAT_DIST * (i+1)
-        rave_body.set_pose([0,0,robot.pose[0, t+1+i]])
+        # rave_body.set_pose([0,0,robot.pose[0, t+1+i]])
         retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
 
     robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
-    robot._saved_free_attrs["rArmPose"][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
+    # robot._saved_free_attrs["rArmPose"][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
     return np.array(res), attr_inds
 
 

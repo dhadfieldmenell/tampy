@@ -12,6 +12,7 @@ JOINT_DIM = 16
 ROBOT_ATTR_DIM = 17
 
 BASE_MOVE = 1
+#Constant that defines the step size = joint_range/JOINT_MOVE_FACTOR
 JOINT_MOVE_FACTOR = 10
 TWOARMDIM = 16
 # EEReachable Constants

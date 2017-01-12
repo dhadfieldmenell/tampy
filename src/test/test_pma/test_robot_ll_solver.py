@@ -49,7 +49,7 @@ class TestRobotLLSolver(unittest.TestCase):
         # self.move_hold_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move_holding.prob', ['0: MOVETOHOLDING BAXTER ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
 
         # Problem for testing
-        # self.complex_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/grasp_1234_1.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+        # self.complex_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
 
         self.putdown_prob = get_plan('../domains/baxter_domain/baxter_probs/putdown_1234_0.prob', ['0: PUTDOWN BAXTER CAN0 TARGET2 ROBOT_INIT_POSE EE_TARGET2 ROBOT_END_POSE'])
 
@@ -71,15 +71,14 @@ class TestRobotLLSolver(unittest.TestCase):
     # def test_move_prob(self):
     #     _test_plan(self, self.move_arm_prob)
     # def test_grab_prob(self):
-        # _test_plan(self, self.grab_prob)
+    #     _test_plan(self, self.grab_prob)
     # def test_move_holding(self):
     #     _test_plan(self, self.move_hold_prob)
 
     # Testing plan
     # def test_complex_grab_prob(self):
     #     _test_plan(self, self.complex_grab_prob)
-
-    def test_simple_putdown(self):
+    def test_putdown_prob(self):
         _test_plan(self, self.putdown_prob)
 
 
@@ -212,7 +211,7 @@ def _test_plan(test_obj, plan, n_resamples=10):
     """
     """
     solver = robot_ll_solver.RobotLLSolver()
-    solver.solve(plan, callback=callback, n_resamples=5, verbose=False)
+    solver.solve(plan, callback=callback, n_resamples=10, verbose=False)
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()

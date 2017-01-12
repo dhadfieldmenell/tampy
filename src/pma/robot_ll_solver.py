@@ -56,7 +56,7 @@ class RobotLLSolver(LLSolver):
         # return True
         return success
 
-    def solve(self, plan, callback=None, n_resamples=10, active_ts=None, verbose=False, force_init=False):
+    def solve(self, plan, callback=None, n_resamples=20, active_ts=None, verbose=False, force_init=False):
         success = False
         if force_init or not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
@@ -77,7 +77,7 @@ class RobotLLSolver(LLSolver):
             ## and then solves a transfer optimization that only includes linear constraints
 
             self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
-            success = self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = self._solve_opt_prob(plan, priority=3, callback=callback, active_ts=active_ts, verbose=verbose)
             # self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
             #
             # self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
@@ -116,7 +116,6 @@ class RobotLLSolver(LLSolver):
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
             self._add_first_and_last_timesteps_of_actions(plan, priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
-            # self._add_all_timesteps_of_actions(plan, priority=1, add_nonlin=False, verbose=verbose)
             tol = 1e-1
         elif priority == -1:
             """
@@ -133,7 +132,11 @@ class RobotLLSolver(LLSolver):
             ## this should only get called with a full plan for now
             # assert active_ts == (0, plan.horizon-1)
             failed_preds = plan.get_failed_preds()
-            random.shuffle(failed_preds)
+            if len(failed_preds) <= 0:
+                return True
+            print "{} predicates fails, resampling process begin...\n Checking {}".format(len(failed_preds), failed_preds[0])
+            # import ipdb; ipdb.set_trace()
+            # random.shuffle(failed_preds)
             ## this is an objective that places
             ## a high value on matching the resampled values
             obj_bexprs = []
@@ -171,6 +174,14 @@ class RobotLLSolver(LLSolver):
             # self._add_all_timesteps_of_actions(
             #     plan, priority=0, add_nonlin=False, verbose=verbose)
             tol = 1e-1
+        elif priority == 3:
+            """
+                Optimization with priority 3 is called right after resample with priority 0
+            """
+            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
+            self._add_obj_bexprs(obj_bexprs)
+            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True, active_ts= None, verbose=verbose)
+            tol=1e-3
         elif priority >= 1:
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
@@ -243,7 +254,6 @@ class RobotLLSolver(LLSolver):
             if val is not None: break
         if val is None:
             return []
-        # import ipdb; ipdb.set_trace()
 
         bexprs = []
         i = 0
