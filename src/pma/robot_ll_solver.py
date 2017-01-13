@@ -50,24 +50,27 @@ class RobotLLSolver(LLSolver):
         # certain constraints should be solved first
         success = False
         for priority in self.solve_priorities:
-            success = self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose)
+            success = self._solve_opt_prob(plan, priority=priority,
+                            callback=callback, active_ts=active_ts,
+                            verbose=verbose)
             # if not success:
             #     return success
         # return True
         return success
 
-    def solve(self, plan, callback=None, n_resamples=20, active_ts=None, verbose=False, force_init=False):
+    def solve(self, plan, callback=None, n_resamples=20, active_ts=None,
+              verbose=False, force_init=False):
         success = False
         if force_init or not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
-            self._solve_opt_prob(plan, priority=-2, callback=callback, active_ts=active_ts, verbose=verbose)
-            self._solve_opt_prob(plan, priority=-1, callback=callback, active_ts=active_ts, verbose=verbose)
+            self._solve_opt_prob(plan, priority=-2, callback=callback,
+                active_ts=active_ts, verbose=verbose)
+            self._solve_opt_prob(plan, priority=-1, callback=callback,
+                active_ts=active_ts, verbose=verbose)
             plan.initialized=True
 
-        success = self._solve_helper(plan, callback=callback, active_ts=active_ts, verbose=verbose)
-        # fp = plan.get_failed_preds()
-        # if len(fp) == 0:
-        #     return True
+        success = self._solve_helper(plan, callback=callback,
+            active_ts=active_ts, verbose=verbose)
         if success:
             return success
 
@@ -76,24 +79,22 @@ class RobotLLSolver(LLSolver):
             ## priority 0 resamples the first failed predicate in the plan
             ## and then solves a transfer optimization that only includes linear constraints
 
-            self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
-            success = self._solve_opt_prob(plan, priority=3, callback=callback, active_ts=active_ts, verbose=verbose)
-            # self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
-            #
-            # self._solve_opt_prob(plan, priority=1, callback=callback, active_ts=active_ts, verbose=verbose)
-            # success = self._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
-            # fp = plan.get_failed_preds()
-            # if len(fp) == 0:
-            #     return True
+            self._solve_opt_prob(plan, priority=0, callback=callback,
+                            active_ts=active_ts, verbose=verbose)
+            success = self._solve_opt_prob(plan, priority=1,
+                            callback=callback, active_ts=active_ts,
+                            verbose=verbose)
             if success:
                 return success
         return success
 
-    def _solve_opt_prob(self, plan, priority, callback=None, init=True, active_ts=None,
-                        verbose=False):
+    def _solve_opt_prob(self, plan, priority, callback=None, init=True,
+                        active_ts=None, verbose=False):
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
         viewer = callback()
+        def draw(t):
+            viewer.draw_plan_ts(plan, t)
         ## Backup the free_attrs value
         plan.save_free_attrs()
 
@@ -105,17 +106,19 @@ class RobotLLSolver(LLSolver):
         model = grb.Model()
         model.params.OutputFlag = 0
         self._prob = Prob(model, callback=callback)
-        # param_to_ll_old = self._param_to_ll.copy()
+        # _free_attrs is paied attentioned in here
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
         self._bexpr_to_pred = {}
         if priority == -2:
             """
-            Initialize the trajectory while enforce only the linear constraints
+            Initialize an linear trajectory while enforceing the linear constraints in the intermediate step.
             """
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_first_and_last_timesteps_of_actions(plan, priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
+            self._add_first_and_last_timesteps_of_actions(plan,
+                priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
+                add_nonlin=False)
             tol = 1e-1
         elif priority == -1:
             """
@@ -123,7 +126,9 @@ class RobotLLSolver(LLSolver):
             """
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_first_and_last_timesteps_of_actions(plan, priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=True)
+            self._add_first_and_last_timesteps_of_actions(plan,
+                priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
+                add_nonlin=True)
             tol = 1e-1
         elif priority == 0:
             """
@@ -134,76 +139,51 @@ class RobotLLSolver(LLSolver):
             failed_preds = plan.get_failed_preds()
             if len(failed_preds) <= 0:
                 return True
+
             print "{} predicates fails, resampling process begin...\n Checking {}".format(len(failed_preds), failed_preds[0])
-            # import ipdb; ipdb.set_trace()
-            # random.shuffle(failed_preds)
+
             ## this is an objective that places
             ## a high value on matching the resampled values
             obj_bexprs = []
+            import ipdb; ipdb.set_trace()
             obj_bexprs.extend(self._resample(plan, failed_preds))
-            ## solve an optimization movement primitive to
-            ## transfer current trajectories
-            obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-            # obj_bexprs.extend(self._get_transfer_obj(plan, 'min-vel'))
-
-            # active_dof = body.GetManipulator("right_arm").GetArmIndices()
-            # init_dof = plan.params['robot_init_pose'].rArmPose
-            # raw_traj = baxter_sampling.get_rrt_traj(plan.env, body, active_dof, init_dof, baxter.rArmPose[:,17])
-            # traj = baxter_sampling.process_traj(raw_traj, 17)
-            # baxter.rArmPose[:, 0:17] = traj
+            # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
+            obj_bexprs.extend(self._get_transfer_obj(plan, active_ts))
 
             self._add_obj_bexprs(obj_bexprs)
-
-
-
-            # self._update_ll_params()
-
-            # self._add_first_and_last_timesteps_of_actions(
-            #     plan, priority=0, add_nonlin=False)
-
-            # self._add_first_and_last_timesteps_of_actions(
-            #     plan, priority=-1, add_nonlin=True, verbose=verbose)
-            # self._add_all_timesteps_of_actions(
-            #     plan, priority=0, add_nonlin=False, verbose=verbose)
-
-            self._add_all_timesteps_of_actions(
-                plan, priority=1, add_nonlin=True, verbose=verbose)
-
-            # self._add_first_and_last_timesteps_of_actions(
-            #     plan, priority=1, add_nonlin=True, verbose=verbose)
-            # self._add_all_timesteps_of_actions(
-            #     plan, priority=0, add_nonlin=False, verbose=verbose)
-            tol = 1e-1
-        elif priority == 3:
-            """
-                Optimization with priority 3 is called right after resample with priority 0
-            """
-            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
-            self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True, active_ts= None, verbose=verbose)
-            tol=1e-3
+            self._add_all_timesteps_of_actions(plan, priority=1,
+                add_nonlin=True, active_ts= active_ts, verbose=verbose)
+            tol = 1e-3
         elif priority >= 1:
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True, active_ts=active_ts, verbose=verbose)
+            self._add_all_timesteps_of_actions(plan, priority=priority,
+                add_nonlin=True, active_ts=active_ts, verbose=verbose)
             tol=1e-3
 
         solv = Solver()
         solv.initial_trust_region_size = self.initial_trust_region_size
         solv.initial_penalty_coeff = self.init_penalty_coeff
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
-        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
+        success = solv.solve(self._prob, method='penalty_sqp', tol=tol,
+                             verbose=True)
         self._update_ll_params()
         print "priority: {}".format(priority)
         # if callback is not None: callback(True)
-
-        if priority >= 1:
+        # if priority >= 1:
             ##Restore free_attrs values
-            plan.restore_free_attrs()
+        plan.restore_free_attrs()
         return success
 
 
     def _get_transfer_obj(self, plan, norm):
+        """
+            This function returns the expression e(x) = Q(x - cur)^2
+            Which says the optimized trajectory should be close to the
+            previous trajectory.
+            TODO need to figure out what Q is
+        """
+
         transfer_objs = []
         if norm == 'min-vel':
             for param in plan.params.values():
@@ -243,20 +223,23 @@ class RobotLLSolver(LLSolver):
         return transfer_objs
 
     def _resample(self, plan, preds):
+        """
+            This function first calls fail predicate's resample function,
+            then, uses the resampled value to create a square difference cost
+            function (e(x) = (x - val[i+j])**2) that will be minimized later.
+        """
         val, attr_inds = None, None
-
         for negated, pred, t in preds:
             ## returns a vector of new values and an
             ## attr_inds (OrderedDict) that gives the mapping
             ## to parameter attributes
             val, attr_inds = pred.resample(negated, t, plan)
-            ## no resample defined for that pred
+            ## if no resample defined for that pred, continue
             if val is not None: break
         if val is None:
             return []
 
-        bexprs = []
-        i = 0
+        bexprs, i = [], 0
         for p in attr_inds:
             ## get the ll_param for p and gurobi variables
             ll_p = self._param_to_ll[p]
@@ -269,6 +252,7 @@ class RobotLLSolver(LLSolver):
 
             for j, grb_var in enumerate(grb_vars):
                 ## create an objective saying stay close to this value
+                ## e(x) = (x - val[i+j])**2
                 ## e(x) = x^2 - 2*val[i+j]*x + val[i+j]^2
                 Q = np.eye(1)
                 A = -2*val[i+j]*np.ones((1, 1))
@@ -279,11 +263,9 @@ class RobotLLSolver(LLSolver):
                 init_val = np.ones((1, 1))*val[i+j]
                 bexpr = BoundExpr(quad_expr,
                                   Variable(v_arr, val[i+j].reshape((1, 1))))
-
                 bexprs.append(bexpr)
-
             i += n_vals
-        return bexprs
+        return bexprs,
 
     def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True, priority=MAX_PRIORITY, verbose=False):
         ## for debugging
@@ -383,6 +365,12 @@ class RobotLLSolver(LLSolver):
             self._prob.add_obj_expr(bexpr)
 
     def _get_trajopt_obj(self, plan, active_ts=None):
+        """
+            This function returns the expression e(x) = Qx^2
+            Which says the optimized trajectory should be close it's adjacent
+            trajectory, forming a straight line between each end points.
+            TODO need to figure out what Q is
+        """
         if active_ts == None:
             active_ts = (0, plan.horizon-1)
         start, end = active_ts

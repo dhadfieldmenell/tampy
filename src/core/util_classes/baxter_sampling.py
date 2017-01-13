@@ -1,7 +1,7 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import robot_predicates
-from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle
+from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle, CollisionReport, RaveCreateCollisionChecker
 from collections import OrderedDict
 from sco.expr import Expr
 import math
@@ -306,26 +306,43 @@ def resample_rcollides(pred, negated, t, plan):
     attr_inds = OrderedDict()
     res = []
 
-    robot = pred.robot
-    body = pred._param_to_body[robot].env_body
+    robot, rave_body = pred.robot, pred._param_to_body[pred.robot]
+    body = rave_body.env_body
     manip = body.GetManipulator("right_arm")
     arm_inds = manip.GetArmIndices()
     lb_limit, ub_limit = body.GetDOFLimits()
     joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/20.
     original_pose, arm_pose = robot.rArmPose[:, t].copy(), robot.rArmPose[:, t].copy()
 
-    obstruct_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, robot_predicates.Obstructs)]
-    if len(obstruct_col_pred) == 0:
-        obstruct_col_pred = None
-    else:
-        obstruct_col_pred = obstruct_col_pred[0]
+    # obstruct_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, robot_predicates.Obstructs)]
+    # if len(obstruct_col_pred) == 0:
+    #     obstruct_col_pred = None
+    # else:
+    #     obstruct_col_pred = obstruct_col_pred[0]
+    # while not pred.test(t, negated) or (obstruct_col_pred is not None and not obstruct_col_pred.test(t, negated)):
+    rave_body.set_pose([0,0,robot.pose[:, t]])
+    rave_body.set_dof({"lArmPose": robot.lArmPose.flatten(),
+                       "lGripper": robot.lGripper.flatten(),
+                       "rArmPose": robot.rArmPose.flatten(),
+                       "rGripper": robot.rGripper.flatten()})
 
-    while not pred.test(t, negated) or (obstruct_col_pred is not None and not obstruct_col_pred.test(t, negated)):
+    col_report = CollisionReport()
+    collisionChecker = RaveCreateCollisionChecker(plan.env,'pqp')
+
+    while (body.CheckSelfCollision() or
+           collisionChecker.CheckCollision(body, report=report) or
+           report.minDistance <= pred.dsafe):
+
         step_sign = np.ones(len(arm_inds))
         step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
         # Ask in collision pose to randomly move a step, hopefully out of collision
         arm_pose = original_pose + np.multiply(step_sign, joint_step)
         add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
+        rave_body.set_pose([0,0,robot.pose[:, t]])
+        rave_body.set_dof({"lArmPose": robot.lArmPose.flatten(),
+                           "lGripper": robot.lGripper.flatten(),
+                           "rArmPose": robot.rArmPose.flatten(),
+                           "rGripper": robot.rGripper.flatten()})
 
     robot._free_attrs['rArmPose'][:, t] = 0
     return np.array(res), attr_inds
@@ -377,35 +394,36 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
 
 
 def resample_eereachable(pred, negated, t, plan):
-    attr_inds = OrderedDict()
-    res = []
-    robot = pred.robot
+    attr_inds, res = OrderedDict(), []
+    robot, rave_body = pred.robot, pred._param_to_body[pred.robot]
     target_pos, target_rot = pred.ee_pose.value.flatten(), pred.ee_pose.rotation.flatten()
-    rave_body = pred._param_to_body[robot]
     body = rave_body.env_body
     rave_body.set_pose([0,0,robot.pose[0, t]])
-
+    # Resample poses at grasping time
     grasp_arm_pose = get_ik_from_pose(target_pos, target_rot, body, 'right_arm')
-    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('rArmPose', grasp_arm_pose)])
-
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('rArmPose', grasp_arm_pose.copy())])
+    # Setting poses for environments to extract transform infos
     dof_value_map = {"lArmPose": robot.lArmPose[:,t].reshape((7,)),
                      "lGripper": 0.02,
-                     "rArmPose": robot.rArmPose[:,t].reshape((7,)),
+                     "rArmPose": grasp_arm_pose,
                      "rGripper": 0.02}
     rave_body.set_dof(dof_value_map)
-
+    # Prepare grasping direction and lifting direction
     manip_trans = body.GetManipulator("right_arm").GetTransform()
     pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
     manip_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
     gripper_direction = manip_trans[:3,:3].dot(np.array([-1,0,0]))
     lift_direction = manip_trans[:3,:3].dot(np.array([0,0,-1]))
-
+    # Resample grasping and retreating traj
     for i in range(EEREACHABLE_STEPS):
-        approach_pos = target_pos - gripper_direction/np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
+        approach_pos = target_pos - gripper_direction /
+            np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
         # rave_body.set_pose([0,0,robot.pose[0, t-3+i]])
-        approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body, 'right_arm')
+        approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body,
+                                             'right_arm')
         # rave_body.set_dof({"rArmPose": approach_arm_pose})
-        add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot,[('rArmPose', approach_arm_pose)])
+        add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot,[('rArmPose',
+                                 approach_arm_pose)])
 
         retreat_pos = target_pos + lift_direction/np.linalg.norm(lift_direction) * RETREAT_DIST * (i+1)
         # rave_body.set_pose([0,0,robot.pose[0, t+1+i]])
@@ -413,7 +431,7 @@ def resample_eereachable(pred, negated, t, plan):
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
 
     robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
-    # robot._saved_free_attrs["rArmPose"][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
+    robot._free_attrs['pose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
     return np.array(res), attr_inds
 
 

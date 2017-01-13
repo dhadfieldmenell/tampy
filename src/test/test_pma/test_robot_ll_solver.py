@@ -20,6 +20,9 @@ VIEWER = False
 
 class TestRobotLLSolver(unittest.TestCase):
     def setUp(self):
+        """
+            This function sets up the planner domain and problem class for optimization.
+        """
         domain_fname = '../domains/baxter_domain/baxter.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
@@ -31,41 +34,22 @@ class TestRobotLLSolver(unittest.TestCase):
             abs_problem = hls.translate_problem(problem)
             if plan_str is not None:
                 return hls.get_plan(plan_str, domain, problem)
-            # view = OpenRAVEViewer()
-            # robot = problem.init_state.params['pr2']
-            # table = problem.init_state.params['table']
-            # cans = []
-            # for param_name, param in problem.init_state.params.iteritems():
-            #     if "can" in param_name:
-            #         cans.append(param)
-            # objs = [robot, table]
-            # objs.extend(cans)
-            # view.draw(objs, 0, 0.7)
             return hls.solve(abs_problem, domain, problem)
-
         # Successful Problem
         # self.move_arm_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move_arm.prob')
         # self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
         # self.move_hold_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move_holding.prob', ['0: MOVETOHOLDING BAXTER ROBOT_INIT_POSE ROBOT_END_POSE CAN0'])
 
         # Problem for testing
-        # self.complex_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+        self.complex_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
 
-        self.putdown_prob = get_plan('../domains/baxter_domain/baxter_probs/putdown_1234_0.prob', ['0: PUTDOWN BAXTER CAN0 TARGET2 ROBOT_INIT_POSE EE_TARGET2 ROBOT_END_POSE'])
+        # self.putdown_prob = get_plan('../domains/baxter_domain/baxter_probs/putdown_1234_0.prob', ['0: PUTDOWN BAXTER CAN0 TARGET2 ROBOT_INIT_POSE EE_TARGET2 ROBOT_END_POSE'])
 
-        # self.simple_grab_prob = get_plan('../domains/baxter_domain/baxter_probs/simple_grasp.prob')
+        # Problem for test_free_attrs test
+        self.test_free_attrs_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
 
+    # Helper function used for debug purposes
 
-        #
-        # self.grasp_obstructs1 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_1.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
-        # self.grasp_obstructs0 = get_plan('../domains/can_domain/can_probs/can_grasp_1234_0.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
-
-        # self.grasp_obstructs = get_plan('../domains/can_domain/can_probs/can_grasp_1234_4.prob', ['0: GRASP PR2 CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET0'])
-
-        if VIEWER:
-            self.viewer = OpenRAVEViewer.create_viewer()
-        else:
-            self.viewer = None
 
     # Successful plan
     # def test_move_prob(self):
@@ -75,29 +59,83 @@ class TestRobotLLSolver(unittest.TestCase):
     # def test_move_holding(self):
     #     _test_plan(self, self.move_hold_prob)
 
-    # Testing plan
-    # def test_complex_grab_prob(self):
-    #     _test_plan(self, self.complex_grab_prob)
-    def test_putdown_prob(self):
-        _test_plan(self, self.putdown_prob)
+    # Need to be tested plan
+    def test_complex_grab_prob(self):
+        _test_plan(self, self.complex_grab_prob)
+    # def test_putdown_prob(self):
+    #     _test_plan(self, self.putdown_prob)
 
-
-    # def test_grasp_prob(self):
-    #     _test_resampling(self, self.grab_prob)
-
-
-    # def test_grasp_resampling(self):
-    #     # np.random.seed(4)
-    #     np.random.seed(3) # demonstrates the need to use closest joint angles
-    #     _test_resampling(self, self.grasp_obstructs0, n_resamples=3)
+    
+    # def test_free_attrs(self):
+    #     plan = self.test_free_attrs_prob
+    #     viewer = OpenRAVEViewer.create_viewer(plan.env)
+    #     def callback(set_trace=False):
+    #         if set_trace:
+    #             animate()
+    #         return viewer
+    #     solver = robot_ll_solver.RobotLLSolver()
+    #     # solver.solve(plan, callback=callback, n_resamples=10, verbose=False)
+    #     success = False
+    #     solver._solve_opt_prob(plan, priority=-2, callback=None, active_ts=None, verbose=False)
+    #     solver._solve_opt_prob(plan, priority=-1, callback=None, active_ts=None, verbose=False)
+    #     success = solver._solve_helper(plan, callback=None, active_ts=None, verbose=False)
     #
-    #     # demonstate base moving from farther away
-    #     # np.random.seed(2)
-    #     # _test_resampling(self, self.grasp_obstructs0, n_resamples=3)
+    #     robot = plan.params['baxter']
+    #     body = plan.env.GetRobot("baxter")
+    #     def draw(t):
+    #         viewer.draw_plan_ts(plan, t)
+    #     ## Backup the free_attrs value
+    #     plan.save_free_attrs()
     #
-    #     # demonstrates base moving
-    #     # np.random.seed(6) # forms right angle
-    #     # _test_resampling(self, self.grasp_obstructs1, n_resamples=3)
+    #     model = grb.Model()
+    #     model.params.OutputFlag = 0
+    #     solver._prob = Prob(model, callback=callback)
+    #     solver._spawn_parameter_to_ll_mapping(model, plan, (0, plan.horizon-1))
+    #     model.update()
+    #     solver._bexpr_to_pred = {}
+    #
+    #     failed_preds = plan.get_failed_preds()
+    #     if len(failed_preds) <= 0:
+    #         success = True
+    #         import ipdb; ipdb.set_trace()
+    #     print "{} predicates fails, resampling process begin...\n Checking {}".format(len(failed_preds), failed_preds[0])
+    #     ## this is an objective that places
+    #     ## a high value on matching the resampled values
+    #     obj_bexprs, resample_timestep = [], []
+    #     obj_bexprs.extend(solver._resample(plan, failed_preds, resample_timestep))
+    #     ## solve an optimization movement primitive to
+    #     ## transfer current trajectories
+    #     obj_bexprs.extend(solver._get_trajopt_obj(plan, (0, plan.horizon-1)))
+    #
+    #     solver._add_obj_bexprs(obj_bexprs)
+    #     solver._add_all_timesteps_of_actions(
+    #         plan, priority=1, add_nonlin=False, active_ts=(0, resample_timestep[0]-1),  verbose=False)
+    #     solver._add_all_timesteps_of_actions(
+    #         plan, priority=2, add_nonlin=True, active_ts= (resample_timestep[0], resample_timestep[-1]),  verbose=False)
+    #     solver._add_all_timesteps_of_actions(
+    #         plan, priority=1, add_nonlin=False, active_ts=(resample_timestep[-1]+1, plan.horizon-1),  verbose=False)
+    #     tol = 1e-3
+    #
+    #     solv = Solver()
+    #     solv.initial_trust_region_size = solver.initial_trust_region_size
+    #     solv.initial_penalty_coeff = solver.init_penalty_coeff
+    #     solv.max_merit_coeff_increases = solver.max_merit_coeff_increases
+    #
+    #     sampled_pose = robot.rArmPose[:, 30]
+    #
+    #     self.assertTrue(np.all(robot._free_attrs["rArmPose"][:, 30] ==  np.zeros((7,))))
+    #     success = solv.solve(solver._prob, method='penalty_sqp', tol=tol, verbose=True)
+    #     resulted_pose = robot.rArmPose[:, 30]
+    #     self.assertTrue(np.all(sampled_pose == resulted_pose))
+    #     solver._update_ll_params()
+    #     plan.restore_free_attrs()
+    #     self.assertTrue(np.all(robot._free_attrs["rArmPose"][:, 30] ==  np.ones((7,))))
+    #     import ipdb; ipdb.set_trace()
+
+
+"""
+    Helper functions that enables test on motion planning
+"""
 
 def get_animate_fn(viewer, plan):
     def animate():
@@ -127,17 +165,6 @@ def _test_resampling(test_obj, plan, n_resamples=0):
     draw_cols_ts = get_draw_cols_ts_fn(viewer, plan)
     def callback(set_trace=False):
         solver._update_ll_params()
-        # draw_ts(20)
-        # viewer.draw_plan(plan)
-        # draw_ts(17)
-        # viewer.draw_cols_ts(plan, 17)
-        # time_range = (13,17)
-        # viewer.draw_plan_range(plan, time_range)
-        # viewer.draw_cols_range(plan, time_range)
-        # time.sleep(0.03)
-        # if set_trace:
-        #     animate()
-            # import ipdb; ipdb.set_trace()
     """
     """
     solver = robot_ll_solver.RobotLLSolver()
@@ -186,28 +213,15 @@ def _test_plan(test_obj, plan, n_resamples=10):
     """
     Uncomment out lines below to see optimization.
     """
-    # viewer = test_obj.viewer
     viewer = OpenRAVEViewer(plan.env)
 
     animate = get_animate_fn(viewer, plan)
     draw_ts = get_draw_ts_fn(viewer, plan)
     draw_cols_ts = get_draw_cols_ts_fn(viewer, plan)
     def callback(set_trace=False):
-        solver._update_ll_params()
-        # viewer.draw_traj(obj_list, [5,10, 15, 17, 18, 19,20,21])
-    # #     # viewer.draw_traj(obj_list, range(19,30))
-    # #     # viewer.draw_traj(obj_list, range(29,39))
-    # #     # viewer.draw_traj(obj_list, [38])
-    # #     # viewer.draw_traj(obj_list, range(19,39))
-    # #     # viewer.draw_plan_range(plan, [0,19,38])
-        # draw_ts(50)
         if set_trace:
             animate()
         return viewer
-            # import ipdb; ipdb.set_trace()
-
-        # viewer.draw_plan(plan)
-        # time.sleep(0.03)
     """
     """
     solver = robot_ll_solver.RobotLLSolver()
@@ -219,12 +233,6 @@ def _test_plan(test_obj, plan, n_resamples=10):
     if viewer != None:
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
-
-    # draw_ts(20)
-    # baxter = plan.actions[0].params[0]
-    # body = viewer.name_to_rave_body["baxter"]
-    # manip = body.env_body.GetManipulator("right_arm")
-    # ee_pose = OpenRAVEBody.obj_pose_from_transform(manip.GetTransform())
 
     print(plan.get_failed_preds())
     import ipdb; ipdb.set_trace()
