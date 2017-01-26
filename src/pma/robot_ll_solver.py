@@ -79,11 +79,9 @@ class RobotLLSolver(LLSolver):
             ## priority 0 resamples the first failed predicate in the plan
             ## and then solves a transfer optimization that only includes linear constraints
 
-            self._solve_opt_prob(plan, priority=0, callback=callback,
-                            active_ts=active_ts, verbose=verbose)
+            self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
             success = self._solve_opt_prob(plan, priority=1,
-                            callback=callback, active_ts=active_ts,
-                            verbose=verbose)
+                            callback=callback, active_ts=active_ts, verbose=verbose)
             if success:
                 return success
         return success
@@ -117,8 +115,7 @@ class RobotLLSolver(LLSolver):
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
             self._add_first_and_last_timesteps_of_actions(plan,
-                priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
-                add_nonlin=False)
+                priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
             tol = 1e-1
         elif priority == -1:
             """
@@ -148,7 +145,7 @@ class RobotLLSolver(LLSolver):
             import ipdb; ipdb.set_trace()
             obj_bexprs.extend(self._resample(plan, failed_preds))
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
-            obj_bexprs.extend(self._get_transfer_obj(plan, active_ts))
+            obj_bexprs.extend(self._get_transfer_obj(plan, norm = "min-vel"))
 
             self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=1,
@@ -157,16 +154,14 @@ class RobotLLSolver(LLSolver):
         elif priority >= 1:
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=priority,
-                add_nonlin=True, active_ts=active_ts, verbose=verbose)
+            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True, active_ts=active_ts, verbose=verbose)
             tol=1e-3
 
         solv = Solver()
         solv.initial_trust_region_size = self.initial_trust_region_size
         solv.initial_penalty_coeff = self.init_penalty_coeff
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
-        success = solv.solve(self._prob, method='penalty_sqp', tol=tol,
-                             verbose=True)
+        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
         self._update_ll_params()
         print "priority: {}".format(priority)
         # if callback is not None: callback(True)
@@ -265,7 +260,7 @@ class RobotLLSolver(LLSolver):
                                   Variable(v_arr, val[i+j].reshape((1, 1))))
                 bexprs.append(bexpr)
             i += n_vals
-        return bexprs,
+        return bexprs
 
     def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True, priority=MAX_PRIORITY, verbose=False):
         ## for debugging
