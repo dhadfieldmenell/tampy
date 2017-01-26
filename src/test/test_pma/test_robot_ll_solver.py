@@ -46,7 +46,7 @@ class TestRobotLLSolver(unittest.TestCase):
         # self.putdown_prob = get_plan('../domains/baxter_domain/baxter_probs/putdown_1234_0.prob', ['0: PUTDOWN BAXTER CAN0 TARGET2 ROBOT_INIT_POSE EE_TARGET2 ROBOT_END_POSE'])
 
         # Problem for test_free_attrs test
-        self.test_free_attrs_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+        # self.test_free_attrs_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
 
     # Helper function used for debug purposes
 
@@ -65,7 +65,7 @@ class TestRobotLLSolver(unittest.TestCase):
     # def test_putdown_prob(self):
     #     _test_plan(self, self.putdown_prob)
 
-    
+
     # def test_free_attrs(self):
     #     plan = self.test_free_attrs_prob
     #     viewer = OpenRAVEViewer.create_viewer(plan.env)

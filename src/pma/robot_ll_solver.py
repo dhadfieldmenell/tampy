@@ -34,7 +34,7 @@ attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
             'Obstacle': ['pose', 'rotation']}
 
 class RobotLLSolver(LLSolver):
-    def __init__(self, early_converge=False):
+    def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.transfer_coeff = 1e1
         self.rs_coeff = 1e10
         self.initial_trust_region_size = 1e-2
@@ -45,6 +45,8 @@ class RobotLLSolver(LLSolver):
         self.early_converge=early_converge
         self.child_solver = None
         self.solve_priorities = [2]
+        self.transfer_norm = transfer_norm
+
 
     def _solve_helper(self, plan, callback, active_ts, verbose):
         # certain constraints should be solved first
@@ -148,7 +150,8 @@ class RobotLLSolver(LLSolver):
             import ipdb; ipdb.set_trace()
             obj_bexprs.extend(self._resample(plan, failed_preds))
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
-            obj_bexprs.extend(self._get_transfer_obj(plan, active_ts))
+            obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
+            obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
 
             self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=1,
@@ -265,7 +268,7 @@ class RobotLLSolver(LLSolver):
                                   Variable(v_arr, val[i+j].reshape((1, 1))))
                 bexprs.append(bexpr)
             i += n_vals
-        return bexprs,
+        return bexprs
 
     def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True, priority=MAX_PRIORITY, verbose=False):
         ## for debugging
