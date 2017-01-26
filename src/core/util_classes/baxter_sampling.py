@@ -303,46 +303,49 @@ def resample_obstructs(pred, negated, t, plan):
 
 def resample_rcollides(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner
+    JOINT_STEP = 20
+    STEP_DECREASE_FACTOR = 1.5
+    ATTEMPT_SIZE = 5
+
     attr_inds = OrderedDict()
     res = []
-
     robot, rave_body = pred.robot, pred._param_to_body[pred.robot]
     body = rave_body.env_body
     manip = body.GetManipulator("right_arm")
     arm_inds = manip.GetArmIndices()
     lb_limit, ub_limit = body.GetDOFLimits()
-    joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/20.
+    step_factor = JOINT_STEP
+    joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/ step_factor
     original_pose, arm_pose = robot.rArmPose[:, t].copy(), robot.rArmPose[:, t].copy()
-
-    # obstruct_col_pred = [col_pred for col_pred in plan.get_preds(True) if isinstance(col_pred, robot_predicates.Obstructs)]
-    # if len(obstruct_col_pred) == 0:
-    #     obstruct_col_pred = None
-    # else:
-    #     obstruct_col_pred = obstruct_col_pred[0]
-    # while not pred.test(t, negated) or (obstruct_col_pred is not None and not obstruct_col_pred.test(t, negated)):
     rave_body.set_pose([0,0,robot.pose[:, t]])
-    rave_body.set_dof({"lArmPose": robot.lArmPose.flatten(),
-                       "lGripper": robot.lGripper.flatten(),
-                       "rArmPose": robot.rArmPose.flatten(),
-                       "rGripper": robot.rGripper.flatten()})
+    rave_body.set_dof({"lArmPose": robot.lArmPose[:, t].flatten(),
+                       "lGripper": robot.lGripper[:, t].flatten(),
+                       "rArmPose": robot.rArmPose[:, t].flatten(),
+                       "rGripper": robot.rGripper[:, t].flatten()})
 
     col_report = CollisionReport()
-    collisionChecker = RaveCreateCollisionChecker(plan.env,'pqp')
 
+    collisionChecker = RaveCreateCollisionChecker(plan.env,'pqp')
+    count = 1
+    import ipdb; ipdb.set_trace()
     while (body.CheckSelfCollision() or
-           collisionChecker.CheckCollision(body, report=report) or
-           report.minDistance <= pred.dsafe):
+           collisionChecker.CheckCollision(body, report=col_report) or
+           col_report.minDistance <= pred.dsafe):
 
         step_sign = np.ones(len(arm_inds))
         step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
         # Ask in collision pose to randomly move a step, hopefully out of collision
         arm_pose = original_pose + np.multiply(step_sign, joint_step)
         add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
+        if not count % ATTEMPT_SIZE:
+            step_factor = step_factor/STEP_DECREASE_FACTOR
+            joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/ step_factor
+        count += 1
+
+        # For Debug
         rave_body.set_pose([0,0,robot.pose[:, t]])
-        rave_body.set_dof({"lArmPose": robot.lArmPose.flatten(),
-                           "lGripper": robot.lGripper.flatten(),
-                           "rArmPose": robot.rArmPose.flatten(),
-                           "rGripper": robot.rGripper.flatten()})
+
+    import ipdb; ipdb.set_trace()
 
     robot._free_attrs['rArmPose'][:, t] = 0
     return np.array(res), attr_inds
@@ -416,8 +419,7 @@ def resample_eereachable(pred, negated, t, plan):
     lift_direction = manip_trans[:3,:3].dot(np.array([0,0,-1]))
     # Resample grasping and retreating traj
     for i in range(EEREACHABLE_STEPS):
-        approach_pos = target_pos - gripper_direction /
-            np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
+        approach_pos = target_pos - gripper_direction / np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
         # rave_body.set_pose([0,0,robot.pose[0, t-3+i]])
         approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body,
                                              'right_arm')
