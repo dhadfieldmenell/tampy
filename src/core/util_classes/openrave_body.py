@@ -404,7 +404,7 @@ class OpenRAVEBody(object):
         return trans
 
     def get_ik_arm_pose(self, pos, rot):
-        assert isinstance(self._geom, PR2)
+        # assert isinstance(self._geom, PR2)
         solutions = self.get_ik_from_pose(pos, rot, 'rightarm_torso')
         return solutions
 

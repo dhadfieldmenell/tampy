@@ -96,7 +96,7 @@ class RobotLLSolver(LLSolver):
         viewer = callback()
         def draw(t):
             viewer.draw_plan_ts(plan, t)
-=
+
 
         ## active_ts is the inclusive timesteps to include
         ## in the optimization
@@ -110,8 +110,6 @@ class RobotLLSolver(LLSolver):
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
 
-        plan.restore_free_attrs()
-        plan.save_free_attrs()
 
         self._bexpr_to_pred = {}
         if priority == -2:
@@ -132,6 +130,7 @@ class RobotLLSolver(LLSolver):
             self._add_first_and_last_timesteps_of_actions(plan,
                 priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
                 add_nonlin=True)
+            plan.save_free_attrs()
             tol = 1e-1
         elif priority == 0:
             """
@@ -140,9 +139,14 @@ class RobotLLSolver(LLSolver):
             """
             ## this should only get called with a full plan for now
             # assert active_ts == (0, plan.horizon-1)
+
+            plan.restore_free_attrs()
+            plan.save_free_attrs()
+
             failed_preds = plan.get_failed_preds()
             if len(failed_preds) <= 0:
                 return True
+            import ipdb; ipdb.set_trace()
 
             print "{} predicates fails, resampling process begin...\n \
                    Checking {}".format(len(failed_preds), failed_preds[0])
@@ -150,9 +154,11 @@ class RobotLLSolver(LLSolver):
             ## this is an objective that places
             ## a high value on matching the resampled values
             obj_bexprs = []
-            obj_bexprs.extend(self._resample(plan, failed_preds))
+            # rs_obj = self._resample(plan, failed_preds)
+            # obj_bexprs.extend(rs_obj)
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
-            obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            # obj_bexprs.extend(self._get_unfree_obj(plan, active_ts))
 
             self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=1,
@@ -169,6 +175,7 @@ class RobotLLSolver(LLSolver):
         solv.initial_trust_region_size = self.initial_trust_region_size
         solv.initial_penalty_coeff = self.init_penalty_coeff
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
+        import ipdb; ipdb.set_trace()
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
         self._update_ll_params()
         print "priority: {}".format(priority)
@@ -209,6 +216,7 @@ class RobotLLSolver(LLSolver):
                         # [:,0] allows numpy to see v and d as one-dimensional so
                         # that numpy will create a diagonal matrix with v and d as a diagonal
                         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+                        # P = np.eye(KT)
                         Q = np.dot(np.transpose(P), P)
                         cur_val = attr_val.reshape((KT, 1), order='F')
                         A = -2*cur_val.T.dot(Q)
@@ -270,6 +278,44 @@ class RobotLLSolver(LLSolver):
                 bexprs.append(bexpr)
             i += n_vals
         return bexprs
+
+    def _get_unfree_obj(self, plan, active_ts):
+        """
+            This function returns the expression e(x) = |x_fix - cur_fix|^2
+            where x_fix are fixed value specified by parameter's _free_attrs map
+            Which says the fixed trajectory should not be changed.
+        """
+
+        transfer_objs = []
+        for param in plan.params.values():
+            if param.is_symbol():
+                continue
+            for attr_name in param.__dict__.iterkeys():
+                attr_type = param.get_attr_type(attr_name)
+                if issubclass(attr_type, Vector):
+                    fixed_inds = list(set(np.where(param._free_attrs[attr_name] == 0)[1]))
+                    T = len(fixed_inds)
+                    if T == 1:
+                        continue
+                    K = attr_type.dim
+                    attr_val = getattr(param, attr_name)[:, fixed_inds]
+                    # pose = param.pose
+                    assert (K, T) == attr_val.shape
+                    KT = K*T
+                    Q = np.eye(KT)*10
+                    cur_val = attr_val.reshape((KT, 1), order='F')
+                    A = -2*cur_val.T.dot(Q)
+                    b = cur_val.T.dot(Q.dot(cur_val))
+                    # QuadExpr is 0.5*x^Tx + Ax + b
+                    quad_expr = QuadExpr(2**Q, A, b)
+                    param_ll = self._param_to_ll[param]
+                    ll_attr_val = getattr(param_ll, attr_name)
+                    param_ll_grb_vars = ll_attr_val[:, fixed_inds].reshape((KT, 1), order='F')
+                    bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars, cur_val))
+                    transfer_objs.append(bexpr)
+        return transfer_objs
+
+
 
     def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True,
                        priority=MAX_PRIORITY, verbose=False):
