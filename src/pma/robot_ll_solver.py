@@ -154,11 +154,12 @@ class RobotLLSolver(LLSolver):
             ## this is an objective that places
             ## a high value on matching the resampled values
             obj_bexprs = []
-            # rs_obj = self._resample(plan, failed_preds)
-            # obj_bexprs.extend(rs_obj)
+            rs_obj = self._resample(plan, failed_preds)
+            obj_bexprs.extend(rs_obj)
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
+            # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
-            # obj_bexprs.extend(self._get_unfree_obj(plan, active_ts))
+            obj_bexprs.extend(self._get_unfree_obj(plan, active_ts))
 
             self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=1,
@@ -283,7 +284,7 @@ class RobotLLSolver(LLSolver):
         """
             This function returns the expression e(x) = |x_fix - cur_fix|^2
             where x_fix are fixed value specified by parameter's _free_attrs map
-            Which says the fixed trajectory should not be changed.
+            This objective function will keep the fixed trajectory same as before.
         """
 
         transfer_objs = []
