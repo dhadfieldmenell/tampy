@@ -10,7 +10,8 @@ from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.baxter_sampling import process_traj
 from core.util_classes.viewer import OpenRAVEViewer
-from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
+from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast,
+                        IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
 
 def load_environment(domain_file, problem_file):
     domain_fname = domain_file
@@ -83,7 +84,8 @@ class TestBaxter(unittest.TestCase):
                 # import ipdb; ipdb.set_trace()
 
     def test_can_world(self):
-        domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain', '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
+        domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
+                                                   '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
 
         env = Environment()
         objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
@@ -118,7 +120,8 @@ class TestBaxter(unittest.TestCase):
 
     def test_rrt_planner(self):
         # Adopting examples from openrave
-        domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain', '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
+        domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
+                                                   '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
 
         env = Environment() # create openrave environment
         objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
@@ -169,7 +172,8 @@ class TestBaxter(unittest.TestCase):
         self.assertTrue(len(result) == 20)
 
     def test_move_holding_env(self):
-        domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain', '../domains/baxter_domain/baxter_probs/putdown_1234_0.prob')
+        domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
+                                                   '../domains/baxter_domain/baxter_probs/putdown_1234_0.prob')
         env = Environment() # create openrave environment
         objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
         view = OpenRAVEViewer(env)

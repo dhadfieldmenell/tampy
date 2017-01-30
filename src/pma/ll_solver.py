@@ -113,7 +113,6 @@ class LLParam(object):
                 value = self.get_param_val(attr)
                 free_vars = self.get_free_vars(attr)
                 for index, value in np.ndenumerate(value):
-                    # TODO: what's the purpose of _free_attrs (should they be the indices)?
                     if not free_vars[index]:
                         self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
 

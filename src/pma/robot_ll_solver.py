@@ -81,7 +81,8 @@ class RobotLLSolver(LLSolver):
             ## priority 0 resamples the first failed predicate in the plan
             ## and then solves a transfer optimization that only includes linear constraints
 
-            self._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
+            self._solve_opt_prob(plan, priority=0, callback=callback,
+                                 active_ts=active_ts, verbose=verbose)
             success = self._solve_opt_prob(plan, priority=1,
                             callback=callback, active_ts=active_ts, verbose=verbose)
             if success:
@@ -95,8 +96,7 @@ class RobotLLSolver(LLSolver):
         viewer = callback()
         def draw(t):
             viewer.draw_plan_ts(plan, t)
-        ## Backup the free_attrs value
-        plan.save_free_attrs()
+=
 
         ## active_ts is the inclusive timesteps to include
         ## in the optimization
@@ -109,6 +109,10 @@ class RobotLLSolver(LLSolver):
         # _free_attrs is paied attentioned in here
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
+
+        plan.restore_free_attrs()
+        plan.save_free_attrs()
+
         self._bexpr_to_pred = {}
         if priority == -2:
             """
@@ -131,7 +135,8 @@ class RobotLLSolver(LLSolver):
             tol = 1e-1
         elif priority == 0:
             """
-            When Optimization fails, resample new values for certain timesteps of the trajectory and solver as initialization
+            When Optimization fails, resample new values for certain timesteps
+            of the trajectory and solver as initialization
             """
             ## this should only get called with a full plan for now
             # assert active_ts == (0, plan.horizon-1)
@@ -139,15 +144,14 @@ class RobotLLSolver(LLSolver):
             if len(failed_preds) <= 0:
                 return True
 
-            print "{} predicates fails, resampling process begin...\n Checking {}".format(len(failed_preds), failed_preds[0])
+            print "{} predicates fails, resampling process begin...\n \
+                   Checking {}".format(len(failed_preds), failed_preds[0])
 
             ## this is an objective that places
             ## a high value on matching the resampled values
             obj_bexprs = []
-            import ipdb; ipdb.set_trace()
             obj_bexprs.extend(self._resample(plan, failed_preds))
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
-            obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
 
             self._add_obj_bexprs(obj_bexprs)
@@ -157,7 +161,8 @@ class RobotLLSolver(LLSolver):
         elif priority >= 1:
             obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True, active_ts=active_ts, verbose=verbose)
+            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
+                                               active_ts=active_ts, verbose=verbose)
             tol=1e-3
 
         solv = Solver()
@@ -170,16 +175,16 @@ class RobotLLSolver(LLSolver):
         # if callback is not None: callback(True)
         # if priority >= 1:
             ##Restore free_attrs values
-        plan.restore_free_attrs()
         return success
 
 
     def _get_transfer_obj(self, plan, norm):
         """
-            This function returns the expression e(x) = Q(x - cur)^2
+            This function returns the expression e(x) = P|x - cur|^2
             Which says the optimized trajectory should be close to the
             previous trajectory.
-            TODO need to figure out what Q is
+            Where P is the KT x KT matrix, where Px is the difference of
+            value in current timestep compare to next timestep
         """
 
         transfer_objs = []
@@ -224,7 +229,8 @@ class RobotLLSolver(LLSolver):
         """
             This function first calls fail predicate's resample function,
             then, uses the resampled value to create a square difference cost
-            function (e(x) = (x - val[i+j])**2) that will be minimized later.
+            function e(x) = |x - rs_val|^2 that will be minimized later.
+            rs_val is the resampled value
         """
         val, attr_inds = None, None
         for negated, pred, t in preds:
@@ -249,7 +255,7 @@ class RobotLLSolver(LLSolver):
                     list(getattr(ll_p, attr)[ind_arr, t].flatten()))
 
             for j, grb_var in enumerate(grb_vars):
-                ## create an objective saying stay close to this value
+                ## create an objective saying stay close to the resampled value
                 ## e(x) = (x - val[i+j])**2
                 ## e(x) = x^2 - 2*val[i+j]*x + val[i+j]^2
                 Q = np.eye(1)
@@ -265,7 +271,12 @@ class RobotLLSolver(LLSolver):
             i += n_vals
         return bexprs
 
-    def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True, priority=MAX_PRIORITY, verbose=False):
+    def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True,
+                       priority=MAX_PRIORITY, verbose=False):
+        """
+            This function creates constraints for the predicate and added to
+            Prob class in sco.
+        """
         ## for debugging
         ignore_preds = []
         priority = np.maximum(priority, 0)
@@ -304,7 +315,12 @@ class RobotLLSolver(LLSolver):
                                 groups.extend([param.name for param in pred.params])
                             self._prob.add_cnt_expr(bexpr, groups)
 
-    def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY, add_nonlin=False, active_ts=None, verbose=False):
+    def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY,
+                                                 add_nonlin=False, active_ts=None, verbose=False):
+        """
+            This function adds all linear predicates and first and last timestep
+            non-linear predicates from actions that are active within the range of active_ts.
+        """
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
         for action in plan.actions:
@@ -323,9 +339,15 @@ class RobotLLSolver(LLSolver):
             timesteps = range(max(action_start+1, active_ts[0]),
                               min(action_end, active_ts[1]))
             for pred_dict in action.preds:
-                self._add_pred_dict(pred_dict, timesteps, add_nonlin=False, priority=priority, verbose=verbose)
+                self._add_pred_dict(pred_dict, timesteps, add_nonlin=False,
+                                    priority=priority, verbose=verbose)
 
-    def _add_all_timesteps_of_actions(self, plan, priority=MAX_PRIORITY, add_nonlin=True, active_ts=None, verbose=False):
+    def _add_all_timesteps_of_actions(self, plan, priority=MAX_PRIORITY,
+                                      add_nonlin=True, active_ts=None, verbose=False):
+        """
+            This function adds both linear and non-linear predicates from
+            actions that are active within the range of active_ts.
+        """
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
         for action in plan.actions:
@@ -336,15 +358,27 @@ class RobotLLSolver(LLSolver):
             timesteps = range(max(action_start, active_ts[0]),
                               min(action_end, active_ts[1])+1)
             for pred_dict in action.preds:
-                self._add_pred_dict(pred_dict, timesteps, priority=priority, add_nonlin=add_nonlin, verbose=verbose)
+                self._add_pred_dict(pred_dict, timesteps, priority=priority,
+                                    add_nonlin=add_nonlin, verbose=verbose)
 
     def _update_ll_params(self):
+        """
+            update plan's parameters from low level grb_vars.
+            expected to be called after each optimization.
+        """
         for ll_param in self._param_to_ll.values():
             ll_param.update_param()
         if self.child_solver:
             self.child_solver._update_ll_params()
 
     def _spawn_parameter_to_ll_mapping(self, model, plan, active_ts=None):
+        """
+            This function creates low level parameters for each parameter in the plan,
+            initialized he corresponding grb_vars for each attributes in each timestep,
+            update the grb models
+            adds in equality constraints,
+            construct a dictionary as param-to-ll_param mapping.
+        """
         if active_ts == None:
             active_ts=(0, plan.horizon-1)
         horizon = active_ts[1] - active_ts[0] + 1
@@ -359,15 +393,23 @@ class RobotLLSolver(LLSolver):
             ll_param.batch_add_cnts()
 
     def _add_obj_bexprs(self, obj_bexprs):
+        """
+            This function adds objective bounded expressions to the Prob class
+            in sco.
+        """
         for bexpr in obj_bexprs:
             self._prob.add_obj_expr(bexpr)
 
     def _get_trajopt_obj(self, plan, active_ts=None):
         """
-            This function returns the expression e(x) = Qx^2
-            Which says the optimized trajectory should be close it's adjacent
-            trajectory, forming a straight line between each end points.
-            TODO need to figure out what Q is
+            This function selects parameter of type Robot and Can and returns
+            the expression e(x) = |Px|^2
+            Which optimize trajectory so that robot and can's attributes in
+            current timestep is close to that of next timestep.
+            forming a straight line between each end points.
+
+            Where P is the KT x KT matrix, where Px is the difference of
+            value in current timestep compare to next timestep
         """
         if active_ts == None:
             active_ts = (0, plan.horizon-1)
@@ -394,7 +436,9 @@ class RobotLLSolver(LLSolver):
 
                         quad_expr = None
                         if attr_name == 'pose' and param._type == 'Robot':
-                            quad_expr = QuadExpr(BASE_MOVE_COEFF*Q, np.zeros((1,KT)), np.zeros((1,1)))
+                            quad_expr = QuadExpr(BASE_MOVE_COEFF*Q,
+                                                 np.zeros((1,KT)),
+                                                 np.zeros((1,1)))
                         else:
                             quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
                         param_ll = self._param_to_ll[param]
