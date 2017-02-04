@@ -16,8 +16,8 @@ BASE_MOVE = 1
 JOINT_MOVE_FACTOR = 20
 TWOARMDIM = 16
 # EEReachable Constants
-APPROACH_DIST = 0.05
-RETREAT_DIST = 0.050
+APPROACH_DIST = 0.025
+RETREAT_DIST = 0.025
 EEREACHABLE_STEPS = 3
 # Collision Constants
 DIST_SAFE = 0
@@ -462,7 +462,7 @@ class BaxterObstructs(robot_predicates.Obstructs):
         self.dsafe = DIST_SAFE
 
     def resample(self, negated, t, plan):
-        return resample_obstructs(self, negated, t, plan)
+        return resample_rcollides(self, negated, t, plan)
         # return None, None
 
     def set_active_dof_inds(self, robot_body, reset = False):
@@ -506,7 +506,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         self.dsafe = DIST_SAFE
 
     def resample(self, negated, t, plan):
-        return resample_obstructs(self, negated, t, plan)
+        return resample_rcollides(self, negated, t, plan)
         # return None, None
 
     def set_robot_poses(self, x, robot_body):

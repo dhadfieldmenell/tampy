@@ -76,13 +76,14 @@ class RobotLLSolver(LLSolver):
         if success:
             return success
 
-        for _ in range(n_resamples):
+        for _ in range(20):
             ## refinement loop
             ## priority 0 resamples the first failed predicate in the plan
             ## and then solves a transfer optimization that only includes linear constraints
 
             self._solve_opt_prob(plan, priority=0, callback=callback,
                                  active_ts=active_ts, verbose=verbose)
+            import ipdb; ipdb.set_trace()
             success = self._solve_opt_prob(plan, priority=1,
                             callback=callback, active_ts=active_ts, verbose=verbose)
             if success:
@@ -158,8 +159,8 @@ class RobotLLSolver(LLSolver):
             obj_bexprs.extend(rs_obj)
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-            # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
-            obj_bexprs.extend(self._get_unfree_obj(plan, active_ts))
+            obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            # obj_bexprs.extend(self._get_unfree_obj(plan, active_ts))
 
             self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=1,
@@ -176,7 +177,6 @@ class RobotLLSolver(LLSolver):
         solv.initial_trust_region_size = self.initial_trust_region_size
         solv.initial_penalty_coeff = self.init_penalty_coeff
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
-        import ipdb; ipdb.set_trace()
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
         self._update_ll_params()
         print "priority: {}".format(priority)
@@ -191,8 +191,7 @@ class RobotLLSolver(LLSolver):
             This function returns the expression e(x) = P|x - cur|^2
             Which says the optimized trajectory should be close to the
             previous trajectory.
-            Where P is the KT x KT matrix, where Px is the difference of
-            value in current timestep compare to next timestep
+            Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
         """
 
         transfer_objs = []
