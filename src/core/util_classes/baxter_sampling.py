@@ -330,7 +330,6 @@ def resample_rcollides(pred, negated, t, plan):
     while (body.CheckSelfCollision() or
            collisionChecker.CheckCollision(body, report=col_report) or
            col_report.minDistance <= pred.dsafe):
-        print col_report.minDistance
         step_sign = np.ones(len(arm_inds))
         step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
         # Ask in collision pose to randomly move a step, hopefully out of collision
@@ -345,7 +344,20 @@ def resample_rcollides(pred, negated, t, plan):
         # For Debug
         rave_body.set_pose([0,0,robot.pose[:, t]])
     add_to_attr_inds_and_res(t, attr_inds, res, robot,[('rArmPose', arm_pose)])
+    r_collides = lin_interp_traj(robot.rArmPose[:, 0], arm_pose, t)
+    start, end = 0, plan.horizon-1
+    pred_list = [pred['active_timesteps'] for pred in plan.actions[0].preds if pred['pred'].spacial_anchor == True]
 
+    for action in plan.actions:
+        if action.active_timesteps[0] <= t and action.active_timesteps[1] > t:
+            for pred in plan.actions[0].preds:
+                if pred['pred'].spacial_anchor == True:
+                    if pred['active_timesteps'][0] > t:
+                        end = min(end, pred['active_timesteps'][0]+pred.active_range[0])
+                    if pred['active_timesteps'][1] < t:
+                        start = max(start, pred['active_timesteps'][1]+pred.active_range[1])
+    import ipdb; ipdb.set_trace()
+    rcollides_traj = np.hstack(lin_interp_traj(robot.rArmPose[:, start], arm_pose, t-start), lin_interp_traj(arm_pose, robot.rArmPose[:, end], end - t)[:, 1:])
     robot._free_attrs['rArmPose'][:, t] = 0
     return np.array(res), attr_inds
 
