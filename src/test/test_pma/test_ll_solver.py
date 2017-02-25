@@ -216,7 +216,7 @@ def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=
                 namo_solver._update_ll_params()
                 # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
                 # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
-                viewer.draw_plan_range(plan, [0,19,38])
+                viewer.draw_plan_range(plan, [0,19])
                 # viewer.draw_plan(plan)
                 # viewer.draw_cols(plan)
                 time.sleep(0.03)
