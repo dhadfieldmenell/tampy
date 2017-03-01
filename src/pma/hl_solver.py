@@ -114,8 +114,7 @@ class FFSolver(HLSolver):
                 params = domain_config[key][inds[0]:inds[1]].strip()
                 pre = domain_config[key][inds[1]:inds[2]].strip()
                 eff = domain_config[key][inds[2]:inds[3]].strip()
-                dom_str += "(:action %s\n:parameters %s\n:precondition %s\n:\
-                            effect %s\n)\n\n"%(key.split()[1], params, pre, eff)
+                dom_str += "(:action %s\n:parameters %s\n:precondition %s\n:effect %s\n)\n\n"%(key.split()[1], params, pre, eff)
         dom_str += ")"
         return dom_str
 
@@ -284,7 +283,6 @@ class FFSolver(HLSolver):
         Note:
             High level planner gets called here.
         """
-
         with open("%sdom.pddl"%FFSolver.FILE_PREFIX, "w") as f:
             f.write(abs_domain)
         with open("%sprob.pddl"%FFSolver.FILE_PREFIX, "w") as f:

@@ -22,18 +22,21 @@ def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100):
         n = Q.get()[1]
         if n.is_hl_node():
             c_plan = n.plan(hl_solver)
-            c = LLSearchNode(c_plan)
+            c = LLSearchNode(c_plan, n.concr_prob)
             Q.put((-n.heuristic(), n))
             Q.put((-c.heuristic(), c))
         elif n.is_ll_node():
             n.plan(ll_solver)
             if n.solved():
                 return n.curr_plan, None
-            Q.put((-n.heuristic(), n))
             if n.gen_child():
+                # Expand the node
                 fail_step, fail_pred = n.get_failed_pred()
                 n_problem = n.get_problem(fail_step, fail_pred)
                 c = HLSearchNode(hl_solver.translate_problem(n_problem), domain, n_problem, prefix=n.curr_plan.prefix(fail_step))
                 Q.put((-c.heuristic(), c))
+            else:
+                # Refine the current node
+                Q.put((-n.heuristic(), n))
 
     return False, "Hit iteration limit, aborting."

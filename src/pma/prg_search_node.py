@@ -1,4 +1,7 @@
 from IPython import embed as shell
+from core.internal_repr.state import State
+from core.internal_repr.problem import Problem
+import random
 
 class SearchNode(object):
     """
@@ -18,7 +21,7 @@ class SearchNode(object):
 
     def is_hl_node(self):
         return False
-    
+
     def is_ll_node(self):
         return False
 
@@ -46,17 +49,27 @@ class HLSearchNode(SearchNode):
         return -1
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan):
+    def __init__(self, plan, prob):
         self.curr_plan = plan
+        self.concr_prob = prob
 
     def get_problem(self, i, failed_pred):
         """
         Returns a representation of the search problem which starts from the end state of step i and goes to the same goal.
         """
-        raise NotImplementedError
+        params = self.concr_prob.init_state.params.copy()
+        last_action = [a for a in self.curr_plan.actions
+                    if a.active_timesteps[0] <= i and a.active_timesteps[1] >= i][0]
+        state_time = last_action.active_timesteps[0]
+        preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and p['negated'] == False]
+        new_state = State("state_{}".format(i), params, preds, state_time)
+        # import ipdb; ipdb.set_trace()
+        new_problem = Problem(new_state, self.concr_prob.goal_preds.copy(),
+                              self.concr_prob.env)
+        return new_problem
 
     def solved(self):
-        raise NotImplementedError
+        return len(self.curr_plan.get_failed_preds()) == 0
 
     def is_ll_node(self):
         return True
@@ -65,4 +78,8 @@ class LLSearchNode(SearchNode):
         solver.solve(self.curr_plan)
 
     def get_failed_pred(self):
-        return self.curr_plan.get_failed_pred()
+        failed_pred = self.curr_plan.get_failed_pred()
+        return failed_pred[2], failed_pred[1]
+
+    def gen_child(self):
+        return random.randint(0,1)

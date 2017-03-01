@@ -132,3 +132,16 @@ class Plan(object):
             if start <= t and end >= t:
                 res.extend(a.get_active_preds(t))
         return res
+
+    def prefix(self, fail_step):
+        """
+            returns string representation of actions prior to faid_step
+        """
+        pre = []
+        import ipdb; ipdb.set_trace()
+        for act in self.actions:
+            if act.active_timesteps[1] <= fail_step:
+                act_str = str(act).split()
+                act_str = " ".join(act_str[:2] + act_str[4:]).upper()
+                pre.append(act_str)
+        return pre
