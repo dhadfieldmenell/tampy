@@ -64,6 +64,7 @@ class LLSearchNode(SearchNode):
         preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and p['negated'] == False]
         new_state = State("state_{}".format(i), params, preds, state_time)
         # import ipdb; ipdb.set_trace()
+        # TODO figure out new state
         new_problem = Problem(new_state, self.concr_prob.goal_preds.copy(),
                               self.concr_prob.env)
         return new_problem
