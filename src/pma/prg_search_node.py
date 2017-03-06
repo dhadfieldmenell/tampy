@@ -17,7 +17,7 @@ class SearchNode(object):
         """
         The node with the highest heuristic value is selected at each iteration of p_mod_abs.
         """
-        return 0
+        return -self.priority
 
     def is_hl_node(self):
         return False
@@ -29,44 +29,46 @@ class SearchNode(object):
         raise NotImplementedError("Override this.")
 
 class HLSearchNode(SearchNode):
-    def __init__(self, abs_prob, domain, concr_prob, prefix=None):
+    def __init__(self, abs_prob, domain, concr_prob, priority = 0, prefix = None):
         self.abs_prob = abs_prob
         self.domain = domain
         self.concr_prob = concr_prob
         self.prefix = prefix if prefix else []
+        self.priority = priority
 
     def is_hl_node(self):
         return True
 
     def plan(self, solver):
-        plan_obj = solver.solve(self.abs_prob, self.domain, self.concr_prob)
-        if self.prefix:
-            return self.prefix + plan_obj
-        else:
-            return plan_obj
-
-    def heuristic(self):
-        return -1
+        plan_obj = solver.solve(self.abs_prob, self.domain, self.concr_prob, self.prefix)
+        return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan, prob):
+    def __init__(self, plan, prob, priority = 1):
         self.curr_plan = plan
         self.concr_prob = prob
+        self.child_prefix = None
+        self.child_fail_info = None
+        self.priority = priority
 
     def get_problem(self, i, failed_pred):
         """
         Returns a representation of the search problem which starts from the end state of step i and goes to the same goal.
         """
-        params = self.concr_prob.init_state.params.copy()
-        last_action = [a for a in self.curr_plan.actions
-                    if a.active_timesteps[0] <= i and a.active_timesteps[1] >= i][0]
-        state_time = last_action.active_timesteps[0]
-        preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and p['negated'] == False]
-        new_state = State("state_{}".format(i), params, preds, state_time)
-        # import ipdb; ipdb.set_trace()
-        # TODO figure out new state
-        new_problem = Problem(new_state, self.concr_prob.goal_preds.copy(),
-                              self.concr_prob.env)
+        state_name = "new_state_{}".format(self.priority)
+        state_params = self.curr_plan.params.copy()
+        last_action = [a for a in self.curr_plan.actions if a.active_timesteps[0] <= i and a.active_timesteps[1] >= i][0]
+        state_timestep = last_action.active_timesteps[0]
+        # state_timestep = 0
+        state_preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and  p['negated'] == False]
+        for p in state_preds:
+            arange = p.active_range
+            p.active_range = (arange[0]+state_timestep, arange[1]+state_timestep)
+        state_preds.append(failed_pred)
+        new_state = State(state_name, state_params, state_preds, state_timestep)
+        goal_preds = self.concr_prob.goal_preds.copy()
+        new_problem = Problem(new_state, goal_preds, self.concr_prob.env)
+
         return new_problem
 
     def solved(self):
@@ -83,4 +85,14 @@ class LLSearchNode(SearchNode):
         return failed_pred[2], failed_pred[1]
 
     def gen_child(self):
-        return random.randint(0,1)
+        _, fail_pred, fail_step = self.curr_plan.get_failed_pred()
+        plan_prefix = self.curr_plan.prefix(fail_step)
+        if self.child_prefix == None or self.child_fail_info == None:
+            self.child_fail_info = (fail_pred, fail_step)
+            self.child_prefix = plan_prefix
+            return True
+        elif self.child_fail_info == (fail_pred, fail_step) and \
+             self.child_prefix == plan_prefix:
+            return False
+        else:
+            return True

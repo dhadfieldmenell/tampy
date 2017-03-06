@@ -24,6 +24,7 @@ class State(object):
         for p in self.preds:
             if p.active_range != (0,0): continue
             if p.is_concrete() and not p.test(time=self.timestep):
+                if 'Obstructs' in p.get_type(): continue
                 print "Initial State Not Consistent with predicates {}".format(p)
                 return False
         return True

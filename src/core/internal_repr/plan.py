@@ -138,7 +138,6 @@ class Plan(object):
             returns string representation of actions prior to faid_step
         """
         pre = []
-        import ipdb; ipdb.set_trace()
         for act in self.actions:
             if act.active_timesteps[1] <= fail_step:
                 act_str = str(act).split()

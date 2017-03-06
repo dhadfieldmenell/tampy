@@ -149,7 +149,6 @@ class CollisionPredicate(ExprPredicate):
             else:
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(0, 0, 0)))
 
-
 class At(ExprPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None):
@@ -251,7 +250,6 @@ class Collides(CollisionPredicate):
         else:
             return None
 
-
 class RCollides(CollisionPredicate):
 
     # RCollides Robot Obstacle (Wall)
@@ -299,8 +297,6 @@ class RCollides(CollisionPredicate):
             return self.neg_expr
         else:
             return None
-
-
 
 class Obstructs(CollisionPredicate):
 
@@ -420,7 +416,6 @@ def sample_pose(plan, pose, robot, rs_scale):
     wall.pose = old_w_pose
 
     return pose.value, inds
-
 
 class ObstructsHolding(CollisionPredicate):
 
