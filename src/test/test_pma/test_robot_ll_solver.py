@@ -37,6 +37,7 @@ class TestRobotLLSolver(unittest.TestCase):
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
         self.get_plan = get_plan
+        
         # Successful Problem
         # self.move_arm_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move_arm.prob')
         # self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
@@ -62,12 +63,16 @@ class TestRobotLLSolver(unittest.TestCase):
 
     # Need to be tested plan
     def test_complex_grab_prob(self):
+        TRIALS = 1
         complete_time = []
-        for i in range(50):
+        start_time = time.time()
+        for i in range(TRIALS):
             self.complex_grab_prob = self.get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
             complete_time.append(_test_plan(self, self.complex_grab_prob))
+        end_time = time.time()
+        print "Process completed in {}s".format(end_time - start_time)
         print complete_time
-        import ipdb; ipdb.set_trace()
+
     # def test_putdown_prob(self):
     #     _test_plan(self, self.putdown_prob)
     # def test_from_saved_plan(self):

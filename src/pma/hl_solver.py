@@ -156,6 +156,9 @@ class FFSolver(HLSolver):
         """
         plan_str = self._run_planner(self.abs_domain, abs_prob)
         if prefix:
+            for i in range(len(plan_str)):
+                step, action = plan_str[i].split(':')
+                plan_str[i] = str(len(prefix) + int(step)) + ':' + action
             plan_str = prefix + plan_str
         print plan_str
         return self.get_plan(plan_str, domain, concr_prob)

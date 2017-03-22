@@ -6,28 +6,42 @@ import main
 
 class TestPRGraph(unittest.TestCase):
 
-    def test_goal_test(self):
 
-        domain_fname = '../domains/namo_domain/namo.domain'
-        problem_fname = '../domains/namo_domain/namo_probs/putaway2.prob'
-        d_c = main.parse_file_to_dict(domain_fname)
-        p_c = main.parse_file_to_dict(problem_fname)
-        s_c = {'LLSolver': 'NAMOSolver', 'HLSolver': 'FFSolver'}
-        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        hls = hl_solver.FFSolver(d_c)
-        def get_plan_str(p_fname, plan_str=None):
-            if plan_str is not None:
-                return plan_str
-            p_c = main.parse_file_to_dict(p_fname)
-            problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-            abs_problem = hls.translate_problem(problem)
-            return hls._run_planner(hls.abs_domain, abs_problem)
+    def test_putaway2(self):
+        prob_file = '../domains/namo_domain/namo_probs/putaway2.prob'
+        test_prg(self, prob_file)
+    def test_move_grasp(self):
+        prob_file = '../domains/namo_domain/namo_probs/move_grasp.prob'
+        test_prg(self, prob_file)
+    def test_move_no_obs(self):
+        prob_file = '../domains/namo_domain/namo_probs/move_no_obs.prob'
+        test_prg(self, prob_file)
+    def test_move_w_obs(self):
+        prob_file = '../domains/namo_domain/namo_probs/move_w_obs.prob'
+        test_prg(self, prob_file)
+    def test_moveholding(self):
+        prob_file = '../domains/namo_domain/namo_probs/moveholding.prob'
+        test_prg(self, prob_file)
+    def test_place(self):
+        prob_file = '../domains/namo_domain/namo_probs/place.prob'
+        test_prg(self, prob_file)
+        
+    # def test_putaway3(self):
+    #     prob_file = '../domains/namo_domain/namo_probs/putaway3.prob'
+    #     test_prg(self, prob_file)
 
-        plan_str = get_plan_str('../domains/namo_domain/namo_probs/putaway2.prob')
-        print plan_str
-        plan, msg = pr_graph.p_mod_abs(d_c, p_c, s_c)
-        # self.assertFalse(plan)
-        # self.assertEqual(msg, "Goal is already satisfied. No planning done.")
+def test_prg(self, prob_file):
+
+    domain_fname = '../domains/namo_domain/namo.domain'
+    problem_fname = prob_file
+    d_c = main.parse_file_to_dict(domain_fname)
+    p_c = main.parse_file_to_dict(problem_fname)
+    s_c = {'LLSolver': 'NAMOSolver', 'HLSolver': 'FFSolver'}
+    domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+    hls = hl_solver.FFSolver(d_c)
+    plan, msg = pr_graph.p_mod_abs(d_c, p_c, s_c, debug=True)
+    self.assertEqual(len(plan.get_failed_preds()), 0)
+
 
 
 if __name__ == '__main__':

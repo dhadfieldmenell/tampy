@@ -8,7 +8,7 @@ from prg_search_node import HLSearchNode, LLSearchNode
 """
 Many methods called in p_mod_abs have detailed documentation.
 """
-def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100):
+def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100, debug = False):
     hl_solver, ll_solver = ParseSolversConfig.parse(solvers_config, domain_config)
     domain = ParseDomainConfig.parse(domain_config)
     problem = ParseProblemConfig.parse(problem_config, domain)
@@ -35,6 +35,13 @@ def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100):
                 n_problem = n.get_problem(fail_step, fail_pred)
                 c = HLSearchNode(hl_solver.translate_problem(n_problem), domain, n_problem, priority=n.priority + 1, prefix=n.curr_plan.prefix(fail_step))
                 Q.put((c.heuristic(), c))
+
+        if debug:
+            if n.is_hl_node():
+                print "Current Iteration: HL Search Node with priority {}".format( n.priority)
+            elif n.is_ll_node():
+                print "Current Iteration: LL Search Node with priority {}".format( n.priority)
+                print "plan str: {}".format(n.curr_plan.get_plan_str())
 
 
 

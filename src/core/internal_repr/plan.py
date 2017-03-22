@@ -144,3 +144,12 @@ class Plan(object):
                 act_str = " ".join(act_str[:2] + act_str[4:]).upper()
                 pre.append(act_str)
         return pre
+
+    def get_plan_str(self):
+        """
+            return the corresponding plan str
+        """
+        plan_str = []
+        for a in self.actions:
+            plan_str.append(str(a))
+        return plan_str
