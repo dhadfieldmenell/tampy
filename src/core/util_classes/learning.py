@@ -22,7 +22,7 @@ class Learner(object):
 
 class PostLearner(Learner):
 
-    def __init__(self, file_name, space = "CONFIG"):
+    def __init__(self, file_name, train_size, episode_size, space = "CONFIG"):
         """
         Constructor will first try to load the feature value theta
         If no useful information is loaded, we will mark this learner
@@ -44,6 +44,8 @@ class PostLearner(Learner):
         except:
             print "File not found, please train this Learner."
 
+        self.train_size = train_size
+        self.episode_size = episode_size
 
     def sample_space(self):
         return self._sample_space
@@ -55,33 +57,26 @@ class PostLearner(Learner):
             hdf5_obj->pred_group->param_group->attr_dataset
         """
         theta = {}
-        for pred in hdf5_obj:
-            pred_obj = hdf5_obj[pred]
-            pred_dict = {}
-            for param in pred_obj:
-                param_obj = pred_obj[param]
-                param_dict = {}
-                for attr in param_obj:
-                    param_dict[attr] = param_obj[attr].value
-                pred_dict[param] = param_dict
-            theta[pred] = pred_dict
+        for param in hdf5_obj:
+            param_obj = hdf5_obj[param]
+            param_dict = {}
+            for attr in param_obj:
+                param_dict[attr] = param_obj[attr].value
+            theta[param] = param_dict
         return theta
 
     def store_theta(self, hdf5_obj):
         """
             Recursively store theta value from self.theta into hdf5 object
             hdf5 structure:
-            hdf5_obj->pred_group->param_group->attr_dataset
+            hdf5_obj->param_group->attr_dataset
         """
-        for pred in self.theta:
-            pred_group = hdf5_obj.create_group(pred)
-            param_dict = self.theta[pred]
-            for param in param_dict:
-                param_group = pred_group.create_group(param)
-                attr_dict = param_dict[param]
-                for attr in attr_dict:
-                    attr_theta = param_group.create_dataset(attr, attr_dict[attr].shape)
-                    attr_theta[...] = attr_dict[attr]
+        for param in self.theta:
+            param_group = hdf5_obj.create_group(param)
+            attr_dict = self.theta[param]
+            for attr in attr_dict:
+                attr_theta = param_group.create_dataset(attr, attr_dict[attr].shape)
+                attr_theta[...] = attr_dict[attr]
 
 
     def change_space(self, new_space):
@@ -118,7 +113,7 @@ class PostLearner(Learner):
     def train_config(self, domain, problem):
         pass
 
-    def sample(self, pred):
+    def sample(self, feature_mapping, l):
         if self._sample_space == "CONFIG":
             self.sample_config(pred)
         elif self._sample_space == "WORK":
@@ -126,9 +121,32 @@ class PostLearner(Learner):
         else:
             assert "Invalid Sample Space Specified"
 
-    def sample_work(self, pred):
+    def sample_work(self, feature_mapping):
         pass
 
-    def sample_config(self, pred):
+    def sample_config(self, feature_mapping):
+        """
+        Given a feature_mapping:
+        (dict: param_name->(attr_dict: attr->value))
+        sample according to Giab Distribution biased by parameter self.theta.
+        Return dictionary mapping param_name to sampled value.
+        """
         config_value = {}
-        theta_dict = self.theta[pred.get_type()]
+        for param in self.theta:
+            attr_dict = self.theta[param]
+            for attr in attr_dict:
+                feature = feature_mapping[param][attr]
+                theta = self.theta[param][attr]
+                config_value[param][attr] = self.sample_helper(theta, feature)
+        return config_value
+
+    def sample_helper(self, theta, feature):
+        sample_list = []
+        for i in range(self.episode_size):
+            sample_list.append(np.exp(theta.dot(feature)))
+        sample_list = np.array(sample_list) / np.linalg.norm(sample_list)
+        accumulate = [0]
+        for sample in sample_list:
+            accumulate.append(accumulate[-1] + sample)
+        beta = np.random.uniform()
+        #TODO not yet finished#
