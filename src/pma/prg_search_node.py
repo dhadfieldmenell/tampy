@@ -1,6 +1,7 @@
 from IPython import embed as shell
 from core.internal_repr.state import State
 from core.internal_repr.problem import Problem
+from core.util_classes.learning import PostLearner
 import random
 
 class SearchNode(object):
@@ -50,7 +51,7 @@ class LLSearchNode(SearchNode):
         self.child_record = {}
         self.priority = priority
 
-    def get_problem(self, i, failed_pred):
+    def get_problem(self, i, failed_pred, suggester):
         """
         Returns a representation of the search problem which starts from the end state of step i and goes to the same goal.
         """
@@ -65,6 +66,15 @@ class LLSearchNode(SearchNode):
             p.active_range = (arange[0], max(arange[1], state_timestep))
         state_preds.append(failed_pred)
         new_state = State(state_name, state_params, state_preds, state_timestep)
+        """
+        Suggester shuold sampling based on biased Distribution according to learned
+        theta for each parameter.
+        """
+        feature_fun = None
+        resampled_action = suggester.sample(state, feature_fun)
+        """
+        End of Suggester
+        """
         goal_preds = self.concr_prob.goal_preds.copy()
         new_problem = Problem(new_state, goal_preds, self.concr_prob.env)
 

@@ -99,43 +99,44 @@ class PostLearner(Learner):
             self._sample_space = "UNDEFINED"
             assert "Invalid sample space. new sapce has to be either CONFIG for configuration space or WORK for work space"
 
-    def train(self, domain, problem):
+    def train(self, domain, problem, feature_fun):
         if self._sample_space == "CONFIG":
-            self.train_config(domain, problem)
+            self.train_config(domain, problem, feature_fun)
         elif self._sample_space == "WORK":
-            self.train_work(domain, problem)
+            self.train_work(domain, problem, feature_fun)
         else:
             assert "Invalid Sample Space Specified"
 
-    def train_work(self, domain, problem):
+    def train_work(self, domain, problem, feature_fun):
         pass
 
-    def train_config(self, domain, problem):
+    def train_config(self, domain, problem, feature_fun):
         pass
 
-    def sample(self, feature_mapping, l):
+    def sample(self, state, feature_fun):
         if self._sample_space == "CONFIG":
-            self.sample_config(pred)
+            self.sample_config(state, feature_fun)
         elif self._sample_space == "WORK":
-            self.sample_work(pred)
+            self.sample_work(state, feature_fun)
         else:
             assert "Invalid Sample Space Specified"
 
-    def sample_work(self, feature_mapping):
+    def sample_work(self, state, feature_fun):
         pass
 
-    def sample_config(self, feature_mapping):
+    def sample_config(self, state, feature_fun):
         """
         Given a feature_mapping:
         (dict: param_name->(attr_dict: attr->value))
         sample according to Giab Distribution biased by parameter self.theta.
         Return dictionary mapping param_name to sampled value.
         """
+        #TODO Currently not exactly correct
         config_value = {}
         for param in self.theta:
             attr_dict = self.theta[param]
             for attr in attr_dict:
-                feature = feature_mapping[param][attr]
+                feature = feature_fun[param][attr]
                 theta = self.theta[param][attr]
                 config_value[param][attr] = self.sample_helper(theta, feature)
         return config_value
