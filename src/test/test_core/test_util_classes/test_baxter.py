@@ -5,13 +5,13 @@ import numpy as np
 from core.parsing import parse_domain_config, parse_problem_config
 from core.internal_repr import parameter
 from core.util_classes import box, matrix
+from core.util_classes.can import GreenCan
 from core.util_classes.param_setup import ParamSetup
 from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.baxter_sampling import process_traj
 from core.util_classes.viewer import OpenRAVEViewer
-from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast,
-                        IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
+from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
 
 def load_environment(domain_file, problem_file):
     domain_fname = domain_file
@@ -85,8 +85,10 @@ class TestBaxter(unittest.TestCase):
 
     def test_can_world(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
-                                                   '../domains/baxter_domain/baxter_probs/grasp_1234_1.prob')
+                                                   '../domains/baxter_domain/baxter_training_probs/grasp_1234_1.prob')
 
+        geom = params['can0'].geom
+        params['can0'].geom = GreenCan(geom.radius, geom.height)
         env = Environment()
         objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
         view = OpenRAVEViewer(env)
@@ -96,7 +98,7 @@ class TestBaxter(unittest.TestCase):
         can = can_body.env_body
         robot = baxter_body.env_body
         dof = robot.GetActiveDOFValues()
-
+        import ipdb; ipdb.set_trace()
         # For Fining Initial Pose in Move Action
         # robot.SetActiveDOFValues(dof)
         # import ipdb; ipdb.set_trace()

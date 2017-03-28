@@ -29,6 +29,14 @@ class PostLearner(Learner):
     what parameters are needed to be trained.
     """
 
+    arg_dict_template = {'train_size': "int",
+                         'episode_size': "int",
+                         'solver': "LLSolver",
+                         'sample_iter': "int",
+                         'sample_burn': "int",
+                         'sample_thin': "int",
+                         'train_stepsize': "float"}
+
     def __init__(self, arg_dict, file_name, space = "CONFIG"):
         """
         Constructor will first try to load the feature value theta
@@ -113,13 +121,8 @@ class PostLearner(Learner):
     def train(self, problem, feature_fun, param_dict):
         if self._sample_space == "CONFIG":
             self.train_config(problem, feature_fun, param_dict)
-        elif self._sample_space == "WORK":
-            self.train_work(problem, feature_fun, param_dict)
         else:
             assert "Invalid Sample Space Specified"
-
-    def train_work(self, problem, feature_fun, param_dict):
-        pass
 
     def train_config(self, problems, feature_fun, param_dict):
         """
@@ -151,13 +154,8 @@ class PostLearner(Learner):
     def sample(self, param_dict, feature_fun):
         if self._sample_space == "CONFIG":
             self.sample_config(param_dict, feature_fun)
-        elif self._sample_space == "WORK":
-            self.sample_work(param_dict, feature_fun)
         else:
             assert "Invalid Sample Space Specified"
-
-    def sample_work(self, param_dict, feature_fun):
-        pass
 
     def sample_config(self, param_dict, feature_fun):
         """
@@ -172,16 +170,18 @@ class PostLearner(Learner):
             for attr in param_dict[param]:
                 def model(alpha):
                     return np.exp(self.theta[param][attr].T.dot(feature_fun(alpha)))
+                def norm_pdf(data, old):
+                    return scipy.stats.multivariate_normal.pdf(data, old, 1)
 
-                def sample_step(prev):
-                    return np.random.normal(0, 1, prev)
+                def sample_norm(old_alpha):
+                    return np.random.normal(old_alpha, 1, len(old_alpha))
 
-                result_sampling =  self.metropolis_hasting(param_dict[param][attr], feature_fun, model, sample_step)
+                result_sampling =  self.metropolis_hasting(param_dict[param][attr], feature_fun, model, sample_norm, norm_pdf)
                 index = np.random.randint(0, len(result_sampling))
                 sample_dict[param][attr] = result_sampling[index]
         return sample_dict
 
-    def metropolis_hasting(self, boundary, feature_fun, model, sample_step):
+    def metropolis_hasting(self, boundary, feature_fun, model, sample_step, prop_pdf):
         """
             This function implements Metropolis Hasting Algorithm for sampling.
             Arg:
@@ -201,7 +201,8 @@ class PostLearner(Learner):
             new_alpha = sample_step(old_alpha)
             new_likelihood = model(new_alpha)
             # Accept new candidate in Monte-Carlo fashing.
-            accept_prob = min([1.,new_likelihood/float(likelihood)])
+            acceptance = (new_likelihood * prop_pdf(old_alpha, new_alpha)) / (float(likelihood) * prop_pdf(new_alpha, old_alpha))
+            accept_prob = min([1., acceptance])
             u = random.uniform(0.0,1.0)
             if u < accept_prob:
                 old_alpha = new_alpha

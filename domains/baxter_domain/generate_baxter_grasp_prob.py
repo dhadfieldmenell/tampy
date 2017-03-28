@@ -4,23 +4,23 @@ import itertools
 import numpy as np
 import random
 
-SEED = 1234
-NUM_PROBS = 5
-NUM_CANS = 3 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
-NUM_TARGETS = 3
-filename = "baxter_probs/grasp"
+SEED = 4321
+NUM_PROBS = 20
+NUM_CANS = 4 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_TARGETS = 4
+filename = "baxter_training_probs/grasp_training"
 assert NUM_CANS <= NUM_TARGETS
-# GOAL = "(BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
 DIST_SAFE = 5e-3
 
 CAN_ROTATION_INIT = [0,0,0]
-CAN_POSE_INIT = [[1.1, 0.2, 0.925],[1.2, -0.3, 0.925], [1.0, -0.3, 0.925]]
 CAN_RADIUS = 0.02
 CAN_HEIGHT = 0.25
-CAN_GEOM = [CAN_RADIUS, CAN_HEIGHT]
-DIST_BETWEEN_CANS = 0.01
+#TODO Replace by random number generation#
+CAN_POSE_INIT = [[1.1, 0.2, 0.925],[1.2, -0.3, 0.925], [1.0, -0.3, 0.925]]
+
+DIST_BETWEEN_CANS = 0.1
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]
 Baxter_END_POSE = [0]
@@ -47,18 +47,22 @@ TABLE_THICKNESS = 0.2
 TABLE_LEG_DIM = [.15, 0.2]
 TABLE_LEG_HEIGHT = 0.6
 TABLE_BACK = False
-# TABLE_GEOM = []
 TABLE_GEOM = [.325, .75, 0.1]
-# for info in [TABLE_DIM, [TABLE_THICKNESS], TABLE_LEG_DIM, [TABLE_LEG_HEIGHT], [TABLE_BACK]]:
-#     TABLE_GEOM.extend(info)
 
 class CollisionFreeTargetValueGenerator(object):
     def __init__(self):
-        self.max_x = 0.75+TABLE_DIM[0]/2 - CAN_RADIUS
-        self.min_x = 1.5-self.max_x
-        self.max_y = 0.02+TABLE_DIM[1]/2 - CAN_RADIUS
-        self.min_y = 0.04-self.max_y
+
+        self.min_x = 0.70
+        self.max_x = 1.15
+        self.min_y = -0.7
+        self.max_y = 0.2
+
+        # self.max_x = 1 + TABLE_DIM[0]/2 - CAN_RADIUS
+        # self.min_x = 2 - self.max_x
+        # self.max_y = 0.02+TABLE_DIM[1]/2 - CAN_RADIUS
+        # self.min_y = 0.04-self.max_y
         self._poses = []
+        # import ipdb; ipdb.set_trace()
 
     def __iter__(self):
         return self
@@ -111,7 +115,7 @@ def main():
             s += "EEPose (name ee_target{}); ".format(i)
             s += "RobotPose (name pdp_target{}); ".format(i)
             if i < NUM_CANS:
-                s += "Can (name can{}); ".format(i)
+                    s += "Can (name can{}); ".format(i)
                 # s += "RobotPose (name gp_can{}); ".format(i)
         s += "Robot (name {}); ".format("baxter")
         s += "RobotPose (name {}); ".format("robot_init_pose")
@@ -121,8 +125,8 @@ def main():
         s += "Init: "
         for i in range(NUM_TARGETS):
             target_pos = target_gen.next()
-            s += "(geom target{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
-            s += "(value target{} {}), ".format(i, CAN_POSE_INIT[i])
+            s += "(geom target{} {} {}), ".format(i, CAN_RADIUS, CAN_HEIGHT)
+            s += "(value target{} {}), ".format(i, target_pos)
             s += "(rotation target{} {}),".format(i, CAN_ROTATION_INIT)
             s += "(value pdp_target{} undefined), ".format(i)
             s += get_baxter_undefined_attrs_str("pdp_target{}".format(i))
@@ -130,8 +134,8 @@ def main():
             s += "(rotation ee_target{} undefined), ".format(i)
 
             if i < NUM_CANS:
-                s += "(geom can{} {} {}), ".format(i, CAN_GEOM[0], CAN_GEOM[1])
-                s += "(pose can{} {}), ".format(i, CAN_POSE_INIT[i])
+                s += "(geom can{} {} {}), ".format(i, CAN_RADIUS, CAN_HEIGHT)
+                s += "(pose can{} {}), ".format(i, target_pos)
                 s += "(rotation can{} {}),".format(i, CAN_ROTATION_INIT)
                 # s += "(value gp_can{} undefined), ".format(i)
         s += "(geom {}), ".format("baxter")
@@ -173,7 +177,6 @@ def main():
         s += "(BaxterStationaryW table) \n\n"
 
         s += "Goal: {}".format(GOAL)
-
         with open(filename+"_{}_{}.prob".format(SEED, iteration), "w") as f:
             f.write(s)
 
