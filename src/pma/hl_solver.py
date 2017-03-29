@@ -116,6 +116,17 @@ class FFSolver(HLSolver):
                 eff = domain_config[key][inds[2]:inds[3]].strip()
                 dom_str += "(:action %s\n:parameters %s\n:precondition %s\n:effect %s\n)\n\n"%(key.split()[1], params, pre, eff)
         dom_str += ")"
+
+        # This block is added to erase domain name
+        clean_str = ""
+        if "Baxter" in dom_str:
+            for word in dom_str.split("Baxter"):
+                clean_str += word
+            dom_str = clean_str
+        elif "PR2" in dom_str:
+            for word in dom_str.split("PR2"):
+                clean_str += word
+            dom_str = clean_str
         return dom_str
 
     def translate_problem(self, concr_prob):
@@ -142,6 +153,16 @@ class FFSolver(HLSolver):
                 prob_str += "%s "%param.name
             prob_str += ") "
         prob_str += ")\n)\n)"
+        # This block is added to erase domain name
+        clean_str = ""
+        if "Baxter" in prob_str:
+            for word in prob_str.split("Baxter"):
+                clean_str += word
+            prob_str = clean_str
+        elif "PR2" in prob_str:
+            for word in prob_str.split("PR2"):
+                clean_str += word
+            prob_str = clean_str
         return prob_str
 
     def solve(self, abs_prob, domain, concr_prob, prefix=None):
@@ -296,6 +317,7 @@ class FFSolver(HLSolver):
         with open("%sprob.output"%FFSolver.FILE_PREFIX, "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
+            import ipdb; ipdb.set_trace()
             plan = Plan.IMPOSSIBLE
         else:
             plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))

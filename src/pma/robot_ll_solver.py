@@ -46,7 +46,7 @@ class RobotLLSolver(LLSolver):
         self.child_solver = None
         self.solve_priorities = [2]
         self.transfer_norm = transfer_norm
-
+        self.sampling_trace = []
 
     def _solve_helper(self, plan, callback, active_ts, verbose):
         # certain constraints should be solved first
@@ -174,6 +174,10 @@ class RobotLLSolver(LLSolver):
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
         self._update_ll_params()
         print "priority: {}".format(priority)
+        if priority >= 1 and len(self.sampling_trace) != 0:
+            import ipdb; ipdb.set_trace()
+            self.sampling_trace[-1]['reward'] = len(plan.failed_preds())
+
         ##Restore free_attrs values
         plan.restore_free_attrs()
         return success
@@ -240,7 +244,13 @@ class RobotLLSolver(LLSolver):
             ## to parameter attributes
             val, attr_inds = pred.resample(negated, t, plan)
             ## if no resample defined for that pred, continue
-            if val is not None: break
+            if val is not None:
+                self.sampling_trace.append({'pred': pred,
+                                            'resample_ts': t,
+                                            'negated': negated,
+                                            'resample_value': val,
+                                            'resample_index': attr_inds})
+                break
         if val is None:
             return []
 

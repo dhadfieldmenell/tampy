@@ -1,19 +1,11 @@
 import unittest
 from pma import hl_solver
 from pma import robot_ll_solver
-from core.parsing import parse_domain_config
-from core.parsing import parse_problem_config
-import gurobipy as grb
+from core.parsing import parse_domain_config, parse_problem_config
 import numpy as np
-from sco.prob import Prob
-from sco.solver import Solver
-from sco.variable import Variable
-from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes import circle
-from core.util_classes.matrix import Vector2d
-from core.internal_repr import parameter, plan
+from core.internal_repr import plan
 from core.util_classes import plan_hdf5_serialization
 import time, main
 
@@ -28,7 +20,6 @@ class TestRobotLLSolver(unittest.TestCase):
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
-
         def get_plan(p_fname, plan_str=None):
             p_c = main.parse_file_to_dict(p_fname)
             problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
@@ -37,7 +28,7 @@ class TestRobotLLSolver(unittest.TestCase):
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
         self.get_plan = get_plan
-        
+
         # Successful Problem
         # self.move_arm_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_move_arm.prob')
         # self.grab_prob = get_plan('../domains/baxter_domain/baxter_probs/baxter_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
@@ -61,7 +52,7 @@ class TestRobotLLSolver(unittest.TestCase):
     # def test_move_holding(self):
     #     _test_plan(self, self.move_hold_prob)
 
-    # Need to be tested plan
+    # successful
     def test_complex_grab_prob(self):
         TRIALS = 1
         complete_time = []
@@ -184,7 +175,6 @@ def _test_plan(test_obj, plan, n_resamples=10):
             viewer.draw_plan_ts(plan, t)
 
     print(plan.get_failed_preds())
-    # import ipdb; ipdb.set_trace()
     return timesteps
     # assert plan.satisfied()
 
