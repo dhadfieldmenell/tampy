@@ -2,6 +2,7 @@ import h5py
 import os.path as path
 from IPython import embed as shell
 import numpy as np
+import scipy.stats
 import math, random
 
 class Learner(object):
@@ -32,10 +33,10 @@ class PostLearner(Learner):
     arg_dict_template = {'train_size': "int",
                          'episode_size': "int",
                          'solver': "LLSolver",
+                         'train_stepsize': "float",
                          'sample_iter': "int",
                          'sample_burn': "int",
-                         'sample_thin': "int",
-                         'train_stepsize': "float"}
+                         'sample_thin': "int"}
 
     def __init__(self, arg_dict, file_name, space = "CONFIG"):
         """
@@ -61,14 +62,10 @@ class PostLearner(Learner):
 
         self.train_size = arg_dict['train_size']
         self.episode_size = arg_dict['episode_size']
-        self.solver = arg_dict['solver']
         self.sample_iter = arg_dict['sample_iter']
         self.sample_burn = arg_dict['sample_burn']
         self.sample_thin = arg_dict['sample_thin']
         self.train_stepsize = arg_dict['train_stepsize']
-
-    def sample_space(self):
-        return self._sample_space
 
     def get_theta(self, hdf5_obj):
         """
@@ -118,67 +115,98 @@ class PostLearner(Learner):
             self._sample_space = "UNDEFINED"
             assert "Invalid sample space. new sapce has to be either CONFIG for configuration space or WORK for work space"
 
-    def train(self, problem, feature_fun, param_dict):
+    def sample_space(self):
+        return self._sample_space
+
+    def norm_pdf(self, data, old):
+        # If this function doesn't work upgrade your scipy version to SciPy 0.14.0.dev-16fc0af
+        return scipy.stats.multivariate_normal.pdf(data, old, np.eye(len(data)))
+
+    def sample_norm(self, old_alpha):
+        return np.random.normal(old_alpha, 1, len(old_alpha))
+
+    def train_model(self, theta, alpha):
+        return np.exp(theta.T.dot(alpha))
+
+    def train(self, problems, feature_fun, param_dict):
         if self._sample_space == "CONFIG":
-            self.train_config(problem, feature_fun, param_dict)
+            self.train_config(feature_vecs, rewards, param_dict)
         else:
             assert "Invalid Sample Space Specified"
 
-    def train_config(self, problems, feature_fun, param_dict):
+    def train_config(self, feature_vecs, rewards, param_dict):
         """
-            Solver needs to provide a method train_sample
-            that takes in a problem, episode_size, and feature_fun
-            and returns each sample episode's feature vector (List(Dict:param->feature))
-            and its reward (List)
+            Args:
+            feature_vecs: a list of N Dict mapping param/attr name to episode features where N is the number of problem trained.
+                Type: List(Dict: param/attr -> value)
+            rewards: a list of N Dict mapping param/attr name to reward of each episode, where N is the number of problem trained.
+                Type: List(Dict: param/attr -> value)
+            param_dict: A dict mapping param/attr name to dimension of theta wanted.
         """
+        # Initialize theta variable
+        self.theta = {}
+        for param in param_dict:
+            attr_dict = param_dict[param]
+            self.theta[param] = {}
+            for attr in attr_dict:
+                rand = np.random.sample(attr_dict[attr])
+                self.theta[param][attr] = rand.reshape((rand.shape[0], 1))
 
-        for prob in problems:
-            features, reward = solver.train_sample(porb, self.episode_size, feature_fun)
-            R = np.sum(reward)
+        for i in range(self.train_size):
+            features = feature_vecs[i]
+            reward = rewards[i]
             for param in param_dict:
-                for attr in param:
-                    dist_list = np.array([np.exp(self.theta[param][attr].dot(fea[param][attr])) for fea in features])
-                    dist = dist_list/np.sum(dist_list)
+                attr_dict = param_dict[param]
+                for attr in attr_dict:
+                    feature_list = features[param][attr]
+                    reward_list = reward[param][attr]
+                    dist_list = np.array([np.exp(self.theta[param][attr].T.dot(feature)) for feature in feature_list]).reshape((len(feature_list),))
+                    # TODO this sum might not necessarily representing Z
+                    dist = dist_list/float(np.sum(dist_list))
 
                     expected = 0
-                    for index in range(self.episode_size):
-                        expected += features[i][param][attr]*dist[i]
+                    for j in range(self.episode_size):
+                        expected += feature_list[j] * dist[j]
 
                     grad = 0
-                    for i in range(self.episode_size):
-                        grad += features[i][param][attr] - expected
-                    gradient = R / float(self.episode_size) * grad
-                    self.theta[param][attr] = self.theta[param][attr] + self.train_stepsize* gradient
-                    import ipdb; ipdb.set_trace()
+                    for k in range(self.episode_size):
+                        grad += feature_list[k] - expected
+                    gradient = np.sum(reward_list) / float(self.episode_size) * grad
 
-    def sample(self, param_dict, feature_fun):
+                    self.theta[param][attr] = self.theta[param][attr] + self.train_stepsize * gradient
+        f = h5py.File(self.store_file, 'w')
+        self.store_theta(f)
+        f.close()
+
+    def sample(self, param_dict, feature_dict):
         if self._sample_space == "CONFIG":
-            self.sample_config(param_dict, feature_fun)
+            return self.sample_config(param_dict, feature_dict)
         else:
             assert "Invalid Sample Space Specified"
 
-    def sample_config(self, param_dict, feature_fun):
+    def sample_config(self, param_dict, feature_dict):
         """
-        Given a feature_mapping:
-        (dict: param_name->(attr_dict: attr->value))
         sample according to Giab Distribution biased by parameter self.theta.
         Return dictionary mapping param_name to sampled value.
+
+        Args:
+        feature_dict: A dict mapping param/attr name to feature function
+        (dict: param_name->(attr_dict: attr->value))
+        param_dict: A dict mapping param/attr name to value upper and lower bound of this parameter value
         """
 
+        sample_dict = {}
         for param in param_dict:
+            attr_dict = param_dict[param]
             sample_dict[param] = {}
-            for attr in param_dict[param]:
-                def model(alpha):
-                    return np.exp(self.theta[param][attr].T.dot(feature_fun(alpha)))
-                def norm_pdf(data, old):
-                    return scipy.stats.multivariate_normal.pdf(data, old, 1)
+            for attr in attr_dict:
+                def sample_pdf(data):
+                    # TODO this pdf is having issue
+                    return self.train_model(self.theta[param][attr], feature_dict[param][attr](data))
 
-                def sample_norm(old_alpha):
-                    return np.random.normal(old_alpha, 1, len(old_alpha))
-
-                result_sampling =  self.metropolis_hasting(param_dict[param][attr], feature_fun, model, sample_norm, norm_pdf)
-                index = np.random.randint(0, len(result_sampling))
-                sample_dict[param][attr] = result_sampling[index]
+                result_sampling = self.metropolis_hasting(attr_dict[attr], feature_dict[param][attr], sample_pdf, self.sample_norm, self.norm_pdf)
+                sample_dict[param][attr] = result_sampling
+                # Probably needs some filtering to get rid of parameter value that are out of bound
         return sample_dict
 
     def metropolis_hasting(self, boundary, feature_fun, model, sample_step, prop_pdf):
@@ -186,25 +214,34 @@ class PostLearner(Learner):
             This function implements Metropolis Hasting Algorithm for sampling.
             Arg:
                 Boundary: A kx2 matrix defines lower bound(first column) and upper bound(last column) of the sample you wish to draw.
+
                 Feature_fun: Defines a mapping between sample and it's coresponding feature vector.
+
                 Model: is pdf from which the sample is draw from
-                Sample_step: A function that takes in previous data point and sample the next.(should draw sample from the same distribution as Model)
+
+                Sample_step: A proposal distribution to draw sample from.
+                prop_pdf: PDF of proposal distribution
         """
-        # initial guess for alpha as array.
+        # Give a reasonable initial guess for alpha
         old_alpha = np.multiply(np.random.sample(boundary.shape[0]), boundary[:,1] - boundary[:,0]) + boundary[:,0]
         samples = [old_alpha]
+        # Initialize x' as zero
         new_alpha = np.zeros((len(old_alpha),))
         # Metropolis-Hastings with 10,000 iterations.
         for n in range(self.sample_iter):
-            likelihood = model(old_alpha)
-            # This new sample should be draw from the same distribution as model
+            # New sample x' is drawn from the proposal distribution g(x'|x)
             new_alpha = sample_step(old_alpha)
-            new_likelihood = model(new_alpha)
-            # Accept new candidate in Monte-Carlo fashing.
-            acceptance = (new_likelihood * prop_pdf(old_alpha, new_alpha)) / (float(likelihood) * prop_pdf(new_alpha, old_alpha))
-            accept_prob = min([1., acceptance])
+            # Old Likelihood = P(x)g(x'|x)
+            likelihood = model(old_alpha) * prop_pdf(new_alpha, old_alpha)
+            # New Likelihood = P(x')g(x|x')
+            new_likelihood = model(new_alpha) * prop_pdf(old_alpha, new_alpha)
+            # A(x'|x) = min(1, (P(x')g(x|x'))/(P(x)g(x'|x)))
+            accept_prob = min([1., new_likelihood / float(likelihood)])
             u = random.uniform(0.0,1.0)
+            # Accept new sample according to accpetance probability
             if u < accept_prob:
                 old_alpha = new_alpha
                 samples.append(new_alpha)
+
+        # remove burn in period and skip samples to reduce autocorrelation
         return np.array(samples[self.sample_burn::self.sample_thin])
