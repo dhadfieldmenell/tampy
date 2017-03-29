@@ -66,10 +66,10 @@ class TestLearner(unittest.TestCase):
             return x
 
         def norm_pdf(data, old):
-            return scipy.stats.norm.pdf(data, old, 5)
+            return scipy.stats.norm.pdf(data, old, .04)
 
         def sample_norm(old_alpha):
-            return np.random.normal(old_alpha, 5, len(old_alpha))
+            return np.random.normal(old_alpha, 0.08, len(old_alpha))
 
         def lognorm_pdf(data):
             return scipy.stats.lognorm.pdf(data, 1)
@@ -83,26 +83,21 @@ class TestLearner(unittest.TestCase):
         def logistic_pdf(data):
             return scipy.stats.logistic.pdf(data, 5, 2)
 
-        # global accumulate
-        # accumulate = 0
-        # def gibbs(data):
-        #     global accumulate
-        #     value = np.exp(data)
-        #     accumulate += value
-        #     return value/float(accumulate)
+        def gibbs(data):
+            return np.exp(learn.theta['dummy']['x'].T.dot(data))
 
 
-        boundary = np.array([[10, 20]])
-        samples = learn.metropolis_hasting(boundary, feature_fun, gumbel_r, sample_norm, norm_pdf)
-
-        x = np.arange(-10,100,.1)
-        y = [gumbel_r(i) for i in x]
+        boundary = np.array([[-1, 1]])
+        samples = learn.metropolis_hasting(boundary, feature_fun, gibbs, sample_norm, norm_pdf)
+        x = np.arange(-1,1,.1)
+        y = np.array([gibbs(i) for i in x])
+        y = y.reshape((y.shape[0], ))
         plt.subplot(211)
         plt.title('Metropolis-Hastings')
         plt.plot(samples)
         plt.subplot(212)
 
-        plt.hist(samples[1000::3], bins=30,normed=1)
+        plt.hist(samples, bins=30,normed=1)
         plt.plot(x,y,'ro')
         plt.ylabel('Frequency')
         plt.xlabel('x')
@@ -112,11 +107,9 @@ class TestLearner(unittest.TestCase):
         if response == 'yes':
             plt.show()
 
-
-
     def test_training(self):
         np.random.seed(1234)
-        arg_dict = {'train_size': 2, 'episode_size': 2, 'train_stepsize': 0.05, 'sample_iter': 10000, 'sample_burn': 500, 'sample_thin': 2}
+        arg_dict = {'train_size': 2, 'episode_size': 2,  'train_stepsize': 0.05, 'sample_iter': 10000, 'sample_burn': 500, 'sample_thin': 2}
         learn = PostLearner(arg_dict, "test_learner", "CONFIG")
         param_dict = {'dummy': {'x': 1, 'y':2, 'z':3}}
         feature_vecs = [{'dummy': {'x': [np.array([8]), np.array([-7])],
@@ -135,9 +128,6 @@ class TestLearner(unittest.TestCase):
         self.assertTrue(np.allclose(learn.theta['dummy']['x'], np.array([[-3.22769282]])))
         self.assertTrue(np.allclose(learn.theta['dummy']['y'], np.array([[ 2.24185377, 2.26802808]]).T))
         self.assertTrue(np.allclose(learn.theta['dummy']['z'], np.array([[ 0.9911284, 3.3078589, 1.27975853]]).T))
-        os.remove("test_learner.hdf5")
-
-
 
     def test_sampling(self):
         # Testing with single variable Normal Distribution
@@ -158,25 +148,22 @@ class TestLearner(unittest.TestCase):
         sample = sample_dict["dummy"]["x"]
         sample_pdf  = lambda alpha: learn.train_model(learn.theta["dummy"]["x"], feature_dict["dummy"]["x"](alpha))
 
-        x = np.arange(-100,100,1)
+        x = np.arange(0,10,.1)
         y = np.array([sample_pdf([i]) for i in x])
         y = y.reshape((y.shape[0], ))
         plt.subplot(211)
         plt.title('Metropolis-Hastings')
         plt.plot(sample)
         plt.subplot(212)
-        import ipdb; ipdb.set_trace()
-        # sample = sample
-        # sample = sample / np.linalg.norm(sample)
         plt.hist(sample, bins=30,normed=1)
         plt.plot(x,y,'ro')
         plt.ylabel('Frequency')
         plt.xlabel('x')
         plt.legend(('PDF','Samples'))
-        # plt.show()
-
-
-
+        print "data sample generated successfully."
+        response = raw_input('Display the diagram? [yes/no]:\n')
+        if response == 'yes':
+            plt.show()
 
 def load_environment(domain_file, problem_file, problem_size):
     domain_fname = domain_file

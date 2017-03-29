@@ -123,12 +123,12 @@ class PostLearner(Learner):
         return scipy.stats.multivariate_normal.pdf(data, old, np.eye(len(data)))
 
     def sample_norm(self, old_alpha):
-        return np.random.normal(old_alpha, 1, len(old_alpha))
+        return np.random.normal(old_alpha, .2, len(old_alpha))
 
     def train_model(self, theta, alpha):
         return np.exp(theta.T.dot(alpha))
 
-    def train(self, problems, feature_fun, param_dict):
+    def train(self, feature_vecs, rewards, param_dict):
         if self._sample_space == "CONFIG":
             self.train_config(feature_vecs, rewards, param_dict)
         else:
@@ -201,7 +201,6 @@ class PostLearner(Learner):
             sample_dict[param] = {}
             for attr in attr_dict:
                 def sample_pdf(data):
-                    # TODO this pdf is having issue
                     return self.train_model(self.theta[param][attr], feature_dict[param][attr](data))
 
                 result_sampling = self.metropolis_hasting(attr_dict[attr], feature_dict[param][attr], sample_pdf, self.sample_norm, self.norm_pdf)
@@ -231,6 +230,15 @@ class PostLearner(Learner):
         for n in range(self.sample_iter):
             # New sample x' is drawn from the proposal distribution g(x'|x)
             new_alpha = sample_step(old_alpha)
+            # Constraint x within the boundary
+            for i in range(new_alpha.shape[0]):
+                if new_alpha[i] < boundary[i, 0]:
+                    # If data entry is smaller than lower bound
+                    new_alpha[i] = boundary[i, 0]
+                elif new_alpha[i] > boundary[i, 1]:
+                    # If data entry is larger than upper bound
+                    new_alpha[i] = boundary[i, 1]
+
             # Old Likelihood = P(x)g(x'|x)
             likelihood = model(old_alpha) * prop_pdf(new_alpha, old_alpha)
             # New Likelihood = P(x')g(x|x')
