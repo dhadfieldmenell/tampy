@@ -3,6 +3,7 @@ import time
 import main
 import numpy as np
 from core.parsing import parse_domain_config, parse_problem_config
+from pma import robot_ll_solver
 from core.internal_repr import parameter
 from core.util_classes import box, matrix
 from core.util_classes.can import GreenCan
@@ -85,7 +86,7 @@ class TestBaxter(unittest.TestCase):
 
     def test_can_world(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
-                                                   '../domains/baxter_domain/baxter_training_probs/grasp_1234_1.prob')
+                       '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_1.prob')
 
         geom = params['can0'].geom
         params['can0'].geom = GreenCan(geom.radius, geom.height)
@@ -99,6 +100,14 @@ class TestBaxter(unittest.TestCase):
         robot = baxter_body.env_body
         dof = robot.GetActiveDOFValues()
         import ipdb; ipdb.set_trace()
+
+        # solver = robot_ll_solver.RobotLLSolver()
+        # success = solver.solve(plan, callback=callback, n_resamples=50, verbose=False)
+        # print plan.get_failed_preds()
+        # import ipdb; ipdb.set_trace()
+
+
+
         # For Fining Initial Pose in Move Action
         # robot.SetActiveDOFValues(dof)
         # import ipdb; ipdb.set_trace()

@@ -1,16 +1,12 @@
-import unittest, os, h5py
-import numpy as np
-import scipy.stats
-from core.util_classes.learning import PostLearner
-from math import *
-import time, main
-from core.parsing import parse_domain_config, parse_problem_config
+import unittest, os, h5py, math, time, main, scipy.stats
 import matplotlib.pylab as plt
-
-from pma import hl_solver
-from pma import robot_ll_solver
+import numpy as np
+from core.util_classes.learning import PostLearner
+from core.parsing import parse_domain_config, parse_problem_config
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
+from pma import hl_solver
+from pma import robot_ll_solver
 
 class TestLearner(unittest.TestCase):
 
@@ -196,9 +192,11 @@ class TestLearner(unittest.TestCase):
 
             new_plan = get_plan(prob_file, plan_str)
             plans.append(new_plan)
-            import ipdb; ipdb.set_trace()
             solver = robot_ll_solver.RobotLLSolver()
-            timesteps = solver.solve(new_plan, callback=None, n_resamples=10, verbose=False)
+            import ipdb; ipdb.set_trace()
+            def viewer():
+                return OpenRAVEViewer.create_viewer(new_plan.env)
+            timesteps = solver.solve(new_plan, callback=viewer, n_resamples=10, verbose=False)
             result.append(solver.sampling_trace)
 
 

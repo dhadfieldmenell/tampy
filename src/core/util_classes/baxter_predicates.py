@@ -462,7 +462,7 @@ class BaxterObstructs(robot_predicates.Obstructs):
         self.dsafe = DIST_SAFE
 
     def resample(self, negated, t, plan):
-        return resample_rcollides(self, negated, t, plan)
+        return resample_obstructs(self, negated, t, plan)
         # return None, None
 
     def set_active_dof_inds(self, robot_body, reset = False):
@@ -506,7 +506,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         self.dsafe = DIST_SAFE
 
     def resample(self, negated, t, plan):
-        return resample_rcollides(self, negated, t, plan)
+        return resample_obstructs(self, negated, t, plan)
         # return None, None
 
     def set_robot_poses(self, x, robot_body):
@@ -557,7 +557,7 @@ class BaxterRCollides(robot_predicates.RCollides):
         self.dsafe = RCOLLIDES_DSAFE
 
     def resample(self, negated, t, plan):
-        return resample_rcollides(self, negated, t, plan)
+        return resample_obstructs(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
