@@ -180,10 +180,11 @@ class TestLearner(unittest.TestCase):
             if plan_str is not None:
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
-
+        hdf5 = h5py.File("features.hdf5", "w")
         plans = []
         result = []
-        for i in range(5):
+        # prob_list = [1, 3, 6, 11] #1
+        for i in range(20):
             print "Generating plan_{}".format(i)
             prob_file = '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_{}.prob'.format(i)
 
@@ -203,8 +204,10 @@ class TestLearner(unittest.TestCase):
             def viewer():
                 return OpenRAVEViewer.create_viewer(new_plan.env)
             timesteps = solver.solve(new_plan, callback=viewer, n_resamples=10, verbose=False)
-            result.append(solver.sampling_trace)
-            import ipdb; ipdb.set_trace()
+            result.append(new_plan.sampling_trace)
+
+        import ipdb; ipdb.set_trace()
+
 
 
 
