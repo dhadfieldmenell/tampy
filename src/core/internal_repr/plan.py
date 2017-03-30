@@ -22,6 +22,7 @@ class Plan(object):
         self.initialized = False
         self._free_attrs = {}
         self._saved_free_attrs = {}
+        self.sampling_trace = []
         if determine_free:
             self._determine_free_attrs()
 

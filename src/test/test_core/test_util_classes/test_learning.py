@@ -1,8 +1,9 @@
-import unittest, os, h5py, math, time, main, scipy.stats
+import unittest, os, h5py, time, main, scipy.stats
 import matplotlib.pylab as plt
 import numpy as np
 from core.util_classes.learning import PostLearner
 from core.parsing import parse_domain_config, parse_problem_config
+from core.util_classes.can import GreenCan
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from pma import hl_solver
@@ -188,16 +189,22 @@ class TestLearner(unittest.TestCase):
 
             plan_str = ['0: MOVETO BAXTER ROBOT_INIT_POSE PDP_TARGET0',
                         '1: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET1',
-                        '2: MOVETOHOLDING BAXTER PDP_TARGET1 ROBOT_END_POSE CAN0']
+                        '2: MOVETOHOLDING BAXTER PDP_TARGET1 PDP_TARGET2 CAN0',
+                        '3: PUTDOWN BAXTER CAN0 TARGET2 PDP_TARGET2 EE_TARGET2 ROBOT_END_POSE'
+                        ]
 
             new_plan = get_plan(prob_file, plan_str)
             plans.append(new_plan)
+
+            geom = new_plan.params['can0'].geom
+            new_plan.params['can0'].geom = GreenCan(geom.radius, geom.height)
+
             solver = robot_ll_solver.RobotLLSolver()
-            import ipdb; ipdb.set_trace()
             def viewer():
                 return OpenRAVEViewer.create_viewer(new_plan.env)
             timesteps = solver.solve(new_plan, callback=viewer, n_resamples=10, verbose=False)
             result.append(solver.sampling_trace)
+            import ipdb; ipdb.set_trace()
 
 
 

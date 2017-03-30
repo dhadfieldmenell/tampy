@@ -6,11 +6,12 @@ import random
 
 SEED = 4321
 NUM_PROBS = 20
-NUM_CANS = 4 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
-NUM_TARGETS = 4
+NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_TARGETS = 3
 filename = "baxter_training_probs/grasp_training"
 assert NUM_CANS <= NUM_TARGETS
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
+# Defines a complete pick place problem
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt can0 target2)"
 
 DIST_SAFE = 5e-3
 
@@ -19,7 +20,6 @@ CAN_RADIUS = 0.02
 CAN_HEIGHT = 0.25
 #TODO Replace by random number generation#
 CAN_POSE_INIT = [[1.1, 0.2, 0.925],[1.2, -0.3, 0.925], [1.0, -0.3, 0.925]]
-
 DIST_BETWEEN_CANS = 0.1
 # init and end robot pose(only the base)
 Baxter_INIT_POSE = [0]

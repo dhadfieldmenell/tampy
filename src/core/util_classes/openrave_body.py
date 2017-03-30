@@ -125,14 +125,13 @@ class OpenRAVEBody(object):
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
-    def set_pose(self, base_pose, rotation = None):
+    def set_pose(self, base_pose, rotation = [0, 0, 0]):
         trans = None
         if isinstance(self._geom, Circle) or isinstance(self._geom, Obstacle) or isinstance(self._geom, Wall):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, Robot):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif isinstance(self._geom, Table) or isinstance(self._geom, Can) or isinstance(self._geom, Box):
-            assert rotation != None
             trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)
 
