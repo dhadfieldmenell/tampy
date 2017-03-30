@@ -70,7 +70,6 @@ class RobotLLSolver(LLSolver):
             self._solve_opt_prob(plan, priority=-1, callback=callback,
                 active_ts=active_ts, verbose=verbose)
             plan.initialized=True
-        import ipdb; ipdb.set_trace()
         success = self._solve_helper(plan, callback=callback,
             active_ts=active_ts, verbose=verbose)
         if success or len(plan.get_failed_preds()) == 0:
@@ -149,7 +148,6 @@ class RobotLLSolver(LLSolver):
             ## this is an objective that places
             ## a high value on matching the resampled values
             obj_bexprs = []
-            import ipdb; ipdb.set_trace()
             rs_obj = self._resample(plan, failed_preds)
             obj_bexprs.extend(rs_obj)
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
