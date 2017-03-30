@@ -176,12 +176,15 @@ class RobotLLSolver(LLSolver):
         self._update_ll_params()
         print "priority: {}".format(priority)
 
-        reward = 0
-        failed_t = plan.get_failed_preds()[0][2]
-        for i in range(len(plan.actions)):
-            if failed_t > plan.actions[i].active_timesteps[1]:
-                reward += 1
-        plan.sampling_trace[-1]['reward'] = reward
+
+        if priority == 0:
+            # During resampling phases, there must be changes added to sampling_trace
+            reward = 0
+            failed_t = plan.get_failed_preds()[0][2]
+            for i in range(len(plan.actions)):
+                if failed_t > plan.actions[i].active_timesteps[1]:
+                    reward += 1
+            plan.sampling_trace[-1]['reward'] = reward
 
         ##Restore free_attrs values
         plan.restore_free_attrs()

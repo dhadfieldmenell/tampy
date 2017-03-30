@@ -304,7 +304,7 @@ def resample_pred(pred, negated, t, plan):
             arm_pose = get_ik_from_pose(ref_param.value, ref_param.rotation, robot, manip_name)
 
             add_to_attr_inds_and_res(t, attr_inds, res, rs_param, [('rArmPose', arm_pose)])
-            plan.sampling_trace.append({rs_param.name: {'rArmPose': arm_pose}})
+            plan.sampling_trace.append({rs_param.name: {'rArmPose': arm_pose}, 'timestep': t})
 
         """Resample Trajectory by BiRRT"""
         init_dof = rs_action.params[1].rArmPose[:,0].flatten()
@@ -327,7 +327,7 @@ def resample_pred(pred, negated, t, plan):
         samp_ee = ee_poses[np.random.randint(0, len(ee_poses))]
 
         add_to_attr_inds_and_res(t, attr_inds, res, rs_param, [('value', samp_ee[0]), ('rotation', samp_ee[1])])
-        plan.sampling_trace.append({rs_param.name: {'value': samp_ee[0], 'rotation': samp_ee[1]}})
+        plan.sampling_trace.append({rs_param.name: {'value': samp_ee[0], 'rotation': samp_ee[1]}, 'timestep': t})
 
         """Resample Trajectory by BiRRT"""
         init_dof = rs_action.params[1].rArmPose[:,0].flatten()
@@ -497,6 +497,9 @@ def resample_eereachable(pred, negated, t, plan):
     # Resample poses at grasping time
     grasp_arm_pose = get_ik_from_pose(target_pos, target_rot, body, 'right_arm')
     add_to_attr_inds_and_res(t, attr_inds, res, robot, [('rArmPose', grasp_arm_pose.copy())])
+
+    plan.sampling_trace.append({robot.name:{'rArmPose': grasp_arm_pose}, 'timestep': t})
+
     # Setting poses for environments to extract transform infos
     dof_value_map = {"lArmPose": robot.lArmPose[:,t].reshape((7,)),
                      "lGripper": 0.02,
