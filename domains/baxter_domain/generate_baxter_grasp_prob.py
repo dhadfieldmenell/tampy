@@ -6,7 +6,7 @@ import random
 
 SEED = 4321
 NUM_PROBS = 20
-NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_CANS = 1 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
 NUM_TARGETS = 3
 filename = "baxter_training_probs/grasp_training"
 assert NUM_CANS <= NUM_TARGETS
@@ -52,9 +52,9 @@ TABLE_GEOM = [.325, .75, 0.1]
 class CollisionFreeTargetValueGenerator(object):
     def __init__(self):
 
-        self.min_x = 0.70
+        self.min_x = 0.80
         self.max_x = 1.15
-        self.min_y = -0.7
+        self.min_y = -0.57
         self.max_y = 0.2
 
         # self.max_x = 1 + TABLE_DIM[0]/2 - CAN_RADIUS
