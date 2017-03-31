@@ -6,7 +6,7 @@ import random
 
 SEED = 4321
 NUM_PROBS = 20
-NUM_CANS = 1 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
+NUM_CANS = 2 # each can i starts at target i, so we must have NUM_CANS <= NUM_TARGETS
 NUM_TARGETS = 3
 filename = "baxter_training_probs/grasp_training"
 assert NUM_CANS <= NUM_TARGETS

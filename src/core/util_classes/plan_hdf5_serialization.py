@@ -100,6 +100,8 @@ class PlanSerializer:
 
 class PlanDeserializer:
     def read_from_hdf5(self, file_name):
+        if file_name[-5:] != '.hdf5':
+            file_name += '.hdf5'
         try:
             file = h5py.File(file_name, 'r')
         except IOError:

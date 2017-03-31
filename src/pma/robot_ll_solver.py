@@ -8,6 +8,7 @@ from core.util_classes import baxter_predicates
 from core.util_classes.matrix import Vector
 from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes.plan_hdf5_serialization import PlanSerializer
 from ll_solver import LLSolver, LLParam
 import itertools, random
 import gurobipy as grb
@@ -72,6 +73,10 @@ class RobotLLSolver(LLSolver):
             plan.initialized=True
         success = self._solve_helper(plan, callback=callback,
             active_ts=active_ts, verbose=verbose)
+
+        # self.saver = PlanSerializer()
+        # self.saver.write_plan_to_hdf5("temp_plan.hdf5", plan)
+
         if success or len(plan.get_failed_preds()) == 0:
             return True
             # return success
@@ -185,7 +190,8 @@ class RobotLLSolver(LLSolver):
                 for i in range(len(plan.actions)):
                     if failed_t > plan.actions[i].active_timesteps[1]:
                         reward += 1
-            plan.sampling_trace[-1]['reward'] = reward
+            if 'reward' not in plan.sampling_trace[-1]:
+                plan.sampling_trace[-1]['reward'] = reward
         ##Restore free_attrs values
         plan.restore_free_attrs()
         return success

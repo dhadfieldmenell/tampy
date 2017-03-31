@@ -305,6 +305,7 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[2], list(ATTRMAP[params[2]._type]))])
         self.attr_dim = 23
+        self.ee_resample = False
         super(BaxterEEReachable, self).__init__(name, params, expected_param_types, env, debug, steps)
 
     def resample(self, negated, t, plan):
@@ -458,7 +459,7 @@ class BaxterEEReachableInvPos(BaxterEEReachablePos):
             return rel_step*np.array([-APPROACH_DIST, 0, 0])
 
     def resample(self, negated, t, plan):
-        return resample_eereachable_rrt(self, negated, t, plan, inv='True')
+        return resample_eereachable_rrt(self, negated, t, plan, inv= True)
 
 class BaxterEEReachableInvRot(BaxterEEReachableRot):
 

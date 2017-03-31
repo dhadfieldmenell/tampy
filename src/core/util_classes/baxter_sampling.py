@@ -209,9 +209,10 @@ def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
     params.SetRobotActiveJoints(robot)
     params.SetGoalConfig(end_dof) # set goal to all ones
     # # forces parabolic planning with 40 iterations
-    # params.SetExtraParameters("""<_postprocessing planner="parabolicsmoother">
-    #     <_nmaxiterations>17</_nmaxiterations>
-    # </_postprocessing>""")
+    # import ipdb; ipdb.set_trace()
+    params.SetExtraParameters("""<_postprocessing planner="parabolicsmoother">
+        <_nmaxiterations>20</_nmaxiterations>
+    </_postprocessing>""")
 
     planner=RaveCreatePlanner(env,'birrt')
     planner.InitPlan(robot, params)
@@ -220,7 +221,6 @@ def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
     result = planner.PlanPath(traj)
     if result == False:
         robot.SetActiveDOFs(active_dofs)
-        import ipdb; ipdb.set_trace()
         return None
     traj_list = []
     for i in range(traj.GetNumWaypoints()):
@@ -232,6 +232,43 @@ def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
         traj_list.append(np.round(dofvalues, 3))
     robot.SetActiveDOFs(active_dofs)
     return np.array(traj_list)
+
+
+def process_traj(raw_traj, timesteps):
+    """
+        Process raw_trajectory so that it's length is desired timesteps
+        when len(raw_traj) > timesteps
+            sample Trajectory by space to reduce trajectory size
+        when len(raw_traj) < timesteps
+            append last timestep pose util the size fits
+
+        Note: result_traj includes init_dof and end_dof
+    """
+    result_traj = []
+    if len(raw_traj) == timesteps:
+        result_traj = raw_traj.copy()
+    else:
+        traj_arr = [0]
+        result_traj.append(raw_traj[0])
+        #calculate accumulative distance
+        for i in range(len(raw_traj)-1):
+            traj_arr.append(traj_arr[-1] + np.linalg.norm(raw_traj[i+1] - raw_traj[i]))
+        step_dist = traj_arr[-1]/(timesteps - 1)
+        process_dist, i = 0, 1
+        while i < len(traj_arr)-1:
+            if traj_arr[i] == process_dist + step_dist:
+                result_traj.append(raw_traj[i])
+                process_dist += step_dist
+            elif traj_arr[i] < process_dist+step_dist < traj_arr[i+1]:
+                dist = process_dist+step_dist - traj_arr[i]
+                displacement = (raw_traj[i+1] - raw_traj[i])/(traj_arr[i+1]-traj_arr[i])*dist
+                result_traj.append(raw_traj[i]+displacement)
+                process_dist += step_dist
+            else:
+                i += 1
+
+    return np.array(result_traj).T
+
 
 def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
     # assert body in env.GetRobot()
@@ -279,50 +316,50 @@ def get_col_free_armPose(pred, negated, t, plan):
 
 def resample_pred(pred, negated, t, plan):
 
-    attr_inds = OrderedDict()
-    res = []
+    res, attr_inds = [], OrderedDict()
     # Determine which action failed first
-    rs_action = None
-    ref_action = None
+    rs_action, ref_index = None, None
     for i in range(len(plan.actions)):
         active = plan.actions[i].active_timesteps
         if active[0] <= t <= active[1]:
             rs_action = plan.actions[i]
-            if i+1 < len(plan.actions):
-                ref_action = plan.actions[i+1]
-            break
-
+            ref_index = i
+    # Setup variables
     robot = rs_action.params[0]
-    body = plan.env.GetBodies()[0]
+    act_range = rs_action.active_timesteps
+    body = robot.openrave_body.env_body
     manip_name = "right_arm"
     active_dof = body.GetManipulator(manip_name).GetArmIndices()
     active_dof = np.hstack([[0], active_dof])
     # In pick place domain, action flow is natually:
     # moveto -> grasp -> movetoholding -> putdown
+    sampling_trace = None
     if rs_action.name == 'moveto' or rs_action.name == 'movetoholding':
         #rs_param is pdp_target0
         rs_param = rs_action.params[2]
-        if ref_action is not None:
+        if ref_index + 1 < len(plan.actions):
             # take next action's ee_pose and find it's ik value.
             # ref_param is ee_target0
+            ref_action = plan.actions[ref_index + 1]
             ref_param = ref_action.params[4]
-            robot.openrave_body.set_pose([0,0,robot.pose[:, t]])
+            pose = robot.pose[:, t]
+            robot.openrave_body.set_pose([0,0,pose])
             arm_pose = get_ik_from_pose(ref_param.value, ref_param.rotation, body, manip_name)
-            plan.sampling_trace.append({rs_param.name: {'rArmPose': arm_pose}, 'timestep': t, 'pred': pred, 'action': rs_action})
+            # In the case ee_pose wasn't even feasible, resample other preds
             if arm_pose is None:
-                plan.sampling_trace[-1]['reward'] = -1
-                return np.array(res), attr_inds
-            add_to_attr_inds_and_res(t, attr_inds, res, rs_param, [('rArmPose', arm_pose)])
+                return None, None
+            sampling_trace = {'type': rs_param.get_type(), 'data':  {'rArmPose': arm_pose, 'value': pose}, 'timestep': t, 'pred': pred, 'action': rs_action.name}
+            add_to_attr_inds_and_res(t, attr_inds, res, rs_param, [('rArmPose', arm_pose), ('value', pose)])
 
         else:
-            arm_pose = rs_action.params[2].rArmPose
+            arm_pose = rs_action.params[2].rArmPose[:,0].flatten()
+            pose = rs_action.params[2].value[:,0]
 
         """Resample Trajectory by BiRRT"""
         init_dof = rs_action.params[1].rArmPose[:,0].flatten()
         init_dof = np.hstack([rs_action.params[1].value[:,0], init_dof])
-        end_dof = np.hstack([robot.pose[:, t], arm_pose])
-        act_range = rs_action.active_timesteps
-        timesteps = act_range[1] - act_range[0]
+        end_dof = np.hstack([pose, arm_pose])
+        timesteps = act_range[1] - act_range[0] + 2
 
     elif rs_action.name == 'grasp' or rs_action.name == 'putdown':
         #rs_param is ee_poses, ref_param is target
@@ -333,36 +370,45 @@ def resample_pred(pred, negated, t, plan):
             arm_pose = get_ik_from_pose(samp_ee[0].flatten(), samp_ee[1].flatten(), body, manip_name)
             if arm_pose is not None:
                 break
-        plan.sampling_trace.append({rs_param.name: {'value': samp_ee[0], 'rotation': samp_ee[1]}, 'timestep': t, 'pred': pred, 'action': rs_action})
-        if arm_pose is None:
-            plan.sampling_trace[-1]['reward'] = -1
-            return np.array(res), attr_inds
 
+        if arm_pose is None:
+            return None, None
+
+        sampling_trace = {'type': rs_param.get_type(), 'data': {'value': samp_ee[0], 'rotation': samp_ee[1]}, 'timestep': t, 'pred': pred, 'action': rs_action.name}
         add_to_attr_inds_and_res(t, attr_inds, res, rs_param, [('value', samp_ee[0].flatten()), ('rotation', samp_ee[1].flatten())])
 
         """Resample Trajectory by BiRRT"""
         init_dof = rs_action.params[3].rArmPose[:,0].flatten()
         init_dof = np.hstack([rs_action.params[3].value[:,0], init_dof])
         end_dof = np.hstack([robot.pose[:,t], arm_pose])
-        act_range = rs_action.active_timesteps
-        timesteps = act_range[1] - act_range[0]
+        timesteps = (act_range[1] - act_range[0]) / 2. + 2
     else:
         raise NotImplemented
-    # import ipdb; ipdb.set_trace()
+
+
+    init_timestep = act_range[0]
 
     raw_traj = get_rrt_traj(plan.env, body, active_dof, init_dof, end_dof)
-    if raw_traj == None:
+    if raw_traj == None and sampling_trace != None:
+        plan.sampling_trace.append(sampling_trace)
         plan.sampling_trace[-1]['reward'] = -1
-        return np.array([]), OrderedDict()
+        return np.array(res), attr_inds
+    elif raw_traj == None and sampling_trace == None:
+        return None, None
 
-    result_traj = process_traj(raw_traj, timesteps).T
+    # Restore dof0
+    dof = body.GetActiveDOFValues()
+    dof[0] = 0
+    body.SetActiveDOFValues(dof)
+    # initailize feasible trajectory
+    result_traj = process_traj(raw_traj, timesteps).T[1:-1]
     ts = 1
     for traj in result_traj:
-        add_to_attr_inds_and_res(ts, attr_inds, res, robot, [('rArmPose', traj)])
+        add_to_attr_inds_and_res(init_timestep + ts, attr_inds, res, robot, [('rArmPose', traj[1:]), ('pose', traj[:1])])
         ts += 1
     return np.array(res), attr_inds
 
-def resample_eereachable_rrt(pred, negated, t, plan, inv = "False"):
+def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
     # Preparing the variables
     attr_inds, res = OrderedDict(), []
     robot, rave_body = pred.robot, pred.robot.openrave_body
@@ -371,7 +417,7 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = "False"):
     manip_name = "right_arm"
     active_dof = body.GetManipulator(manip_name).GetArmIndices()
     active_dof = np.hstack([[0], active_dof])
-    # Make sure gripper is wide enough to fit the can
+    # Make sure baxter is well positioned in the env
     rave_body.set_pose([0,0,robot.pose[:,t]])
     rave_body.set_dof({'lArmPose': robot.lArmPose[:, t].flatten(),
                        'rArmPose': robot.rArmPose[:, t].flatten(),
@@ -379,27 +425,33 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = "False"):
     for param in plan.params.values():
         if not param.is_symbol() and param != robot:
             param.openrave_body.set_pose(param.pose[:, t].flatten(), param.rotation[:, t].flatten())
-
     # Resample poses at grasping time
     grasp_arm_pose = get_ik_from_pose(target_pos, target_rot, body, manip_name)
-    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('rArmPose', grasp_arm_pose.copy())])
+
+    # When Ik infeasible
+    if grasp_arm_pose is None:
+        return None, None
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('rArmPose', grasp_arm_pose.copy()), ('pose', robot.pose[:,t])])
     # Store sampled pose
-    plan.sampling_trace.append({robot.name:{'rArmPose': grasp_arm_pose}, 'timestep': t, 'pred': pred, 'action': "grasp"})
+    plan.sampling_trace.append({'type': robot.get_type(), 'data':{'rArmPose': grasp_arm_pose}, 'timestep': t, 'pred': pred, 'action': "grasp"})
     # Prepare grasping direction and lifting direction
     manip_trans = body.GetManipulator("right_arm").GetTransform()
     pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
     manip_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
     if inv:
+        # inverse resample_eereachable used in putdown action
         approach_dir = manip_trans[:3,:3].dot(np.array([0,0,-1]))
         retreat_dir = manip_trans[:3,:3].dot(np.array([-1,0,0]))
         approach_dir = approach_dir / np.linalg.norm(approach_dir) * APPROACH_DIST
         retreat_dir = -retreat_dir/np.linalg.norm(retreat_dir) * RETREAT_DIST
     else:
+        # Normal resample eereachable used in grasp action
         approach_dir = manip_trans[:3,:3].dot(np.array([-1,0,0]))
         retreat_dir = manip_trans[:3,:3].dot(np.array([0,0,-1]))
         approach_dir = -approach_dir / np.linalg.norm(approach_dir) * APPROACH_DIST
         retreat_dir = retreat_dir/np.linalg.norm(retreat_dir) * RETREAT_DIST
 
+    resample_failure = False
     # Resample entire approaching and retreating traj
     for i in range(EEREACHABLE_STEPS):
         approach_pos = target_pos + approach_dir * (3-i)
@@ -411,40 +463,53 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = "False"):
         retreat_pos = target_pos + retreat_dir * (i+1)
         retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
-
-
+        if approach_arm_pose is None or retreat_arm_pose is None:
+            resample_failure = True
+    # Ik infeasible
+    if resample_failure:
+        plan.sampling_trace[-1]['reward'] = -1
+        return None, None
+    # lock the variables
     robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
     robot._free_attrs['pose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
-    # finding initial poses
-    init_timestep, act_inds = 0, 0
+    # finding initial pose
+    init_timestep, ref_index = 0, 0
     for i in range(len(plan.actions)):
         act_range = plan.actions[i].active_timesteps
         if act_range[0] <= t <= act_range[1]:
-            if i > 0 and plan.actions[i-1].name == 'moveto':
-                init_timestep = plan.actions[i-1].active_timesteps[0]
-                break
             init_timestep = act_range[0]
+            ref_index = i
+
+    if pred.ee_resample is True and ref_index > 0:
+        init_timestep = plan.actions[ref_index - 1].active_timesteps[0]
 
     init_dof = robot.rArmPose[:, init_timestep].flatten()
     init_dof = np.hstack([robot.pose[:, init_timestep], init_dof])
     end_dof = robot.rArmPose[:, t - EEREACHABLE_STEPS].flatten()
     end_dof = np.hstack([robot.pose[:, t - EEREACHABLE_STEPS], end_dof])
-    timesteps = t - EEREACHABLE_STEPS - init_timestep
+    timesteps = t - EEREACHABLE_STEPS - init_timestep + 2
 
     raw_traj = get_rrt_traj(plan.env, body, active_dof, init_dof, end_dof)
+    # Restore dof0
+    dof = body.GetActiveDOFValues()
+    dof[0] = 0
+    body.SetActiveDOFValues(dof)
+    # trajectory is infeasible
     if raw_traj == None:
         plan.sampling_trace[-1]['reward'] = -1
-        return np.array([]), OrderedDict()
-
-    result_traj = process_traj(raw_traj, timesteps).T
+        return None, None
+    # initailize feasible trajectory
+    result_traj = process_traj(raw_traj, timesteps).T[1:-1]
     ts = 1
     for traj in result_traj:
         add_to_attr_inds_and_res(init_timestep + ts, attr_inds, res, robot, [('rArmPose', traj[1:]), ('pose', traj[:1])])
         ts += 1
 
+    pred.ee_resample = True
+    can = plan.params['can0']
+    can.openrave_body.set_pose(can.pose[:, t], can.rotation[:, t])
+    rave_body.set_dof({'rArmPose': robot.rArmPose[:, t]})
     return np.array(res), attr_inds
-
-
 
 def resample_obstructs(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner
@@ -597,7 +662,7 @@ def resample_eereachable(pred, negated, t, plan):
     grasp_arm_pose = get_ik_from_pose(target_pos, target_rot, body, 'right_arm')
     add_to_attr_inds_and_res(t, attr_inds, res, robot, [('rArmPose', grasp_arm_pose.copy())])
 
-    plan.sampling_trace.append({robot.name:{'rArmPose': grasp_arm_pose}, 'timestep': t, 'pred': pred, 'action': "grasp"})
+    plan.sampling_trace.append({'type': robot.get_type(), 'data': {'rArmPose': grasp_arm_pose}, 'timestep': t, 'pred': pred, 'action': "grasp"})
 
     # Setting poses for environments to extract transform infos
     dof_value_map = {"lArmPose": robot.lArmPose[:,t].reshape((7,)),
@@ -628,7 +693,6 @@ def resample_eereachable(pred, negated, t, plan):
 
     robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
     robot._free_attrs['pose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
-    import ipdb; ipdb.set_trace()
     return np.array(res), attr_inds
 
 GRASP_STEP = 20
@@ -666,38 +730,3 @@ def resample_rrt_planner(pred, netgated, t, plan):
         robot_attr_name_val_tuples = [('rArmPose', result[:, time - start-1])]
         add_to_attr_inds_and_res(time, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
     return np.array(res), attr_inds
-
-def process_traj(raw_traj, timesteps):
-    """
-        Process raw_trajectory so that it's length is desired timesteps
-        when len(raw_traj) > timesteps
-            sample Trajectory by space to reduce trajectory size
-        when len(raw_traj) < timesteps
-            append last timestep pose util the size fits
-    """
-    result_traj = []
-    if len(raw_traj) > timesteps:
-        traj_arr = [0]
-        result_traj.append(raw_traj[0])
-        for i in range(len(raw_traj)-1):
-            traj_arr.append(traj_arr[-1] + np.linalg.norm(raw_traj[i+1] - raw_traj[i]))
-        step_dist = traj_arr[-1]/(timesteps - 1)
-        process_dist, i = 0, 1
-        while i < len(traj_arr)-1:
-            if traj_arr[i] == process_dist + step_dist:
-                result_traj.append(raw_traj[i])
-                process_dist += step_dist
-            elif traj_arr[i] < process_dist+step_dist < traj_arr[i+1]:
-                dist = process_dist+step_dist - traj_arr[i]
-                displacement = (raw_traj[i+1] - raw_traj[i])/(traj_arr[i+1]-traj_arr[i])*dist
-                result_traj.append(raw_traj[i]+displacement)
-                process_dist += step_dist
-            else:
-                i += 1
-    elif len(raw_traj) < timesteps:
-        result_traj = raw_traj.copy()
-        for _ in range(timesteps - len(raw_traj)):
-            result_traj = np.vstack([result_traj, raw_traj[-1]])
-    else:
-        result_traj = raw_traj.copy()
-    return np.array(result_traj).T

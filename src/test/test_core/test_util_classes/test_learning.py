@@ -5,6 +5,7 @@ from core.util_classes.learning import PostLearner
 from core.parsing import parse_domain_config, parse_problem_config
 from core.util_classes.can import GreenCan
 from core.util_classes.viewer import OpenRAVEViewer
+from core.util_classes.plan_hdf5_serialization import PlanDeserializer
 from core.util_classes.openrave_body import OpenRAVEBody
 from pma import hl_solver
 from pma import robot_ll_solver
@@ -180,11 +181,12 @@ class TestLearner(unittest.TestCase):
             if plan_str is not None:
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
-        hdf5 = h5py.File("features.hdf5", "w")
+
         plans = []
         result = []
         #8 doesn't work
-        for i in range(9, 20):
+        plan_list = [1, 2, 3]
+        for i in range(20):
             print "Generating plan_{}".format(i)
             prob_file = '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_{}.prob'.format(i)
 
@@ -198,17 +200,49 @@ class TestLearner(unittest.TestCase):
             geom = new_plan.params['can0'].geom
             new_plan.params['can0'].geom = GreenCan(geom.radius, geom.height)
 
+            # pd = PlanDeserializer()
+            # plan = pd.read_from_hdf5('temp_plan.hdf5')
+            # if plan is None:
+            plan = new_plan
+            # else:
+            #     import ipdb; ipdb.set_trace()
+            #     plan.initialized = True
+
             solver = robot_ll_solver.RobotLLSolver()
             def viewer():
-                return OpenRAVEViewer.create_viewer(new_plan.env)
-            timesteps = solver.solve(new_plan, callback=viewer, n_resamples=10, verbose=False)
-            result.append(new_plan.sampling_trace)
-
+                return OpenRAVEViewer.create_viewer(plan.env)
+            timesteps = solver.solve(plan, callback=viewer, n_resamples=5, verbose=False)
+            result.append(plan.sampling_trace)
+            hdf5 = h5py.File("features{}.hdf5".format(i), "w")
+            f, r = trace_to_data(plan.sampling_trace)
+            arg_dict = {'train_size': 1, 'episode_size': 5, 'train_stepsize': 0.05, 'sample_iter': 1000, 'sample_burn': 250, 'sample_thin': 3}
+            learner = PostLearner(arg_dict, "test_learner")
+            param_dict = {'Robot':{'rArmPose':7},
+                          'EEPose':{'value':3},
+                          'RobotPose': {'rArmPose': 7}}
+            learner.train([f], [r], param_dict)
         import ipdb; ipdb.set_trace()
 
+def test_realistic_resampling(self):
+    pass
 
+def trace_to_data(sampling_trace):
+    """
+    Given a sampling trace, return a list of features and rewards
+    """
+    features, rewards = {}, {}
+    for trace in sampling_trace:
+        param = trace['type']
+        if param not in features:
+            features[param], rewards[param] = {}, {}
+        for attr in trace['data']:
+            if attr not in features[param]:
+                features[param][attr] = []
+                rewards[param][attr] = []
+            features[param][attr].append(trace['data'][attr])
+            rewards[param][attr].append(trace['reward'])
 
-
+    return features, rewards
 
 if __name__ == "__main__":
     unittest.main()

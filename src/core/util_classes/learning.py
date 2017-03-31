@@ -158,6 +158,8 @@ class PostLearner(Learner):
             for param in param_dict:
                 attr_dict = param_dict[param]
                 for attr in attr_dict:
+                    if param not in features or attr not in features[param]:
+                        continue
                     feature_list = features[param][attr]
                     reward_list = reward[param][attr]
                     dist_list = np.array([np.exp(self.theta[param][attr].T.dot(feature)) for feature in feature_list]).reshape((len(feature_list),))
@@ -165,13 +167,13 @@ class PostLearner(Learner):
                     dist = dist_list/float(np.sum(dist_list))
 
                     expected = 0
-                    for j in range(self.episode_size):
+                    for j in range(len(feature_list)):
                         expected += feature_list[j] * dist[j]
 
                     grad = 0
-                    for k in range(self.episode_size):
+                    for k in range(len(feature_list)):
                         grad += feature_list[k] - expected
-                    gradient = np.sum(reward_list) / float(self.episode_size) * grad
+                    gradient = np.sum(reward_list) / float(len(feature_list)) * grad
 
                     self.theta[param][attr] = self.theta[param][attr] + self.train_stepsize * gradient
         f = h5py.File(self.store_file, 'w')
