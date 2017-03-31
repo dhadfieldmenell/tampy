@@ -86,7 +86,7 @@ class TestBaxter(unittest.TestCase):
 
     def test_can_world(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
-                       '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_1.prob')
+                       '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_0.prob')
 
         geom = params['can0'].geom
         params['can0'].geom = GreenCan(geom.radius, geom.height)
@@ -99,7 +99,9 @@ class TestBaxter(unittest.TestCase):
         can = can_body.env_body
         robot = baxter_body.env_body
         dof = robot.GetActiveDOFValues()
+        targ = params['target1']
         import ipdb; ipdb.set_trace()
+        can_body.set_pose(targ.value, targ.rotation)
 
         # solver = robot_ll_solver.RobotLLSolver()
         # success = solver.solve(plan, callback=callback, n_resamples=50, verbose=False)

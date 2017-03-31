@@ -190,9 +190,7 @@ class TestLearner(unittest.TestCase):
 
             plan_str = ['0: MOVETO BAXTER ROBOT_INIT_POSE PDP_TARGET0',
                         '1: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET1',
-                        '2: MOVETOHOLDING BAXTER PDP_TARGET1 PDP_TARGET2 CAN0',
-                        '3: PUTDOWN BAXTER CAN0 TARGET2 PDP_TARGET2 EE_TARGET2 ROBOT_END_POSE'
-                        ]
+                        '2: MOVETOHOLDING BAXTER PDP_TARGET1 ROBOT_END_POSE CAN0']
 
             new_plan = get_plan(prob_file, plan_str)
             plans.append(new_plan)

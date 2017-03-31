@@ -11,7 +11,7 @@ NUM_TARGETS = 3
 filename = "baxter_training_probs/grasp_training"
 assert NUM_CANS <= NUM_TARGETS
 # Defines a complete pick place problem
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt can0 target2)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterInGripperPos baxter can0), (BaxterInGripperRot baxter can0)"
 
 DIST_SAFE = 5e-3
 
