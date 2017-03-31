@@ -447,6 +447,26 @@ class BaxterEEReachableRot(BaxterEEReachable):
 
         return (rot_val, rot_jac)
 
+class BaxterEEReachableInvPos(BaxterEEReachablePos):
+
+    # EEreachableInv Robot, StartPose, EEPose
+
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([0, 0, -RETREAT_DIST])
+        else:
+            return rel_step*np.array([-APPROACH_DIST, 0, 0])
+
+class BaxterEEReachableInvRot(BaxterEEReachableRot):
+
+    # EEreachableInv Robot, StartPose, EEPose
+
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([0, 0, -RETREAT_DIST])
+        else:
+            return rel_step*np.array([-APPROACH_DIST, 0, 0])
+
 class BaxterObstructs(robot_predicates.Obstructs):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can
