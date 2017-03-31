@@ -219,6 +219,7 @@ def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
     traj = RaveCreateTrajectory(env,'')
     result = planner.PlanPath(traj)
     if result == False:
+        robot.SetActiveDOFs(active_dofs)
         import ipdb; ipdb.set_trace()
         return None
     traj_list = []

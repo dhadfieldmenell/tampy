@@ -83,6 +83,8 @@ dp.add('BaxterAt', ['Can', 'Target'])
 dp.add('BaxterRobotAt', ['Robot', 'RobotPose'])
 dp.add('BaxterEEReachablePos', ['Robot', 'RobotPose', 'EEPose'])
 dp.add('BaxterEEReachableRot', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEEReachableInvPos', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEEReachableInvRot', ['Robot', 'RobotPose', 'EEPose'])
 dp.add('BaxterInGripperPos', ['Robot', 'Can'])
 dp.add('BaxterInGripperRot', ['Robot', 'Can'])
 dp.add('BaxterInContact', ['Robot', 'EEPose', 'Target'])
@@ -149,55 +151,57 @@ class Move(Action):
             ('(forall (?obj - Can)\
                 (BaxterStationary ?obj))', '0:{}'.format(end-1)),
             ('(forall (?w - Obstacle) (BaxterStationaryW ?w))', '0:{}'.format(end-1)),
-            # ('(BaxterStationaryArms ?robot)', '0:{s}'.format(end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
                     (not (BaxterCollides ?obj ?w))\
-                ))','0:19'),
+                ))','0:{}'.format(end)),
             ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '0:{}'.format(end))
         ]
         self.eff = [\
-            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end)),
+            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
 
 class MoveHolding(Action):
     def __init__(self):
         self.name = 'movetoholding'
-        self.timesteps = 20
+        self.timesteps = 30
+        end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
-            ('(BaxterInGripperPos ?robot ?c)', '0:19'),
-            ('(BaxterInGripperRot ?robot ?c)', '0:19'),
+            ('(BaxterInGripperPos ?robot ?c)', '0:{}'.format(end)),
+            ('(BaxterInGripperRot ?robot ?c)', '0:{}'.format(end)),
             ('(forall (?obj - Can)\
                 (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?c))\
-            )', '0:19'),
-            ('(forall (?obj - Can) (BaxterStationaryNEq ?obj ?c))', '0:18'),
-            ('(forall (?w - Obstacle) (BaxterStationaryW ?w))', '0:18'),
-            # ('(BaxterStationaryArms ?robot)', '0:18'),
-            ('(BaxterIsMP ?robot)', '0:18'),
-            ('(BaxterWithinJointLimit ?robot)', '0:19'),
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Can) (BaxterStationaryNEq ?obj ?c))', '0:{}'.format(end-1)),
+            ('(forall (?w - Obstacle) (BaxterStationaryW ?w))', '0:{}'.format(end-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
                     (not (BaxterCollides ?obj ?w))\
                 )\
-            )', '0:19'),
-            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '0:19')
+            )', '0:{}'.format(end)),
+            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '0:{}'.format(end))
         ]
         self.eff = [\
-            ('(not (BaxterRobotAt ?robot ?start))', '19:19'),
-            ('(BaxterRobotAt ?robot ?end)', '19:19')
+            ('(BaxterInGripperPos ?robot ?c)', '0:{}'.format(end)),
+            ('(BaxterInGripperRot ?robot ?c)', '0:{}'.format(end)),
+            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
         ]
 
 class Grasp(Action):
     def __init__(self):
         self.name = 'grasp'
         self.timesteps = 40
+        end = self.timesteps - 1
         self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?ee - EEPose ?ep - RobotPose)'
         steps = EEREACHABLE_STEPS
-        grasp_time = 30
+        grasp_time = 20
         approach_time = grasp_time-steps
         retreat_time = grasp_time+steps
         self.pre = [\
@@ -205,105 +209,120 @@ class Grasp(Action):
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachablePos ?robot ?sp ?ee)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterEEReachableRot ?robot ?sp ?ee)', '{}:{}'.format(grasp_time, grasp_time)),
-            # TODO: not sure why InContact to 39 fails
-            ('(BaxterInContact ?robot ?ee ?target)', '{}:{}'.format(grasp_time,  self.timesteps - 1)),
+            ('(BaxterInContact ?robot ?ee ?target)', '{}:{}'.format(grasp_time,  end)),
             ('(BaxterGraspValidPos ?ee ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterGraspValidRot ?ee ?target)', '{}:{}'.format(grasp_time, grasp_time)),
-
-            ('(BaxterInGripperPos ?robot ?can)', '{}:{}'.format(grasp_time, self.timesteps - 1)),
-            ('(BaxterInGripperRot ?robot ?can)', '{}:{}'.format(grasp_time, self.timesteps - 1)),
+            ('(BaxterInGripperPos ?robot ?can)', '{}:{}'.format(grasp_time, end)),
+            ('(BaxterInGripperRot ?robot ?can)', '{}:{}'.format(grasp_time, end)),
             ('(forall (?obj - Can)\
                 (not (BaxterInGripperPos ?robot ?obj))\
-            )', '0:0'),
+            )', '0:{}'.format(grasp_time-1)),
             ('(forall (?obj - Can) \
                 (BaxterStationary ?obj)\
             )', '0:{}'.format(grasp_time-1)),
-            ('(forall (?obj - Can) (BaxterStationaryNEq ?obj ?can))', '{}:{}'.format(grasp_time, self.timesteps - 2)),
+            ('(forall (?obj - Can) (BaxterStationaryNEq ?obj ?can))', '{}:{}'.format(grasp_time, end-1)),
             ('(forall (?w - Obstacle)\
                 (BaxterStationaryW ?w)\
-            )', '{}:{}'.format(0, self.timesteps - 2)),
+            )', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
-            ('(BaxterIsMP ?robot)', '0:{}'.format(self.timesteps - 2)),
-            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(self.timesteps - 1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
                     (not (BaxterCollides ?obj ?w))\
                 )\
-            )', '0:{}'.format(self.timesteps - 2)),
+            )', '0:{}'.format(end-1)),
             ('(forall (?w - Obstacle)\
                 (not (BaxterRCollides ?robot ?w))\
-            )', '0:{}'.format(self.timesteps - 1)),
+            )', '0:{}'.format(end)),
             ('(forall (?obj - Can)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
             )', '0:{}'.format(approach_time)),
             ('(forall (?obj - Can)\
                 (not (BaxterObstructsHolding ?robot ?sp ?ep ?obj ?can))\
-            )', '{}:{}'.format(approach_time+1, self.timesteps - 1))
+            )', '{}:{}'.format(approach_time+1, end))
         ]
         self.eff = [\
-            ('(not (BaxterAt ?can ?target))', '{}:{}'.format(self.timesteps - 1, self.timesteps - 2)) ,
-            ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(self.timesteps - 1, self.timesteps - 2)),
-            ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(self.timesteps - 1, self.timesteps - 1)),
-            ('(BaxterInGripperPos ?robot ?can)', '{}:{}'.format(grasp_time+1, self.timesteps - 1)),
-            ('(BaxterInGripperRot ?robot ?can)', '{}:{}'.format(grasp_time+1, self.timesteps - 1)),
+            ('(not (BaxterAt ?can ?target))', '{}:{}'.format(end, end-1)) ,
+            ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
+            ('(BaxterInGripperPos ?robot ?can)', '{}:{}'.format(end, end)),
+            ('(BaxterInGripperRot ?robot ?can)', '{}:{}'.format(end, end)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (BaxterObstructs ?robot ?sym1 ?sym2 ?can))\
                 )\
-            )', '{}:{}'.format(self.timesteps - 1, self.timesteps - 2)),
+            )', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - Robotpose)\
                 (forall (?sym2 - RobotPose)\
                     (forall (?obj - Can) (not (BaxterObstructsHolding ?robot ?sym1 ?sym2 ?can ?obj)))\
                 )\
-            )', '{}:{}'.format(self.timesteps - 1, self.timesteps - 2))
+            )', '{}:{}'.format(end, end-1))
         ]
 
 class Putdown(Action):
     def __init__(self):
         self.name = 'putdown'
-        self.timesteps = 20
+        self.timesteps = 40
+        end = self.timesteps - 1
+        steps = EEREACHABLE_STEPS
+        putdown_time = 20
+        approach_time = putdown_time-steps
+        retreat_time = putdown_time+steps
         self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?ee - EEPose ?ep - RobotPose)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
-            # ('(BaxterEEReachablePos ?robot ?sp ?ee)', '10:10'),
-            # ('(BaxterEEReachableRot ?robot ?sp ?ee)', '10:10'),
-            ('(BaxterInContact ?robot ?ee ?target)', '0:10'),
-            ('(BaxterGraspValidPos ?ee ?target)', '0:0'),
-            ('(BaxterGraspValidRot ?ee ?target)', '0:0'),
-            ('(BaxterInGripperPos ?robot ?can)', '0:10'),
-            ('(BaxterInGripperRot ?robot ?can)', '0:10'),
-            # is the line below so that we have to use a new ee with the target?
-            # ('(not (BaxterInContact ?robot ?ee ?target))', '0:0'),
+            ('(BaxterEEReachableInvPos ?robot ?sp ?ee)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterEEReachableInvRot ?robot ?sp ?ee)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterInContact ?robot ?ee ?target)', '{}:{}'.format(0,  putdown_time)),
+            ('(BaxterGraspValidPos ?ee ?target)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterGraspValidRot ?ee ?target)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterInGripperPos ?robot ?can)', '{}:{}'.format(0, putdown_time)),
+            ('(BaxterInGripperRot ?robot ?can)', '{}:{}'.format(0, putdown_time)),
             ('(forall (?obj - Can)\
+                (not (BaxterInGripperPos ?robot ?obj))\
+            )', '{}:{}'.format(putdown_time+1, end)),
+            ('(forall (?obj - Can) \
                 (BaxterStationary ?obj)\
-            )', '10:18'),
-            ('(forall (?obj - Can) (BaxterStationaryNEq ?obj ?can))', '0:9'),
+            )', '{}:{}'.format(putdown_time+1, end)),
+            ('(forall (?obj - Can) (BaxterStationaryNEq ?obj ?can))', '{}:{}'.format(0, putdown_time)),
             ('(forall (?w - Obstacle)\
                 (BaxterStationaryW ?w)\
-            )', '0:18'),
-            ('(BaxterStationaryBase ?robot)', '0:18'),
-            ('(BaxterIsMP ?robot)', '0:18'),
-            ('(BaxterWithinJointLimit ?robot)', '0:19'),
+            )', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?w - Obstacle)\
                 (forall (?obj - Can)\
                     (not (BaxterCollides ?obj ?w))\
                 )\
-            )', '0:18'),
+            )', '0:{}'.format(end-1)),
             ('(forall (?w - Obstacle)\
                 (not (BaxterRCollides ?robot ?w))\
-            )', '0:19'),
+            )', '0:{}'.format(end)),
             ('(forall (?obj - Can)\
                 (not (BaxterObstructsHolding ?robot ?sp ?ep ?obj ?can))\
-            )', '0:19'),
+            )', '0:{}'.format(approach_time)),
             ('(forall (?obj - Can)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
-            )', '19:19')
+            )', '{}:{}'.format(approach_time+1, end))
         ]
         self.eff = [\
-            ('(not (BaxterRobotAt ?robot ?sp))', '19:19'),
-            ('(BaxterRobotAt ?robot ?ep)', '19:19'),
-            ('(BaxterAt ?can ?target)', '19:19'),
-            ('(not (BaxterInGripperPos ?robot ?can))', '19:19')
+            ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
+            ('(BaxterAt ?can ?target)', '{}:{}'.format(end, end)),
+            ('(not (BaxterInGripperPos ?robot ?can))', '{}:{}'.format(end, end-1)),
+            ('(not (BaxterInGripperRot ?robot ?can))', '{}:{}'.format(end, end-1)),
+            ('(forall (?sym1 - RobotPose)\
+                (forall (?sym2 - RobotPose)\
+                    (not (BaxterObstructs ?robot ?sym1 ?sym2 ?can))\
+                )\
+            )', '{}:{}'.format(end, end-1)),
+            ('(forall (?sym1 - Robotpose)\
+                (forall (?sym2 - RobotPose)\
+                    (forall (?obj - Can) (not (BaxterObstructsHolding ?robot ?sym1 ?sym2 ?can ?obj)))\
+                )\
+            )', '{}:{}'.format(end, end-1))
         ]
 
 actions = [Move(), MoveHolding(), Grasp(), Putdown()]

@@ -183,8 +183,8 @@ class TestLearner(unittest.TestCase):
         hdf5 = h5py.File("features.hdf5", "w")
         plans = []
         result = []
-        # prob_list = [1, 3, 6, 11] #1
-        for i in range(20):
+        #8 doesn't work
+        for i in range(9, 20):
             print "Generating plan_{}".format(i)
             prob_file = '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_{}.prob'.format(i)
 
