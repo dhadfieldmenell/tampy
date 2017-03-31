@@ -361,7 +361,7 @@ def resample_pred(pred, negated, t, plan):
         ts += 1
     return np.array(res), attr_inds
 
-def resample_eereachable_rrt(pred, negated, t, plan):
+def resample_eereachable_rrt(pred, negated, t, plan, inv = "False"):
     # Preparing the variables
     attr_inds, res = OrderedDict(), []
     robot, rave_body = pred.robot, pred.robot.openrave_body
@@ -388,22 +388,29 @@ def resample_eereachable_rrt(pred, negated, t, plan):
     manip_trans = body.GetManipulator("right_arm").GetTransform()
     pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
     manip_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-    gripper_direction = manip_trans[:3,:3].dot(np.array([-1,0,0]))
-    lift_direction = manip_trans[:3,:3].dot(np.array([0,0,-1]))
+    if inv:
+        approach_dir = manip_trans[:3,:3].dot(np.array([0,0,-1]))
+        retreat_dir = manip_trans[:3,:3].dot(np.array([-1,0,0]))
+        approach_dir = approach_dir / np.linalg.norm(approach_dir) * APPROACH_DIST
+        retreat_dir = -retreat_dir/np.linalg.norm(retreat_dir) * RETREAT_DIST
+    else:
+        approach_dir = manip_trans[:3,:3].dot(np.array([-1,0,0]))
+        retreat_dir = manip_trans[:3,:3].dot(np.array([0,0,-1]))
+        approach_dir = -approach_dir / np.linalg.norm(approach_dir) * APPROACH_DIST
+        retreat_dir = retreat_dir/np.linalg.norm(retreat_dir) * RETREAT_DIST
+
     # Resample entire approaching and retreating traj
     for i in range(EEREACHABLE_STEPS):
-        approach_pos = target_pos - gripper_direction / np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
-        # rave_body.set_pose([0,0,robot.pose[0, t-3+i]])
+        approach_pos = target_pos + approach_dir * (3-i)
         approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body,
                                              'right_arm')
-        # rave_body.set_dof({"rArmPose": approach_arm_pose})
         add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot,[('rArmPose',
                                  approach_arm_pose)])
 
-        retreat_pos = target_pos + lift_direction/np.linalg.norm(lift_direction) * RETREAT_DIST * (i+1)
-        # rave_body.set_pose([0,0,robot.pose[0, t+1+i]])
+        retreat_pos = target_pos + retreat_dir * (i+1)
         retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
+
 
     robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
     robot._free_attrs['pose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0

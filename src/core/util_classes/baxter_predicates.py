@@ -457,6 +457,9 @@ class BaxterEEReachableInvPos(BaxterEEReachablePos):
         else:
             return rel_step*np.array([-APPROACH_DIST, 0, 0])
 
+    def resample(self, negated, t, plan):
+        return resample_eereachable_rrt(self, negated, t, plan, inv='True')
+
 class BaxterEEReachableInvRot(BaxterEEReachableRot):
 
     # EEreachableInv Robot, StartPose, EEPose
@@ -466,6 +469,9 @@ class BaxterEEReachableInvRot(BaxterEEReachableRot):
             return rel_step*np.array([0, 0, -RETREAT_DIST])
         else:
             return rel_step*np.array([-APPROACH_DIST, 0, 0])
+
+    def resample(self, negated, t, plan):
+        return resample_eereachable_rrt(self, negated, t, plan, inv='True')
 
 class BaxterObstructs(robot_predicates.Obstructs):
 
