@@ -457,14 +457,14 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
         approach_pos = target_pos + approach_dir * (3-i)
         approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body,
                                              'right_arm')
-        add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot,[('rArmPose',
-                                 approach_arm_pose)])
-
         retreat_pos = target_pos + retreat_dir * (i+1)
         retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
-        add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
+
         if approach_arm_pose is None or retreat_arm_pose is None:
             resample_failure = True
+        add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot,[('rArmPose',
+                                 approach_arm_pose)])
+        add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
     # Ik infeasible
     if resample_failure:
         plan.sampling_trace[-1]['reward'] = -1
