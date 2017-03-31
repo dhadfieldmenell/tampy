@@ -8,7 +8,7 @@ from openravepy import Environment
 from core.internal_repr.action import Action
 from core.internal_repr.parameter import Object, Symbol
 from core.internal_repr.plan import Plan
-from core.util_classes.robots import Baxter
+from core.util_classes.robots import Baxter, PR2
 
 class PlanSerializer:
     def write_plan_to_hdf5(self, file_name, plan):
@@ -124,7 +124,7 @@ class PlanDeserializer:
         for action in group['actions'].values():
             actions.append(self._build_action(action, params, env))
 
-        return Plan(params, actions, group['horizon'].value, env)
+        return Plan(params, actions, group['horizon'].value, env, determine_free=False)
 
 
     def _build_action(self, group, plan_params, env):
@@ -193,6 +193,9 @@ class PlanDeserializer:
         if geom_class is Baxter:
             base_dir = os.getcwd()
             geom.shape = "{0}/../models/baxter/baxter.xml".format(base_dir)
-            print geom.shape
+        
+        if geom_class is PR2:
+            base_dir = os.getcwd()
+            geom.shape = "{0}/../models/pr2/pr2.zae".format(base_dir)
                 
         return geom
