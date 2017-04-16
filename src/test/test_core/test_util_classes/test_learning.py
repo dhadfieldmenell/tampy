@@ -182,11 +182,10 @@ class TestLearner(unittest.TestCase):
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
 
-        plans = []
         result = []
         #8 doesn't work
         plan_list = [1, 2, 3]
-        for i in range(20):
+        for i in [1]:
             print "Generating plan_{}".format(i)
             prob_file = '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_{}.prob'.format(i)
 
@@ -194,33 +193,24 @@ class TestLearner(unittest.TestCase):
                         '1: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 PDP_TARGET1',
                         '2: MOVETOHOLDING BAXTER PDP_TARGET1 ROBOT_END_POSE CAN0']
 
-            new_plan = get_plan(prob_file, plan_str)
-            plans.append(new_plan)
+            plan = get_plan(prob_file, plan_str)
 
-            geom = new_plan.params['can0'].geom
-            new_plan.params['can0'].geom = GreenCan(geom.radius, geom.height)
-
-            # pd = PlanDeserializer()
-            # plan = pd.read_from_hdf5('temp_plan.hdf5')
-            # if plan is None:
-            plan = new_plan
-            # else:
-            #     import ipdb; ipdb.set_trace()
-            #     plan.initialized = True
+            geom = plan.params['can0'].geom
+            plan.params['can0'].geom = GreenCan(geom.radius, geom.height)
 
             solver = robot_ll_solver.RobotLLSolver()
             def viewer():
                 return OpenRAVEViewer.create_viewer(plan.env)
             timesteps = solver.solve(plan, callback=viewer, n_resamples=5, verbose=False)
-            result.append(plan.sampling_trace)
-            hdf5 = h5py.File("features{}.hdf5".format(i), "w")
-            f, r = trace_to_data(plan.sampling_trace)
-            arg_dict = {'train_size': 1, 'episode_size': 5, 'train_stepsize': 0.05, 'sample_iter': 1000, 'sample_burn': 250, 'sample_thin': 3}
-            learner = PostLearner(arg_dict, "test_learner")
-            param_dict = {'Robot':{'rArmPose':7},
-                          'EEPose':{'value':3},
-                          'RobotPose': {'rArmPose': 7}}
-            learner.train([f], [r], param_dict)
+            # result.append(plan.sampling_trace)
+            # hdf5 = h5py.File("features{}.hdf5".format(i), "w")
+            # f, r = trace_to_data(plan.sampling_trace)
+            # arg_dict = {'train_size': 1, 'episode_size': 5, 'train_stepsize': 0.05, 'sample_iter': 1000, 'sample_burn': 250, 'sample_thin': 3}
+            # learner = PostLearner(arg_dict, "test_learner")
+            # param_dict = {'Robot':{'rArmPose':7},
+            #               'EEPose':{'value':3},
+            #               'RobotPose': {'rArmPose': 7}}
+            # learner.train([f], [r], param_dict)
         import ipdb; ipdb.set_trace()
 
 def test_realistic_resampling(self):
