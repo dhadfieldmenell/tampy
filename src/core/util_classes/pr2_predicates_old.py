@@ -1682,6 +1682,6 @@ def ee_reachable_resample(pred, negated, t, plan):
     # v.draw_plan_ts(plan, t)
     v.animate_range(plan, (t-pred._steps, t+pred._steps))
     # check that indexes are correct
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
     return np.array(res), attr_inds

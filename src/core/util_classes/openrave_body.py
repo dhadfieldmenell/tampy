@@ -176,7 +176,8 @@ class OpenRAVEBody(object):
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
         infocylinder = OpenRAVEBody.create_body_info(GeometryType.Cylinder, dims, color)
         if type(env) != Environment:
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
+            print "Environment object is not valid"
         cylinder = RaveCreateKinBody(env, '')
         cylinder.InitFromGeometries([infocylinder])
         cylinder.SetName(body_name)

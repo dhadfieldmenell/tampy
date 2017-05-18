@@ -1,25 +1,23 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions
+import core.util_classes.pr2_constants as const
 from sco.expr import Expr
 import math
 import numpy as np
 
-pi = np.pi
+PI = np.pi
 
-DEFAULT_DIST = 0.6
-NUM_BASE_RESAMPLES = 10
-EE_ANGLE_SAMPLE_SIZE = 5
 def get_random_dir():
     rand_dir = np.random.rand(2) - 0.5
     rand_dir = rand_dir/np.linalg.norm(rand_dir)
     return rand_dir
 
 def get_random_theta():
-    theta =  2*np.pi*np.random.rand(1) - np.pi
+    theta =  2*PI*np.random.rand(1) - PI
     return theta[0]
 
-def sample_base_pose(target_pose, base_pose_seed=None, dist=DEFAULT_DIST):
+def sample_base_pose(target_pose, base_pose_seed=None, dist=const.DEFAULT_DIST):
     rand_dir = get_random_dir()
     bp = rand_dir*dist+target_pose[:2]
 
@@ -34,7 +32,7 @@ def sample_base_pose(target_pose, base_pose_seed=None, dist=DEFAULT_DIST):
 def get_ee_transform_from_pose(pose, rotation):
     ee_trans = OpenRAVEBody.transform_from_obj_pose(pose, rotation)
     #the rotation is to transform the tool frame into the end effector transform
-    rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+    rot_mat = matrixFromAxisAngle([0, PI/2, 0])
     ee_rot_mat = ee_trans[:3, :3].dot(rot_mat[:3, :3])
     ee_trans[:3, :3] = ee_rot_mat
     return ee_trans
@@ -53,11 +51,11 @@ def get_torso_and_arm_pose_from_ik_soln(ik_solution):
     return torso_pose, arm_pose
 
 def smaller_ang(x):
-    return (x + pi)%(2*pi) - pi
+    return (x + PI)%(2*PI) - PI
 
 def closer_ang(x,a,dir=0):
     """
-    find angle y (==x mod 2*pi) that is close to a
+    find angle y (==x mod 2*PI) that is close to a
     dir == 0: minimize absolute value of difference
     dir == 1: y > x
     dir == 2: y < x
@@ -65,9 +63,9 @@ def closer_ang(x,a,dir=0):
     if dir == 0:
         return a + smaller_ang(x-a)
     elif dir == 1:
-        return a + (x-a)%(2*pi)
+        return a + (x-a)%(2*PI)
     elif dir == -1:
-        return a + (x-a)%(2*pi) - 2*pi
+        return a + (x-a)%(2*PI) - 2*PI
 
 def closer_joint_angles(pos,seed):
     result = np.array(pos)
@@ -96,10 +94,10 @@ def get_torso_arm_ik(robot_body, target_trans, old_arm_pose=None):
         arm_pose = closer_joint_angles(arm_pose, old_arm_pose)
     return torso_pose, arm_pose
 
-def get_col_free_base_pose_around_target(t, plan, target_pose, robot, callback=None, save=False, dist=DEFAULT_DIST):
+def get_col_free_base_pose_around_target(t, plan, target_pose, robot, callback=None, save=False, dist=const.DEFAULT_DIST):
     base_pose = None
     old_base_pose = robot.pose[:, t].copy()
-    for i in range(NUM_BASE_RESAMPLES):
+    for i in range(const.NUM_BASE_RESAMPLES):
         base_pose = sample_base_pose(target_pose, base_pose_seed=old_base_pose, dist=dist)
         robot.pose[:, t] = base_pose
         if callback is not None: callback()
@@ -157,7 +155,7 @@ def get_ee_from_target(targ_pos, targ_rot):
     ee_pos = targ_pos.copy()
     target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
     # rotate can's local z-axis by the amount of linear spacing between 0 to 2pi
-    angle_range = np.linspace(0, np.pi*2, num=EE_ANGLE_SAMPLE_SIZE)
+    angle_range = np.linspace(0, PI*2, num=const.EE_ANGLE_SAMPLE_SIZE)
     for rot in angle_range:
         target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
         # rotate new ee_pose around can's rotation axis
@@ -180,7 +178,7 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
             min_change = change
     return chosen_arm_pose
 
-def get_base_poses_around_pos(t, robot, pos, sample_size, dist=DEFAULT_DIST):
+def get_base_poses_around_pos(t, robot, pos, sample_size, dist=const.DEFAULT_DIST):
     base_poses = []
     old_base_pose = robot.pose[:,t].copy()
     for i in range(sample_size):
@@ -375,6 +373,6 @@ def ee_reachable_resample(pred, negated, t, plan):
     # v.draw_plan_ts(plan, t)
     v.animate_range(plan, (t-pred._steps, t+pred._steps))
     # check that indexes are correct
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
     return np.array(res), attr_inds

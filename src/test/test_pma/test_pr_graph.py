@@ -25,7 +25,7 @@ class TestPRGraph(unittest.TestCase):
     def test_place(self):
         prob_file = '../domains/namo_domain/namo_probs/place.prob'
         test_prg(self, prob_file)
-        
+
     # def test_putaway3(self):
     #     prob_file = '../domains/namo_domain/namo_probs/putaway3.prob'
     #     test_prg(self, prob_file)
@@ -39,7 +39,18 @@ def test_prg(self, prob_file):
     s_c = {'LLSolver': 'NAMOSolver', 'HLSolver': 'FFSolver'}
     domain = parse_domain_config.ParseDomainConfig.parse(d_c)
     hls = hl_solver.FFSolver(d_c)
-    plan, msg = pr_graph.p_mod_abs(d_c, p_c, s_c, debug=True)
+    # """
+    # Initialize Suggester
+    # """
+    # import ipdb; ipdb.set_trace()
+    # suggester = PostLearner({}, "prg_testing", space = "CONFIG")
+    # if not suggester.trained:
+    #     feature_function = None
+    #     suggester.train(domain, problem, feature_function)
+    # """
+    # End of Suggester
+    # """
+    plan, msg = pr_graph.p_mod_abs(d_c, p_c, s_c,suggester = None, debug=True)
     self.assertEqual(len(plan.get_failed_preds()), 0)
 
 

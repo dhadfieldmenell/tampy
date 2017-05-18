@@ -7,6 +7,7 @@ from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.internal_repr import plan
 from core.util_classes import plan_hdf5_serialization
+from ros_interface import action_execution
 import time, main
 
 VIEWER = False
@@ -53,16 +54,16 @@ class TestRobotLLSolver(unittest.TestCase):
     #     _test_plan(self, self.move_hold_prob)
 
     # successful
-    def test_complex_grab_prob(self):
-        TRIALS = 1
-        complete_time = []
-        start_time = time.time()
-        for i in range(TRIALS):
-            self.complex_grab_prob = self.get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
-            complete_time.append(_test_plan(self, self.complex_grab_prob))
-        end_time = time.time()
-        print "Process completed in {}s".format(end_time - start_time)
-        print complete_time
+    # def test_complex_grab_prob(self):
+    #     TRIALS = 1
+    #     complete_time = []
+    #     start_time = time.time()
+    #     for i in range(TRIALS):
+    #         self.complex_grab_prob = self.get_plan('../domains/baxter_domain/baxter_probs/baxter_complex_grasp.prob', ['0: GRASP BAXTER CAN0 TARGET0 PDP_TARGET0 EE_TARGET0 ROBOT_END_POSE'])
+    #         complete_time.append(_test_plan(self, self.complex_grab_prob))
+    #     end_time = time.time()
+    #     print "Process completed in {}s".format(end_time - start_time)
+    #     print complete_time
 
     # def test_putdown_prob(self):
     #     _test_plan(self, self.putdown_prob)
@@ -125,8 +126,8 @@ def _test_resampling(test_obj, n_resamples=0):
     draw_ts = get_draw_ts_fn(viewer, plan)
     draw_cols_ts = get_draw_cols_ts_fn(viewer, plan)
     def callback(set_trace=False):
-        if set_trace:
-            import ipdb; ipdb.set_trace()
+        # if set_trace:
+            # import ipdb; ipdb.set_trace()
         return viewer
         # solver._update_ll_params()
     """
@@ -136,13 +137,13 @@ def _test_resampling(test_obj, n_resamples=0):
     active_ts = (0, plan.horizon-1)
     verbose = False
     fp = plan.get_failed_preds()
-    import ipdb; ipdb.set_trace()
     if len(fp) > 0:
         solver._solve_opt_prob(plan, priority=0, callback=calloback, active_ts=active_ts, verbose=verbose)
 
     fp = plan.get_failed_preds()
     _, _, t = plan.get_failed_pred()
 
+    # import ipdb; ipdb.set_trace()
     print(plan.satisfied())
 
 
@@ -173,6 +174,19 @@ def _test_plan(test_obj, plan, n_resamples=10):
     if viewer != None:
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
+
+    """
+    Plan Execution
+    """
+    baxter = plan.params['baxter']
+    rave_body = baxter.openrave_body
+    natural_state = np.array([0., 0, 0., 1.57, 0., 0, -0.]).reshape((7, 1))
+    natural_traj = np.repeat(natural_state, baxter.lArmPose.shape[1], axis=1)
+    baxter.lArmPose = natural_traj
+    action = plan.actions[0]
+    # import ipdb; ipdb.set_trace()
+    action_execution.execute_action(action)
+
 
     print(plan.get_failed_preds())
     return timesteps

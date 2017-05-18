@@ -6,35 +6,7 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 from openravepy import DOFAffine
 import numpy as np
-
-BASE_DIM = 1
-JOINT_DIM = 16
-ROBOT_ATTR_DIM = 17
-
-BASE_MOVE = 1
-#Constant that defines the step size = joint_range/JOINT_MOVE_FACTOR
-JOINT_MOVE_FACTOR = 20
-TWOARMDIM = 16
-# EEReachable Constants
-APPROACH_DIST = 0.025
-RETREAT_DIST = 0.025
-EEREACHABLE_STEPS = 3
-# Collision Constants
-DIST_SAFE = 0
-RCOLLIDES_DSAFE = 5e-3
-COLLIDES_DSAFE = 1e-3
-#Plan Coefficient
-IN_GRIPPER_COEFF = 1.
-EEREACHABLE_COEFF = 1e2
-EEREACHABLE_OPT_COEFF = 1.3e3
-EEREACHABLE_ROT_OPT_COEFF = 3e2
-INGRIPPER_OPT_COEFF = 3e2
-RCOLLIDES_OPT_COEFF = 1e2
-OBSTRUCTS_COEEF = 1
-OBSTRUCTS_OPT_COEFF = 1e2
-GRASP_VALID_COEFF = 1e1
-GRIPPER_OPEN_VALUE = 0.02
-GRIPPER_CLOSE_VALUE = 0.02
+import core.util_classes.baxter_constants as const
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                      ("lGripper", np.array([0], dtype=np.int)),
@@ -87,16 +59,16 @@ class BaxterIsMP(robot_predicates.IsMP):
         dof_map = robot_body._geom.dof_map
         dof_inds = np.r_[dof_map["lArmPose"], dof_map["lGripper"], dof_map["rArmPose"], dof_map["rGripper"]]
         lb_limit, ub_limit = robot.GetDOFLimits()
-        active_ub = ub_limit[dof_inds].reshape((JOINT_DIM,1))
-        active_lb = lb_limit[dof_inds].reshape((JOINT_DIM,1))
-        joint_move = (active_ub-active_lb)/JOINT_MOVE_FACTOR
+        active_ub = ub_limit[dof_inds].reshape((const.JOINT_DIM,1))
+        active_lb = lb_limit[dof_inds].reshape((const.JOINT_DIM,1))
+        joint_move = (active_ub-active_lb)/const.JOINT_MOVE_FACTOR
         # Setup the Equation so that: Ax+b < val represents
-        # |base_pose_next - base_pose| <= BASE_MOVE
-        # |joint_next - joint| <= joint_movement_range/JOINT_MOVE_FACTOR
-        val = np.vstack((joint_move, BASE_MOVE*np.ones((BASE_DIM, 1)), joint_move, BASE_MOVE*np.ones((BASE_DIM, 1))))
-        A = np.eye(2*ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=ROBOT_ATTR_DIM) - np.eye(2*ROBOT_ATTR_DIM, k=-ROBOT_ATTR_DIM)
-        b = np.zeros((2*ROBOT_ATTR_DIM,1))
-        self.base_step = BASE_MOVE*np.ones((BASE_DIM, 1))
+        # |base_pose_next - base_pose| <= const.BASE_MOVE
+        # |joint_next - joint| <= joint_movement_range/const.JOINT_MOVE_FACTOR
+        val = np.vstack((joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1)), joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1))))
+        A = np.eye(2*const.ROBOT_ATTR_DIM) - np.eye(2*const.ROBOT_ATTR_DIM, k=const.ROBOT_ATTR_DIM) - np.eye(2*const.ROBOT_ATTR_DIM, k=-const.ROBOT_ATTR_DIM)
+        b = np.zeros((2*const.ROBOT_ATTR_DIM,1))
+        self.base_step = const.BASE_MOVE*np.ones((const.BASE_DIM, 1))
         self.joint_step = joint_move
         self.lower_limit = active_lb
         return A, b, val
@@ -117,17 +89,17 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
         dof_map = robot_body._geom.dof_map
         dof_inds = np.r_[dof_map["lArmPose"], dof_map["lGripper"], dof_map["rArmPose"], dof_map["rGripper"]]
         lb_limit, ub_limit = robot.GetDOFLimits()
-        active_ub = ub_limit[dof_inds].reshape((JOINT_DIM,1))
-        active_lb = lb_limit[dof_inds].reshape((JOINT_DIM,1))
+        active_ub = ub_limit[dof_inds].reshape((const.JOINT_DIM,1))
+        active_lb = lb_limit[dof_inds].reshape((const.JOINT_DIM,1))
         # Setup the Equation so that: Ax+b < val represents
         # lb_limit <= pose <= ub_limit
         val = np.vstack((-active_lb, active_ub))
-        A_lb_limit = -np.eye(JOINT_DIM)
-        A_up_limit = np.eye(JOINT_DIM)
+        A_lb_limit = -np.eye(const.JOINT_DIM)
+        A_up_limit = np.eye(const.JOINT_DIM)
         A = np.vstack((A_lb_limit, A_up_limit))
-        b = np.zeros((2*JOINT_DIM,1))
-        joint_move = (active_ub-active_lb)/JOINT_MOVE_FACTOR
-        self.base_step = BASE_MOVE*np.ones((BASE_DIM,1))
+        b = np.zeros((2*const.JOINT_DIM,1))
+        joint_move = (active_ub-active_lb)/const.JOINT_MOVE_FACTOR
+        self.base_step = const.BASE_MOVE*np.ones((const.BASE_DIM,1))
         self.joint_step = joint_move
         self.lower_limit = active_lb
         return A, b, val
@@ -141,7 +113,7 @@ class BaxterStationaryBase(robot_predicates.StationaryBase):
 
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][-1]])])
-        self.attr_dim = BASE_DIM
+        self.attr_dim = const.BASE_DIM
         super(BaxterStationaryBase, self).__init__(name, params, expected_param_types, env)
 
 class BaxterStationaryArms(robot_predicates.StationaryArms):
@@ -150,7 +122,7 @@ class BaxterStationaryArms(robot_predicates.StationaryArms):
 
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
-        self.attr_dim = TWOARMDIM
+        self.attr_dim = const.TWOARMDIM
         super(BaxterStationaryArms, self).__init__(name, params, expected_param_types, env)
 
 class BaxterStationaryW(robot_predicates.StationaryW):
@@ -182,8 +154,8 @@ class BaxterInContact(robot_predicates.InContact):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # Define constants
-        self.GRIPPER_CLOSE = GRIPPER_CLOSE_VALUE
-        self.GRIPPER_OPEN = GRIPPER_OPEN_VALUE
+        self.GRIPPER_CLOSE = const.GRIPPER_CLOSE_VALUE
+        self.GRIPPER_OPEN = const.GRIPPER_OPEN_VALUE
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][3]])])
         super(BaxterInContact, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -225,8 +197,8 @@ class BaxterInGripperPos(BaxterInGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.coeff = IN_GRIPPER_COEFF
-        self.opt_coeff = INGRIPPER_OPT_COEFF
+        self.coeff = const.IN_GRIPPER_COEFF
+        self.opt_coeff = const.INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.pos_check(x)[0]
         self.eval_grad = lambda x: self.pos_check(x)[1]
         super(BaxterInGripperPos, self).__init__(name, params, expected_param_types, env, debug)
@@ -252,7 +224,6 @@ class BaxterInGripperPos(BaxterInGripper):
         obj_jac = -1*np.array([np.cross(axis, obj_pos - gp - obj_trans[:3,3].flatten()) for axis in axises]).T
         obj_jac = np.c_[-np.eye(3), obj_jac]
         # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
-        #import ipdb;ipdb.set_trace()
         dist_jac = np.hstack((np.zeros((3, 8)), arm_jac, np.zeros((3, 1)), base_jac, obj_jac))
         return dist_val, dist_jac
 
@@ -262,8 +233,8 @@ class BaxterInGripperRot(BaxterInGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.coeff = IN_GRIPPER_COEFF
-        self.opt_coeff = INGRIPPER_OPT_COEFF
+        self.coeff = const.IN_GRIPPER_COEFF
+        self.opt_coeff = const.INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.rot_check(x)[0]
         self.eval_grad = lambda x: self.rot_check(x)[1]
         super(BaxterInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
@@ -301,7 +272,7 @@ class BaxterEEReachable(robot_predicates.EEReachable):
 
     # EEreachable Robot, StartPose, EEPose
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[2], list(ATTRMAP[params[2]._type]))])
         self.attr_dim = 23
@@ -336,9 +307,9 @@ class BaxterEEReachable(robot_predicates.EEReachable):
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
-            return rel_step*np.array([APPROACH_DIST, 0, 0])
+            return rel_step*np.array([const.APPROACH_DIST, 0, 0])
         else:
-            return rel_step*np.array([0, 0, RETREAT_DIST])
+            return rel_step*np.array([0, 0, const.RETREAT_DIST])
 
     def stacked_f(self, x):
         i = 0
@@ -371,7 +342,7 @@ class BaxterEEReachablePos(BaxterEEReachable):
 
     # EEUnreachable Robot, StartPose, EEPose
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         self.coeff = 1
         self.opt_coeff = 1
         self.eval_f = self.stacked_f
@@ -409,8 +380,8 @@ class BaxterEEReachableRot(BaxterEEReachable):
     # EEUnreachable Robot, StartPose, EEPose
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=0):
-        self.coeff = EEREACHABLE_COEFF
-        self.opt_coeff = EEREACHABLE_ROT_OPT_COEFF
+        self.coeff = const.EEREACHABLE_COEFF
+        self.opt_coeff = const.EEREACHABLE_ROT_OPT_COEFF
         self.eval_f = lambda x: self.ee_rot_check(x)[0]
         self.eval_grad = lambda x: self.ee_rot_check(x)[1]
         super(BaxterEEReachableRot, self).__init__(name, params, expected_param_types, env, debug, steps)
@@ -454,9 +425,9 @@ class BaxterEEReachableInvPos(BaxterEEReachablePos):
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
-            return rel_step*np.array([0, 0, -RETREAT_DIST])
+            return rel_step*np.array([0, 0, -const.RETREAT_DIST])
         else:
-            return rel_step*np.array([-APPROACH_DIST, 0, 0])
+            return rel_step*np.array([-const.APPROACH_DIST, 0, 0])
 
     def resample(self, negated, t, plan):
         return resample_eereachable_rrt(self, negated, t, plan, inv= True)
@@ -467,9 +438,9 @@ class BaxterEEReachableInvRot(BaxterEEReachableRot):
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
-            return rel_step*np.array([0, 0, -RETREAT_DIST])
+            return rel_step*np.array([0, 0, -const.RETREAT_DIST])
         else:
-            return rel_step*np.array([-APPROACH_DIST, 0, 0])
+            return rel_step*np.array([-const.APPROACH_DIST, 0, 0])
 
     def resample(self, negated, t, plan):
         return resample_eereachable_rrt(self, negated, t, plan, inv='True')
@@ -478,15 +449,15 @@ class BaxterObstructs(robot_predicates.Obstructs):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=DIST_SAFE):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
         self.attr_dim = 17
         self.dof_cache = None
-        self.coeff = -OBSTRUCTS_COEEF
-        self.neg_coeff = OBSTRUCTS_COEEF
+        self.coeff = -const.OBSTRUCTS_COEEF
+        self.neg_coeff = const.OBSTRUCTS_COEEF
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
-        self.dsafe = DIST_SAFE
+        self.dsafe = const.DIST_SAFE
 
     def resample(self, negated, t, plan):
         return resample_pred(self, negated, t, plan)
@@ -529,9 +500,9 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[3], list(ATTRMAP[params[3]._type])),
                                  (params[4], list(ATTRMAP[params[4]._type]))])
-        self.OBSTRUCTS_OPT_COEFF = OBSTRUCTS_OPT_COEFF
+        self.OBSTRUCTS_OPT_COEFF = const.OBSTRUCTS_OPT_COEFF
         super(BaxterObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = DIST_SAFE
+        self.dsafe = const.DIST_SAFE
 
     def resample(self, negated, t, plan):
         # return resample_obstructs(self, negated, t, plan)
@@ -568,7 +539,7 @@ class BaxterCollides(robot_predicates.Collides):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(BaxterCollides, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = COLLIDES_DSAFE
+        self.dsafe = const.COLLIDES_DSAFE
 
 class BaxterRCollides(robot_predicates.RCollides):
 
@@ -581,9 +552,9 @@ class BaxterRCollides(robot_predicates.RCollides):
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.coeff = -1
         self.neg_coeff = 1
-        self.opt_coeff = RCOLLIDES_OPT_COEFF
+        self.opt_coeff = const.RCOLLIDES_OPT_COEFF
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = RCOLLIDES_DSAFE
+        self.dsafe = const.RCOLLIDES_DSAFE
 
     def resample(self, negated, t, plan):
         return resample_pred(self, negated, t, plan)

@@ -2,21 +2,12 @@ from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import robot_predicates
 from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle, CollisionReport, RaveCreateCollisionChecker
+import core.util_classes.baxter_constants as const
 from collections import OrderedDict
 from sco.expr import Expr
 import math
 import numpy as np
-pi = np.pi
-
-DEFAULT_DIST = 0.6
-EE_ANGLE_SAMPLE_SIZE = 8
-JOINT_MOVE_FACTOR = 10
-OBJ_RING_SAMPLING_RADIUS = 0.6
-NUM_EEREACHABLE_RESAMPLE_ATTEMPTS = 10
-
-APPROACH_DIST = 0.025
-RETREAT_DIST = 0.025
-EEREACHABLE_STEPS = 3
+PI = np.pi
 
 #These functions are helper functions that can be used by many robots
 def get_random_dir():
@@ -29,22 +20,22 @@ def get_random_dir():
 
 def get_random_theta():
     """
-        This helper function generates a random angle between -pi to pi
+        This helper function generates a random angle between -PI to PI
     """
-    theta =  2*np.pi*np.random.rand(1) - np.pi
+    theta =  2*PI*np.random.rand(1) - PI
     return theta[0]
 
 def smaller_ang(x):
     """
         This helper function takes in an angle in radius, and returns smaller angle
-        Ex. 5pi/2 -> pi/2
+        Ex. 5pi/2 -> PI/2
             8pi/3 -> 2pi/3
     """
-    return (x + pi)%(2*pi) - pi
+    return (x + PI)%(2*PI) - PI
 
 def closer_ang(x,a,dir=0):
     """
-        find angle y (==x mod 2*pi) that is close to a
+        find angle y (==x mod 2*PI) that is close to a
         dir == 0: minimize absolute value of difference
         dir == 1: y > x
         dir == 2: y < x
@@ -52,9 +43,9 @@ def closer_ang(x,a,dir=0):
     if dir == 0:
         return a + smaller_ang(x-a)
     elif dir == 1:
-        return a + (x-a)%(2*pi)
+        return a + (x-a)%(2*PI)
     elif dir == -1:
-        return a + (x-a)%(2*pi) - 2*pi
+        return a + (x-a)%(2*PI) - 2*PI
 
 def get_ee_transform_from_pose(pose, rotation):
     """
@@ -62,14 +53,14 @@ def get_ee_transform_from_pose(pose, rotation):
     """
     ee_trans = OpenRAVEBody.transform_from_obj_pose(pose, rotation)
     #the rotation is to transform the tool frame into the end effector transform
-    rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+    rot_mat = matrixFromAxisAngle([0, PI/2, 0])
     ee_rot_mat = ee_trans[:3, :3].dot(rot_mat[:3, :3])
     ee_trans[:3, :3] = ee_rot_mat
     return ee_trans
 
 def closer_joint_angles(pos,seed):
     """
-        This helper function cleans up the dof if any angle is greater than 2 pi
+        This helper function cleans up the dof if any angle is greater than 2 PI
     """
     result = np.array(pos)
     for i in [2,4,6]:
@@ -88,7 +79,7 @@ def get_ee_from_target(targ_pos, targ_rot):
     ee_pos = targ_pos.copy()
     target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
     # rotate can's local z-axis by the amount of linear spacing between 0 to 2pi
-    angle_range = np.linspace(np.pi/3, np.pi/3 + np.pi*2, num=EE_ANGLE_SAMPLE_SIZE)
+    angle_range = np.linspace(PI/3, PI/3 + PI*2, num=const.EE_ANGLE_SAMPLE_SIZE)
     for rot in angle_range:
         target_trans = OpenRAVEBody.transform_from_obj_pose(targ_pos, targ_rot)
         # rotate new ee_pose around can's rotation axis
@@ -177,7 +168,7 @@ def sample_base(target_pose, base_pose):
 def get_ik_transform(pos, rot):
     trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
     # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
-    rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+    rot_mat = matrixFromAxisAngle([0, PI/2, 0])
     trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
     trans[:3, :3] = trans_mat
     return trans
@@ -266,7 +257,7 @@ def process_traj(raw_traj, timesteps):
                 process_dist += step_dist
             else:
                 i += 1
-
+    result_traj.append(raw_traj[-1])
     return np.array(result_traj).T
 
 
@@ -297,10 +288,7 @@ def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
     return traj_list
 
 
-NUM_RESAMPLES = 10
-MAX_ITERATION_STEP = 200
-BIAS_RADIUS = 0.1
-ROT_BIAS = np.pi/8
+
 def get_col_free_armPose(pred, negated, t, plan):
     robot = pred.robot
     body = pred._param_to_body[robot]
@@ -390,7 +378,7 @@ def resample_move(plan, t, pred, rs_action, ref_index):
     for traj in result_traj:
         add_to_attr_inds_and_res(act_range[0] + ts, attr_inds, res, robot, [('rArmPose', traj[1:]), ('pose', traj[:1])])
         ts += 1
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     return np.array(res), attr_inds
 
 def resample_pick_place(plan, t, pred, rs_action, ref_index):
@@ -459,7 +447,7 @@ def resample_pick_place(plan, t, pred, rs_action, ref_index):
     for traj in result_traj:
         add_to_attr_inds_and_res(init_timestep + ts, attr_inds, res, robot, [('rArmPose', traj[1:]), ('pose', traj[:1])])
         ts += 1
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
     if init_timestep != act_range[0]:
         sampling_trace['data'][start_pose.name] = {'type': start_pose.get_type(), 'rArmPose': robot.rArmPose[:, act_range[0]], 'value': robot.pose[:, act_range[0]]}
@@ -501,18 +489,18 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
         # inverse resample_eereachable used in putdown action
         approach_dir = manip_trans[:3,:3].dot(np.array([0,0,-1]))
         retreat_dir = manip_trans[:3,:3].dot(np.array([-1,0,0]))
-        approach_dir = approach_dir / np.linalg.norm(approach_dir) * APPROACH_DIST
-        retreat_dir = -retreat_dir/np.linalg.norm(retreat_dir) * RETREAT_DIST
+        approach_dir = approach_dir / np.linalg.norm(approach_dir) * const.APPROACH_DIST
+        retreat_dir = -retreat_dir/np.linalg.norm(retreat_dir) * const.RETREAT_DIST
     else:
         # Normal resample eereachable used in grasp action
         approach_dir = manip_trans[:3,:3].dot(np.array([-1,0,0]))
         retreat_dir = manip_trans[:3,:3].dot(np.array([0,0,-1]))
-        approach_dir = -approach_dir / np.linalg.norm(approach_dir) * APPROACH_DIST
-        retreat_dir = retreat_dir/np.linalg.norm(retreat_dir) * RETREAT_DIST
+        approach_dir = -approach_dir / np.linalg.norm(approach_dir) * const.APPROACH_DIST
+        retreat_dir = retreat_dir/np.linalg.norm(retreat_dir) * const.RETREAT_DIST
 
     resample_failure = False
     # Resample entire approaching and retreating traj
-    for i in range(EEREACHABLE_STEPS):
+    for i in range(const.EEREACHABLE_STEPS):
         approach_pos = target_pos + approach_dir * (3-i)
         approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body,
                                              'right_arm')
@@ -529,8 +517,8 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
         plan.sampling_trace[-1]['reward'] = -1
         return None, None
     # lock the variables
-    robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
-    robot._free_attrs['pose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
+    robot._free_attrs['rArmPose'][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
+    robot._free_attrs['pose'][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
     # finding initial pose
     init_timestep, ref_index = 0, 0
     for i in range(len(plan.actions)):
@@ -544,9 +532,9 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
 
     init_dof = robot.rArmPose[:, init_timestep].flatten()
     init_dof = np.hstack([robot.pose[:, init_timestep], init_dof])
-    end_dof = robot.rArmPose[:, t - EEREACHABLE_STEPS].flatten()
-    end_dof = np.hstack([robot.pose[:, t - EEREACHABLE_STEPS], end_dof])
-    timesteps = t - EEREACHABLE_STEPS - init_timestep + 2
+    end_dof = robot.rArmPose[:, t - const.EEREACHABLE_STEPS].flatten()
+    end_dof = np.hstack([robot.pose[:, t - const.EEREACHABLE_STEPS], end_dof])
+    timesteps = t - const.EEREACHABLE_STEPS - init_timestep + 2
 
     raw_traj = get_rrt_traj(plan.env, body, active_dof, init_dof, end_dof)
     # Restore dof0
@@ -672,10 +660,10 @@ def resample_rcollides(pred, negated, t, plan):
 def get_col_free_armPose_ik(pred, negated, t, plan):
     ee_pose = OpenRAVEBody.obj_pose_from_transform(body.env_body.GetManipulator('right_arm').GetTransform())
     pos, rot = ee_pose[:3], ee_pose[3:]
-    while arm_pose is None and iteration < MAX_ITERATION_STEP:
-    # for i in range(NUM_RESAMPLES):
-        pos_bias = np.random.random_sample((3,))*BIAS_RADIUS*2 - BIAS_RADIUS
-        rot_bias = np.random.random_sample((3,))*ROT_BIAS*2 - ROT_BIAS
+    while arm_pose is None and iteration < const.MAX_ITERATION_STEP:
+    # for i in range(const.NUM_RESAMPLES):
+        pos_bias = np.random.random_sample((3,))*const.BIAS_RADIUS*2 - const.BIAS_RADIUS
+        rot_bias = np.random.random_sample((3,))*const.ROT_BIAS*2 - const.ROT_BIAS
         # print pos_bias, rot_bias, iteration
         print pos_bias, rot_bias
         iteration += 1
@@ -736,8 +724,8 @@ def resample_eereachable(pred, negated, t, plan):
     gripper_direction = manip_trans[:3,:3].dot(np.array([-1,0,0]))
     lift_direction = manip_trans[:3,:3].dot(np.array([0,0,-1]))
     # Resample grasping and retreating traj
-    for i in range(EEREACHABLE_STEPS):
-        approach_pos = target_pos - gripper_direction / np.linalg.norm(gripper_direction) * APPROACH_DIST * (3-i)
+    for i in range(const.EEREACHABLE_STEPS):
+        approach_pos = target_pos - gripper_direction / np.linalg.norm(gripper_direction) * const.APPROACH_DIST * (3-i)
         # rave_body.set_pose([0,0,robot.pose[0, t-3+i]])
         approach_arm_pose = get_ik_from_pose(approach_pos, target_rot, body,
                                              'right_arm')
@@ -745,16 +733,15 @@ def resample_eereachable(pred, negated, t, plan):
         add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot,[('rArmPose',
                                  approach_arm_pose)])
 
-        retreat_pos = target_pos + lift_direction/np.linalg.norm(lift_direction) * RETREAT_DIST * (i+1)
+        retreat_pos = target_pos + lift_direction/np.linalg.norm(lift_direction) * const.RETREAT_DIST * (i+1)
         # rave_body.set_pose([0,0,robot.pose[0, t+1+i]])
         retreat_arm_pose = get_ik_from_pose(retreat_pos, target_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot,[('rArmPose', retreat_arm_pose)])
 
-    robot._free_attrs['rArmPose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
-    robot._free_attrs['pose'][:, t-EEREACHABLE_STEPS: t+EEREACHABLE_STEPS+1] = 0
+    robot._free_attrs['rArmPose'][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
+    robot._free_attrs['pose'][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
     return np.array(res), attr_inds
 
-GRASP_STEP = 20
 def resample_rrt_planner(pred, netgated, t, plan):
     startp, endp = pred.startp, pred.endp
     robot = pred.robot

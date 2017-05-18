@@ -1,6 +1,7 @@
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.sampling import get_expr_mult
+import core.util_classes.common_constants as const
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from errors_exceptions import PredicateException
 from collections import OrderedDict
@@ -8,17 +9,9 @@ import numpy as np
 import ctrajoptpy
 import time
 
-# Needed
-POSE_TOL = 2e-2
-EEREACHABLE_STEPS = 3
-DIST_SAFE = 1e-2
-COLLISION_TOL = 1e-3
-MAX_CONTACT_DISTANCE = .1
-
-
 class CollisionPredicate(ExprPredicate):
 
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = DIST_SAFE, debug = False, ind0=0, ind1=1, tol=COLLISION_TOL):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.COLLISION_TOL):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
@@ -58,7 +51,7 @@ class CollisionPredicate(ExprPredicate):
         assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
         self.set_active_dof_inds(robot_body, reset=False)
         # Setup collision checkers
-        self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
+        self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
         collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
@@ -94,7 +87,7 @@ class CollisionPredicate(ExprPredicate):
         # Make sure two body is in the same environment
         assert can_body.env_body.GetEnv() == obstr_body.env_body.GetEnv()
         # Setup collision checkers
-        # self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
+        # self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
         self._cc.SetContactDistance(np.inf)
         collisions = self._cc.BodyVsBody(can_body.env_body, obstr_body.env_body)
         # Calculate value and jacobian
@@ -126,7 +119,7 @@ class CollisionPredicate(ExprPredicate):
         obj_body = self._param_to_body[obj]
         obj_body.set_pose(can_pos, can_rot)
         self.set_active_dof_inds(robot_body, reset=False)
-        self._cc.SetContactDistance(MAX_CONTACT_DISTANCE)
+        self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
         # setup collision between robot and obstruct
         collisions1 = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
         col_val1, col_jac1 = self._calc_grad_and_val(robot_body, obj_body, collisions1)
@@ -211,7 +204,7 @@ class CollisionPredicate(ExprPredicate):
                 self.plot_collision(ptRobot, ptObj, distance)
 
         # arrange gradients in proper link order
-        max_dist = self.dsafe - MAX_CONTACT_DISTANCE
+        max_dist = self.dsafe - const.MAX_CONTACT_DISTANCE
         vals, robot_grads = max_dist*np.ones((num_links,1)), np.zeros((num_links, self.attr_dim+6))
         links = sorted(links, key = lambda x: x[0])
         vals[:len(links),0] = np.array([link[1] for link in links])
@@ -315,7 +308,7 @@ class CollisionPredicate(ExprPredicate):
 
 class PosePredicate(ExprPredicate):
 
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = DIST_SAFE, debug = False, ind0=0, ind1=1, tol=POSE_TOL, active_range=(0,0)):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.POSE_TOL, active_range=(0,0)):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
@@ -842,7 +835,7 @@ class EEReachable(PosePredicate):
             coeff[Float]:EEReachable coeffitions, used during optimazation
             opt_coeff[Float]:EEReachable coeffitions, used during optimazation
     """
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=EEREACHABLE_STEPS):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
         assert len(params) == 3
         self._env = env
         self.robot, self.start_pose, self.ee_pose = params
@@ -884,7 +877,7 @@ class Obstructs(CollisionPredicate):
             coeff[Float]:EEReachable coeffitions, used during optimazation
             neg_coeff[Float]:EEReachable coeffitions, used during optimazation
     """
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=COLLISION_TOL):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.COLLISION_TOL):
         assert len(params) == 4
         self._env = env
         self.robot, self.startp, self.endp, self.can = params
@@ -952,7 +945,7 @@ class ObstructsHolding(CollisionPredicate):
 
         links = len(self.robot.geom.col_links)
         if self.held.name == self.obstruct.name:
-            col_fn, offset = self.robot_obj_collision, DIST_SAFE - COLLISION_TOL
+            col_fn, offset = self.robot_obj_collision, const.DIST_SAFE - const.COLLISION_TOL
             val = np.zeros((links,1))
         else:
             col_fn, offset = self.robot_obj_held_collision, 0

@@ -317,7 +317,7 @@ class FFSolver(HLSolver):
         with open("%sprob.output"%FFSolver.FILE_PREFIX, "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
             plan = Plan.IMPOSSIBLE
         else:
             plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))

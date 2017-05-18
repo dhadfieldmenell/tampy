@@ -85,12 +85,6 @@ class ParamSetup(object):
         target = parameter.Symbol(attrs, attr_types)
         return target
 
-    @staticmethod
-    def setup_pr2_ee_pose(name = "pr2_ee_pose"):
-        attrs = {"name": [name], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["EEPose"]}
-        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
-        ee_pose = parameter.Symbol(attrs, attr_types)
-        return ee_pose
 
     @staticmethod
     def setup_ee_pose(name = "ee_pose"):

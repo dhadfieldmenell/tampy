@@ -100,7 +100,7 @@ class TestBaxter(unittest.TestCase):
         robot = baxter_body.env_body
         dof = robot.GetActiveDOFValues()
         targ = params['target1']
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         can_body.set_pose(targ.value, targ.rotation)
 
         # solver = robot_ll_solver.RobotLLSolver()
@@ -138,7 +138,7 @@ class TestBaxter(unittest.TestCase):
 
         env = Environment() # create openrave environment
         objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
-        view = OpenRAVEViewer(env)
+        view = OpenRAVEViewer.create_viewer(env)
         view.draw(objLst, 0, 0.7)
         can_body = view.name_to_rave_body["can0"]
         baxter_body = view.name_to_rave_body["baxter"]
@@ -169,7 +169,6 @@ class TestBaxter(unittest.TestCase):
         trajectory["BiRRT"] = planing(env, robot, plan_params, traj, 'BiRRT')  # 3.5s
         # trajectory["BasicRRT"] = planing(env, robot, plan_params, traj, 'BasicRRT') # 0.05s can't run it by its own
         # trajectory["ExplorationRRT"] = planing(env, robot, plan_params, traj, 'ExplorationRRT') # 0.03s
-
         # plan_params.SetExtraParameters('<range>0.2</range>')
         # Using OMPL planner
         # trajectory["OMPL_RRTConnect"] = planing(env, robot, plan_params, traj, 'OMPL_RRTConnect') # 1.5s
@@ -180,23 +179,5 @@ class TestBaxter(unittest.TestCase):
         # trajectory["OMPL_LazyRRT"] = planing(env, robot, plan_params, traj, 'OMPL_LazyRRT') # 1.5s - 10s unsatble
         # ompl_traj = trajectory["OMPL_RRTConnect"]
         or_traj = trajectory["BiRRT"]
-
         result = process_traj(or_traj, 20)
-        self.assertTrue(len(result) == 20)
-
-    def test_move_holding_env(self):
-        domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
-                                                   '../domains/baxter_domain/baxter_probs/putdown_1234_0.prob')
-        env = Environment() # create openrave environment
-        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
-        view = OpenRAVEViewer(env)
-        view.draw(objLst, 0, 0.7)
-        can0_body = view.name_to_rave_body["can0"]
-        can1_body = view.name_to_rave_body["can1"]
-        baxter_body = view.name_to_rave_body["baxter"]
-        can0 = can0_body.env_body
-        can1 = can1_body.env_body
-        robot = baxter_body.env_body
-        dof = robot.GetActiveDOFValues()
-        manip = robot.GetManipulator("right_arm")
-        import ipdb; ipdb.set_trace()
+        self.assertTrue(result.shape[1] == 20)

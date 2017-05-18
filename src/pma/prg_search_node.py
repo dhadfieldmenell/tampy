@@ -67,11 +67,11 @@ class LLSearchNode(SearchNode):
         state_preds.append(failed_pred)
         new_state = State(state_name, state_params, state_preds, state_timestep)
         """
-        Suggester shuold sampling based on biased Distribution according to learned
-        theta for each parameter.
+        Suggester should sampling based on biased Distribution according to learned theta for each parameter.
         """
-        feature_fun = None
-        resampled_action = suggester.sample(state, feature_fun)
+        if suggester != None:
+            feature_fun = None
+            resampled_action = suggester.sample(state, feature_fun)
         """
         End of Suggester
         """

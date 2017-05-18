@@ -9,23 +9,12 @@ from prg_search_node import HLSearchNode, LLSearchNode
 """
 Many methods called in p_mod_abs have detailed documentation.
 """
-def p_mod_abs(domain_config, problem_config, solvers_config, max_iter=100, debug = False):
+def p_mod_abs(domain_config, problem_config, solvers_config, suggester = None, max_iter=100, debug = False):
     hl_solver, ll_solver = ParseSolversConfig.parse(solvers_config, domain_config)
     domain = ParseDomainConfig.parse(domain_config)
     problem = ParseProblemConfig.parse(problem_config, domain)
     if problem.goal_test():
         return False, "Goal is already satisfied. No planning done."
-
-    """
-    Initialize Suggester
-    """
-    suggester = PostLearner("prg_testing", 5, 5, space = "CONFIG")
-    if not suggester.trained:
-        feature_function = None
-        suggester.train(domain, problem, feature_function)
-    """
-    End of Suggester
-    """
 
     n0 = HLSearchNode(hl_solver.translate_problem(problem), domain, problem, priority=0)
     Q = PriorityQueue()

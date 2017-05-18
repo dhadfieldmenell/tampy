@@ -235,7 +235,8 @@ class CanSolver(LLSolver):
 
         dummy_body.delete()
         if len(possible_rps) <= 0:
-            import ipdb; ipdb.set_trace()
+            print "something went wrong"
+            # import ipdb; ipdb.set_trace()
 
         return possible_rps
 

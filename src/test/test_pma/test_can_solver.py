@@ -168,15 +168,15 @@ def _test_resampling(test_obj, plan, n_resamples=0):
         ## and then solves a transfer optimization that only includes linear constraints
         solver._solve_opt_prob(plan, priority=0, callback=callback, active_ts=active_ts, verbose=verbose)
         fp = plan.get_failed_preds()
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
         solver._solve_opt_prob(plan, priority=1, callback=calloback, active_ts=active_ts, verbose=verbose)
         fp = plan.get_failed_preds()
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
         success = solver._solve_opt_prob(plan, priority=2, callback=callback, active_ts=active_ts, verbose=verbose)
         fp = plan.get_failed_preds()
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         if len(fp) == 0:
             break
 
@@ -215,7 +215,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
         # draw_ts(50)
         if set_trace:
             animate()
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
 
         # viewer.draw_plan(plan)
         # time.sleep(0.03)
@@ -230,7 +230,7 @@ def _test_plan(test_obj, plan, n_resamples=0):
     if viewer != None:
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
     # test_obj.assertTrue(plan.satisfied(FAKE_TOL))
 
@@ -263,7 +263,7 @@ def _test_backtrack_plan(test_obj, plan, n_resamples=0):
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     test_obj.assertTrue(plan.satisfied(0))
 
 def _test_backtrack_plan(test_obj, plan, method='SQP', plot=False, animate=True, verbose=False,

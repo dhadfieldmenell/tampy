@@ -120,8 +120,8 @@ class TestCommonPredicates(unittest.TestCase):
         pred0.tol = tols[0]
         self.assertTrue(pred0.test(0))
 
-        if pred0.expr.eval(pred0.get_param_vector(1), tol = pred0.tol):
-            import ipdb; ipdb.set_trace()
+        # if pred0.expr.eval(pred0.get_param_vector(1), tol = pred0.tol):
+            # import ipdb; ipdb.set_trace()
 
         self.assertFalse(pred0.test(1))
         self.assertFalse(pred0.test(2))

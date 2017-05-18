@@ -62,6 +62,7 @@ class TestLearner(unittest.TestCase):
 
     def test_metropolis_hasting(self):
         # Testing with single variable Normal Distribution
+        debug = False
         arg_dict = {'train_size': 10, 'episode_size': 5, 'train_stepsize': 0.05, 'sample_iter': 50000, 'sample_burn': 500, 'sample_thin': 2}
         learn = PostLearner(arg_dict, "test_learner", "CONFIG")
         data = {"dummy":{"x": np.array([[1]])}}
@@ -107,8 +108,7 @@ class TestLearner(unittest.TestCase):
         plt.xlabel('x')
         plt.legend(('PDF','Samples'))
         print "data sample generated successfully."
-        response = raw_input('Display the diagram? [yes/no]:\n')
-        if response == 'yes':
+        if debug == True:
             plt.show()
 
     def test_training(self):
@@ -134,6 +134,9 @@ class TestLearner(unittest.TestCase):
         self.assertTrue(np.allclose(learn.theta['dummy']['z'], np.array([[ 0.9911284, 3.3078589, 1.27975853]]).T))
 
     def test_sampling(self):
+
+        debug = False
+
         # Testing with single variable Normal Distribution
         arg_dict = {'train_size': 10, 'episode_size': 5, 'solver': None, 'train_stepsize': 0.05, 'sample_iter': 10000, 'sample_burn': 250, 'sample_thin': 2}
         learn = PostLearner(arg_dict, "test_learner", "CONFIG")
@@ -165,8 +168,7 @@ class TestLearner(unittest.TestCase):
         plt.xlabel('x')
         plt.legend(('PDF','Samples'))
         print "data sample generated successfully."
-        response = raw_input('Display the diagram? [yes/no]:\n')
-        if response == 'yes':
+        if debug == True:
             plt.show()
 
     def test_realistic_training(self):
@@ -211,7 +213,7 @@ class TestLearner(unittest.TestCase):
             #               'EEPose':{'value':3},
             #               'RobotPose': {'rArmPose': 7}}
             # learner.train([f], [r], param_dict)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
 def test_realistic_resampling(self):
     pass

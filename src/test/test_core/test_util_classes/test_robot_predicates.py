@@ -164,7 +164,7 @@ class TestRobotPredicates(unittest.TestCase):
         self.assertTrue(pred.test(time = 3))
 
     def test_collides(self):
-        TEST_GRAD = False
+        TEST_GRAD = True
         can = ParamSetup.setup_blue_can("obj")
         table = ParamSetup.setup_table()
         test_env = ParamSetup.setup_env()
@@ -177,7 +177,7 @@ class TestRobotPredicates(unittest.TestCase):
         can.pose = table.pose = np.array([[0],[0],[0]])
         self.assertTrue(pred.test(0))
         #This gradient failed, table base link fails
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         can.pose = np.array([[0],[0],[1]])
         self.assertFalse(pred.test(0))
         # This Gradient test passed
@@ -193,7 +193,7 @@ class TestRobotPredicates(unittest.TestCase):
         can.pose = np.array([[.5],[.5],[-.5]])
         self.assertFalse(pred.test(0))
         # This Gradient test didn't pass
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         can.pose = np.array([[.6],[.5],[-.5]])
         self.assertTrue(pred.test(0))
         # This Gradient test passed
@@ -203,12 +203,6 @@ class TestRobotPredicates(unittest.TestCase):
         # This Gradient test passed
         pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         table.rotation = np.array([[.2],[.4],[.5]])
-        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0))
         # This Gradient test passed
         if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        """
-            Uncomment the following to see the robot
-        """
-        # pred._param_to_body[can].set_pose(can.pose, can.rotation)
-        # pred._param_to_body[table].set_pose(table.pose, table.rotation)
-        # import ipdb; ipdb.set_trace()
