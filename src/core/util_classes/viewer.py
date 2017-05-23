@@ -138,7 +138,7 @@ class OpenRAVEViewer(Viewer):
                                  "rGripper": obj.rGripper[:, t]}
                 pose = [0, 0, pose]
             self.name_to_rave_body[name].set_dof(dof_value_map)
-        elif isinstance(obj.geom, Can) or isinstance(obj.geom, Box) or isinstance(obj.geom, Table):
+        else:
             rotation = obj.rotation[:, t]
             assert not np.any(np.isnan(rotation))
 

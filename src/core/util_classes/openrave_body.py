@@ -12,6 +12,7 @@ from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
 from core.util_classes.obstacle import Obstacle
 from core.util_classes.wall import Wall
 from core.util_classes.table import Table
+from core.util_classes.basket import Basket
 
 WALL_THICKNESS = 1
 
@@ -37,6 +38,8 @@ class OpenRAVEBody(object):
                 self._add_wall(geom)
             elif isinstance(geom, Box):
                 self._add_box(geom)
+            elif isinstance(geom, Basket):
+                self._add_basket(geom)
             else:
                 raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
         elif env.GetKinBody(name) != None:
@@ -120,6 +123,11 @@ class OpenRAVEBody(object):
         self._env.Add(self.env_body)
         geom.setup(self.env_body)
 
+    def _add_basket(self, geom):
+        self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
+        self.env_body.SetName(self.name)
+        self._env.Add(self.env_body)
+
     def _add_table(self, geom):
         self.env_body = OpenRAVEBody.create_table(self._env, geom)
         self.env_body.SetName(self.name)
@@ -131,7 +139,7 @@ class OpenRAVEBody(object):
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         elif isinstance(self._geom, Robot):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
-        elif isinstance(self._geom, Table) or isinstance(self._geom, Can) or isinstance(self._geom, Box):
+        else:
             trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)
 

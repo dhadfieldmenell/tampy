@@ -86,22 +86,19 @@ class TestBaxter(unittest.TestCase):
 
     def test_can_world(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
-                       '../domains/baxter_domain/baxter_training_probs/grasp_training_4321_0.prob')
-
-        geom = params['can0'].geom
-        params['can0'].geom = GreenCan(geom.radius, geom.height)
-        env = Environment()
+                       '../domains/baxter_domain/baxter_probs/test_env.prob')
+        env = problem.env
+        viewer = OpenRAVEViewer.create_viewer(env)
         objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
-        view = OpenRAVEViewer(env)
-        view.draw(objLst, 0, 0.7)
-        can_body = view.name_to_rave_body["can0"]
-        baxter_body = view.name_to_rave_body["baxter"]
+        viewer.draw(objLst, 0, 0.7)
+        can_body = viewer.name_to_rave_body["can0"]
+        baxter_body = viewer.name_to_rave_body["baxter"]
+        basket_body = viewer.name_to_rave_body['basket']
         can = can_body.env_body
         robot = baxter_body.env_body
         dof = robot.GetActiveDOFValues()
-        targ = params['target1']
-        # import ipdb; ipdb.set_trace()
-        can_body.set_pose(targ.value, targ.rotation)
+
+        import ipdb; ipdb.set_trace()
 
         # solver = robot_ll_solver.RobotLLSolver()
         # success = solver.solve(plan, callback=callback, n_resamples=50, verbose=False)

@@ -2,6 +2,7 @@ from openravepy import Environment
 from core.util_classes import matrix, robots, can, circle
 from core.util_classes.table import Table
 from core.util_classes.box import Box
+from core.util_classes.basket import Basket
 from core.internal_repr import parameter
 import numpy as np
 
@@ -106,3 +107,10 @@ class ParamSetup(object):
         attr_types = {"name": str, "geom": Box, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         box = parameter.Object(attrs, attr_types)
         return box
+
+    @staticmethod
+    def setup_basket(name = "basket"):
+        attrs = {"name": [name], "geom": [], "pose": ["undefined"], "rotation": [(0, 0, np.pi/2)], "_type": ["Basket"]}
+        attr_types = {"name": str, "geom": Basket, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        basket = parameter.Object(attrs, attr_types)
+        return basket

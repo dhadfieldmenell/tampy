@@ -36,7 +36,7 @@ class Baxter(Robot):
     Defines geometry used in the Baxter domain.
     """
     def __init__(self):
-        baxter_shape = "../models/baxter/baxter.xml"
+        baxter_shape = "../models/baxter/baxter.zae"
         self.col_links = set(["torso", "pedestal", "head", "sonar_ring", "screen", "collision_head_link_1",
                               "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
                               "right_upper_elbow", "right_upper_elbow_visual", "right_lower_elbow",
