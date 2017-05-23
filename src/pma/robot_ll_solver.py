@@ -6,7 +6,6 @@ from openravepy import matrixFromAxisAngle
 from core.util_classes import common_predicates
 from core.util_classes import baxter_predicates
 from core.util_classes.matrix import Vector
-from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer
 from ll_solver import LLSolver, LLParam
@@ -15,7 +14,6 @@ import gurobipy as grb
 import numpy as np
 GRB = grb.GRB
 from IPython import embed as shell
-from core.util_classes import sampling
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import baxter_sampling
 

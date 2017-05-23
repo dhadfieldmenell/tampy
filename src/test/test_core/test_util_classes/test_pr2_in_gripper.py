@@ -1,7 +1,7 @@
 import unittest
 from core.internal_repr import parameter
 from core.util_classes import pr2_predicates, viewer, matrix
-from core.util_classes.can import BlueCan, RedCan
+from core.util_classes.items import BlueCan, RedCan
 from core.util_classes.robots import PR2
 from core.util_classes.viewer import OpenRAVEViewer
 from pma.can_solver import CanSolver

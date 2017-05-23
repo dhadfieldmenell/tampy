@@ -2,12 +2,9 @@ import numpy as np
 import unittest
 from openravepy import Environment, KinBody,RaveCreateKinBody
 from core.internal_repr import parameter
-from core.util_classes import circle
 from core.util_classes.robots import PR2
-from core.util_classes.can import BlueCan, RedCan
+from core.util_classes.items import BlueCan, RedCan, Obstacle, GreenCircle, BlueCircle
 from core.util_classes.matrix import Vector2d, Vector3d, Vector7d, Value
-from core.util_classes import matrix
-from core.util_classes.obstacle import Obstacle
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import OpenRAVEException
 from core.util_classes import viewer
@@ -47,11 +44,11 @@ class TestOpenRAVEBody(unittest.TestCase):
 
     def test_add_circle(self):
         attrs = {"geom": [1], "pose": [(3, 5)], "_type": ["Can"], "name": ["can0"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         green_can = parameter.Object(attrs, attr_types)
 
         attrs = {"geom": [1], "pose": [(3, 5)], "_type": ["Can"], "name": ["can0"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         blue_can = parameter.Object(attrs, attr_types)
 
         env = Environment()
@@ -170,14 +167,14 @@ class TestOpenRAVEBody(unittest.TestCase):
         attrs = {"name": ["pr2"], "pose": [(0, 0, 0)], "_type": ["Robot"], "geom": [], "backHeight": [0.2], "lGripper": [0.5], "rGripper": [0.5]}
         attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
-        attr_types = {"name": str, "pose": matrix.Vector3d, "_type": str, "geom": PR2, "backHeight": matrix.Value, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
+        attr_types = {"name": str, "pose": Vector3d, "_type": str, "geom": PR2, "backHeight": Value, "lArmPose": Vector7d, "rArmPose": Vector7d, "lGripper": Value, "rGripper": Value}
         robot = parameter.Object(attrs, attr_types)
         # Set the initial arm pose so that pose is not close to joint limit
         robot.lArmPose = np.array([[np.pi/4, np.pi/8, np.pi/2, -np.pi/2, np.pi/8, -np.pi/8, np.pi/2]]).T
         robot.rArmPose = np.array([[-np.pi/4, np.pi/8, -np.pi/2, -np.pi/2, -np.pi/8, -np.pi/8, np.pi/2]]).T
 
         attrs = {"name": ["can"], "geom": (0.04, 0.25), "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "geom": BlueCan, "pose": Vector3d, "rotation": Vector3d, "_type": str}
         can = parameter.Object(attrs, attr_types)
         can.pose = np.array([[5.77887566e-01,  -1.26743678e-01,   8.37601627e-01]]).T
         can.rotation = np.array([[np.pi/4, np.pi/4, np.pi/4]]).T

@@ -1,6 +1,6 @@
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.sampling import get_expr_mult
+from core.util_classes.pr2_sampling import get_expr_mult
 import core.util_classes.common_constants as const
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from errors_exceptions import PredicateException
@@ -972,7 +972,7 @@ class ObstructsHolding(CollisionPredicate):
 
 class Collides(CollisionPredicate):
     """
-        Format: Collides Can Obstacle
+        Format: Collides Item Item
 
         Non-robot related
     """

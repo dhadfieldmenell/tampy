@@ -3,8 +3,7 @@ from core.internal_repr import parameter
 from core.util_classes.matrix import Vector2d
 from core.util_classes import common_predicates, namo_predicates
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes import circle
-from core.util_classes import wall
+from core.util_classes import items
 from errors_exceptions import PredicateException, ParamValidationException
 from sco import expr
 import numpy as np
@@ -23,10 +22,10 @@ class TestNamoPredicates(unittest.TestCase):
     def test_expr_at(self):
         radius = 1
         attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": circle.RedCircle, "pose": Vector2d, "_type": str}
+        attr_types = {"name": str, "geom": items.RedCircle, "pose": Vector2d, "_type": str}
         can = parameter.Object(attrs, attr_types)
         attrs = {"name": ["target"], "geom": [radius], "value": ["undefined"], "_type": ["Target"]}
-        attr_types = {"name": str, "geom": circle.BlueCircle, "value": Vector2d, "_type": str}
+        attr_types = {"name": str, "geom": items.BlueCircle, "value": Vector2d, "_type": str}
         target = parameter.Symbol(attrs, attr_types)
 
         pred = namo_predicates.At("testpred", [can, target], ["Can", "Target"])
@@ -56,7 +55,7 @@ class TestNamoPredicates(unittest.TestCase):
         self.assertEqual(cm.exception.message, "Parameter type validation failed for predicate 'testpred: (At can sym)'.")
 
         attrs = {"name": ["target"], "geom": [radius], "value": ["undefined"], "_type": ["Target"]}
-        attr_types = {"name": str, "geom": circle.BlueCircle, "value": Vector2d, "_type": str}
+        attr_types = {"name": str, "geom": items.BlueCircle, "value": Vector2d, "_type": str}
         sym = parameter.Symbol(attrs, attr_types)
         sym.value = np.array([[3, 2], [6, 4]])
 
@@ -78,7 +77,7 @@ class TestNamoPredicates(unittest.TestCase):
         # RobotAt Robot RobotPose
         radius = 1
         attrs = {"name": ["robot"], "geom": [radius], "pose": ["undefined"], "_type": ["Robot"]}
-        attr_types = {"name": str, "geom": circle.RedCircle, "pose": Vector2d, "_type": str}
+        attr_types = {"name": str, "geom": items.RedCircle, "pose": Vector2d, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
 
         attrs = {"name": ["r_pose"], "value": ["undefined"], "_type": ["RobotPose"]}
@@ -118,7 +117,7 @@ class TestNamoPredicates(unittest.TestCase):
         #Obstructs, Robot, RobotPose, Can;
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["robot"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"value": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
@@ -126,7 +125,7 @@ class TestNamoPredicates(unittest.TestCase):
         robotPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
         env = Environment()
@@ -150,7 +149,7 @@ class TestNamoPredicates(unittest.TestCase):
         # InContact, Robot, RobotPose, Target
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"value": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
@@ -158,7 +157,7 @@ class TestNamoPredicates(unittest.TestCase):
         robotPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"geom": [radius], "value": [(0, 0)], "_type": ["Target"], "name": ["target"]}
-        attr_types = {"geom": circle.BlueCircle, "value": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "value": Vector2d, "_type": str, "name": str}
         target = parameter.Symbol(attrs, attr_types)
 
         env = Environment()
@@ -195,7 +194,7 @@ class TestNamoPredicates(unittest.TestCase):
         # ObstructsHolding, Robot, RobotPose, Can, Can;
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"value": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
@@ -203,11 +202,11 @@ class TestNamoPredicates(unittest.TestCase):
         robotPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can1 = parameter.Object(attrs, attr_types)
 
         attrs = {"geom": [radius], "pose": [(0, 2)], "_type": ["Can"], "name": ["can2"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can2 = parameter.Object(attrs, attr_types)
 
         env = Environment()
@@ -249,11 +248,11 @@ class TestNamoPredicates(unittest.TestCase):
         # InGripper, Robot, Can, Grasp
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
         attrs = {"value": [(0, 0)], "_type": ["Grasp"], "name": ["grasp"]}
@@ -290,7 +289,7 @@ class TestNamoPredicates(unittest.TestCase):
         robotPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"geom": [radius], "value": [(0, 0)], "_type": ["Target"], "name": ["can1"]}
-        attr_types = {"geom": circle.BlueCircle, "value": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "value": Vector2d, "_type": str, "name": str}
         target = parameter.Symbol(attrs, attr_types)
 
         attrs = {"value": [(0, 0)], "_type": ["Grasp"], "name": ["grasp"]}
@@ -336,7 +335,7 @@ class TestNamoPredicates(unittest.TestCase):
     def test_stationary(self):
         # Stationary, Can
         attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
         pred = namo_predicates.Stationary("test_stay", [can], ["Can"])
@@ -359,11 +358,11 @@ class TestNamoPredicates(unittest.TestCase):
     def test_stationary_neq(self):
         # StationaryNEq, Can, Can
         attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can1 = parameter.Object(attrs, attr_types)
 
         attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can2"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can2 = parameter.Object(attrs, attr_types)
 
         pred1 = namo_predicates.StationaryNEq("test_stay_neq1", [can1, can1], ["Can", "Can"])
@@ -397,7 +396,7 @@ class TestNamoPredicates(unittest.TestCase):
     def test_is_mp(self):
         # IsMP Robot
         attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
         pred = namo_predicates.IsMP("IsMP", [robot], ["Robot"], dmove=1.)
@@ -425,11 +424,11 @@ class TestNamoPredicates(unittest.TestCase):
     def test_collides(self):
         env = Environment()
         attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
         attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Obstacle"], "name": ["wall"]}
-        attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.Wall, "pose": Vector2d, "_type": str, "name": str}
         border = parameter.Object(attrs, attr_types)
 
         pred = namo_predicates.Collides("collides", [can, border], ["Can", "Obstacle"], env)
@@ -453,11 +452,11 @@ class TestNamoPredicates(unittest.TestCase):
     def test_r_collides(self):
         env = Environment()
         attrs = {"geom": [1], "pose": [(0, 0)], "_type": ["Robot"], "name": ["pr2"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Obstacle"], "name": ["wall"]}
-        attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.Wall, "pose": Vector2d, "_type": str, "name": str}
         border = parameter.Object(attrs, attr_types)
 
         pred = namo_predicates.RCollides("collides", [robot, border], ["Robot", "Obstacle"], env)
@@ -479,7 +478,7 @@ class TestNamoPredicates(unittest.TestCase):
 
     def test_stationary_w(self):
         attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Obstacle"], "name": ["wall"]}
-        attr_types = {"geom": wall.Wall, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.Wall, "pose": Vector2d, "_type": str, "name": str}
         border = parameter.Object(attrs, attr_types)
 
         pred = namo_predicates.StationaryW("test_StationaryW", [border], ["Obstacle"])
@@ -503,7 +502,7 @@ class TestNamoPredicates(unittest.TestCase):
     def test_grad(self):
         radius = 1
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Robot"], "name": ["robot"]}
-        attr_types = {"geom": circle.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.GreenCircle, "pose": Vector2d, "_type": str, "name": str}
         robot = parameter.Object(attrs, attr_types)
 
         attrs = {"value": [(0, 0)], "_type": ["RobotPose"], "name": ["r_pose"]}
@@ -511,7 +510,7 @@ class TestNamoPredicates(unittest.TestCase):
         robotPose = parameter.Symbol(attrs, attr_types)
 
         attrs = {"geom": [radius], "pose": [(0, 0)], "_type": ["Can"], "name": ["can1"]}
-        attr_types = {"geom": circle.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
+        attr_types = {"geom": items.BlueCircle, "pose": Vector2d, "_type": str, "name": str}
         can = parameter.Object(attrs, attr_types)
 
         env = Environment()

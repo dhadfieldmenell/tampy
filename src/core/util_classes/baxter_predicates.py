@@ -27,6 +27,8 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
            "Table": (("pose", np.array([0,1,2], dtype=np.int)),
                      ("rotation", np.array([0,1,2], dtype=np.int))),
            "Obstacle": (("pose", np.array([0,1,2], dtype=np.int)),
+                        ("rotation", np.array([0,1,2], dtype=np.int))),
+           "Basket": (("pose", np.array([0,1,2], dtype=np.int)),
                         ("rotation", np.array([0,1,2], dtype=np.int)))
           }
 
@@ -535,7 +537,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
 class BaxterCollides(robot_predicates.Collides):
 
-    # Collides Can Obstacle
+    # Collides Basket Obstacle
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(BaxterCollides, self).__init__(name, params, expected_param_types, env, debug)

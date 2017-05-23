@@ -1,6 +1,6 @@
 from core.util_classes import robot_predicates
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
-from core.util_classes.sampling import ee_reachable_resample, resample_bp_around_target
+from core.util_classes.pr2_sampling import ee_reachable_resample, resample_bp_around_target
 import core.util_classes.pr2_constants as const
 from collections import OrderedDict
 from openravepy import DOFAffine

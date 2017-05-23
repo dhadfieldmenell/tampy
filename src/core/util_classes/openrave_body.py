@@ -6,13 +6,8 @@ axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
 RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
 IkFilterOptions, matrixFromAxisAngle
 from core.util_classes.robots import Robot, PR2, Baxter
-from core.util_classes.box import Box
-from core.util_classes.can import Can, BlueCan, RedCan
-from core.util_classes.circle import Circle, BlueCircle, RedCircle, GreenCircle
-from core.util_classes.obstacle import Obstacle
-from core.util_classes.wall import Wall
-from core.util_classes.table import Table
-from core.util_classes.basket import Basket
+
+from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, BlueCircle, RedCircle, GreenCircle, Obstacle, Wall, Table, Basket
 
 WALL_THICKNESS = 1
 
@@ -24,22 +19,10 @@ class OpenRAVEBody(object):
         self._geom = geom
 
         if env.GetKinBody(name) == None and env.GetRobot(name) == None:
-            if isinstance(geom, Circle):
-                self._add_circle(geom)
-            elif isinstance(geom, Can):
-                self._add_can(geom)
-            elif isinstance(geom, Obstacle):
-                self._add_obstacle(geom)
-            elif isinstance(geom, Robot):
+            if isinstance(geom, Robot):
                 self._add_robot(geom)
-            elif isinstance(geom, Table):
-                self._add_table(geom)
-            elif isinstance(geom, Wall):
-                self._add_wall(geom)
-            elif isinstance(geom, Box):
-                self._add_box(geom)
-            elif isinstance(geom, Basket):
-                self._add_basket(geom)
+            elif  isinstance(geom, Item):
+                self._add_item(geom)
             else:
                 raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
         elif env.GetKinBody(name) != None:
@@ -55,6 +38,16 @@ class OpenRAVEBody(object):
         for link in self.env_body.GetLinks():
             for geom in link.GetGeometries():
                 geom.SetTransparency(transparency)
+
+    def _add_robot(self, geom):
+        self.env_body = self._env.ReadRobotXMLFile(geom.shape)
+        self.env_body.SetName(self.name)
+        self._env.Add(self.env_body)
+        geom.setup(self.env_body)
+
+    def _add_item(self, geom):
+        fun_name = "self._add_{}".format(geom._type)
+        eval(fun_name)(geom)
 
     def _add_circle(self, geom):
         color = [1,0,0]
@@ -117,12 +110,6 @@ class OpenRAVEBody(object):
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
-    def _add_robot(self, geom):
-        self.env_body = self._env.ReadRobotXMLFile(geom.shape)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
-        geom.setup(self.env_body)
-
     def _add_basket(self, geom):
         self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
         self.env_body.SetName(self.name)
@@ -135,10 +122,10 @@ class OpenRAVEBody(object):
 
     def set_pose(self, base_pose, rotation = [0, 0, 0]):
         trans = None
-        if isinstance(self._geom, Circle) or isinstance(self._geom, Obstacle) or isinstance(self._geom, Wall):
-            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
-        elif isinstance(self._geom, Robot):
+        if isinstance(self._geom, Robot):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
+        elif len(base_pose) == 2:
+            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         else:
             trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
         self.env_body.SetTransform(trans)

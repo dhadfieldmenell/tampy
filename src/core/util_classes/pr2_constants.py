@@ -2,7 +2,7 @@
 This file contains all pr2 specific constants
 This file is refferenced in:
     pr2_predicates.py
-    sampling.py
+    pr2_sampling.py
 """
 
 """

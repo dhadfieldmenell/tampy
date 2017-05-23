@@ -27,9 +27,10 @@ INT_GRIPPER = [0]
 END_GRIPPER = [0.02]
 ROBOT_DIST_FROM_TABLE = 0.05
 
-BASKET_POSE = [0.75, 0.02, 1]
+BASKET_POSE = [0.75, 0.02, 1.067]
 BASKET_ROTATION = [0,0,np.pi/2]
 
+COLLIDES_DSAFE = 1e-3
 # small table
 TABLE_DIM = [0.65, 1.5]
 TABLE_THICKNESS = 0.2
@@ -55,7 +56,7 @@ class CollisionFreeTargetValueGenerator(object):
             collides = False
             x = random.uniform(self.min_x, self.max_x)
             y = random.uniform(self.min_y, self.max_y)
-            z = TABLE_LEG_HEIGHT + TABLE_THICKNESS + CAN_HEIGHT/2
+            z = TABLE_LEG_HEIGHT + TABLE_THICKNESS + CAN_HEIGHT/2 + COLLIDES_DSAFE
             for pose in self._poses:
                 diff = np.array([x - pose[0], y-pose[1]])
                 if np.linalg.norm(diff) <= CAN_RADIUS*2 + DIST_BETWEEN_CANS:

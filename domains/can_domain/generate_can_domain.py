@@ -10,7 +10,7 @@ dom_str = """
 Types: Can, Target, RobotPose, Robot, EEPose, Obstacle
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
-Attribute Import Paths: RedCan core.util_classes.can, BlueCan core.util_classes.can, PR2 core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, PR2ArmPose core.util_classes.matrix, Table core.util_classes.table, Box core.util_classes.box
+Attribute Import Paths: RedCan core.util_classes.items, BlueCan core.util_classes.items, PR2 core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, PR2ArmPose core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items
 
 Predicates Import Path: core.util_classes.pr2_predicates
 

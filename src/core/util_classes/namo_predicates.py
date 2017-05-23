@@ -2,7 +2,6 @@ from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
 from core.internal_repr.plan import Plan
 from core.util_classes.common_predicates import ExprPredicate
-from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr

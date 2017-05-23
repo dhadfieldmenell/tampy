@@ -3,7 +3,7 @@ from core.internal_repr import parameter
 from core.util_classes.matrix import Vector2d
 from core.util_classes import common_predicates
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes import circle
+from core.util_classes import items
 from errors_exceptions import PredicateException
 from sco import expr
 import numpy as np
@@ -23,7 +23,7 @@ class TestCommonPredicates(unittest.TestCase):
         ## test
         radius = 1
         attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": circle.RedCircle, "pose": int, "_type": str}
+        attr_types = {"name": str, "geom": items.RedCircle, "pose": int, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         p1.pose = np.array([[1, 2, 3], [2, 3, 1], [3, 1, 2]])
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
@@ -59,7 +59,7 @@ class TestCommonPredicates(unittest.TestCase):
         tols = [1e-8, 1e-3, 1e-2]
         radius = 1
         attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": circle.RedCircle, "pose": float, "_type": str}
+        attr_types = {"name": str, "geom": items.RedCircle, "pose": float, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         p1.pose = np.array([[1, 2, 3], [1 + tols[1], 2 + tols[1], 3], [1 + tols[2], 2 + tols[2], 3]]).T
         attrs = {"name": ["sym"], "value": ["undefined"], "_type": ["Sym"]}
@@ -97,7 +97,7 @@ class TestCommonPredicates(unittest.TestCase):
         tols = [1e-6, 1e-4, 1e-2]
         radius = 1
         attrs = {"name": ["can"], "geom": [radius], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": circle.RedCircle, "pose": float, "_type": str}
+        attr_types = {"name": str, "geom": items.RedCircle, "pose": float, "_type": str}
         p1 = parameter.Object(attrs, attr_types)
         p1.pose = np.array([[1, 2, 3],
                             [1 + tols[0], 2 + tols[0], 3],

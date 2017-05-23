@@ -14,7 +14,7 @@ import gurobipy as grb
 import numpy as np
 GRB = grb.GRB
 from IPython import embed as shell
-from core.util_classes import sampling
+from core.util_classes import pr2_sampling
 from core.util_classes.viewer import OpenRAVEViewer
 
 MAX_PRIORITY=5
@@ -174,15 +174,15 @@ class CanSolver(LLSolver):
             targets = plan.get_param('InContact', 2, {1: ee_pose})
             if len(targets) == 0 or len(targets) > 1:
                 import ipdb; ipdb.set_trace()
-            sampled_ee_poses = sampling.get_ee_from_target(targets[0].value, targets[0].rotation)
+            sampled_ee_poses = pr2_sampling.get_ee_from_target(targets[0].value, targets[0].rotation)
             cur_robot_pose = {'backHeight': robot.backHeight[:, t],
                               'lArmPose': robot.lArmPose[:, t],
                               'lGripper': robot.lGripper[: ,t],
                               'rArmPose': robot.rArmPose[:, t],
                               'rGripper': robot.rGripper[:, t]}
             for ee_pose in sampled_ee_poses:
-                possible_base = sampling.get_base_poses_around_pos(t, robot, ee_pose[0], BASE_SAMPLE_SIZE, 0.6)
-                robot_base = sampling.closest_base_poses(possible_base, robot.pose[:,t])
+                possible_base = pr2_sampling.get_base_poses_around_pos(t, robot, ee_pose[0], BASE_SAMPLE_SIZE, 0.6)
+                robot_base = pr2_sampling.closest_base_poses(possible_base, robot.pose[:,t])
                 robot_pose = cur_robot_pose.copy()
                 robot_pose['value'] = robot_base
                 robot_poses.append(robot_pose)
@@ -193,7 +193,7 @@ class CanSolver(LLSolver):
         else:
             ee_pose = ee_poses[0]
             targets = plan.get_param('InContact', 2, {1: ee_pose})
-            possible_ee_poses = sampling.get_ee_from_target(targets[0].value, targets[0].rotation)
+            possible_ee_poses = pr2_sampling.get_ee_from_target(targets[0].value, targets[0].rotation)
             for ee_pos, ee_rot in possible_ee_poses:
                 robot_poses.append({'value': ee_pos, 'rotation': ee_rot})
             # import ipdb; ipdb.set_trace()
@@ -225,10 +225,10 @@ class CanSolver(LLSolver):
         dummy_body = OpenRAVEBody(plan.env, robot.name+'_dummy', robot.geom)
         possible_rps = []
         for ee_pose in ee_poses:
-            base_pose = sampling.get_col_free_base_pose_around_target(t, plan, ee_pose.value, robot).reshape((1,3))
+            base_pose = pr2_sampling.get_col_free_base_pose_around_target(t, plan, ee_pose.value, robot).reshape((1,3))
             ik_arm_poses = dummy_body.ik_arm_pose(ee_pose[0], ee_pose[1])
             cur_arm_poses = np.c_[robot.backHeight, robot.rArmPose].reshape((8,))
-            chosen_pose = sampling.closest_arm_pose(ik_arm_poses, cur_arm_poses)
+            chosen_pose = pr2_sampling.closest_arm_pose(ik_arm_poses, cur_arm_poses)
             torso_pose, arm_pose = chosen_pose[0], chosen_pose[1:]
             possible_rp = np.hstack((base_pose, torso_pose, robot.lArmPose[:,t], robot.lGripper[:,t], rArmPose, robot.rGripper[:,t]))
             possible_rps.append(possible_rp)

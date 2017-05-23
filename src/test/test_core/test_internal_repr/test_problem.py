@@ -5,7 +5,7 @@ from core.util_classes import common_predicates, namo_predicates
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import state
 from errors_exceptions import ProblemConfigException
-from core.util_classes import circle
+from core.util_classes import items
 from openravepy import Environment
 import numpy as np
 
@@ -13,15 +13,15 @@ class TestProblem(unittest.TestCase):
     def setUp(self):
 
         attrs = {"name": ["robot"], "geom": [1], "pose": [(0,0)], "_type": ["Robot"]}
-        attr_types = {"name": str, "geom": circle.RedCircle,"pose": Vector2d, "_type": str}
+        attr_types = {"name": str, "geom": items.RedCircle,"pose": Vector2d, "_type": str}
         self.robot = parameter.Object(attrs, attr_types)
 
         attrs = {"name": ["can"], "geom": [1], "pose": ["undefined"], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": circle.RedCircle,"pose": Vector2d, "_type": str}
+        attr_types = {"name": str, "geom": items.RedCircle,"pose": Vector2d, "_type": str}
         self.can = parameter.Object(attrs, attr_types)
 
         attrs = {"name": ["target"], "geom": [1], "value": ["undefined"], "_type": ["Target"]}
-        attr_types = {"name": str, "geom":circle.BlueCircle, "value": Vector2d, "_type": str}
+        attr_types = {"name": str, "geom":items.BlueCircle, "value": Vector2d, "_type": str}
         self.target = parameter.Symbol(attrs, attr_types)
 
         attrs = {"name": ["gp"], "value": [(3,6.)], "_type": ["Sym"]}

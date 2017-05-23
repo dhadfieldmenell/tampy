@@ -5,7 +5,7 @@ from openravepy import Environment, matrixFromAxisAngle
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.robots import PR2
-from core.util_classes import can, sampling, matrix, param_setup
+from core.util_classes import items, pr2_sampling, matrix, param_setup
 from core.util_classes.param_setup import ParamSetup
 from core.internal_repr import parameter
 import time
@@ -20,7 +20,7 @@ class TestSampling(unittest.TestCase):
         target.value = np.array([[0,0,0]]).T
         target.rotation = np.array([[1.1,.3,0]]).T
 
-        dummy_targ_geom = can.BlueCan(0.04, 0.25)
+        dummy_targ_geom = items.BlueCan(0.04, 0.25)
         target_body = OpenRAVEBody(env, target.name, dummy_targ_geom)
         target_body.set_pose(target.value.flatten(), target.rotation.flatten())
         target_body.set_transparency(.7)
@@ -36,8 +36,8 @@ class TestSampling(unittest.TestCase):
                          "rGripper": robot.rGripper}
         robot_body.set_dof(dof_value_map)
 
-        dummy_ee_pose_geom = can.GreenCan(.03,.3)
-        ee_list = list(enumerate(sampling.get_ee_from_target(target.value, target.rotation)))
+        dummy_ee_pose_geom = items.GreenCan(.03,.3)
+        ee_list = list(enumerate(pr2_sampling.get_ee_from_target(target.value, target.rotation)))
         for ee_pose in ee_list:
             ee_pos, ee_rot = ee_pose[1]
             body = OpenRAVEBody(env, "dummy"+str(ee_pose[0]), dummy_ee_pose_geom)
@@ -67,7 +67,7 @@ class TestSampling(unittest.TestCase):
         rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
         rot_mat = can_trans[:3, :3].dot(rot_mat[:3, :3])
         can_trans[:3, :3] = rot_mat
-        torso_pose, arm_pose = sampling.get_torso_arm_ik(robot_body, can_trans, robot.rArmPose)
+        torso_pose, arm_pose = pr2_sampling.get_torso_arm_ik(robot_body, can_trans, robot.rArmPose)
         dof_value_map = {"backHeight": robot.backHeight,
                          "lArmPose": robot.lArmPose.flatten(),
                          "lGripper": robot.lGripper,

@@ -1,8 +1,5 @@
 from openravepy import Environment
-from core.util_classes import matrix, robots, can, circle
-from core.util_classes.table import Table
-from core.util_classes.box import Box
-from core.util_classes.basket import Basket
+from core.util_classes import matrix, robots, items
 from core.internal_repr import parameter
 import numpy as np
 
@@ -60,21 +57,21 @@ class ParamSetup(object):
     @staticmethod
     def setup_green_can(name = "green_can",  geom = (0.02,0.25)):
         attrs = {"name": [name], "geom": geom, "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": can.GreenCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "geom": items.GreenCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         can_obj = parameter.Object(attrs, attr_types)
         return can_obj
 
     @staticmethod
     def setup_blue_can(name = "blue_can",  geom = (0.02,0.25)):
         attrs = {"name": [name], "geom": geom, "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": can.BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "geom": items.BlueCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         can_obj = parameter.Object(attrs, attr_types)
         return can_obj
 
     @staticmethod
     def setup_red_can(name = "red_can", geom = (0.02,0.25)):
         attrs = {"name": [name], "geom": geom, "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Can"]}
-        attr_types = {"name": str, "geom": can.RedCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "geom": items.RedCan, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         can_obj = parameter.Object(attrs, attr_types)
         return can_obj
 
@@ -97,20 +94,20 @@ class ParamSetup(object):
     @staticmethod
     def setup_table(name = "table"):
         attrs = {"name": [name], "geom": [[1.5, 0.94, 0.15, .2, 0.2, 0.6, False]], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
-        attr_types = {"name": str, "geom": Table, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "geom": items.Table, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         table = parameter.Object(attrs, attr_types)
         return table
 
     @staticmethod
     def setup_box(name = "box"):
         attrs = {"name": [name], "geom": [[1,.5,.5]], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
-        attr_types = {"name": str, "geom": Box, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "geom": items.Box, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         box = parameter.Object(attrs, attr_types)
         return box
 
     @staticmethod
     def setup_basket(name = "basket"):
         attrs = {"name": [name], "geom": [], "pose": ["undefined"], "rotation": [(0, 0, np.pi/2)], "_type": ["Basket"]}
-        attr_types = {"name": str, "geom": Basket, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "geom": items.Basket, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         basket = parameter.Object(attrs, attr_types)
         return basket

@@ -7,7 +7,7 @@ Types: Can, Target, RobotPose, Robot, EEPose, Obstacle, Basket
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
-Attribute Import Paths: RedCan core.util_classes.can, BlueCan core.util_classes.can, Baxter core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.table, Box core.util_classes.box, Basket core.util_classes.basket
+Attribute Import Paths: RedCan core.util_classes.items, BlueCan core.util_classes.items, Baxter core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items
 
 Predicates Import Path: core.util_classes.baxter_predicates
 

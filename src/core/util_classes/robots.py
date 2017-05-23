@@ -1,3 +1,4 @@
+from openravepy import IkParameterizationType, databases
 class Robot(object):
     """
     Base class of every robot parameter
@@ -10,6 +11,7 @@ class PR2(Robot):
     Defines geometry used in the PR2 domain.
     """
     def __init__(self):
+        self._type = "pr2"
         pr2_shape = "../models/pr2/pr2.zae"
         # down to 30 links from 45
         self.col_links = set(['base_link', 'torso_lift_link', 'l_shoulder_pan_link',
@@ -27,7 +29,10 @@ class PR2(Robot):
         super(PR2, self).__init__(pr2_shape)
 
     def setup(self, robot):
-      pass
+        """
+        Nothing to setup for pr2
+        """
+        return
 
 
 
@@ -36,6 +41,7 @@ class Baxter(Robot):
     Defines geometry used in the Baxter domain.
     """
     def __init__(self):
+        self._type = "baxter"
         baxter_shape = "../models/baxter/baxter.zae"
         self.col_links = set(["torso", "pedestal", "head", "sonar_ring", "screen", "collision_head_link_1",
                               "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
@@ -53,14 +59,14 @@ class Baxter(Robot):
         super(Baxter, self).__init__(baxter_shape)
 
     def setup(self, robot):
-
-      from openravepy import IkParameterizationType, databases
-      manip = robot.GetManipulator('right_arm')
-      iktype = IkParameterizationType.Transform6D
-      ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
-      if not ikmodel.load():
-          print 'Something went wrong'
+        """
+        Need to setup iksolver for baxter
+        """
+        manip = robot.GetManipulator('right_arm')
+        iktype = IkParameterizationType.Transform6D
+        ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
+        if not ikmodel.load():
+            print 'Something went wrong'
         #   ikmodel.autogenerate()
-
-      ikmodel.manip = robot.GetManipulator('right_arm')
-      manip.SetIkSolver(ikmodel.iksolver)
+        ikmodel.manip = robot.GetManipulator('right_arm')
+        manip.SetIkSolver(ikmodel.iksolver)
