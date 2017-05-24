@@ -632,8 +632,14 @@ class BaxterEEReachableVerRightRot():
     pass
 
 class BaxterBasketGraspLeftPos():
-    # BaxterBasketGraspLeftPos, EEPose, BasketTarget
-    pass
+    # BaxterBasketGraspLeftPos, EEPose, EEPose, BasketTarget
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        handle_offset = [0,0.317,0]
+        basket = params[2]
+
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]),(params[1], [ATTRMAP[params[1]._type][0]]), (params[2], [ATTRMAP[params[2]._type][0]])])
+        self.attr_dim = 6
+        super(BaxterGraspValidPos, self).__init__(name, params, expected_param_types, env, debug)
 
 class BaxterBasketGraspLeftRot():
     # BaxterBasketGraspLeftRot, EEPose, BasketTarget
