@@ -390,10 +390,13 @@ class OpenRAVEBody(object):
         return (yaw, pitch, roll)
 
     @staticmethod
-    def get_ik_transform(pos, rot):
+    def get_ik_transform(pos, rot, right_arm = True):
         trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
         # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
-        rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+        if right_arm:
+            rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
+        else:
+            rot_mat = matrixFromAxisAngle([0, -np.pi/2, 0])
         trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
         trans[:3, :3] = trans_mat
         return trans

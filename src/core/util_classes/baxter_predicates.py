@@ -585,3 +585,72 @@ class BaxterRCollides(robot_predicates.RCollides):
             robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
+
+
+class BaxterBasketInContact(robot_predicates.InContact):
+
+    # InContact robot EEPose target
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        # Define constants
+        self.GRIPPER_CLOSE = const.GRIPPER_CLOSE_VALUE
+        self.GRIPPER_OPEN = const.GRIPPER_OPEN_VALUE
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1], ATTRMAP[params[0]._type][3]])])
+        super(BaxterInContact, self).__init__(name, params, expected_param_types, env, debug)
+
+class BaxterEEReachableVerLeftPos(BaxterEEReachablePos):
+    # BaxterEEReachableVerLeftPos Robot, RobotPose, EEPose
+
+    def get_robot_info(self, robot_body):
+        # Provide functionality of Obtaining Robot information
+        tool_link = robot_body.env_body.GetLink("left_gripper")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:], right_arm=False)
+        arm_inds = list(range(2,9))
+        return robot_trans, arm_inds
+
+    def get_rel_pt(self, rel_step):
+        handle_offset = [0,0.317,0]
+        if rel_step <= 0:
+            return handle_offset + rel_step*np.array([0, 0, -const.APPROACH_DIST])
+        else:
+            return handle_offset + rel_step*np.array([0, 0, const.RETREAT_DIST])
+
+
+class BaxterEEReachableVerLeftRot():
+    # axterEEReachableVerLeftRot, Robot, RobotPose, EEPose
+    pass
+
+class BaxterEEReachableVerRightPos():
+    # BaxterEEReachableVerRightPos, Robot, RobotPose, EEPose
+    pass
+
+class BaxterEEReachableVerRightRot():
+    # BaxterEEReachableVerRightRot, Robot, RobotPose, EEPose
+    pass
+
+class BaxterBasketGraspLeftPos():
+    # BaxterBasketGraspLeftPos, EEPose, BasketTarget
+    pass
+
+class BaxterBasketGraspLeftRot():
+    # BaxterBasketGraspLeftRot, EEPose, BasketTarget
+    pass
+
+class BaxterBasketGraspRightPos():
+    # BaxterBasketGraspLeftPos, EEPose, BasketTarget
+    pass
+
+class BaxterBasketGraspRightRot():
+    # BaxterBasketGraspLeftRot, EEPose, BasketTarget
+    pass
+
+class BaxterBasketInGripperPos():
+    # BaxterBasketInGripperPos Robot, Basket
+    pass
+
+class BaxterBasketInGripperRot():
+    # BaxterBasketInGripperRot Robot, Basket
+    pass

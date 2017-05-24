@@ -111,3 +111,10 @@ class ParamSetup(object):
         attr_types = {"name": str, "geom": items.Basket, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         basket = parameter.Object(attrs, attr_types)
         return basket
+
+    @staticmethod
+    def setup_basket_target(name = "basket_target"):
+        attrs = {"name": [name], "value": ["undefined"], "rotation": [(0, 0, np.pi/2)], "_type": ["BasketTarget"]}
+        attr_types = {"name": str, "geom": items.Basket, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        basket_target = parameter.Symbol(attrs, attr_types)
+        return basket_target

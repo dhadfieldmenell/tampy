@@ -92,8 +92,7 @@ class TestRobots(unittest.TestCase):
                 can_body.env_body.SetTransform(body_trans)
                 self.assertTrue(np.allclose([0.9,-0.23,0.93], manip.GetTransform()[:3,3]))
 
-    def test_can_world(self):
-
+    def test_basket_world(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
                        '../domains/baxter_domain/baxter_probs/test_env.prob')
         env = problem.env
