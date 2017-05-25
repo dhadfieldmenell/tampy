@@ -636,7 +636,6 @@ class BaxterBasketGraspRightRot():
     # BaxterBasketGraspLeftRot, EEPose, BasketTarget
     pass
 
-
 class BaxterInGripper(robot_predicates.InGripper):
 
     # InGripper, Robot, Can

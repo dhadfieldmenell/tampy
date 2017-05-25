@@ -59,7 +59,7 @@ class RobotLLSolver(LLSolver):
         # return True
         return success
 
-    def solve(self, plan, callback=None, n_resamples=20, active_ts=None,
+    def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
         success = False
         if force_init or not plan.initialized:
@@ -79,7 +79,7 @@ class RobotLLSolver(LLSolver):
             return True
             # return success
 
-        for _ in range(n_resamples):
+        for attempt in range(n_resamples):
             ## refinement loop
             ## priority 0 resamples the first failed predicate in the plan
             ## and then solves a transfer optimization that only includes linear constraints
@@ -89,8 +89,8 @@ class RobotLLSolver(LLSolver):
             success = self._solve_opt_prob(plan, priority=1,
                             callback=callback, active_ts=active_ts, verbose=verbose)
             if success or len(plan.get_failed_preds()) == 0:
-                print "Optimization success after {} resampling.".format(_)
-                return _
+                print "Optimization success after {} resampling.".format(attempt)
+                return attempt
         return success
 
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
@@ -101,8 +101,6 @@ class RobotLLSolver(LLSolver):
             viewer = callback()
         def draw(t):
             viewer.draw_plan_ts(plan, t)
-
-
         ## active_ts is the inclusive timesteps to include
         ## in the optimization
         if active_ts==None:
