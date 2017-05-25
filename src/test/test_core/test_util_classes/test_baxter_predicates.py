@@ -692,6 +692,9 @@ class TestBaxterPredicates(unittest.TestCase):
         left_trajectory = np.array(left_trajectory)
         robot.lArmPose = left_trajectory.T
 
+        self.assertFalse(pos_pred.test(3))
+        self.assertFalse(rot_pred.test(3))
+
         right_trajectory = []
         right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])

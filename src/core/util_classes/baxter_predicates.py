@@ -161,6 +161,17 @@ class BaxterInContact(robot_predicates.InContact):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][3]])])
         super(BaxterInContact, self).__init__(name, params, expected_param_types, env, debug)
 
+class BaxterBasketInContact(robot_predicates.InContacts):
+
+    # InContact robot EEPose target
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        # Define constants
+        self.GRIPPER_CLOSE = const.GRIPPER_CLOSE_VALUE
+        self.GRIPPER_OPEN = const.GRIPPER_OPEN_VALUE
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1], ATTRMAP[params[0]._type][3]])])
+        super(BaxterBasketInContact, self).__init__(name, params, expected_param_types, env, debug)
+
 class BaxterObstructs(robot_predicates.Obstructs):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can
@@ -505,18 +516,6 @@ class BaxterEEReachableInvRot(BaxterEEReachableRot):
     def resample(self, negated, t, plan):
         return resample_eereachable_rrt(self, negated, t, plan, inv='True')
 
-
-class BaxterBasketInContact(robot_predicates.InContacts):
-
-    # InContact robot EEPose target
-
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        # Define constants
-        self.GRIPPER_CLOSE = const.GRIPPER_CLOSE_VALUE
-        self.GRIPPER_OPEN = const.GRIPPER_OPEN_VALUE
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1], ATTRMAP[params[0]._type][3]])])
-        super(BaxterBasketInContact, self).__init__(name, params, expected_param_types, env, debug)
-
 class BaxterEEReachableVerLeftPos(BaxterEEReachable):
 
     # BaxterEEReachableVerLeftPos Robot, RobotPose, EEPose
@@ -773,7 +772,6 @@ class BaxterInGripperRot(BaxterInGripper):
     def get_arm_jac(self, arm_jac, base_jac, obj_jac):
         return self.arm_jac_cancatenation(arm_jac, base_jac, obj_jac, "right")
 
-
 class BaxterBasketInGripperPos(BaxterInGripper):
     # BaxterBasketInGripperPos Robot, Basket
 
@@ -786,87 +784,14 @@ class BaxterBasketInGripperPos(BaxterInGripper):
         self.eval_grad = lambda x: self.both_arm_pos_check(x)[1]
         super(BaxterBasketInGripperPos, self).__init__(name, params, expected_param_types, env, debug)
 
-
-    def both_arm_pos_check(self, x):
-        """
-            This function is used to check whether:
-                object is at robot gripper's center
-
-            x: 26 dimensional list aligned in following order,
-            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->canPose->canRot
-
-            Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
-        """
-        # Obtain openrave body
-        robot_body = self._param_to_body[self.params[self.ind0]]
-        obj_body = self._param_to_body[self.params[self.ind1]]
-        robot = robot_body.env_body
-        # Set poses and Get transforms
-        self.set_robot_poses(x, robot_body)
-
-        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
-        robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
-
-        left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
-        right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
-        # Set Can Pose
-        can_pos, can_rot = x[-6: -3], x[-3:]
-        obj_body.set_pose(can_pos, can_rot)
-        obj_trans = obj_body.env_body.GetTransform()
-        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(can_pos, can_rot)
-        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]# axises = [axis_z, axis_y, axis_x]
-
-        l_pos_val, l_pos_jac = self.pos_error(obj_trans, robot_left_trans, axises, left_arm_joints, [0.317,0,0], "left")
-        r_pos_val, r_pos_jac = self.pos_error(obj_trans, robot_right_trans, axises, right_arm_joints, [-0.317,0,0], "right")
-
-        pos_val = np.vstack([l_pos_val, r_pos_val])
-        pos_jac = np.vstack([l_pos_jac, r_pos_jac])
-        return pos_val, pos_jac
-
 class BaxterBasketInGripperRot(BaxterInGripper):
     # BaxterBasketInGripperRot Robot, Basket
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.eval_dim = 3
+        self.eval_dim = 2
         self.coeff = const.IN_GRIPPER_COEFF
         self.opt_coeff = const.INGRIPPER_OPT_COEFF
-        self.eval_f = lambda x: self.rot_check(x)[0]
-        self.eval_grad = lambda x: self.rot_check(x)[1]
+        self.eval_f = lambda x: self.both_arm_rot_check(x)[0]
+        self.eval_grad = lambda x: self.both_arm_rot_check(x)[1]
         super(BaxterBasketInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
-
-    def both_arm_rot_check(self, x):
-        """
-            This function is used to check whether:
-                object is at robot gripper's center
-
-            x: 26 dimensional list aligned in following order,
-            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->canPose->canRot
-
-            Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
-        """
-        # Obtain openrave body
-        robot_body = self._param_to_body[self.params[self.ind0]]
-        obj_body = self._param_to_body[self.params[self.ind1]]
-        robot = robot_body.env_body
-        # Set poses and Get transforms
-        self.set_robot_poses(x, robot_body)
-
-        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
-        robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
-
-        left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
-        right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
-        # Set Can Pose
-        can_pos, can_rot = x[-6: -3], x[-3:]
-        obj_body.set_pose(can_pos, can_rot)
-        obj_trans = obj_body.env_body.GetTransform()
-        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(can_pos, can_rot)
-        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]# axises = [axis_z, axis_y, axis_x]
-
-        l_rot_val, l_rot_jac = self.rot_error(obj_trans, robot_trans, axises, arm_joints, "left")
-        r_rot_val, r_rot_jac = self.rot_error(obj_trans, robot_trans, axises, arm_joints, "right")
-
-        rot_val = np.vstack([l_rot_val, r_rot_val])
-        rot_jac = np.vstack([l_rot_jac, r_rot_jac])
-        return rot_val, rot_jac
