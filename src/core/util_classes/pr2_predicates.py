@@ -172,6 +172,7 @@ class PR2InGripper(robot_predicates.InGripper):
     # InGripper, Robot, Can
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.eval_dim = 3
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(PR2InGripper, self).__init__(name, params, expected_param_types, env, debug)

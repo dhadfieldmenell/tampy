@@ -2,6 +2,7 @@ import sys
 import unittest
 import time
 import main
+import rospy
 import numpy as np
 from ros_interface import action_execution
 from core.util_classes.plan_hdf5_serialization import PlanDeserializer

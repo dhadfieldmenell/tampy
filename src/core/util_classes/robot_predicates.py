@@ -750,7 +750,7 @@ class GraspValid(ExprPredicate):
 
 class InContact(ExprPredicate):
     """
-        Format: InContact robot EEPose target
+        Format: InContact robot EEPose(Right Arm) target
 
         Robot related
 
@@ -777,6 +777,37 @@ class InContact(ExprPredicate):
         self.neg_expr = EqExpr(aff_expr, val)
 
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.spacial_anchor = True
+
+class InContacts(ExprPredicate):
+    """
+        Format: InContact Robot EEPose(Left Arm) EEPose(Right Arm) Target
+
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            attr_dim[Int]: dimension of robot attribute
+            GRIPPER_CLOSE[Float]: Constants, specifying gripper value when gripper is closed
+            GRIPPER_OPEN[Float]: Constants, specifying gripper value when gripper is open
+    """
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.robot, self.left_ee, self.right_ee, self.target = params
+        attr_inds = self.attr_inds
+
+        A = np.eye(2).reshape((2,2))
+        b = np.zeros((2,1))
+
+        val = np.array([[self.GRIPPER_CLOSE, self.GRIPPER_CLOSE]]).T
+        aff_expr = AffExpr(A, b)
+        e = EqExpr(aff_expr, val)
+
+        aff_expr = AffExpr(A, b)
+        val = np.array([[self.GRIPPER_OPEN, self.GRIPPER_OPEN]]).T
+        self.neg_expr = EqExpr(aff_expr, val)
+
+        super(InContacts, self).__init__(name, e, attr_inds, params, expected_param_types)
         self.spacial_anchor = True
 
 class InGripper(PosePredicate):
@@ -810,7 +841,7 @@ class InGripper(PosePredicate):
                                     lambda x: self.opt_coeff*grad(x)),
                                 np.zeros((1,1)))
 
-        pos_expr, val = Expr(f, grad), np.zeros((3,1))
+        pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1)
         self.spacial_anchor = True
