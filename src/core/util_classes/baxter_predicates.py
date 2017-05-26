@@ -664,6 +664,7 @@ class BaxterBasketGraspRightPos(BaxterGraspValidPos):
         super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
         self.spacial_anchor = True
 
+
 class BaxterBasketGraspRightRot(BaxterGraspValidRot):
     # BaxterBasketGraspLeftRot, EEPose, BasketTarget
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
