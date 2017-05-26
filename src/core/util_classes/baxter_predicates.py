@@ -4,7 +4,7 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable_rrt, resample_rcollides, resample_pred
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
-from openravepy import DOFAffine
+from openravepy import DOFAffine, quatRotateDirection, matrixFromQuat
 import numpy as np
 import core.util_classes.baxter_constants as const
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
@@ -627,7 +627,12 @@ class BaxterBasketGraspLeftPos(BaxterGraspValidPos):
         self.ee_pose, self.target = params
         attr_inds = self.attr_inds
 
-        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        target_pos = params[1].value
+        target_pos[:2] /= np.linalg.norm(target_pos[:2])
+        target_pos *= [1, 1, 0]
+        orient_mat = matrixFromQuat(quatRotateDirection(target_pos, [1, 0, 0]))[:3, :3]
+
+        A = np.c_[orient_mat, -orient_mat]
         b, val = np.zeros((self.attr_dim,1)), np.array([[0], [0.317], [0]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
@@ -657,7 +662,12 @@ class BaxterBasketGraspRightPos(BaxterGraspValidPos):
         self.ee_pose, self.target = params
         attr_inds = self.attr_inds
 
-        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        target_pos = params[1].value
+        target_pos[:2] /= np.linalg.norm(target_pos[:2])
+        target_pos *= [1, 1, 0]
+        orient_mat = matrixFromQuat(quatRotateDirection(target_pos, [1, 0, 0]))[:3, :3]
+
+        A = np.c_[orient_mat, -orient_mat]
         b, val = np.zeros((self.attr_dim,1)), np.array([[0], [-0.317], [0]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
