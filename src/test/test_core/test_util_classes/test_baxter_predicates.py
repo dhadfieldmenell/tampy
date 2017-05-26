@@ -608,6 +608,129 @@ class TestBaxterPredicates(unittest.TestCase):
         right_trajectory = np.array(right_trajectory)
         robot.rArmPose = right_trajectory.T
 
+        viewer = OpenRAVEViewer.create_viewer(env)
+        import ipdb; ipdb.set_trace()
+
+        # Predicate should succeed in the grasping post at t=3,
+        # EEreachableRot should always pass since rotation is right all the time
+        self.assertFalse(left_pos_pred.test(0))
+        self.assertFalse(right_pos_pred.test(0))
+        self.assertFalse(left_pos_pred.test(1))
+        self.assertFalse(right_pos_pred.test(1))
+        self.assertFalse(left_pos_pred.test(2))
+        self.assertFalse(right_pos_pred.test(2))
+        self.assertTrue(left_pos_pred.test(3))
+        self.assertFalse(right_pos_pred.test(3))
+
+        self.assertFalse(left_rot_pred.test(0))
+        self.assertFalse(right_rot_pred.test(0))
+        self.assertFalse(left_rot_pred.test(1))
+        self.assertFalse(right_rot_pred.test(1))
+        self.assertFalse(left_rot_pred.test(2))
+        self.assertFalse(right_rot_pred.test(2))
+        self.assertTrue(left_rot_pred.test(3))
+        self.assertFalse(right_rot_pred.test(3))
+
+        # Since finding ik introduced some error, we relax the tolerance to 1e-3
+        if const.TEST_GRAD:
+            left_pos_pred.expr.expr.grad(left_pos_pred.get_param_vector(3), True, 1e-3)
+        if const.TEST_GRAD:
+            right_pos_pred.expr.expr.grad(right_pos_pred.get_param_vector(3), True, 1e-3)
+
+        if const.TEST_GRAD:
+            left_rot_pred.expr.expr.grad(left_rot_pred.get_param_vector(3), True, 1e-3)
+        if const.TEST_GRAD:
+            right_rot_pred.expr.expr.grad(right_rot_pred.get_param_vector(3), True, 1e-3)
+
+
+    def test_basket_grasp(self):
+        domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
+                       '../domains/baxter_domain/baxter_probs/basket_env.prob')
+        env = problem.env
+        robot = params['baxter']
+        basket = params['basket']
+        table = params['table']
+        robot_pose = params['robot_init_pose']
+
+        ee_left = params['ee_left']
+        ee_right = params['ee_right']
+        target = params['target']
+
+        left_pos_pred = baxter_predicates.BaxterBasketGraspLeftPos("basket_grasp_left_pos", [ee_left], ["EEPose", "BasketTarget"], env)
+        right_pos_pred = baxter_predicates.BaxterBasketGraspRightPos("basket_grasp_right_pos", [ee_right], ["EEPose", "BasketTarget"], env)
+        left_rot_pred = baxter_predicates.BaxterBasketGraspLeftRot("basket_grasp_left_rot", [ee_left], ["EEPose", "BasketTarget"], env)
+        right_rot_pred = baxter_predicates.BaxterBasketGraspRightRot("basket_grasp_right_rot", [ee_roght], ["EEPose", "BasketTarget"], env)
+
+        # Predicates are not initialized
+        self.assertFalse(left_pos_pred.test(0))
+        self.assertFalse(right_pos_pred.test(0))
+        self.assertFalse(left_rot_pred.test(0))
+        self.assertFalse(right_rot_pred.test(0))
+        # Sample Grasping Pose
+        offset = [0,0.317,0]
+        basket_pos = basket.pose.flatten()
+        ee_left.value = (basket_pos + offset).reshape((3, 1))
+        ee_left.rotation = np.array([[0,np.pi/2,0]]).T
+
+        ee_right.value = (basket_pos + offset).reshape((3, 1))
+        ee_right.rotation = np.array([[0,np.pi/2,0]]).T
+        
+        robot.lArmPose = np.zeros((7,7))
+        robot.lGripper = np.ones((1, 7))*0.02
+        robot.rArmPose = np.zeros((7,7))
+        robot.rGripper = np.ones((1, 7))*0.02
+        robot.pose = np.zeros((1,7))
+        basket.pose = np.repeat(basket.pose, 7, axis=1)
+        basket.rotation = np.repeat(basket.rotation, 7, axis=1)
+        table.pose = np.repeat(basket.pose, 7, axis=1)
+        table.rotation = np.repeat(basket.rotation, 7, axis=1)
+
+        # initialized poses are not right
+        self.assertFalse(left_pos_pred.test(3))
+        self.assertFalse(right_pos_pred.test(3))
+        self.assertFalse(left_rot_pred.test(3))
+        self.assertFalse(right_rot_pred.test(3))
+        # Find IK Solution of a proper EEReachable Trajectory
+        left_trajectory = []
+        baxter_body = robot.openrave_body
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory = np.array(left_trajectory)
+        robot.lArmPose = left_trajectory.T
+
+        right_trajectory = []
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory = np.array(right_trajectory)
+        robot.rArmPose = right_trajectory.T
+
+        viewer = OpenRAVEViewer.create_viewer(env)
+        import ipdb; ipdb.set_trace()
+
         # Predicate should succeed in the grasping post at t=3,
         # EEreachableRot should always pass since rotation is right all the time
         self.assertFalse(left_pos_pred.test(0))

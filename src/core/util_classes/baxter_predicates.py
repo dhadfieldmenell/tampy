@@ -619,23 +619,65 @@ class BaxterEEReachableVerRightRot(BaxterEEReachable):
     def get_arm_jac(self, arm_jac, base_jac, obj_jac):
         return self.arm_jac_cancatenation(arm_jac, base_jac, obj_jac, "right")
 
-
-class BaxterBasketGraspLeftPos():
+class BaxterBasketGraspLeftPos(BaxterGraspValidPos):
     # BaxterBasketGraspLeftPos, EEPose, BasketTarget
-    pass
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_dim = 3
+        self.ee_pose, self.target = params
+        attr_inds = self.attr_inds
 
-class BaxterBasketGraspLeftRot():
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim,1)), np.array([[0.25], [1.1], [0.25]])
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.spacial_anchor = True
+
+class BaxterBasketGraspLeftRot(BaxterGraspValidRot):
     # BaxterBasketGraspLeftRot, EEPose, BasketTarget
-    pass
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]]), (params[1], [ATTRMAP[params[1]._type][1]])])
+        self.attr_dim = 3
+        self.ee_pose, self.target = params
+        attr_inds = self.attr_inds
 
-class BaxterBasketGraspRightPos():
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [np.pi/2], [0]])
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.spacial_anchor = True
+
+class BaxterBasketGraspRightPos(BaxterGraspValidPos):
     # BaxterBasketGraspLeftPos, EEPose, BasketTarget
-    pass
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_dim = 3
+        self.ee_pose, self.target = params
+        attr_inds = self.attr_inds
 
-class BaxterBasketGraspRightRot():
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim,1)), np.array([[0.25], [-1.1], [0.25]])
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.spacial_anchor = True
+
+class BaxterBasketGraspRightRot(BaxterGraspValidRot):
     # BaxterBasketGraspLeftRot, EEPose, BasketTarget
-    pass
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_dim = 3
+        self.ee_pose, self.target = params
+        attr_inds = self.attr_inds
 
+        A = np.c_[np.eye(self.attr_dim), np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [np.pi/2], [0]])
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.spacial_anchor = True
 
 class BaxterInGripper(robot_predicates.InGripper):
 
