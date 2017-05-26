@@ -29,6 +29,8 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
            "Obstacle": (("pose", np.array([0,1,2], dtype=np.int)),
                         ("rotation", np.array([0,1,2], dtype=np.int))),
            "Basket": (("pose", np.array([0,1,2], dtype=np.int)),
+                        ("rotation", np.array([0,1,2], dtype=np.int))),
+           "BasketTarget": (("pose", np.array([0,1,2], dtype=np.int)),
                         ("rotation", np.array([0,1,2], dtype=np.int)))
           }
 
@@ -581,7 +583,7 @@ class BaxterEEReachableVerLeftRot(BaxterEEReachable):
         self.opt_coeff = const.EEREACHABLE_ROT_OPT_COEFF
         self.eval_f = lambda x: self.ee_rot_check(x)[0]
         self.eval_grad = lambda x: self.ee_rot_check(x)[1]
-        super(BaxterEEReachableVerRightRot, self).__init__(name, params, expected_param_types, env, debug, steps)
+        super(BaxterEEReachableVerLeftRot, self).__init__(name, params, expected_param_types, env, debug, steps)
 
     def get_robot_info(self, robot_body):
         # Provide functionality of Obtaining Robot information

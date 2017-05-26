@@ -2,6 +2,7 @@ import numpy as np
 import unittest, time, main
 from pma import hl_solver, robot_ll_solver
 from core.parsing import parse_domain_config, parse_problem_config
+from core.util_classes.baxter_predicates import BaxterCollides
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.param_setup import ParamSetup
@@ -67,28 +68,39 @@ class TestBasketDomain(unittest.TestCase):
                        '../domains/baxter_domain/baxter_probs/basket_move.prob')
         env = problem.env
 
-        can = ParamSetup.setup_green_can()
-        can.pose = np.array([[0.763, -0.284, 1.067]]).T
-        can.rotation = np.array([[0,0,0]]).T
-
         viewer = OpenRAVEViewer.create_viewer(env)
-        objLst = [i[1] for i in params.items() if not i[1].is_symbol()] + [can]
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
         viewer.draw(objLst, 0, 0.7)
         robot = params['baxter']
         basket = params['basket']
         table = params['table']
+        end_targ = params['end_target']
         baxter_body = OpenRAVEBody(env, 'baxter', robot.geom)
         basket_body = OpenRAVEBody(env, 'basket', basket.geom)
-        can_body = OpenRAVEBody(env, 'green_can', can.geom)
         offset = [0,0.317,0]
         basket_pos = basket.pose.flatten()
 
-        import ipdb; ipdb.set_trace()
-        left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset, [0,np.pi/2,0], "left_arm")[0]
+        col_pred = BaxterCollides("collision_checker", [basket, table], ["Basket", "Obstacle"], env)
 
+        #Grasping Pose
+        left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset, [0,np.pi/2,0], "left_arm")[0]
         right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset, [0,np.pi/2,0], "right_arm")[0]
         baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
-        import ipdb; ipdb.set_trace()
+
+        self.assertFalse(col_pred.test(0))
+        # Holding Pose
+        left_arm_pose = baxter_body.get_ik_from_pose(np.array([0.75, 0.02, 1.005 + 0.15]) + offset, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(np.array([0.75, 0.02, 1.005 + 0.15]) - offset, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+        basket_body.set_pose([0.75, 0.02, 1.01 + 0.15], end_targ.rotation.flatten())
+
+        #Putdown Pose
+        left_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() + offset, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() - offset, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+        basket_body.set_pose(end_targ.value.flatten(), end_targ.rotation.flatten())
+        basket.pose = end_targ.value
+        self.assertFalse(col_pred.test(0))
 
 
 if __name__ == "__main__":
