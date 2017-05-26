@@ -628,7 +628,7 @@ class BaxterBasketGraspLeftPos(BaxterGraspValidPos):
         attr_inds = self.attr_inds
 
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
-        b, val = np.zeros((self.attr_dim,1)), np.array([[0.25], [1.1], [0.25]])
+        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [0.317], [0]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -658,7 +658,7 @@ class BaxterBasketGraspRightPos(BaxterGraspValidPos):
         attr_inds = self.attr_inds
 
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
-        b, val = np.zeros((self.attr_dim,1)), np.array([[0.25], [-1.1], [0.25]])
+        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [-0.317], [0]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
