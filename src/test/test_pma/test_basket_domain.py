@@ -44,6 +44,7 @@ class TestBasketDomain(unittest.TestCase):
         print "Saving current plan to file basket_plan.hdf5..."
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("basket_plan.hdf5", plan)
+        import ipdb; ipdb.set_trace()
         """
             Uncomment to execution plan in baxter
         """
@@ -82,9 +83,10 @@ class TestBasketDomain(unittest.TestCase):
 
         col_pred = BaxterCollides("collision_checker", [basket, table], ["Basket", "Obstacle"], env)
 
+        ver_off = [0, 0,0.075]
         #Grasping Pose
-        left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset, [0,np.pi/2,0], "left_arm")[0]
-        right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset, [0,np.pi/2,0], "right_arm")[0]
+        left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset + ver_off, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset + ver_off, [0,np.pi/2,0], "right_arm")[0]
         baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
 
         self.assertFalse(col_pred.test(0))
@@ -95,13 +97,15 @@ class TestBasketDomain(unittest.TestCase):
         basket_body.set_pose([0.75, 0.02, 1.01 + 0.15], end_targ.rotation.flatten())
 
         #Putdown Pose
-        left_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() + offset, [0,np.pi/2,0], "left_arm")[0]
-        right_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() - offset, [0,np.pi/2,0], "right_arm")[0]
+        left_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() + offset + ver_off, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() - offset + ver_off, [0,np.pi/2,0], "right_arm")[0]
         baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
         basket_body.set_pose(end_targ.value.flatten(), end_targ.rotation.flatten())
         basket.pose = end_targ.value
         self.assertFalse(col_pred.test(0))
-
+        # [0.65 , -0.283,  1.01]
+        # [0.75, 0.02, 1.005]
+        # [0.65, 0.323, 1.01]
 
 if __name__ == "__main__":
     unittest.main()
