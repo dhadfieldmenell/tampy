@@ -674,7 +674,7 @@ class TestBaxterPredicates(unittest.TestCase):
 
         ee_right.value = (basket_pos + offset).reshape((3, 1))
         ee_right.rotation = np.array([[0,np.pi/2,0]]).T
-        
+
         robot.lArmPose = np.zeros((7,7))
         robot.lGripper = np.ones((1, 7))*0.02
         robot.rArmPose = np.zeros((7,7))
@@ -774,6 +774,10 @@ class TestBaxterPredicates(unittest.TestCase):
         ee_right = params['ee_right']
         baxter_body = robot.openrave_body
 
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        viewer.draw(objLst, 0, 0.7)
+
         pos_pred = baxter_predicates.BaxterBasketInGripperPos("BasketInGripper", [robot, basket], ["Robot", "Basket"], env)
         rot_pred = baxter_predicates.BaxterBasketInGripperRot("BasketInGripperRot", [robot, basket], ["Robot", "Basket"], env)
         self.assertFalse(pos_pred.test(0))
@@ -844,6 +848,9 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pos_pred.test(5))
         self.assertFalse(pos_pred.test(6))
 
+
+        import ipdb; ipdb.set_trace()
+
         self.assertTrue(rot_pred.test(0))
         self.assertTrue(rot_pred.test(1))
         self.assertTrue(rot_pred.test(2))
@@ -852,8 +859,93 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(rot_pred.test(5))
         self.assertTrue(rot_pred.test(6))
 
+        basket.rotation[:, 0] = [0,0,0]
+        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
+        self.assertFalse(rot_pred.test(0))
+        basket.rotation[:, 0] = [np.pi/2,0,0]
+        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
+        self.assertFalse(rot_pred.test(0))
+        basket.rotation[:, 0] = [0,np.pi/2,0]
+        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
+        self.assertFalse(rot_pred.test(0))
+        basket.rotation[:, 0] = [0,0,np.pi/2]
+        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
+        self.assertFalse(rot_pred.test(0))
+        basket.rotation[:, 0] = [np.pi/2,np.pi/2,0]
+        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
+        self.assertFalse(rot_pred.test(0))
+        basket.rotation[:, 0] = [0,np.pi/2,np.pi/2]
+        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
+        self.assertFalse(rot_pred.test(0))
+        basket.rotation[:, 0] = [np.pi/2,0,np.pi/2]
+        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
+        self.assertTrue(rot_pred.test(0))
+        basket.rotation[:, 0] = [np.pi/2,np.pi/2,np.pi/2]
+        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
+        self.assertFalse(rot_pred.test(0))
+
         if const.TEST_GRAD:
             pos_pred.expr.expr.grad(pos_pred.get_param_vector(3), True, 1e-3)
 
         if const.TEST_GRAD:
             rot_pred.expr.expr.grad(rot_pred.get_param_vector(3), True, 1e-3)
+
+    def test_basket_grasp_valid(self):
+        domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
+                       '../domains/baxter_domain/baxter_probs/basket_move.prob')
+
+        env = problem.env
+        robot = params['baxter']
+        basket = params['basket']
+        basket_targ = params['init_target']
+        robot_pose = params['robot_init_pose']
+        ee_left = params['grasp_ee_left']
+        ee_right = params['grasp_ee_right']
+        baxter_body = robot.openrave_body
+
+        # viewer = OpenRAVEViewer.create_viewer(env)
+        # objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        # viewer.draw(objLst, 0, 0.7)
+
+        left_pos_pred = baxter_predicates.BaxterBasketGraspLeftPos("grasp_left_pos", [ee_left, basket_targ], ['EEPose', 'BasketTarget'])
+        right_pos_pred = baxter_predicates.BaxterBasketGraspRightPos("grasp_right_pos", [ee_right, basket_targ], ['EEPose', 'BasketTarget'])
+
+        left_rot_pred = baxter_predicates.BaxterBasketGraspLeftRot("grasp_left_rot", [ee_left, basket_targ], ['EEPose', 'BasketTarget'])
+        right_rot_pred = baxter_predicates.BaxterBasketGraspRightRot("grasp_right_rot", [ee_right, basket_targ], ['EEPose', 'BasketTarget'])
+
+        self.assertFalse(left_pos_pred.test(0))
+        self.assertFalse(right_pos_pred.test(0))
+        self.assertFalse(left_rot_pred.test(0))
+        self.assertFalse(right_rot_pred.test(0))
+
+        offset = [0,0.317,0]
+        basket_pos = basket.pose.flatten()
+        basket_targ.value = basket.pose
+        basket_targ.rotation = basket.rotation
+
+        ee_left.value = np.zeros((3,1))
+        ee_left.rotation = np.zeros((3,1))
+        ee_right.value = np.zeros((3,1))
+        ee_right.rotation = np.zeros((3,1))
+        self.assertFalse(left_pos_pred.test(0))
+        self.assertFalse(right_pos_pred.test(0))
+        self.assertFalse(left_rot_pred.test(0))
+        self.assertFalse(right_rot_pred.test(0))
+
+        ee_left.rotation = np.array([[0,np.pi/2,0]]).T
+        ee_right.rotation = np.array([[0,np.pi/2,0]]).T
+
+        self.assertFalse(left_pos_pred.test(0))
+        self.assertFalse(right_pos_pred.test(0))
+        self.assertTrue(left_rot_pred.test(0))
+        self.assertTrue(right_rot_pred.test(0))
+
+        ee_left.value = (basket_pos + offset).reshape((3, 1))
+        ee_right.value = (basket_pos - offset).reshape((3, 1))
+        ee_left.rotation = np.zeros((3,1))
+        ee_right.rotation = np.zeros((3,1))
+
+        self.assertTrue(left_pos_pred.test(0))
+        self.assertTrue(right_pos_pred.test(0))
+        self.assertFalse(left_rot_pred.test(0))
+        self.assertFalse(right_rot_pred.test(0))

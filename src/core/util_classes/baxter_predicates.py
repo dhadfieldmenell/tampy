@@ -1,7 +1,7 @@
 from core.util_classes import robot_predicates
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable_rrt, resample_rcollides, resample_pred
+from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable_rrt, resample_basket_eereachable_rrt, resample_rcollides, resample_pred
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 from openravepy import DOFAffine, quatRotateDirection, matrixFromQuat
@@ -29,9 +29,9 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
            "Obstacle": (("pose", np.array([0,1,2], dtype=np.int)),
                         ("rotation", np.array([0,1,2], dtype=np.int))),
            "Basket": (("pose", np.array([0,1,2], dtype=np.int)),
-                        ("rotation", np.array([0,1,2], dtype=np.int))),
+                      ("rotation", np.array([0,1,2], dtype=np.int))),
            "BasketTarget": (("value", np.array([0,1,2], dtype=np.int)),
-                        ("rotation", np.array([0,1,2], dtype=np.int)))
+                            ("rotation", np.array([0,1,2], dtype=np.int)))
           }
 
 class BaxterAt(robot_predicates.At):
@@ -455,14 +455,22 @@ class BaxterEEReachablePos(BaxterEEReachable):
         self.eval_grad = self.stacked_grad
         super(BaxterEEReachablePos, self).__init__(name, params, expected_param_types, env, debug, steps)
 
-    def get_robot_info(self, robot_body):
+    def get_robot_info(self, robot_body, arm = "right"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
         # Provide functionality of Obtaining Robot information
-        tool_link = robot_body.env_body.GetLink("right_gripper")
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        arm_inds = list(range(10,17))
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
     def get_arm_jac(self, arm_jac, base_jac, obj_jac):
@@ -479,14 +487,22 @@ class BaxterEEReachableRot(BaxterEEReachable):
         self.eval_grad = lambda x: self.ee_rot_check(x)[1]
         super(BaxterEEReachableRot, self).__init__(name, params, expected_param_types, env, debug, steps)
 
-    def get_robot_info(self, robot_body):
+    def get_robot_info(self, robot_body, arm = "right"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
         # Provide functionality of Obtaining Robot information
-        tool_link = robot_body.env_body.GetLink("right_gripper")
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        arm_inds = list(range(10,17))
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
     def get_arm_jac(self, arm_jac, base_jac, obj_jac):
@@ -529,14 +545,25 @@ class BaxterEEReachableVerLeftPos(BaxterEEReachable):
         self.eval_grad = self.stacked_grad
         super(BaxterEEReachableVerLeftPos, self).__init__(name, params, expected_param_types, env, debug, steps)
 
-    def get_robot_info(self, robot_body):
+    def resample(self, negated, t, plan):
+        return resample_basket_eereachable_rrt(self, negated, t, plan)
+
+    def get_robot_info(self, robot_body, arm = "left"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
         # Provide functionality of Obtaining Robot information
-        tool_link = robot_body.env_body.GetLink("left_gripper")
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:], right_arm=False)
-        arm_inds = list(range(2,9))
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
     def get_arm_jac(self, arm_jac, base_jac, obj_jac):
@@ -557,14 +584,25 @@ class BaxterEEReachableVerRightPos(BaxterEEReachable):
         self.eval_grad = self.stacked_grad
         super(BaxterEEReachableVerRightPos, self).__init__(name, params, expected_param_types, env, debug, steps)
 
-    def get_robot_info(self, robot_body):
+    def resample(self, negated, t, plan):
+        return resample_basket_eereachable_rrt(self, negated, t, plan)
+
+    def get_robot_info(self, robot_body, arm = "right"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
         # Provide functionality of Obtaining Robot information
-        tool_link = robot_body.env_body.GetLink("right_gripper")
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        arm_inds = list(range(10,17))
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
     def get_arm_jac(self, arm_jac, base_jac, obj_jac):
@@ -585,14 +623,25 @@ class BaxterEEReachableVerLeftRot(BaxterEEReachable):
         self.eval_grad = lambda x: self.ee_rot_check(x)[1]
         super(BaxterEEReachableVerLeftRot, self).__init__(name, params, expected_param_types, env, debug, steps)
 
-    def get_robot_info(self, robot_body):
+    def resample(self, negated, t, plan):
+        return resample_basket_eereachable_rrt(self, negated, t, plan)
+
+    def get_robot_info(self, robot_body, arm = "left"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
         # Provide functionality of Obtaining Robot information
-        tool_link = robot_body.env_body.GetLink("left_gripper")
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:], right_arm=False)
-        arm_inds = list(range(2,9))
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
     def get_arm_jac(self, arm_jac, base_jac, obj_jac):
@@ -608,14 +657,25 @@ class BaxterEEReachableVerRightRot(BaxterEEReachable):
         self.eval_grad = lambda x: self.ee_rot_check(x)[1]
         super(BaxterEEReachableVerRightRot, self).__init__(name, params, expected_param_types, env, debug, steps)
 
-    def get_robot_info(self, robot_body):
+    def resample(self, negated, t, plan):
+        return resample_basket_eereachable_rrt(self, negated, t, plan)
+
+    def get_robot_info(self, robot_body, arm = "right"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
         # Provide functionality of Obtaining Robot information
-        tool_link = robot_body.env_body.GetLink("right_gripper")
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-        arm_inds = list(range(10,17))
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
     def get_arm_jac(self, arm_jac, base_jac, obj_jac):
@@ -629,12 +689,13 @@ class BaxterBasketGraspLeftPos(BaxterGraspValidPos):
         self.ee_pose, self.target = params
         attr_inds = self.attr_inds
 
-        target_pos = params[1].value
-        target_pos[:2] /= np.linalg.norm(target_pos[:2])
-        target_pos *= [1, 1, 0]
-        orient_mat = matrixFromQuat(quatRotateDirection(target_pos, [1, 0, 0]))[:3, :3]
+        # target_pos = params[1].value
+        # target_pos[:2] /= np.linalg.norm(target_pos[:2])
+        # target_pos *= np.array([1, 1, 0])
+        # orient_mat = matrixFromQuat(quatRotateDirection(target_pos, [1, 0, 0]))[:3, :3]
+        # A = np.c_[orient_mat, -orient_mat]
 
-        A = np.c_[orient_mat, -orient_mat]
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
         b, val = np.zeros((self.attr_dim,1)), np.array([[0], [0.317], [0]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
@@ -650,7 +711,7 @@ class BaxterBasketGraspLeftRot(BaxterGraspValidRot):
         attr_inds = self.attr_inds
 
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
-        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [np.pi/2], [0]])
+        b, val = np.zeros((self.attr_dim,1)), np.array([[-np.pi/2], [np.pi/2], [-np.pi/2]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -668,7 +729,7 @@ class BaxterBasketGraspRightPos(BaxterGraspValidPos):
         # target_pos[:2] /= np.linalg.norm(target_pos[:2])
         # target_pos *= [1, 1, 0]
         # orient_mat = matrixFromQuat(quatRotateDirection(target_pos, [1, 0, 0]))[:3, :3]
-        #
+
         # A = np.c_[orient_mat, -orient_mat]
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
         b, val = np.zeros((self.attr_dim,1)), np.array([[0], [-0.317], [0]])
@@ -681,13 +742,13 @@ class BaxterBasketGraspRightPos(BaxterGraspValidPos):
 class BaxterBasketGraspRightRot(BaxterGraspValidRot):
     # BaxterBasketGraspLeftRot, EEPose, BasketTarget
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]]), (params[1], [ATTRMAP[params[1]._type][1]])])
         self.attr_dim = 3
         self.ee_pose, self.target = params
         attr_inds = self.attr_inds
 
-        A = np.c_[np.eye(self.attr_dim), np.eye(self.attr_dim)]
-        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [np.pi/2], [0]])
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim,1)), np.array([[-np.pi/2], [np.pi/2], [-np.pi/2]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -845,9 +906,43 @@ class BaxterBasketInGripperRot(BaxterInGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         # Sets up constants
-        self.eval_dim = 2
+        self.eval_dim = 6
         self.coeff = const.IN_GRIPPER_COEFF
         self.opt_coeff = const.INGRIPPER_OPT_COEFF
         self.eval_f = lambda x: self.both_arm_rot_check(x)[0]
         self.eval_grad = lambda x: self.both_arm_rot_check(x)[1]
         super(BaxterBasketInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
+
+    def rot_error(self, obj_trans, robot_trans, axises, arm_joints, arm="right"):
+        """
+            This function calculates the value and the jacobian of the rotational error between
+            robot gripper's rotational axis and object's rotational axis
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        rot_vals = []
+        rot_jacs = []
+        expected = np.array([0, 0, 1])
+        for local_dir in np.eye(3):
+            obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+            world_dir = robot_trans[:3,:3].dot(local_dir)
+            obj_dir = obj_dir/np.linalg.norm(obj_dir)
+            world_dir = world_dir/np.linalg.norm(world_dir)
+            rot_vals.append(np.array([[np.abs(np.dot(obj_dir, world_dir)) - expected.dot(local_dir)]]))
+            sign = np.sign(np.dot(obj_dir, world_dir))
+            # computing robot's jacobian
+            arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign*world_dir)) for joint in arm_joints]).T.copy()
+            arm_jac = arm_jac.reshape((1, len(arm_joints)))
+            base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
+            # computing object's jacobian
+            obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+            obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
+            # Create final 1x23 jacobian matrix
+            rot_jacs.append(self.arm_jac_cancatenation(arm_jac, base_jac, obj_jac, arm))
+
+        rot_val = np.vstack(rot_vals)
+        rot_jac = np.vstack(rot_jacs)
+        return (rot_val, rot_jac)
