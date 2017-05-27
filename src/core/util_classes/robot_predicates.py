@@ -1058,7 +1058,7 @@ class BasketLevel(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         attr_inds = self.attr_inds
         A = np.c_[np.eye(self.attr_dim)]
-        b, val = np.zeros((self.attr_dim,1)), np.array([[1.57], [0], [1.57]])
+        b, val = np.zeros((self.attr_dim,1)), np.array([[np.pi/2], [0], [np.pi/2]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(BasketLevel, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -1074,5 +1074,5 @@ class ObjectWithinRotLimit(ExprPredicate):
         b, val = np.array([[np.pi], [np.pi], [np.pi]]), np.array([[2*np.pi], [2*np.pi], [2*np.pi]])
         pos_expr = AffExpr(A, b)
         e = LEqExpr(pos_expr, val)
-        super(BasketLevel, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(ObjectWithinRotLimit, self).__init__(name, e, attr_inds, params, expected_param_types)
         self.spacial_anchor = False
