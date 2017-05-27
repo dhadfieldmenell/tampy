@@ -913,6 +913,7 @@ class BaxterBasketInGripperRot(BaxterInGripper):
         self.eval_grad = lambda x: self.both_arm_rot_check(x)[1]
         super(BaxterBasketInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
 
+
     def rot_error(self, obj_trans, robot_trans, axises, arm_joints, arm="right"):
         """
             This function calculates the value and the jacobian of the rotational error between
@@ -946,3 +947,8 @@ class BaxterBasketInGripperRot(BaxterInGripper):
         rot_val = np.vstack(rot_vals)
         rot_jac = np.vstack(rot_jacs)
         return (rot_val, rot_jac)
+
+
+class BaxterBasketLevel(robot_predicates.BasketLevel):
+    # BaxterBasketLevel Basket
+    pass
