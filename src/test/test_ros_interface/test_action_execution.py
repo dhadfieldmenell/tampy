@@ -26,7 +26,7 @@ class TestActionExecute(unittest.TestCase):
 		# action = plan.actions[0]
 		# action_execution.execute_action(plan)
 		print("Initializing node... ")
-		rospy.init_node("rsdk_joint_trajectory_client_%s" % (limb,))
+		rospy.init_node("rsdk_joint_trajectory_client")
 		print("Getting robot state... ")
 		rs = baxter_interface.RobotEnable(CHECK_VERSION)
 		print("Enabling robot... ")
