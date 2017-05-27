@@ -616,44 +616,44 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     if resample_failure:
         plan.sampling_trace[-1]['reward'] = -1
         return None, None
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     # lock the variables
     robot._free_attrs['{}ArmPose'.format(direction[0])][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
     # finding initial pose
-    init_timestep, ref_index = 0, 0
-    for i in range(len(plan.actions)):
-        act_range = plan.actions[i].active_timesteps
-        if act_range[0] <= t <= act_range[1]:
-            init_timestep = act_range[0]
-            ref_index = i
-
-    if pred.ee_resample is True and ref_index > 0:
-        init_timestep = plan.actions[ref_index - 1].active_timesteps[0]
-
-    init_dof = robot.rArmPose[:, init_timestep].flatten()
-    init_dof = np.hstack([robot.pose[:, init_timestep], init_dof])
-    end_dof = robot.rArmPose[:, t - const.EEREACHABLE_STEPS].flatten()
-    end_dof = np.hstack([robot.pose[:, t - const.EEREACHABLE_STEPS], end_dof])
-    timesteps = t - const.EEREACHABLE_STEPS - init_timestep + 2
-
-    raw_traj = get_rrt_traj(plan.env, body, active_dof, init_dof, end_dof)
-    # Restore dof0
-    dof = body.GetActiveDOFValues()
-    dof[0] = 0
-    body.SetActiveDOFValues(dof)
-    # trajectory is infeasible
-    if raw_traj == None:
-        plan.sampling_trace[-1]['reward'] = -1
-        return None, None
-    # initailize feasible trajectory
-    result_traj = process_traj(raw_traj, timesteps).T[1:-1]
-    ts = 1
-    for traj in result_traj:
-        add_to_attr_inds_and_res(init_timestep + ts, attr_inds, res, robot, [('{}ArmPose'.format(direction[0]), traj[1:]), ('pose', traj[:1])])
-        ts += 1
-
-    pred.ee_resample = True
-    import ipdb; ipdb.set_trace()
+    # init_timestep, ref_index = 0, 0
+    # for i in range(len(plan.actions)):
+    #     act_range = plan.actions[i].active_timesteps
+    #     if act_range[0] <= t <= act_range[1]:
+    #         init_timestep = act_range[0]
+    #         ref_index = i
+    #
+    # if pred.ee_resample is True and ref_index > 0:
+    #     init_timestep = plan.actions[ref_index - 1].active_timesteps[0]
+    #
+    # init_dof = robot.rArmPose[:, init_timestep].flatten()
+    # init_dof = np.hstack([robot.pose[:, init_timestep], init_dof])
+    # end_dof = robot.rArmPose[:, t - const.EEREACHABLE_STEPS].flatten()
+    # end_dof = np.hstack([robot.pose[:, t - const.EEREACHABLE_STEPS], end_dof])
+    # timesteps = t - const.EEREACHABLE_STEPS - init_timestep + 2
+    #
+    # raw_traj = get_rrt_traj(plan.env, body, active_dof, init_dof, end_dof)
+    # # Restore dof0
+    # dof = body.GetActiveDOFValues()
+    # dof[0] = 0
+    # body.SetActiveDOFValues(dof)
+    # # trajectory is infeasible
+    # if raw_traj == None:
+    #     plan.sampling_trace[-1]['reward'] = -1
+    #     return None, None
+    # # initailize feasible trajectory
+    # result_traj = process_traj(raw_traj, timesteps).T[1:-1]
+    # ts = 1
+    # for traj in result_traj:
+    #     add_to_attr_inds_and_res(init_timestep + ts, attr_inds, res, robot, [('{}ArmPose'.format(direction[0]), traj[1:]), ('pose', traj[:1])])
+    #     ts += 1
+    #
+    # pred.ee_resample = True
+    # import ipdb; ipdb.set_trace()
     return np.array(res), attr_inds
 
 def resample_obstructs(pred, negated, t, plan):

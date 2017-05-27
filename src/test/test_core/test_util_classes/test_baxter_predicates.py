@@ -608,8 +608,6 @@ class TestBaxterPredicates(unittest.TestCase):
         right_trajectory = np.array(right_trajectory)
         robot.rArmPose = right_trajectory.T
 
-        viewer = OpenRAVEViewer.create_viewer(env)
-        import ipdb; ipdb.set_trace()
 
         # Predicate should succeed in the grasping post at t=3,
         # EEreachableRot should always pass since rotation is right all the time
@@ -728,8 +726,6 @@ class TestBaxterPredicates(unittest.TestCase):
         right_trajectory = np.array(right_trajectory)
         robot.rArmPose = right_trajectory.T
 
-        viewer = OpenRAVEViewer.create_viewer(env)
-        import ipdb; ipdb.set_trace()
 
         # Predicate should succeed in the grasping post at t=3,
         # EEreachableRot should always pass since rotation is right all the time
@@ -774,9 +770,9 @@ class TestBaxterPredicates(unittest.TestCase):
         ee_right = params['ee_right']
         baxter_body = robot.openrave_body
 
-        viewer = OpenRAVEViewer.create_viewer(env)
-        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
-        viewer.draw(objLst, 0, 0.7)
+        # viewer = OpenRAVEViewer.create_viewer(env)
+        # objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        # viewer.draw(objLst, 0, 0.7)
 
         pos_pred = baxter_predicates.BaxterBasketInGripperPos("BasketInGripper", [robot, basket], ["Robot", "Basket"], env)
         rot_pred = baxter_predicates.BaxterBasketInGripperRot("BasketInGripperRot", [robot, basket], ["Robot", "Basket"], env)
@@ -849,7 +845,6 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pos_pred.test(6))
 
 
-        import ipdb; ipdb.set_trace()
 
         self.assertTrue(rot_pred.test(0))
         self.assertTrue(rot_pred.test(1))

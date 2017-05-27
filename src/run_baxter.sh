@@ -12,6 +12,8 @@
 #
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_eereachable_inv --debug
 #
+# nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_basket_grasp_valid --debug
+
 #
 # nose2 test.test_core.test_util_classes.test_pr2_predicates.TestPR2Predicates.test_in_gripper --debug
 #
