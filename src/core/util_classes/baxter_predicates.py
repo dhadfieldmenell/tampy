@@ -627,10 +627,10 @@ class BaxterBasketGraspLeftPos(BaxterGraspValidPos):
         self.ee_pose, self.target = params
         attr_inds = self.attr_inds
 
-        target_pos = params[1].value
-        target_pos[:2] /= np.linalg.norm(target_pos[:2])
-        target_pos *= [1, 1, 0]
-        orient_mat = matrixFromQuat(quatRotateDirection(target_pos, [1, 0, 0]))[:3, :3]
+        basket_dir = params[1].value
+        basket_dir *= [1, 1, 0]
+        basket_dir /= np.linalg.norm(target_pos)
+        orient_mat = matrixFromQuat(quatRotateDirection(basket_dir, [1, 0, 0]))[:3, :3]
 
         A = np.c_[orient_mat, -orient_mat]
         b, val = np.zeros((self.attr_dim,1)), np.array([[0], [0.317], [0]])
@@ -848,3 +848,7 @@ class BaxterBasketInGripperRot(BaxterInGripper):
         self.eval_f = lambda x: self.both_arm_rot_check(x)[0]
         self.eval_grad = lambda x: self.both_arm_rot_check(x)[1]
         super(BaxterBasketInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
+
+class BaxterBasketLevel(robot_predicates.BasketLevel):
+    # BaxterBasketLevel Basket
+    pass
