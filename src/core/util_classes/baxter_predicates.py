@@ -951,4 +951,8 @@ class BaxterBasketInGripperRot(BaxterInGripper):
 
 class BaxterBasketLevel(robot_predicates.BasketLevel):
     # BaxterBasketLevel Basket
-    pass
+    def __init(self, name, params, expected_param_types, env=None, debug=False):
+            self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]])])
+            self.attr_dim = 3
+            self.basket = params[0]
+            super(BaxterBasketLevel, self).__init__(name, params, expected_param_types, env, debug)
