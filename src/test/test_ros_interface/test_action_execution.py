@@ -2,6 +2,7 @@ import sys
 import unittest
 import time
 import main
+import rospy
 import numpy as np
 from ros_interface import action_execution
 from core.util_classes.plan_hdf5_serialization import PlanDeserializer
@@ -25,7 +26,7 @@ class TestActionExecute(unittest.TestCase):
 		# action = plan.actions[0]
 		# action_execution.execute_action(plan)
 		print("Initializing node... ")
-		rospy.init_node("rsdk_joint_trajectory_client_%s" % (limb,))
+		rospy.init_node("rsdk_joint_trajectory_client")
 		print("Getting robot state... ")
 		rs = baxter_interface.RobotEnable(CHECK_VERSION)
 		print("Enabling robot... ")

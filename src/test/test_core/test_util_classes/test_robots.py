@@ -96,16 +96,17 @@ class TestRobots(unittest.TestCase):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter.domain',
                        '../domains/baxter_domain/baxter_probs/test_env.prob')
         env = problem.env
-        viewer = OpenRAVEViewer.create_viewer(env)
-        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
-        viewer.draw(objLst, 0, 0.7)
-        can_body = viewer.name_to_rave_body["can0"]
-        baxter_body = viewer.name_to_rave_body["baxter"]
-        basket_body = viewer.name_to_rave_body['basket']
+        # viewer = OpenRAVEViewer.create_viewer(env)
+        # objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        # viewer.draw(objLst, 0, 0.7)
         can = params['can0']
         robot = params['baxter']
         basket = params['basket']
         table = params['table']
+        can_body = can.openrave_body
+        baxter_body = robot.openrave_body
+        basket_body = basket.openrave_body
+
         # can_pos = [0.965, -0.576, 0.928]
         # basket_pos = [0.75, 0.02, 1.07]
         pred0 = BaxterCollides("test_collides", [basket, table], ["Basket", "Obstacle"], env)

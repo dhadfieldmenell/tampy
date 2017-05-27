@@ -3,9 +3,7 @@ from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.robots import Robot, PR2, Baxter
-from core.util_classes.can import Can
-from core.util_classes.table import Table
-from core.util_classes.box import Box
+from core.util_classes.items import Can, Table, Box
 import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
 

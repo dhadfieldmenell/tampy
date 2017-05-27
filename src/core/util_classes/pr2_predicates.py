@@ -172,6 +172,7 @@ class PR2InGripper(robot_predicates.InGripper):
     # InGripper, Robot, Can
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.eval_dim = 3
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(PR2InGripper, self).__init__(name, params, expected_param_types, env, debug)
@@ -196,6 +197,62 @@ class PR2InGripper(robot_predicates.InGripper):
         robot_trans = tool_link.GetTransform()
         arm_inds = robot_body.env_body.GetManipulator('rightarm').GetArmIndices()
         return robot_trans, arm_inds
+
+    def pos_error(self, obj_trans, robot_trans, axises, arm_joints):
+        """
+            This function calculates the value and the jacobian of the displacement between center of gripper and center of object
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        gp = np.array([0,0,0])
+        robot_pos = robot_trans[:3, 3]
+        obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
+        dist_val = (robot_pos.flatten() - obj_pos.flatten()).reshape((3,1))
+        # Calculate the joint jacobian
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos.flatten() - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        # Calculate jacobian for the robot base
+        base_jac = np.eye(3)
+        base_jac[:,2] = np.cross(np.array([0, 0, 1]), robot_pos - self.x[:3])
+        # Calculate jacobian for the back hight
+        torso_jac = np.array([[0],[0],[1]])
+        # Calculate object jacobian
+        obj_jac = -1*np.array([np.cross(axis, obj_pos - gp - obj_trans[:3,3].flatten()) for axis in axises]).T
+        obj_jac = np.c_[-np.eye(3), obj_jac]
+        # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
+        dist_jac = np.hstack((base_jac, torso_jac, np.zeros((3, 8)), arm_jac, np.zeros((3, 1)), obj_jac))
+        return dist_val, dist_jac
+
+    def rot_error(self, obj_trans, robot_trans, axises, arm_joints):
+        """
+            This function calculates the value and the jacobian of the rotational error between
+            robot gripper's rotational axis and object's rotational axis
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        local_dir = np.array([0.,0.,1.])
+        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+        world_dir = robot_trans[:3,:3].dot(local_dir)
+        obj_dir = obj_dir/np.linalg.norm(obj_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
+        # computing robot's jacobian
+        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
+        arm_jac = arm_jac.reshape((1, len(arm_joints)))
+        base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir)))
+        base_jac = np.array([[0, 0, base_jac]])
+        # computing object's jacobian
+        obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+        obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
+        # Create final 1x26 jacobian matrix
+        rot_jac = np.hstack((base_jac, np.zeros((1, 9)), arm_jac, np.zeros((1,1)), obj_jac))
+
+        return (rot_val, rot_jac)
 
 class PR2InGripperPos(PR2InGripper):
 
@@ -324,6 +381,67 @@ class PR2EEReachable(robot_predicates.EEReachable):
             i += self.attr_dim
             j += k
         return grad
+
+    def pos_error_rel_to_obj(self, obj_trans, robot_trans, axises, arm_joints, rel_pt):
+        """
+            This function calculates the value and the jacobian of the displacement between center of gripper and a point relative to the object
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        gp = rel_pt
+        robot_pos = robot_trans[:3, 3]
+        obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
+        dist_val = (robot_pos.flatten() - obj_pos.flatten()).reshape((3,1))
+        # Calculate the joint jacobian
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos.flatten() - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        # Calculate jacobian for the robot base
+        base_jac = np.eye(3)
+        base_jac[:,2] = np.cross(np.array([0, 0, 1]), robot_pos - self.x[:3])
+        # Calculate jacobian for the back hight
+        torso_jac = np.array([[0],[0],[1]])
+        # Calculate object jacobian
+        # obj_jac = -1*np.array([np.cross(axis, obj_pos - gp - obj_trans[:3,3].flatten()) for axis in axises]).T
+        obj_jac = -1*np.array([np.cross(axis, obj_pos - obj_trans[:3,3].flatten()) for axis in axises]).T
+        obj_jac = np.c_[-np.eye(3), obj_jac]
+        # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
+        dist_jac = np.hstack((base_jac, torso_jac, np.zeros((3, 8)), arm_jac, np.zeros((3, 1)), obj_jac))
+
+        return (dist_val, dist_jac)
+
+    def rot_lock(self, obj_trans, robot_trans, axises, arm_joints):
+        """
+            This function calculates the value and the jacobian of the rotational error between
+            robot gripper's rotational axis and object's rotational axis
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        rot_vals = []
+        rot_jacs = []
+        for local_dir in np.eye(3):
+            obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+            world_dir = robot_trans[:3,:3].dot(local_dir)
+            rot_vals.append(np.array([[np.dot(obj_dir, world_dir) - 1]]))
+            # computing robot's jacobian
+            arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
+            arm_jac = arm_jac.reshape((1, len(arm_joints)))
+            base_jac = np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir)))
+            base_jac = np.array([[0, 0, base_jac]])
+            # computing object's jacobian
+            obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+            obj_jac = np.r_[[0,0,0], obj_jac].reshape((1, 6))
+            # Create final 1x26 jacobian matrix
+            rot_jacs.append(np.hstack((base_jac, np.zeros((1, 9)), arm_jac, np.zeros((1,1)), obj_jac)))
+
+        rot_val = np.vstack(rot_vals)
+        rot_jac = np.vstack(rot_jacs)
+
+        return (rot_val, rot_jac)
 
 class PR2EEReachablePos(PR2EEReachable):
 
