@@ -27,6 +27,8 @@ class PlanSerializer:
         for action in plan.actions:
             self._add_action_to_group(action_group, action)
 
+        hdf5_file.close()
+
 
     def _add_action_to_group(self, group, action):
         action_group = group.create_group(action.name)
@@ -112,7 +114,9 @@ class PlanDeserializer:
             print 'Cannot read plan from hdf5: File does not contain a plan.'
             return
 
-        return self._build_plan(file['plan'])
+        plan = self._build_plan(file['plan'])
+        file.close()
+        return plan
 
 
     def _build_plan(self, group):
