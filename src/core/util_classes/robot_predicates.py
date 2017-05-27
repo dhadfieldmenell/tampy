@@ -1055,7 +1055,7 @@ class BasketLevel(ExprPredicate):
     '''
     Format: BasketLevel Basket
     '''
-    def __init(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
         attr_inds = self.attr_inds
         A = np.c_[np.eye(self.attr_dim)]
         A[0, 0] = 0
