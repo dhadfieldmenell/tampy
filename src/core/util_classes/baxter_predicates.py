@@ -994,7 +994,7 @@ class BaxterGrippersLevel():
             arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
-    def both_arm_pos_check(self, x):
+    def both_arm_check(self, x):
         """
             This function is used to check whether:
                 both grippers have the same rotation and height
