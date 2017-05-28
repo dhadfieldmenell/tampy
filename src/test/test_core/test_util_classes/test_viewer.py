@@ -5,6 +5,7 @@ from core.util_classes import matrix
 from core.internal_repr import parameter
 from core.util_classes.robots import PR2
 from core.util_classes.items import Box, Can, BlueCan, Table
+from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 import numpy as np
 import time
 
@@ -105,3 +106,12 @@ class TestViewer(unittest.TestCase):
         # testViewer = viewer.OpenRAVEViewer()
         # testViewer.draw_traj([robot, can, table, sTable], range(1))
         # import ipdb; ipdb.set_trace()
+
+    def test_record(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5("basket_plan4.hdf5")
+        #
+        view = viewer.OpenRAVEViewer.create_viewer(plan.env)
+        # view.record_plan(plan, "basket_video")
+        import ipdb; ipdb.set_trace()
+        view.animate_plan(plan, 1)

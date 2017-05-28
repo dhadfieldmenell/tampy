@@ -85,7 +85,7 @@ class TestBasketDomain(unittest.TestCase):
 
         col_pred = BaxterCollides("collision_checker", [basket, table], ["Basket", "Obstacle"], env)
 
-        ver_off = [0, 0,0.075]
+        ver_off = [0, 0,0.15]
         #Grasping Pose
         left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset, [0,np.pi/2,0], "left_arm")[0]
         right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset, [0,np.pi/2,0], "right_arm")[0]

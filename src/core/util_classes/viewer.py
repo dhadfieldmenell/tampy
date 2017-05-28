@@ -71,11 +71,13 @@ class OpenRAVEViewer(Viewer):
                 obj_list.append(p)
         for t in range(horizon):
             self.draw(obj_list, t)
-            time.sleep(0.1)
+            time.sleep(1)
             if cam is None:
                 cam = v.GetCameraTransform()
+            v.SendCommand('SetFiguresInCamera 1')
             im = v.GetCameraImage(res[0], res[1], cam,[640,640,320,240])
             scipy.misc.imsave('.video_images/frame_'+str('%05d'%t)+'.png', im)
+
         outfname = "{}.mp4".format(outf)
         if osp.exists(outfname):
             os.remove(outfname)
