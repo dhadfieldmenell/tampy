@@ -19,9 +19,9 @@ class TestBasketDomain(unittest.TestCase):
         print "loading basket problem..."
         p_c = main.parse_file_to_dict('../domains/baxter_domain/baxter_probs/basket_move.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        plan_str = ['0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE GRASP_EE_LEFT GRASP_EE_RIGHT PICKUP_POSE']
-        
-                    # '1: BASKET_PUTDOWN BAXTER BASKET END_TARGET PICKUP_POSE PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_END_POSE'
+        plan_str = ['0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE GRASP_EE_LEFT GRASP_EE_RIGHT PICKUP_POSE', '1: BASKET_PUTDOWN BAXTER BASKET END_TARGET PICKUP_POSE PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_END_POSE']
+
+                    #
         plan = hls.get_plan(plan_str, domain, problem)
 
         print "solving basket domain problem..."
@@ -70,9 +70,10 @@ class TestBasketDomain(unittest.TestCase):
                        '../domains/baxter_domain/baxter_probs/basket_move.prob')
         env = problem.env
 
-        # viewer = OpenRAVEViewer.create_viewer(env)
-        # objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
-        # viewer.draw(objLst, 0, 0.7)
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        viewer.draw(objLst, 0, 0.7)
+
         robot = params['baxter']
         basket = params['basket']
         table = params['table']
@@ -86,9 +87,15 @@ class TestBasketDomain(unittest.TestCase):
 
         ver_off = [0, 0,0.075]
         #Grasping Pose
+        left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+
         left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset + ver_off, [0,np.pi/2,0], "left_arm")[0]
         right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset + ver_off, [0,np.pi/2,0], "right_arm")[0]
         baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+
+
 
         self.assertFalse(col_pred.test(0))
         # Holding Pose
@@ -98,17 +105,18 @@ class TestBasketDomain(unittest.TestCase):
         basket_body.set_pose([0.75, 0.02, 1.01 + 0.15], end_targ.rotation.flatten())
 
         #Putdown Pose
+        basket_body.set_pose(end_targ.value.flatten(), end_targ.rotation.flatten())
+        left_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() + offset, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() - offset, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+
         left_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() + offset + ver_off, [0,np.pi/2,0], "left_arm")[0]
         right_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() - offset + ver_off, [0,np.pi/2,0], "right_arm")[0]
         baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
-        basket_body.set_pose(end_targ.value.flatten(), end_targ.rotation.flatten())
         basket.pose = end_targ.value
         self.assertFalse(col_pred.test(0))
 
-
-        # [0.65 , -0.283,  1.01]
-        # [0.75, 0.02, 1.005]
-        # [0.65, 0.323, 1.01]
+# 0.65 ,  0.323,  0.76
 
 if __name__ == "__main__":
     unittest.main()

@@ -142,7 +142,6 @@ class RobotLLSolver(LLSolver):
             ## this should only get called with a full plan for now
             # assert active_ts == (0, plan.horizon-1)
             failed_preds = plan.get_failed_preds()
-
             # print "{} predicates fails, resampling process begin...\n \
             #        Checking {}".format(len(failed_preds), failed_preds[0])
 
