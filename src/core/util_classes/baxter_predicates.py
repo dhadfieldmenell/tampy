@@ -1,7 +1,7 @@
 from core.util_classes import robot_predicates
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable_rrt, resample_basket_eereachable_rrt, resample_rcollides, resample_pred
+from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable_rrt, resample_basket_eereachable_rrt, resample_rcollides, resample_pred, resample_basket_obstructs
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 from openravepy import DOFAffine, quatRotateDirection, matrixFromQuat
@@ -52,7 +52,7 @@ class BaxterIsMP(robot_predicates.IsMP):
     # IsMP Robot (Just the Robot Base)
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list((ATTRMAP[params[0]._type][0], ATTRMAP[params[0]._type][2], ATTRMAP[params[0]._type][4])))])
         self.dof_cache = None
         super(BaxterIsMP, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -61,17 +61,17 @@ class BaxterIsMP(robot_predicates.IsMP):
         robot_body = self._param_to_body[self.robot]
         robot = robot_body.env_body
         dof_map = robot_body._geom.dof_map
-        dof_inds = np.r_[dof_map["lArmPose"], dof_map["lGripper"], dof_map["rArmPose"], dof_map["rGripper"]]
+        dof_inds = np.r_[dof_map["lArmPose"], dof_map["rArmPose"]]
         lb_limit, ub_limit = robot.GetDOFLimits()
-        active_ub = ub_limit[dof_inds].reshape((const.JOINT_DIM,1))
-        active_lb = lb_limit[dof_inds].reshape((const.JOINT_DIM,1))
+        active_ub = ub_limit[dof_inds].reshape((len(dof_inds),1))
+        active_lb = lb_limit[dof_inds].reshape((len(dof_inds),1))
         joint_move = (active_ub-active_lb)/const.JOINT_MOVE_FACTOR
         # Setup the Equation so that: Ax+b < val represents
         # |base_pose_next - base_pose| <= const.BASE_MOVE
         # |joint_next - joint| <= joint_movement_range/const.JOINT_MOVE_FACTOR
         val = np.vstack((joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1)), joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1))))
-        A = np.eye(2*const.ROBOT_ATTR_DIM) - np.eye(2*const.ROBOT_ATTR_DIM, k=const.ROBOT_ATTR_DIM) - np.eye(2*const.ROBOT_ATTR_DIM, k=-const.ROBOT_ATTR_DIM)
-        b = np.zeros((2*const.ROBOT_ATTR_DIM,1))
+        A = np.eye(len(val)) - np.eye(len(val), k=len(val)/2) - np.eye(len(val), k=-len(val)/2)
+        b = np.zeros((len(val),1))
         self.base_step = const.BASE_MOVE*np.ones((const.BASE_DIM, 1))
         self.joint_step = joint_move
         self.lower_limit = active_lb
@@ -189,8 +189,8 @@ class BaxterObstructs(robot_predicates.Obstructs):
         self.dsafe = const.DIST_SAFE
 
     def resample(self, negated, t, plan):
-        return resample_pred(self, negated, t, plan)
-        # return resample_obstructs(self, negated, t, plan)
+        # return resample_pred(self, negated, t, plan)
+        return resample_basket_obstructs(self, negated, t, plan)
         # return None, None
 
     def set_active_dof_inds(self, robot_body, reset = False):
@@ -234,8 +234,8 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         self.dsafe = const.DIST_SAFE
 
     def resample(self, negated, t, plan):
-        # return resample_obstructs(self, negated, t, plan)
-        return resample_pred(self, negated, t, plan)
+        return resample_basket_obstructs(self, negated, t, plan)
+        # return resample_pred(self, negated, t, plan)
         # return None, None
 
     def set_robot_poses(self, x, robot_body):
@@ -994,7 +994,7 @@ class BaxterGrippersLevel():
             arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
-    def both_arm_pos_check(self, x):
+    def both_arm_check(self, x):
         """
             This function is used to check whether:
                 both grippers have the same rotation and height
