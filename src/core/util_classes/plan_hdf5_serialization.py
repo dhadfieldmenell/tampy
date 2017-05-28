@@ -198,7 +198,7 @@ class PlanDeserializer:
 
         if geom_class is Baxter:
             base_dir = os.getcwd()
-            geom.shape = "{0}/../models/baxter/baxter.xml".format(base_dir)
+            geom.shape = "{0}/../models/baxter/baxter.zae".format(base_dir)
 
         if geom_class is PR2:
             base_dir = os.getcwd()
