@@ -33,7 +33,8 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                       ("rotation", np.array([0,1,2], dtype=np.int))),
            "BasketTarget": (("value", np.array([0,1,2], dtype=np.int)),
                             ("rotation", np.array([0,1,2], dtype=np.int))),
-           "EEVel": (("value", np.array([0], dtype=np.int)))
+           "EEVel": (("value", np.array([0, 1, 2], dtype=np.int)),
+                     ("rotation", np.array([0, 1, 2], dtype=np.int)))
           }
 
 class BaxterAt(robot_predicates.At):
@@ -1048,6 +1049,7 @@ class BaxterGrippersLevel():
         obj_jac = np.c_[-np.eye(3), obj_jac]
         # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
         dist_jac = self.arm_jac_cancatenation(arm_jac, base_jac, obj_jac, arm)
+        calculates
         return dist_val, dist_jac
 
 
@@ -1055,12 +1057,12 @@ class BaxterVelocity(robot_predicates.Velocity):
     # BaxterVelocity Robot EEVel
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], list((ATTRMAP[params[0]._type]))), (params[1], [(ATTRMAP[params[1]._type])])])
+        self.attr_inds = OrderedDict([(params[0], list((ATTRMAP[params[0]._type]))), (params[1], [(ATTRMAP[params[1]._type][0])])])
         self.dof_cache = None
         self.coeff = 1
         self.eval_f = lambda x: self.vel_check(x)[0]
         self.eval_grad = lambda x: self.vel_check(x)[1]
-        self.eval_dim = 2
+        self.eval_dim = 12
 
         super(BaxterVelocity, self).__init__(name, params, expected_param_types, env, debug)
         self.spacial_anchor = False
@@ -1101,59 +1103,69 @@ class BaxterVelocity(robot_predicates.Velocity):
             Check whether val_check(x)[0] <= 0
             x = lArmPose(t), lGripper(t), rArmPose(t), rGripper(t), pose(t), EEvel.value(t),
                 lArmPose(t+1), lGripper(t+1), rArmPose(t+1), rGripper(t+1), pose(t+1), EEvel.value(t+1)
-                dim (36, 1)
+                dim (40, 1)
         """
-        jac = np.zeros((2, 36))
+
+        jac = np.zeros((12, 40))
         robot_body = self._param_to_body[self.params[self.ind0]]
         robot = robot_body.env_body
         # Set poses and Get transforms
-        self.set_robot_poses(x[:17], robot_body)
+        self.set_robot_poses(x[0:17], robot_body)
         robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
         robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
         left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
         right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
 
-        left_pose = robot_left_trans[:3,3]
-        left_arm_jac = np.array([np.cross(joint.GetAxis(), left_pose.flatten() - joint.GetAnchor()) for joint in left_arm_joints]).T.copy()
-        left_base_jac = np.cross(np.array([0, 0, 1]), left_pose - np.zeros((3,))).reshape((3,1))
+        left_pose_rot =robot_left_trans[:3,3]
+        left_arm_jac = np.array([np.cross(joint.GetAxis(), left_pose_rot[:3] - joint.GetAnchor()) for joint in left_arm_joints]).T.copy()
+        left_base_jac = np.cross(np.array([0, 0, 1]), left_pose_rot[:3] - np.zeros((3,))).reshape((3,))
 
-        jac[0, 0:7] = -left_arm_jac
-        jac[0, 16] = -left_base_jac
-        jac[0, 17] = -1
+        jac[0:3, 0:7] = -left_arm_jac
+        jac[0:3, 16] = -left_base_jac
+        jac[0:3, 17:20] = -np.eye(3)
 
-        right_pose = robot_right_trans[:3,3]
-        right_arm_jac = np.array([np.cross(joint.GetAxis(), right_pose.flatten() - joint.GetAnchor()) for joint in right_arm_joints]).T.copy()
-        right_base_jac = np.cross(np.array([0, 0, 1]), right_pose - np.zeros((3,))).reshape((3,1))
+        jac[3:6, 0:7] = left_arm_jac
+        jac[3:6, 16] = left_base_jac
+        jac[3:6, 17:20] = -np.eye(3)
 
-        jac[1, 8:15] = -right_arm_jac
-        jac[1, 16] = -right_base_jac
-        jac[1, 17] = -1
+        right_pose_rot =robot_right_trans[:3,3]
+        right_arm_jac = np.array([np.cross(joint.GetAxis(), right_pose_rot[:3] - joint.GetAnchor()) for joint in right_arm_joints]).T.copy()
+        right_base_jac = np.cross(np.array([0, 0, 1]), right_pose_rot[:3] - np.zeros((3,))).reshape((3,))
 
-        self.set_robot_poses(x[18:35], robot_body)
+        jac[6:9, 8:15] = -right_arm_jac
+        jac[6:9, 16] = -right_base_jac
+        jac[9:12, 8:15] = right_arm_jac
+        jac[9:12, 16] = right_base_jac
+
+        self.set_robot_poses(x[20:37], robot_body)
         robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
         robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
         # Added here just in case
         left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
         right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
 
-        left_new_pose = robot_left_trans[:3, 3]
-        left_new_arm_jac = np.array([np.cross(joint.GetAxis(), left_new_pose.flatten() - joint.GetAnchor()) for joint in left_arm_joints]).T.copy()
-        left_new_base_jac = np.cross(np.array([0, 0, 1]), left_new_pose - np.zeros((3,))).reshape((3,1))
-        jac[0, 18:25] = left_new_arm_jac
-        jac[0, 34] = left_new_base_jac
+        left_new_pose_rot =robot_left_trans[:3,3]
+        left_new_arm_jac = np.array([np.cross(joint.GetAxis(), left_new_pose_rot[:3] - joint.GetAnchor()) for joint in left_arm_joints]).T.copy()
+        left_new_base_jac = np.cross(np.array([0, 0, 1]), left_new_pose_rot[:3] - np.zeros((3,))).reshape((3,))
+        jac[0:3, 20:27] = left_new_arm_jac
+        jac[0:3, 36] = left_new_base_jac
+        jac[3:6, 20:27] = -left_new_arm_jac
+        jac[3:6, 36] = -left_new_base_jac
 
-        right_new_pose = robot_right_trans[:3, 3]
-        right_new_arm_jac = np.array([np.cross(joint.GetAxis(), right_new_pose.flatten() - joint.GetAnchor()) for joint in right_arm_joints]).T.copy()
-        right_new_base_jac = np.cross(np.array([0, 0, 1]), right_new_pose - np.zeros((3,))).reshape((3,1))
-        jac[1, 26:33] = right_new_arm_jac
-        jac[1, 34] = right_new_base_jac
+        right_new_pose_rot = robot_right_trans[:3,3]
+        right_new_arm_jac = np.array([np.cross(joint.GetAxis(), right_new_pose_rot[:3] - joint.GetAnchor()) for joint in right_arm_joints]).T.copy()
+        right_new_base_jac = np.cross(np.array([0, 0, 1]), right_new_pose_rot[:3] - np.zeros((3,))).reshape((3,))
+        jac[6:9, 28:35] = right_new_arm_jac
+        jac[6:9, 36] = right_new_base_jac
+        jac[6:9, 37:40] = -np.eye(3)
+        jac[9:12, 28:35] = -right_new_arm_jac
+        jac[9:12, 36] = -right_new_base_jac
+        jac[9:12, 37:40] = -np.eye(3)
 
-        dist_left = np.linalg.norm((left_new_pose - left_pose))
-        dist_right = np.linalg.norm((right_new_pose - right_pose))
+        dist_left = (left_new_pose_rot - left_pose_rot - x[17:20].flatten()).reshape((3,1))
+        dist_left_rev = (left_pose_rot - left_new_pose_rot - x[17:20].flatten()).reshape((3,1))
+        dist_right = (right_new_pose_rot - right_pose_rot - x[37:40].flatten()).reshape((3,1))
+        dist_right_rev = (right_pose_rot - right_new_pose_rot - x[37:40].flatten()).reshape((3,1))
 
-        jac[0, :] = dist_left * jac[0, :]
-        jac[1, :] = dist_right * jac[1, :]
-
-        val = np.vstack([dist_left - x[17], dist_right - x[35]])
-
+        val = np.vstack([dist_left, dist_left_rev, dist_right, dist_right_rev])
         return val, jac

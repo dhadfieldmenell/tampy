@@ -19,7 +19,7 @@ class TestBasketDomain(unittest.TestCase):
         print "loading basket problem..."
         p_c = main.parse_file_to_dict('../domains/baxter_domain/baxter_probs/basket_move.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        plan_str = ['0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE GRASP_EE_LEFT GRASP_EE_RIGHT PICKUP_POSE', '1: BASKET_PUTDOWN BAXTER BASKET END_TARGET PICKUP_POSE PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_END_POSE']
+        plan_str = ['0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE GRASP_EE_LEFT GRASP_EE_RIGHT PICKUP_POSE VELOCITY', '1: BASKET_PUTDOWN BAXTER BASKET END_TARGET PICKUP_POSE PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_END_POSE VELOCITY']
 
                     #
         plan = hls.get_plan(plan_str, domain, problem)

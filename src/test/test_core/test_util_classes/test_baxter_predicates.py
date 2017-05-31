@@ -934,7 +934,8 @@ class TestBaxterPredicates(unittest.TestCase):
         # Since variables aren't defined yet
         self.assertFalse(pred.test(0))
 
-        ee_vel.value = np.array([[0]])
+        ee_vel.value = np.array([[0, 0, 0]]).T
+        ee_vel.rotation = np.array([[0, 0, 0]]).T
         with self.assertRaises(PredicateException) as cm:
             pred.test(0)
         self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_velocity: (BaxterVelocity baxter ee_vel)' at the timestep.")
@@ -951,12 +952,57 @@ class TestBaxterPredicates(unittest.TestCase):
         baxter.rGripper = np.zeros((1, 5))
         baxter.pose = np.zeros((1, 5))
 
-        baxter.lArmPose[:, 1] = [np.pi/2, np.pi/2, np.pi/2, np.pi/2, np.pi/2, np.pi/2, np.pi/2]
-        import ipdb; ipdb.set_trace()
-
+        baxter.lArmPose[:, 1] = [np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]
         self.assertFalse(pred.test(0))
         self.assertFalse(pred.test(1))
-        self.assertFalse(pred.test(2))
-        self.assertFalse(pred.test(3))
-        self.assertFalse(pred.test(4))
+        self.assertTrue(pred.test(2))
+        self.assertTrue(pred.test(3))
+
+        ee_vel.value = np.array([[2,2,2]]).T
+        self.assertTrue(pred.test(0))
+        self.assertTrue(pred.test(1))
+        self.assertTrue(pred.test(2))
+        self.assertTrue(pred.test(3))
+        ee_vel.value = np.array([[const.APPROACH_DIST, const.APPROACH_DIST, const.APPROACH_DIST]]).T
+
+        basket_pos = np.array([0.65 , -0.283,  0.81])
+        offset = [0, 0.317, 0]
+        left_trajectory = []
+        baxter_body = baxter.openrave_body
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 2*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 1*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 0*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 1*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 2*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory = np.array(left_trajectory)
+        baxter.lArmPose = left_trajectory.T
+
+        right_trajectory = []
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory = np.array(right_trajectory)
+        baxter.rArmPose = right_trajectory.T
+
+        self.assertTrue(pred.test(0))
+        self.assertTrue(pred.test(1))
+        self.assertTrue(pred.test(2))
+        self.assertTrue(pred.test(3))
+        ee_vel.value = np.array([[const.APPROACH_DIST/2., const.APPROACH_DIST/2., const.APPROACH_DIST/2.]]).T
+        self.assertTrue(pred.test(0))
+        if const.TEST_GRAD:
+            pred.expr.expr.grad(pred.get_param_vector(3), True, 1e-3)
+
         import ipdb; ipdb.set_trace()
