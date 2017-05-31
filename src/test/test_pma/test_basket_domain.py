@@ -116,7 +116,6 @@ class TestBasketDomain(unittest.TestCase):
         basket.pose = end_targ.value
         self.assertFalse(col_pred.test(0))
 
-# 0.65 ,  0.323,  0.76
 
 if __name__ == "__main__":
     unittest.main()

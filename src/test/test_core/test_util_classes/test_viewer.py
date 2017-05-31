@@ -109,9 +109,7 @@ class TestViewer(unittest.TestCase):
 
     def test_record(self):
         pd = PlanDeserializer()
-        plan = pd.read_from_hdf5("basket_plan4.hdf5")
-        #
+        plan = pd.read_from_hdf5("basket_plan.hdf5")
         view = viewer.OpenRAVEViewer.create_viewer(plan.env)
         # view.record_plan(plan, "basket_video")
-        import ipdb; ipdb.set_trace()
-        view.animate_plan(plan, 1)
+        # view.animate_plan(plan, 1)
