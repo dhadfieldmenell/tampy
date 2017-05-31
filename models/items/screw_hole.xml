@@ -1,0 +1,8 @@
+<Kinbody name="screw_hole">
+    <Body name="screw_hole">
+        <Geom type="trimesh">
+            <Render>screw_hole.dae 0.2</Render>
+            <collision>screw_hole.dae 0.2</collision>
+        </Geom>
+    </Body>
+</Kinbody>

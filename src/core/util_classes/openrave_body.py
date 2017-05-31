@@ -46,8 +46,11 @@ class OpenRAVEBody(object):
         geom.setup(self.env_body)
 
     def _add_item(self, geom):
-        fun_name = "self._add_{}".format(geom._type)
-        eval(fun_name)(geom)
+        try:
+            fun_name = "self._add_{}".format(geom._type)
+            eval(fun_name)(geom)
+        except:
+            self._add_obj(geom)
 
     def _add_circle(self, geom):
         color = [1,0,0]
@@ -110,7 +113,7 @@ class OpenRAVEBody(object):
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
-    def _add_basket(self, geom):
+    def _add_obj(self, geom):
         self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)

@@ -1,0 +1,110 @@
+<KinBody name="kitchen">
+  <Body name="kitchen_top">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_top.dae 0.025</Render>
+      <collision>kitchen/kitchen_top.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="kitchen_left">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_left.dae 0.025</Render>
+      <collision>kitchen/kitchen_left.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="kitchen_cabinet_bot">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_cabinet_bot.dae 0.025</Render>
+      <collision>kitchen/kitchen_cabinet_bot.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="kitchen_dishwasher_bot">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_dishwasher_bot.dae 0.025</Render>
+      <collision>kitchen/kitchen_dishwasher_bot.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="kitchen_dishwasher_left">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_dishwasher_left.dae 0.025</Render>
+      <collision>kitchen/kitchen_dishwasher_left.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="kitchen_dishwasher_top">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_dishwasher_top.dae 0.025</Render>
+      <collision>kitchen/kitchen_dishwasher_top.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="kitchen_dishwasher_right">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_dishwasher_right.dae 0.025</Render>
+      <collision>kitchen/kitchen_dishwasher_right.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="kitchen_dishwasher_back">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_dishwasher_back.dae 0.025</Render>
+      <collision>kitchen/kitchen_dishwasher_back.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="kitchen_bot">
+    <Geom type="trimesh">
+      <Render>kitchen/kitchen_bot.dae 0.025</Render>
+      <collision>kitchen/kitchen_bot.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Joint name="dummy0" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy1" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_cabinet_bot</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy2" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_dishwasher_bot</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy3" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_dishwasher_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy4" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_dishwasher_top</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy5" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_dishwasher_right</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy6" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_dishwasher_back</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy7" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy8" type="hinge" enable="false">
+    <body>kitchen_top</body>
+    <body>kitchen_bot</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+</KinBody>

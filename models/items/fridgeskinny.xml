@@ -1,0 +1,173 @@
+<KinBody name="fridgeskinny">
+  <Body name="fridgeskinny_body_base">
+    <Geom type="trimesh">
+      <Render>fridge/fridge_body_base.dae 0.0249</Render>
+      <collision>fridge/fridge_body_base.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_left">
+    <Geom type="trimesh">
+      <Render>fridge/fridge_body_left.dae 0.0249</Render>
+      <collision>fridge/fridge_body_left.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_right">
+    <Geom type="trimesh">
+      <Render>fridge/fridge_body_right.dae 0.0249</Render>
+      <collision>fridge/fridge_body_right.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_back">
+    <Geom type="trimesh">
+      <Render>fridge/fridge_body_back.dae 0.0249</Render>
+      <collision>fridge/fridge_body_back.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_middle">
+    <Geom type="trimesh">
+      <Render>fridge/fridge_body_middle.dae 0.0249</Render>
+      <collision>fridge/fridge_body_middle.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_top">
+    <Geom type="trimesh">
+      <Render>fridge/fridge_body_top.dae 0.0249</Render>
+      <collision>fridge/fridge_body_top.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_door_left">
+    <Geom type="trimesh">
+      <Render>fridge/fridge_door_left.dae 0.0249</Render>
+      <collision>fridge/fridge_door_left.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_door_right">
+    <Geom type="trimesh">
+      <Render>fridge/fridge_door_right.dae 0.0249</Render>
+      <collision>fridge/fridge_door_right.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_shelf_right1">
+    <Geom type="trimesh">
+      <Translation>0 0.16 0</Translation>
+      <Render>fridge/fridge_body_shelf_right.dae 0.0249</Render>
+      <collision>fridge/fridge_body_shelf_right.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_shelf_right2">
+    <Geom type="trimesh">
+      <Translation>0 0.56 0</Translation>
+      <Render>fridge/fridge_body_shelf_right.dae 0.0249</Render>
+      <collision>fridge/fridge_body_shelf_right.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_shelf_right3">
+    <Geom type="trimesh">
+      <Translation>0 0.96 0</Translation>
+      <Render>fridge/fridge_body_shelf_right.dae 0.0249</Render>
+      <collision>fridge/fridge_body_shelf_right.dae 0.0249</collision>
+    </Geom>
+  </Body>
+
+  <Body name="fridgeskinny_body_shelf_left1">
+    <Geom type="trimesh">
+      <Translation>0 0.16 0</Translation>
+      <Render>fridge/fridge_body_shelf_left.dae 0.0249</Render>
+      <collision>fridge/fridge_body_shelf_left.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_shelf_left2">
+    <Geom type="trimesh">
+      <Translation>0 0.56 0</Translation>
+      <Render>fridge/fridge_body_shelf_left.dae 0.0249</Render>
+      <collision>fridge/fridge_body_shelf_left.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Body name="fridgeskinny_body_shelf_left3">
+    <Geom type="trimesh">
+      <Translation>0 0.96 0</Translation>
+      <Render>fridge/fridge_body_shelf_left.dae 0.0249</Render>
+      <collision>fridge/fridge_body_shelf_left.dae 0.0249</collision>
+    </Geom>
+  </Body>
+  <Joint name="hinge_l" type="hinge" enable="false">
+    <body>fridgeskinny_body_base</body>
+    <body>fridgeskinny_door_left</body>
+    <limits>0 3</limits>
+    <axis>0 -1 0</axis>
+    <anchor>-0.102 0.0871 -0.0014</anchor>
+  </Joint>
+  <Joint name="hinge" type="hinge">
+    <body>fridgeskinny_body_base</body>
+    <body>fridgeskinny_door_right</body>
+    <limits>0 3</limits>
+    <axis>0 1 0</axis>
+    <anchor>-0.102 0.0871 -0.8988</anchor>
+  </Joint>
+  <Joint name="dummy0" type="hinge" enable="false">
+    <body>fridgeskinny_body_base</body>
+    <body>fridgeskinny_body_left</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy1" type="hinge" enable="false">
+    <body>fridgeskinny_body_base</body>
+    <body>fridgeskinny_body_right</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy2" type="hinge" enable="false">
+    <body>fridgeskinny_body_base</body>
+    <body>fridgeskinny_body_back</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy3" type="hinge" enable="false">
+    <body>fridgeskinny_body_base</body>
+    <body>fridgeskinny_body_middle</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy4" type="hinge" enable="false">
+    <body>fridgeskinny_body_back</body>
+    <body>fridgeskinny_body_top</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy5" type="hinge" enable="false">
+    <body>fridgeskinny_body_middle</body>
+    <body>fridgeskinny_body_shelf_right1</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy6" type="hinge" enable="false">
+    <body>fridgeskinny_body_middle</body>
+    <body>fridgeskinny_body_shelf_right2</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy7" type="hinge" enable="false">
+    <body>fridgeskinny_body_middle</body>
+    <body>fridgeskinny_body_shelf_right3</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy8" type="hinge" enable="false">
+    <body>fridgeskinny_body_middle</body>
+    <body>fridgeskinny_body_shelf_left1</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy9" type="hinge" enable="false">
+    <body>fridgeskinny_body_middle</body>
+    <body>fridgeskinny_body_shelf_left2</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy10" type="hinge" enable="false">
+    <body>fridgeskinny_body_middle</body>
+    <body>fridgeskinny_body_shelf_left3</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+</KinBody>

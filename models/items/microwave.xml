@@ -1,0 +1,81 @@
+<KinBody name="microwave">
+  <Body name="microwave_body_base">
+    <Geom type="trimesh">
+      <Render>microwave/2microwave_body_base.dae 0.03</Render>
+      <collision>microwave/2microwave_body_base.dae 0.03</collision>
+    </Geom>
+  </Body>
+  <Body name="microwave_body_left">
+    <Geom type="trimesh">
+      <Render>microwave/2microwave_body_left.dae 0.03</Render>
+      <collision>microwave/2microwave_body_left.dae 0.03</collision>
+    </Geom>
+  </Body>
+  <Body name="microwave_body_right">
+    <Geom type="trimesh">
+      <Render>microwave/2microwave_body_right.dae 0.03</Render>
+      <collision>microwave/2microwave_body_right.dae 0.03</collision>
+    </Geom>
+  </Body>
+  <Body name="microwave_body_back">
+    <Geom type="trimesh">
+      <Render>microwave/2microwave_body_back.dae 0.03</Render>
+      <collision>microwave/2microwave_body_back.dae 0.03</collision>
+    </Geom>
+  </Body>
+  <Body name="microwave_body_top">
+    <Geom type="trimesh">
+      <Render>microwave/2microwave_body_top.dae 0.03</Render>
+      <collision>microwave/2microwave_body_top.dae 0.03</collision>
+    </Geom>
+  </Body>
+  <Body name="microwave_buttons">
+    <Geom type="trimesh">
+      <Render>microwave/2microwave_buttons.dae 0.03</Render>
+      <collision>microwave/2microwave_buttons.dae 0.03</collision>
+    </Geom>
+  </Body>
+  <Body name="microwave_door">
+    <Geom type="trimesh">
+      <Render>microwave/2microwave_door.dae 0.023</Render>
+      <collision>microwave/2microwave_door.dae 0.03</collision>
+    </Geom>
+  </Body>
+  <Joint name="hinge" type="hinge">
+    <body>microwave_body_base</body>
+    <body>microwave_door</body>
+    <limits>0 3</limits>
+    <axis>0 0 -1</axis>
+    <anchor>0 0 0.0345</anchor>
+  </Joint>
+  <Joint name="dummy0" type="hinge" enable="false">
+    <body>microwave_body_base</body>
+    <body>microwave_body_left</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy1" type="hinge" enable="false">
+    <body>microwave_body_base</body>
+    <body>microwave_body_right</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy2" type="hinge" enable="false">
+    <body>microwave_body_base</body>
+    <body>microwave_body_back</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy3" type="hinge" enable="false">
+    <body>microwave_body_back</body>
+    <body>microwave_body_top</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy4" type="hinge" enable="false">
+    <body>microwave_body_base</body>
+    <body>microwave_buttons</body>
+    <limits>0 0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+</KinBody>

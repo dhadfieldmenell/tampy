@@ -1,0 +1,10 @@
+<KinBody name="cylinder_collisionfree">
+  <Body name="surface" type="dynamic">
+    <Translation>0 0 0</Translation>
+    <RotationAxis>1 0 0 90></RotationAxis>
+    <Geom type="sphere">
+      <Render>cylinder.iv</Render>
+      <Radius>0.0001</Radius>
+    </Geom>
+  </Body>
+</KinBody>

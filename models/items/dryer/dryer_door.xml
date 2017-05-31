@@ -1,0 +1,8 @@
+<KinBody name = "dryer_door">
+  <Body name="dryer_door">
+    <Geom type="trimesh">
+      <Render>dryer_door.dae 0.018</Render>
+      <collision>dryer_door.dae 0.018</collision>
+    </Geom>
+  </Body>
+</KinBody>

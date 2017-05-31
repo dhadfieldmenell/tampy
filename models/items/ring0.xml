@@ -1,0 +1,8 @@
+<KinBody name="ring0">
+  <Body name="ring0">
+    <Geom type="trimesh">
+      <Render>ring0.dae  1</Render>
+      <collision>ring0.dae 1</collision>
+    </Geom>
+  </Body>
+</KinBody>

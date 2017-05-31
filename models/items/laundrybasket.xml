@@ -1,0 +1,64 @@
+<KinBody name = "laundry_basket">
+  <Body name="base">
+    <Geom type="trimesh">
+      <Render>laundrybasket/laundry_bottom.dae 0.018</Render>
+      <collision>laundrybasket/laundry_bottom.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="wall1">
+    <Translation>0.005 -0.275 0.06</Translation>
+    <Geom type="trimesh">
+      <Render>laundrybasket/small_basket_wall.dae 0.018</Render>
+      <collision>laundrybasket/small_basket_wall.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="wall2">
+    <Translation>-0.015 0.235 0.06</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>laundrybasket/small_basket_wall.dae 0.018</Render>
+      <collision>laundrybasket/small_basket_wall.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="wall3">
+    <Translation>0.13 -0.02 0.06</Translation>
+    <RotationAxis>0 0 1 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>laundrybasket/large_basket_wall.dae 0.018</Render>
+      <collision>laundrybasket/large_basket_wall.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="wall4">
+    <Translation>-0.145 -0.02 0.06</Translation>
+    <RotationAxis>0 0 1 -90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>laundrybasket/large_basket_wall.dae 0.018</Render>
+      <collision>laundrybasket/large_basket_wall.dae 0.018</collision>
+    </Geom>
+  </Body>
+
+  <Joint name="dummy1" type="hinge">
+    <body>base</body>
+    <body>wall1</body>
+    <limits>0.0 2.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy2" type="hinge">
+    <body>base</body>
+    <body>wall2</body>
+    <limits>0.0 2.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy3" type="hinge">
+    <body>base</body>
+    <body>wall3</body>
+    <limits>0.0 2.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy4" type="hinge">
+    <body>base</body>
+    <body>wall4</body>
+    <limits>0.0 2.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+</KinBody>

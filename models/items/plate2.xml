@@ -1,0 +1,10 @@
+<KinBody name="plate2">
+    <Body name="plate2">
+
+     <Geom type="trimesh">
+      <Render>plate.dae 0.05</Render>
+      <collision>plate.dae 0.05</collision>
+     </Geom>
+    </Body>
+</KinBody>
+

@@ -1,0 +1,8 @@
+<KinBody name="peg">
+  <Body name="peg">
+    <Geom type="trimesh">
+      <Render>peg.dae  1</Render>
+      <collision>peg.dae 1</collision>
+    </Geom>
+  </Body>
+</KinBody>

@@ -1,0 +1,81 @@
+<KinBody name="dishwasher">
+  <Body name="dishwasher_body_back">
+    <Geom type="trimesh">
+      <Render>dishwasher/dishwasher_back.dae 0.018</Render>
+      <collision>dishwasher/dishwasher_back.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="dishwasher_body_base">
+    <Geom type="trimesh">
+      <Render>dishwasher/dishwasher_base.dae 0.018</Render>
+      <collision>dishwasher/dishwasher_base.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="dishwasher_body_front">
+    <Geom type="trimesh">
+      <Render>dishwasher/dishwasher_front.dae 0.018</Render>
+      <collision>dishwasher/dishwasher_front.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="dishwasher_body_left">
+    <Geom type="trimesh">
+      <Render>dishwasher/dishwasher_left.dae 0.018</Render>
+      <collision>dishwasher/dishwasher_left.dae 0.018</collision>
+    </Geom>
+  </Body>
+    <Body name="dishwasher_body_right">
+    <Geom type="trimesh">
+      <Render>dishwasher/dishwasher_right.dae 0.018</Render>
+      <collision>dishwasher/dishwasher_right.dae 0.018</collision>
+    </Geom>
+  </Body>
+    <Body name="dishwasher_body_top">
+    <Geom type="trimesh">
+      <Render>dishwasher/dishwasher_top.dae 0.018</Render>
+      <collision>dishwasher/dishwasher_top.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="dishwasher_door">
+    <Geom type="trimesh">
+      <Render>dishwasher/dishwasher_door.dae 0.018</Render>
+      <collision>dishwasher/dishwasher_door.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Joint name="hinge" type="hinge">
+    <body>dishwasher_body_front</body>
+    <body>dishwasher_door</body>
+    <limits>0.0 1.5</limits>
+    <axis>0 1 0</axis>
+    <anchor>0 0 0.06</anchor>
+  </Joint>
+  <Joint name="dummy0" type="hinge" enable="false">
+    <body>dishwasher_body_base</body>
+    <body>dishwasher_body_back</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy1" type="hinge" enable="false">
+    <body>dishwasher_body_base</body>
+    <body>dishwasher_body_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy2" type="hinge" enable="false">
+    <body>dishwasher_body_base</body>
+    <body>dishwasher_body_right</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy3" type="hinge" enable="false">
+    <body>dishwasher_body_base</body>
+    <body>dishwasher_body_top</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy4" type="hinge" enable="false">
+    <body>dishwasher_body_base</body>
+    <body>dishwasher_body_front</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+</KinBody>

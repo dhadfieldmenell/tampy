@@ -1,0 +1,8 @@
+<Kinbody name="screw">
+    <Body name="screw">
+        <Geom type="trimesh">
+            <Render>screw.dae 0.1</Render>
+            <collision>screw.dae 0.1</collision>
+        </Geom>
+    </Body>
+</Kinbody>

@@ -1,0 +1,8 @@
+<Kinbody name="screw_driver">
+    <Body name="screw_driver">
+        <Geom type="trimesh">
+            <Render>screw_driver.dae 0.003</Render>
+            <collision>screw_driver.dae 0.003</collision>
+        </Geom>
+    </Body>
+</Kinbody>
