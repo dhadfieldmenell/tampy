@@ -4,6 +4,10 @@ import time
 import main
 import rospy
 import numpy as np
+
+import baxter_interface
+from baxter_interface import CHECK_VERSION
+
 from ros_interface import action_execution
 from core.util_classes.plan_hdf5_serialization import PlanDeserializer
 from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
@@ -18,7 +22,7 @@ class TestActionExecute(unittest.TestCase):
 		'''
 		# import ipdb; ipdb.set_trace()
 		pd = PlanDeserializer()
-		plan = pd.read_from_hdf5("plan.hdf5")
+		plan = pd.read_from_hdf5("basket_plan_with_putdown.hdf5")
 		# baxter = plan.params['baxter']
 		# natural_state = np.array([0., 1.42, 0., 0.02, 0., 0.22, -0.]).reshape((7, 1))
 		# natural_traj = np.repeat(natural_state, 40, axis=1)
@@ -32,4 +36,9 @@ class TestActionExecute(unittest.TestCase):
 		print("Enabling robot... ")
 		rs.enable()
 		print("Running. Ctrl-c to quit")
-		action_execution.execute_action(plan.actions[0])
+		baxter_interface.Gripper('left', CHECK_VERSION).calibrate()
+		baxter_interface.Gripper('right', CHECK_VERSION).calibrate()
+		import ipdb; ipdb.set_trace()
+		for action in plan.actions:
+			action_execution.execute_action(action)
+			# import ipdb; ipdb.set_trace()
