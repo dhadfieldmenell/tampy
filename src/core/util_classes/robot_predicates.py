@@ -1076,3 +1076,31 @@ class ObjectWithinRotLimit(ExprPredicate):
         e = LEqExpr(pos_expr, val)
         super(ObjectWithinRotLimit, self).__init__(name, e, attr_inds, params, expected_param_types)
         self.spacial_anchor = False
+
+class Velocity(PosePredicate):
+    """
+        Format: Velocity Robot EEVel
+
+        Robot related
+        Requires:
+        self.attr_inds
+        self.coeff
+        self.eval_f
+        self.eval_grad
+        self.eval_dim
+    """
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        assert len(params) == 2
+        self._env = env
+        self.robot, self.ee_vel = params
+        attr_inds = self.attr_inds
+
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        f = lambda x: self.coeff*self.eval_f(x)
+        grad = lambda x: self.coeff*self.eval_grad(x)
+
+        pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
+        e = LEqExpr(pos_expr, val)
+        super(Velocity, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, active_range = (0,1))
+        self.spacial_anchor = False

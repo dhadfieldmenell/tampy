@@ -1,4 +1,5 @@
 from core.util_classes import robot_predicates
+from core.util_classes.common_predicates import ExprPredicate
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable_rrt, resample_basket_eereachable_rrt, resample_rcollides, resample_pred, resample_basket_obstructs
@@ -31,7 +32,8 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
            "Basket": (("pose", np.array([0,1,2], dtype=np.int)),
                       ("rotation", np.array([0,1,2], dtype=np.int))),
            "BasketTarget": (("value", np.array([0,1,2], dtype=np.int)),
-                            ("rotation", np.array([0,1,2], dtype=np.int)))
+                            ("rotation", np.array([0,1,2], dtype=np.int))),
+           "EEVel": (("value", np.array([0], dtype=np.int)))
           }
 
 class BaxterAt(robot_predicates.At):
@@ -913,7 +915,6 @@ class BaxterBasketInGripperRot(BaxterInGripper):
         self.eval_grad = lambda x: self.both_arm_rot_check(x)[1]
         super(BaxterBasketInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
 
-
     def rot_error(self, obj_trans, robot_trans, axises, arm_joints, arm="right"):
         """
             This function calculates the value and the jacobian of the rotational error between
@@ -1048,3 +1049,111 @@ class BaxterGrippersLevel():
         # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
         dist_jac = self.arm_jac_cancatenation(arm_jac, base_jac, obj_jac, arm)
         return dist_val, dist_jac
+
+
+class BaxterVelocity(robot_predicates.Velocity):
+    # BaxterVelocity Robot EEVel
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], list((ATTRMAP[params[0]._type]))), (params[1], [(ATTRMAP[params[1]._type])])])
+        self.dof_cache = None
+        self.coeff = 1
+        self.eval_f = lambda x: self.vel_check(x)[0]
+        self.eval_grad = lambda x: self.vel_check(x)[1]
+        self.eval_dim = 2
+
+        super(BaxterVelocity, self).__init__(name, params, expected_param_types, env, debug)
+        self.spacial_anchor = False
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def get_robot_info(self, robot_body, arm = "right"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
+        # Provide functionality of Obtaining Robot information
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
+        return robot_trans, arm_inds
+
+    def vel_check(self, x):
+        """
+            Check whether val_check(x)[0] <= 0
+            x = lArmPose(t), lGripper(t), rArmPose(t), rGripper(t), pose(t), EEvel.value(t),
+                lArmPose(t+1), lGripper(t+1), rArmPose(t+1), rGripper(t+1), pose(t+1), EEvel.value(t+1)
+                dim (36, 1)
+        """
+        jac = np.zeros((2, 36))
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        # Set poses and Get transforms
+        self.set_robot_poses(x[:17], robot_body)
+        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
+        robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
+        left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
+        right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
+
+        left_pose = robot_left_trans[:3,3]
+        left_arm_jac = np.array([np.cross(joint.GetAxis(), left_pose.flatten() - joint.GetAnchor()) for joint in left_arm_joints]).T.copy()
+        left_base_jac = np.cross(np.array([0, 0, 1]), left_pose - np.zeros((3,))).reshape((3,1))
+
+        jac[0, 0:7] = -left_arm_jac
+        jac[0, 16] = -left_base_jac
+        jac[0, 17] = -1
+
+        right_pose = robot_right_trans[:3,3]
+        right_arm_jac = np.array([np.cross(joint.GetAxis(), right_pose.flatten() - joint.GetAnchor()) for joint in right_arm_joints]).T.copy()
+        right_base_jac = np.cross(np.array([0, 0, 1]), right_pose - np.zeros((3,))).reshape((3,1))
+
+        jac[1, 8:15] = -right_arm_jac
+        jac[1, 16] = -right_base_jac
+        jac[1, 17] = -1
+
+        self.set_robot_poses(x[18:35], robot_body)
+        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
+        robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
+        # Added here just in case
+        left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
+        right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
+
+        left_new_pose = robot_left_trans[:3, 3]
+        left_new_arm_jac = np.array([np.cross(joint.GetAxis(), left_new_pose.flatten() - joint.GetAnchor()) for joint in left_arm_joints]).T.copy()
+        left_new_base_jac = np.cross(np.array([0, 0, 1]), left_new_pose - np.zeros((3,))).reshape((3,1))
+        jac[0, 18:25] = left_new_arm_jac
+        jac[0, 34] = left_new_base_jac
+
+        right_new_pose = robot_right_trans[:3, 3]
+        right_new_arm_jac = np.array([np.cross(joint.GetAxis(), right_new_pose.flatten() - joint.GetAnchor()) for joint in right_arm_joints]).T.copy()
+        right_new_base_jac = np.cross(np.array([0, 0, 1]), right_new_pose - np.zeros((3,))).reshape((3,1))
+        jac[1, 26:33] = right_new_arm_jac
+        jac[1, 34] = right_new_base_jac
+
+        dist_left = np.linalg.norm((left_new_pose - left_pose))
+        dist_right = np.linalg.norm((right_new_pose - right_pose))
+
+        jac[0, :] = dist_left * jac[0, :]
+        jac[1, :] = dist_right * jac[1, :]
+
+        val = np.vstack([dist_left - x[17], dist_right - x[35]])
+
+        return val, jac

@@ -118,3 +118,10 @@ class ParamSetup(object):
         attr_types = {"name": str, "geom": items.Basket, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         basket_target = parameter.Symbol(attrs, attr_types)
         return basket_target
+
+    @staticmethod
+    def setup_ee_vel(name = "ee_vel"):
+        attrs = {"name": [name], "value": ["undefined"], "_type": ["EEVel"]}
+        attr_types = {"name": str, "pose": matrix.Vector1d, "_type": str}
+        ee_vel = parameter.Symbol(attrs, attr_types)
+        return ee_vel
