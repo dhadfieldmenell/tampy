@@ -122,6 +122,13 @@ class ParamSetup(object):
     @staticmethod
     def setup_ee_vel(name = "ee_vel"):
         attrs = {"name": [name], "value": ["undefined"], "rotation": ["undefined"], "_type": ["EEVel"]}
-        attr_types = {"name": str, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         ee_vel = parameter.Symbol(attrs, attr_types)
         return ee_vel
+
+    @staticmethod
+    def setup_washer(name = "washer"):
+        attrs = {"name": [name], "pose": [[0,0,0]], "hinge": [0], "rotation": [[0,0,0]], "geom": [], "_type": ["Obstacle"]}
+        attr_types = {"name": str, "pose": matrix.Vector3d, "hinge": matrix.Vector1d, "rotation": matrix.Vector3d, "geom": items.Washer, "_type": str}
+        washer = parameter.Object(attrs, attr_types)
+        return washer

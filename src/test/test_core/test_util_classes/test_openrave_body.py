@@ -213,5 +213,14 @@ class TestOpenRAVEBody(unittest.TestCase):
         # env.SetViewer("qtcoin")
         # import ipdb; ipdb.set_trace()
 
+    def test_washer(self):
+        from core.util_classes.param_setup import ParamSetup
+        washer = ParamSetup.setup_washer()
+        env = ParamSetup.setup_env()
+        washer_body = OpenRAVEBody(env, washer.name, washer.geom)
+        # env.SetViewer("qtcoin")
+        # import ipdb; ipdb.set_trace()
+
+
 if __name__ == "__main__":
     unittest.main()
