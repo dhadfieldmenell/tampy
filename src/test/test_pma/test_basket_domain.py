@@ -39,6 +39,7 @@ class TestBasketDomain(unittest.TestCase):
         result = solver.solve(plan, callback = callback, n_resamples=5)
         end = time.time()
 
+        baxter = plan.params['baxter']
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
         print plan.get_failed_preds()
 

@@ -168,7 +168,7 @@ class BaxterInContact(robot_predicates.InContact):
 
 class BaxterBasketInContact(robot_predicates.InContacts):
 
-    # InContact robot EEPose target
+    # InContact robot EEPose EEPose BasketTarget
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # Define constants
@@ -176,6 +176,14 @@ class BaxterBasketInContact(robot_predicates.InContacts):
         self.GRIPPER_OPEN = const.GRIPPER_OPEN_VALUE
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1], ATTRMAP[params[0]._type][3]])])
         super(BaxterBasketInContact, self).__init__(name, params, expected_param_types, env, debug)
+
+class BaxterBasketOpenGripper(BaxterBasketInContact):
+
+    # InContact robot EEPose EEPose BasketTarget
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(BaxterBasketOpenGripper, self).__init__(name, params, expected_param_types, env, debug)
+        self.expr = self.neg_expr
 
 class BaxterObstructs(robot_predicates.Obstructs):
 
@@ -1053,7 +1061,7 @@ class BaxterGrippersLevel():
         return dist_val, dist_jac
 
 
-class BaxterVelocity(robot_predicates.Velocity):
+class BaxterUpperVelocity(robot_predicates.Velocity):
     # BaxterVelocity Robot EEVel
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
@@ -1064,7 +1072,7 @@ class BaxterVelocity(robot_predicates.Velocity):
         self.eval_grad = lambda x: self.vel_check(x)[1]
         self.eval_dim = 12
 
-        super(BaxterVelocity, self).__init__(name, params, expected_param_types, env, debug)
+        super(BaxterUpperVelocity, self).__init__(name, params, expected_param_types, env, debug)
         self.spacial_anchor = False
 
     def set_robot_poses(self, x, robot_body):
@@ -1169,3 +1177,8 @@ class BaxterVelocity(robot_predicates.Velocity):
 
         val = np.vstack([dist_left, dist_left_rev, dist_right, dist_right_rev])
         return val, jac
+
+class BaxterLowerVelocity(BaxterUpperVelocity):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(BaxterLowerVelocity, self).__init__(name, params, expected_param_types, env, debug)
+        self.coeff = -1

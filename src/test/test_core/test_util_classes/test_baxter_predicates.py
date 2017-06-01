@@ -149,12 +149,14 @@ class TestBaxterPredicates(unittest.TestCase):
         target.value = np.zeros((3, 1))
         # Baxter gets initialized with Open gripper, thus will not pass
         self.assertFalse(pred.test(0))
+        self.assertTrue(pred.test(0, negated=True))
         # Set baxter's gripper to fully Closed
         robot.rGripper = np.array([[0.00]])
         self.assertFalse(pred.test(0))
         # Set baxter's gripper to be just enough to grasp the can
         robot.rGripper = np.array([[0.015]])
         self.assertTrue(pred.test(0))
+
 
     def test_in_gripper(self):
 
