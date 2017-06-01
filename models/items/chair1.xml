@@ -1,0 +1,9 @@
+<KinBody name="chair1">
+    <Body name="chair1">
+     <Geom type="trimesh">
+      <Render>chair.dae 0.04</Render>
+      <collision>chair.dae 0.04</collision>
+     </Geom>
+    </Body>
+</KinBody>
+

@@ -1,0 +1,22 @@
+<!-- <Robot name="dryer"> -->
+  <KinBody name="dryer">
+    <Body name="dryer_rest">
+      <Geom type="trimesh">
+        <Render>dryer/dryer_rest.dae 0.018</Render>
+        <collision>dryer/dryer_rest.dae 0.018</collision>
+      </Geom>
+    </Body>
+    <Body name="dryer_door">
+      <Geom type="trimesh">
+        <Render>dryer/dryer_door.dae 0.018</Render>
+        <collision>dryer/dryer_door.dae 0.018</collision>
+      </Geom>
+    </Body>
+    <Joint name="hinge" type="hinge">
+      <body>dryer_door</body>
+      <body>dryer_rest</body>
+      <limits>0.0 2.0</limits>
+      <axis>0 1 0</axis>
+    </Joint>
+  </KinBody>
+<!-- </Robot> -->

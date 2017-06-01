@@ -1,0 +1,18 @@
+<kinbody>
+ <kinbody>
+   <body name="root">
+   </body>
+ </kinbody>
+ <kinbody file="washer_badorigin.xml">
+   <kinbody>
+     <body name="washer_body_base">
+       <translation>0.65759 0 0</translation>
+     </body>
+     <joint name="dummy" type="hinge" enable="false">
+       <body>root</body>
+       <body>washer_body_base</body>
+       <limitsdeg>0 0</limitsdeg>
+     </joint>
+   </kinbody>
+ </kinbody>
+</kinbody>

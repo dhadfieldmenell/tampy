@@ -1,0 +1,8 @@
+<KinBody name="bar">
+  <Body name="bar">
+    <Geom type="trimesh">
+      <Render>bar.dae 0.005</Render>
+      <collision>bar.dae 0.005</collision>
+    </Geom>
+  </Body>
+</KinBody>

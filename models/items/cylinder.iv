@@ -1,0 +1,8 @@
+#Inventor V2.1 ascii
+Separator {
+Cylinder {
+parts ALL
+radius 0.060000
+height 0.020000
+}
+}

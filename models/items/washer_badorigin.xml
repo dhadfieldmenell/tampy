@@ -1,0 +1,657 @@
+<KinBody name="washer">
+  <Body name="washer_body_base">
+    <Geom type="trimesh">
+      <Render>washer/washer_outer_bottom.dae 0.025</Render>
+      <collision>washer/washer_outer_bottom.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_inner_top">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_inner_top.dae 0.025</Render>
+      <collision>washer/washer_inner_top.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_inner_right">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_inner_right.dae 0.025</Render>
+      <collision>washer/washer_inner_right.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_inner_left">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_inner_left.dae 0.025</Render>
+      <collision>washer/washer_inner_left.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_inner_back">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_inner_back.dae 0.025</Render>
+      <collision>washer/washer_inner_back.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_outer_back">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_outer_back.dae 0.025</Render>
+      <collision>washer/washer_outer_back.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_outer_top">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_outer_top.dae 0.025</Render>
+      <collision>washer/washer_outer_top.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_outer_left">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_outer_left.dae 0.025</Render>
+      <collision>washer/washer_outer_left.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_outer_right">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_outer_right.dae 0.025</Render>
+      <collision>washer/washer_outer_right.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_1">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_1.dae 0.0214</Render>
+      <collision>washer/barrel_1.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_2">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_2.dae 0.0214</Render>
+      <collision>washer/barrel_2.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_3">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_3.dae 0.0214</Render>
+      <collision>washer/barrel_3.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_4">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_4.dae 0.0214</Render>
+      <collision>washer/barrel_4.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_5">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_5.dae 0.0214</Render>
+      <collision>washer/barrel_5.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_6">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_6.dae 0.0214</Render>
+      <collision>washer/barrel_6.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_7">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_7.dae 0.0214</Render>
+      <collision>washer/barrel_7.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_8">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_8.dae 0.0214</Render>
+      <collision>washer/barrel_8.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_9">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_9.dae 0.0214</Render>
+      <collision>washer/barrel_9.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_10">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_10.dae 0.0214</Render>
+      <collision>washer/barrel_10.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_11">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_11.dae 0.0214</Render>
+      <collision>washer/barrel_11.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_12">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_12.dae 0.0214</Render>
+      <collision>washer/barrel_12.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_13">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_13.dae 0.0214</Render>
+      <collision>washer/barrel_13.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_14">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_14.dae 0.0214</Render>
+      <collision>washer/barrel_14.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_15">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_15.dae 0.0214</Render>
+      <collision>washer/barrel_15.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_16">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_16.dae 0.0214</Render>
+      <collision>washer/barrel_16.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_17">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_17.dae 0.0214</Render>
+      <collision>washer/barrel_17.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_18">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_18.dae 0.0214</Render>
+      <collision>washer/barrel_18.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_19">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_19.dae 0.0214</Render>
+      <collision>washer/barrel_19.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_20">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_20.dae 0.0214</Render>
+      <collision>washer/barrel_20.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_21">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_21.dae 0.0214</Render>
+      <collision>washer/barrel_21.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_22">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_22.dae 0.0214</Render>
+      <collision>washer/barrel_22.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_23">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_23.dae 0.0214</Render>
+      <collision>washer/barrel_23.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_24">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_24.dae 0.0214</Render>
+      <collision>washer/barrel_24.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_25">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_25.dae 0.0214</Render>
+      <collision>washer/barrel_25.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_26">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_26.dae 0.0214</Render>
+      <collision>washer/barrel_26.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_27">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_27.dae 0.0214</Render>
+      <collision>washer/barrel_27.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_28">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_28.dae 0.0214</Render>
+      <collision>washer/barrel_28.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_29">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_29.dae 0.0214</Render>
+      <collision>washer/barrel_29.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_barrel_30">
+    <Translation>-0.65 0.62 0.39</Translation>
+    <RotationAxis>0 1 0 -90</RotationAxis>
+    <RotationAxis>1 0 0 90</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/barrel_30.dae 0.0214</Render>
+      <collision>washer/barrel_30.dae 0.0214</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_door">
+    <Translation>-0.5 0.68 0.04</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_door.dae 0.0263</Render>
+      <collision>washer/washer_door.dae 0.0263</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_front_top_left">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_front_top_left.dae 0.025</Render>
+      <collision>washer/washer_front_top_left.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_front_top_right">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_front_top_right.dae 0.025</Render>
+      <collision>washer/washer_front_top_right.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_front_bottom">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_front_bottom.dae 0.025</Render>
+      <collision>washer/washer_front_bottom.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_front_left">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_front_left.dae 0.025</Render>
+      <collision>washer/washer_front_left.dae 0.025</collision>
+    </Geom>
+  </Body>
+  <Body name="washer_body_front_right">
+    <Translation>-0.5 0.68 0</Translation>
+    <RotationAxis>0 0 1 180</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer/washer_front_right.dae 0.025</Render>
+      <collision>washer/washer_front_right.dae 0.025</collision>
+    </Geom>
+  </Body>
+
+  <!-- first joint must be the "important" one connecting door -->
+  <Joint name="hinge" type="hinge">
+    <body>washer_body_front_left</body>
+    <body>washer_door</body>
+    <limits>-4.0 0.0</limits>
+    <anchor>-0.594 0.58 0</anchor>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy2" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_front_bottom</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy3" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_front_right</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy6" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_front_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy5" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_front_top_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy7" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_front_top_right</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy8" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_inner_top</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy9" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_inner_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy10" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_inner_right</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy12" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_inner_back</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy13" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_outer_top</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy14" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_outer_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy15" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_outer_right</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy16" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_outer_back</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy17" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_1</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy18" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_2</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy19" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_3</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy20" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_4</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy21" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_5</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy22" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_6</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy23" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_7</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy24" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_8</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy25" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_9</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy26" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_10</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy27" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_11</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy28" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_12</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy29" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_13</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy30" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_14</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy31" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_15</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy32" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_16</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy33" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_17</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy34" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_18</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy35" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_19</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy36" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_20</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy37" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_21</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy38" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_22</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy39" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_23</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy40" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_24</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy41" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_25</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy42" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_26</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy43" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_27</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy44" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_28</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy45" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_29</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy46" type="hinge" enable="false">
+    <body>washer_body_base</body>
+    <body>washer_body_barrel_30</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+</Joint>
+</KinBody>

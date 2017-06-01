@@ -1,0 +1,8 @@
+<Kinbody name="leg1">
+    <Body name="leg1">
+        <Geom type="trimesh">
+            <Render>table_leg.dae 0.006</Render>
+            <collision>table_leg.dae 0.006</collision>
+        </Geom>
+    </Body>
+</Kinbody>

@@ -564,7 +564,6 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
 
 def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     attr_inds, res = OrderedDict(), []
-    import ipdb; ipdb.set_trace()
     viewer = OpenRAVEViewer.create_viewer(plan.env)
 
     # Preparing the variables

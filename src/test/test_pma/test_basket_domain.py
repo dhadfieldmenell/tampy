@@ -19,7 +19,7 @@ class TestBasketDomain(unittest.TestCase):
         print "loading basket problem..."
         p_c = main.parse_file_to_dict('../domains/baxter_domain/baxter_probs/basket_move.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        plan_str = ['0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE GRASP_EE_LEFT GRASP_EE_RIGHT PICKUP_POSE', '1: BASKET_PUTDOWN BAXTER BASKET END_TARGET PICKUP_POSE PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_END_POSE']
+        plan_str = ['0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE GRASP_EE_LEFT GRASP_EE_RIGHT PICKUP_POSE VELOCITY', '1: BASKET_PUTDOWN BAXTER BASKET END_TARGET PICKUP_POSE PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_END_POSE VELOCITY']
 
                     #
         plan = hls.get_plan(plan_str, domain, problem)
@@ -39,6 +39,7 @@ class TestBasketDomain(unittest.TestCase):
         result = solver.solve(plan, callback = callback, n_resamples=5)
         end = time.time()
 
+        baxter = plan.params['baxter']
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
         print plan.get_failed_preds()
 
@@ -85,7 +86,7 @@ class TestBasketDomain(unittest.TestCase):
 
         col_pred = BaxterCollides("collision_checker", [basket, table], ["Basket", "Obstacle"], env)
 
-        ver_off = [0, 0,0.075]
+        ver_off = [0, 0,0.15]
         #Grasping Pose
         left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset, [0,np.pi/2,0], "left_arm")[0]
         right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset, [0,np.pi/2,0], "right_arm")[0]
@@ -116,7 +117,6 @@ class TestBasketDomain(unittest.TestCase):
         basket.pose = end_targ.value
         self.assertFalse(col_pred.test(0))
 
-# 0.65 ,  0.323,  0.76
 
 if __name__ == "__main__":
     unittest.main()

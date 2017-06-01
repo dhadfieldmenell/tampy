@@ -1,0 +1,8 @@
+<KinBody name = "dryer_rest">
+  <Body name="dryer_rest">
+    <Geom type="trimesh">
+      <Render>dryer_rest.dae 0.018</Render>
+      <collision>dryer_rest.dae 0.018</collision>
+    </Geom>
+  </Body>
+</KinBody>

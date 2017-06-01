@@ -108,10 +108,20 @@ class Box(Obstacle):
 
 class Basket(Item):
     """
-        Object stores all the information to for a box model
+        Object stores all the information to for a Basket model
     """
 
     def __init__(self):
         self._type = "basket"
         self.shape = "../models/baxter/laundry_basket.zae"
+        self.up_right_rot = [0, 0, 1.57]
+
+class Washer(Item):
+    """
+        Object stores all the information to for a Washer model
+    """
+
+    def __init__(self):
+        self._type = "washer"
+        self.shape = "/home/simon0xzx/Research/tampy/models/items/washer.xml"
         self.up_right_rot = [0, 0, 1.57]

@@ -1,0 +1,130 @@
+<KinBody name="cabinet">
+  <Body name="cabinet_back">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_back.dae 0.018</Render>
+      <collision>cabinet/cabinet_back.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="cabinet_front">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_front.dae 0.018</Render>
+      <collision>cabinet/cabinet_front.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="cabinet_left">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_left.dae 0.018</Render>
+      <collision>cabinet/cabinet_left.dae 0.018</collision>
+    </Geom>
+  </Body>
+    <Body name="cabinet_right">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_right.dae 0.018</Render>
+      <collision>cabinet/cabinet_right.dae 0.018</collision>
+    </Geom>
+  </Body>
+    <Body name="cabinet_top">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_top.dae 0.018</Render>
+      <collision>cabinet/cabinet_top.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="cabinet_left_door">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_left_door.dae 0.018</Render>
+      <collision>cabinet/cabinet_left_door.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="cabinet_right_door">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_right_door.dae 0.018</Render>
+      <collision>cabinet/cabinet_right_door.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="cabinet_shelf1">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_shelf1.dae 0.018</Render>
+      <collision>cabinet/cabinet_shelf1.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="cabinet_shelf2">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_shelf2.dae 0.018</Render>
+      <collision>cabinet/cabinet_shelf2.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="cabinet_shelf3">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_shelf3.dae 0.018</Render>
+      <collision>cabinet/cabinet_shelf3.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Body name="cabinet_base">
+    <Geom type="trimesh">
+      <Render>cabinet/cabinet_base.dae 0.018</Render>
+      <collision>cabinet/cabinet_base.dae 0.018</collision>
+    </Geom>
+  </Body>
+  <Joint name="left_hinge" type="hinge">
+    <body>cabinet_left</body>
+    <body>cabinet_left_door</body>
+    <limits>-1.6 0.0</limits>
+    <axis>0 0 1</axis>
+    <anchor>0 0.02 0</anchor>
+  </Joint>
+  <Joint name="right_hinge" type="hinge">
+    <body>cabinet_right</body>
+    <body>cabinet_right_door</body>
+    <limits>0.0 1.6</limits>
+    <axis>0 0 1</axis>
+    <anchor>0 0.63 0</anchor>
+  </Joint>
+  <Joint name="dummy0" type="hinge" enable="false">
+    <body>cabinet_base</body>
+    <body>cabinet_left</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy1" type="hinge" enable="false">
+    <body>cabinet_base</body>
+    <body>cabinet_right</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy2" type="hinge" enable="false">
+    <body>cabinet_base</body>
+    <body>cabinet_top</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy3" type="hinge" enable="false">
+    <body>cabinet_base</body>
+    <body>cabinet_front</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy4" type="hinge" enable="false">
+    <body>cabinet_base</body>
+    <body>cabinet_shelf1</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy5" type="hinge" enable="false">
+    <body>cabinet_base</body>
+    <body>cabinet_shelf2</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy6" type="hinge" enable="false">
+    <body>cabinet_base</body>
+    <body>cabinet_shelf3</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="dummy7" type="hinge" enable="false">
+    <body>cabinet_base</body>
+    <body>cabinet_back</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+  </Joint>
+</KinBody>

@@ -1,0 +1,8 @@
+<KinBody name="table4">
+  <Body name="table4">
+    <Geom type="trimesh">
+      <Render>TableRound.dae 0.03</Render>
+      <collision>TableRound.dae 0.03</collision>
+    </Geom>
+  </Body>
+</KinBody>
