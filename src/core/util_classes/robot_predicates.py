@@ -497,6 +497,72 @@ class PosePredicate(ExprPredicate):
         rot_jac = np.vstack([l_rot_jac, r_rot_jac])
         return rot_val, rot_jac
 
+    def vel_check(self, x):
+        """
+        Check whether end effector are within range
+        """
+        jac = np.zeros((12, 40))
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        # Set poses and Get transforms
+
+        left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
+        right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
+
+        left_pose_rot =robot_left_trans[:3,3]
+        left_arm_jac = np.array([np.cross(joint.GetAxis(), left_pose_rot[:3] - joint.GetAnchor()) for joint in left_arm_joints]).T.copy()
+        left_base_jac = np.cross(np.array([0, 0, 1]), left_pose_rot[:3] - np.zeros((3,))).reshape((3,))
+
+        jac[0:3, 0:7] = -left_arm_jac
+        jac[0:3, 16] = -left_base_jac
+        jac[0:3, 17:20] = -np.eye(3)
+
+        jac[3:6, 0:7] = left_arm_jac
+        jac[3:6, 16] = left_base_jac
+        jac[3:6, 17:20] = -np.eye(3)
+
+        right_pose_rot =robot_right_trans[:3,3]
+        right_arm_jac = np.array([np.cross(joint.GetAxis(), right_pose_rot[:3] - joint.GetAnchor()) for joint in right_arm_joints]).T.copy()
+        right_base_jac = np.cross(np.array([0, 0, 1]), right_pose_rot[:3] - np.zeros((3,))).reshape((3,))
+
+        jac[6:9, 8:15] = -right_arm_jac
+        jac[6:9, 16] = -right_base_jac
+        jac[9:12, 8:15] = right_arm_jac
+        jac[9:12, 16] = right_base_jac
+
+        self.set_robot_poses(x[20:37], robot_body)
+        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
+        robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
+        # Added here just in case
+        left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
+        right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
+
+        left_new_pose_rot =robot_left_trans[:3,3]
+        left_new_arm_jac = np.array([np.cross(joint.GetAxis(), left_new_pose_rot[:3] - joint.GetAnchor()) for joint in left_arm_joints]).T.copy()
+        left_new_base_jac = np.cross(np.array([0, 0, 1]), left_new_pose_rot[:3] - np.zeros((3,))).reshape((3,))
+        jac[0:3, 20:27] = left_new_arm_jac
+        jac[0:3, 36] = left_new_base_jac
+        jac[3:6, 20:27] = -left_new_arm_jac
+        jac[3:6, 36] = -left_new_base_jac
+
+        right_new_pose_rot = robot_right_trans[:3,3]
+        right_new_arm_jac = np.array([np.cross(joint.GetAxis(), right_new_pose_rot[:3] - joint.GetAnchor()) for joint in right_arm_joints]).T.copy()
+        right_new_base_jac = np.cross(np.array([0, 0, 1]), right_new_pose_rot[:3] - np.zeros((3,))).reshape((3,))
+        jac[6:9, 28:35] = right_new_arm_jac
+        jac[6:9, 36] = right_new_base_jac
+        jac[6:9, 37:40] = -np.eye(3)
+        jac[9:12, 28:35] = -right_new_arm_jac
+        jac[9:12, 36] = -right_new_base_jac
+        jac[9:12, 37:40] = -np.eye(3)
+
+        dist_left = (left_new_pose_rot - left_pose_rot - x[17:20].flatten()).reshape((3,1))
+        dist_left_rev = (left_pose_rot - left_new_pose_rot - x[17:20].flatten()).reshape((3,1))
+        dist_right = (right_new_pose_rot - right_pose_rot - x[37:40].flatten()).reshape((3,1))
+        dist_right_rev = (right_pose_rot - right_new_pose_rot - x[37:40].flatten()).reshape((3,1))
+
+        val = np.vstack([dist_left, dist_left_rev, dist_right, dist_right_rev])
+        return val, jac
+
 class At(ExprPredicate):
     """
         Format: # At, Can, Target
@@ -847,8 +913,6 @@ class EEReachable(PosePredicate):
         else:
             return self.opt_expr
 
-
-
 class Obstructs(CollisionPredicate):
     """
         Format: Obstructs, Robot, RobotPose, RobotPose, Can
@@ -900,8 +964,6 @@ class Obstructs(CollisionPredicate):
             return self.neg_expr
         else:
             return None
-
-
 
 class ObstructsHolding(CollisionPredicate):
     """
@@ -1077,9 +1139,9 @@ class ObjectWithinRotLimit(ExprPredicate):
         super(ObjectWithinRotLimit, self).__init__(name, e, attr_inds, params, expected_param_types)
         self.spacial_anchor = False
 
-class Velocity(PosePredicate):
+class EERetiming(PosePredicate):
     """
-        Format: Velocity Robot EEVel
+        Format: EERetiming Robot EEVel
 
         Robot related
         Requires:
@@ -1101,6 +1163,6 @@ class Velocity(PosePredicate):
         grad = lambda x: self.coeff*self.eval_grad(x)
 
         pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
-        e = LEqExpr(pos_expr, val)
-        super(Velocity, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, active_range = (0,1))
+        e = EqExpr(pos_expr, val)
+        super(EERetiming, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, active_range = (0,1))
         self.spacial_anchor = False
