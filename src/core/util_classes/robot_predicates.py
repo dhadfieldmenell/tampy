@@ -1076,3 +1076,21 @@ class ObjectWithinRotLimit(ExprPredicate):
         e = LEqExpr(pos_expr, val)
         super(ObjectWithinRotLimit, self).__init__(name, e, attr_inds, params, expected_param_types)
         self.spacial_anchor = False
+
+class GrippersLevel(ExprPredicate):
+    '''
+    Format: GrippersLevel Robot
+    '''
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 1
+        self.robot = params[0]
+        self.attr_dim = 3
+        attr_inds = self.attr_inds
+
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        A[:3, :] = 0
+        b, val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.spacial_anchor = True
