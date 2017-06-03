@@ -610,19 +610,24 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     # Normal resample eereachable used in grasp action
     resample_failure = False
     # Resample entire approaching and retreating traj
-    for i in range(const.EEREACHABLE_STEPS):
-
-        left_app_pos = left_pose + np.array([0,0,const.APPROACH_DIST]) * (3-i)
+    step = const.EEREACHABLE_STEPS
+    for i in range(step):
+        left_app_pos = left_pose + np.array([0,0,const.APPROACH_DIST]) * (step-i)
         left_approach_arm_pose = get_ik_from_pose(left_app_pos, left_rot, body, 'left_arm')
-        right_app_pos = right_pose + np.array([0,0,const.APPROACH_DIST]) * (3-i)
+        right_app_pos = right_pose + np.array([0,0,const.APPROACH_DIST]) * (step-i)
         right_approach_arm_pose = get_ik_from_pose(right_app_pos, right_rot, body, 'right_arm')
-        add_to_attr_inds_and_res(t-3+i, attr_inds, res, robot, [('lArmPose', left_approach_arm_pose), ('rArmPose', right_approach_arm_pose)])
+        add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [('lArmPose', left_approach_arm_pose), ('rArmPose', right_approach_arm_pose)])
+        # rave_body.set_dof({'lArmPose': left_approach_arm_pose, 'rArmPose': right_approach_arm_pose})
+        # import ipdb; ipdb.set_trace()
 
         left_ret_pos = left_pose + np.array([0,0,const.APPROACH_DIST]) * (i+1)
         left_retreat_arm_pose = get_ik_from_pose(left_ret_pos, left_rot, body, 'left_arm')
         right_ret_pos = right_pose + np.array([0,0,const.APPROACH_DIST]) * (i+1)
         right_retreat_arm_pose = get_ik_from_pose(right_ret_pos, right_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot, [('lArmPose', left_retreat_arm_pose), ('rArmPose', right_retreat_arm_pose)])
+
+        # rave_body.set_dof({'lArmPose': left_retreat_arm_pose, 'rArmPose': right_retreat_arm_pose})
+        # import ipdb; ipdb.set_trace()
 
         if left_approach_arm_pose is None or right_approach_arm_pose is None or  left_retreat_arm_pose is None or right_retreat_arm_pose is None:
             resample_failure = True
@@ -632,45 +637,17 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
         return None, None
     # import ipdb; ipdb.set_trace()
     # lock the variables
-    robot._free_attrs['lArmPose'][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
-    robot._free_attrs['rArmPose'][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
-
-    # finding initial pose
-    # init_timestep, ref_index = 0, 0
-    # for i in range(len(plan.actions)):
-    #     act_range = plan.actions[i].active_timesteps
-    #     if act_range[0] <= t <= act_range[1]:
-    #         init_timestep = act_range[0]
-    #         ref_index = i
-    #
-    # if pred.ee_resample is True and ref_index > 0:
-    #     init_timestep = plan.actions[ref_index - 1].active_timesteps[0]
-    #
-    # init_dof = robot.rArmPose[:, init_timestep].flatten()
-    # init_dof = np.hstack([robot.pose[:, init_timestep], init_dof])
-    # end_dof = robot.rArmPose[:, t - const.EEREACHABLE_STEPS].flatten()
-    # end_dof = np.hstack([robot.pose[:, t - const.EEREACHABLE_STEPS], end_dof])
-    # timesteps = t - const.EEREACHABLE_STEPS - init_timestep + 2
-    #
-    # raw_traj = get_rrt_traj(plan.env, body, active_dof, init_dof, end_dof)
-    # # Restore dof0
-    # dof = body.GetActiveDOFValues()
-    # dof[0] = 0
-    # body.SetActiveDOFValues(dof)
-    # # trajectory is infeasible
-    # if raw_traj == None:
-    #     plan.sampling_trace[-1]['reward'] = -1
-    #     return None, None
-    # # initailize feasible trajectory
-    # result_traj = process_traj(raw_traj, timesteps).T[1:-1]
-    # ts = 1
-    # for traj in result_traj:
-    #     add_to_attr_inds_and_res(init_timestep + ts, attr_inds, res, robot, [('{}ArmPose'.format(direction[0]), traj[1:]), ('pose', traj[:1])])
-    #     ts += 1
-    #
-    # pred.ee_resample = True
+    robot._free_attrs['lArmPose'][:, t-step: t+step+1] = 0
+    robot._free_attrs['rArmPose'][:, t-step: t+step+1] = 0
     # import ipdb; ipdb.set_trace()
     return np.array(res), attr_inds
+
+def resample_retiming(pred, negated, t, plan):
+    if pred.ee_vel.name == "fast_vel":
+        active_range = list(range(0, 10)) + list(range(20,29))
+
+
+
 
 def resample_basket_obstructs(pred, negated, t, plan):
     # import ipdb; ipdb.set_trace()

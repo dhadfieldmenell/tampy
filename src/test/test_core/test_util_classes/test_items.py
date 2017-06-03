@@ -49,3 +49,17 @@ class TestItems(unittest.TestCase):
     def test_wall(self):
         wall = items.Wall("closet")
         self.assertEqual("closet", wall.wall_type)
+
+    def test_washer(self):
+        domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
+                       '../domains/laundry_domain/laundry_probs/laundry.prob')
+        env = problem.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        viewer.draw(objLst, 0, 0.7)
+        robot = params['baxter']
+        basket = params['basket']
+        table = params['table']
+        baxter_body = robot.openrave_body
+        basket_body = basket.openrave_body
+        import ipdb; ipdb.set_trace()

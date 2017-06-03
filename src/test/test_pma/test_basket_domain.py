@@ -9,6 +9,34 @@ from core.util_classes.param_setup import ParamSetup
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 from ros_interface import action_execution
 
+def traj_retiming(plan, velocity):
+    baxter = plan.params['baxter']
+    rave_body = baxter.openrave_body
+    body = rave_body.env_body
+    lmanip = body.GetManipulator("left_arm")
+    rmanip = body.GetManipulator("right_arm")
+    left_ee_pose = []
+    right_ee_pose = []
+    for t in range(plan.horizon):
+        rave_body.set_dof({
+            'lArmPose': baxter.lArmPose[:, t],
+            'lGripper': baxter.lGripper[:, t],
+            'rArmPose': baxter.rArmPose[:, t],
+            'rGripper': baxter.rGripper[:, t]
+        })
+        rave_body.set_pose([0,0,baxter.pose[:, t]])
+
+        left_ee_pose.append(lmanip.GetTransform()[:3, 3])
+        right_ee_pose.append(rmanip.GetTransform()[:3, 3])
+    time = np.zeros(plan.horizon)
+    # import ipdb; ipdb.set_trace()
+    for t in range(plan.horizon-1):
+        left_dist = np.linalg.norm(left_ee_pose[t+1] - left_ee_pose[t])
+        right_dist = np.linalg.norm(right_ee_pose[t+1] - right_ee_pose[t])
+        time_spend = max(left_dist, right_dist)/velocity[t]
+        time[t+1] = time[t] + time_spend
+    return time
+
 class TestBasketDomain(unittest.TestCase):
 
     def test_basket_domain(self):
@@ -39,9 +67,32 @@ class TestBasketDomain(unittest.TestCase):
         end = time.time()
 
         baxter = plan.params['baxter']
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
-        print plan.get_failed_preds()
+        body = baxter.openrave_body.env_body
+        lmanip = body.GetManipulator('left_arm')
+        rmanip = body.GetManipulator('right_arm')
+        def check(t, vel):
+            viewer.draw_plan_ts(plan, t)
+            left_t0 = lmanip.GetTransform()[:3,3]
+            right_t0 = rmanip.GetTransform()[:3,3]
+            viewer.draw_plan_ts(plan, t+1)
+            left_t1 = lmanip.GetTransform()[:3,3]
+            right_t1 = rmanip.GetTransform()[:3,3]
+            left_spend = np.linalg.norm(left_t1 - left_t0) /vel
+            right_spend = np.linalg.norm(right_t1 - right_t0) /vel
+            print "{}:{}".format(left_spend, baxter.time[:, t+1] - baxter.time[:, t])
+            print "{}:{}".format(right_spend, baxter.time[:, t+1] - baxter.time[:, t])
 
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        velocity = np.zeros(plan.horizon)
+
+        velocity[0:15] = plan.params['fast_vel'].value[0]
+        velocity[15:25] = plan.params['slow_vel'].value[0]
+        velocity[25:55] = 0.15
+        velocity[55:65] = plan.params['slow_vel'].value[0]
+        velocity[65:80] = plan.params['fast_vel'].value[0]
+        baxter.time = traj_retiming(plan, velocity).reshape((1, plan.horizon))
+        print plan.get_failed_preds()
+        import ipdb; ipdb.set_trace()
         print "Saving current plan to file basket_plan.hdf5..."
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("basket_plan.hdf5", plan)
@@ -85,7 +136,8 @@ class TestBasketDomain(unittest.TestCase):
 
         col_pred = BaxterCollides("collision_checker", [basket, table], ["Basket", "Obstacle"], env)
 
-        ver_off = [0, 0,0.15]
+        max_offset = const.EEREACHABLE_STEPS*const.APPROACH_DIST
+        ver_off = [0, 0,max_offset]
         #Grasping Pose
         left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset, [0,np.pi/2,0], "left_arm")[0]
         right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset, [0,np.pi/2,0], "right_arm")[0]
@@ -95,12 +147,10 @@ class TestBasketDomain(unittest.TestCase):
         right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset + ver_off, [0,np.pi/2,0], "right_arm")[0]
         baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
 
-
-
         self.assertFalse(col_pred.test(0))
         # Holding Pose
-        left_arm_pose = baxter_body.get_ik_from_pose(np.array([0.75, 0.02, 1.005 + 0.15]) + offset, [0,np.pi/2,0], "left_arm")[0]
-        right_arm_pose = baxter_body.get_ik_from_pose(np.array([0.75, 0.02, 1.005 + 0.15]) - offset, [0,np.pi/2,0], "right_arm")[0]
+        left_arm_pose = baxter_body.get_ik_from_pose(np.array([0.75, 0.02, 1.005 + max_offset]) + offset, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(np.array([0.75, 0.02, 1.005 + max_offset]) - offset, [0,np.pi/2,0], "right_arm")[0]
         baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
         basket_body.set_pose([0.75, 0.02, 1.01 + 0.15], end_targ.rotation.flatten())
 

@@ -14,7 +14,7 @@
 #
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_basket_grasp_valid --debug
 
-# nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_basket_in_contact --debug
+# nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_in_gripper_rot --debug
 
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_retiming --debug
 
