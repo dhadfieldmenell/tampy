@@ -975,17 +975,18 @@ class BaxterObjectWithinRotLimit(robot_predicates.ObjectWithinRotLimit):
             self.object = params[0]
             super(BaxterObjectWithinRotLimit, self).__init__(name, params, expected_param_types, env, debug)
 
-class BaxterGrippersLevel():
+class BaxterGrippersLevel(robot_predicates.GrippersLevel):
     # BaxterGrippersLevel Robot
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.eval_dim = 6
-        self.coeff = const.GRIPPERS_LEVEL_COEFF
-        self.opt_coeff = const.GRIPPERS_LEVEL_OPT_COEFF
+        self.coeff = 1
+        self.opt_coeff = 1
         self.eval_f = lambda x: self.both_arm_pos_check(x)[0]
-        self.eval_grad = lambda x: self.both_arm_rpos_check(x)[1]
-        super(BaxterBasketInGripperRot, self).__init__(name, params, expected_param_types, env, debug)
+        self.eval_grad = lambda x: self.both_arm_pos_check(x)[1]
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type]))])
+        self.eval_dim = 6
+        super(BaxterGrippersLevel, self).__init__(name, params, expected_param_types, env, debug)
 
-    def get_robot_info(self, robot_body, arm = "right"):
+    def get_robot_info(self, robot_body, arm = "left"):
         if not arm == "right" and not arm == "left":
             PredicateException("Invalid Arm Specified")
         # Provide functionality of Obtaining Robot information
@@ -1003,13 +1004,23 @@ class BaxterGrippersLevel():
             arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
-    def both_arm_check(self, x):
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def both_arm_pos_check(self, x):
         """
             This function is used to check whether:
-                both grippers have the same rotation and height
-
-            x: 26 dimensional list aligned in following order,
-            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper
+                both grippers are at the same height
 
             Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
         """
@@ -1025,38 +1036,52 @@ class BaxterGrippersLevel():
         left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
         right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
 
-        l_pos_val, l_pos_jac = self.pos_error(obj_trans, robot_left_trans, left_arm_joints)
-        r_pos_val, r_pos_jac = self.pos_error(obj_trans, robot_right_trans, right_arm_joints)
+        l_tool_link = robot_body.env_body.GetLink("left_gripper")
+        l_manip_trans = l_tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        l_pose = OpenRAVEBody.obj_pose_from_transform(l_manip_trans)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(l_pose[:3], l_pose[3:])
+        l_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        r_tool_link = robot_body.env_body.GetLink("right_gripper")
+        r_manip_trans = r_tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        r_pose = OpenRAVEBody.obj_pose_from_transform(r_manip_trans)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(r_pose[:3], r_pose[3:])
+        r_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        l_pos_val, l_pos_jac = self.pos_error(robot_left_trans, robot_right_trans, r_axises, left_arm_joints, right_arm_joints, [0,0,0], "left")
+        r_pos_val, r_pos_jac = self.pos_error(robot_right_trans, robot_left_trans, l_axises, right_arm_joints, left_arm_joints, [0,0,0], "right")
 
         pos_val = np.vstack([l_pos_val, r_pos_val])
         pos_jac = np.vstack([l_pos_jac, r_pos_jac])
         return pos_val, pos_jac
 
-    def pos_error(self, l_robot_trans, r_robot_trans, arm_joints, rel_pt = [0,0,0]):
+    def pos_error(self, robot_arm_trans, robot_aux_arm_trans, axises, arm_joints, aux_joints, rel_pt, arm):
         """
-            This function calculates the value and the jacobian of the displacement between the grippers' poses and oreitnations
+            This function calculates the value and the jacobian of the displacement between the height of the gripper and that of the inactive gripper
 
-            l_robot_trans: robot's left gripper's rave_body transformation
-            r_robot_trans: robot's right gripper's rave_body transformation
+            robot_trans: active robot gripper's rave_body transformation
+            robot_aux_arm_trans: inactive gripper's rave_body transformation
+            axises: rotational axises of the object
             arm_joints: list of robot joints
         """
+        vert_axis = np.array([0, 0, 1]).reshape((3, 1))
         gp = rel_pt
-        l_gripper_pos = l_robot_trans[:3, 3]
-        r_gripper_pos = r_robot_trans[:3, 3]
-
-
-        obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
-        dist_val = (robot_pos.flatten() - obj_pos.flatten()).reshape((3,1))
+        robot_pos = robot_arm_trans[:3, 3]
+        robot_aux_pos = robot_aux_arm_trans[:3, 3]
+        dist_val = (robot_pos.flatten() - robot_aux_pos.flatten()).reshape((3, 1)) * vert_axis
         # Calculate the joint jacobian
-        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos.flatten() - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos.flatten() - joint.GetAnchor()) for joint in arm_joints]).T.copy() * vert_axis
         # Calculate jacobian for the robot base
-        base_jac = np.cross(np.array([0, 0, 1]), robot_pos - np.zeros((3,))).reshape((3,1))
+        base_jac = np.cross(np.array([0, 0, 1]), robot_pos - np.zeros((3,))).reshape((3, 1)) * vert_axis
         # Calculate object jacobian
-        obj_jac = -1*np.array([np.cross(axis, obj_pos - obj_trans[:3,3].flatten()) for axis in axises]).T
-        obj_jac = np.c_[-np.eye(3), obj_jac]
-        # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
-        dist_jac = self.arm_jac_cancatenation(arm_jac, base_jac, obj_jac, arm)
-        calculates
+        aux_jac = -1*np.array([np.cross(joint.GetAxis(), robot_aux_pos.flatten() - joint.GetAnchor()) for joint in aux_joints]).T.copy() * vert_axis
+        if arm == "left":
+            dist_jac = np.hstack((arm_jac, np.zeros((3, 1)), aux_jac, np.zeros((3, 1)), base_jac))
+        elif arm == "right":
+            dist_jac = np.hstack((aux_jac, np.zeros((3, 1)), arm_jac, np.zeros((3, 1)), base_jac))
+
         return dist_val, dist_jac
 
 class BaxterEERetiming(robot_predicates.EERetiming):

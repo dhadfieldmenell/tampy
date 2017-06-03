@@ -927,6 +927,39 @@ class TestBaxterPredicates(unittest.TestCase):
         robot.rGripper = np.array([[const.GRIPPER_CLOSE_VALUE]])
         self.assertTrue(pred.test(0))
 
+
+    def test_grippers_level(self):
+        env = ParamSetup.setup_env()
+        baxter = ParamSetup.setup_baxter()
+        pred = baxter_predicates.BaxterGrippersLevel("test_grippers_level", [baxter], ["Robot"], env)
+        # The Baxter begins with all joint angles set to 0
+        self.assertTrue(pred.test(0))
+
+        baxter_body = baxter.openrave_body
+        baxter.lArmPose = np.array([baxter_body.get_ik_from_pose([.75, .05, .82], [0,np.pi/2,0], "left_arm")[0]]).T
+        baxter.rArmPose = np.array([baxter_body.get_ik_from_pose([.75, .02, .79], [0,np.pi/2,0], "right_arm")[0]]).T
+        self.assertFalse(pred.test(0))
+
+        baxter.lArmPose = np.array([baxter_body.get_ik_from_pose([.3, 0, .8], [0,np.pi/2,0], "left_arm")[0]]).T
+        baxter.rArmPose = np.array([baxter_body.get_ik_from_pose([.4, -.01, .8], [0,np.pi/2,0], "right_arm")[0]]).T
+        self.assertTrue(pred.test(0))
+
+        baxter.lArmPose = np.array([baxter_body.get_ik_from_pose([.65, .05, .83], [0,np.pi/2,0], "left_arm")[0]]).T
+        baxter.rArmPose = np.array([baxter_body.get_ik_from_pose([.6, .05, .83], [0,np.pi/2,0], "right_arm")[0]]).T
+        self.assertTrue(pred.test(0))
+
+        baxter.lArmPose = np.array([baxter_body.get_ik_from_pose([.65, .5, .839], [0,np.pi/2,0], "left_arm")[0]]).T
+        baxter.rArmPose = np.array([baxter_body.get_ik_from_pose([.65, -.2, .85], [0,np.pi/2,0], "right_arm")[0]]).T
+        self.assertFalse(pred.test(0))
+
+        baxter.lArmPose = np.array([baxter_body.get_ik_from_pose([.65, .14, .9], [0,np.pi/2,0], "left_arm")[0]]).T
+        baxter.rArmPose = np.array([baxter_body.get_ik_from_pose([.65, .14, .9], [0,np.pi/2,0], "right_arm")[0]]).T
+        self.assertTrue(pred.test(0))
+
+        if const.TEST_GRAD:
+            pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-3)
+
+
     def test_retiming(self):
 
         env = ParamSetup.setup_env()

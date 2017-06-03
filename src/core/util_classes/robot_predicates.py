@@ -1139,6 +1139,28 @@ class ObjectWithinRotLimit(ExprPredicate):
         super(ObjectWithinRotLimit, self).__init__(name, e, attr_inds, params, expected_param_types)
         self.spacial_anchor = False
 
+
+class GrippersLevel(PosePredicate):
+    '''
+    Format: GrippersLevel Robot
+    '''
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        assert len(params) == 1
+        self._env = env
+        self.robot = params[0]
+        attr_inds = self.attr_inds
+
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        f = lambda x: self.coeff*self.eval_f(x)
+        grad = lambda x: self.coeff*self.eval_grad(x)
+
+        pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
+        e = EqExpr(pos_expr, val)
+
+        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.spacial_anchor = False
+
 class EERetiming(PosePredicate):
     """
         Format: EERetiming Robot EEVel

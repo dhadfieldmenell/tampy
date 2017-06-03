@@ -62,4 +62,4 @@ Following constants are for testing purposes
 """
 
 TOL = 1e-4
-TEST_GRAD = False
+TEST_GRAD = True
