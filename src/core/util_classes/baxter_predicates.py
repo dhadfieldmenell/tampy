@@ -2,7 +2,7 @@ from core.util_classes import robot_predicates
 from core.util_classes.common_predicates import ExprPredicate
 from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable_rrt, resample_basket_eereachable_rrt, resample_rcollides, resample_pred, resample_basket_obstructs
+from core.util_classes.baxter_sampling import resample_obstructs, resample_eereachable_rrt, resample_basket_eereachable_rrt, resample_rcollides, resample_pred, resample_retiming, resample_basket_obstructs
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from collections import OrderedDict
 from openravepy import DOFAffine, quatRotateDirection, matrixFromQuat
@@ -200,8 +200,8 @@ class BaxterObstructs(robot_predicates.Obstructs):
         self.dsafe = const.DIST_SAFE
 
     def resample(self, negated, t, plan):
-        # return resample_pred(self, negated, t, plan)
-        return resample_basket_obstructs(self, negated, t, plan)
+        return resample_pred(self, negated, t, plan)
+        # return resample_basket_obstructs(self, negated, t, plan)
         # return None, None
 
     def set_active_dof_inds(self, robot_body, reset = False):
@@ -245,8 +245,8 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         self.dsafe = const.DIST_SAFE
 
     def resample(self, negated, t, plan):
-        return resample_basket_obstructs(self, negated, t, plan)
-        # return resample_pred(self, negated, t, plan)
+        # return resample_basket_obstructs(self, negated, t, plan)
+        return resample_pred(self, negated, t, plan)
         # return None, None
 
     def set_robot_poses(self, x, robot_body):
@@ -936,13 +936,13 @@ class BaxterBasketInGripperRot(BaxterInGripper):
         """
         rot_vals = []
         rot_jacs = []
-        expected = np.array([0, 0, 1])
+        expected = np.array([0, 0, -1])
         for local_dir in np.eye(3):
             obj_dir = np.dot(obj_trans[:3,:3], local_dir)
             world_dir = robot_trans[:3,:3].dot(local_dir)
             obj_dir = obj_dir/np.linalg.norm(obj_dir)
             world_dir = world_dir/np.linalg.norm(world_dir)
-            rot_vals.append(np.array([[np.abs(np.dot(obj_dir, world_dir)) - expected.dot(local_dir)]]))
+            rot_vals.append(np.array([[np.dot(obj_dir, world_dir) - expected.dot(local_dir)]]))
             sign = np.sign(np.dot(obj_dir, world_dir))
             # computing robot's jacobian
             arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign*world_dir)) for joint in arm_joints]).T.copy()
@@ -956,6 +956,7 @@ class BaxterBasketInGripperRot(BaxterInGripper):
 
         rot_val = np.vstack(rot_vals)
         rot_jac = np.vstack(rot_jacs)
+        # import ipdb; ipdb.set_trace()
         return (rot_val, rot_jac)
 
 class BaxterBasketLevel(robot_predicates.BasketLevel):
@@ -1070,6 +1071,9 @@ class BaxterEERetiming(robot_predicates.EERetiming):
 
         super(BaxterEERetiming, self).__init__(name, params, expected_param_types, env, debug)
         self.spacial_anchor = False
+
+    # def resample(self, negated, t, plan):
+    #     return resample_retiming(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
