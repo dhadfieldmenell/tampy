@@ -141,31 +141,6 @@ class Trajectory(object):
 			rate.sleep()
 			now_from_start = rospy.get_time() - start_time
 
-	def _clean_line(self, line, joint_names):
-		"""
-		Cleans a single line of recorded joint positions
-
-		@param line: the line described in a list to process
-		@param joint_names: joint name keys
-
-		@return command: returns dictionary {joint: value} of valid commands
-		@return line: returns list of current line values stripped of commas
-		"""
-		def try_float(x):
-			try:
-				return float(x)
-			except ValueError:
-				return None
-		#convert the line of strings to a float or None
-		line = [try_float(x) for x in line.rstrip().split(',')]
-		#zip the values with the joint names
-		combined = zip(joint_names[1:], line[1:])
-		#take out any tuples that have a none value
-		cleaned = [x for x in combined if x[1] is not None]
-		#convert it to a dictionary with only valid commands
-		command = dict(cleaned)
-		return (command, line,)
-
 	def _add_point(self, positions, side, time):
 		#creates a point in trajectory with time_from_start and positions
 		point = JointTrajectoryPoint()
@@ -216,8 +191,9 @@ class Trajectory(object):
 			offset = max(map(operator.div, diffs, dflt_vel))
 			return offset
 
-		ts = (0,79) # action.active_timesteps
+		action.active_timesteps
 
+		real_ts = 0
 		for t in range(ts[0], ts[1]):
 			cmd = {}
 			for i in range(7):
@@ -234,16 +210,17 @@ class Trajectory(object):
 				self._add_point(cur_cmd, 'right', 0.0)
 				start_offset = find_start_offset(cmd)
 				self._slow_move_offset = start_offset
-				self._trajectory_start_offset = rospy.Duration(start_offset + t / time_rat)
+				self._trajectory_start_offset = rospy.Duration(start_offset + real_ts)
 
 			cur_cmd = [cmd[jnt] for jnt in self._l_goal.trajectory.joint_names]
-			self._add_point(cur_cmd, 'left', t / time_rat + start_offset)
+			self._add_point(cur_cmd, 'left', real_ts + start_offset)
 			cur_cmd = [cmd[jnt] for jnt in self._r_goal.trajectory.joint_names]
-			self._add_point(cur_cmd, 'right', t / time_rat + start_offset)
+			self._add_point(cur_cmd, 'right', real_ts + start_offset)
 			cur_cmd = [cmd['left_gripper']]
-			self._add_point(cur_cmd, 'left_gripper', t / time_rat + start_offset)
+			self._add_point(cur_cmd, 'left_gripper', real_ts + start_offset)
 			cur_cmd = [cmd['right_gripper']]
-			self._add_point(cur_cmd, 'right_gripper', t / time_rat + start_offset)
+			self._add_point(cur_cmd, 'right_gripper', real_ts + start_offset)
+			real_ts += baxter.time[t]
 
 	def _feedback(self, data):
 		# Test to see if the actual playback time has exceeded
