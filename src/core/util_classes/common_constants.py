@@ -9,7 +9,7 @@ This file is refferenced in:
 Constants used in robot_predicates
 """
 # Needed
-POSE_TOL = 2e-2
+POSE_TOL = 1e-4
 EEREACHABLE_STEPS = 3
 DIST_SAFE = 1e-2
 COLLISION_TOL = 1e-3

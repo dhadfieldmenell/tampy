@@ -38,10 +38,10 @@ class ParamSetup(object):
 
     @staticmethod
     def setup_baxter(name = "baxter"):
-        attrs = {"name": [name], "pose": [(0)], "_type": ["Robot"], "geom": [], "lGripper": [0.02], "rGripper": [0.02]}
+        attrs = {"name": [name], "pose": [(0)], "_type": ["Robot"], "geom": [], "lGripper": [0.02], "time":[0], "rGripper": [0.02]}
         attrs["lArmPose"] = [(0,0,0,0,0,0,0)]
         attrs["rArmPose"] = [(0,0,0,0,0,0,0)]
-        attr_types = {"name": str, "pose": matrix.Value, "_type": str, "geom": robots.Baxter, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value}
+        attr_types = {"name": str, "pose": matrix.Value, "_type": str, "geom": robots.Baxter, "lArmPose": matrix.Vector7d, "rArmPose": matrix.Vector7d, "lGripper": matrix.Value, "rGripper": matrix.Value, "time": matrix.Value}
         robot = parameter.Object(attrs, attr_types)
         return robot
 
@@ -122,6 +122,13 @@ class ParamSetup(object):
     @staticmethod
     def setup_ee_vel(name = "ee_vel"):
         attrs = {"name": [name], "value": ["undefined"], "rotation": ["undefined"], "_type": ["EEVel"]}
-        attr_types = {"name": str, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         ee_vel = parameter.Symbol(attrs, attr_types)
         return ee_vel
+
+    @staticmethod
+    def setup_washer(name = "washer"):
+        attrs = {"name": [name], "pose": [[0,0,0]], "hinge": [0], "rotation": [[0,0,0]], "geom": [], "_type": ["Obstacle"]}
+        attr_types = {"name": str, "pose": matrix.Vector3d, "hinge": matrix.Vector1d, "rotation": matrix.Vector3d, "geom": items.Washer, "_type": str}
+        washer = parameter.Object(attrs, attr_types)
+        return washer

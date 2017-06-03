@@ -927,6 +927,7 @@ class TestBaxterPredicates(unittest.TestCase):
         robot.rGripper = np.array([[const.GRIPPER_CLOSE_VALUE]])
         self.assertTrue(pred.test(0))
 
+
     def test_grippers_level(self):
         env = ParamSetup.setup_env()
         baxter = ParamSetup.setup_baxter()
@@ -947,8 +948,8 @@ class TestBaxterPredicates(unittest.TestCase):
         baxter.rArmPose = np.array([baxter_body.get_ik_from_pose([.6, .05, .83], [0,np.pi/2,0], "right_arm")[0]]).T
         self.assertTrue(pred.test(0))
 
-        baxter.lArmPose = np.array([baxter_body.get_ik_from_pose([.65, .5, .83], [0,np.pi/2,0], "left_arm")[0]]).T
-        baxter.rArmPose = np.array([baxter_body.get_ik_from_pose([.65, -.2, .851], [0,np.pi/2,0], "right_arm")[0]]).T
+        baxter.lArmPose = np.array([baxter_body.get_ik_from_pose([.65, .5, .839], [0,np.pi/2,0], "left_arm")[0]]).T
+        baxter.rArmPose = np.array([baxter_body.get_ik_from_pose([.65, -.2, .85], [0,np.pi/2,0], "right_arm")[0]]).T
         self.assertFalse(pred.test(0))
 
         baxter.lArmPose = np.array([baxter_body.get_ik_from_pose([.65, .14, .9], [0,np.pi/2,0], "left_arm")[0]]).T
@@ -958,20 +959,21 @@ class TestBaxterPredicates(unittest.TestCase):
         if const.TEST_GRAD:
             pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-3)
 
-    def test_velocity(self):
+
+    def test_retiming(self):
 
         env = ParamSetup.setup_env()
         baxter = ParamSetup.setup_baxter()
         ee_vel = ParamSetup.setup_ee_vel()
-        pred = baxter_predicates.BaxterVelocity("test_velocity", [baxter, ee_vel], ["Robot", "EEVel"], env)
+        pred = baxter_predicates.BaxterEERetiming("test_retiming", [baxter, ee_vel], ["Robot", "EEVel"], env)
         # Since variables aren't defined yet
         self.assertFalse(pred.test(0))
 
-        ee_vel.value = np.array([[0, 0, 0]]).T
-        ee_vel.rotation = np.array([[0, 0, 0]]).T
+        ee_vel.value = np.array([[0.1]]).T
+
         with self.assertRaises(PredicateException) as cm:
             pred.test(0)
-        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_velocity: (BaxterVelocity baxter ee_vel)' at the timestep.")
+        self.assertEqual(cm.exception.message, "Insufficient pose trajectory to check dynamic predicate 'test_retiming: (BaxterEERetiming baxter ee_vel)' at the timestep.")
 
         body = baxter.openrave_body.env_body
         def get_ee_pose(body, arm):
@@ -984,44 +986,38 @@ class TestBaxterPredicates(unittest.TestCase):
         baxter.rArmPose = np.zeros((7, 5))
         baxter.rGripper = np.zeros((1, 5))
         baxter.pose = np.zeros((1, 5))
-
-        baxter.lArmPose[:, 1] = [np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]
-        self.assertFalse(pred.test(0))
-        self.assertFalse(pred.test(1))
-        self.assertTrue(pred.test(2))
-        self.assertTrue(pred.test(3))
-
-        ee_vel.value = np.array([[2,2,2]]).T
+        baxter.time = np.zeros((1, 5))
         self.assertTrue(pred.test(0))
         self.assertTrue(pred.test(1))
         self.assertTrue(pred.test(2))
         self.assertTrue(pred.test(3))
-        ee_vel.value = np.array([[const.APPROACH_DIST, const.APPROACH_DIST, const.APPROACH_DIST]]).T
 
+
+        ee_vel.value = np.array([[const.APPROACH_DIST/2.]]).T
         basket_pos = np.array([0.65 , -0.283,  0.81])
         offset = [0, 0.317, 0]
         left_trajectory = []
         baxter_body = baxter.openrave_body
         left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 2*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        [0,0, 2*const.APPROACH_DIST/2.], [0,np.pi/2,0], "left_arm")[4])
         left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 1*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        [0,0, 1*const.APPROACH_DIST/2.], [0,np.pi/2,0], "left_arm")[4])
         left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 0*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        [0,0, 0*const.APPROACH_DIST/2.], [0,np.pi/2,0], "left_arm")[4])
         left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 1*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
         left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 2*(const.APPROACH_DIST/2.)], [0,np.pi/2,0], "left_arm")[4])
+        [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
         left_trajectory = np.array(left_trajectory)
         baxter.lArmPose = left_trajectory.T
 
         right_trajectory = []
         right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        [0,0, 2*const.APPROACH_DIST/2.], [0,np.pi/2,0], "right_arm")[2])
         right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        [0,0, 1*const.APPROACH_DIST/2.], [0,np.pi/2,0], "right_arm")[2])
         right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        [0,0, 0*const.APPROACH_DIST/2.], [0,np.pi/2,0], "right_arm")[2])
         right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
         right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
@@ -1029,13 +1025,44 @@ class TestBaxterPredicates(unittest.TestCase):
         right_trajectory = np.array(right_trajectory)
         baxter.rArmPose = right_trajectory.T
 
+        self.assertFalse(pred.test(0))
+        self.assertFalse(pred.test(1))
+        self.assertFalse(pred.test(2))
+        self.assertFalse(pred.test(3))
+        # pred.expr.expr.grad(pred.get_param_vectbaxteror(3), True, 1e-3)
+
+        baxter.time = np.array([[0, 1, 2, 3, 4]])
         self.assertTrue(pred.test(0))
         self.assertTrue(pred.test(1))
         self.assertTrue(pred.test(2))
         self.assertTrue(pred.test(3))
-        ee_vel.value = np.array([[const.APPROACH_DIST/2., const.APPROACH_DIST/2., const.APPROACH_DIST/2.]]).T
-        self.assertTrue(pred.test(0))
-        if const.TEST_GRAD:
-            pred.expr.expr.grad(pred.get_param_vector(3), True, 1e-3)
 
-        import ipdb; ipdb.set_trace()
+        # pred.expr.expr.grad(pred.get_param_vector(3), True, 1e-3)
+        ee_vel.value = np.array([[const.APPROACH_DIST/2.*2]]).T
+        self.assertFalse(pred.test(0))
+        self.assertFalse(pred.test(1))
+        self.assertFalse(pred.test(2))
+        self.assertFalse(pred.test(3))
+
+        # pred.expr.expr.grad(pred.get_param_vector(3), True, 1e-3)
+        baxter.time = np.array([[0, 0.5, 1, 2, 3]])
+        self.assertTrue(pred.test(0))
+        self.assertTrue(pred.test(1))
+        self.assertFalse(pred.test(2))
+        self.assertFalse(pred.test(3))
+        # pred.expr.expr.grad(pred.get_param_vector(3), True, 1e-3)
+
+        left_trajectory = []
+        baxter_body = baxter.openrave_body
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory = np.array(left_trajectory)
+        baxter.lArmPose = left_trajectory.T
