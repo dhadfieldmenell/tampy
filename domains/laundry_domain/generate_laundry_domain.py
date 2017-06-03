@@ -6,11 +6,11 @@ dom_str = """
 # Configuration file for CAN domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Can, Target, RobotPose, Robot, EEPose, Obstacle, Basket
+Types: Basket, BasketTarget, RobotPose, Robot, EEPose, Obstacle, Washer
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
-Attribute Import Paths: Baxter core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Washer core.util_classes.items
+Attribute Import Paths: Baxter core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Washer core.util_classes.robots
 
 Predicates Import Path: core.util_classes.baxter_predicates
 
@@ -37,8 +37,8 @@ class PrimitivePredicates(object):
         return prim_str
 
 pp = PrimitivePredicates()
-pp.add('Basket', [('geom', ''), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
-pp.add('BasketTarget', [('geom', ''), ('value', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('Basket', [('geom', 'Basket'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('BasketTarget', [('geom', 'Basket'), ('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('RobotPose', [('value', 'Vector1d'),
                     ('lArmPose', 'ArmPose7d'),
                     ('lGripper', 'Vector1d'),
@@ -51,7 +51,7 @@ pp.add('Robot', [('geom', 'Baxter'),
                 ('rArmPose', 'ArmPose7d'),
                 ('rGripper', 'Vector1d')])
 pp.add('EEPose', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
-pp.add('Washer', [('geom', 'Basket'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('Washer', [('geom', 'Washer'), ('pose', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
 pp.add('Obstacle', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 dom_str += pp.get_str() + '\n\n'
 
@@ -143,7 +143,7 @@ class Action(object):
 class Move(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 30
+        self.timesteps = 20
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
         self.pre = [\
@@ -172,7 +172,7 @@ class Move(Action):
 class MoveHolding(Action):
     def __init__(self):
         self.name = 'movetoholding'
-        self.timesteps = 30
+        self.timesteps = 20
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?basket - Basket)'
         self.pre = [\

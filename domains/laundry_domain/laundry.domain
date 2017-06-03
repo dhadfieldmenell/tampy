@@ -3,15 +3,15 @@
 # Configuration file for CAN domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Can, Target, RobotPose, Robot, EEPose, Obstacle, Basket
+Types: Basket, BasketTarget, RobotPose, Robot, EEPose, Obstacle, Washer
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
-Attribute Import Paths: Baxter core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Washer core.util_classes.items
+Attribute Import Paths: Baxter core.util_classes.robots, Vector1d core.util_classes.matrix, Vector3d core.util_classes.matrix, ArmPose7d core.util_classes.matrix, Table core.util_classes.items, Box core.util_classes.items, Basket core.util_classes.items, Washer core.util_classes.robots
 
 Predicates Import Path: core.util_classes.baxter_predicates
 
-Primitive Predicates: geom, BasketTarget, ; value, BasketTarget, Vector3d; rotation, BasketTarget, Vector3d; geom, Robot, Baxter; pose, Robot, Vector1d; lArmPose, Robot, ArmPose7d; lGripper, Robot, Vector1d; rArmPose, Robot, ArmPose7d; rGripper, Robot, Vector1d; value, RobotPose, Vector1d; lArmPose, RobotPose, ArmPose7d; lGripper, RobotPose, Vector1d; rArmPose, RobotPose, ArmPose7d; rGripper, RobotPose, Vector1d; geom, Obstacle, Box; pose, Obstacle, Vector3d; rotation, Obstacle, Vector3d; value, EEPose, Vector3d; rotation, EEPose, Vector3d; geom, Basket, ; pose, Basket, Vector3d; rotation, Basket, Vector3d; geom, Washer, Basket; pose, Washer, Vector3d; rotation, Washer, Vector3d
+Primitive Predicates: geom, BasketTarget, Basket; value, BasketTarget, Vector3d; rotation, BasketTarget, Vector3d; geom, Robot, Baxter; pose, Robot, Vector1d; lArmPose, Robot, ArmPose7d; lGripper, Robot, Vector1d; rArmPose, Robot, ArmPose7d; rGripper, Robot, Vector1d; value, RobotPose, Vector1d; lArmPose, RobotPose, ArmPose7d; lGripper, RobotPose, Vector1d; rArmPose, RobotPose, ArmPose7d; rGripper, RobotPose, Vector1d; geom, Obstacle, Box; pose, Obstacle, Vector3d; rotation, Obstacle, Vector3d; value, EEPose, Vector3d; rotation, EEPose, Vector3d; geom, Basket, Basket; pose, Basket, Vector3d; rotation, Basket, Vector3d; geom, Washer, Washer; pose, Washer, Vector3d; rotation, Washer, Vector3d; door, Washer, Vector1d
 
 Derived Predicates: BaxterStationary, Basket; BaxterEEReachableVerLeftPos, Robot, RobotPose, EEPose; BaxterCollides, Basket, Obstacle; BaxterEEReachableVerRightRot, Robot, RobotPose, EEPose; BaxterEEReachableVerRightPos, Robot, RobotPose, EEPose; BaxterBasketLevel, Basket; BaxterBasketInGripperPos, Robot, Basket; BaxterEEReachableRot, Robot, RobotPose, EEPose; BaxterRCollides, Robot, Obstacle; BaxterBasketInContact, Robot, EEPose, EEPose, BasketTarget; BaxterIsMP, Robot; BaxterBasketGraspLeftPos, EEPose, BasketTarget; BaxterEEReachableVerLeftRot, Robot, RobotPose, EEPose; BaxterBasketGraspRightPos, EEPose, BasketTarget; BaxterStationaryArms, Robot; BaxterBasketInGripperRot, Robot, Basket; BaxterBasketOpenGripper, Robot, EEPose, EEPose, BasketTarget; BaxterRobotAt, Robot, RobotPose; BaxterWithinJointLimit, Robot; BaxterStationaryBase, Robot; BaxterBasketGraspLeftRot, EEPose, BasketTarget; BaxterAt, Basket, BasketTarget; BaxterEEReachablePos, Robot, RobotPose, EEPose; BaxterObstructsHolding, Robot, RobotPose, RobotPose, Basket, Basket; BaxterBasketGraspRightRot, EEPose, BasketTarget; BaxterObstructs, Robot, RobotPose, RobotPose, Basket; BaxterStationaryW, Obstacle
 

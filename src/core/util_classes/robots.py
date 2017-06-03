@@ -77,3 +77,17 @@ class Baxter(Robot):
         left_manip = robot.GetManipulator('left_arm')
         ikmodel.manip = left_manip
         left_manip.SetIkSolver(ikmodel.iksolver)
+
+class Washer(Robot):
+    """
+        Object stores all the information to for a Washer model
+    """
+
+    def __init__(self):
+        self._type = "washer"
+        self.shape = "/home/simon0xzx/Research/tampy/models/items/washer.xml"
+        self.up_right_rot = [1.57, 0, 0]
+        self.dof_map = {"door": [0]}
+
+    def setup(self, robot):
+        pass

@@ -2,7 +2,7 @@ from IPython import embed as shell
 from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
-from core.util_classes.robots import Robot, PR2, Baxter
+from core.util_classes.robots import Robot, PR2, Baxter, Washer
 from core.util_classes.items import Can, Table, Box
 import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
@@ -120,11 +120,15 @@ class OpenRAVEViewer(Viewer):
     def _draw_rave_body(self, obj, name, t, transparency = 0.7):
         rotation = np.array([[0],[0],[0]])
         pose = obj.pose[:,t]
+
         assert isinstance(obj, Object) and not np.any(np.isnan(pose))
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
+            obj.openrave_body = self.name_to_rave_body[name]
+
         if isinstance(obj.geom, Robot):
             dof_value_map = None
+            pose = [0, 0, pose]
             if isinstance(obj.geom, PR2):
                 dof_value_map = {"backHeight": obj.backHeight[:, t],
                                  "lArmPose": obj.lArmPose[:, t],
@@ -136,7 +140,11 @@ class OpenRAVEViewer(Viewer):
                                  "lGripper": obj.lGripper[:, t],
                                  "rArmPose": obj.rArmPose[:, t],
                                  "rGripper": obj.rGripper[:, t]}
-                pose = [0, 0, pose]
+            elif isinstance(obj.geom, Washer):
+                dof_value_map = {"door": obj.door[:, t]}
+                pose = obj.pose[:, t]
+                rotation = obj.rotation[:, t]
+                
             self.name_to_rave_body[name].set_dof(dof_value_map)
         else:
             rotation = obj.rotation[:, t]

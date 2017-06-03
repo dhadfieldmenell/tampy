@@ -5,7 +5,7 @@ from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
 RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
 IkFilterOptions, matrixFromAxisAngle
-from core.util_classes.robots import Robot, PR2, Baxter
+from core.util_classes.robots import Robot, PR2, Baxter, Washer
 
 from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, BlueCircle, RedCircle, GreenCircle, Obstacle, Wall, Table, Basket
 
@@ -125,7 +125,7 @@ class OpenRAVEBody(object):
 
     def set_pose(self, base_pose, rotation = [0, 0, 0]):
         trans = None
-        if isinstance(self._geom, Robot):
+        if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif len(base_pose) == 2:
             trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)

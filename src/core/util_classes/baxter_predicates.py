@@ -34,6 +34,9 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                       ("rotation", np.array([0,1,2], dtype=np.int))),
            "BasketTarget": (("value", np.array([0,1,2], dtype=np.int)),
                             ("rotation", np.array([0,1,2], dtype=np.int))),
+           "Washer": (("pose", np.array([0,1,2], dtype=np.int)),
+                      ("rotation", np.array([0,1,2], dtype=np.int)),
+                      ("door", np.array([0], dtype=np.int))),
            "EEVel": (("value", np.array([0], dtype=np.int)))
           }
 

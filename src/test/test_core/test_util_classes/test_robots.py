@@ -11,6 +11,8 @@ from core.util_classes.baxter_sampling import process_traj
 from core.util_classes.viewer import OpenRAVEViewer
 from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
 
+
+
 def load_environment(domain_file, problem_file):
     domain_fname = domain_file
     d_c = main.parse_file_to_dict(domain_fname)
@@ -167,3 +169,18 @@ class TestRobots(unittest.TestCase):
         or_traj = trajectory["BiRRT"]
         result = process_traj(or_traj, 20)
         self.assertTrue(result.shape[1] == 20)
+
+    def test_washer(self):
+        domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
+                       '../domains/laundry_domain/laundry_probs/laundry_env.prob')
+        env = problem.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        viewer.draw(objLst, 0, 0.7)
+        robot = params['baxter']
+        basket = params['basket']
+        washer = params['washer']
+        baxter_body = robot.openrave_body
+        basket_body = basket.openrave_body
+        washer_body = washer.openrave_body
+        import ipdb; ipdb.set_trace()

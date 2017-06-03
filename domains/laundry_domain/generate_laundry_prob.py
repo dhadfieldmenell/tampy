@@ -5,12 +5,12 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-filename = "laundry_probs/laundry.prob"
+filename = "laundry_probs/laundry_env.prob"
 GOAL = "(BaxterAt basket end_target), (BaxterRobotAt baxter robot_end_pose)"
 
 
 # init Baxter pose
-BAXTER_INIT_POSE = [0]
+BAXTER_INIT_POSE = [1.57]
 R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
@@ -29,8 +29,13 @@ TABLE_GEOM = [0.3, 0.6, 0.018]
 TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
+WASHER_POS = [0.5, 0.9, 0]
+WASHER_ROT = [np.pi/2, 0, 0]
+WASHER_DOOR = [-np.pi/2]
+
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
+    s += "(geom {})".format(name)
     s += "(lArmPose {} {}), ".format(name, LArm)
     s += "(lGripper {} {}), ".format(name, G)
     s += "(rArmPose {} {}), ".format(name, RArm)
@@ -118,8 +123,9 @@ def main():
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
 
         s += "(geom washer), "
-        s += "(pose washer {}), ".format(0,0,0)
-        s += "(rotation washer {}), ".format([0,0,0])
+        s += "(pose washer {}), ".format(WASHER_POS)
+        s += "(rotation washer {}), ".format(WASHER_ROT)
+        s += "(door washer {})".format(WASHER_DOOR)
 
         s += "(geom table {}), ".format(TABLE_GEOM)
         s += "(pose table {}), ".format(TABLE_POS)
@@ -145,9 +151,6 @@ def main():
         s += "(BaxterBasketGraspLeftRot putdown_ee_left end_target), "
         s += "(BaxterBasketGraspRightPos putdown_ee_right end_target), "
         s += "(BaxterBasketGraspRightRot putdown_ee_right end_target), "
-
-        s += "(BaxterBasketInGripperPos baxter basket), "
-        s += "(BaxterBasketInGripperRot baxter basket), "
 
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
