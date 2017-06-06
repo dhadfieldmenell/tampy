@@ -1,0 +1,31 @@
+<kinbody>
+ <kinbody>
+   <body name="root">
+   </body>
+ </kinbody>
+ <kinbody file="mockup_washer_thin.xml">
+   <kinbody>
+     <body name="washer_body_base">
+       <translation>0.65759 0 0</translation>
+     </body>
+     <Body name="washer_bottom">
+       <Translation>0.508 -0.60 -0.510</Translation>
+       <RotationAxis>0 0 0 0</RotationAxis>
+       <Geom type="trimesh">
+         <Render>washer_bottom.dae 20</Render>
+         <collision>washer_bottom.dae 20</collision>
+       </Geom>
+     </Body>
+     <joint name="dummy" type="hinge" enable="false">
+       <body>root</body>
+       <body>washer_body_base</body>
+       <limitsdeg>0 0</limitsdeg>
+     </joint>
+     <Joint name="bottom" type="hinge" enable="false">
+       <body>washer_base</body>
+       <body>washer_bottom</body>
+       <limits>0.0 0.0</limits>
+     </Joint>
+   </kinbody>
+ </kinbody>
+</kinbody>

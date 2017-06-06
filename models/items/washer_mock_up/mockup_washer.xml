@@ -1,0 +1,43 @@
+<KinBody name="washer">
+  <Body name="washer_base">
+    <Translation>0 0 0</Translation>
+    <RotationAxis>0 0 0 0</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer_mock_up_base.dae 20</Render>
+      <collision>washer_mock_up_base.dae 20</collision>
+      <diffuseColor>0.75 0.75 0.75</diffuseColor>
+    </Geom>
+  </Body>
+  <Body name="washer_door">
+    <!-- 0.15 is the radius -->
+    <Translation>0.508 -0.024 -0.510</Translation>
+    <RotationAxis>0 0 0 0</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer_mock_up_door.dae 19.8</Render>
+      <collision>washer_mock_up_door.dae 19.8</collision>
+      <diffuseColor>0 0.7 1</diffuseColor>
+    </Geom>
+  </Body>
+  <Body name="washer_handle">
+    <Translation>0.32 0.024 -0.410</Translation>
+    <RotationAxis>0 0 0 0</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer_handle.dae 0.002</Render>
+      <collision>washer_handle.dae 0.002</collision>
+      <diffuseColor>0.4 1 0</diffuseColor>
+    </Geom>
+  </Body>
+  <Joint name="hinge" type="hinge">
+    <body>washer_base</body>
+    <body>washer_door</body>
+    <limits>-3.0 0.0</limits>
+    <anchor>0.81 0 0</anchor>
+    <axis>0 0 1</axis>
+  </Joint>
+  <Joint name="door_handle" type="hinge" enable="false">
+    <body>washer_door</body>
+    <body>washer_handle</body>
+    <limits>0.0 0.0</limits>
+    <axis>0 0 1</axis>
+</Joint>
+</KinBody>
