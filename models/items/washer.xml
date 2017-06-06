@@ -8,9 +8,22 @@
      <body name="washer_body_base">
        <translation>0.65759 0 0</translation>
      </body>
+     <body name="washer_handle">
+       <translation>-0.66 0.2 0.88</translation>
+       <RotationAxis>0 0 1 90</RotationAxis>
+       <Geom type="trimesh">
+         <Render>washer/washer_handle.dae 0.0025</Render>
+         <collision>washer/washer_handle.dae 0.0025</collision>
+       </Geom>
+     </body>
      <joint name="dummy" type="hinge" enable="false">
        <body>root</body>
        <body>washer_body_base</body>
+       <limitsdeg>0 0</limitsdeg>
+     </joint>
+     <joint name="handle" type="hinge" enable="false">
+       <body>washer_door</body>
+       <body>washer_handle</body>
        <limitsdeg>0 0</limitsdeg>
      </joint>
    </kinbody>
