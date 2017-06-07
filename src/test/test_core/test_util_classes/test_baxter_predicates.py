@@ -51,6 +51,7 @@ class TestBaxterPredicates(unittest.TestCase):
                                    [1,2,3,4,5,6,7],
                                    [7,6,5,4,3,2,1],
                                    [0,0,0,0,0,0,0]]).T
+        robot.time = np.zeros((1, 4))
         rPose.rArmPose = np.array([[0,0,0,0,0,0,0]]).T
         rPose.lArmPose = np.array([[0,0,0,0,0,0,0]]).T
         with self.assertRaises(PredicateException) as cm:
@@ -81,16 +82,16 @@ class TestBaxterPredicates(unittest.TestCase):
 
         # Base pose is valid in the timestep: 1,2,3,4,5
         robot.pose = np.array([[0,2,3,4,5,6,7]])
-
+        robot.time = np.zeros((1, 7))
         # Arm pose is valid in the timestep: 0,1,2,3
         robot.rArmPose = np.hstack((lrA_l+rA_m, lrA_l+2*rA_m, lrA_l+3*rA_m, lrA_l+4*rA_m, lrA_l+3*rA_m, lrA_l+5*rA_m, lrA_l+100*rA_m))
 
         robot.lArmPose = np.hstack((llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m))
 
         # Gripper pose is valid in the timestep: 0,1,3,4,5
-        robot.rGripper = np.matrix([0, 0.02, 0, 0.02, 0, 0.02, 0]).reshape((1,7))
+        robot.rGripper = np.matrix([0, 0.02, 0, 0.02, 0, 0.02, 0]).reshape((1, 7))
 
-        robot.lGripper = np.matrix([0, 0.02, 0, 0.02, 0, 0.02, 0]).reshape((1,7))
+        robot.lGripper = np.matrix([0, 0.02, 0, 0.02, 0, 0.02, 0]).reshape((1, 7))
         # Thus only timestep 1, 2, and 3 are valid
         self.assertFalse(pred.test(0))
         self.assertTrue(pred.test(1))
@@ -116,13 +117,14 @@ class TestBaxterPredicates(unittest.TestCase):
         llG_l, lG_m = pred.lower_limit[7], pred.joint_step[7]
         lrG_l, rG_m = pred.lower_limit[15], pred.joint_step[15]
         # Base pose is valid in the timestep: 0,1,2,3,4,5
-        robot.pose = np.zeros((7,1))
+        robot.pose = np.zeros((1,7))
         # timestep 0, 3, 6 should fail
         robot.rArmPose = np.hstack((lrA_l+(joint_factor+1)*rA_m, lrA_l+2*rA_m, lrA_l+3*rA_m, lrA_l-1*rA_m, lrA_l+3*rA_m, lrA_l+5*rA_m, lrA_l+(joint_factor*10)*rA_m))
         # timestep 1 should fail
         robot.lArmPose = np.hstack((llA_l+lA_m, llA_l-lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m, llA_l+lA_m))
-        robot.rGripper = np.matrix([lrG_l, lrG_l+rG_m, lrG_l+2*rG_m, lrG_l+5*rG_m, lrG_l+4*rG_m, lrG_l+3*rG_m, lrG_l+2*rG_m]).reshape((1,7))
+        robot.rGripper = np.matrix([lrG_l, lrG_l+rG_m, lrG_l+2*rG_m, lrG_l+5*rG_m, lrG_l+4*rG_m, lrG_l+3*rG_m, lrG_l+2*rG_m]).reshape((1, 7))
         robot.lGripper = np.matrix([llG_l, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m, llG_l+lG_m]).reshape((1,7))
+        robot.time = np.zeros((1, 7))
         # Thus timestep 1, 3, 6 should fail
         self.assertFalse(pred.test(0))
         self.assertFalse(pred.test(1))
@@ -132,80 +134,271 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(pred.test(5))
         self.assertFalse(pred.test(6))
 
-    def test_in_contact(self):
-
-        # InContact robot EEPose target
+    def test_gripper_value_constraint(self):
 
         robot = ParamSetup.setup_baxter()
-        ee_pose = ParamSetup.setup_ee_pose()
+        ee_left = ParamSetup.setup_ee_pose("ee_left")
+        ee_right = ParamSetup.setup_ee_pose("ee_right")
         target = ParamSetup.setup_target()
         env = ParamSetup.setup_env()
+        # Creating predicates for all gripper constraints family
+        left_close_pred = baxter_predicates.BaxterCloseGripperLeft("test_close_lGripper", [robot, ee_left, target], ["Robot", "EEPose", "Target"])
+        self.assertEqual(left_close_pred.get_type(), "BaxterCloseGripperLeft")
+        right_close_pred = baxter_predicates.BaxterCloseGripperRight("test_close_rGripper", [robot, ee_left, target], ["Robot", "EEPose", "Target"])
+        self.assertEqual(right_close_pred.get_type(), "BaxterCloseGripperRight")
+        left_open_pred = baxter_predicates.BaxterOpenGripperLeft("test_open_lGripper", [robot, ee_left, target], ["Robot", "EEPose", "Target"])
+        self.assertEqual(left_open_pred.get_type(), "BaxterOpenGripperLeft")
+        right_open_pred = baxter_predicates.BaxterOpenGripperRight("test_open_rGripper", [robot, ee_left, target], ["Robot", "EEPose", "Target"])
+        self.assertEqual(right_open_pred.get_type(), "BaxterOpenGripperRight")
+        both_close_pred = baxter_predicates.BaxterCloseGrippers("test_close_both", [robot, ee_left, ee_right, target], ["Robot", "EEPose", "EEPose", "Target"])
+        self.assertEqual(both_close_pred.get_type(), "BaxterCloseGrippers")
+        both_open_pred = baxter_predicates.BaxterOpenGrippers("test_open_both", [robot, ee_left, ee_right, target], ["Robot", "EEPose", "EEPose", "Target"])
+        self.assertEqual(both_open_pred.get_type(), "BaxterOpenGrippers")
 
-        pred = baxter_predicates.BaxterInContact("testInContact", [robot, ee_pose, target], ["Robot", "EEPose", "Target"])
-        self.assertEqual(pred.get_type(), "BaxterInContact")
-        # EEPose and target is not yet initialized, thus pred will not pass
-        self.assertFalse(pred.test(0))
-        ee_pose.value = np.zeros((3, 1))
+        # EEPose and target is not yet initialized, thus no pred shall pass
+        self.assertFalse(left_close_pred.test(0))
+        self.assertFalse(right_close_pred.test(0))
+        self.assertFalse(left_open_pred.test(0))
+        self.assertFalse(right_open_pred.test(0))
+        self.assertFalse(both_close_pred.test(0))
+        self.assertFalse(both_open_pred.test(0))
+
+        ee_left.value = np.zeros((3, 1))
+        ee_right.value = np.zeros((3, 1))
         target.value = np.zeros((3, 1))
-        # Baxter gets initialized with Open gripper, thus will not pass
-        self.assertFalse(pred.test(0))
-        self.assertTrue(pred.test(0, negated=True))
-        # Set baxter's gripper to fully Closed
-        robot.rGripper = np.array([[0.00]])
-        self.assertFalse(pred.test(0))
-        # Set baxter's gripper to be just enough to grasp the can
-        robot.rGripper = np.array([[0.015]])
-        self.assertTrue(pred.test(0))
+        gClose = const.GRIPPER_CLOSE_VALUE
+        gOpen = const.GRIPPER_OPEN_VALUE
+        robot.lGripper = np.array([[gOpen,gOpen ,gClose ,gClose]])
+        robot.rGripper = np.array([[gOpen,gClose ,gOpen ,gClose]])
+        robot.lArmPose = np.zeros((7,4))
+        robot.rArmPose = np.zeros((7,4))
+        robot.pose = np.zeros((1,4))
+        robot.time = np.zeros((1,4))
 
+        self.assertFalse(left_close_pred.test(0))
+        self.assertFalse(left_close_pred.test(1))
+        self.assertTrue(left_close_pred.test(2))
+        self.assertTrue(left_close_pred.test(3))
 
-    def test_in_gripper(self):
+        self.assertFalse(right_close_pred.test(0))
+        self.assertTrue(right_close_pred.test(1))
+        self.assertFalse(right_close_pred.test(2))
+        self.assertTrue(right_close_pred.test(3))
 
-        # InGripper, Robot, Can
+        self.assertTrue(left_open_pred.test(0))
+        self.assertTrue(left_open_pred.test(1))
+        self.assertFalse(left_open_pred.test(2))
+        self.assertFalse(left_open_pred.test(3))
 
-        robot = ParamSetup.setup_baxter()
-        can = ParamSetup.setup_blue_can()
+        self.assertTrue(right_open_pred.test(0))
+        self.assertFalse(right_open_pred.test(1))
+        self.assertTrue(right_open_pred.test(2))
+        self.assertFalse(right_open_pred.test(3))
+
+        self.assertFalse(both_close_pred.test(0))
+        self.assertFalse(both_close_pred.test(1))
+        self.assertFalse(both_close_pred.test(2))
+        self.assertTrue(both_close_pred.test(3))
+
+        self.assertTrue(both_open_pred.test(0))
+        self.assertFalse(both_open_pred.test(1))
+        self.assertFalse(both_open_pred.test(2))
+        self.assertFalse(both_open_pred.test(3))
+
+    def test_in_gripper_left(self):
         test_env = ParamSetup.setup_env()
+        robot = ParamSetup.setup_baxter()
+        robot_body = OpenRAVEBody(test_env, robot.name, robot.geom)
+        robot.openrave_body = robot_body
+        obj = ParamSetup.setup_blue_can()
+        obj_body = OpenRAVEBody(test_env, obj.name, obj.geom)
+        obj.openrave_body = obj_body
 
-        pred = baxter_predicates.BaxterInGripperPos("InGripper", [robot, can], ["Robot", "Can"], test_env)
-        pred2 = baxter_predicates.BaxterInGripperRot("InGripper_rot", [robot, can], ["Robot", "Can"], test_env)
-        # Since this predicate is not yet concrete
-        pred._param_to_body[robot].set_transparency(.7)
-        self.assertFalse(pred.test(0))
-        can.pose = np.array([[0,0,0]]).T
+        in_gripper_left = baxter_predicates.BaxterInGripperLeft("test_in_gripper_left", [robot, obj], ["Robot", "Can"], test_env)
+        self.assertEqual(in_gripper_left.get_type(), "BaxterInGripperLeft")
+        self.assertFalse(in_gripper_left.test(0))
+        obj.pose = np.array([[0,0,0]]).T
+        self.assertFalse(in_gripper_left.test(0))
+        if const.TEST_GRAD: in_gripper_left.expr.expr.grad(in_gripper_left.get_param_vector(0), True, const.TOL)
+        obj.pose = np.array([[0.96897233, 1.10397558, 1.006976]]).T
+        self.assertTrue(in_gripper_left.test(0))
+        if const.TEST_GRAD: in_gripper_left.expr.expr.grad(in_gripper_left.get_param_vector(0), True, const.TOL)
+        robot.lArmPose = np.array([[0,-np.pi/4,np.pi/4,np.pi/2,-np.pi/4,-np.pi/4,0]]).T
+        if const.TEST_GRAD: in_gripper_left.expr.expr.grad(in_gripper_left.get_param_vector(0), True, const.TOL)
+        self.assertFalse(in_gripper_left.test(0))
+        if const.TEST_GRAD: in_gripper_left.expr.expr.grad(in_gripper_left.get_param_vector(0), True, const.TOL)
+        obj.pose = np.array([[ 0.1840567 ,  1.22269958,  1.21028557]]).T
+        self.assertFalse(in_gripper_left.test(0))
+        if const.TEST_GRAD: in_gripper_left.expr.expr.grad(in_gripper_left.get_param_vector(0), True, const.TOL)
+        obj.rotation = np.array([[-1.27706534, 0.25268026, -2.98976055]]).T
+        self.assertTrue(in_gripper_left.test(0))
+        if const.TEST_GRAD: in_gripper_left.expr.expr.grad(in_gripper_left.get_param_vector(0), True, const.TOL)
+        obj.pose = np.array([[0.2, 0.1, 1.21]]).T
+        self.assertFalse(in_gripper_left.test(0))
+        if const.TEST_GRAD: in_gripper_left.expr.expr.grad(in_gripper_left.get_param_vector(0), True, const.TOL)
 
+    def test_in_gripper_right(self):
+
+        # InGripper, Robot, Item
+
+        test_env = ParamSetup.setup_env()
+        robot = ParamSetup.setup_baxter()
+        robot_body = OpenRAVEBody(test_env, robot.name, robot.geom)
+        robot.openrave_body = robot_body
+        obj = ParamSetup.setup_blue_can()
+        obj_body = OpenRAVEBody(test_env, obj.name, obj.geom)
+        obj.openrave_body = obj_body
+
+        in_gripper_right = baxter_predicates.BaxterInGripperRight("test_in_gripper_right", [robot, obj], ["Robot", "Can"], test_env)
+        self.assertEqual(in_gripper_right.get_type(), "BaxterInGripperRight")
+        self.assertFalse(in_gripper_right.test(0))
+
+        obj.pose = np.array([[0,0,0]]).T
         # initialized pose value is not right
-        self.assertFalse(pred.test(0))
-        self.assertTrue(pred2.test(0))
+        self.assertFalse(in_gripper_right.test(0))
         # check the gradient of the implementations (correct)
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, const.TOL)
+        if const.TEST_GRAD: in_gripper_right.expr.expr.grad(in_gripper_right.get_param_vector(0), True, const.TOL)
         # Now set can's pose and rotation to be the right things
-        can.pose = np.array([[0.96897233, -1.10397558,  1.006976]]).T
-        self.assertTrue(pred.test(0))
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, const.TOL)
+        obj.pose = np.array([[0.96897233, -1.10397558,  1.006976]]).T
+        self.assertTrue(in_gripper_right.test(0))
+        if const.TEST_GRAD: in_gripper_right.expr.expr.grad(in_gripper_right.get_param_vector(0), True, const.TOL)
         # A new robot arm pose
         robot.rArmPose = np.array([[0,-np.pi/4,np.pi/4,np.pi/2,-np.pi/4,-np.pi/4,0]]).T
-        self.assertFalse(pred.test(0))
+        self.assertFalse(in_gripper_right.test(0))
 
         # Only the pos is correct, rotation is not yet right
-        can.pose = np.array([[1.08769922, -0.31906039,  1.21028557]]).T
-        self.assertTrue(pred.test(0))
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, const.TOL)
-        can.rotation = np.array([[-2.84786534,  0.25268026, -2.98976055]]).T
-        self.assertTrue(pred.test(0))
-        self.assertTrue(pred2.test(0))
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, const.TOL)
+        obj.pose = np.array([[1.08769922, -0.31906039,  1.21028557]]).T
+        self.assertFalse(in_gripper_right.test(0))
+        if const.TEST_GRAD: in_gripper_right.expr.expr.grad(in_gripper_right.get_param_vector(0), True, const.TOL)
+        obj.rotation = np.array([[-2.84786534,  0.25268026, -2.98976055]]).T
+        self.assertTrue(in_gripper_right.test(0))
+        if const.TEST_GRAD: in_gripper_right.expr.expr.grad(in_gripper_right.get_param_vector(0), True, const.TOL)
         # now rotate robot basepose
         robot.pose = np.array([[np.pi/3]]).T
-        self.assertFalse(pred.test(0))
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, const.TOL)
-        can.pose = np.array([[0.82016401,  0.78244496,  1.21028557]]).T
-        self.assertTrue(pred.test(0))
-        self.assertFalse(pred2.test(0))
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, const.TOL)
-        can.rotation = np.array([[-1.80066778,  0.25268026, -2.98976055]]).T
-        self.assertTrue(pred2.test(0))
-        self.assertTrue(pred.test(0))
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), True, const.TOL)
+        self.assertFalse(in_gripper_right.test(0))
+        if const.TEST_GRAD: in_gripper_right.expr.expr.grad(in_gripper_right.get_param_vector(0), True, const.TOL)
+        obj.pose = np.array([[0.82016401,  0.78244496,  1.21028557]]).T
+        self.assertFalse(in_gripper_right.test(0))
+        if const.TEST_GRAD: in_gripper_right.expr.expr.grad(in_gripper_right.get_param_vector(0), True, const.TOL)
+        obj.rotation = np.array([[-1.80066778,  0.25268026, -2.98976055]]).T
+        self.assertTrue(in_gripper_right.test(0))
+        if const.TEST_GRAD: in_gripper_right.expr.expr.grad(in_gripper_right.get_param_vector(0), True, const.TOL)
+
+    def test_in_gripper_basket(self):
+        test_env = ParamSetup.setup_env()
+        robot = ParamSetup.setup_baxter()
+        robot_body = OpenRAVEBody(test_env, robot.name, robot.geom)
+        robot.openrave_body = robot_body
+        basket = ParamSetup.setup_basket()
+        basket_body = OpenRAVEBody(test_env, basket.name, basket.geom)
+        basket.openrave_body = basket_body
+
+        in_gripper_basket = baxter_predicates.BaxterBasketInGripper("test_in_gripper_basket", [robot, basket], ["Robot", "Basket"], test_env)
+        self.assertEqual(in_gripper_basket.get_type(), "BaxterBasketInGripper")
+        self.assertFalse(in_gripper_basket.test(0))
+
+        offset = [0,0.317,0]
+        basket.pose = np.array([[0.75, 0.02, 0.81]]).T
+        basket.rotation = np.array([[np.pi/2, 0, np.pi/2]]).T
+        basket_pos = basket.pose.flatten()
+        robot.lArmPose = np.zeros((7,7))
+        robot.lGripper = np.ones((1, 7))*0.02
+        robot.rArmPose = np.zeros((7,7))
+        robot.rGripper = np.ones((1, 7))*0.02
+        robot.pose = np.zeros((1,7))
+        robot.time = np.zeros((1,7))
+        basket.pose = np.repeat(basket.pose, 7, axis=1)
+        basket.rotation = np.repeat(basket.rotation, 7, axis=1)
+
+        self.assertFalse(in_gripper_basket.test(3))
+
+        left_trajectory = []
+        baxter_body = robot.openrave_body
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
+        left_trajectory = np.array(left_trajectory)
+        robot.lArmPose = left_trajectory.T
+
+        self.assertFalse(in_gripper_basket.test(0))
+        self.assertFalse(in_gripper_basket.test(1))
+        self.assertFalse(in_gripper_basket.test(2))
+        self.assertFalse(in_gripper_basket.test(3))
+        self.assertFalse(in_gripper_basket.test(4))
+        self.assertFalse(in_gripper_basket.test(5))
+        self.assertFalse(in_gripper_basket.test(6))
+
+        right_trajectory = []
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
+        right_trajectory = np.array(right_trajectory)
+        robot.rArmPose = right_trajectory.T
+
+        self.assertFalse(in_gripper_basket.test(0))
+        self.assertFalse(in_gripper_basket.test(1))
+        self.assertFalse(in_gripper_basket.test(2))
+        self.assertTrue(in_gripper_basket.test(3))
+        self.assertFalse(in_gripper_basket.test(4))
+        self.assertFalse(in_gripper_basket.test(5))
+        self.assertFalse(in_gripper_basket.test(6))
+
+        basket.rotation[:, 3] = [0,0,0]
+        self.assertFalse(in_gripper_basket.test(3))
+        basket.rotation[:, 3] = [np.pi/2,0,0]
+        self.assertFalse(in_gripper_basket.test(3))
+        basket.rotation[:, 3] = [0,np.pi/2,0]
+        self.assertFalse(in_gripper_basket.test(3))
+        basket.rotation[:, 3] = [0,0,np.pi/2]
+        self.assertFalse(in_gripper_basket.test(3))
+        basket.rotation[:, 3] = [np.pi/2,np.pi/2,0]
+        self.assertFalse(in_gripper_basket.test(3))
+        basket.rotation[:, 3] = [0,np.pi/2,np.pi/2]
+        self.assertFalse(in_gripper_basket.test(3))
+        basket.rotation[:, 3] = [np.pi/2,0,np.pi/2]
+        self.assertTrue(in_gripper_basket.test(3))
+        basket.rotation[:, 3] = [np.pi/2,np.pi/2,np.pi/2]
+        self.assertFalse(in_gripper_basket.test(3))
+
+        if const.TEST_GRAD:
+            in_gripper_basket.expr.expr.grad(in_gripper_basket.get_param_vector(3), True, 1e-3)
+
+        if const.TEST_GRAD:
+            in_gripper_basket.expr.expr.grad(in_gripper_basket.get_param_vector(3), True, 1e-3)
+
+    def test_in_gripper_washer(self):
+        test_env = ParamSetup.setup_env()
+        robot = ParamSetup.setup_baxter()
+        robot_body = OpenRAVEBody(test_env, robot.name, robot.geom)
+        robot.openrave_body = robot_body
+        washer = ParamSetup.setup_washer()
+        washer_body = OpenRAVEBody(test_env, washer.name, washer.geom)
+        washer.openrave_body = washer_body
+        in_gripper_washer =  baxter_predicates.BaxterWasherInGripper("test_in_gripper_washer", [robot, washer], ["Robot", "Washer"], test_env)
+        self.assertEqual(in_gripper_washer.get_type(), "BaxterWasherInGripper")
+        self.assertFalse(in_gripper_washer.test(0))
 
     def test_ee_reachable(self):
 
@@ -263,7 +456,6 @@ class TestBaxterPredicates(unittest.TestCase):
         if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(3), True, 1e-3)
 
         if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(3), True, 1e-3)
-
 
     def test_obstructs(self):
 
@@ -888,45 +1080,6 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(right_pos_pred.test(0))
         self.assertFalse(left_rot_pred.test(0))
         self.assertFalse(right_rot_pred.test(0))
-
-    def test_basket_in_contact(self):
-        domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
-                       '../domains/baxter_domain/baxter_probs/basket_move.prob')
-
-        env = problem.env
-        robot = params['baxter']
-        basket = params['basket']
-        basket_targ = params['init_target']
-        ee_left = params['grasp_ee_left']
-        ee_right = params['grasp_ee_right']
-
-        # viewer = OpenRAVEViewer.create_viewer(env)
-        # objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
-        # viewer.draw(objLst, 0, 0.7)
-
-        pred = baxter_predicates.BaxterBasketInContact("incontacts", [robot, ee_left, ee_right, basket_targ], ['Robot', 'EEPose', 'EEPose', 'BasketTarget'])
-        self.assertFalse(pred.test(0))
-
-        offset = [0,0.317,0]
-        basket_pos = basket.pose.flatten()
-        ee_left.value = (basket_pos + offset).reshape((3, 1))
-        ee_left.rotation = np.array([[0,np.pi/2,0]]).T
-        ee_right.value = (basket_pos - offset).reshape((3, 1))
-        ee_right.rotation = np.array([[0,np.pi/2,0]]).T
-        self.assertFalse(pred.test(0))
-
-        robot.lGripper = np.array([[const.GRIPPER_OPEN_VALUE]])
-        robot.rGripper = np.array([[const.GRIPPER_CLOSE_VALUE]])
-        self.assertFalse(pred.test(0))
-
-        robot.lGripper = np.array([[const.GRIPPER_CLOSE_VALUE]])
-        robot.rGripper = np.array([[const.GRIPPER_OPEN_VALUE]])
-        self.assertFalse(pred.test(0))
-
-        robot.lGripper = np.array([[const.GRIPPER_CLOSE_VALUE]])
-        robot.rGripper = np.array([[const.GRIPPER_CLOSE_VALUE]])
-        self.assertTrue(pred.test(0))
-
 
     def test_grippers_level(self):
         env = ParamSetup.setup_env()

@@ -91,7 +91,6 @@ class Washer(Robot):
             """
             to variate the depth of the mockup washer, simply change the y-cord
             of the washer_bottom body in washer.xml
-
             """
             if topload:
                 self.good_pos = np.array([0.416, 1.509, 0.825])
