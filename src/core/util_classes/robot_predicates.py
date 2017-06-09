@@ -318,7 +318,7 @@ class PosePredicate(ExprPredicate):
         self.handle = []
         super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, active_range=active_range)
 
-    def forward_kinematics_process(self, x):
+    def robot_obj_kinematics(self, x):
         """
             This function is used to check whether End Effective pose's position is at robot gripper's center
 
@@ -351,12 +351,12 @@ class PosePredicate(ExprPredicate):
         return jacobian
 
     def rel_ee_pos_check_f(self, x, rel_pt):
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         return self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
 
     def rel_ee_pos_check_jac(self, x, rel_pt):
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         return self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
 
@@ -405,7 +405,7 @@ class PosePredicate(ExprPredicate):
 
             Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
         """
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         return self.rot_lock_f(obj_trans, robot_trans)
 
@@ -415,7 +415,7 @@ class PosePredicate(ExprPredicate):
 
             Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
         """
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         return self.rot_lock_jac(obj_trans, robot_trans, axises, arm_joints)
 
@@ -467,25 +467,25 @@ class PosePredicate(ExprPredicate):
         return rot_jac
 
     def pos_check_f(self, x):
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.zeros((3, ))
 
         return self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
 
     def pos_check_jac(self, x):
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.zeros((3, ))
 
         return self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
 
     def rot_check_f(self, x):
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         local_dir = np.array([0.,0.,1.])
 
         return self.rot_error_f(obj_trans, robot_trans, local_dir)
 
     def rot_check_jac(self, x):
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         local_dir = np.array([0.,0.,1.])
 
         return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints, local_dir)
@@ -547,11 +547,11 @@ class PosePredicate(ExprPredicate):
         self.arm = "left"
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.array([0.317,0,0])
         l_pos_val = self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
         self.arm = "right"
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.array([-0.317,0,0])
         r_pos_val = self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
 
@@ -570,11 +570,11 @@ class PosePredicate(ExprPredicate):
         self.arm = "left"
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.array([0.317,0,0])
         l_pos_jac = self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
         self.arm = "right"
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.array([-0.317,0,0])
         r_pos_jac = self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
 
@@ -591,10 +591,10 @@ class PosePredicate(ExprPredicate):
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         self.arm = "left"
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         l_rot_val = self.rot_lock_f(obj_trans, robot_trans, offset)
         self.arm = "right"
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         r_rot_val = self.rot_lock_f(obj_trans, robot_trans, offset)
 
@@ -613,10 +613,10 @@ class PosePredicate(ExprPredicate):
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         self.arm = "left"
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         l_rot_jac = self.rot_lock_jac(obj_trans, robot_trans, axises, arm_joints)
         self.arm = "right"
-        obj_trans, robot_trans, axises, arm_joints = self.forward_kinematics_process(x)
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         r_rot_jac = self.rot_lock_jac(obj_trans, robot_trans, axises, arm_joints)
 
         return np.vstack([l_rot_jac, r_rot_jac])
@@ -980,6 +980,22 @@ class InGripper(PosePredicate):
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1)
+        self.spacial_anchor = True
+
+class EEGraspValid(PosePredicate):
+
+    # EEGraspValid Washer EEPose 
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        assert len(params) == 2
+        self._env = env
+        self.ee_pose, self.robot = params
+
+        self._param_to_body = {
+        self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
+        super(EEGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1)
         self.spacial_anchor = True
 
 class EEReachable(PosePredicate):

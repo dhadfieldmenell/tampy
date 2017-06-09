@@ -8,6 +8,7 @@ from collections import OrderedDict
 from openravepy import DOFAffine, quatRotateDirection, matrixFromQuat
 import numpy as np
 import core.util_classes.baxter_constants as const
+from core.util_classes.param_setup import ParamSetup
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                      ("lGripper", np.array([0], dtype=np.int)),
@@ -260,6 +261,85 @@ class BaxterBasketGraspRightRot(BaxterGraspValidRot):
         super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
         self.spacial_anchor = True
 
+class BaxterEEGraspValid(robot_predicates.EEGraspValid):
+
+    # BaxterEEGraspValid EEPose Washer
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
+                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        self.coeff = 1
+        self.rot_coeff = 1
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        self.eval_dim = 13
+        super(BaxterEEGraspValid, self).__init__(name, params, expected_param_types, env, debug)
+
+    def set_washer_poses(self, x, washer_body):
+        pose, rotation = x[-7:-4], x[-4:-1]
+        door = x[-1]
+        washer_body.set_pose(pose, rotation)
+        washer_body.set_dof({"door": door})
+
+    def get_washer_info(self, washer_body):
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        washer_trans = tool_link.GetTransform()
+        washer_inds = [0]
+        return washer_trans, washer_inds
+
+    def washer_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        # Setting the poses for forward kinematics to work
+        self.set_washer_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(x[-7:-4], x[-4:-1])
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        ee_pos, ee_rot = x[:3], x[3:6]
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        obj_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return washer_trans, obj_trans, axises, obj_axises, arm_joints
+
+    def ee_contact_check_f(self, x, rel_pt):
+        washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+
+        robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
+        obj_pos = obj_trans[:3, 3]
+        dist_val = (robot_pos - obj_pos).reshape((3,1))
+        return dist_val
+
+    def ee_contact_check_jac(self, x, rel_pt):
+        washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+
+        robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
+        obj_pos = obj_trans[:3, 3]
+
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+
+        joint_jac = np.array([np.cross(joint.GetAxis(), obj_pos - joint.GetAnchor()) for joint in obj_joints]).T.copy()
+        base_jac = np.cross(np.array([0, 0, 1]), robot_pos).reshape((3,1))
+        obj_jac = -1 * np.array([np.cross(axis, obj_pos - x[-7:-4, 0]) for axis in axises]).T
+        obj_jac = np.c_[-np.eye(3), obj_jac, -joint_jac]
+        dist_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
+        return dist_jac
+
+    def stacked_f(self, x):
+        rel_pt = np.array([-0.035,0.055,-0.1])
+        return np.vstack([self.coeff * self.ee_contact_check_f(x, rel_pt), self.rot_coeff * self.rot_check_f(x)])
+
+    def stacked_grad(self, x):
+        rel_pt = np.array([-0.035,0.055,-0.1])
+        return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.rot_check_jac(x), 0]])
 """
     Gripper Constraints Family
 """
@@ -718,19 +798,88 @@ class BaxterBasketInGripper(BaxterInGripper):
 
 class BaxterWasherInGripper(BaxterInGripperLeft):
 
-    # BaxterBasketInGripper Robot, Washer
+    def set_washer_poses(self, x, washer_body):
+        pose, rotation = x[-7:-4], x[-4:-1]
+        door = x[-1]
+        washer_body.set_pose(pose, rotation)
+        washer_body.set_dof({"door": door})
+
+    def get_washer_info(self, washer_body):
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        washer_trans = tool_link.GetTransform()
+        washer_inds = [0]
+
+        return washer_trans, washer_inds
+
+    def robot_robot_kinematics(self, x):
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        obj_body = self.obj.openrave_body
+        obj = obj_body.env_body
+        self.set_robot_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        self.set_washer_poses(x, obj_body)
+        obj_trans, obj_arm_inds = self.get_washer_info(obj_body)
+        obj_joints = [obj.GetJointFromDOFIndex(ind) for ind in obj_arm_inds]
+
+        pos, rot = x[-7:-4], x[-4:-1]
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(pos, rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        return robot_trans, obj_trans, arm_joints, obj_joints, axises
+
+    def ee_contact_check_f(self, x, rel_pt):
+        robot_trans, obj_trans, arm_joints, obj_joints, axises = self.robot_robot_kinematics(x)
+
+        robot_pos = robot_trans[:3, 3]
+        obj_pos = np.dot(obj_trans, np.r_[rel_pt, 1])[:3]
+        dist_val = (robot_pos - obj_pos).reshape((3,1))
+        return dist_val
+
+    def ee_contact_check_jac(self, x, rel_pt):
+        robot_trans, obj_trans, arm_joints, obj_joints, axises = self.robot_robot_kinematics(x)
+
+        robot_pos = robot_trans[:3, 3]
+        obj_pos = np.dot(obj_trans, np.r_[rel_pt, 1])[:3]
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+
+        joint_jac = np.array([np.cross(joint.GetAxis(), obj_pos - joint.GetAnchor()) for joint in obj_joints]).T.copy()
+        base_jac = np.cross(np.array([0, 0, 1]), robot_pos).reshape((3,1))
+        obj_jac = -1 * np.array([np.cross(axis, obj_pos - x[-7:-4, 0]) for axis in axises]).T
+        obj_jac = np.c_[-np.eye(3), obj_jac, -joint_jac]
+        dist_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
+        return dist_jac
+
+    def robot_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        # Setting the poses for forward kinematics to work
+        self.set_robot_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        ee_pos, ee_rot = x[-7:-4], x[-4:-1]
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return obj_trans, robot_trans, axises, arm_joints
 
     def stacked_f(self, x):
-        # TODO Figure out the rel_pt of the handle center
-        rel_pt = np.zeros((3,))
-        self.washer.set_dof({"door": x[-1]})
-        return np.vstack([self.coeff * self.rel_ee_pos_check_f(x, rel_pt), self.rot_coeff * ee_rot_check_f(x)])
+        rel_pt = np.array([-0.035,0.055,-0.1])
+        return np.vstack([self.coeff * self.ee_contact_check_f(x, rel_pt), self.rot_coeff * self.rot_check_f(x)])
 
     def stacked_grad(self, x):
-        # TODO Figure out the rel_pt of the handle center
-        rel_pt = np.zeros((3,))
-        self.washer.set_dof({"door": x[-1]})
-        return np.vstack([self.coeff * self.rel_ee_pos_check_jac(x, rel_pt), self.rot_coeff * ee_rot_check_jac(x)])
+        rel_pt = np.array([-0.035,0.055,-0.1])
+        return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.rot_check_jac(x), 0]])
 
 """
     Basket Constraint Family

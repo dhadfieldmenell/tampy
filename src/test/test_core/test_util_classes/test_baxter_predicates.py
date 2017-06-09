@@ -313,20 +313,19 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(in_gripper_basket.test(3))
 
         left_trajectory = []
-        baxter_body = robot.openrave_body
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        left_trajectory.append(robot_body.get_ik_from_pose(basket_pos + offset +
         [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        left_trajectory.append(robot_body.get_ik_from_pose(basket_pos + offset +
         [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        left_trajectory.append(robot_body.get_ik_from_pose(basket_pos + offset +
         [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        left_trajectory.append(robot_body.get_ik_from_pose(basket_pos + offset +
         [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        left_trajectory.append(robot_body.get_ik_from_pose(basket_pos + offset +
         [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        left_trajectory.append(robot_body.get_ik_from_pose(basket_pos + offset +
         [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
+        left_trajectory.append(robot_body.get_ik_from_pose(basket_pos + offset +
         [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
         left_trajectory = np.array(left_trajectory)
         robot.lArmPose = left_trajectory.T
@@ -340,19 +339,19 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(in_gripper_basket.test(6))
 
         right_trajectory = []
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        right_trajectory.append(robot_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        right_trajectory.append(robot_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        right_trajectory.append(robot_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        right_trajectory.append(robot_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        right_trajectory.append(robot_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        right_trajectory.append(robot_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
+        right_trajectory.append(robot_body.get_ik_from_pose(basket_pos - offset +
         [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
         right_trajectory = np.array(right_trajectory)
         robot.rArmPose = right_trajectory.T
@@ -377,16 +376,15 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(in_gripper_basket.test(3))
         basket.rotation[:, 3] = [0,np.pi/2,np.pi/2]
         self.assertFalse(in_gripper_basket.test(3))
-        basket.rotation[:, 3] = [np.pi/2,0,np.pi/2]
-        self.assertTrue(in_gripper_basket.test(3))
         basket.rotation[:, 3] = [np.pi/2,np.pi/2,np.pi/2]
         self.assertFalse(in_gripper_basket.test(3))
+        basket.rotation[:, 3] = [np.pi/2,0,np.pi/2]
+        self.assertTrue(in_gripper_basket.test(3))
+
 
         if const.TEST_GRAD:
             in_gripper_basket.expr.expr.grad(in_gripper_basket.get_param_vector(3), True, 1e-3)
 
-        if const.TEST_GRAD:
-            in_gripper_basket.expr.expr.grad(in_gripper_basket.get_param_vector(3), True, 1e-3)
 
     def test_in_gripper_washer(self):
         test_env = ParamSetup.setup_env()
@@ -399,6 +397,51 @@ class TestBaxterPredicates(unittest.TestCase):
         in_gripper_washer =  baxter_predicates.BaxterWasherInGripper("test_in_gripper_washer", [robot, washer], ["Robot", "Washer"], test_env)
         self.assertEqual(in_gripper_washer.get_type(), "BaxterWasherInGripper")
         self.assertFalse(in_gripper_washer.test(0))
+
+        rel_pt = np.array([-0.035,0.055,-0.1])
+        link = washer_body.env_body.GetLink("washer_handle")
+        test_env.SetViewer("qtcoin")
+
+        washer.pose[:, 0] = [0.505, 0.961, 1.498]
+        handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
+        robot.pose = np.array([[np.pi/4]])
+        robot_body.set_pose([0,0,np.pi/4])
+        arm_pose = robot_body.get_ik_from_pose(handle_pos, [np.pi/2,0,0], "left_arm")
+        robot.lArmPose = arm_pose[0].reshape((7, 1))
+        self.assertTrue(in_gripper_washer.test(0))
+
+        def test_grasping_pose(washer_pose, pose, door):
+            robot.pose[:, 0] = pose
+            washer.pose[:, 0] = washer_pose
+            washer.door = np.array([[door]])
+            self.assertFalse(in_gripper_washer.test(0))
+            handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
+            handle_rot = OpenRAVEBody.obj_pose_from_transform(link.GetTransform())[3:] + [-np.pi/2, 0, 0]
+            arm_pose = robot_body.get_ik_from_pose(handle_pos, handle_rot, "left_arm")
+            robot.lArmPose = arm_pose[0].reshape((7, 1))
+            self.assertTrue(in_gripper_washer.test(0))
+            robot_body.set_dof({'lArmPose': arm_pose[0]})
+
+        test_grasping_pose([0.505, 1.261, 1.498], np.pi/4, 0)
+        test_grasping_pose([0.505, 1.361, 1.498], np.pi/4, 0)
+        test_grasping_pose([0.505, 1.461, 1.498], np.pi/4, 0)
+        test_grasping_pose([0.605, 1.361, 1.498], np.pi/4, -np.pi/8)
+        test_grasping_pose([0.805, 1.161, 1.498], np.pi/4, -4*np.pi/8)
+
+        test_grasping_pose([0.605, 1.261, 1.498], np.pi/4, -0*np.pi/8)
+        test_grasping_pose([0.605, 1.261, 1.498], np.pi/4, -1*np.pi/8)
+        test_grasping_pose([0.605, 1.261, 1.498], np.pi/4, -2*np.pi/8)
+        test_grasping_pose([0.605, 1.261, 1.498], np.pi/4, -3*np.pi/8)
+        test_grasping_pose([0.605, 1.261, 1.498], np.pi/4, -4*np.pi/8)
+
+        test_grasping_pose([0.730, 1.261, 1.498], np.pi/4, -0*np.pi/8)
+        test_grasping_pose([0.730, 1.261, 1.498], np.pi/4, -1*np.pi/8)
+        test_grasping_pose([0.730, 1.261, 1.498], np.pi/4, -2*np.pi/8)
+        test_grasping_pose([0.730, 1.261, 1.498], np.pi/4, -3*np.pi/8)
+        test_grasping_pose([0.730, 1.261, 1.498], np.pi/4, -4*np.pi/8)
+
+        if const.TEST_GRAD:
+            in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
 
     def test_ee_reachable(self):
 
@@ -718,9 +761,6 @@ class TestBaxterPredicates(unittest.TestCase):
 
         if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(3), True, 1e-3)
 
-
-
-
     def test_basket_ee_reachable(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
                        '../domains/baxter_domain/baxter_probs/basket_env.prob')
@@ -833,7 +873,6 @@ class TestBaxterPredicates(unittest.TestCase):
         if const.TEST_GRAD:
             right_rot_pred.expr.expr.grad(right_rot_pred.get_param_vector(3), True, 1e-3)
 
-
     def test_basket_grasp(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
                        '../domains/baxter_domain/baxter_probs/basket_env.prob')
@@ -893,133 +932,6 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(right_pos_pred.test(0))
         self.assertTrue(left_rot_pred.test(0))
         self.assertTrue(right_rot_pred.test(0))
-
-    def test_basket_in_gripper(self):
-        domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
-                       '../domains/baxter_domain/baxter_probs/basket_env.prob')
-        env = problem.env
-        robot = params['baxter']
-        basket = params['basket']
-        table = params['table']
-        robot_pose = params['robot_init_pose']
-        ee_left = params['ee_left']
-        ee_right = params['ee_right']
-        baxter_body = robot.openrave_body
-
-        # viewer = OpenRAVEViewer.create_viewer(env)
-        # objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
-        # viewer.draw(objLst, 0, 0.7)
-
-        pos_pred = baxter_predicates.BaxterBasketInGripperPos("BasketInGripper", [robot, basket], ["Robot", "Basket"], env)
-        rot_pred = baxter_predicates.BaxterBasketInGripperRot("BasketInGripperRot", [robot, basket], ["Robot", "Basket"], env)
-        self.assertFalse(pos_pred.test(0))
-        self.assertFalse(rot_pred.test(0))
-
-        offset = [0,0.317,0]
-        basket_pos = basket.pose.flatten()
-        ee_left.value = (basket_pos + offset).reshape((3, 1))
-        ee_left.rotation = np.array([[0,np.pi/2,0]]).T
-        robot.lArmPose = np.zeros((7,7))
-        robot.lGripper = np.ones((1, 7))*0.02
-        robot.rArmPose = np.zeros((7,7))
-        robot.rGripper = np.ones((1, 7))*0.02
-        robot.pose = np.zeros((1,7))
-        basket.pose = np.repeat(basket.pose, 7, axis=1)
-        basket.rotation = np.repeat(basket.rotation, 7, axis=1)
-        table.pose = np.repeat(table.pose, 7, axis=1)
-        table.rotation = np.repeat(table.rotation, 7, axis=1)
-
-        self.assertFalse(pos_pred.test(3))
-        self.assertFalse(rot_pred.test(3))
-
-        left_trajectory = []
-        baxter_body = robot.openrave_body
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
-        [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "left_arm")[4])
-        left_trajectory = np.array(left_trajectory)
-        robot.lArmPose = left_trajectory.T
-
-        self.assertFalse(pos_pred.test(3))
-        self.assertFalse(rot_pred.test(3))
-
-        right_trajectory = []
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 3*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 2*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 1*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 0*const.APPROACH_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 1*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 2*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory.append(baxter_body.get_ik_from_pose(basket_pos - offset +
-        [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
-        right_trajectory = np.array(right_trajectory)
-        robot.rArmPose = right_trajectory.T
-
-        self.assertFalse(pos_pred.test(0))
-        self.assertFalse(pos_pred.test(1))
-        self.assertFalse(pos_pred.test(2))
-        self.assertTrue(pos_pred.test(3))
-        self.assertFalse(pos_pred.test(4))
-        self.assertFalse(pos_pred.test(5))
-        self.assertFalse(pos_pred.test(6))
-
-
-
-        self.assertTrue(rot_pred.test(0))
-        self.assertTrue(rot_pred.test(1))
-        self.assertTrue(rot_pred.test(2))
-        self.assertTrue(rot_pred.test(3))
-        self.assertTrue(rot_pred.test(4))
-        self.assertTrue(rot_pred.test(5))
-        self.assertTrue(rot_pred.test(6))
-
-        basket.rotation[:, 0] = [0,0,0]
-        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-        self.assertFalse(rot_pred.test(0))
-        basket.rotation[:, 0] = [np.pi/2,0,0]
-        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-        self.assertFalse(rot_pred.test(0))
-        basket.rotation[:, 0] = [0,np.pi/2,0]
-        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-        self.assertFalse(rot_pred.test(0))
-        basket.rotation[:, 0] = [0,0,np.pi/2]
-        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-        self.assertFalse(rot_pred.test(0))
-        basket.rotation[:, 0] = [np.pi/2,np.pi/2,0]
-        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-        self.assertFalse(rot_pred.test(0))
-        basket.rotation[:, 0] = [0,np.pi/2,np.pi/2]
-        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-        self.assertFalse(rot_pred.test(0))
-        basket.rotation[:, 0] = [np.pi/2,0,np.pi/2]
-        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-        self.assertTrue(rot_pred.test(0))
-        basket.rotation[:, 0] = [np.pi/2,np.pi/2,np.pi/2]
-        basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-        self.assertFalse(rot_pred.test(0))
-
-        if const.TEST_GRAD:
-            pos_pred.expr.expr.grad(pos_pred.get_param_vector(3), True, 1e-3)
-
-        if const.TEST_GRAD:
-            rot_pred.expr.expr.grad(rot_pred.get_param_vector(3), True, 1e-3)
 
     def test_basket_grasp_valid(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
@@ -1111,7 +1023,6 @@ class TestBaxterPredicates(unittest.TestCase):
 
         if const.TEST_GRAD:
             pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-3)
-
 
     def test_retiming(self):
 

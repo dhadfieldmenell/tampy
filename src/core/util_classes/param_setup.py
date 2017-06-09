@@ -128,7 +128,7 @@ class ParamSetup(object):
 
     @staticmethod
     def setup_washer(name = "washer"):
-        attrs = {"name": [name], "pose": [[0,0,0]], "hinge": [0], "rotation": [[0,0,0]], "geom": [True, False], "_type": ["Obstacle"]}
-        attr_types = {"name": str, "pose": matrix.Vector3d, "hinge": matrix.Vector1d, "rotation": matrix.Vector3d, "geom": items.Washer, "_type": str}
+        attrs = {"name": [name], "pose": [[0.505, 0.961, 1.498]], "door": [0], "rotation": [[3.141592653589793, 0, 0]], "geom": [True, False], "_type": ["Washer"]}
+        attr_types = {"name": str, "pose": matrix.Vector3d, "door": matrix.Vector1d, "rotation": matrix.Vector3d, "geom": robots.Washer, "_type": str}
         washer = parameter.Object(attrs, attr_types)
         return washer

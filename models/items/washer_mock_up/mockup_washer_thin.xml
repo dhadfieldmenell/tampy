@@ -27,6 +27,16 @@
       <diffuseColor>0.4 1 0</diffuseColor>
     </Geom>
   </Body>
+  <!-- <Body name="washer_handle">
+    <Translation>0.32 0.024 -0.410</Translation>
+    <RotationAxis>0 np.pi 0 0</RotationAxis>
+    <Geom type="trimesh">
+      <Render>washer_handle2.dae 0.00002</Render>
+      <collision>washer_handle2.dae 0.00002</collision>
+      <diffuseColor>0.4 1 0</diffuseColor>
+    </Geom>
+  </Body> -->
+
   <Joint name="hinge" type="hinge">
     <body>washer_base</body>
     <body>washer_door</body>
