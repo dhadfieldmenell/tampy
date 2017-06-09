@@ -400,7 +400,7 @@ class TestBaxterPredicates(unittest.TestCase):
 
         rel_pt = np.array([-0.035,0.055,-0.1])
         link = washer_body.env_body.GetLink("washer_handle")
-        test_env.SetViewer("qtcoin")
+        # test_env.SetViewer("qtcoin")
 
         washer.pose[:, 0] = [0.505, 0.961, 1.498]
         handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
@@ -442,6 +442,43 @@ class TestBaxterPredicates(unittest.TestCase):
 
         if const.TEST_GRAD:
             in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
+
+    def test_ee_grasp_valid(self):
+        test_env = ParamSetup.setup_env()
+        ee_pose = ParamSetup.setup_ee_pose()
+        washer = ParamSetup.setup_washer()
+        washer_body = OpenRAVEBody(test_env, washer.name, washer.geom)
+        washer.openrave_body = washer_body
+
+        ee_grasp_valid =  baxter_predicates.BaxterEEGraspValid("test_ee_grasp_valid", [ee_pose, washer], ["EEPose", "Washer"], test_env)
+        self.assertEqual(ee_grasp_valid.get_type(), "BaxterEEGraspValid")
+        self.assertFalse(ee_grasp_valid.test(0))
+
+        rel_pt = np.array([-0.035,0.055,-0.1])
+        link = washer_body.env_body.GetLink("washer_handle")
+        # test_env.SetViewer("qtcoin")
+
+        washer.pose[:, 0] = [0.730, 1.261, 1.498]
+        washer.door = np.array([[-np.pi/8]])
+        washer_body.set_pose(washer.pose.flatten(), washer.rotation.flatten())
+        washer_body.set_dof({"door": washer.door.flatten()})
+        handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
+        ee_pose.value = handle_pos.reshape((3,1))
+        ee_pose.rotation = np.zeros((3,1))
+        if const.TEST_GRAD: ee_grasp_valid.expr.expr.grad(ee_grasp_valid.get_param_vector(0), True, const.TOL)
+        ee_pose.rotation[:, 0] = [0, 0, np.pi/2]
+        self.assertFalse(ee_grasp_valid.test(0))
+        if const.TEST_GRAD: ee_grasp_valid.expr.expr.grad(ee_grasp_valid.get_param_vector(0), True, const.TOL)
+        ee_pose.rotation[:, 0] = [0, np.pi/2 ,0]
+        self.assertFalse(ee_grasp_valid.test(0))
+        if const.TEST_GRAD: ee_grasp_valid.expr.expr.grad(ee_grasp_valid.get_param_vector(0), True, const.TOL)
+        ee_pose.rotation[:, 0] = [np.pi/2 , 0, 0]
+        self.assertTrue(ee_grasp_valid.test(0))
+        if const.TEST_GRAD: ee_grasp_valid.expr.expr.grad(ee_grasp_valid.get_param_vector(0), True, const.TOL)
+        ee_pose.value[:, 0] = [0.530, 1.261, 1.498]
+        self.assertFalse(ee_grasp_valid.test(0))
+
+        if const.TEST_GRAD: ee_grasp_valid.expr.expr.grad(ee_grasp_valid.get_param_vector(0), True, const.TOL)
 
     def test_ee_reachable(self):
 

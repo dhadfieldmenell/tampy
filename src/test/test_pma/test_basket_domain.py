@@ -9,7 +9,24 @@ from core.util_classes.param_setup import ParamSetup
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 from ros_interface import action_execution
 
-def traj_retiming(plan, velocity):
+def load_environment(domain_file, problem_file):
+    domain_fname = domain_file
+    d_c = main.parse_file_to_dict(domain_fname)
+    domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+    p_fname = problem_file
+    p_c = main.parse_file_to_dict(p_fname)
+    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+    params = problem.init_state.params
+    return domain, problem, params
+
+def traj_retiming(plan):
+    velocity = np.zeros(plan.horizon)
+    velocity[0:15] = plan.params['fast_vel'].value[0]
+    velocity[15:25] = plan.params['slow_vel'].value[0]
+    velocity[25:55] = 0.15
+    velocity[55:65] = plan.params['slow_vel'].value[0]
+    velocity[65:80] = plan.params['fast_vel'].value[0]
+
     baxter = plan.params['baxter']
     rave_body = baxter.openrave_body
     body = rave_body.env_body
@@ -83,16 +100,9 @@ class TestBasketDomain(unittest.TestCase):
             print "{}:{}".format(right_spend, baxter.time[:, t+1] - baxter.time[:, t])
 
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
-        velocity = np.zeros(plan.horizon)
 
-        velocity[0:15] = plan.params['fast_vel'].value[0]
-        velocity[15:25] = plan.params['slow_vel'].value[0]
-        velocity[25:55] = 0.15
-        velocity[55:65] = plan.params['slow_vel'].value[0]
-        velocity[65:80] = plan.params['fast_vel'].value[0]
-        baxter.time = traj_retiming(plan, velocity).reshape((1, plan.horizon))
+        baxter.time = traj_retiming(plan).reshape((1, plan.horizon))
         print plan.get_failed_preds()
-        import ipdb; ipdb.set_trace()
         print "Saving current plan to file basket_plan.hdf5..."
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("basket_plan.hdf5", plan)
@@ -104,18 +114,7 @@ class TestBasketDomain(unittest.TestCase):
         # for act in plan.actions:
         #     action_execution.execute_action(act)
 
-
     def test_basket_position(self):
-
-        def load_environment(domain_file, problem_file):
-            domain_fname = domain_file
-            d_c = main.parse_file_to_dict(domain_fname)
-            domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-            p_fname = problem_file
-            p_c = main.parse_file_to_dict(p_fname)
-            problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-            params = problem.init_state.params
-            return domain, problem, params
 
         domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
                        '../domains/baxter_domain/baxter_probs/basket_move.prob')
@@ -166,6 +165,22 @@ class TestBasketDomain(unittest.TestCase):
         basket.pose = end_targ.value
         self.assertFalse(col_pred.test(0))
 
+    def test_laundry_position(self):
+        domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
+                       '../domains/laundry_domain/laundry_probs/laundry.prob')
+        env = problem.env
+
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        viewer.draw(objLst, 0, 0.7)
+
+        robot = params['baxter']
+        basket = params['basket']
+        table = params['table']
+        washer = params['washer']
+        end_targ = params['end_target']
+        offset = [0,0.317,0]
+        basket_pos = basket.pose.flatten()
 
 if __name__ == "__main__":
     unittest.main()

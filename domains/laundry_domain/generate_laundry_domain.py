@@ -6,7 +6,7 @@ dom_str = """
 # Configuration file for CAN domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Basket, BasketTarget, RobotPose, Robot, EEPose, Obstacle, Washer
+Types: Basket, BasketTarget, RobotPose, Robot, EEPose, Obstacle, Washer, WasherPose
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
@@ -52,6 +52,7 @@ pp.add('Robot', [('geom', 'Baxter'),
                 ('rGripper', 'Vector1d')])
 pp.add('EEPose', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Washer', [('geom', 'Washer'), ('pose', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
+pp.add('WasherPose', [('geom', 'Washer'), ('value', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
 pp.add('Obstacle', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 dom_str += pp.get_str() + '\n\n'
 
@@ -81,31 +82,40 @@ class DerivatedPredicates(object):
 dp = DerivatedPredicates()
 dp.add('BaxterAt', ['Basket', 'BasketTarget'])
 dp.add('BaxterRobotAt', ['Robot', 'RobotPose'])
-dp.add('BaxterEEReachablePos', ['Robot', 'RobotPose', 'EEPose'])
-dp.add('BaxterEEReachableRot', ['Robot', 'RobotPose', 'EEPose'])
-dp.add('BaxterEEReachableVerLeftPos', ['Robot', 'RobotPose', 'EEPose'])
-dp.add('BaxterEEReachableVerLeftRot', ['Robot', 'RobotPose', 'EEPose'])
-dp.add('BaxterEEReachableVerRightPos', ['Robot', 'RobotPose', 'EEPose'])
-dp.add('BaxterEEReachableVerRightRot', ['Robot', 'RobotPose', 'EEPose'])
-dp.add('BaxterBasketInGripperPos', ['Robot', 'Basket'])
-dp.add('BaxterBasketInGripperRot', ['Robot', 'Basket'])
-dp.add('BaxterBasketInContact', ['Robot', 'EEPose', 'EEPose', 'BasketTarget'])
-dp.add('BaxterBasketOpenGripper', ['Robot', 'EEPose', 'EEPose', 'BasketTarget'])
-dp.add('BaxterObstructs', ['Robot', 'RobotPose', 'RobotPose', 'Basket'])
-dp.add('BaxterObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'Basket', 'Basket'])
+dp.add('BaxterWasherAt', ['Washer', 'WasherPose'])
+dp.add('BaxterIsMP', ['Robot'])
+dp.add('BaxterWithinJointLimit', ['Robot'])
+dp.add('BaxterStationary', ['Basket'])
+dp.add('BaxterStationaryWasher', ['Washer'])
+dp.add('BaxterStationaryBase', ['Robot'])
+dp.add('BaxterStationaryArms', ['Robot'])
+dp.add('BaxterStationaryW', ['Obstacle'])
 dp.add('BaxterBasketGraspLeftPos', ['EEPose', 'BasketTarget'])
 dp.add('BaxterBasketGraspLeftRot', ['EEPose', 'BasketTarget'])
 dp.add('BaxterBasketGraspRightPos', ['EEPose', 'BasketTarget'])
 dp.add('BaxterBasketGraspRightRot', ['EEPose', 'BasketTarget'])
-dp.add('BaxterBasketLevel', ['Basket'])
-dp.add('BaxterStationary', ['Basket'])
-dp.add('BaxterStationaryW', ['Obstacle'])
-dp.add('BaxterStationaryArms', ['Robot'])
-dp.add('BaxterStationaryBase', ['Robot'])
-dp.add('BaxterIsMP', ['Robot'])
-dp.add('BaxterWithinJointLimit', ['Robot'])
+dp.add('BaxterEEGraspValid', ['EEPose', 'Washer'])
+dp.add('BaxterCloseGripperLeft', ['Robot', 'EEPose', 'RobotPose'])
+dp.add('BaxterCloseGripperRight', ['Robot', 'EEPose', 'RobotPose'])
+dp.add('BaxterOpenGripperLeft', ['Robot', 'EEPose', 'RobotPose'])
+dp.add('BaxterOpenGripperRight', ['Robot', 'EEPose', 'RobotPose'])
+dp.add('BaxterCloseGrippers', ['Robot', 'EEPose', 'EEPose', 'RobotPose'])
+dp.add('BaxterOpenGrippers', ['Robot', 'EEPose', 'EEPose', 'RobotPose'])
+dp.add('BaxterObstructs', ['Robot', 'RobotPose', 'RobotPose', 'Basket'])
+dp.add('BaxterObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'Basket', 'Basket'])
 dp.add('BaxterCollides', ['Basket', 'Obstacle'])
 dp.add('BaxterRCollides', ['Robot', 'Obstacle'])
+dp.add('BaxterEEReachableLeftVer', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEEReachableRightVer', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEEApproachLeft', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEEApproachRight', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEERetreatLeft', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEERetreatRight', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterBasketInGripper', ['Robot', 'Basket'])
+dp.add('BaxterWasherInGripper', ['Robot', 'Washer'])
+dp.add('BaxterBasketLevel', ['Basket'])
+
+
 
 dom_str += dp.get_str() + '\n'
 
@@ -142,21 +152,24 @@ class Action(object):
 
 class Move(Action):
     def __init__(self):
-        self.name = 'moveto'
+        self.name = 'move'
         self.timesteps = 20
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
         self.pre = [\
             ('(forall (?obj - Basket)\
-                (not (BaxterBasketInGripperPos ?robot ?obj))\
+                (not (BaxterBasketInGripper ?robot ?obj))\
             )', '{}:{}'.format(0, 0)),
             ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
-            ('(forall (?obj - Basket )\
+            ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasher ?obj))', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '{}:{}'.format(0, end-1)),
-            ('(BaxterBasketOpenGripper ?robot ?ee_left ?ee_right ?target)', '{}:{}'.format(0, end)),
+
+            ('(BaxterOpenGrippers ?robot ?ee_left ?ee_right ?start)', '{}:{}'.format(0, end)),
             ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterWithinJointLimit ?robot)', '{}:{}'.format(0, end)),
             ('(forall (?obs - Obstacle)\
@@ -171,19 +184,19 @@ class Move(Action):
 
 class MoveHolding(Action):
     def __init__(self):
-        self.name = 'movetoholding'
+        self.name = 'moveholding'
         self.timesteps = 20
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?basket - Basket)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
-            ('(BaxterBasketInGripperPos ?robot ?basket)', '0:{}'.format(end)),
-            ('(BaxterBasketInGripperRot ?robot ?basket)', '0:{}'.format(end)),
+            ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?basket))\
             )', '0:{}'.format(end)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
-            ('(BaxterBasketInContact ?robot ?ee_left ?ee_right ?target)', '{}:{}'.format(0, end)),
+            ('(BaxterOpenGrippers ?robot ?ee_left ?ee_right ?start)', '{}:{}'.format(0, end)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
@@ -194,8 +207,7 @@ class MoveHolding(Action):
             ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
         ]
         self.eff = [\
-            (' (BaxterBasketInGripperPos ?robot ?basket)', '0:{}'.format(end)),
-            ('(BaxterBasketInGripperRot ?robot ?basket)', '0:{}'.format(end)),
+            (' (BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
             ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
         ]
@@ -212,24 +224,24 @@ class Grasp(Action):
         self.pre = [\
             ('(BaxterAt ?basket ?target)', '0:0'),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
-            ('(BaxterEEReachableVerLeftPos ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEReachableVerLeftRot ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEReachableVerRightPos ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEReachableVerRightRot ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterBasketOpenGripper ?robot ?ee_left ?ee_right ?target)', '{}:{}'.format(0,  grasp_time-1)),
-            ('(BaxterBasketInContact ?robot ?ee_left ?ee_right ?target)', '{}:{}'.format(grasp_time,  end)),
+            ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterOpenGrippers ?robot ?ee_left ?ee_right ?start)', '{}:{}'.format(0,  grasp_time-1)),
+            ('(BaxterCloseGrippers ?robot ?ee_left ?ee_right ?start)', '{}:{}'.format(grasp_time,  end)),
             ('(BaxterBasketGraspLeftPos ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterBasketGraspLeftRot ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterBasketGraspRightPos ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterBasketGraspRightRot ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterBasketInGripperPos ?robot ?basket)', '{}:{}'.format(grasp_time, end)),
-            ('(BaxterBasketInGripperRot ?robot ?basket)', '{}:{}'.format(grasp_time, end)),
+            ('(BaxterBasketInGripper ?robot ?basket)', '{}:{}'.format(grasp_time, end)),
             ('(forall (?obj - Basket)\
-                (not (BaxterBasketInGripperPos ?robot ?basket))\
+                (not (BaxterBasketInGripper ?robot ?basket))\
             )', '0:{}'.format(grasp_time-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
             )', '0:{}'.format(grasp_time-1)),
+            ('(forall (?obs - Washer)\
+                (BaxterStationaryWasher ?obs)\
+            )', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
@@ -253,12 +265,10 @@ class Grasp(Action):
             )', '{}:{}'.format(grasp_time, end))
         ]
         self.eff = [\
-            (' (not (BaxterAt ?basket ?target))', '{}:{}'.format(end, end-1)) ,
+            ('(not (BaxterAt ?basket ?target))', '{}:{}'.format(end, end-1)) ,
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
-            ('(BaxterBasketInGripperPos ?robot ?basket)', '{}:{}'.format(end, end)),
-            ('(BaxterBasketInGripperRot ?robot ?basket)', '{}:{}'.format(end, end)),
-
+            ('(BaxterBasketInGripper ?robot ?basket)', '{}:{}'.format(end, end)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (BaxterObstructs ?robot ?sym1 ?sym2 ?basket))\
@@ -282,26 +292,26 @@ class Putdown(Action):
         retreat_time = end
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
-            ('(BaxterEEReachableVerLeftPos ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
-            ('(BaxterEEReachableVerLeftRot ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
-            ('(BaxterEEReachableVerRightPos ?robot ?sp ?ee_right)', '{}:{}'.format(putdown_time, putdown_time)),
-            ('(BaxterEEReachableVerRightRot ?robot ?sp ?ee_right)', '{}:{}'.format(putdown_time, putdown_time)),
-            ('(BaxterBasketOpenGripper ?robot ?ee_left ?ee_right ?target)', '{}:{}'.format(0,  putdown_time)),
-            ('(BaxterBasketInContact ?robot ?ee_left ?ee_right ?target)', '{}:{}'.format(putdown_time+1,  end)),
+            ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterOpenGrippers ?robot ?ee_left ?ee_right ?start)', '{}:{}'.format(0,  putdown_time)),
+            ('(BaxterCloseGrippers ?robot ?ee_left ?ee_right ?start)', '{}:{}'.format(putdown_time+1,  end)),
             ('(BaxterBasketGraspLeftPos ?ee_left ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterBasketGraspLeftRot ?ee_left ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterBasketGraspRightPos ?ee_right ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterBasketGraspRightRot ?ee_right ?target)', '{}:{}'.format(putdown_time, putdown_time)),
-            ('(BaxterBasketInGripperPos ?robot ?basket)', '{}:{}'.format(0, putdown_time)),
-            ('(BaxterBasketInGripperRot ?robot ?basket)', '{}:{}'.format(0, putdown_time)),
+            ('(BaxterBasketInGripper ?robot ?basket)', '{}:{}'.format(0, putdown_time)),
             ('(forall (?obj - Basket)\
-                (not (BaxterBasketInGripperPos ?robot ?basket))\
+                (not (BaxterBasketInGripper ?robot ?basket))\
             )', '{}:{}'.format(putdown_time+1, end)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
             )', '{}:{}'.format(putdown_time+1, end)),
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
+            )', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Washer)\
+                (BaxterStationaryWasher ?obs)\
             )', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
@@ -323,14 +333,11 @@ class Putdown(Action):
             )', '{}:{}'.format(0, putdown_time))
         ]
         self.eff = [\
-            (' (BaxterAt ?basket ?target)', '{}:{}'.format(end, end)),
+            ('(BaxterAt ?basket ?target)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(not \
-                (BaxterBasketInGripperPos ?robot ?basket))', '{}:{}'.format(end, end-1)),
-            ('(not \
-                (BaxterBasketInGripperRot ?robot ?basket))', '{}:{}'.format(end, end-1)),
-
+                (BaxterBasketInGripper ?robot ?basket))', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (BaxterObstructs ?robot ?sym1 ?sym2 ?basket))\
@@ -346,27 +353,27 @@ class Putdown(Action):
 class OpenDoor(Action):
     def __init__(self):
         self.name = 'open_door'
-        self.timesteps = const.EEREACHABLE_STEPS + 11
+        self.timesteps = 2*const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?washer - Washer ?sp - RobotPose ?ee_left - EEPose ?ep - RobotPose ?wsp - WasherPose ?wep - WasherPose)'
         grasp_time = const.EEREACHABLE_STEPS
-        approach_time = 0
+        retreat_time = const.EEREACHABLE_STEPS+10
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterWasherAt ?washer ?wsp)', '0:0'),
-            ('(BaxterEEApproach ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterGraspHandle ?ee_left ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterBasketOpenGripper ?robot ?ee_left ?ee_right ?target)', '{}:{}'.format(0,  grasp_time-1)),
-            ('(BaxterBasketInContact ?robot ?ee_left ?ee_right ?target)', '{}:{}'.format(grasp_time,  end)),
-            ('(BaxterWasherInGripperPos ?robot ?washer)', '{}:{}'.format(grasp_time, end)),
-            ('(BaxterWasherInGripperRot ?robot ?washer)', '{}:{}'.format(grasp_time, end)),
+            ('(BaxterEEApproachLeft ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEGraspValid ?ee_left ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterOpenGripperLeft ?robot ?ee_left ?start)', '{}:{}'.format(0,  grasp_time-1)),
+            ('(BaxterCloseGripperLeft ?robot ?ee_left ?start)', '{}:{}'.format(grasp_time,  retreat_time-1)),
+            ('(BaxterOpenGripperLeft ?robot ?ee_left ?start)', '{}:{}'.format(retreat_time-1,  end)),
+            ('(BaxterWasherInGripper ?robot ?washer)', '{}:{}'.format(grasp_time, retreat_time)),
             ('(forall (?obj - Basket)\
-                (not (BaxterWasherInGripperPos ?robot ?washer))\
+                (not (BaxterWasherInGripper ?robot ?washer))\
             )', '0:{}'.format(grasp_time-1)),
-            ('(BaxterStationaryWasher ?washer)', '0:{}'.format(end)),
+            ('(BaxterStationaryWasher ?washer)', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
-            )', '0:{}'.format(end)),
+            )', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
@@ -381,7 +388,6 @@ class OpenDoor(Action):
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
-            ('(not (BaxterRwCollides ?robot ?washer))', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
             )', '0:{}'.format(grasp_time-1)),
@@ -391,8 +397,7 @@ class OpenDoor(Action):
             ('(not (BaxterWasherAt ?washer ?wsp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(end, end)),
-            ('(BaxterWasherInGripperPos ?robot ?basket)', '{}:{}'.format(end, end)),
-            ('(BaxterWasherInGripperRot ?robot ?basket)', '{}:{}'.format(end, end)),
+            ('(BaxterWasherInGripper ?robot ?washer)', '{}:{}'.format(end, end)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (BaxterObstructs ?robot ?sym1 ?sym2 ?basket))\

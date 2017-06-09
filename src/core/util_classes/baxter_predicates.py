@@ -272,7 +272,7 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         self.rot_coeff = 1
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
-        self.eval_dim = 13
+        self.eval_dim = 4
         super(BaxterEEGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_washer_poses(self, x, washer_body):
@@ -298,7 +298,7 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         body = robot_body.env_body
         # Setting the poses for forward kinematics to work
         self.set_washer_poses(x, robot_body)
-        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+        robot_trans, arm_inds = self.get_washer_info(robot_body)
         arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(x[-7:-4], x[-4:-1])
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
@@ -308,9 +308,9 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
         obj_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
-        return washer_trans, obj_trans, axises, obj_axises, arm_joints
+        return robot_trans, obj_trans, axises, obj_axises, arm_joints
 
-    def ee_contact_check_f(self, x, rel_pt):
+    def washer_ee_check_f(self, x, rel_pt):
         washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
 
         robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
@@ -318,28 +318,39 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         dist_val = (robot_pos - obj_pos).reshape((3,1))
         return dist_val
 
-    def ee_contact_check_jac(self, x, rel_pt):
+    def washer_ee_check_jac(self, x, rel_pt):
         washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
 
         robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
         obj_pos = obj_trans[:3, 3]
 
-        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        joint_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        washer_jac = np.array([np.cross(axis, robot_pos - x[-7:-4, 0]) for axis in axises]).T
 
-        joint_jac = np.array([np.cross(joint.GetAxis(), obj_pos - joint.GetAnchor()) for joint in obj_joints]).T.copy()
-        base_jac = np.cross(np.array([0, 0, 1]), robot_pos).reshape((3,1))
-        obj_jac = -1 * np.array([np.cross(axis, obj_pos - x[-7:-4, 0]) for axis in axises]).T
-        obj_jac = np.c_[-np.eye(3), obj_jac, -joint_jac]
-        dist_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
+        obj_jac = -1 * np.array([np.cross(axis, obj_pos - obj_trans[:3,3]) for axis in axises]).T
+        dist_jac = np.hstack([-np.eye(3), obj_jac, np.eye(3), washer_jac, joint_jac])
         return dist_jac
+
+    def washer_ee_rot_check_f(self, x, rel_rot):
+        washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+
+        local_dir = np.array([0,0,1])
+        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+        world_dir = washer_trans[:3,:3].dot(local_dir)
+        rot_val = np.abs(np.dot(obj_dir, world_dir)) - rel_rot
+
+        return rot_val
 
     def stacked_f(self, x):
         rel_pt = np.array([-0.035,0.055,-0.1])
-        return np.vstack([self.coeff * self.ee_contact_check_f(x, rel_pt), self.rot_coeff * self.rot_check_f(x)])
+        rel_rot = 1
+        return np.vstack([self.coeff * self.washer_ee_check_f(x, rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, rel_rot)])
 
     def stacked_grad(self, x):
         rel_pt = np.array([-0.035,0.055,-0.1])
-        return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.rot_check_jac(x), 0]])
+        rel_rot = 1
+        return np.vstack([self.coeff * self.washer_ee_check_jac(x, rel_pt), np.zeros((1, 13))])
+
 """
     Gripper Constraints Family
 """
