@@ -6,11 +6,11 @@ import random
 # SEED = 1234
 NUM_PROBS = 1
 filename = "laundry_probs/laundry.prob"
-GOAL = "(BaxterAt basket end_target), (BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt Washer washer_pose)"
+GOAL = "(BaxterAt basket end_target), (BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_end_pose)"
 
 
 # init Baxter pose
-BAXTER_INIT_POSE = [1.57]
+BAXTER_INIT_POSE = [0]
 R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
@@ -32,6 +32,7 @@ TABLE_ROT = [0,0,0]
 WASHER_POS = [0.730, 1.261, 1.498]
 WASHER_ROT = [np.pi/2, 0, 0]
 WASHER_DOOR = [-np.pi/2]
+WASHER_END_DOOR = [0]
 WASHER_CONFIG = [True, False]
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
@@ -137,12 +138,14 @@ def main():
         s += "(door washer {}), ".format(WASHER_DOOR)
 
         s += "(geom washer_init_pose {}), ".format(WASHER_CONFIG)
-        s += "(pose washer_init_pose {}), ".format(WASHER_POS)
+        s += "(value washer_init_pose {}), ".format(WASHER_POS)
         s += "(rotation washer_init_pose {}), ".format(WASHER_ROT)
         s += "(door washer_init_pose {}), ".format(WASHER_DOOR)
 
         s += "(geom washer_end_pose {}), ".format(WASHER_CONFIG)
-        s += get_underfine_washer_pose("washer_end_pose")
+        s += "(value washer_end_pose {}), ".format(WASHER_POS)
+        s += "(rotation washer_end_pose {}), ".format(WASHER_ROT)
+        s += "(door washer_end_pose {}), ".format(WASHER_END_DOOR)
 
         s += "(geom table {}), ".format(TABLE_GEOM)
         s += "(pose table {}), ".format(TABLE_POS)

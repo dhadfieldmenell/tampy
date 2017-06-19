@@ -1013,17 +1013,16 @@ class EEReachable(PosePredicate):
             coeff[Float]:pose coeffitions
             rot_coeff[Float]:rotation coeffitions
     """
-    def __init__(self, name, params, expected_param_types, env=None, debug=False,
-                active_range=(-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS)):
+    def __init__(self, name, params, expected_param_types, active_range=(-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
         assert len(params) == 3
         self._env = env
         self.robot, self.start_pose, self.ee_pose = params
         self._param_to_body = {
         self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
         pos_expr = Expr(self.eval_f, self.eval_grad)
-        e = EqExpr(pos_expr, 0)
+        e = EqExpr(pos_expr, np.zeros(self.eval_dim))
 
-        super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range)
+        super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range = active_range)
         self.spacial_anchor = True
 
     def get_rel_pt(self, rel_step):
@@ -1071,13 +1070,13 @@ class EEReachable(PosePredicate):
         start, end = self.active_range
         dim, step = 3, end + 1 - start
         i, j = 0, 0
-        grad = np.zeros((dim*step + 1, self.attr_dim*step))
+        grad = np.zeros((dim*step + 3, self.attr_dim*step))
         for s in range(start, end+1):
             rel_pt = self.get_rel_pt(s)
             grad[j:j+dim, i:i+self.attr_dim] = self.coeff *  self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
             j += dim
             if s == 0:
-                grad[j:j+1, i:i+self.attr_dim] = self.rot_coeff *  self.ee_rot_check_jac(x[i:i+self.attr_dim])
+                grad[j:j+3, i:i+self.attr_dim] = self.rot_coeff *  self.ee_rot_check_jac(x[i:i+self.attr_dim])
             i += self.attr_dim
 
         return grad

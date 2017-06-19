@@ -114,6 +114,73 @@ class TestBasketDomain(unittest.TestCase):
         # for act in plan.actions:
         #     action_execution.execute_action(act)
 
+
+    def test_laundry_domain(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/laundry.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        plan_str = [
+        '0: MOVE BAXTER ROBOT_INIT_POSE ROBOT_GRASP_BEGIN',
+        '1: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_GRASP_BEGIN GRASP_EE_LEFT GRASP_EE_RIGHT ROBOT_GRASP_END',
+        '2: MOVEHOLDING BAXTER ROBOT_GRASP_END ROBOT_PUTDOWN_BEGIN BASKET',
+        '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET ROBOT_PUTDOWN_BEGIN PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_PUTDOWN_END',
+        '4: MOVE BAXTER ROBOT_PUTDOWN_END ROBOT_END_POSE',
+        # '5: OPEN_DOOR BAXTER WASHER ROBOT_WASHER_BEGIN WASHER_EE ROBOT_WASHER_END WASHER_INIT_POSE WASHER_END_POSE'
+        # '6: MOVE BAXTER ROBOT_WASHER_END ROBOT_END_POSE',
+        ]
+
+        plan = hls.get_plan(plan_str, domain, problem)
+
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def animate(delay = 0.5):
+            viewer.animate_plan(plan, delay)
+        def draw_ts(ts):
+            viewer.draw_plan_ts(plan, ts)
+        def draw_cols_ts(ts):
+            viewer.draw_cols_ts(plan, ts)
+        def callback():
+            return viewer
+        start = time.time()
+        solver = robot_ll_solver.RobotLLSolver()
+        result = solver.solve(plan, callback = callback, n_resamples=5)
+        end = time.time()
+
+        baxter = plan.params['baxter']
+        body = baxter.openrave_body.env_body
+        lmanip = body.GetManipulator('left_arm')
+        rmanip = body.GetManipulator('right_arm')
+        def check(t, vel):
+            viewer.draw_plan_ts(plan, t)
+            left_t0 = lmanip.GetTransform()[:3,3]
+            right_t0 = rmanip.GetTransform()[:3,3]
+            viewer.draw_plan_ts(plan, t+1)
+            left_t1 = lmanip.GetTransform()[:3,3]
+            right_t1 = rmanip.GetTransform()[:3,3]
+            left_spend = np.linalg.norm(left_t1 - left_t0) /vel
+            right_spend = np.linalg.norm(right_t1 - right_t0) /vel
+            print "{}:{}".format(left_spend, baxter.time[:, t+1] - baxter.time[:, t])
+            print "{}:{}".format(right_spend, baxter.time[:, t+1] - baxter.time[:, t])
+
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+
+        baxter.time = traj_retiming(plan).reshape((1, plan.horizon))
+        print plan.get_failed_preds()
+        print "Saving current plan to file basket_plan.hdf5..."
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("basket_plan.hdf5", plan)
+        import ipdb; ipdb.set_trace()
+        """
+            Uncomment to execution plan in baxter
+        """
+        # print "executing plan in Baxter..."
+        # for act in plan.actions:
+        #     action_execution.execute_action(act)
+
     def test_basket_position(self):
 
         domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',

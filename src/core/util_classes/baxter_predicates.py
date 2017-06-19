@@ -140,7 +140,7 @@ class BaxterStationaryWasher(robot_predicates.StationaryBase):
     # BaxterStationaryWasher, Washer (Only pose, rotation)
 
     def __init__(self, name, params, expected_param_types, env=None):
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][:2]])])
+        self.attr_inds = OrderedDict([(params[0], ATTRMAP[params[0]._type][:2])])
         self.attr_dim = 6
         super(BaxterStationaryWasher, self).__init__(name, params, expected_param_types, env)
 
@@ -556,15 +556,16 @@ class BaxterRCollides(robot_predicates.RCollides):
 """
 
 class BaxterEEReachable(robot_predicates.EEReachable):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, steps=const.EEREACHABLE_STEPS):
+    def __init__(self, name, params, expected_param_types, active_range = (-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[2], list(ATTRMAP[params[2]._type]))])
         self.attr_dim = 23
         self.coeff = const.EEREACHABLE_COEFF
-        self.rot_coeff = const.EEREACHABLE_ROT_OPT_COEFF
+        self.rot_coeff = const.EEREACHABLE_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
-        super(BaxterEEReachable, self).__init__(name, params, expected_param_types, (-steps, steps), env, debug)
+        self.eval_dim = 6*(active_range[1] - active_range[0]+1)
+        super(BaxterEEReachable, self).__init__(name, params, expected_param_types, active_range, env, debug)
 
     def resample(self, negated, t, plan):
         return resample_eereachable_rrt(self, negated, t, plan, inv = False)
