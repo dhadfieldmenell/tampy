@@ -11,7 +11,7 @@ import time
 
 class CollisionPredicate(ExprPredicate):
 
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.COLLISION_TOL):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.COLLISION_TOL, priority = 0):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
@@ -21,7 +21,7 @@ class CollisionPredicate(ExprPredicate):
         self.ind1 = ind1
         self._plot_handles = []
         self._cache = {}
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, priority = priority)
 
     def robot_obj_collision(self, x):
         """
@@ -308,7 +308,7 @@ class CollisionPredicate(ExprPredicate):
 
 class PosePredicate(ExprPredicate):
 
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.POSE_TOL, active_range=(0,0)):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.POSE_TOL, active_range=(0,0), priority = 0):
         self._debug = debug
         if self._debug:
             self._env.SetViewer("qtcoin")
@@ -316,7 +316,7 @@ class PosePredicate(ExprPredicate):
         self.ind0 = ind0
         self.ind1 = ind1
         self.handle = []
-        super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, active_range=active_range)
+        super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, active_range=active_range, priority = priority)
 
     def robot_obj_kinematics(self, x):
         """
@@ -399,7 +399,7 @@ class PosePredicate(ExprPredicate):
 
         return dist_jac
 
-    def ee_rot_check_f(self, x):
+    def ee_rot_check_f(self, x, offset):
         """
             This function is used to check whether End Effective pose's rotational axis is parallel to that of robot gripper
 
@@ -407,7 +407,7 @@ class PosePredicate(ExprPredicate):
         """
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
-        return self.rot_lock_f(obj_trans, robot_trans)
+        return self.rot_lock_f(obj_trans, robot_trans, offset)
 
     def ee_rot_check_jac(self, x):
         """
@@ -705,7 +705,7 @@ class At(ExprPredicate):
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
 class RobotAt(ExprPredicate):
@@ -726,7 +726,7 @@ class RobotAt(ExprPredicate):
         b ,val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(RobotAt, self).__init__(name, e, self.attr_inds, params, expected_param_types)
+        super(RobotAt, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
 class IsMP(ExprPredicate):
@@ -749,7 +749,7 @@ class IsMP(ExprPredicate):
 
         A, b, val = self.setup_mov_limit_check()
         e = LEqExpr(AffExpr(A, b), val)
-        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
 class WithinJointLimit(ExprPredicate):
@@ -771,7 +771,7 @@ class WithinJointLimit(ExprPredicate):
 
         A, b, val = self.setup_mov_limit_check()
         e = LEqExpr(AffExpr(A, b), val)
-        super(WithinJointLimit, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(WithinJointLimit, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = False
 
 class Stationary(ExprPredicate):
@@ -789,7 +789,7 @@ class Stationary(ExprPredicate):
         A = np.c_[np.eye(6), -np.eye(6)]
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
 class StationaryBase(ExprPredicate):
@@ -810,7 +810,7 @@ class StationaryBase(ExprPredicate):
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
         b, val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(StationaryBase, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(StationaryBase, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
 class StationaryArms(ExprPredicate):
@@ -831,7 +831,7 @@ class StationaryArms(ExprPredicate):
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
         b, val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(StationaryArms, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(StationaryArms, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
 class StationaryW(ExprPredicate):
@@ -847,7 +847,7 @@ class StationaryW(ExprPredicate):
         A = np.c_[np.eye(6), -np.eye(6)]
         b = np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
 class StationaryNEq(ExprPredicate):
@@ -868,7 +868,7 @@ class StationaryNEq(ExprPredicate):
             A = np.c_[np.eye(6), -np.eye(6)]
             b = np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
         self.spacial_anchor = False
 
 class GraspValid(ExprPredicate):
@@ -889,7 +889,7 @@ class GraspValid(ExprPredicate):
         b, val = np.zeros((self.attr_dim,1)), np.zeros((self.attr_dim,1))
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
-        super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
 class InContact(ExprPredicate):
@@ -920,7 +920,7 @@ class InContact(ExprPredicate):
         val = np.array([[self.GRIPPER_OPEN]])
         self.neg_expr = EqExpr(aff_expr, val)
 
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
 class InContacts(ExprPredicate):
@@ -951,7 +951,7 @@ class InContacts(ExprPredicate):
         val = np.array([[self.GRIPPER_OPEN, self.GRIPPER_OPEN]]).T
         self.neg_expr = EqExpr(aff_expr, val)
 
-        super(InContacts, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(InContacts, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
 class InGripper(PosePredicate):
@@ -979,7 +979,7 @@ class InGripper(PosePredicate):
         self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1)
+        super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 1)
         self.spacial_anchor = True
 
 class EEGraspValid(PosePredicate):
@@ -995,7 +995,7 @@ class EEGraspValid(PosePredicate):
         self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(EEGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1)
+        super(EEGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = -1)
         self.spacial_anchor = True
 
 class EEReachable(PosePredicate):
@@ -1020,16 +1020,10 @@ class EEReachable(PosePredicate):
         self._param_to_body = {
         self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
         pos_expr = Expr(self.eval_f, self.eval_grad)
-        e = EqExpr(pos_expr, np.zeros(self.eval_dim))
+        e = EqExpr(pos_expr, np.zeros((self.eval_dim, 1)))
 
-        super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range = active_range)
+        super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range = active_range, priority = 0)
         self.spacial_anchor = True
-
-    def get_rel_pt(self, rel_step):
-        if rel_step <= 0:
-            return rel_step*np.array([const.APPROACH_DIST, 0, 0])
-        else:
-            return rel_step*np.array([0, 0, const.RETREAT_DIST])
 
     def stacked_f(self, x):
         """
@@ -1046,11 +1040,12 @@ class EEReachable(PosePredicate):
         i, index = 0, 0
         f_res = []
         start, end = self.active_range
+        offset = np.array([[-1,0,0],[0,1,0],[0,0,-1]])
         for s in range(start, end+1):
             rel_pt = self.get_rel_pt(s)
             f_res.append(self.coeff * self.rel_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
             if s == 0:
-                f_res.append(self.rot_coeff * self.ee_rot_check_f(x[i:i+self.attr_dim]))
+                f_res.append(self.rot_coeff * self.ee_rot_check_f(x[i:i+self.attr_dim], offset))
             i += self.attr_dim
 
         return np.vstack(f_res)
@@ -1077,6 +1072,7 @@ class EEReachable(PosePredicate):
             j += dim
             if s == 0:
                 grad[j:j+3, i:i+self.attr_dim] = self.rot_coeff *  self.ee_rot_check_jac(x[i:i+self.attr_dim])
+                j += dim
             i += self.attr_dim
 
         return grad
@@ -1123,8 +1119,7 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol)
-        self.priority = 2
+                                        expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol, priority = 2)
         self.spacial_anchor = False
 
     def get_expr(self, negated):
@@ -1176,9 +1171,8 @@ class ObstructsHolding(CollisionPredicate):
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
         self.neg_expr_opt = LEqExpr(get_expr_mult(self.OBSTRUCTS_OPT_COEFF, col_expr_neg), val)
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug, priority = 2)
         self.spacial_anchor = False
-        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
@@ -1216,8 +1210,7 @@ class Collides(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Collides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1, debug=debug)
-        self.priority = 2
+                                        expected_param_types, ind0=0, ind1=1, debug=debug, priority = 2)
         self.spacial_anchor = False
 
     def get_expr(self, negated):
@@ -1271,9 +1264,8 @@ class RCollides(CollisionPredicate):
         self.neg_expr_opt = LEqExpr(col_expr_neg_opt, val)
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = False
-        self.priority = 2
 
     def get_expr(self, negated):
         if negated:
@@ -1293,7 +1285,8 @@ class BasketLevel(ExprPredicate):
         b, val = np.zeros((self.attr_dim,1)), np.array([[np.pi/2], [0], [np.pi/2]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
-        super(BasketLevel, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(BasketLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+
         self.spacial_anchor = False
 
 class ObjectWithinRotLimit(ExprPredicate):
@@ -1306,7 +1299,7 @@ class ObjectWithinRotLimit(ExprPredicate):
         b, val = np.array([[np.pi], [np.pi], [np.pi]]), np.array([[2*np.pi], [2*np.pi], [2*np.pi]])
         pos_expr = AffExpr(A, b)
         e = LEqExpr(pos_expr, val)
-        super(ObjectWithinRotLimit, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(ObjectWithinRotLimit, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = False
 
 class GrippersLevel(PosePredicate):
@@ -1327,7 +1320,7 @@ class GrippersLevel(PosePredicate):
         pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
 
-        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 1)
         self.spacial_anchor = False
 
 class EERetiming(PosePredicate):
@@ -1355,5 +1348,5 @@ class EERetiming(PosePredicate):
 
         pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
-        super(EERetiming, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, active_range = (0,1))
+        super(EERetiming, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, active_range = (0,1), priority = 2)
         self.spacial_anchor = False

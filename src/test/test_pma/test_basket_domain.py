@@ -8,6 +8,7 @@ from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.param_setup import ParamSetup
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 from ros_interface import action_execution
+import core.util_classes.baxter_constants as const
 
 def load_environment(domain_file, problem_file):
     domain_fname = domain_file
@@ -21,11 +22,11 @@ def load_environment(domain_file, problem_file):
 
 def traj_retiming(plan):
     velocity = np.zeros(plan.horizon)
-    velocity[0:15] = plan.params['fast_vel'].value[0]
-    velocity[15:25] = plan.params['slow_vel'].value[0]
+    velocity[0:15] = 0.25
+    velocity[15:25] = 0.04
     velocity[25:55] = 0.15
-    velocity[55:65] = plan.params['slow_vel'].value[0]
-    velocity[65:80] = plan.params['fast_vel'].value[0]
+    velocity[55:65] = 0.04
+    velocity[65:80] = 0.25
 
     baxter = plan.params['baxter']
     rave_body = baxter.openrave_body
@@ -57,14 +58,14 @@ def traj_retiming(plan):
 class TestBasketDomain(unittest.TestCase):
 
     def test_basket_domain(self):
-        domain_fname = '../domains/baxter_domain/baxter_basket_grasp.domain'
+        domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
         print "loading basket problem..."
-        p_c = main.parse_file_to_dict('../domains/baxter_domain/baxter_probs/basket_move.prob')
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/basket_move.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        plan_str = ['0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE GRASP_EE_LEFT GRASP_EE_RIGHT PICKUP_POSE SLOW_VEL FAST_VEL', '1: BASKET_PUTDOWN BAXTER BASKET END_TARGET PICKUP_POSE PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_END_POSE SLOW_VEL FAST_VEL']
+        plan_str = ['0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE GRASP_EE_LEFT GRASP_EE_RIGHT PICKUP_POSE', '1: BASKET_PUTDOWN BAXTER BASKET END_TARGET PICKUP_POSE PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_END_POSE']
 
         plan = hls.get_plan(plan_str, domain, problem)
 
@@ -126,9 +127,9 @@ class TestBasketDomain(unittest.TestCase):
         plan_str = [
         '0: MOVE BAXTER ROBOT_INIT_POSE ROBOT_GRASP_BEGIN',
         '1: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_GRASP_BEGIN GRASP_EE_LEFT GRASP_EE_RIGHT ROBOT_GRASP_END',
-        '2: MOVEHOLDING BAXTER ROBOT_GRASP_END ROBOT_PUTDOWN_BEGIN BASKET',
-        '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET ROBOT_PUTDOWN_BEGIN PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_PUTDOWN_END',
-        '4: MOVE BAXTER ROBOT_PUTDOWN_END ROBOT_END_POSE',
+        # '2: MOVEHOLDING BAXTER ROBOT_GRASP_END ROBOT_PUTDOWN_BEGIN BASKET',
+        # '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET ROBOT_PUTDOWN_BEGIN PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_PUTDOWN_END',
+        # '4: MOVE BAXTER ROBOT_PUTDOWN_END ROBOT_END_POSE'
         # '5: OPEN_DOOR BAXTER WASHER ROBOT_WASHER_BEGIN WASHER_EE ROBOT_WASHER_END WASHER_INIT_POSE WASHER_END_POSE'
         # '6: MOVE BAXTER ROBOT_WASHER_END ROBOT_END_POSE',
         ]
@@ -168,7 +169,7 @@ class TestBasketDomain(unittest.TestCase):
 
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
 
-        baxter.time = traj_retiming(plan).reshape((1, plan.horizon))
+        # baxter.time = traj_retiming(plan).reshape((1, plan.horizon))
         print plan.get_failed_preds()
         print "Saving current plan to file basket_plan.hdf5..."
         serializer = PlanSerializer()
@@ -248,6 +249,30 @@ class TestBasketDomain(unittest.TestCase):
         end_targ = params['end_target']
         offset = [0,0.317,0]
         basket_pos = basket.pose.flatten()
+        left_targ = basket_pos + offset + [0,0,5*const.APPROACH_DIST]
+        right_targ = basket_pos - offset + [0,0,5*const.APPROACH_DIST]
+        grasp_rot = np.array([0,np.pi/2,0])
+
+        robot_body = robot.openrave_body
+        baskey_body = basket.openrave_body
+        #Grasp Begin Pose
+        robot_body.set_pose([0,0, -np.pi/8])
+        l_arm_pose = robot_body.get_ik_from_pose(left_targ, grasp_rot, "left_arm")[0]
+        r_arm_pose = robot_body.get_ik_from_pose(right_targ, grasp_rot, "right_arm")[0]
+        robot_body.set_dof({'lArmPose':l_arm_pose, 'rArmPose': r_arm_pose})
+
+        # Putdown Pose
+        baskey_body.set_pose([0.65, 0.323, 0.81], [np.pi/2, 0, np.pi/2])
+        basket_pos = np.array([0.65, 0.323, 0.81])
+        left_targ = basket_pos + offset + [0,0,5*const.APPROACH_DIST]
+        right_targ = basket_pos - offset + [0,0,5*const.APPROACH_DIST]
+        grasp_rot = np.array([0,np.pi/2,0])
+
+        robot_body.set_pose([0,0, np.pi/8])
+        l_arm_pose = robot_body.get_ik_from_pose(left_targ, grasp_rot, "left_arm")[0]
+        r_arm_pose = robot_body.get_ik_from_pose(right_targ, grasp_rot, "right_arm")[0]
+        robot_body.set_dof({'lArmPose':l_arm_pose, 'rArmPose': r_arm_pose})
+        import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":
     unittest.main()

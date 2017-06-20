@@ -426,8 +426,8 @@ class BaxterObstructs(robot_predicates.Obstructs):
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
 
-    def resample(self, negated, t, plan):
-        return resample_pred(self, negated, t, plan)
+    # def resample(self, negated, t, plan):
+        # return resample_pred(self, negated, t, plan)
         # return resample_basket_obstructs(self, negated, t, plan)
         # return None, None
 
@@ -471,9 +471,9 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         super(BaxterObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = const.DIST_SAFE
 
-    def resample(self, negated, t, plan):
+    # def resample(self, negated, t, plan):
         # return resample_basket_obstructs(self, negated, t, plan)
-        return resample_pred(self, negated, t, plan)
+        # return resample_pred(self, negated, t, plan)
         # return None, None
 
     def set_robot_poses(self, x, robot_body):
@@ -523,8 +523,8 @@ class BaxterRCollides(robot_predicates.RCollides):
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = const.RCOLLIDES_DSAFE
 
-    def resample(self, negated, t, plan):
-        return resample_pred(self, negated, t, plan)
+    # def resample(self, negated, t, plan):
+        # return resample_pred(self, negated, t, plan)
         # return resample_obstructs(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
@@ -564,8 +564,14 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         self.rot_coeff = const.EEREACHABLE_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
-        self.eval_dim = 6*(active_range[1] - active_range[0]+1)
+        self.eval_dim = 3+3*(1+2*const.EEREACHABLE_STEPS)
         super(BaxterEEReachable, self).__init__(name, params, expected_param_types, active_range, env, debug)
+
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([const.APPROACH_DIST, 0, 0])
+        else:
+            return rel_step*np.array([0, 0, const.RETREAT_DIST])
 
     def resample(self, negated, t, plan):
         return resample_eereachable_rrt(self, negated, t, plan, inv = False)

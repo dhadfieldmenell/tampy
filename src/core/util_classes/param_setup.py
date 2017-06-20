@@ -132,3 +132,10 @@ class ParamSetup(object):
         attr_types = {"name": str, "pose": matrix.Vector3d, "door": matrix.Vector1d, "rotation": matrix.Vector3d, "geom": robots.Washer, "_type": str}
         washer = parameter.Object(attrs, attr_types)
         return washer
+
+    @staticmethod
+    def setup_washer_pose(name = "washer_pose"):
+        attrs = {"name": [name], "value": [[0.505, 0.961, 1.498]], "door": [0], "rotation": [[3.141592653589793, 0, 0]], "geom": [True, False], "_type": ["WasherPose"]}
+        attr_types = {"name": str, "value": matrix.Vector3d, "door": matrix.Vector1d, "rotation": matrix.Vector3d, "geom": robots.Washer, "_type": str}
+        washer_pose = parameter.Symbol(attrs, attr_types)
+        return washer_pose
