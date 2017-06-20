@@ -98,24 +98,24 @@ class Plan(object):
 
         return res
 
-    def get_failed_pred(self, active_ts=None):
+    def get_failed_pred(self, active_ts=None, priority = 2):
         #just return the first one for now
         t_min = self.horizon+1
         pred = None
         negated = False
-        for n, p, t in self.get_failed_preds(active_ts=active_ts):
+        for n, p, t in self.get_failed_preds(active_ts=active_ts, priority = priority):
             if t < t_min:
                 t_min = t
                 pred = p
                 negated = n
         return negated, pred, t_min
 
-    def get_failed_preds(self, active_ts=None):
+    def get_failed_preds(self, active_ts=None, priority = 2):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
         failed = []
         for a in self.actions:
-            failed.extend(a.get_failed_preds(active_ts))
+            failed.extend(a.get_failed_preds(active_ts, priority))
         return failed
 
     def satisfied(self, active_ts=None):
@@ -154,3 +154,9 @@ class Plan(object):
         for a in self.actions:
             plan_str.append(str(a))
         return plan_str
+
+    def find_pred(self, pred_name):
+        res = []
+        for a in self.actions:
+            res.extend([p['pred'] for p in a.preds if p['hl_info'] != 'hl_state' and p['pred'].get_type() == pred_name])
+        return res

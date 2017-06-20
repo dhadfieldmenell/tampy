@@ -18,7 +18,7 @@ from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import baxter_sampling
 
 
-MAX_PRIORITY=5
+MAX_PRIORITY=2
 BASE_MOVE_COEFF = 10
 TRAJOPT_COEFF=1e3
 SAMPLE_SIZE = 5
@@ -43,9 +43,8 @@ class RobotLLSolver(LLSolver):
         self._param_to_ll = {}
         self.early_converge=early_converge
         self.child_solver = None
-        self.solve_priorities = [2]
+        self.solve_priorities = [0, 1, 2]
         self.transfer_norm = transfer_norm
-
 
     def _solve_helper(self, plan, callback, active_ts, verbose):
         # certain constraints should be solved first
@@ -62,6 +61,8 @@ class RobotLLSolver(LLSolver):
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
         success = False
+        viewer = callback()
+        import ipdb; ipdb.set_trace()
         if force_init or not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
             self._solve_opt_prob(plan, priority=-2, callback=callback,
@@ -69,8 +70,6 @@ class RobotLLSolver(LLSolver):
             self._solve_opt_prob(plan, priority=-1, callback=callback,
                 active_ts=active_ts, verbose=verbose)
             plan.initialized=True
-        success = self._solve_helper(plan, callback=callback,
-            active_ts=active_ts, verbose=verbose)
 
         # self.saver = PlanSerializer()
         # self.saver.write_plan_to_hdf5("temp_plan.hdf5", plan)
@@ -78,23 +77,22 @@ class RobotLLSolver(LLSolver):
         if success or len(plan.get_failed_preds()) == 0:
             return True
             # return success
+        for priority in self.solve_priorities:
+            for attempt in range(n_resamples):
+                ## refinement loop
+                success = self._solve_opt_prob(plan, priority=priority,
+                                callback=callback, active_ts=active_ts, verbose=verbose)
+                success |= len(plan.get_failed_preds(priority=priority)) == 0
+                if success: break
 
-        for attempt in range(n_resamples):
-            ## refinement loop
-            ## priority 0 resamples the first failed predicate in the plan
-            ## and then solves a transfer optimization that only includes linear constraints
-
-            self._solve_opt_prob(plan, priority=0, callback=callback,
-                                 active_ts=active_ts, verbose=verbose)
-            success = self._solve_opt_prob(plan, priority=1,
-                            callback=callback, active_ts=active_ts, verbose=verbose)
-            if success or len(plan.get_failed_preds()) == 0:
-                print "Optimization success after {} resampling.".format(attempt)
-                return attempt
+                self._solve_opt_prob(plan, priority=priority, callback=callback,
+                                     active_ts=active_ts, verbose=verbose, resample = True)
+            if not success:
+                return False
         return success
 
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
-                        active_ts=None, verbose=False):
+                        active_ts=None, verbose=False, resample=False):
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
         if callback is not None:
@@ -113,35 +111,15 @@ class RobotLLSolver(LLSolver):
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
 
+        if resample:
 
-        self._bexpr_to_pred = {}
-        if priority == -2:
-            """
-            Initialize an linear trajectory while enforceing the linear constraints in the intermediate step.
-            """
-            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
-            self._add_obj_bexprs(obj_bexprs)
-            self._add_first_and_last_timesteps_of_actions(plan,
-                priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
-            tol = 1e-1
-        elif priority == -1:
-            """
-            Solve the optimization problem while enforcing every constraints.
-            """
-            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
-            self._add_obj_bexprs(obj_bexprs)
-            self._add_first_and_last_timesteps_of_actions(plan,
-                priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
-                add_nonlin=True)
-            tol = 1e-1
-        elif priority == 0:
             """
             When Optimization fails, resample new values for certain timesteps
             of the trajectory and solver as initialization
             """
             ## this should only get called with a full plan for now
             # assert active_ts == (0, plan.horizon-1)
-            failed_preds = plan.get_failed_preds()
+            failed_preds = plan.get_failed_preds(priority=priority)
             # print "{} predicates fails, resampling process begin...\n \
             #        Checking {}".format(len(failed_preds), failed_preds[0])
 
@@ -159,12 +137,34 @@ class RobotLLSolver(LLSolver):
                 add_nonlin=True, active_ts= active_ts, verbose=verbose)
             tol = 1e-3
 
-        elif priority >= 1:
-            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
-            self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
-                                               active_ts=active_ts, verbose=verbose)
-            tol=1e-3
+        else:
+            self._bexpr_to_pred = {}
+            if priority == -2:
+                """
+                Initialize an linear trajectory while enforceing the linear constraints in the intermediate step.
+                """
+                obj_bexprs = self._get_trajopt_obj(plan, active_ts)
+                self._add_obj_bexprs(obj_bexprs)
+                self._add_first_and_last_timesteps_of_actions(plan,
+                    priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
+                tol = 1e-1
+            elif priority == -1:
+                """
+                Solve the optimization problem while enforcing every constraints.
+                """
+                obj_bexprs = self._get_trajopt_obj(plan, active_ts)
+                self._add_obj_bexprs(obj_bexprs)
+                self._add_first_and_last_timesteps_of_actions(plan,
+                    priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
+                    add_nonlin=True)
+                tol = 1e-1
+
+            elif priority >= 0:
+                obj_bexprs = self._get_trajopt_obj(plan, active_ts)
+                self._add_obj_bexprs(obj_bexprs)
+                self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
+                                                   active_ts=active_ts, verbose=verbose)
+                tol=1e-3
 
         solv = Solver()
         solv.initial_trust_region_size = self.initial_trust_region_size
@@ -172,17 +172,17 @@ class RobotLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
         self._update_ll_params()
+
         print "priority: {}".format(priority)
 
-
-        if priority == 0:
+        if resample:
             # During resampling phases, there must be changes added to sampling_trace
             if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
                 reward = 0
-                if len(plan.get_failed_preds()) == 0:
+                if len(plan.get_failed_preds(priority=priority)) == 0:
                     reward = len(plan.actions)
                 else:
-                    failed_t = plan.get_failed_pred()[2]
+                    failed_t = plan.get_failed_pred(priority=priority)[2]
                     for i in range(len(plan.actions)):
                         if failed_t > plan.actions[i].active_timesteps[1]:
                             reward += 1
@@ -190,7 +190,6 @@ class RobotLLSolver(LLSolver):
         ##Restore free_attrs values
         plan.restore_free_attrs()
         return success
-
 
     def _get_transfer_obj(self, plan, norm):
         """
@@ -332,10 +331,9 @@ class RobotLLSolver(LLSolver):
     def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY,
                                                  add_nonlin=False, active_ts=None, verbose=False):
         """
-            This function adds all linear predicates and first and last timestep
-            non-linear predicates from actions that are active within the range of active_ts.
+            Adding only non-linear constraints on the first and last timesteps of each action.
         """
-        if active_ts==None:
+        if active_ts is None:
             active_ts = (0, plan.horizon-1)
         for action in plan.actions:
             action_start, action_end = action.active_timesteps

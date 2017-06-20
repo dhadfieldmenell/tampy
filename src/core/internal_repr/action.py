@@ -27,7 +27,7 @@ class Action(object):
     def __repr__(self):
         return "%d: %s %s %s"%(self.step_num, self.name, self.active_timesteps, " ".join([p.name for p in self.params]))
 
-    def get_failed_preds(self, active_ts=None):
+    def get_failed_preds(self, active_ts=None, priority = 2):
         if active_ts is None:
             active_ts = self.active_timesteps
         failed = []
@@ -38,7 +38,7 @@ class Action(object):
             start, end = pred_d['active_timesteps']
             for t in range(max(start, active_ts[0]),
                            min(end, active_ts[1])+1):
-                if not pred.test(t, negated=negated):
+                if not pred.test(t, negated=negated) and pred.priority <= priority:
                     failed.append((negated, pred, t))
         return failed
 
@@ -58,11 +58,11 @@ class Action(object):
             return True
         return len(self.get_failed_preds(active_ts)) == 0
 
-    def first_failed_ts(self):
+    def first_failed_ts(self, priority = 0):
         start, end = self.active_timesteps
         ## init at the maximize
         t_min = end
-        for b, p, t in self.get_failed_preds():
+        for b, p, t in self.get_failed_preds(priority=priority):
             if t < t_min:
                 t_min = t
         return t_min

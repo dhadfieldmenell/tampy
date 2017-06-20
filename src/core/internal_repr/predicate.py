@@ -7,13 +7,13 @@ class Predicate(object):
     these parameters. The test occurs for a particular time (0-indexed). A concrete predicate is one in which all
     the non-symbol parameters have values. Commonly used predicates can be found in the core/util_classes/ folder.
     """
-    def __init__(self, name, params, expected_param_types, env=None, active_range=(0,0)):
+    def __init__(self, name, params, expected_param_types, env=None, active_range=(0,0), priority = 0):
         self.name = name
         self.params = params
         self.validate_params(expected_param_types)
         self.env = env
         self.active_range = active_range
-        self.priority = 0
+        self.priority = priority
 
     def get_type(self):
         return self.__class__.__name__
