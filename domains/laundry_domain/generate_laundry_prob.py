@@ -14,7 +14,7 @@ BAXTER_INIT_POSE = [0]
 R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
-
+CLOSE_GRIPPER = [0.015]
 # init basket pose
 BASKET_INIT_POS = [0.65 , -0.283,  0.81]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
@@ -29,11 +29,27 @@ TABLE_GEOM = [0.3, 0.6, 0.018]
 TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
-WASHER_POS = [0.730, 1.261, 1.498]
-WASHER_ROT = [np.pi/2, 0, 0]
-WASHER_DOOR = [-np.pi/2]
-WASHER_END_DOOR = [0]
+WASHER_POS = [2,2,2]
+# WASHER_POS = [0.730, 1.261, 1.498]
+WASHER_ROT = [-np.pi/2, 0, 0]
+WASHER_DOOR = [0]
+WASHER_END_DOOR = [-np.pi/2]
 WASHER_CONFIG = [True, False]
+
+"""
+Intermediate Poses
+"""
+GRASP_POSE = [-np.pi/8]
+GRASP_LARMPOSE = [-0.2       , -1.61656414, -0.61176606,  1.93732774, -0.02776806, 1.24185857, -0.40960045]
+GRASP_RARMPOSE = [ 0.7       , -0.96198717,  0.03612888,  0.99775438, -0.02067175, 1.5353429 , -0.44772444]
+GRASP_GRIPPER = [0.02]
+
+PUTDOWN_POSE = [np.pi/8]
+PUTDOWN_LARMPOSE = [-0.8       , -0.87594019,  0.2587353 ,  0.92223949,  2.97696004, -1.54149409, -2.5580562 ]
+PUTDOWN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
+PUTDOWN_GRIPPER = [0.02]
+
+
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
     s += "(geom {})".format(name)
@@ -114,7 +130,7 @@ def main():
 
         s += "(geom end_target), "
         s += "(value end_target {}), ".format(BASKET_END_POS)
-        s += "(rotation end_target {}), ".format(BASKET_END_POS)
+        s += "(rotation end_target {}), ".format(BASKET_END_ROT)
 
         s += get_underfine_symbol("grasp_ee_left")
         s += get_underfine_symbol("grasp_ee_right")
@@ -124,10 +140,18 @@ def main():
 
         s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+
+        # s += get_robot_pose_str('robot_grasp_begin', GRASP_LARMPOSE, GRASP_RARMPOSE, GRASP_GRIPPER, GRASP_POSE)
+        # s += get_robot_pose_str('robot_grasp_end', GRASP_LARMPOSE, GRASP_RARMPOSE, CLOSE_GRIPPER, GRASP_POSE)
+        #
+        # s += get_robot_pose_str('robot_putdown_begin', PUTDOWN_LARMPOSE, PUTDOWN_RARMPOSE, CLOSE_GRIPPER, PUTDOWN_POSE)
+        # s += get_robot_pose_str('robot_putdown_end', PUTDOWN_LARMPOSE, PUTDOWN_RARMPOSE, PUTDOWN_GRIPPER, PUTDOWN_POSE)
+
         s += get_undefined_robot_pose_str("robot_grasp_begin")
         s += get_undefined_robot_pose_str("robot_grasp_end")
         s += get_undefined_robot_pose_str("robot_putdown_begin")
         s += get_undefined_robot_pose_str("robot_putdown_end")
+
         s += get_undefined_robot_pose_str("robot_washer_begin")
         s += get_undefined_robot_pose_str("robot_washer_end")
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
