@@ -22,8 +22,13 @@
        <limitsdeg>0 0</limitsdeg>
      </joint>
      <Joint name="bottom" type="hinge" enable="false">
-       <body>washer_base</body>
+       <body>washer_body_base</body>
        <body>washer_bottom</body>
+       <limits>0.0 0.0</limits>
+     </Joint>
+     <Joint name="base" type="hinge" enable="false">
+       <body>washer_body_base</body>
+       <body>washer_base</body>
        <limits>0.0 0.0</limits>
      </Joint>
    </kinbody>
