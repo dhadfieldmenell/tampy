@@ -3,6 +3,7 @@ from sco.variable import Variable
 from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
 from openravepy import matrixFromAxisAngle
+from core.internal_repr.parameter import Object
 from core.util_classes import common_predicates
 from core.util_classes import baxter_predicates
 from core.util_classes.matrix import Vector
@@ -34,7 +35,7 @@ attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
 
 class RobotLLSolver(LLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
-        self.transfer_coeff = 1e1
+        self.transfer_coeff = 0
         self.rs_coeff = 1e10
         self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 1e1
@@ -62,37 +63,39 @@ class RobotLLSolver(LLSolver):
               verbose=False, force_init=False):
         success = False
         viewer = callback()
-        import ipdb; ipdb.set_trace()
+
         if force_init or not plan.initialized:
              ## solve at priority -1 to get an initial value for the parameters
             self._solve_opt_prob(plan, priority=-2, callback=callback,
                 active_ts=active_ts, verbose=verbose)
-            self._solve_opt_prob(plan, priority=-1, callback=callback,
-                active_ts=active_ts, verbose=verbose)
-            plan.initialized=True
+            # self._solve_opt_prob(plan, priority=-1, callback=callback,
+            #     active_ts=active_ts, verbose=verbose)
+            # plan.initialized=True
 
         # self.saver = PlanSerializer()
         # self.saver.write_plan_to_hdf5("temp_plan.hdf5", plan)
 
         if success or len(plan.get_failed_preds()) == 0:
             return True
+
             # return success
         for priority in self.solve_priorities:
             for attempt in range(n_resamples):
                 ## refinement loop
+                success = self._solve_opt_prob(plan, priority=priority, callback=callback,
+                                     active_ts=active_ts, verbose=verbose, resample = True)
+                import ipdb; ipdb.set_trace()
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose)
                 success |= len(plan.get_failed_preds(priority=priority)) == 0
                 if success: break
-
-                self._solve_opt_prob(plan, priority=priority, callback=callback,
-                                     active_ts=active_ts, verbose=verbose, resample = True)
             if not success:
                 return False
         return success
 
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
                         active_ts=None, verbose=False, resample=False):
+        self.plan = plan
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
         if callback is not None:
@@ -112,6 +115,21 @@ class RobotLLSolver(LLSolver):
         model.update()
 
         if resample:
+            def  variable_helper():
+                error_bin = []
+                for sco_var in self._prob._vars:
+                    for grb_var, val in zip(sco_var.get_grb_vars(), sco_var.get_value()):
+                        grb_name = grb_var[0].VarName
+                        one, two = grb_name.find('-'), grb_name.find('-(')
+                        param_name = grb_name[1:one]
+                        attr = grb_name[one+1:two]
+                        index = eval(grb_name[two+1:-1])
+                        param = plan.params[param_name]
+                        if not np.allclose(val, getattr(param, attr)[index]):
+                            error_bin.append((grb_name, val, getattr(param, attr)[index]))
+                if len(error_bin) != 0:
+                    print "something wrong"
+                    import ipdb; ipdb.set_trace()
 
             """
             When Optimization fails, resample new values for certain timesteps
@@ -126,17 +144,20 @@ class RobotLLSolver(LLSolver):
             ## this is an objective that places
             ## a high value on matching the resampled values
             obj_bexprs = []
+            variable_helper()
             rs_obj = self._resample(plan, failed_preds)
-            obj_bexprs.extend(rs_obj)
+
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
 
+            self._add_all_timesteps_of_actions(plan, priority=priority,
+                add_nonlin=False, active_ts= active_ts, verbose=verbose)
+            variable_helper()
+            obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=1,
-                add_nonlin=True, active_ts= active_ts, verbose=verbose)
+            variable_helper()
             tol = 1e-3
-
         else:
             self._bexpr_to_pred = {}
             if priority == -2:
@@ -171,7 +192,16 @@ class RobotLLSolver(LLSolver):
         solv.initial_penalty_coeff = self.init_penalty_coeff
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
+
         self._update_ll_params()
+
+        if priority == 0 and len(plan.get_failed_preds(priority = 0)) != 0:
+            left = plan.get_failed_preds(priority = 0)[0][1]
+            right = plan.get_failed_preds(priority = 0)[1][1]
+            np.max(left.expr.expr.eval(left.get_param_vector(34)))
+            np.max(right.expr.expr.eval(right.get_param_vector(34)))
+            viewer.draw_plan_ts(plan, 34)
+            plan.get_failed_preds(priority = 0)
 
         print "priority: {}".format(priority)
 
@@ -256,32 +286,56 @@ class RobotLLSolver(LLSolver):
         if val is None:
             return []
 
-        bexprs, i = [], 0
+        bexprs = []
+        # for p in attr_inds:
+        #     ## get the ll_param for p and gurobi variables
+        #     ll_p = self._param_to_ll[p]
+        #     n_vals, i = 0, 0
+        #     grb_vars = []
+        #     import ipdb; ipdb.set_trace()
+        #     for attr, ind_arr, t in attr_inds[p]:
+        #         n_vals += len(ind_arr)
+        #         grb_vars.extend(
+        #             list(getattr(ll_p, attr)[ind_arr, t].flatten()))
+        #
+        #     for j, grb_var in enumerate(grb_vars):
+        #         ## create an objective saying stay close to the resampled value
+        #         ## e(x) = (x - val[i+j])**2
+        #         ## e(x) = x^2 - 2*val[i+j]*x + val[i+j]^2
+        #         Q = np.eye(1)
+        #         A = -2*val[p][i+j]*np.ones((1, 1))
+        #         b = np.ones((1, 1))*np.power(val[p][i+j], 2)
+        #         # QuadExpr is 0.5*x^Tx + Ax + b
+        #         quad_expr = QuadExpr(2*Q*self.rs_coeff, A*self.rs_coeff, b*self.rs_coeff)
+        #         v_arr = np.array([grb_var]).reshape((1, 1), order='F')
+        #         init_val = np.ones((1, 1))*val[p][i+j]
+        #
+        #         bexpr = BoundExpr(quad_expr,
+        #                           Variable(v_arr, val[p][i+j].reshape((1, 1))))
+        #         bexprs.append(bexpr)
+        #
+        #     i += n_vals
+
         for p in attr_inds:
             ## get the ll_param for p and gurobi variables
             ll_p = self._param_to_ll[p]
-            n_vals = 0
+            n_vals, i = 0, 0
             grb_vars = []
             for attr, ind_arr, t in attr_inds[p]:
-                n_vals += len(ind_arr)
-                grb_vars.extend(
-                    list(getattr(ll_p, attr)[ind_arr, t].flatten()))
+                for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t].flatten()):
+                    Q = np.eye(1)
+                    A = -2*val[p][i+j]*np.ones((1, 1))
+                    b = np.ones((1, 1))*np.power(val[p][i+j], 2)
+                    # QuadExpr is 0.5*x^Tx + Ax + b
+                    quad_expr = QuadExpr(2*Q*self.rs_coeff, A*self.rs_coeff, b*self.rs_coeff)
+                    v_arr = np.array([grb_var]).reshape((1, 1), order='F')
+                    init_val = np.ones((1, 1))*val[p][i+j]
 
-            for j, grb_var in enumerate(grb_vars):
-                ## create an objective saying stay close to the resampled value
-                ## e(x) = (x - val[i+j])**2
-                ## e(x) = x^2 - 2*val[i+j]*x + val[i+j]^2
-                Q = np.eye(1)
-                A = -2*val[i+j]*np.ones((1, 1))
-                b = np.ones((1, 1))*np.power(val[i+j], 2)
-                # QuadExpr is 0.5*x^Tx + Ax + b
-                quad_expr = QuadExpr(2*Q*self.rs_coeff, A*self.rs_coeff, b*self.rs_coeff)
-                v_arr = np.array([grb_var]).reshape((1, 1), order='F')
-                init_val = np.ones((1, 1))*val[i+j]
-                bexpr = BoundExpr(quad_expr,
-                                  Variable(v_arr, val[i+j].reshape((1, 1))))
-                bexprs.append(bexpr)
-            i += n_vals
+                    bexpr = BoundExpr(quad_expr,
+                                      Variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1))))
+                    bexprs.append(bexpr)
+                i += len(ind_arr)
+
         return bexprs
 
     def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True,
@@ -430,7 +484,10 @@ class RobotLLSolver(LLSolver):
         for param in plan.params.values():
             if param not in self._param_to_ll:
                 continue
-            if param._type in ['Robot', 'Can']:
+            # TODO change this code so it's problem independent
+            assert isinstance(param, Object) == (param._type in ['Robot', 'Can', 'Basket', 'Washer', 'Obstacle'])
+            # import ipdb; ipdb.set_trace()
+            if isinstance(param, Object):
                 for attr_name in param.__dict__.iterkeys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):

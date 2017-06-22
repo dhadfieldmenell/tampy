@@ -460,7 +460,7 @@ def resample_pick_place(plan, t, pred, rs_action, ref_index):
 
 def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
     # Preparing the variables
-    attr_inds, res = OrderedDict(), []
+    attr_inds, res = OrderedDict(), OrderedDict()
     robot, rave_body = pred.robot, pred.robot.openrave_body
     target_pos, target_rot = pred.ee_pose.value.flatten(), pred.ee_pose.rotation.flatten()
     body = rave_body.env_body
@@ -563,13 +563,14 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
 
 
 def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
-    attr_inds, res = OrderedDict(), []
-    viewer = OpenRAVEViewer.create_viewer(plan.env)
-
+    attr_inds, res = OrderedDict(), OrderedDict()
+    # viewer = OpenRAVEViewer.create_viewer(plan.env)
+    basket = plan.params['basket']
     # Preparing the variables
-    action = [act for act in plan.actions if act.active_timesteps[0] <= t <= act.active_timesteps[1]][0]
-    ee_left = action.params[4]
-    ee_right = action.params[5]
+    actions = plan.actions
+    action_inds = [i for i in range(len(actions)) if actions[i].active_timesteps[0] <= t and  t <= actions[i].active_timesteps[1]][0]
+    ee_left = actions[action_inds].params[4]
+    ee_right = actions[action_inds].params[5]
     robot, rave_body = pred.robot, pred.robot.openrave_body
     left_pose, left_rot = ee_left.value[:, 0], ee_left.rotation[:, 0]
     right_pose, right_rot = ee_right.value[:, 0], ee_right.rotation[:, 0]
@@ -578,7 +579,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     left_robot_trans, left_arm_inds = pred.get_robot_info(rave_body, 'left')
     right_robot_trans, right_arm_inds = pred.get_robot_info(rave_body, 'right')
 
-    active_dof = np.hstack([[0], left_arm_inds, right_arm_inds])
+
     # Make sure baxter is well positioned in the env
     dof_value = np.r_[robot.lArmPose[:, t],
                       robot.lGripper[:, t],
@@ -605,6 +606,8 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
 
     add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', grasp_left_arm_pose.copy()), ('rArmPose', grasp_right_arm_pose.copy()), ('pose', robot.pose[:,t])])
 
+
+
     # Store sampled pose
     plan.sampling_trace.append({'type': robot.get_type(), 'data':{'lArmPose': grasp_left_arm_pose, 'rArmPose': grasp_right_arm_pose}, 'timestep': t, 'pred': pred, 'action': "grasp"})
     # Normal resample eereachable used in grasp action
@@ -617,6 +620,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
         right_app_pos = right_pose + np.array([0,0,const.APPROACH_DIST]) * (step-i)
         right_approach_arm_pose = get_ik_from_pose(right_app_pos, right_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [('lArmPose', left_approach_arm_pose), ('rArmPose', right_approach_arm_pose)])
+
         # rave_body.set_dof({'lArmPose': left_approach_arm_pose, 'rArmPose': right_approach_arm_pose})
         # import ipdb; ipdb.set_trace()
 
@@ -631,22 +635,50 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
 
         if left_approach_arm_pose is None or right_approach_arm_pose is None or  left_retreat_arm_pose is None or right_retreat_arm_pose is None:
             resample_failure = True
+
     # Ik infeasible
     if resample_failure:
         plan.sampling_trace[-1]['reward'] = -1
         return None, None
+
+    robot_body = robot.openrave_body
+
+    """
+    Linear Interp Traj
+    """
+    last_action = actions[action_inds-1]
+    last_begin = last_action.params[1]
+    last_end = last_action.params[2]
+    if last_action.name == "move" or last_action.name == "moveholding":
+        act_start, act_end = last_action.active_timesteps
+        timesteps = act_end - act_start
+        pose_traj = lin_interp_traj(robot.pose[:, t-step], robot.pose[:,t+step], timesteps)
+        left_arm_traj = lin_interp_traj(robot.lArmPose[:, t-step], robot.lArmPose[:, t+step], timesteps)
+        right_arm_traj = lin_interp_traj(robot.rArmPose[:, t-step], robot.rArmPose[:, t+step], timesteps)
+        for i in range(act_start+1, act_end):
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_traj[:, i]), ('rArmPose', right_arm_traj[:, i]), ('pose', pose_traj[:, i])])
+            robot_body.set_dof({'lArmPose': left_arm_traj[:, i], 'rArmPose': right_arm_traj[:, i]})
+
+    """
+        Resample other parameters
+    """
+    add_to_attr_inds_and_res(t, attr_inds, res, basket, [('pose', basket.pose[:, t])])
+    for i in range(step):
+        add_to_attr_inds_and_res(t+1+i, attr_inds, res, basket, [('pose', basket.pose[:, t] + np.array([0,0,const.APPROACH_DIST]) * (i+1))])
+
+    begin = actions[action_inds].params[3]
+    end = actions[action_inds].params[6]
+
+    add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
+    add_to_attr_inds_and_res(0, attr_inds, res, end, [('lArmPose', robot.lArmPose[:, t+step]), ('rArmPose', robot.rArmPose[:, t+step]), ('value', robot.pose[:,t+step])])
+
+    test_resample_order(attr_inds, res)
     # import ipdb; ipdb.set_trace()
-    # lock the variables
-    robot._free_attrs['lArmPose'][:, t-step: t+step+1] = 0
-    robot._free_attrs['rArmPose'][:, t-step: t+step+1] = 0
-    # import ipdb; ipdb.set_trace()
-    return np.array(res), attr_inds
+    return res, attr_inds
 
 def resample_retiming(pred, negated, t, plan):
     if pred.ee_vel.name == "fast_vel":
         active_range = list(range(0, 10)) + list(range(20,29))
-
-
 
 
 def resample_basket_obstructs(pred, negated, t, plan):
@@ -656,7 +688,7 @@ def resample_basket_obstructs(pred, negated, t, plan):
 def resample_obstructs(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner
     attr_inds = OrderedDict()
-    res = []
+    res = OrderedDict()
     robot = pred.robot
     body = pred._param_to_body[robot].env_body
     manip = body.GetManipulator("right_arm")
@@ -689,7 +721,7 @@ def resample_rcollides(pred, negated, t, plan):
     LIN_SAMP_RANGE = 5
 
     attr_inds = OrderedDict()
-    res = []
+    res = OrderedDict()
     robot, rave_body = pred.robot, pred._param_to_body[pred.robot]
     body = rave_body.env_body
     manip = body.GetManipulator("right_arm")
@@ -781,21 +813,34 @@ def sample_arm_pose(robot_body, old_arm_pose=None):
     return arm_pose
 
 def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
-    param_attr_inds = []
+    # param_attr_inds = []
     if param.is_symbol():
         t = 0
     for attr_name, val in attr_name_val_tuples:
         inds = np.where(param._free_attrs[attr_name][:, t])[0]
         getattr(param, attr_name)[inds, t] = val[inds]
-        res.extend(val[inds].flatten().tolist())
-        param_attr_inds.append((attr_name, inds, t))
-    if param in attr_inds:
-        attr_inds[param].extend(param_attr_inds)
-    else:
-        attr_inds[param] = param_attr_inds
+        if param in attr_inds:
+            res[param].extend(val[inds].flatten().tolist())
+            attr_inds[param].append((attr_name, inds, t))
+        else:
+            res[param] = val[inds].flatten().tolist()
+            attr_inds[param] = [(attr_name, inds, t)]
+
+def test_resample_order(attr_inds, res):
+    for p in attr_inds:
+        i = 0
+        for attr, inds, t in attr_inds[p]:
+            if not np.allclose(getattr(p, attr)[inds, t], res[p][i:i+len(inds)]):
+                print getattr(p, attr)[inds, t]
+                print "v.s."
+                print res[p][i:i+len(inds)]
+                # import ipdb; ipdb.set_trace()
+            i += len(inds)
+
+
 
 def resample_eereachable(pred, negated, t, plan):
-    attr_inds, res = OrderedDict(), []
+    attr_inds, res = OrderedDict(), OrderedDict()
     robot, rave_body = pred.robot, pred._param_to_body[pred.robot]
     target_pos, target_rot = pred.ee_pose.value.flatten(), pred.ee_pose.rotation.flatten()
     body = rave_body.env_body
@@ -848,7 +893,7 @@ def resample_rrt_planner(pred, netgated, t, plan):
     lift_direction = manip_trans[:3,:3].dot(np.array([0,0,-1]))
     active_dof = body.GetManipulator("right_arm").GetArmIndices()
     attr_inds = OrderedDict()
-    res = []
+    res = OrderedDict()
     pred_test = [not pred.test(k, negated) for k in range(20)]
     resample_ts = np.where(pred_test)[0]
     start, end = resample_ts[0]-1, resample_ts[-1]+1
