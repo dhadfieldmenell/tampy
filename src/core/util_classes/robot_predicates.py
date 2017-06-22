@@ -995,7 +995,7 @@ class EEGraspValid(PosePredicate):
         self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(EEGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = -1)
+        super(EEGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 0)
         self.spacial_anchor = True
 
 class EEReachable(PosePredicate):

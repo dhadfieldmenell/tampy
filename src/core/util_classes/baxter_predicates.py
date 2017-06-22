@@ -433,10 +433,10 @@ class BaxterObstructs(robot_predicates.Obstructs):
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
-        if reset == True and self.dof_cache != None:
+        if reset and self.dof_cache is not None:
             robot.SetActiveDOFs(self.dof_cache)
             self.dof_cache = None
-        elif reset == False and self.dof_cache == None:
+        elif not reset and self.dof_cache is None:
             self.dof_cache = robot.GetActiveDOFIndices()
             robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
         else:
@@ -542,10 +542,10 @@ class BaxterRCollides(robot_predicates.RCollides):
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
-        if reset == True and self.dof_cache != None:
+        if reset and self.dof_cache is not None:
             robot.SetActiveDOFs(self.dof_cache)
             self.dof_cache = None
-        elif reset == False and self.dof_cache == None:
+        elif not reset and self.dof_cache is None:
             self.dof_cache = robot.GetActiveDOFIndices()
             robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
         else:
