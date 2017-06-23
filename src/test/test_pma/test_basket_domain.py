@@ -127,9 +127,9 @@ class TestBasketDomain(unittest.TestCase):
         plan_str = [
         '0: MOVE BAXTER ROBOT_INIT_POSE ROBOT_GRASP_BEGIN',
         '1: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_GRASP_BEGIN GRASP_EE_LEFT GRASP_EE_RIGHT ROBOT_GRASP_END',
-        # '2: MOVEHOLDING BAXTER ROBOT_GRASP_END ROBOT_PUTDOWN_BEGIN BASKET',
-        # '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET ROBOT_PUTDOWN_BEGIN PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_PUTDOWN_END',
-        # '4: MOVE BAXTER ROBOT_PUTDOWN_END ROBOT_END_POSE'
+        '2: MOVEHOLDING BAXTER ROBOT_GRASP_END ROBOT_PUTDOWN_BEGIN BASKET',
+        '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET ROBOT_PUTDOWN_BEGIN PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_PUTDOWN_END',
+        '4: MOVE BAXTER ROBOT_PUTDOWN_END ROBOT_END_POSE'
         # '5: OPEN_DOOR BAXTER WASHER ROBOT_WASHER_BEGIN WASHER_EE ROBOT_WASHER_END WASHER_INIT_POSE WASHER_END_POSE'
         # '6: MOVE BAXTER ROBOT_WASHER_END ROBOT_END_POSE',
         ]
@@ -273,6 +273,34 @@ class TestBasketDomain(unittest.TestCase):
         r_arm_pose = robot_body.get_ik_from_pose(right_targ, grasp_rot, "right_arm")[0]
         robot_body.set_dof({'lArmPose':l_arm_pose, 'rArmPose': r_arm_pose})
         import ipdb; ipdb.set_trace()
+
+    def collision_debug_env(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5("debug1.hdf5")
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        robot = plan.params['baxter']
+        basket = plan.params['basket']
+        viewer.draw_plan_ts(plan, 23)
+        viewer.draw_cols_ts(plan, 23)
+        preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = 2, tol = 1e-3)]
+        pred = preds[0][1]
+        print [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
+
+        basket_pos = plan.params['basket'].pose[:, 23]
+        offset = [0,0.312,0]
+        shift = [0.1,0,0]
+        robot_body = robot.openrave_body
+        l_arm_pose = robot_body.get_ik_from_pose(basket_pos+shift+offset, [0,np.pi/2,0], "left_arm")[0]
+        r_arm_pose = robot_body.get_ik_from_pose(basket_pos+[0,0,-0.2], [0,np.pi/2,0], "right_arm")[0]
+
+        robot.lArmPose[:, 23] = l_arm_pose
+        robot.rArmPose[:, 23] = r_arm_pose
+        print [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
+        viewer.draw_plan_ts(plan, 23)
+        viewer.draw_cols_ts(plan, 23)
+        import ipdb; ipdb.set_trace()
+
 
 if __name__ == "__main__":
     unittest.main()

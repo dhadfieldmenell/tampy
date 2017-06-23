@@ -51,6 +51,14 @@ class Plan(object):
                     arr[np.isnan(v)] = 1
                     p._free_attrs[k] = arr
 
+    def has_nan(self):
+        for p in self.params.itervalues():
+            for k, v in p.__dict__.iteritems():
+                if type(v) == np.ndarray:
+                    if np.any(np.isnan(v)):
+                        return True
+        return False
+
     def save_free_attrs(self):
         for p in self.params.itervalues():
             p.save_free_attrs()
@@ -98,24 +106,24 @@ class Plan(object):
 
         return res
 
-    def get_failed_pred(self, active_ts=None, priority = 2):
+    def get_failed_pred(self, active_ts=None, priority = 2, tol = 1e-4):
         #just return the first one for now
         t_min = self.horizon+1
         pred = None
         negated = False
-        for n, p, t in self.get_failed_preds(active_ts=active_ts, priority = priority):
+        for n, p, t in self.get_failed_preds(active_ts=active_ts, priority = priority, tol=tol):
             if t < t_min:
                 t_min = t
                 pred = p
                 negated = n
         return negated, pred, t_min
 
-    def get_failed_preds(self, active_ts=None, priority = 2):
+    def get_failed_preds(self, active_ts=None, priority = 2, tol = 1e-4):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
         failed = []
         for a in self.actions:
-            failed.extend(a.get_failed_preds(active_ts, priority))
+            failed.extend(a.get_failed_preds(active_ts, priority, tol=tol))
         return failed
 
     def satisfied(self, active_ts=None):

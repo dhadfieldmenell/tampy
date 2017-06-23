@@ -24,7 +24,7 @@ class Predicate(object):
                 return False
         return True
 
-    def test(self, time, negated=False):
+    def test(self, time, negated=False, tol = None):
         if not self.is_concrete():
             return False
         raise NotImplementedError("Override this.")
