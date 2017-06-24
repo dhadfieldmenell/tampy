@@ -28,9 +28,9 @@ RETREAT_DIST = 0.025
 EEREACHABLE_STEPS = 5
 
 # Collision Constants
-DIST_SAFE = 0
-RCOLLIDES_DSAFE = 5e-3
-COLLIDES_DSAFE = 1e-3
+DIST_SAFE = 1e-4
+RCOLLIDES_DSAFE = 1e-4
+COLLIDES_DSAFE = 1e-4
 
 # Plan Coefficient
 
@@ -46,6 +46,8 @@ GRASP_VALID_COEFF = 1.3e3
 # Gripper Value
 GRIPPER_OPEN_VALUE = 0.02
 GRIPPER_CLOSE_VALUE = 0.015
+BASKET_OFFSET = 0.317
+
 
 """
 Following constants are used in baxter_sampling

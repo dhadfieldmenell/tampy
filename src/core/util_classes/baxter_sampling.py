@@ -8,7 +8,7 @@ from sco.expr import Expr
 import math
 import numpy as np
 PI = np.pi
-
+DEBUG = False
 #These functions are helper functions that can be used by many robots
 def get_random_dir():
     """
@@ -561,21 +561,20 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
 
 def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     attr_inds, res = OrderedDict(), OrderedDict()
-    # viewer = OpenRAVEViewer.create_viewer(plan.env)
-    basket = plan.params['basket']
+    basket, offset = plan.params['basket'], np.array([0, const.BASKET_OFFSET, 0])
     # Preparing the variables
+    robot, rave_body = pred.robot, pred.robot.openrave_body
+
     actions = plan.actions
     action_inds = [i for i in range(len(actions)) if actions[i].active_timesteps[0] <= t and  t <= actions[i].active_timesteps[1]][0]
     ee_left = actions[action_inds].params[4]
     ee_right = actions[action_inds].params[5]
-    robot, rave_body = pred.robot, pred.robot.openrave_body
+
     left_pose, left_rot = ee_left.value[:, 0], ee_left.rotation[:, 0]
     right_pose, right_rot = ee_right.value[:, 0], ee_right.rotation[:, 0]
     body = rave_body.env_body
-
     left_robot_trans, left_arm_inds = pred.get_robot_info(rave_body, 'left')
     right_robot_trans, right_arm_inds = pred.get_robot_info(rave_body, 'right')
-
 
     # Make sure baxter is well positioned in the env
     dof_value = np.r_[robot.lArmPose[:, t],
@@ -618,17 +617,18 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
         right_approach_arm_pose = get_ik_from_pose(right_app_pos, right_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [('lArmPose', left_approach_arm_pose), ('rArmPose', right_approach_arm_pose)])
 
-        # rave_body.set_dof({'lArmPose': left_approach_arm_pose, 'rArmPose': right_approach_arm_pose})
-        # import ipdb; ipdb.set_trace()
+        if DEBUG:
+            rave_body.set_dof({'lArmPose': left_approach_arm_pose, 'rArmPose': right_approach_arm_pose})
+            import ipdb; ipdb.set_trace()
 
         left_ret_pos = left_pose + np.array([0,0,const.APPROACH_DIST]) * (i+1)
         left_retreat_arm_pose = get_ik_from_pose(left_ret_pos, left_rot, body, 'left_arm')
         right_ret_pos = right_pose + np.array([0,0,const.APPROACH_DIST]) * (i+1)
         right_retreat_arm_pose = get_ik_from_pose(right_ret_pos, right_rot, body, 'right_arm')
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot, [('lArmPose', left_retreat_arm_pose), ('rArmPose', right_retreat_arm_pose)])
-
-        # rave_body.set_dof({'lArmPose': left_retreat_arm_pose, 'rArmPose': right_retreat_arm_pose})
-        # import ipdb; ipdb.set_trace()
+        if DEBUG:
+            rave_body.set_dof({'lArmPose': left_retreat_arm_pose, 'rArmPose': right_retreat_arm_pose})
+            import ipdb; ipdb.set_trace()
 
         if left_approach_arm_pose is None or right_approach_arm_pose is None or  left_retreat_arm_pose is None or right_retreat_arm_pose is None:
             resample_failure = True
@@ -669,8 +669,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
     add_to_attr_inds_and_res(0, attr_inds, res, end, [('lArmPose', robot.lArmPose[:, t+step]), ('rArmPose', robot.rArmPose[:, t+step]), ('value', robot.pose[:,t+step])])
 
-    test_resample_order(attr_inds, res)
-    # import ipdb; ipdb.set_trace()
+    if DEBUG: test_resample_order(attr_inds, res)
     return res, attr_inds
 
 def resample_retiming(pred, negated, t, plan):
