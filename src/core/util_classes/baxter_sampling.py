@@ -586,23 +586,18 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     for param in plan.params.values():
         if not param.is_symbol() and param != robot:
             param.openrave_body.set_pose(param.pose[:, t].flatten(), param.rotation[:, t].flatten())
+
     # Resample poses at grasping time
     grasp_left_arm_pose = get_ik_from_pose(left_pose, left_rot, body,  "left_arm")
-    if grasp_left_arm_pose is None:
-        grasp_left_arm_pose = get_ik_from_pose(left_pose, left_rot, body,  "left_arm", col_filter = False)
     grasp_right_arm_pose = get_ik_from_pose(right_pose, right_rot, body,  "right_arm")
-    if grasp_right_arm_pose is None:
-        grasp_right_arm_pose = get_ik_from_pose(right_pose, right_rot, body,  "right_arm", col_filter = False)
-
-    rave_body.set_dof({'lArmPose': grasp_left_arm_pose, 'rArmPose': grasp_right_arm_pose})
 
     # When Ik infeasible
     if grasp_left_arm_pose is None or grasp_right_arm_pose is None:
         return None, None
 
+    rave_body.set_dof({'lArmPose': grasp_left_arm_pose, 'rArmPose': grasp_right_arm_pose})
+
     add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', grasp_left_arm_pose.copy()), ('rArmPose', grasp_right_arm_pose.copy()), ('pose', robot.pose[:,t])])
-
-
 
     # Store sampled pose
     plan.sampling_trace.append({'type': robot.get_type(), 'data':{'lArmPose': grasp_left_arm_pose, 'rArmPose': grasp_right_arm_pose}, 'timestep': t, 'pred': pred, 'action': "grasp"})
@@ -619,7 +614,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
 
         if DEBUG:
             rave_body.set_dof({'lArmPose': left_approach_arm_pose, 'rArmPose': right_approach_arm_pose})
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
 
         left_ret_pos = left_pose + np.array([0,0,const.APPROACH_DIST]) * (i+1)
         left_retreat_arm_pose = get_ik_from_pose(left_ret_pos, left_rot, body, 'left_arm')
@@ -628,7 +623,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
         add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot, [('lArmPose', left_retreat_arm_pose), ('rArmPose', right_retreat_arm_pose)])
         if DEBUG:
             rave_body.set_dof({'lArmPose': left_retreat_arm_pose, 'rArmPose': right_retreat_arm_pose})
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
 
         if left_approach_arm_pose is None or right_approach_arm_pose is None or  left_retreat_arm_pose is None or right_retreat_arm_pose is None:
             resample_failure = True
@@ -643,18 +638,19 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     """
     Linear Interp Traj
     """
-    last_action = actions[action_inds-1]
-    last_begin = last_action.params[1]
-    last_end = last_action.params[2]
-    if last_action.name == "move" or last_action.name == "moveholding":
+    if action_inds > 0:
+        last_action = actions[action_inds-1]
         act_start, act_end = last_action.active_timesteps
-        timesteps = act_end - act_start
-        pose_traj = lin_interp_traj(robot.pose[:, t-step], robot.pose[:,t+step], timesteps)
-        left_arm_traj = lin_interp_traj(robot.lArmPose[:, t-step], robot.lArmPose[:, t+step], timesteps)
-        right_arm_traj = lin_interp_traj(robot.rArmPose[:, t-step], robot.rArmPose[:, t+step], timesteps)
-        for i in range(act_start+1, act_end):
-            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_traj[:, i]), ('rArmPose', right_arm_traj[:, i]), ('pose', pose_traj[:, i])])
-            robot_body.set_dof({'lArmPose': left_arm_traj[:, i], 'rArmPose': right_arm_traj[:, i]})
+        if last_action.name == "move" or last_action.name == "moveholding":
+            timesteps = act_end - act_start
+
+            pose_traj = lin_interp_traj(robot.pose[:, act_start], robot.pose[:,t-step], timesteps)
+            left_arm_traj = lin_interp_traj(robot.lArmPose[:, act_start], robot.lArmPose[:, t-step], timesteps)
+            right_arm_traj = lin_interp_traj(robot.rArmPose[:, act_start], robot.rArmPose[:, t-step], timesteps)
+            for i in range(act_start+1, act_end):
+                traj_ind = i - act_start - 1
+                add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_traj[:, traj_ind]), ('rArmPose', right_arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
+                robot_body.set_dof({'lArmPose': left_arm_traj[:, traj_ind], 'rArmPose': right_arm_traj[:, traj_ind]})
 
     """
         Resample other parameters
