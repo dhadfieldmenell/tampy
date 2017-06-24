@@ -181,10 +181,7 @@ def get_ik_from_pose(pos, rot, robot, manip_name, col_filter = True):
 def get_ik_solutions(robot, manip_name, trans, col_filter = True):
     manip = robot.GetManipulator(manip_name)
     iktype = IkParameterizationType.Transform6D
-    if col_filter:
-        solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
-    else:
-        solutions = manip.FindIKSolutions(IkParameterization(trans, iktype))
+    solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
     if len(solutions) == 0:
         return None
     return closest_arm_pose(solutions, robot.GetActiveDOFValues()[manip.GetArmIndices()])

@@ -82,13 +82,15 @@ class ExprPredicate(Predicate):
                     raise err
         return self.x.reshape((self.x_dim, 1))
 
-    def test(self, time, negated=False):
+    def test(self, time, negated=False, tol=None):
+        if tol is None:
+            tol = self.tol
         if not self.is_concrete():
             return False
         if time < 0:
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
-            return self.expr.eval(self.get_param_vector(time), tol=self.tol, negated=negated)
+            return self.expr.eval(self.get_param_vector(time), tol=tol, negated=negated)
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)

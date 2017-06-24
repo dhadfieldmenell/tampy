@@ -268,8 +268,8 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        self.coeff = 1
-        self.rot_coeff = 1
+        self.coeff = const.GRASP_VALID_COEFF
+        self.rot_coeff = const.GRASP_VALID_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.eval_dim = 4
