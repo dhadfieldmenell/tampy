@@ -14,7 +14,7 @@ EEREACHABLE_STEPS = 3
 DIST_SAFE = 1e-2
 COLLISION_TOL = 1e-3
 MAX_CONTACT_DISTANCE = .1
-
+BASKET_OFFSET = 0.317
 """
 Following constants are for testing purposes
 """

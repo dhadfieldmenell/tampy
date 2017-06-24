@@ -31,8 +31,8 @@ class PlanSerializer:
 
 
     def _add_action_to_group(self, group, action):
-        action_group = group.create_group(action.name)
-        action_group['name'] = action.name
+        action_group = group.create_group(str(action))
+        action_group['name'] = str(action)
         action_group['active_ts'] = action.active_timesteps
         action_group['params'] = map(lambda p: p.name, action.params)
         action_group['step_num'] = action.step_num
@@ -168,7 +168,7 @@ class PlanDeserializer:
             else:
                 print 'Param {0} for pred {1} was not serialized with plan.'.format(param, class_path)
 
-        return pred_class(group['name'].value, params, group['param_types'].value, env=env)
+        return pred_class(group['name'].value, params, group['param_types'].value, env)
 
 
     def _build_param(self, group):

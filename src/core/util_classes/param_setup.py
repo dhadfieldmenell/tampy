@@ -99,8 +99,8 @@ class ParamSetup(object):
         return table
 
     @staticmethod
-    def setup_box(name = "box"):
-        attrs = {"name": [name], "geom": [[1,.5,.5]], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
+    def setup_box(name = "box", geom = [1,.5,.5]):
+        attrs = {"name": [name], "geom": [geom], "pose": ["undefined"], "rotation": [(0, 0, 0)], "_type": ["Table"]}
         attr_types = {"name": str, "geom": items.Box, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
         box = parameter.Object(attrs, attr_types)
         return box

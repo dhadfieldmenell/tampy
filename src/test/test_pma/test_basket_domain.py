@@ -148,7 +148,7 @@ class TestBasketDomain(unittest.TestCase):
             return viewer
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
-        result = solver.solve(plan, callback = callback, n_resamples=5)
+        result = solver.solve(plan, callback = callback, n_resamples=10)
         end = time.time()
 
         baxter = plan.params['baxter']
@@ -170,7 +170,15 @@ class TestBasketDomain(unittest.TestCase):
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
 
         # baxter.time = traj_retiming(plan).reshape((1, plan.horizon))
-        print plan.get_failed_preds()
+        """
+            For Debugging Purposes
+        """
+        preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = 2, tol = 1e-3)]
+        pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
+        print pred_violation
+        """
+            Debug End
+        """
         print "Saving current plan to file basket_plan.hdf5..."
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("basket_plan.hdf5", plan)
@@ -283,9 +291,9 @@ class TestBasketDomain(unittest.TestCase):
         basket = plan.params['basket']
         viewer.draw_plan_ts(plan, 23)
         viewer.draw_cols_ts(plan, 23)
-        preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = 2, tol = 1e-3)]
-        pred = preds[0][1]
-        print [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
+
+        pred = plan.find_pred("BaxterObstructs")[0]
+        print (pred.get_type()+"_"+str(23), np.max(pred.get_expr(negated=True).expr.eval(pred.get_param_vector(23))))
 
         basket_pos = plan.params['basket'].pose[:, 23]
         offset = [0,0.312,0]
@@ -296,11 +304,29 @@ class TestBasketDomain(unittest.TestCase):
 
         robot.lArmPose[:, 23] = l_arm_pose
         robot.rArmPose[:, 23] = r_arm_pose
-        print [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
+        print (pred.get_type()+"_"+str(23), np.max(pred.get_expr(negated=True).expr.eval(pred.get_param_vector(23))))
         viewer.draw_plan_ts(plan, 23)
         viewer.draw_cols_ts(plan, 23)
         import ipdb; ipdb.set_trace()
 
+    def laundry_basket_mesh(self):
+        from openravepy import KinBody, RaveCreateKinBody
+        env = ParamSetup.setup_env()
+        env.SetViewer('qtcoin')
+        basket = ParamSetup.setup_basket()
+        basket_mesh = env.ReadKinBodyXMLFile(basket.geom.shape)
+        basket_mesh.SetName("basket")
+        env.Add(basket_mesh)
+        basket_body = OpenRAVEBody.create_basket_col(env)
+        basket_body.SetName("basket_col")
+        env.Add(basket_body)
+
+        trans = OpenRAVEBody.transform_from_obj_pose([.2, .2, .2],[np.pi/4, np.pi/4, np.pi/4])
+
+        basket_mesh.SetTransform(trans)
+        basket_body.SetTransform(trans)
+
+        import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":
     unittest.main()

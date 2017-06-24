@@ -21,6 +21,8 @@ class OpenRAVEBody(object):
         if env.GetKinBody(name) == None and env.GetRobot(name) == None:
             if isinstance(geom, Robot):
                 self._add_robot(geom)
+            elif isinstance(geom, Basket):
+                self._add_basket(geom)
             elif  isinstance(geom, Item):
                 self._add_item(geom)
             else:
@@ -120,6 +122,11 @@ class OpenRAVEBody(object):
 
     def _add_table(self, geom):
         self.env_body = OpenRAVEBody.create_table(self._env, geom)
+        self.env_body.SetName(self.name)
+        self._env.Add(self.env_body)
+
+    def _add_basket(self, geom):
+        self.env_body = OpenRAVEBody.create_basket_col(self._env)
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
@@ -237,6 +244,24 @@ class OpenRAVEBody(object):
         wall = RaveCreateRobot(env, '')
         wall.InitFromGeometries(box_infos)
         return wall
+
+    @staticmethod
+    def create_basket_col(env):
+
+        long_info1 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.15,.015], [0, 0.75, 1])
+        long_info2 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.15,.015], [0, 0.75, 1])
+        short_info1 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.015,.15,.2], [0, 0.75, 1])
+        short_info2 = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.015,.15,.2], [0, 0.75, 1])
+        bottom_info = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, [.3,.015,.2], [0, 0.75, 1])
+
+        long_info1._t = OpenRAVEBody.transform_from_obj_pose([0,-0.118,0.208],[0,0,0.055])
+        long_info2._t = OpenRAVEBody.transform_from_obj_pose([0,-0.118,-0.208],[0,0,-0.055])
+        short_info1._t = OpenRAVEBody.transform_from_obj_pose([0.309,-0.118,0],[-0.055,0,0])
+        short_info2._t = OpenRAVEBody.transform_from_obj_pose([-0.309,-0.118,0],[0.055,0,0])
+        bottom_info._t = OpenRAVEBody.transform_from_obj_pose([0,-0.25,0],[0,0,0])
+        basket = RaveCreateRobot(env, '')
+        basket.InitFromGeometries([long_info1, long_info2, short_info1, short_info2, bottom_info])
+        return basket
 
     @staticmethod
     def create_table(env, geom):

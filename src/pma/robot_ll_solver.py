@@ -18,7 +18,6 @@ from IPython import embed as shell
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import baxter_sampling
 
-
 MAX_PRIORITY=2
 BASE_MOVE_COEFF = 10
 TRAJOPT_COEFF=1e3
@@ -65,12 +64,11 @@ class RobotLLSolver(LLSolver):
         viewer = callback()
 
         if force_init or not plan.initialized:
-             ## solve at priority -1 to get an initial value for the parameters
             self._solve_opt_prob(plan, priority=-2, callback=callback,
                 active_ts=active_ts, verbose=verbose)
             # self._solve_opt_prob(plan, priority=-1, callback=callback,
             #     active_ts=active_ts, verbose=verbose)
-            # plan.initialized=True
+            plan.initialized=True
 
         if success or len(plan.get_failed_preds()) == 0:
             return True
@@ -79,17 +77,21 @@ class RobotLLSolver(LLSolver):
         for priority in self.solve_priorities:
             for attempt in range(n_resamples):
                 ## refinement loop
-
-                self._solve_opt_prob(plan, priority=priority, callback=callback,
-                                     active_ts=active_ts, verbose=verbose, resample = True)
-
+                self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose)
-
-                if not success:
+                """
+                    For Debugging purposes
+                """
+                if success and not len(plan.get_failed_preds(priority = priority, tol = 1e-3)) == 0:
                     preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = priority, tol = 1e-3)]
-                    print [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
-                    # if DEBUG: import ipdb; ipdb.set_trace()
+                    pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
+                    print pred_violation
+                    if DEBUG: import ipdb; ipdb.set_trace()
+
+                """
+                    Debug End
+                """
 
                 if success:
                     break
@@ -122,6 +124,7 @@ class RobotLLSolver(LLSolver):
         # self.saver = PlanSerializer()
         # self.saver.write_plan_to_hdf5("temp_plan.hdf5", plan) = self.initial_trust_region_size
         if resample:
+            tol = 1e-3
             def  variable_helper():
                 error_bin = []
                 for sco_var in self._prob._vars:
@@ -143,7 +146,7 @@ class RobotLLSolver(LLSolver):
             of the trajectory and solver as initialization
             """
             ## this should only get called with a full plan for now
-            failed_preds = plan.get_failed_preds(priority=priority)
+            failed_preds = plan.get_failed_preds(priority=priority, tol = tol)
 
             ## this is an objective that places
             ## a high value on matching the resampled values
@@ -157,11 +160,10 @@ class RobotLLSolver(LLSolver):
 
             self._add_all_timesteps_of_actions(plan, priority=priority,
                 add_nonlin=False, active_ts= active_ts, verbose=verbose)
-            variable_helper()
+            # variable_helper()
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
-            variable_helper()
-            tol = 1e-3
+            # variable_helper()
             initial_trust_region_size = 1e3
         else:
             self._bexpr_to_pred = {}
@@ -217,11 +219,24 @@ class RobotLLSolver(LLSolver):
                 plan.sampling_trace[-1]['reward'] = reward
         ##Restore free_attrs values
         plan.restore_free_attrs()
+        """
+            For Debugging purposes
+        """
+        if DEBUG:
+            if success and not resample:
+                if not success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0):
+                    print "Constraints Violations: ", self._prob.get_max_cnt_violation()
+                    print "checked_constraints: ", [cnt.source for cnt in self._prob._nonlin_cnt_exprs]
+                    import ipdb; ipdb.set_trace()
+                    preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = priority, tol = 1e-3)]
+                    pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
+                    print pred_violation
 
-        if success and not resample:
-            print "Constraints Violations: ", self._prob.get_max_cnt_violation()
-            print "checked_constraints: ", [cnt.source for cnt in self._prob._nonlin_cnt_exprs]
-            if DEBUG: assert success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0)
+                assert success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0)
+        """
+            Debug End
+        """
+
         print "priority: {}".format(priority)
         return success
 
@@ -268,7 +283,7 @@ class RobotLLSolver(LLSolver):
                         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
                         bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars, cur_val))
                         transfer_objs.append(bexpr)
-                        if DEBUG: bexpr.source = "_get_transfer_obj"
+                        if DEBUG: bexpr.source = "{}.{}".format(param, attr_name)
         else:
             raise NotImplemented
         return transfer_objs
@@ -311,7 +326,7 @@ class RobotLLSolver(LLSolver):
                     bexpr = BoundExpr(quad_expr,
                                       Variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1))))
                     bexprs.append(bexpr)
-                    if DEBUG: bexpr.source = "_resample"
+                    if DEBUG: bexpr.source = "{}.{}".format(p, attr)
                 i += len(ind_arr)
 
         return bexprs
@@ -349,7 +364,7 @@ class RobotLLSolver(LLSolver):
                                 print "expr being added at time ", t
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
-                            if DEBUG: bexpr.source = "pred_dict"
+                            if DEBUG: bexpr.source = "{}".format(pred.get_type)
                             # TODO: REMOVE line below, for tracing back predicate for debugging.
                             bexpr.pred = pred
                             self._bexpr_to_pred[bexpr] = (negated, pred, t)
@@ -493,6 +508,6 @@ class RobotLLSolver(LLSolver):
                         attr_val = getattr(param, attr_name)
                         init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
                         bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars, init_val))
-                        if DEBUG: bexpr.source = "_get_trajopt_obj"
+                        if DEBUG: bexpr.source = "{}.{}".format(param, attr_name)
                         traj_objs.append(bexpr)
         return traj_objs

@@ -20,7 +20,7 @@ class CollisionPredicate(ExprPredicate):
         self.ind0 = ind0
         self.ind1 = ind1
         self._plot_handles = []
-        self._cache = {}
+        # self._cache = {}
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, priority = priority)
 
     def robot_obj_collision(self, x):
@@ -32,10 +32,10 @@ class CollisionPredicate(ExprPredicate):
         """
         # Parse the pose value
         self._plot_handles = []
-        flattened = tuple(x.round(5).flatten())
+        flattened = tuple(x.flatten())
         # cache prevents plotting
-        if flattened in self._cache and not self._debug:
-            return self._cache[flattened]
+        # if flattened in self._cache and not self._debug:
+        #     return self._cache[flattened]
 
         # Set pose of each rave body
         robot = self.params[self.ind0]
@@ -57,7 +57,8 @@ class CollisionPredicate(ExprPredicate):
         col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
         # set active dof value back to its original state (For successive function call)
         self.set_active_dof_inds(robot_body, reset=True)
-        self._cache[flattened] = (col_val.copy(), col_jac.copy())
+        # self._cache[flattened] = (col_val.copy(), col_jac.copy())
+        # print "col_val", np.max(col_val)
         return col_val, col_jac
 
     def obj_obj_collision(self, x):
@@ -71,8 +72,8 @@ class CollisionPredicate(ExprPredicate):
         self._plot_handles = []
         flattened = tuple(x.round(5).flatten())
         # cache prevents plotting
-        if flattened in self._cache and not self._debug:
-            return self._cache[flattened]
+        # if flattened in self._cache and not self._debug:
+        #     return self._cache[flattened]
 
         # Parse the pose value
         can_pos, can_rot = x[:3], x[3:6]
@@ -92,7 +93,7 @@ class CollisionPredicate(ExprPredicate):
         collisions = self._cc.BodyVsBody(can_body.env_body, obstr_body.env_body)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_obj_grad_and_val(can_body, obstr_body, collisions)
-        self._cache[flattened] = (col_val.copy(), col_jac.copy())
+        # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         return col_val, col_jac
 
     def robot_obj_held_collision(self, x):
@@ -105,8 +106,8 @@ class CollisionPredicate(ExprPredicate):
         self._plot_handles = []
         flattened = tuple(x.round(5).flatten())
         # cache prevents plotting
-        if flattened in self._cache and not self._debug:
-            return self._cache[flattened]
+        # if flattened in self._cache and not self._debug:
+        #     return self._cache[flattened]
 
         robot = self.params[self.ind0]
         robot_body = self._param_to_body[robot]
@@ -136,7 +137,7 @@ class CollisionPredicate(ExprPredicate):
         val = np.vstack((col_val1, col_val2))
         jac = np.vstack((col_jac1, col_jac2))
         self.set_active_dof_inds(robot_body, reset=True)
-        self._cache[flattened] = (val.copy(), jac.copy())
+        # self._cache[flattened] = (val.copy(), jac.copy())
         return val, jac
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
@@ -210,7 +211,8 @@ class CollisionPredicate(ExprPredicate):
         vals[:len(links),0] = np.array([link[1] for link in links])
         robot_grads[:len(links), range(self.attr_dim+6)] = np.array([link[2] for link in links]).reshape((len(links), self.attr_dim+6))
         # TODO: remove line below which was added for debugging purposes
-        self.links = links
+        # self.links = [(ind, val, limb) for ind, val, grad, limb in links]
+        # self.col = collisions
         return vals, robot_grads
 
     def _calc_obj_grad_and_val(self, obj_body, obstr_body, collisions):
@@ -278,14 +280,16 @@ class CollisionPredicate(ExprPredicate):
         grad = grads[ind].reshape((1,12))
         return val, grad
 
-    def test(self, time, negated=False):
+    def test(self, time, negated=False, tol=None):
+        if tol is None:
+            tol = self.tol
         # This test is overwritten so that collisions can be calculated correctly
         if not self.is_concrete():
             return False
         if time < 0:
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
-            return self.neg_expr.eval(self.get_param_vector(time), tol=self.tol, negated = (not negated))
+            return self.neg_expr.eval(self.get_param_vector(time), tol=tol, negated = (not negated))
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
@@ -548,11 +552,11 @@ class PosePredicate(ExprPredicate):
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([0.317,0,0])
+        rel_pt = np.array([const.BASKET_OFFSET,0,0])
         l_pos_val = self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
         self.arm = "right"
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([-0.317,0,0])
+        rel_pt = np.array([-const.BASKET_OFFSET,0,0])
         r_pos_val = self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
 
         return np.vstack([l_pos_val, r_pos_val])
@@ -571,11 +575,11 @@ class PosePredicate(ExprPredicate):
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([0.317,0,0])
+        rel_pt = np.array([const.BASKET_OFFSET,0,0])
         l_pos_jac = self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
         self.arm = "right"
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([-0.317,0,0])
+        rel_pt = np.array([-const.BASKET_OFFSET,0,0])
         r_pos_jac = self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
 
         return np.vstack([l_pos_jac, r_pos_jac])

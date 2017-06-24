@@ -356,7 +356,7 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertEqual(in_gripper_basket.get_type(), "BaxterBasketInGripper")
         self.assertFalse(in_gripper_basket.test(0))
 
-        offset = [0,0.317,0]
+        offset = [0,const.BASKET_OFFSET,0]
         basket.pose = np.array([[0.75, 0.02, 0.81]]).T
         basket.rotation = np.array([[np.pi/2, 0, np.pi/2]]).T
         basket_pos = basket.pose.flatten()
@@ -869,7 +869,7 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(right_pred.test(0))
         # Sample Grasping Pose
         step = const.EEREACHABLE_STEPS
-        offset = [0,0.317,0]
+        offset = [0,const.BASKET_OFFSET, 0]
         basket_pos = np.array([0.65, -0.283, 0.81])
         ee_left.value = (basket_pos + offset).reshape((3, 1))
         ee_left.rotation = np.array([[0,np.pi/2,0]]).T
@@ -943,7 +943,7 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(left_rot_pred.test(0))
         self.assertFalse(right_rot_pred.test(0))
         # Sample Grasping Pose
-        offset = [0,0.317,0]
+        offset = [0,const.BASKET_OFFSET,0]
         basket_pos = basket.pose.flatten()
 
         robot.lArmPose = np.zeros((7,7))
@@ -1006,7 +1006,7 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(left_rot_pred.test(0))
         self.assertFalse(right_rot_pred.test(0))
 
-        offset = [0,0.317,0]
+        offset = [0,const.BASKET_OFFSET,0]
         basket_pos = basket.pose.flatten()
         basket_targ.value = basket.pose
         basket_targ.rotation = basket.rotation
@@ -1104,7 +1104,7 @@ class TestBaxterPredicates(unittest.TestCase):
 
         ee_vel.value = np.array([[const.APPROACH_DIST/2.]]).T
         basket_pos = np.array([0.65 , -0.283,  0.81])
-        offset = [0, 0.317, 0]
+        offset = [0, const.BASKET_OFFSET, 0]
         left_trajectory = []
         baxter_body = baxter.openrave_body
         left_trajectory.append(baxter_body.get_ik_from_pose(basket_pos + offset +
@@ -1185,7 +1185,7 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
         baxter_body = robot.openrave_body
         basket_body = basket.openrave_body
-        offset = [0,0.317,0]
+        offset = [0,const.BASKET_OFFSET,0]
         basket_pos = np.array([0.571, 0.017, 1.514])
         robot.lArmPose = np.zeros((7,1))
         robot.lGripper = np.ones((1, 1))*0.02
