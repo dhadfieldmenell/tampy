@@ -222,7 +222,7 @@ class Grasp(Action):
         approach_time = 0
         retreat_time = end
         self.pre = [\
-            ('(BaxterAt ?basket ?target)', '0:0'),
+            ('(BaxterAt ?basket ?target)', '0:{}'.format(grasp_time)),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
@@ -256,30 +256,29 @@ class Grasp(Action):
             )', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
-            )', '0:{}'.format(end))
-
-            # ('(forall (?obj - Basket)\
-            #     (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
-            # )', '0:{}'.format(grasp_time-1))
-            # ('(forall (?obj - Basket)\
-            #     (not (BaxterObstructsHolding ?robot ?sp ?ep ?obj ?basket))\
-            # )', '{}:{}'.format(grasp_time, end))
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
+            )', '0:{}'.format(grasp_time-1)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructsHolding ?robot ?sp ?ep ?obj ?basket))\
+            )', '{}:{}'.format(grasp_time, end))
         ]
         self.eff = [\
             ('(not (BaxterAt ?basket ?target))', '{}:{}'.format(end, end-1)) ,
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
-            ('(BaxterBasketInGripper ?robot ?basket)', '{}:{}'.format(end, end))
-            # ('(forall (?sym1 - RobotPose)\
-            #     (forall (?sym2 - RobotPose)\
-            #         (not (BaxterObstructs ?robot ?sym1 ?sym2 ?basket))\
-            #     )\
-            # )', '{}:{}'.format(end, end-1))
-            # ('(forall (?sym1 - Robotpose)\
-            #     (forall (?sym2 - RobotPose)\
-            #         (forall (?obj - Basket) (not (BaxterObstructsHolding ?robot ?sym1 ?sym2 ?basket ?obj)))\
-            #     )\
-            # )', '{}:{}'.format(end, end-1))
+            ('(BaxterBasketInGripper ?robot ?basket)', '{}:{}'.format(end, end)),
+            ('(forall (?sym1 - RobotPose)\
+                (forall (?sym2 - RobotPose)\
+                    (not (BaxterObstructs ?robot ?sym1 ?sym2 ?basket))\
+                )\
+            )', '{}:{}'.format(end, end-1)),
+            ('(forall (?sym1 - Robotpose)\
+                (forall (?sym2 - RobotPose)\
+                    (forall (?obj - Basket) (not (BaxterObstructsHolding ?robot ?sym1 ?sym2 ?basket ?obj)))\
+                )\
+            )', '{}:{}'.format(end, end-1))
         ]
 
 class Putdown(Action):
@@ -292,6 +291,7 @@ class Putdown(Action):
         approach_time = 0
         retreat_time = end
         self.pre = [\
+            ('(BaxterAt ?basket ?target)', '{}:{}'.format(putdown_time, end)),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(putdown_time, putdown_time)),
@@ -325,31 +325,30 @@ class Putdown(Action):
             )', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
-            )', '0:{}'.format(end))
-
-            # ('(forall (?obj - Basket)\
-            #     (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
-            # )', '{}:{}'.format(putdown_time+1, end))
-            # ('(forall (?obj - Basket)\
-            #     (not (BaxterObstructsHolding ?robot ?sp ?ep ?obj ?basket))\
-            # )', '{}:{}'.format(0, putdown_time))
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
+            )', '{}:{}'.format(putdown_time+1, end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructsHolding ?robot ?sp ?ep ?obj ?basket))\
+            )', '{}:{}'.format(0, putdown_time))
         ]
         self.eff = [\
             ('(BaxterAt ?basket ?target)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(not \
-                (BaxterBasketInGripper ?robot ?basket))', '{}:{}'.format(end, end-1))
-            # ('(forall (?sym1 - RobotPose)\
-            #     (forall (?sym2 - RobotPose)\
-            #         (not (BaxterObstructs ?robot ?sym1 ?sym2 ?basket))\
-            #     )\
-            # )', '{}:{}'.format(end, end-1))
-            # ('(forall (?sym1 - Robotpose)\
-            #     (forall (?sym2 - RobotPose)\
-            #         (forall (?obj - Basket) (not (BaxterObstructsHolding ?robot ?sym1 ?sym2 ?basket ?obj)))\
-            #     )\
-            # )', '{}:{}'.format(end, end-1))
+                (BaxterBasketInGripper ?robot ?basket))', '{}:{}'.format(end, end-1)),
+            ('(forall (?sym1 - RobotPose)\
+                (forall (?sym2 - RobotPose)\
+                    (not (BaxterObstructs ?robot ?sym1 ?sym2 ?basket))\
+                )\
+            )', '{}:{}'.format(end, end-1)),
+            ('(forall (?sym1 - Robotpose)\
+                (forall (?sym2 - RobotPose)\
+                    (forall (?obj - Basket) (not (BaxterObstructsHolding ?robot ?sym1 ?sym2 ?basket ?obj)))\
+                )\
+            )', '{}:{}'.format(end, end-1))
         ]
 
 class OpenDoor(Action):

@@ -4,6 +4,10 @@
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_laundry_position --debug
 
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.collision_debug_env --debug
+
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.laundry_basket_mesh --debug
+
 nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_laundry_domain --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_basket_domain --debug
