@@ -18,6 +18,7 @@ from IPython import embed as shell
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import baxter_sampling
 
+
 MAX_PRIORITY=2
 BASE_MOVE_COEFF = 10
 TRAJOPT_COEFF=1e3
@@ -45,6 +46,8 @@ class RobotLLSolver(LLSolver):
         self.child_solver = None
         self.solve_priorities = [0, 1, 2]
         self.transfer_norm = transfer_norm
+        self.grb_init_mapping = {}
+        self.var_list = []
 
     def _solve_helper(self, plan, callback, active_ts, verbose):
         # certain constraints should be solved first
@@ -222,17 +225,23 @@ class RobotLLSolver(LLSolver):
         """
             For Debugging purposes
         """
-        if DEBUG:
-            if success and not resample:
-                if not success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0):
-                    print "Constraints Violations: ", self._prob.get_max_cnt_violation()
-                    print "checked_constraints: ", [cnt.source for cnt in self._prob._nonlin_cnt_exprs]
-                    import ipdb; ipdb.set_trace()
-                    preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = priority, tol = 1e-3)]
-                    pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
-                    print pred_violation
+        if success and not resample:
+            if not success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0):
+                print "Constraints Violations: ", self._prob.get_max_cnt_violation()
 
-                assert success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0)
+                preds_list = plan.get_failed_preds(priority=priority, tol = tol)
+
+                pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds_list]
+                #
+                cnt_list = [cnt for cnt in self._prob._nonlin_cnt_exprs if hasattr(cnt, "source") and cnt.source in preds_list]
+                cnt_violation = [(cnt.source[1].get_type() + "_" + str(cnt.source[2]), np.max(cnt.expr.expr.eval(cnt.var.get_value()))) for cnt in cnt_list]
+
+                pred_value = [pred.get_param_vector(t) for negated, pred, t in preds_list]
+                cnt_value = [cnt.var.get_value() for cnt in cnt_list]
+
+                import ipdb; ipdb.set_trace()
+
+            if DEBUG: assert success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0)
         """
             Debug End
         """
@@ -281,12 +290,67 @@ class RobotLLSolver(LLSolver):
                         param_ll = self._param_to_ll[param]
                         ll_attr_val = getattr(param_ll, attr_name)
                         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-                        bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars, cur_val))
+                        sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+                        bexpr = BoundExpr(quad_expr, sco_var)
                         transfer_objs.append(bexpr)
-                        if DEBUG: bexpr.source = "{}.{}".format(param, attr_name)
         else:
             raise NotImplemented
         return transfer_objs
+
+    def create_variable(self, grb_vars, init_vals, save=False):
+        """
+            if save is Ture
+            Update the grb_init_mapping so that each grb_var is mapped to
+            the right initial values.
+            Then find the sco variables that includes the grb variables we are updating and change the corresponding initial values inside of it.
+            if save is False
+            Iterate the var_list and use the last initial value used for each gurobi, and construct the sco variables
+        """
+
+        sco_var, grb_val_map, ret_val = None, {}, []
+        for grb, v in zip(grb_vars.flatten(), init_vals.flatten()):
+            if save: self.grb_init_mapping[grb] = v
+            try:
+                grb_val_map[grb] = self.grb_init_mapping[grb]
+            except KeyError:
+                grb_val_map[grb] = v
+            ret_val.append(grb_val_map[grb])
+
+        for var in self.var_list:
+            for i, grb in enumerate(var._grb_vars):
+                try:
+                    var._value[i] = self.grb_val_map[grb]
+                except:
+                    continue
+            if np.all(var._grb_vars is grb_vars):
+                sco_var = var
+
+        if sco_var is None:
+            sco_var = Variable(grb_vars, np.array(ret_val).reshape((len(ret_val), 1)))
+            self.var_list.append(sco_var)
+
+        print "creating variable"
+        if DEBUG: self.check_sync()
+        print "finish check"
+        return sco_var
+
+    def check_sync(self):
+        """
+            This function checks whether all sco variable are synchronized
+        """
+        grb_val_map = {}
+        for var in self.var_list:
+            for grb, v in zip(var._grb_vars.flatten(), var._value.flatten()):
+                try:
+                    correctness = (grb_val_map[grb] == v)
+                except KeyError:
+                    grb_val_map[grb] = v
+                    correctness = True
+                except:
+                    continue
+                if not correctness:
+                    return False
+        return True
 
     def _resample(self, plan, preds):
         """
@@ -322,11 +386,9 @@ class RobotLLSolver(LLSolver):
                     quad_expr = QuadExpr(2*Q*self.rs_coeff, A*self.rs_coeff, b*self.rs_coeff)
                     v_arr = np.array([grb_var]).reshape((1, 1), order='F')
                     init_val = np.ones((1, 1))*val[p][i+j]
-
-                    bexpr = BoundExpr(quad_expr,
-                                      Variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1))))
+                    sco_var = self.create_variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1)), save = True)
+                    bexpr = BoundExpr(quad_expr, sco_var)
                     bexprs.append(bexpr)
-                    if DEBUG: bexpr.source = "{}.{}".format(p, attr)
                 i += len(ind_arr)
 
         return bexprs
@@ -364,9 +426,10 @@ class RobotLLSolver(LLSolver):
                                 print "expr being added at time ", t
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
-                            if DEBUG: bexpr.source = "{}".format(pred.get_type)
+
                             # TODO: REMOVE line below, for tracing back predicate for debugging.
-                            bexpr.pred = pred
+                            if DEBUG:
+                                bexpr.source = (negated, pred, t)
                             self._bexpr_to_pred[bexpr] = (negated, pred, t)
                             groups = ['all']
                             if self.early_converge:
@@ -507,7 +570,7 @@ class RobotLLSolver(LLSolver):
                         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
                         attr_val = getattr(param, attr_name)
                         init_val = attr_val[:, start:end+1].reshape((KT, 1), order='F')
-                        bexpr = BoundExpr(quad_expr, Variable(param_ll_grb_vars, init_val))
-                        if DEBUG: bexpr.source = "{}.{}".format(param, attr_name)
+                        sco_var = self.create_variable(param_ll_grb_vars, init_val)
+                        bexpr = BoundExpr(quad_expr, sco_var)
                         traj_objs.append(bexpr)
         return traj_objs
