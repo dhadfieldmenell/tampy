@@ -599,9 +599,11 @@ class TestBaxterPredicates(unittest.TestCase):
         rPose = ParamSetup.setup_baxter_pose()
         can = ParamSetup.setup_blue_can()
         test_env = ParamSetup.setup_env()
-
-        pred = baxter_predicates.BaxterObstructs("test_obstructs", [robot, rPose, rPose, can], ["Robot", "RobotPose", "RobotPose", "Can"], test_env, tol=const.TOL)
+        # test_env.SetViewer('qtcoin')
+        pred = baxter_predicates.BaxterObstructs("test_obstructs", [robot, rPose, rPose, can], ["Robot", "RobotPose", "RobotPose", "Can"], test_env, debug=True, tol=const.TOL)
+        pred.dsafe = 1e-3
         self.assertEqual(pred.get_type(), "BaxterObstructs")
+        # test_env.SetViewer("qtcoin")
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
         # Move can so that it collide with robot base
@@ -617,21 +619,22 @@ class TestBaxterPredicates(unittest.TestCase):
         if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, const.TOL)
 
         # Move can to the center of the gripper (touching -> should recognize as collision)
-
         can.pose = np.array([[0.96897233, -1.10397558,  1.006976]]).T
-        robot.rGripper = np.matrix([[const.GRIPPER_CLOSE_VALUE]])
+        robot.rGripper = np.matrix([[0.0145]])
+
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
         # The gradient of collision check when can is in the center of the gripper is extremenly inaccurate, making gradients check fails.
-        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-1)
+        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-2)
 
         # Fully open the gripper, now Gripper shuold be fine
-        robot.rGripper = np.matrix([[const.GRIPPER_OPEN_VALUE]])
+        robot.rGripper = np.matrix([[0.02]])
+
         self.assertFalse(pred.test(0))
         self.assertTrue(pred.test(0, negated = True))
 
         # The gradient of collision check when can is in the center of the gripper is extremenly inaccurate, making gradients check fails.
-        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
+        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-2)
 
         # Move can away from the gripper, no collision
         can.pose = np.array([[.700,  -.127,   .838]]).T
@@ -642,6 +645,7 @@ class TestBaxterPredicates(unittest.TestCase):
 
         # Move can into the robot arm, should have collision
         can.pose = np.array([[.5, -.6, .9]]).T
+
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
         if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
@@ -656,9 +660,10 @@ class TestBaxterPredicates(unittest.TestCase):
         can = ParamSetup.setup_blue_can("can1", (0.02, 0.25))
         can_held = ParamSetup.setup_blue_can("can2", (0.02,0.25))
         test_env = ParamSetup.setup_env()
-        pred = baxter_predicates.BaxterObstructsHolding("test_obstructs", [robot, rPose, rPose, can, can_held], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], test_env, debug = True)
+        test_env.SetViewer('qtcoin')
+        pred = baxter_predicates.BaxterObstructsHolding("test_obstructs", [robot, rPose, rPose, can, can_held], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], test_env, debug = True,  tol=const.TOL)
         self.assertEqual(pred.get_type(), "BaxterObstructsHolding")
-
+        pred.dsafe = 1e-3
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
         # Move can so that it collide with robot base

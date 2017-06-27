@@ -87,7 +87,7 @@ class Washer(Robot):
     def __init__(self, mockup = True, topload = False):
         self._type = "washer"
         if mockup:
-            self.shape = "/home/simon0xzx/Research/tampy/models/items/washer_mock_up/washer.xml"
+            self.shape = "/home/simon0xzx/Research/tampy/models/items/washer_mock_up/washer_col.xml"
             """
             to variate the depth of the mockup washer, simply change the y-cord
             of the washer_bottom body in washer.xml
@@ -104,6 +104,19 @@ class Washer(Robot):
             self.good_pos = np.array([0.5, 0.8, 0])
             self.good_rot = np.array([np.pi/2, 0, 0])
         self.dof_map = {"door": [0]}
+
+        self.col_links = set(["external_1", "external_2", "external_3", "external_4", "back", "washer_door",
+                              "washer_handle", "barrel_1", "barrel_2",
+                              "barrel_3", "barrel_4", "barrel_5",
+                              "barrel_6", "barrel_7", "barrel_8",
+                              "barrel_9", "barrel_10", "barrel_11",
+                              "barrel_12", "barrel_13", "barrel_14",
+                              "barrel_15", "barrel_16", "barrel_17",
+                              "barrel_18", "barrel_19", "barrel_20",
+                              "barrel_21", "barrel_22", "barrel_23",
+                              "barrel_24", "barrel_25", "barrel_26",
+                              "barrel_27", "barrel_28", "barrel_29",
+                              "barrel_30", "barrel_back"])
 
     def setup(self, robot):
         pass

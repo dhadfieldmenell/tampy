@@ -342,12 +342,12 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         return rot_val
 
     def stacked_f(self, x):
-        rel_pt = np.array([-0.035,0.055,-0.1])
+        rel_pt = np.array([0.035,-0.1,0.055])
         rel_rot = 1
         return np.vstack([self.coeff * self.washer_ee_check_f(x, rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, rel_rot)])
 
     def stacked_grad(self, x):
-        rel_pt = np.array([-0.035,0.055,-0.1])
+        rel_pt = np.array([0.035,-0.1,0.055])
         rel_rot = 1
         return np.vstack([self.coeff * self.washer_ee_check_jac(x, rel_pt), np.zeros((1, 13))])
 
@@ -459,7 +459,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
         self.attr_dim = 17
         self.dof_cache = None
         self.coeff = -1
@@ -468,7 +468,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
                                  (params[3], list(ATTRMAP[params[3]._type])),
                                  (params[4], list(ATTRMAP[params[4]._type]))])
         self.OBSTRUCTS_OPT_COEFF = const.OBSTRUCTS_OPT_COEFF
-        super(BaxterObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
+        super(BaxterObstructsHolding, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
 
     # def resample(self, negated, t, plan):

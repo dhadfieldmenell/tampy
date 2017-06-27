@@ -48,6 +48,7 @@ class RobotLLSolver(LLSolver):
         self.transfer_norm = transfer_norm
         self.grb_init_mapping = {}
         self.var_list = []
+        self._grb_to_var_ind = {}
 
     def _solve_helper(self, plan, callback, active_ts, verbose):
         # certain constraints should be solved first
@@ -108,10 +109,10 @@ class RobotLLSolver(LLSolver):
         self.plan = plan
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
-        if callback is not None:
-            viewer = callback()
-        def draw(t):
-            viewer.draw_plan_ts(plan, t)
+        # if callback is not None:
+        #     viewer = callback()
+        # def draw(t):
+        #     viewer.draw_plan_ts(plan, t)
         ## active_ts is the inclusive timesteps to include
         ## in the optimization
         if active_ts==None:
@@ -155,7 +156,7 @@ class RobotLLSolver(LLSolver):
             ## a high value on matching the resampled values
             obj_bexprs = []
             variable_helper()
-            rs_obj = self._resample(plan, failed_preds)
+            rs_obj = self._resample(plan, failed_preds, sample_all = False)
 
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
@@ -204,7 +205,7 @@ class RobotLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
         # if priority == 2 and not resample:
         #     import ipdb; ipdb.set_trace()
-        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=True)
+        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=False)
         self._update_ll_params()
         if DEBUG: assert not plan.has_nan()
 
@@ -245,8 +246,8 @@ class RobotLLSolver(LLSolver):
         """
             Debug End
         """
-
-        print "priority: {}".format(priority)
+        self.reset_variable()
+        print "priority: {}\n".format(priority)
         return success
 
     def _get_transfer_obj(self, plan, norm):
@@ -306,59 +307,66 @@ class RobotLLSolver(LLSolver):
             if save is False
             Iterate the var_list and use the last initial value used for each gurobi, and construct the sco variables
         """
-
         sco_var, grb_val_map, ret_val = None, {}, []
-        for grb, v in zip(grb_vars.flatten(), init_vals.flatten()):
-            if save: self.grb_init_mapping[grb] = v
-            try:
-                grb_val_map[grb] = self.grb_init_mapping[grb]
-            except KeyError:
-                grb_val_map[grb] = v
-            ret_val.append(grb_val_map[grb])
 
-        for var in self.var_list:
-            for i, grb in enumerate(var._grb_vars):
-                try:
-                    var._value[i] = self.grb_val_map[grb]
-                except:
-                    continue
-            if np.all(var._grb_vars is grb_vars):
-                sco_var = var
+        for grb, v in zip(grb_vars.flatten(), init_vals.flatten()):
+            grb_name = grb.VarName
+            if save: self.grb_init_mapping[grb_name] = v
+            grb_val_map[grb_name] = self.grb_init_mapping.get(grb_name, v)
+            ret_val.append(grb_val_map[grb_name])
+            if grb_name in self._grb_to_var_ind.keys():
+                for var, i in self._grb_to_var_ind[grb_name]:
+                    var._value[i] = grb_val_map[grb_name]
+                    if np.all(var._grb_vars is grb_vars):
+                        sco_var = var
 
         if sco_var is None:
             sco_var = Variable(grb_vars, np.array(ret_val).reshape((len(ret_val), 1)))
             self.var_list.append(sco_var)
+            for i, grb in enumerate(grb_vars.flatten()):
+                index_val_list = self._grb_to_var_ind.get(grb.VarName, [])
+                index_val_list.append((sco_var, i))
+                self._grb_to_var_ind[grb.VarName] = index_val_list
 
-        print "creating variable"
         if DEBUG: self.check_sync()
-        print "finish check"
         return sco_var
+
+    def check_grb_sync(self, grb_name):
+        for var, i in self._grb_to_var_ind[grb_name]:
+            print var._grb_vars[i][0].VarName, var._value[i]
 
     def check_sync(self):
         """
             This function checks whether all sco variable are synchronized
         """
         grb_val_map = {}
-        for var in self.var_list:
-            for grb, v in zip(var._grb_vars.flatten(), var._value.flatten()):
+        correctness = True
+        for grb_name in self._grb_to_var_ind.keys():
+            for var, i in self._grb_to_var_ind[grb_name]:
                 try:
-                    correctness = (grb_val_map[grb] == v)
+                    correctness = np.allclose(grb_val_map[grb_name], var._value[i])
                 except KeyError:
-                    grb_val_map[grb] = v
-                    correctness = True
+                    grb_val_map[grb_name] = var._value[i]
                 except:
-                    continue
+                    print "something went wrong"
+                    import ipdb; ipdb.set_trace()
                 if not correctness:
-                    return False
-        return True
+                    import ipdb; ipdb.set_trace()
 
-    def _resample(self, plan, preds):
+
+    def reset_variable(self):
+        self.grb_init_mapping = {}
+        self.var_list = []
+        self._grb_to_var_ind = {}
+
+    def _resample(self, plan, preds, sample_all = False):
         """
             This function first calls fail predicate's resample function,
             then, uses the resampled value to create a square difference cost
             function e(x) = |x - rs_val|^2 that will be minimized later.
             rs_val is the resampled value
         """
+        bexprs = []
         val, attr_inds = None, None
         for negated, pred, t in preds:
             ## returns a vector of new values and an
@@ -366,31 +374,27 @@ class RobotLLSolver(LLSolver):
             ## to parameter attributes
             val, attr_inds = pred.resample(negated, t, plan)
             ## if no resample defined for that pred, continue
-            if val is not None: break
-        if val is None:
-            return []
-
-        bexprs = []
-
-        for p in attr_inds:
-            ## get the ll_param for p and gurobi variables
-            ll_p = self._param_to_ll[p]
-            n_vals, i = 0, 0
-            grb_vars = []
-            for attr, ind_arr, t in attr_inds[p]:
-                for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t].flatten()):
-                    Q = np.eye(1)
-                    A = -2*val[p][i+j]*np.ones((1, 1))
-                    b = np.ones((1, 1))*np.power(val[p][i+j], 2)
-                    # QuadExpr is 0.5*x^Tx + Ax + b
-                    quad_expr = QuadExpr(2*Q*self.rs_coeff, A*self.rs_coeff, b*self.rs_coeff)
-                    v_arr = np.array([grb_var]).reshape((1, 1), order='F')
-                    init_val = np.ones((1, 1))*val[p][i+j]
-                    sco_var = self.create_variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1)), save = True)
-                    bexpr = BoundExpr(quad_expr, sco_var)
-                    bexprs.append(bexpr)
-                i += len(ind_arr)
-
+            if val is not None:
+                for p in attr_inds:
+                    ## get the ll_param for p and gurobi variables
+                    ll_p = self._param_to_ll[p]
+                    n_vals, i = 0, 0
+                    grb_vars = []
+                    for attr, ind_arr, t in attr_inds[p]:
+                        for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t].flatten()):
+                            Q = np.eye(1)
+                            A = -2*val[p][i+j]*np.ones((1, 1))
+                            b = np.ones((1, 1))*np.power(val[p][i+j], 2)
+                            # QuadExpr is 0.5*x^Tx + Ax + b
+                            quad_expr = QuadExpr(2*Q*self.rs_coeff, A*self.rs_coeff, b*self.rs_coeff)
+                            v_arr = np.array([grb_var]).reshape((1, 1), order='F')
+                            init_val = np.ones((1, 1))*val[p][i+j]
+                            sco_var = self.create_variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1)), save = True)
+                            bexpr = BoundExpr(quad_expr, sco_var)
+                            bexprs.append(bexpr)
+                        i += len(ind_arr)
+                if not sample_all:
+                    break
         return bexprs
 
     def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True,

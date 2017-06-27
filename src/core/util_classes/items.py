@@ -5,6 +5,7 @@ class Item(object):
     def __init__(self):
         self._type = "item"
 
+
 """
 Object defined for NAMO Domain
 """
@@ -16,6 +17,7 @@ class Circle(Item):
     def __init__(self, radius):
         self._type = "circle"
         self.radius = float(radius)
+        self.col_links = set(['base'])
 
 class RedCircle(Circle):
     def __init__(self, radius):
@@ -41,6 +43,7 @@ class Wall(Item):
     def __init__(self, wall_type):
         self._type = "wall"
         self.wall_type = wall_type
+        self.col_links = set(['base'])
 
 """
 Obejct defined for Robot[baxter/pr2] domain
@@ -54,6 +57,7 @@ class Can(Item):
         self._type = "can"
         self.radius = float(radius)
         self.height = float(height)
+        self.col_links = set(['base'])
 
 class BlueCan(Can):
     def __init__(self, radius, height):
@@ -76,6 +80,7 @@ class Obstacle(Item):
     """
     def __init__(self):
         self._type = "obstacle"
+        self.col_links = set(['base'])
 
 class Table(Obstacle):
     """
@@ -91,6 +96,7 @@ class Table(Obstacle):
         self.leg_dim = [dim[3], dim[4]]
         self.leg_height = dim[5]
         self.back = dim[6]
+        self.col_links = set(['base'])
 
 class Box(Obstacle):
     """
@@ -105,6 +111,7 @@ class Box(Obstacle):
         self.length = dim[0]
         self.height = dim[1]
         self.width = dim[2]
+        self.col_links = set(['base'])
 
 class Basket(Item):
     """
@@ -113,5 +120,7 @@ class Basket(Item):
 
     def __init__(self):
         self._type = "basket"
-        self.shape = "../models/baxter/laundry_basket.zae"
+        self.shape = "../models/baxter/basket.xml"
         self.up_right_rot = [0, 0, 1.57]
+
+        self.col_links = set(['long_1', 'long_2', 'short_1', 'short_2', 'bottom'])

@@ -29,12 +29,12 @@ TABLE_GEOM = [0.3, 0.6, 0.018]
 TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
-WASHER_POS = [2,2,2]
-# WASHER_POS = [0.730, 1.261, 1.498]
-WASHER_ROT = [-np.pi/2, 0, 0]
+# WASHER_POS = [2,2,2]
+WASHER_POS = [0.0472, 0.781, 0.284]
+WASHER_ROT = [np.pi, 0, np.pi/2]
 WASHER_DOOR = [0]
 WASHER_END_DOOR = [-np.pi/2]
-WASHER_CONFIG = [True, False]
+WASHER_CONFIG = [True, True]
 
 """
 Intermediate Poses

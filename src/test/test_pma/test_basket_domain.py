@@ -137,15 +137,16 @@ class TestBasketDomain(unittest.TestCase):
         plan = hls.get_plan(plan_str, domain, problem)
 
         print "solving basket domain problem..."
-        viewer = OpenRAVEViewer.create_viewer(plan.env)
-        def animate(delay = 0.5):
-            viewer.animate_plan(plan, delay)
-        def draw_ts(ts):
-            viewer.draw_plan_ts(plan, ts)
-        def draw_cols_ts(ts):
-            viewer.draw_cols_ts(plan, ts)
+        # viewer = OpenRAVEViewer.create_viewer(plan.env)
+        # def animate(delay = 0.5):
+        #     viewer.animate_plan(plan, delay)
+        # def draw_ts(ts):
+        #     viewer.draw_plan_ts(plan, ts)
+        # def draw_cols_ts(ts):
+        #     viewer.draw_cols_ts(plan, ts)
         def callback():
-            return viewer
+            return None
+        # callback = None
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
         result = solver.solve(plan, callback = callback, n_resamples=10)
@@ -206,7 +207,7 @@ class TestBasketDomain(unittest.TestCase):
         end_targ = params['end_target']
         baxter_body = OpenRAVEBody(env, 'baxter', robot.geom)
         basket_body = OpenRAVEBody(env, 'basket', basket.geom)
-        offset = [0,0.317,0]
+        offset = [0,const.BASKET_OFFSET,0]
         basket_pos = basket.pose.flatten()
 
         col_pred = BaxterCollides("collision_checker", [basket, table], ["Basket", "Obstacle"], env)
@@ -241,6 +242,34 @@ class TestBasketDomain(unittest.TestCase):
         basket.pose = end_targ.value
         self.assertFalse(col_pred.test(0))
 
+    def test_washer_position(self):
+        domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
+                       '../domains/laundry_domain/laundry_probs/laundry.prob')
+        env = problem.env
+
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        viewer.draw(objLst, 0, 0.7)
+
+        robot = params['baxter']
+        basket = params['basket']
+        table = params['table']
+        washer = params['washer']
+        end_targ = params['end_target']
+
+        grasp_rot = np.array([0,np.pi/2,np.pi/2])
+        robot_body = robot.openrave_body
+        baskey_body = basket.openrave_body
+        washer_body = washer.openrave_body
+        offset = [0.035,-0.1,0.055]
+        # -0.035,0.055,-0.1
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        washer_handle_pos = tool_link.GetTransform()[:3, 3]
+        robot_body.set_pose([0,0,np.pi/8])
+        l_arm_pose = robot_body.get_ik_from_pose(washer_handle_pos + offset, grasp_rot, "left_arm")[0]
+        robot_body.set_dof({'lArmPose':l_arm_pose})
+        import ipdb; ipdb.set_trace()
+
     def test_laundry_position(self):
         domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
                        '../domains/laundry_domain/laundry_probs/laundry.prob')
@@ -255,7 +284,7 @@ class TestBasketDomain(unittest.TestCase):
         table = params['table']
         washer = params['washer']
         end_targ = params['end_target']
-        offset = [0,0.317,0]
+        offset = [0,const.BASKET_OFFSET,0]
         basket_pos = basket.pose.flatten()
         left_targ = basket_pos + offset + [0,0,5*const.APPROACH_DIST]
         right_targ = basket_pos - offset + [0,0,5*const.APPROACH_DIST]
@@ -263,6 +292,7 @@ class TestBasketDomain(unittest.TestCase):
 
         robot_body = robot.openrave_body
         baskey_body = basket.openrave_body
+        washer_body = washer.openrave_body
         #Grasp Begin Pose
         robot_body.set_pose([0,0, -np.pi/8])
         l_arm_pose = robot_body.get_ik_from_pose(left_targ, grasp_rot, "left_arm")[0]
@@ -280,7 +310,8 @@ class TestBasketDomain(unittest.TestCase):
         l_arm_pose = robot_body.get_ik_from_pose(left_targ, grasp_rot, "left_arm")[0]
         r_arm_pose = robot_body.get_ik_from_pose(right_targ, grasp_rot, "right_arm")[0]
         robot_body.set_dof({'lArmPose':l_arm_pose, 'rArmPose': r_arm_pose})
-        import ipdb; ipdb.set_trace()
+
+        # import ipdb; ipdb.set_trace()
 
     def collision_debug_env(self):
         pd = PlanDeserializer()

@@ -21,8 +21,6 @@ class OpenRAVEBody(object):
         if env.GetKinBody(name) == None and env.GetRobot(name) == None:
             if isinstance(geom, Robot):
                 self._add_robot(geom)
-            elif isinstance(geom, Basket):
-                self._add_basket(geom)
             elif  isinstance(geom, Item):
                 self._add_item(geom)
             else:
@@ -113,7 +111,7 @@ class OpenRAVEBody(object):
     def _add_wall(self, geom):
         self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
         self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+        self._env.A.dd(self.env_body)
 
     def _add_obj(self, geom):
         self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
@@ -126,7 +124,7 @@ class OpenRAVEBody(object):
         self._env.Add(self.env_body)
 
     def _add_basket(self, geom):
-        self.env_body = OpenRAVEBody.create_basket_col(self._env)
+        self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
