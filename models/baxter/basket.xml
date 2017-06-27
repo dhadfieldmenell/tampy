@@ -1,0 +1,79 @@
+<KinBody name = "basket_col">
+   <Body name="base">
+   </Body>
+
+   <Body name="long_1">
+     <Translation>0 -0.118 0.208</Translation>
+     <rotationmat>1 0 0 0 0.99848788 -0.05497228 0 0.05497228 0.99848788</rotationmat>
+     <Geom type="box">
+       <Extents>0.3 0.15 0.015</Extents>
+
+       <diffusecolor>0 0.75 1</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="long_2">
+     <Translation>0 -0.118 -0.208</Translation>
+     <rotationmat>1 0 0 0 0.99848788 0.05497228 0 -0.05497228 0.99848788</rotationmat>
+     <Geom type="box">
+       <Extents>0.3 0.15 0.015</Extents>
+       <diffusecolor>0 0.75 1</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="short_1">
+     <Translation>0.309 -0.118 0</Translation>
+     <rotationmat>0.99848788 0.05497228 0 -0.05497228 0.99848788 0 0 0 1</rotationmat>
+     <Geom type="box">
+       <Extents>0.015 0.15 0.2</Extents>
+       <diffusecolor>0 0.75 1</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="short_2">
+     <Translation>-0.309 -0.118 0</Translation>
+     <rotationmat>0.99848788 -0.05497228 0 0.05497228 0.99848788 0 0 0 1</rotationmat>
+     <Geom type="box">
+       <Extents>0.015 0.15 0.2</Extents>
+       <diffusecolor>0 0.75 1</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="bottom">
+     <Translation>0 -0.25 0</Translation>
+     <Geom type="box">
+       <Extents>0.3 0.015 0.2</Extents>
+       <diffusecolor>0 0.75 1</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Joint name="dummy0" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>long_1</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="dummy1" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>long_2</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="dummy2" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>short_1</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="dummy3" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>short_2</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="dummy4" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>bottom</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+ </KinBody>
