@@ -2,6 +2,8 @@ from IPython import embed as shell
 from action import Action
 import numpy as np
 
+MAX_PRIORITY = 3
+
 class Plan(object):
     """
     A plan has the following.
@@ -106,7 +108,7 @@ class Plan(object):
 
         return res
 
-    def get_failed_pred(self, active_ts=None, priority = 2, tol = 1e-4):
+    def get_failed_pred(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
         #just return the first one for now
         t_min = self.horizon+1
         pred = None
@@ -118,7 +120,7 @@ class Plan(object):
                 negated = n
         return negated, pred, t_min
 
-    def get_failed_preds(self, active_ts=None, priority = 2, tol = 1e-4):
+    def get_failed_preds(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
         failed = []

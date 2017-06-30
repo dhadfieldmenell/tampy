@@ -1,5 +1,5 @@
 from IPython import embed as shell
-
+MAX_PRIORITY = 3
 class Action(object):
     """
     An instantiated action stores the following.
@@ -27,7 +27,7 @@ class Action(object):
     def __repr__(self):
         return "%d: %s %s %s"%(self.step_num, self.name, self.active_timesteps, " ".join([p.name for p in self.params]))
 
-    def get_failed_preds(self, active_ts=None, priority = 2, tol=1e-4):
+    def get_failed_preds(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-4):
         if active_ts is None:
             active_ts = self.active_timesteps
         failed = []
@@ -58,7 +58,7 @@ class Action(object):
             return True
         return len(self.get_failed_preds(active_ts)) == 0
 
-    def first_failed_ts(self, priority = 0):
+    def first_failed_ts(self, priority = MAX_PRIORITY):
         start, end = self.active_timesteps
         ## init at the maximize
         t_min = end

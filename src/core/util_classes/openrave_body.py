@@ -29,7 +29,7 @@ class OpenRAVEBody(object):
             self.env_body = env.GetKinBody(name)
         else:
             self.env_body = env.GetRobot(name)
-        self.set_transparency(0.7)
+        self.set_transparency(0.5)
 
     def delete(self):
         self._env.Remove(self.env_body)

@@ -168,7 +168,7 @@ class PlanDeserializer:
             else:
                 print 'Param {0} for pred {1} was not serialized with plan.'.format(param, class_path)
 
-        return pred_class(group['name'].value, params, group['param_types'].value, env)
+        return pred_class(group['name'].value, params, group['param_types'].value, env=env)
 
 
     def _build_param(self, group):

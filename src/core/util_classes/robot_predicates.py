@@ -1011,7 +1011,7 @@ class InGripper(PosePredicate):
         self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 1)
+        super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = True
 
 class EEGraspValid(PosePredicate):
@@ -1054,7 +1054,7 @@ class EEReachable(PosePredicate):
         pos_expr = Expr(self.eval_f, self.eval_grad)
         e = EqExpr(pos_expr, np.zeros((self.eval_dim, 1)))
 
-        super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range = active_range, priority = 0)
+        super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range = active_range, priority = 1)
         self.spacial_anchor = True
 
     def stacked_f(self, x):
@@ -1155,7 +1155,7 @@ class Obstructs(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Obstructs, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol, priority = 2)
+                                        expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol, priority = 3)
         self.spacial_anchor = False
 
     def get_expr(self, negated):
@@ -1216,7 +1216,7 @@ class ObstructsHolding(CollisionPredicate):
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
         self.neg_expr_opt = LEqExpr(get_expr_mult(self.OBSTRUCTS_OPT_COEFF, col_expr_neg), val)
-        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug, tol=tol, priority = 2)
+        super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug, tol=tol, priority = 3)
         self.spacial_anchor = False
 
     def get_expr(self, negated):
@@ -1261,7 +1261,7 @@ class Collides(CollisionPredicate):
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(Collides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1, debug=debug, priority = 2)
+                                        expected_param_types, ind0=0, ind1=1, debug=debug, priority = 3)
         self.spacial_anchor = False
 
     def get_expr(self, negated):
@@ -1320,7 +1320,7 @@ class RCollides(CollisionPredicate):
         self.neg_expr_opt = LEqExpr(col_expr_neg_opt, val)
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1, priority = 2)
+                                        expected_param_types, ind0=0, ind1=1, priority = 3)
         self.spacial_anchor = False
 
     def get_expr(self, negated):
@@ -1404,5 +1404,5 @@ class EERetiming(PosePredicate):
 
         pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
-        super(EERetiming, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, active_range = (0,1), priority = 2)
+        super(EERetiming, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, active_range = (0,1), priority = 3)
         self.spacial_anchor = False
