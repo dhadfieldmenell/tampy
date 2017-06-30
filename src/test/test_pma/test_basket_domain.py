@@ -124,20 +124,33 @@ class TestBasketDomain(unittest.TestCase):
         print "loading laundry problem..."
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/laundry.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        # plan_str = [
+        # '0: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_GRASP_BEGIN',
+        # '1: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_GRASP_BEGIN GRASP_EE_LEFT GRASP_EE_RIGHT ROBOT_GRASP_END',
+        # '2: MOVEHOLDING BAXTER ROBOT_GRASP_END ROBOT_PUTDOWN_BEGIN BASKET',
+        # '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET ROBOT_PUTDOWN_BEGIN PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_PUTDOWN_END',
+        # '4: MOVETO BAXTER ROBOT_PUTDOWN_END ROBOT_WASHER_BEGIN',
+        # '5: OPEN_DOOR BAXTER WASHER ROBOT_WASHER_BEGIN WASHER_EE ROBOT_WASHER_END WASHER_INIT_POSE WASHER_END_POSE',
+        # '6: MOVETO BAXTER ROBOT_WASHER_END ROBOT_END_POSE',
+        # ]
+        cloth_target_begin_1
         plan_str = [
-        '0: MOVE BAXTER ROBOT_INIT_POSE ROBOT_GRASP_BEGIN',
-        '1: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_GRASP_BEGIN GRASP_EE_LEFT GRASP_EE_RIGHT ROBOT_GRASP_END',
-        '2: MOVEHOLDING BAXTER ROBOT_GRASP_END ROBOT_PUTDOWN_BEGIN BASKET',
-        '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET ROBOT_PUTDOWN_BEGIN PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_PUTDOWN_END',
-        '4: MOVE BAXTER ROBOT_PUTDOWN_END ROBOT_END_POSE'
-        # '5: OPEN_DOOR BAXTER WASHER ROBOT_WASHER_BEGIN WASHER_EE ROBOT_WASHER_END WASHER_INIT_POSE WASHER_END_POSE'
-        # '6: MOVE BAXTER ROBOT_WASHER_END ROBOT_END_POSE',
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        '1: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_RIGHT_1 CLOTH_GRASP_END_1',
+        '2: MOVEHOLDING_CLOTH CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
+        '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_RIGHT_1 CLOTH_PUTDOWN_END_1',
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 BASKET_GRASP_BEGIN',
+        '5: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        '7: BASKET_PUTDOWN BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        '8: MOVETO BAXTER BASKET_PUTDOWN_END ROBOT_END_POSE'
         ]
+
 
         plan = hls.get_plan(plan_str, domain, problem)
 
         print "solving basket domain problem..."
-        # viewer = OpenRAVEViewer.create_viewer(plan.env)
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
         # def animate(delay = 0.5):
         #     viewer.animate_plan(plan, delay)
         # def draw_ts(ts):
@@ -362,6 +375,21 @@ class TestBasketDomain(unittest.TestCase):
 
         basket_mesh.SetTransform(trans)
         basket_body.SetTransform(trans)
+
+        import ipdb; ipdb.set_trace()
+
+    def find_cloth_position(self):
+        domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
+                       '../domains/laundry_domain/laundry_probs/laundry.prob')
+        env = problem.env
+
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        viewer.draw(objLst, 0, 0.7)
+
+        robot = params['baxter']
+        cloth = params['cloth']
+        cloth_target = params['cloth_target_begin_1']
 
         import ipdb; ipdb.set_trace()
 

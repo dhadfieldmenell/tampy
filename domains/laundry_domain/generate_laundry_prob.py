@@ -30,11 +30,18 @@ TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
 # WASHER_POS = [2,2,2]
-WASHER_POS = [0.0472, 0.781, 0.284]
+WASHER_POS = [0.08, 0.781, 0.28]
 WASHER_ROT = [np.pi, 0, np.pi/2]
-WASHER_DOOR = [0]
+WASHER_DOOR = [0.0]
 WASHER_END_DOOR = [-np.pi/2]
 WASHER_CONFIG = [True, True]
+
+CLOTH_INIT_POS = [1,1,1]
+CLOTH_INIT_ROT = [0,0,0]
+
+CLOTH_END_POS = [1,1,1]
+CLOTH_END_ROT = [0,0,0]
+
 
 """
 Intermediate Poses
@@ -49,6 +56,15 @@ PUTDOWN_LARMPOSE = [-0.8       , -0.87594019,  0.2587353 ,  0.92223949,  2.97696
 PUTDOWN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
 PUTDOWN_GRIPPER = [0.02]
 
+WASHER_BEGIN_POSE = [np.pi/3]
+WASHER_BEGIN_LARMPOSE = [-0.8       , -0.93703369, -0.27464748,  1.09904023, -2.97863535, -1.4287909 ,  2.35686368]
+WASHER_BEGIN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
+
+WASHER_EE_POS = [0.29 ,  0.781,  0.785]
+WASHER_EE_ROT = [0, np.pi/2, -np.pi/2]
+
+WASHER_END_EE_POS = [-0.305,  0.781,  1.17 ]
+WASHER_END_EE_ROT = [0,  0,  -np.pi/2]
 
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
@@ -100,24 +116,45 @@ def main():
         s += "Basket (name {}); ".format("basket")
         s += "BasketTarget (name {}); ".format("init_target")
         s += "BasketTarget (name {}); ".format("end_target")
-        s += "EEPose (name {}); ".format("grasp_ee_left")
-        s += "EEPose (name {}); ".format("grasp_ee_right")
-        s += "EEPose (name {}); ".format("putdown_ee_left")
-        s += "EEPose (name {}); ".format("putdown_ee_right")
-        s += "EEPose (name {}); ".format("washer_ee")
+
         s += "Robot (name {}); ".format("baxter")
+        s += "EEPose (name {}); ".format("cg_ee_right_1")
+        s += "EEPose (name {}); ".format("cp_ee_right_1")
+        s += "EEPose (name {}); ".format("bg_ee_left")
+        s += "EEPose (name {}); ".format("bg_ee_right")
+        s += "EEPose (name {}); ".format("bp_ee_left")
+        s += "EEPose (name {}); ".format("bp_ee_right")
+        s += "EEPose (name {}); ".format("open_door_ee")
+        s += "EEPose (name {}); ".format("cg_ee_right_2")
+        s += "EEPose (name {}); ".format("cp_ee_right_2")
+        s += "EEPose (name {}); ".format("close_door_ee")
         s += "RobotPose (name {}); ".format("robot_init_pose")
-        s += "RobotPose (name {}); ".format("robot_grasp_begin")
-        s += "RobotPose (name {}); ".format("robot_grasp_end")
+        s += "RobotPose (name {}); ".format("cloth_grasp_begin_1")
+        s += "RobotPose (name {}); ".format("cloth_grasp_end_1")
+        s += "RobotPose (name {}); ".format("cloth_putdown_begin_1")
+        s += "RobotPose (name {}); ".format("cloth_putdown_end_1")
+        s += "RobotPose (name {}); ".format("basket_grasp_begin")
+        s += "RobotPose (name {}); ".format("basket_grasp_end")
         s += "RobotPose (name {}); ".format("robot_putdown_begin")
         s += "RobotPose (name {}); ".format("robot_putdown_end")
-        s += "RobotPose (name {}); ".format("robot_washer_begin")
-        s += "RobotPose (name {}); ".format("robot_washer_end")
+        s += "RobotPose (name {}); ".format("open_door_begin")
+        s += "RobotPose (name {}); ".format("open_door_end")
+        s += "RobotPose (name {}); ".format("cloth_grasp_begin_2")
+        s += "RobotPose (name {}); ".format("cloth_grasp_end_2")
+        s += "RobotPose (name {}); ".format("cloth_putdown_begin_2")
+        s += "RobotPose (name {}); ".format("cloth_putdown_end_2")
+        s += "RobotPose (name {}); ".format("close_door_begin")
+        s += "RobotPose (name {}); ".format("close_door_end")
         s += "RobotPose (name {}); ".format("robot_end_pose")
         s += "Washer (name {}); ".format("washer")
         s += "WasherPose (name {}); ".format("washer_init_pose")
         s += "WasherPose (name {}); ".format("washer_end_pose")
-        s += "Obstacle (name {}) \n\n".format("table")
+        s += "Obstacle (name {}); ".format("table")
+        s += "Cloth (name {}); ".format("cloth")
+        s += "ClothTarget (name {}); ".format("cloth_target_begin_1")
+        s += "ClothTarget (name {}); ".format("cloth_target_end_1")
+        s += "ClothTarget (name {}); ".format("cloth_target_begin_2")
+        s += "ClothTarget (name {}) \n\n".format("cloth_target_end_2")
 
         s += "Init: "
         s += "(geom basket), "
@@ -132,28 +169,54 @@ def main():
         s += "(value end_target {}), ".format(BASKET_END_POS)
         s += "(rotation end_target {}), ".format(BASKET_END_ROT)
 
-        s += get_underfine_symbol("grasp_ee_left")
-        s += get_underfine_symbol("grasp_ee_right")
-        s += get_underfine_symbol("putdown_ee_left")
-        s += get_underfine_symbol("putdown_ee_right")
-        s += get_underfine_symbol("washer_ee")
+        s += "(geom cloth), "
+        s += "(pose cloth {}), ".format(CLOTH_INIT_POS)
+        s += "(rotation cloth {}), ".format(CLOTH_INIT_ROT)
+
+        s += "(value cloth_target_begin_1 {}), ".format(CLOTH_INIT_POS)
+        s += "(rotation cloth_target_begin_1 {}), ".format(CLOTH_INIT_ROT)
+
+        s += "(value cloth_target_end_1 {}), ".format(CLOTH_END_POS)
+        s += "(rotation cloth_target_end_1 {}), ".format(CLOTH_END_ROT)
+
+        s += get_underfine_symbol("cloth_target_begin_2")
+        s += get_underfine_symbol("cloth_target_end_2")
+
+        s += get_underfine_symbol("cg_ee_right_1")
+        s += get_underfine_symbol("cp_ee_right_1")
+        s += get_underfine_symbol("bg_ee_left")
+        s += get_underfine_symbol("bg_ee_right")
+        s += get_underfine_symbol("bp_ee_left")
+        s += get_underfine_symbol("bp_ee_right")
+        # s += get_underfine_symbol("open_door_ee")
+        s += '(value open_door_ee {}), '.format(WASHER_EE_POS)
+        s += '(rotation open_door_ee {}), '.format(WASHER_EE_ROT)
+        s += get_underfine_symbol("cg_ee_right_2")
+        s += get_underfine_symbol("cp_ee_right_2")
+        # s += get_underfine_symbol("close_door_ee")
+        s += '(value close_door_ee {}), '.format(WASHER_END_EE_POS)
+        s += '(rotation close_door_ee {}), '.format(WASHER_END_EE_ROT)
 
         s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
-
-        # s += get_robot_pose_str('robot_grasp_begin', GRASP_LARMPOSE, GRASP_RARMPOSE, GRASP_GRIPPER, GRASP_POSE)
-        # s += get_robot_pose_str('robot_grasp_end', GRASP_LARMPOSE, GRASP_RARMPOSE, CLOSE_GRIPPER, GRASP_POSE)
-        #
-        # s += get_robot_pose_str('robot_putdown_begin', PUTDOWN_LARMPOSE, PUTDOWN_RARMPOSE, CLOSE_GRIPPER, PUTDOWN_POSE)
-        # s += get_robot_pose_str('robot_putdown_end', PUTDOWN_LARMPOSE, PUTDOWN_RARMPOSE, PUTDOWN_GRIPPER, PUTDOWN_POSE)
-
-        s += get_undefined_robot_pose_str("robot_grasp_begin")
-        s += get_undefined_robot_pose_str("robot_grasp_end")
+        s += get_undefined_robot_pose_str("cloth_grasp_begin_1")
+        s += get_undefined_robot_pose_str("cloth_grasp_end_1")
+        s += get_undefined_robot_pose_str("cloth_putdown_begin_1")
+        s += get_undefined_robot_pose_str("cloth_putdown_end_1")
+        s += get_undefined_robot_pose_str("basket_grasp_begin")
+        s += get_undefined_robot_pose_str("basket_grasp_end")
         s += get_undefined_robot_pose_str("robot_putdown_begin")
         s += get_undefined_robot_pose_str("robot_putdown_end")
-
-        s += get_undefined_robot_pose_str("robot_washer_begin")
-        s += get_undefined_robot_pose_str("robot_washer_end")
+        # s += get_undefined_robot_pose_str("open_door_begin")
+        s += get_robot_pose_str('open_door_begin', WASHER_BEGIN_LARMPOSE, WASHER_BEGIN_RARMPOSE, INT_GRIPPER, WASHER_BEGIN_POSE)
+        s += get_undefined_robot_pose_str("open_door_end")
+        s += get_undefined_robot_pose_str("cloth_grasp_begin_2")
+        s += get_undefined_robot_pose_str("cloth_grasp_end_2")
+        s += get_undefined_robot_pose_str("cloth_putdown_begin_2")
+        s += get_undefined_robot_pose_str("cloth_putdown_end_2")
+        s += get_undefined_robot_pose_str("close_door_begin")
+        s += get_undefined_robot_pose_str("close_door_end")
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
@@ -180,19 +243,19 @@ def main():
         s += "(BaxterBasketLevel basket), "
         s += "(BaxterRobotAt baxter robot_init_pose), "
         s += "(BaxterWasherAt washer washer_init_pose), "
-        s += "(BaxterEEReachableLeftVer baxter robot_grasp_begin grasp_ee_left), "
-        s += "(BaxterEEReachableRightVer baxter robot_grasp_begin grasp_ee_right), "
+        s += "(BaxterEEReachableLeftVer baxter basket_grasp_begin bg_ee_left), "
+        s += "(BaxterEEReachableRightVer baxter basket_grasp_begin bg_ee_right), "
 
-        s += "(BaxterBasketGraspLeftPos grasp_ee_left init_target), "
-        s += "(BaxterBasketGraspLeftRot grasp_ee_left init_target), "
-        s += "(BaxterBasketGraspRightPos grasp_ee_right init_target), "
-        s += "(BaxterBasketGraspRightRot grasp_ee_right init_target), "
+        s += "(BaxterBasketGraspLeftPos bg_ee_left init_target), "
+        s += "(BaxterBasketGraspLeftRot bg_ee_left init_target), "
+        s += "(BaxterBasketGraspRightPos bg_ee_right init_target), "
+        s += "(BaxterBasketGraspRightRot bg_ee_right init_target), "
 
-        s += "(BaxterBasketGraspLeftPos putdown_ee_left end_target), "
-        s += "(BaxterBasketGraspLeftRot putdown_ee_left end_target), "
-        s += "(BaxterBasketGraspRightPos putdown_ee_right end_target), "
-        s += "(BaxterBasketGraspRightRot putdown_ee_right end_target), "
-        s += "(BaxterEEGraspValid washer_ee washer), "
+        s += "(BaxterBasketGraspLeftPos bp_ee_left end_target), "
+        s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
+        s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
+        s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
+        s += "(BaxterEEGraspValid open_door_ee washer), "
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "

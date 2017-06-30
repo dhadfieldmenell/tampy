@@ -74,6 +74,12 @@ class GreenCan(Can):
         super(GreenCan, self).__init__(radius, height)
         self.color = "green"
 
+class Cloth(Can):
+    def __init__(self):
+        super(Cloth, self).__init__(0.02,0.10)
+        self.color = "blue"
+        self._type = "can"
+
 class Obstacle(Item):
     """
     Defines geometry used for testing move with obstructs in the NAMO domain.

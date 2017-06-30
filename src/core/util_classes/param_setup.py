@@ -139,3 +139,17 @@ class ParamSetup(object):
         attr_types = {"name": str, "value": matrix.Vector3d, "door": matrix.Vector1d, "rotation": matrix.Vector3d, "geom": robots.Washer, "_type": str}
         washer_pose = parameter.Symbol(attrs, attr_types)
         return washer_pose
+
+    @staticmethod
+    def setup_cloth(name = 'cloth'):
+        attrs = {"name": [name], "pose": [[0.571, 0.017,  0.90]], "rotation": [[0, 0, 0]], "geom": [], "_type": ["Cloth"]}
+        attr_types = {"name": str, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "geom": items.Cloth, "_type": str}
+        cloth = parameter.Object(attrs, attr_types)
+        return cloth
+
+    @staticmethod
+    def setup_cloth_target(name = 'cloth_target'):
+        attrs = {"name": [name], "value": ["undefined"], "rotation": ["undefined"], "_type": ["ClothTarget"]}
+        attr_types = {"name": str, "value": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        cloth_target = parameter.Symbol(attrs, attr_types)
+        return cloth_target

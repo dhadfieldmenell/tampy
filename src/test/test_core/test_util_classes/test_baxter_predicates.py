@@ -1381,3 +1381,61 @@ class TestBaxterPredicates(unittest.TestCase):
         robot.rArmPose[:, 0] = right_arm_pose
         baxter_body.set_dof({'lArmPose': left_arm_pose, 'rArmPose':right_arm_pose})
         self.assertTrue(pred.test(0))
+
+
+    def test_cloth_in_gripper(self):
+        env = ParamSetup.setup_env()
+        robot = ParamSetup.setup_baxter()
+        cloth = ParamSetup.setup_cloth()
+        env.SetViewer('qtcoin')
+        pred = baxter_predicates.BaxterClothInGripper('test_BaxterClothInGripper', [robot, cloth], ["Robot", "Cloth"], env=env)
+        baxter_body, cloth_body = robot.openrave_body, cloth.openrave_body
+
+        self.assertFalse(pred.test(0))
+
+        cloth.pose[:, 0] = [0.724, -0.219, 0.83]
+        cloth.rotation[:, 0] = [0,0,0]
+        cloth_body.set_pose(cloth.pose[:, 0], cloth.rotation[:, 0])
+        self.assertFalse(pred.test(0))
+
+        def checker(pos, rot, expected = False):
+            try:
+                arm_pose = baxter_body.get_ik_from_pose(pos , rot, "right_arm")[0]
+            except:
+                return
+            baxter_body.set_dof({'rArmPose': arm_pose})
+            robot.rArmPose = arm_pose.reshape((7,1))
+            if expected:
+                self.assertTrue(pred.test(0))
+            else:
+                self.assertFalse(pred.test(0))
+
+        for angle in np.linspace(0, np.pi, 10):
+            checker(cloth.pose[:, 0], [0,np.pi/2, angle], expected = True)
+            checker(cloth.pose[:, 0], [angle,np.pi/2, 0], expected = True)
+            checker(cloth.pose[:, 0], [0, angle, 0], expected = (np.pi/2 == angle))
+
+
+    def test_cloth_grasp_valid(self):
+        env = ParamSetup.setup_env()
+        ee_pose = ParamSetup.setup_ee_pose()
+        cloth_target = ParamSetup.setup_cloth_target()
+        pred = baxter_predicates.BaxterClothGraspValid('test_BaxterClothGraspValid', [ee_pose, cloth_target], ["EEPose", "ClothTarget"], env=env)
+        self.assertFalse(pred.test(0))
+
+        cloth_target.value = np.array([[0.724, -0.219, 0.83]]).T
+        cloth_target.rotation = np.array([[0,0,0]]).T
+        self.assertFalse(pred.test(0))
+
+        def checker(pos, rot, expected = False):
+            ee_pose.value = pos.reshape((3,1))
+            ee_pose.rotation = rot.reshape((3,1))
+            if expected:
+                self.assertTrue(pred.test(0))
+            else:
+                self.assertFalse(pred.test(0))
+
+        for angle in np.linspace(0, np.pi, 10):
+            checker(cloth_target.value[:, 0], np.array([0,np.pi/2, angle]), expected = True)
+            checker(cloth_target.value[:, 0], np.array([angle,np.pi/2, 0]), expected = True)
+            checker(cloth_target.value[:, 0], np.array([0, angle, 0]), expected = (np.pi/2 == angle))

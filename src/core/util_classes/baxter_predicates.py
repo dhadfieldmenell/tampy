@@ -41,6 +41,10 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
            "WasherPose": (("value", np.array([0,1,2], dtype=np.int)),
                           ("rotation", np.array([0,1,2], dtype=np.int)),
                           ("door", np.array([0], dtype=np.int))),
+           "Cloth": (("pose", np.array([0,1,2], dtype=np.int)),
+                     ("rotation", np.array([0,1,2], dtype=np.int))),
+           "ClothTarget": (("value", np.array([0,1,2], dtype=np.int)),
+                     ("rotation", np.array([0,1,2], dtype=np.int))),
            "EEVel": (("value", np.array([0], dtype=np.int)))
           }
 
@@ -200,6 +204,19 @@ class BaxterStationaryNEq(robot_predicates.StationaryNEq):
 
 class BaxterGraspValid(robot_predicates.GraspValid):
     pass
+
+class BaxterClothGraspValid(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.ee_pose, self.target = params
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0], ('rotation', np.array([1]))]), (params[1], [ATTRMAP[params[1]._type][0], ('rotation', np.array([1]))])])
+
+        self.attr_dim = 4
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.array([[0,0,0,-np.pi/2]]).T, np.zeros((self.attr_dim,1))
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(BaxterClothGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
 
 class BaxterGraspValidPos(BaxterGraspValid):
 
