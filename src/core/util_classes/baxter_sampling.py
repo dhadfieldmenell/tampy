@@ -1,6 +1,8 @@
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import robot_predicates
+from core.util_classes.items import Item
+from core.util_classes.robots import Robot
 from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle, CollisionReport, RaveCreateCollisionChecker
 import core.util_classes.baxter_constants as const
 from collections import OrderedDict
@@ -575,13 +577,16 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     body = rave_body.env_body
     left_robot_trans, left_arm_inds = pred.get_robot_info(rave_body, 'left')
     right_robot_trans, right_arm_inds = pred.get_robot_info(rave_body, 'right')
+    # Finding a good robot pose so that robot is facing the basket
+    basket_pos = (left_pose + right_pose)/2.
+    facing_pose = basket_pos[:2].dot([0,1])/np.linalg.norm(basket_pos[:2])
 
     # Make sure baxter is well positioned in the env
     dof_value = np.r_[robot.lArmPose[:, t],
                       robot.lGripper[:, t],
                       robot.rArmPose[:, t],
                       robot.rGripper[:, t],
-                      robot.pose[:,t]]
+                      facing_pose]
     pred.set_robot_poses(dof_value, rave_body)
     for param in plan.params.values():
         if not param.is_symbol() and param != robot:
@@ -597,7 +602,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
 
     rave_body.set_dof({'lArmPose': grasp_left_arm_pose, 'rArmPose': grasp_right_arm_pose})
 
-    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', grasp_left_arm_pose.copy()), ('rArmPose', grasp_right_arm_pose.copy()), ('pose', robot.pose[:,t])])
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', grasp_left_arm_pose.copy()), ('rArmPose', grasp_right_arm_pose.copy()), ('pose', np.array([facing_pose]))])
 
     # Store sampled pose
     plan.sampling_trace.append({'type': robot.get_type(), 'data':{'lArmPose': grasp_left_arm_pose, 'rArmPose': grasp_right_arm_pose}, 'timestep': t, 'pred': pred, 'action': "grasp"})
@@ -610,20 +615,21 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
         left_approach_arm_pose = get_ik_from_pose(left_app_pos, left_rot, body, 'left_arm')
         right_app_pos = right_pose + np.array([0,0,const.APPROACH_DIST]) * (step-i)
         right_approach_arm_pose = get_ik_from_pose(right_app_pos, right_rot, body, 'right_arm')
-        add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [('lArmPose', left_approach_arm_pose), ('rArmPose', right_approach_arm_pose)])
+        add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [('lArmPose', left_approach_arm_pose), ('rArmPose', right_approach_arm_pose), ('pose', np.array([facing_pose]))])
 
         if DEBUG:
             rave_body.set_dof({'lArmPose': left_approach_arm_pose, 'rArmPose': right_approach_arm_pose})
-            # import ipdb; ipdb.set_trace()
+            rave_body.set_pose([0,0, robot.pose[:,t]])
 
         left_ret_pos = left_pose + np.array([0,0,const.APPROACH_DIST]) * (i+1)
         left_retreat_arm_pose = get_ik_from_pose(left_ret_pos, left_rot, body, 'left_arm')
         right_ret_pos = right_pose + np.array([0,0,const.APPROACH_DIST]) * (i+1)
         right_retreat_arm_pose = get_ik_from_pose(right_ret_pos, right_rot, body, 'right_arm')
-        add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot, [('lArmPose', left_retreat_arm_pose), ('rArmPose', right_retreat_arm_pose)])
+        add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot, [('lArmPose', left_retreat_arm_pose), ('rArmPose', right_retreat_arm_pose), ('pose', np.array([facing_pose]))])
+
         if DEBUG:
             rave_body.set_dof({'lArmPose': left_retreat_arm_pose, 'rArmPose': right_retreat_arm_pose})
-            # import ipdb; ipdb.set_trace()
+            rave_body.set_pose([0,0, robot.pose[:,t]])
 
         if left_approach_arm_pose is None or right_approach_arm_pose is None or  left_retreat_arm_pose is None or right_retreat_arm_pose is None:
             resample_failure = True
@@ -648,7 +654,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
             left_arm_traj = lin_interp_traj(robot.lArmPose[:, act_start], robot.lArmPose[:, t-step], timesteps)
             right_arm_traj = lin_interp_traj(robot.rArmPose[:, act_start], robot.rArmPose[:, t-step], timesteps)
             for i in range(act_start+1, act_end):
-                traj_ind = i - act_start - 1
+                traj_ind = i - act_start
                 add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_traj[:, traj_ind]), ('rArmPose', right_arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
                 robot_body.set_dof({'lArmPose': left_arm_traj[:, traj_ind], 'rArmPose': right_arm_traj[:, traj_ind]})
 
@@ -666,12 +672,240 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False):
     add_to_attr_inds_and_res(0, attr_inds, res, end, [('lArmPose', robot.lArmPose[:, t+step]), ('rArmPose', robot.rArmPose[:, t+step]), ('value', robot.pose[:,t+step])])
 
     if DEBUG: test_resample_order(attr_inds, res)
+    # import ipdb; ipdb.set_trace()
     return res, attr_inds
 
-def resample_retiming(pred, negated, t, plan):
-    if pred.ee_vel.name == "fast_vel":
-        active_range = list(range(0, 10)) + list(range(20,29))
 
+def resample_basket_moveholding_all(pred, negated, t, plan):
+    attr_inds, res = OrderedDict(), OrderedDict()
+
+    robot, basket = pred.robot, pred.obj
+    rave_body, body = robot.openrave_body, robot.openrave_body.env_body
+    offset = np.array([0, const.BASKET_OFFSET, 0])
+    left_robot_trans, left_arm_inds = pred.get_robot_info(rave_body, 'left')
+    right_robot_trans, right_arm_inds = pred.get_robot_info(rave_body, 'right')
+
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+
+    act_name = action.name
+    ind1, ind2 = act_name.find(': ')+2, act_name.find(' (')
+    act_name = act_name[ind1:ind2]
+    print act_name
+
+    if act_name == "moveholding":
+        start_ts, end_ts = action.active_timesteps
+        basket_begin = basket.pose[:, start_ts]
+        basket_end = basket.pose[:, end_ts]
+        timesteps = end_ts - start_ts
+        pose_traj = lin_interp_traj(basket_begin, basket_end, timesteps)
+        ee_rot = np.array([0, np.pi/2,0])
+        for i in range(start_ts+1, end_ts):
+            traj_ind = i - start_ts
+            basket_pos = pose_traj[:, traj_ind]
+            add_to_attr_inds_and_res(i, attr_inds, res, basket, [('pose', basket_pos)])
+            basket.openrave_body.set_pose(basket_pos, [np.pi/2, 0, np.pi/2])
+
+            facing_pose = basket_pos[:2].dot([0,1])/np.linalg.norm(basket_pos[:2])
+
+            rave_body.set_pose([0,0,facing_pose])
+
+            ee_left = basket_pos + offset
+            left_arm_pose = get_ik_from_pose(ee_left, ee_rot, body,  "left_arm")
+
+            ee_right = basket_pos - offset
+            right_arm_pose = get_ik_from_pose(ee_right, ee_rot, body,  "right_arm")
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_pose), ('rArmPose', right_arm_pose), ('pose', np.array([facing_pose]))])
+            rave_body.set_dof({'lArmPose': left_arm_pose, 'rArmPose': right_arm_pose})
+        return res, attr_inds
+    else:
+        return None, None
+
+
+def resample_basket_moveholding(pred, negated, t, plan):
+    attr_inds, res = OrderedDict(), OrderedDict()
+
+    robot, basket = pred.robot, pred.obj
+    rave_body, body = robot.openrave_body, robot.openrave_body.env_body
+    offset = np.array([0, const.BASKET_OFFSET, 0])
+
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+
+    act_name = action.name
+    ind1, ind2 = act_name.find(': ')+2, act_name.find(' (')
+    act_name = act_name[ind1:ind2]
+
+    def set_pose(x, trag):
+        basket.openrave_body.set_pose(trag[:, x], [np.pi/2, 0, np.pi/2])
+
+    if act_name == "moveholding":
+        start_ts, end_ts = action.active_timesteps
+        basket_begin = basket.pose[:, start_ts]
+        basket_end = basket.pose[:, end_ts]
+        timesteps = end_ts - start_ts
+        pose_traj = lin_interp_traj(basket_begin, basket_end, timesteps)
+        ee_rot = np.array([0, np.pi/2,0])
+
+        traj_ind = t - start_ts
+        basket_pos = pose_traj[:, traj_ind]
+        add_to_attr_inds_and_res(t, attr_inds, res, basket, [('pose', basket_pos), ('rotation', np.array([np.pi/2, 0, np.pi/2]))])
+
+        basket.openrave_body.set_pose(basket_pos, [np.pi/2, 0, np.pi/2])
+
+        facing_pose = basket_pos[:2].dot([0,1])/np.linalg.norm(basket_pos[:2])
+
+        rave_body.set_pose([0,0,facing_pose])
+
+        ee_left = basket_pos + offset
+        left_arm_pose = get_ik_from_pose(ee_left, ee_rot, body,  "left_arm")
+
+        ee_right = basket_pos - offset
+        right_arm_pose = get_ik_from_pose(ee_right, ee_rot, body,  "right_arm")
+        add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', left_arm_pose), ('rArmPose', right_arm_pose), ('pose', np.array([facing_pose]))])
+        rave_body.set_dof({'lArmPose': left_arm_pose, 'rArmPose': right_arm_pose})
+        return res, attr_inds
+    else:
+        return None, None
+
+
+
+def resample_basket_in_gripper(pred, negated, t, plan):
+    attr_inds, res = OrderedDict(), OrderedDict()
+
+    robot, basket = pred.robot, pred.obj
+    rave_body, body = robot.openrave_body, robot.openrave_body.env_body
+    offset = np.array([0, const.BASKET_OFFSET, 0])
+    left_robot_trans, left_arm_inds = pred.get_robot_info(rave_body, 'left')
+    right_robot_trans, right_arm_inds = pred.get_robot_info(rave_body, 'right')
+    # Take the left arm as the anchor point
+    basket_pos = left_robot_trans[:3,3] - offset
+    #TODO Assuming basket not rotating
+    basket_rot = np.array([np.pi/2, 0, np.pi/2])
+
+    add_to_attr_inds_and_res(t, attr_inds, res, basket, [('pose', basket_pos), ('rotation', basket_rot)])
+
+
+    if not np.allclose(right_robot_trans[:3,3], basket_rot - offset):
+        targ_pos, targ_rot = basket_rot - offset, [0, np.pi/2,0]
+        grasp_right_arm_pose = get_ik_from_pose(targ_pos, targ_rot, body,  "right_arm")
+        if grasp_right_arm_pose is None:
+            return res, attr_inds
+        add_to_attr_inds_and_res(t, attr_inds, res, robot, [('rArmPose', grasp_right_arm_pose.copy())])
+
+    return res, attr_inds
+
+
+def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
+    attr_inds, res = OrderedDict(), OrderedDict()
+    # Preparing the variables
+    robot, rave_body = pred.robot, pred.robot.openrave_body
+    body = rave_body.env_body
+    actions = plan.actions
+    action_inds = [i for i in range(len(actions)) if actions[i].active_timesteps[0] <= t and  t <= actions[i].active_timesteps[1]][0]
+    ee_pose, arm = pred.ee_pose, pred.arm
+    robot_base_pose = robot.pose[:, t]
+
+    targ_pos, targ_rot = ee_pose.value[:, 0], ee_pose.rotation[:, 0]
+
+    robot_trans, arm_inds = pred.get_robot_info(rave_body, arm)
+
+    # Make sure baxter is well positioned in the env
+    dof_value = np.r_[robot.lArmPose[:, t],
+                      robot.lGripper[:, t],
+                      robot.rArmPose[:, t],
+                      robot.rGripper[:, t],
+                      robot.pose[:,t]]
+    pred.set_robot_poses(dof_value, rave_body)
+
+    for param in plan.params.values():
+        if not param.is_symbol() and param != robot:
+            if isinstance(param, Robot):
+                attrs = param.geom.dof_map.keys()
+                dof_val_map = {}
+                for attr in attrs:
+                    dof_val_map[attr] = getattr(param, attr)[:, t]
+                param.openrave_body.set_dof(dof_val_map)
+
+            param.openrave_body.set_pose(param.pose[:, t].flatten(), param.rotation[:, t].flatten())
+
+    # Resample poses at grasping time
+    approach_arm_pose = get_ik_from_pose(targ_pos, targ_rot, body, "{}_arm".format(arm))
+
+    # When Ik infeasible
+    if approach_arm_pose is None:
+        return None, None
+
+    resample_attr_name = '{}ArmPose'.format(arm[0])
+    rave_body.set_dof({resample_attr_name: approach_arm_pose})
+
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose.copy()), ('pose', robot_base_pose)])
+
+    # Resample entire approaching and retreating traj
+    resample_failure = False
+    step = const.EEREACHABLE_STEPS
+    targ_pos, targ_rot
+    for i in range(step):
+        if approach:
+            targ_app_pos = targ_pos + np.array([0,0,const.APPROACH_DIST]) * (step-i)
+            approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
+            add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot_base_pose)])
+        else:
+            targ_app_pos = targ_pos + np.array([0,0,const.RETREAT_DIST]) * (i+1)
+            approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
+            add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot_base_pose)])
+
+        if DEBUG:
+            rave_body.set_dof({resample_attr_name: approach_arm_pose})
+            rave_body.set_pose([0,0, robot_base_pose])
+
+        if approach_arm_pose is None:
+            resample_failure = True
+
+    # Ik infeasible
+    if resample_failure:
+        plan.sampling_trace[-1]['reward'] = -1
+        return None, None
+
+    """
+    Linear Interp Traj
+    """
+    if action_inds > 0:
+        last_action = actions[action_inds-1]
+        act_start, act_end = last_action.active_timesteps
+        if last_action.name == "move" or last_action.name == "moveholding":
+            timesteps = act_end - act_start
+
+            pose_traj = lin_interp_traj(robot.pose[:, act_start], robot.pose[:,t-step], timesteps)
+            left_arm_traj = lin_interp_traj(robot.lArmPose[:, act_start], robot.lArmPose[:, t-step], timesteps)
+            right_arm_traj = lin_interp_traj(robot.rArmPose[:, act_start], robot.rArmPose[:, t-step], timesteps)
+            for i in range(act_start+1, act_end):
+                traj_ind = i - act_start
+                add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_traj[:, traj_ind]), ('rArmPose', right_arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
+                rave_body.set_dof({'lArmPose': left_arm_traj[:, traj_ind], 'rArmPose': right_arm_traj[:, traj_ind]})
+
+    """
+        Resample other parameters
+    """
+    begin = pred.start_pose
+
+    add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
+    return res, attr_inds
+
+def resample_ee_grasp_valid(pred, negated, t, plan):
+    # TODO EEGraspValid is not working properly, go back and fix it
+    attr_inds, res = OrderedDict(), OrderedDict()
+    washer = pred.robot
+    ee_pose = pred.ee_pose
+    washer_body = washer.openrave_body
+    tool_link = washer_body.env_body.GetLink("washer_handle")
+    offset, door = np.array([-0.035,0.055,-0.1]), washer.door[0, t]
+    washer_body.set_dof({'door': door})
+    handle_pos = tool_link.GetTransform().dot(np.r_[offset, 1])[:3]
+    rot_mat = matrixFromAxisAngle([0,-np.pi/2,0]).dot(tool_link.GetTransform())
+    handle_rot = OpenRAVEBody.obj_pose_from_transform(rot_mat)[3:]
+
+    add_to_attr_inds_and_res(t, attr_inds, res, ee_pose, [('value', handle_pos), ('rotation', handle_rot)])
+    # import ipdb; ipdb.set_trace()
+    return res, attr_inds
 
 def resample_basket_obstructs(pred, negated, t, plan):
     # import ipdb; ipdb.set_trace()

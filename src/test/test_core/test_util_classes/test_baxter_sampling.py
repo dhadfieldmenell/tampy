@@ -11,6 +11,8 @@ from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
+import core.util_classes.baxter_constants as const
+from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 
 def load_environment(domain_file, problem_file):
     domain_fname = domain_file
@@ -125,3 +127,117 @@ class TestBaxterSampling(unittest.TestCase):
         # self.assertFalse(rcollides_pred.test(1))
         # import ipdb; ipdb.set_trace()
         # rcollides_pred.resample(False, 2, plan)
+
+
+    def test_resample_basket_ee_reachable(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('initialized_plan')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        robot_pose = plan.params['robot_init_pose']
+        ee_left = plan.params['grasp_ee_left']
+        ee_right = plan.params['grasp_ee_right']
+        ee_putdown_left = plan.params['putdown_ee_left']
+        ee_putdown_right = plan.params['putdown_ee_right']
+
+        basket = plan.params['basket']
+
+
+        left_pred = baxter_predicates.BaxterEEReachableLeftVer('test_ee_left', [robot, robot_pose, ee_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
+        right_pred = baxter_predicates.BaxterEEReachableRightVer('test_ee_right', [robot, robot_pose, ee_right], ['Robot', 'RobotPose', 'EEPose'], env=env)
+
+        left_pred2 = baxter_predicates.BaxterEEReachableLeftVer('test_ee_left', [robot, robot_pose, ee_putdown_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
+        right_pred2 = baxter_predicates.BaxterEEReachableRightVer('test_ee_right', [robot, robot_pose, ee_putdown_right], ['Robot', 'RobotPose', 'EEPose'], env=env)
+
+        basket_pos, offset = basket.pose[:, 24], [0,0.317,0]
+        ee_left.value = np.array([basket_pos + offset]).T
+        ee_left.rotation = np.array([[0,np.pi/2, 0]]).T
+        ee_right.value = np.array([basket_pos - offset]).T
+        ee_right.rotation = np.array([[0,np.pi/2, 0]]).T
+
+        self.assertFalse(left_pred.test(24))
+        self.assertFalse(right_pred.test(24))
+
+        def resampled_value(pred, negated, t, plan):
+            res, attr_inds = baxter_sampling.resample_basket_eereachable_rrt(pred, negated, t, plan)
+            self.assertTrue(pred.test(t))
+
+        resampled_value(left_pred, False, 24, plan)
+        resampled_value(right_pred, False, 24, plan)
+        resampled_value(left_pred2, False, 53, plan)
+        resampled_value(right_pred2, False, 53, plan)
+
+
+
+
+    def test_resample_ee_approach_retreat(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('initialized_plan')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        robot_pose = plan.params['robot_washer_begin']
+        ee_left = plan.params['washer_ee']
+        washer = plan.params['washer']
+        washer.door[:, :] = 0
+        approach_pred = baxter_predicates.BaxterEEApproachLeft('test_approach_left', [robot, robot_pose, ee_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
+
+        retreat_pred = baxter_predicates.BaxterEERetreatLeft('test_approach_left', [robot, robot_pose, ee_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
+        self.assertFalse(approach_pred.test(82))
+        self.assertFalse(retreat_pred.test(82))
+
+        def resampled_value(pred, negated, t, plan, approach = True):
+            res, attr_inds = baxter_sampling.resample_washer_ee_approach(pred, negated, t, plan, approach = approach)
+            self.assertTrue(pred.test(t))
+
+        important_ts = [82]
+        for ts in important_ts:
+            resampled_value(approach_pred, False, ts, plan, approach = True)
+            resampled_value(retreat_pred, False, ts, plan, approach = False)
+
+    def test_resample_in_gripper(self):
+        # TODO resample in gripper doesn't quite work
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('initialized_plan')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        robot_pose = plan.params['robot_washer_begin']
+        ee_left = plan.params['washer_ee']
+        basket = plan.params['basket']
+
+        pred = baxter_predicates.BaxterBasketInGripper('test_in_gripper', [robot, basket], ['Robot', 'Basket'], env=env)
+        self.assertFalse(pred.test(30))
+
+        def resampled_value(pred, negated, t, plan):
+            res, attr_inds = baxter_sampling.resample_basket_in_gripper(pred, negated, t, plan)
+            self.assertTrue(pred.test(t))
+
+        checking_ts = range(30, 50)
+        for ts in checking_ts:
+            resampled_value(pred, False, ts, plan)
+
+    def test_resample_basket_moveholding(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('initialized_plan')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        robot_pose = plan.params['robot_washer_begin']
+        ee_left = plan.params['washer_ee']
+        basket = plan.params['basket']
+
+        pred = baxter_predicates.BaxterBasketInGripper('test_in_gripper', [robot, basket], ['Robot', 'Basket'], env=env)
+        self.assertFalse(pred.test(30))
+
+        def resampled_value(pred, negated, t, plan):
+            res, attr_inds = baxter_sampling.resample_basket_moveholding(pred, negated, t, plan)
+            self.assertTrue(pred.test(t))
+
+        for ts in range(30, 50):
+            resampled_value(pred, False, ts, plan)
