@@ -58,9 +58,139 @@ class RobotLLSolver(LLSolver):
             success = self._solve_opt_prob(plan, priority=priority,
                             callback=callback, active_ts=active_ts,
                             verbose=verbose)
-            # if not success:
-            #     return success
-        # return True
+
+        return success
+
+    def backtrack_solve(self, plan, callback=None, verbose=False):
+        plan.save_free_attrs()
+        success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
+        plan.restore_free_attrs()
+        return success
+
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False):
+        if anum > len(plan.actions) - 1:
+            return True
+
+        a = plan.actions[anum]
+        active_ts = a.active_timesteps
+        inits = {}
+        if a.name == 'moveto':
+            ## find possible values for the final robot_pose
+            rs_params = [a.params[2]]
+        elif a.name == 'moveholding_basket':
+            ## find possible values for the final robot_pose
+            rs_params = [a.params[2]]
+        elif a.name == 'moveholding_cloth':
+            ## find possible values for the final robot_pose
+            rs_params = [a.params[2]]
+        elif a.name == 'basket_grasp':
+            ## find possible ee_poses for both arms
+            rs_params = None
+        elif a.name == 'basket_putdown':
+            ## find possible ee_poses for both arms
+            rs_params = None
+        elif a.name == 'open_door':
+            ## find possible ee_poses for left arms
+            rs_params = None
+        elif a.name == 'close_door':
+            ## find possible ee_poses for left arms
+            rs_params = None
+        elif a.name == 'cloth_grasp':
+            ## find possible ee_poses for right arms
+            rs_params = None
+        elif a.name == 'cloth_putdown':
+            ## find possible ee_poses for right arms
+            rs_params = None
+        else:
+            raise NotImplemented
+
+        def recursive_solve():
+            ## don't optimize over any params that are already set
+            old_params_free = {}
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p not in a.params: continue
+                    old_params_free[p] = p._free_attrs['value'].copy()
+                    p._free_attrs['value'][:] = 0
+                else:
+                    old_params_free[p] = p._free_attrs['pose'][:, active_ts[1]].copy()
+                    p._free_attrs['pose'][:, active_ts[1]] = 0
+            self.child_solver = RobotLLSolver()
+            if self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose):
+                return True
+            ## reset free_attrs
+            for p in a.params:
+                if p.is_symbol():
+                    if p not in a.params: continue
+                    p._free_attrs['value'] = old_params_free[p]
+                else:
+                    p._free_attrs['pose'][:, active_ts[1]] = old_params_free[p]
+            return False
+
+        if re_param is None or not np.all(rs_param._free_attrs['value']):
+            ## this parameter is fixed
+            if callback is not None:
+                callback_a = lambda: callback(a)
+            else:
+                callback_a = None
+            self.child_solver = RobotLLSolver()
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
+                                              active_ts = active_ts, verbose=verbose, force_init=True)
+
+            if not success:
+                ## if planning fails we're done
+                return False
+            ## no other options, so just return here
+            return recursive_solve()
+
+        ## so that this won't be optimized over
+        rs_free = rs_param._free_attrs['value'].copy()
+        rs_param._free_attrs['value'][:] = 0
+
+
+
+        targets = plan.get_param('InContact', 2, {1:rs_param}, negated=False)
+        if len(targets) > 1:
+            import pdb; pdb.set_trace()
+
+        if callback is not None:
+            callback_a = lambda: callback(a)
+        else:
+            callback_a = None
+
+        robot_poses = []
+
+        if len(targets) == 0 or np.all(targets[0]._free_attrs['value']):
+            ## sample 4 possible poses
+            coords = list(itertools.product(range(WIDTH), range(HEIGHT)))
+            random.shuffle(coords)
+            robot_poses = [np.array(x)[:, None] for x in coords[:4]]
+        elif np.any(targets[0]._free_attrs['value']):
+            ## there shouldn't be only some free_attrs set
+            raise NotImplementedError
+        else:
+            grasp_dirs = [np.array([0, -1]),
+                          np.array([1, 0]),
+                          np.array([0, 1]),
+                          np.array([-1, 0])]
+            grasp_len = plan.params['pr2'].geom.radius + targets[0].geom.radius - dsafe
+            for g_dir in grasp_dirs:
+                grasp = (g_dir*grasp_len).reshape((2, 1))
+                robot_poses.append(targets[0].value + grasp)
+
+        for rp in robot_poses:
+            rs_param.value = rp
+            success = False
+            self.child_solver = RobotLLSolver()
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
+                                              active_ts = active_ts, verbose=verbose,
+                                              force_init=True)
+            if success:
+                if recursive_solve():
+                    break
+                else:
+                    success = False
+        rs_param._free_attrs['value'] = rs_free
         return success
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
