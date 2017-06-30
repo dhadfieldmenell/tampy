@@ -145,11 +145,16 @@ class TestBasketDomain(unittest.TestCase):
         # def draw_cols_ts(ts):
         #     viewer.draw_cols_ts(plan, ts)
         def callback():
-            return None
-        # callback = None
+            # return None
+            return viewer
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
-        result = solver.solve(plan, callback = callback, n_resamples=10)
+
+        # for action in plan.actions:
+        #     active_ts = action.active_timesteps
+
+        result = solver.solve(plan, callback = callback, n_resamples=20)
+
         end = time.time()
 
         baxter = plan.params['baxter']
@@ -182,7 +187,7 @@ class TestBasketDomain(unittest.TestCase):
         """
         print "Saving current plan to file basket_plan.hdf5..."
         serializer = PlanSerializer()
-        serializer.write_plan_to_hdf5("basket_plan.hdf5", plan)
+        serializer.write_plan_to_hdf5("washer_plan.hdf5", plan)
         import ipdb; ipdb.set_trace()
         """
             Uncomment to execution plan in baxter
@@ -257,17 +262,18 @@ class TestBasketDomain(unittest.TestCase):
         washer = params['washer']
         end_targ = params['end_target']
 
-        grasp_rot = np.array([0,np.pi/2,np.pi/2])
+        grasp_rot = np.array([0,np.pi/2,-np.pi/2])
         robot_body = robot.openrave_body
         baskey_body = basket.openrave_body
         washer_body = washer.openrave_body
-        offset = [0.035,-0.1,0.055]
+        offset = [-0.035,0.055,-0.1]
         # -0.035,0.055,-0.1
         tool_link = washer_body.env_body.GetLink("washer_handle")
-        washer_handle_pos = tool_link.GetTransform()[:3, 3]
-        robot_body.set_pose([0,0,np.pi/8])
-        l_arm_pose = robot_body.get_ik_from_pose(washer_handle_pos + offset, grasp_rot, "left_arm")[0]
-        robot_body.set_dof({'lArmPose':l_arm_pose})
+        washer_handle_pos = tool_link.GetTransform().dot(np.r_[offset, 1])[:3]
+        robot_body.set_pose([0,0,np.pi/3])
+        high_offset = [0,0,const.APPROACH_DIST*const.EEREACHABLE_STEPS]
+        l_arm_pose = robot_body.get_ik_from_pose(washer_handle_pos+high_offset, grasp_rot, "left_arm")[1]
+        robot_body.set_dof({'lArmPose': l_arm_pose})
         import ipdb; ipdb.set_trace()
 
     def test_laundry_position(self):

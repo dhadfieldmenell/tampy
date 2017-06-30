@@ -19,9 +19,9 @@ from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import baxter_sampling
 
 
-MAX_PRIORITY=2
+MAX_PRIORITY=3
 BASE_MOVE_COEFF = 10
-TRAJOPT_COEFF=1e3
+TRAJOPT_COEFF=1e-1
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
 DEBUG = True
@@ -36,15 +36,16 @@ attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
 class RobotLLSolver(LLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.transfer_coeff = 1e1
-        self.rs_coeff = 1e10
+        self.rs_coeff = 1e5
+        self.trajopt_coeff = 1e-1
         self.initial_trust_region_size = 1e-2
-        self.init_penalty_coeff = 1e1
+        self.init_penalty_coeff = 1e4
         # self.init_penalty_coeff = 1e5
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
         self.child_solver = None
-        self.solve_priorities = [0, 1, 2]
+        self.solve_priorities = [0, 1, 2, 3]
         self.transfer_norm = transfer_norm
         self.grb_init_mapping = {}
         self.var_list = []
@@ -76,32 +77,51 @@ class RobotLLSolver(LLSolver):
 
         if success or len(plan.get_failed_preds()) == 0:
             return True
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("initialized_plan.hdf5", plan)
 
-            # return success
+        """
+            For Debugging purposes
+        """
+        def check_cnt_violation():
+            preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = priority, tol = 1e-3)]
+            pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
+            print pred_violation, "\n"
+        """
+            Debug End
+        """
+
         for priority in self.solve_priorities:
+            # import ipdb; ipdb.set_trace()
+            # if priority == 2: import ipdb; ipdb.set_trace()
             for attempt in range(n_resamples):
                 ## refinement loop
-                self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose)
-                """
-                    For Debugging purposes
-                """
-                if success and not len(plan.get_failed_preds(priority = priority, tol = 1e-3)) == 0:
-                    preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = priority, tol = 1e-3)]
-                    pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
-                    print pred_violation
-                    if DEBUG: import ipdb; ipdb.set_trace()
 
-                """
-                    Debug End
-                """
+                if DEBUG: check_cnt_violation()
 
                 if success:
                     break
 
+                self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
+
+                if DEBUG: check_cnt_violation()
+
+                """
+                    For Debugging purposes
+                """
+                if success and not len(plan.get_failed_preds(priority = priority, tol = 1e-3)) == 0:
+                    check_cnt_violation()
+                """
+                    Debug End
+                """
+
+
+
             if not success:
                 return False
+
         return success
 
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
@@ -156,7 +176,7 @@ class RobotLLSolver(LLSolver):
             ## a high value on matching the resampled values
             obj_bexprs = []
             variable_helper()
-            rs_obj = self._resample(plan, failed_preds, sample_all = False)
+            rs_obj = self._resample(plan, failed_preds, sample_all = True)
 
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
@@ -205,7 +225,7 @@ class RobotLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
         # if priority == 2 and not resample:
         #     import ipdb; ipdb.set_trace()
-        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=False)
+        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
         self._update_ll_params()
         if DEBUG: assert not plan.has_nan()
 
@@ -560,7 +580,7 @@ class RobotLLSolver(LLSolver):
                         # that numpy will create a diagonal matrix with v and d as a diagonal
                         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
                         Q = np.dot(np.transpose(P), P)
-                        Q *= TRAJOPT_COEFF
+                        Q *= self.trajopt_coeff
 
                         quad_expr = None
                         if attr_name == 'pose' and param._type == 'Robot':

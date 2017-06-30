@@ -315,7 +315,7 @@
    <Joint name="hinge" type="hinge">
      <body>base</body>
      <body>washer_door</body>
-     <limits>-3.14 0.0</limits>
+     <limits>-1.570796326794897 0.0</limits>
      <anchor>0.28 0.4 0.1</anchor>
      <axis>0 0 1</axis>
    </Joint>
