@@ -1032,7 +1032,7 @@ class EEGraspValid(PosePredicate):
 
 class EEReachable(PosePredicate):
     """
-        Format: EEUnreachable Robot, StartPose, EEPose
+        Format: EEReachable Robot, StartPose, EEPose
 
         Robot related
 

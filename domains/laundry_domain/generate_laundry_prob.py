@@ -5,8 +5,8 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-filename = "laundry_probs/laundry.prob"
-GOAL = "(BaxterAt basket end_target), (BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_end_pose)"
+filename = "laundry_probs/cloth_grasp_isolation.prob"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothInGripperLeft baxter cloth)"
 
 
 # init Baxter pose
@@ -36,15 +36,15 @@ WASHER_DOOR = [0.0]
 WASHER_END_DOOR = [-np.pi/2]
 WASHER_CONFIG = [True, True]
 
-CLOTH_INIT_POS = [1,1,1]
-CLOTH_INIT_ROT = [0,0,0]
+CLOTH_INIT_POS_1 = [0.65, 0.401, 0.597]
+CLOTH_INIT_ROT_1 = [0,0,0]
 
-CLOTH_END_POS = [1,1,1]
-CLOTH_END_ROT = [0,0,0]
+CLOTH_END_POS_1 = [0.65, -0.283,0.626]
+CLOTH_END_ROT_1 = [0,0,0]
 
 
 """
-Intermediate Poses
+Intermediate Poses adding it simplifies the plan
 """
 GRASP_POSE = [-np.pi/8]
 GRASP_LARMPOSE = [-0.2       , -1.61656414, -0.61176606,  1.93732774, -0.02776806, 1.24185857, -0.40960045]
@@ -59,6 +59,10 @@ PUTDOWN_GRIPPER = [0.02]
 WASHER_BEGIN_POSE = [np.pi/3]
 WASHER_BEGIN_LARMPOSE = [-0.8       , -0.93703369, -0.27464748,  1.09904023, -2.97863535, -1.4287909 ,  2.35686368]
 WASHER_BEGIN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
+
+CLOTH_PUTDOWN_BEGIN_1_POSE = [-0.399190268963]
+CLOTH_PUTDOWN_BEGIN_1_LARMPOSE = [-1.1, -0.96138319, -0.16294605,  1.58510145, -3.02770777, -0.95638685, 2.22795992]
+CLOTH_PUTDOWN_BEGIN_1_RARMPOSE = [0, -0.785, 0, 0, 0, 0, 0]
 
 WASHER_EE_POS = [0.29 ,  0.781,  0.785]
 WASHER_EE_ROT = [0, np.pi/2, -np.pi/2]
@@ -118,15 +122,15 @@ def main():
         s += "BasketTarget (name {}); ".format("end_target")
 
         s += "Robot (name {}); ".format("baxter")
-        s += "EEPose (name {}); ".format("cg_ee_right_1")
-        s += "EEPose (name {}); ".format("cp_ee_right_1")
+        s += "EEPose (name {}); ".format("cg_ee_1")
+        s += "EEPose (name {}); ".format("cp_ee_1")
         s += "EEPose (name {}); ".format("bg_ee_left")
         s += "EEPose (name {}); ".format("bg_ee_right")
         s += "EEPose (name {}); ".format("bp_ee_left")
         s += "EEPose (name {}); ".format("bp_ee_right")
         s += "EEPose (name {}); ".format("open_door_ee")
-        s += "EEPose (name {}); ".format("cg_ee_right_2")
-        s += "EEPose (name {}); ".format("cp_ee_right_2")
+        s += "EEPose (name {}); ".format("cg_ee_2")
+        s += "EEPose (name {}); ".format("cp_ee_2")
         s += "EEPose (name {}); ".format("close_door_ee")
         s += "RobotPose (name {}); ".format("robot_init_pose")
         s += "RobotPose (name {}); ".format("cloth_grasp_begin_1")
@@ -135,8 +139,8 @@ def main():
         s += "RobotPose (name {}); ".format("cloth_putdown_end_1")
         s += "RobotPose (name {}); ".format("basket_grasp_begin")
         s += "RobotPose (name {}); ".format("basket_grasp_end")
-        s += "RobotPose (name {}); ".format("robot_putdown_begin")
-        s += "RobotPose (name {}); ".format("robot_putdown_end")
+        s += "RobotPose (name {}); ".format("basket_putdown_begin")
+        s += "RobotPose (name {}); ".format("basket_putdown_end")
         s += "RobotPose (name {}); ".format("open_door_begin")
         s += "RobotPose (name {}); ".format("open_door_end")
         s += "RobotPose (name {}); ".format("cloth_grasp_begin_2")
@@ -170,20 +174,20 @@ def main():
         s += "(rotation end_target {}), ".format(BASKET_END_ROT)
 
         s += "(geom cloth), "
-        s += "(pose cloth {}), ".format(CLOTH_INIT_POS)
-        s += "(rotation cloth {}), ".format(CLOTH_INIT_ROT)
+        s += "(pose cloth {}), ".format(CLOTH_INIT_POS_1)
+        s += "(rotation cloth {}), ".format(CLOTH_INIT_ROT_1)
 
-        s += "(value cloth_target_begin_1 {}), ".format(CLOTH_INIT_POS)
-        s += "(rotation cloth_target_begin_1 {}), ".format(CLOTH_INIT_ROT)
+        s += "(value cloth_target_begin_1 {}), ".format(CLOTH_INIT_POS_1)
+        s += "(rotation cloth_target_begin_1 {}), ".format(CLOTH_INIT_ROT_1)
 
-        s += "(value cloth_target_end_1 {}), ".format(CLOTH_END_POS)
-        s += "(rotation cloth_target_end_1 {}), ".format(CLOTH_END_ROT)
+        s += "(value cloth_target_end_1 {}), ".format(CLOTH_END_POS_1)
+        s += "(rotation cloth_target_end_1 {}), ".format(CLOTH_END_ROT_1)
 
         s += get_underfine_symbol("cloth_target_begin_2")
         s += get_underfine_symbol("cloth_target_end_2")
 
-        s += get_underfine_symbol("cg_ee_right_1")
-        s += get_underfine_symbol("cp_ee_right_1")
+        s += get_underfine_symbol("cg_ee_1")
+        s += get_underfine_symbol("cp_ee_1")
         s += get_underfine_symbol("bg_ee_left")
         s += get_underfine_symbol("bg_ee_right")
         s += get_underfine_symbol("bp_ee_left")
@@ -191,8 +195,8 @@ def main():
         # s += get_underfine_symbol("open_door_ee")
         s += '(value open_door_ee {}), '.format(WASHER_EE_POS)
         s += '(rotation open_door_ee {}), '.format(WASHER_EE_ROT)
-        s += get_underfine_symbol("cg_ee_right_2")
-        s += get_underfine_symbol("cp_ee_right_2")
+        s += get_underfine_symbol("cg_ee_2")
+        s += get_underfine_symbol("cp_ee_2")
         # s += get_underfine_symbol("close_door_ee")
         s += '(value close_door_ee {}), '.format(WASHER_END_EE_POS)
         s += '(rotation close_door_ee {}), '.format(WASHER_END_EE_ROT)
@@ -202,12 +206,13 @@ def main():
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
         s += get_undefined_robot_pose_str("cloth_grasp_begin_1")
         s += get_undefined_robot_pose_str("cloth_grasp_end_1")
-        s += get_undefined_robot_pose_str("cloth_putdown_begin_1")
+        # s += get_undefined_robot_pose_str("cloth_putdown_begin_1")
+        s += get_robot_pose_str('cloth_putdown_begin_1', CLOTH_PUTDOWN_BEGIN_1_LARMPOSE, CLOTH_PUTDOWN_BEGIN_1_RARMPOSE, CLOSE_GRIPPER, CLOTH_PUTDOWN_BEGIN_1_POSE)
         s += get_undefined_robot_pose_str("cloth_putdown_end_1")
         s += get_undefined_robot_pose_str("basket_grasp_begin")
         s += get_undefined_robot_pose_str("basket_grasp_end")
-        s += get_undefined_robot_pose_str("robot_putdown_begin")
-        s += get_undefined_robot_pose_str("robot_putdown_end")
+        s += get_undefined_robot_pose_str("basket_putdown_begin")
+        s += get_undefined_robot_pose_str("basket_putdown_end")
         # s += get_undefined_robot_pose_str("open_door_begin")
         s += get_robot_pose_str('open_door_begin', WASHER_BEGIN_LARMPOSE, WASHER_BEGIN_RARMPOSE, INT_GRIPPER, WASHER_BEGIN_POSE)
         s += get_undefined_robot_pose_str("open_door_end")

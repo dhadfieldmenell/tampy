@@ -2,7 +2,9 @@
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_laundry_domain --debug
 
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.find_cloth_position --debug
+nose2 test.test_pma.test_basket_domain.TestBasketDomain.cloth_grasp_isolation --debug
+
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.find_cloth_position --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.collision_debug_env --debug
 
@@ -21,4 +23,4 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.find_cloth_position --de
 
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_cloth_grasp_valid --debug
 
-# nose2 test.test_core.test_util_classes.test_baxter_sampling.TestBaxterSampling.test_resample_basket_moveholding --debug
+# nose2 test.test_core.test_util_classes.test_baxter_sampling.TestBaxterSampling.test_resample_cloth_in_gripper --debug

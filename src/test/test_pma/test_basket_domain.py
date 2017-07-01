@@ -125,25 +125,25 @@ class TestBasketDomain(unittest.TestCase):
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/laundry.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         # plan_str = [
-        # '0: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_GRASP_BEGIN',
-        # '1: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_GRASP_BEGIN GRASP_EE_LEFT GRASP_EE_RIGHT ROBOT_GRASP_END',
-        # '2: MOVEHOLDING BAXTER ROBOT_GRASP_END ROBOT_PUTDOWN_BEGIN BASKET',
-        # '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET ROBOT_PUTDOWN_BEGIN PUTDOWN_EE_LEFT PUTDOWN_EE_RIGHT ROBOT_PUTDOWN_END',
-        # '4: MOVETO BAXTER ROBOT_PUTDOWN_END ROBOT_WASHER_BEGIN',
-        # '5: OPEN_DOOR BAXTER WASHER ROBOT_WASHER_BEGIN WASHER_EE ROBOT_WASHER_END WASHER_INIT_POSE WASHER_END_POSE',
-        # '6: MOVETO BAXTER ROBOT_WASHER_END ROBOT_END_POSE',
+        # '0: MOVETO BAXTER ROBOT_INIT_POSE BASKET_GRASP_BEGIN',
+        # '1: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        # '2: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        # '3: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        # '4: MOVETO BAXTER BASKET_PUTDOWN_END ROBOT_END_POSE'
+        # # '5: OPEN_DOOR BAXTER WASHER ROBOT_WASHER_BEGIN WASHER_EE ROBOT_WASHER_END WASHER_INIT_POSE WASHER_END_POSE',
+        # # '6: MOVETO BAXTER ROBOT_WASHER_END ROBOT_END_POSE',
         # ]
-        cloth_target_begin_1
+
         plan_str = [
         '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
-        '1: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_RIGHT_1 CLOTH_GRASP_END_1',
-        '2: MOVEHOLDING_CLOTH CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
-        '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_RIGHT_1 CLOTH_PUTDOWN_END_1',
-        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 BASKET_GRASP_BEGIN',
-        '5: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
-        '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
-        '7: BASKET_PUTDOWN BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
-        '8: MOVETO BAXTER BASKET_PUTDOWN_END ROBOT_END_POSE'
+        '1: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
+        '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 ROBOT_END_POSE',
+        # '5: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        # '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        # '7: BASKET_PUTDOWN BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        # '8: MOVETO BAXTER BASKET_PUTDOWN_END ROBOT_END_POSE'
         ]
 
 
@@ -208,6 +208,47 @@ class TestBasketDomain(unittest.TestCase):
         # print "executing plan in Baxter..."
         # for act in plan.actions:
         #     action_execution.execute_action(act)
+
+
+    def cloth_grasp_isolation(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/cloth_grasp_isolation.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        '1: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
+        ]
+        plan = hls.get_plan(plan_str, domain, problem)
+
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback():
+            return viewer
+        start = time.time()
+        solver = robot_ll_solver.RobotLLSolver()
+        result = solver.solve(plan, callback = callback, n_resamples=20)
+        end = time.time()
+
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        # baxter.time = traj_retiming(plan).reshape((1, plan.horizon))
+
+        print "Saving current plan to file basket_plan.hdf5..."
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("cloth_grasp_plan.hdf5", plan)
+        import ipdb; ipdb.set_trace()
+        """
+            Uncomment to execution plan in baxter
+        """
+        # print "executing plan in Baxter..."
+        # for act in plan.actions:
+        #     action_execution.execute_action(act)
+
 
     def test_basket_position(self):
 
@@ -388,9 +429,20 @@ class TestBasketDomain(unittest.TestCase):
         viewer.draw(objLst, 0, 0.7)
 
         robot = params['baxter']
+        rave_body = robot.openrave_body
         cloth = params['cloth']
-        cloth_target = params['cloth_target_begin_1']
+        cloth_target = params['cloth_target_end_1']
 
+        cloth.pose[:, 0] = cloth_target.value[:, 0]
+        cloth.rotation[:, 0] = cloth_target.rotation[:, 0]
+        cloth.openrave_body.set_pose(cloth.pose[:, 0], cloth.rotation[:, 0])
+
+        ee_pos, ee_rot = cloth_target.value[:, 0] + np.array([0,0,const.APPROACH_DIST*const.EEREACHABLE_STEPS]), np.array([0, np.pi/2, 0])
+        facing_pose = ee_pos[:2].dot([0,1])/np.linalg.norm(ee_pos[:2])
+        rave_body.set_pose([0,0,facing_pose])
+        arm_pose = rave_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")[0]
+        rave_body.set_dof({'lArmPose': arm_pose})
+        print arm_pose, facing_pose
         import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":

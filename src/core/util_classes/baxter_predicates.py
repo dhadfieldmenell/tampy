@@ -55,6 +55,9 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
 class BaxterAt(robot_predicates.At):
     pass
 
+class BaxterClothAt(robot_predicates.At):
+    pass
+
 class BaxterRobotAt(robot_predicates.RobotAt):
 
     # RobotAt, Robot, RobotPose
@@ -163,6 +166,9 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
         return A, b, val
 
 class BaxterStationary(robot_predicates.Stationary):
+    pass
+
+class BaxterStationaryCloth(robot_predicates.Stationary):
     pass
 
 class BaxterStationaryWasher(robot_predicates.StationaryBase):
@@ -521,6 +527,9 @@ class BaxterObstructs(robot_predicates.Obstructs):
                          "rGripper": r_gripper}
         robot_body.set_dof(dof_value_map)
 
+class BaxterObstructsCloth(BaxterObstructs):
+    pass
+
 class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
@@ -565,6 +574,9 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
             robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
+
+class BaxterObstructsHoldingCloth(BaxterObstructsHolding):
+    pass
 
 class BaxterCollides(robot_predicates.Collides):
 
@@ -730,7 +742,7 @@ class BaxterEEReachableLeftVer(BaxterEEReachableLeft):
 
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
-        return baxter_sampling.resample_basket_eereachable_rrt(self, negated, t, plan)
+        return baxter_sampling.resample_eereachable_ver(self, negated, t, plan)
 
 class BaxterEEReachableRightVer(BaxterEEReachableRight):
 
@@ -742,7 +754,7 @@ class BaxterEEReachableRightVer(BaxterEEReachableRight):
 
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
-        return baxter_sampling.resample_basket_eereachable_rrt(self, negated, t, plan)
+        return baxter_sampling.resample_eereachable_ver(self, negated, t, plan)
 
 class BaxterEEApproachLeft(BaxterEEReachable):
 
@@ -977,11 +989,15 @@ class BaxterWasherInGripper(BaxterInGripperLeft):
         rel_pt = np.array([-0.035,0.055,-0.1])
         return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.rot_check_jac(x), 0]])
 
-class BaxterClothInGripper(BaxterInGripperRight):
+class BaxterClothInGripperRight(BaxterInGripperRight):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-
+        self.arm = "right"
         self.eval_dim = 12
-        super(BaxterClothInGripper, self).__init__(name, params, expected_param_types, env, debug)
+        super(BaxterClothInGripperRight, self).__init__(name, params, expected_param_types, env, debug)
+
+    def resample(self, negated, t, plan):
+        print "resample {}".format(self.get_type())
+        return baxter_sampling.resample_cloth_in_gripper(self, negated, t, plan)
 
     def rot_error_f(self, obj_trans, robot_trans, local_dir):
         """
@@ -1026,6 +1042,60 @@ class BaxterClothInGripper(BaxterInGripperRight):
         # Create final 1x23 jacobian matrix
         rot_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
         return rot_jac
+
+class BaxterClothInGripperLeft(BaxterInGripperLeft):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.arm = "left"
+        self.eval_dim = 12
+        super(BaxterClothInGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
+
+    def rot_error_f(self, obj_trans, robot_trans, local_dir):
+        """
+            This function calculates the value of the rotational error between
+            robot gripper's rotational axis and object's rotational axis
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+        world_dir = robot_trans[:3,:3].dot([1,0,0])
+        obj_dir = obj_dir/np.linalg.norm(obj_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
+        return rot_val
+
+    def rot_error_jac(self, obj_trans, robot_trans, axises, arm_joints, local_dir):
+        """
+            This function calculates the jacobian of the rotational error between
+            robot gripper's rotational axis and object's rotational axis
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+        """
+
+        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
+        world_dir = robot_trans[:3,:3].dot([1,0,0])
+        obj_dir = obj_dir/np.linalg.norm(obj_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        sign = np.sign(np.dot(obj_dir, world_dir))
+        # computing robot's jacobian
+        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in arm_joints]).T.copy()
+        arm_jac = arm_jac.reshape((1, len(arm_joints)))
+        base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
+        # computing object's jacobian
+        obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+        obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
+        # Create final 1x23 jacobian matrix
+        rot_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
+        return rot_jac
+
+    def resample(self, negated, t, plan):
+        print "resample {}".format(self.get_type())
+        return baxter_sampling.resample_cloth_in_gripper(self, negated, t, plan)
 
 """
     Basket Constraint Family

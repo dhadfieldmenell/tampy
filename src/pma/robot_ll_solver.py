@@ -222,8 +222,6 @@ class RobotLLSolver(LLSolver):
         """
 
         for priority in self.solve_priorities:
-            # import ipdb; ipdb.set_trace()
-            # if priority == 2: import ipdb; ipdb.set_trace()
             for attempt in range(n_resamples):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
@@ -246,8 +244,6 @@ class RobotLLSolver(LLSolver):
                 """
                     Debug End
                 """
-
-
 
             if not success:
                 return False
@@ -307,7 +303,6 @@ class RobotLLSolver(LLSolver):
             obj_bexprs = []
             variable_helper()
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
-
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
@@ -390,7 +385,7 @@ class RobotLLSolver(LLSolver):
                 pred_value = [pred.get_param_vector(t) for negated, pred, t in preds_list]
                 cnt_value = [cnt.var.get_value() for cnt in cnt_list]
 
-                import ipdb; ipdb.set_trace()
+
 
             if DEBUG: assert success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0)
         """
@@ -695,7 +690,6 @@ class RobotLLSolver(LLSolver):
         for param in plan.params.values():
             if param not in self._param_to_ll:
                 continue
-            if DEBUG: assert isinstance(param, Object) == (param._type in ['Robot', 'Can', 'Basket', 'Washer', 'Obstacle'])
             if isinstance(param, Object):
                 for attr_name in param.__dict__.iterkeys():
                     attr_type = param.get_attr_type(attr_name)

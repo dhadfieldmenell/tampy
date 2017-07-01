@@ -131,16 +131,16 @@ class TestBaxterSampling(unittest.TestCase):
 
     def test_resample_basket_ee_reachable(self):
         pd = PlanDeserializer()
-        plan = pd.read_from_hdf5('initialized_plan')
+        plan = pd.read_from_hdf5('test_resample_plan')
         env = plan.env
         viewer = OpenRAVEViewer.create_viewer(env)
         viewer.draw_plan_ts(plan, 0)
         robot = plan.params['baxter']
         robot_pose = plan.params['robot_init_pose']
-        ee_left = plan.params['grasp_ee_left']
-        ee_right = plan.params['grasp_ee_right']
-        ee_putdown_left = plan.params['putdown_ee_left']
-        ee_putdown_right = plan.params['putdown_ee_right']
+        ee_left = plan.params['bg_ee_left']
+        ee_right = plan.params['bg_ee_right']
+        ee_putdown_left = plan.params['bp_ee_left']
+        ee_putdown_right = plan.params['bp_ee_right']
 
         basket = plan.params['basket']
 
@@ -169,12 +169,51 @@ class TestBaxterSampling(unittest.TestCase):
         resampled_value(left_pred2, False, 53, plan)
         resampled_value(right_pred2, False, 53, plan)
 
+    def test_resample_eereachable_ver(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('test_resample_plan.hdf5')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        robot_pose = plan.params['robot_init_pose']
+        ee_left = plan.params['bg_ee_left']
+        ee_right = plan.params['bg_ee_right']
+        ee_putdown_left = plan.params['bp_ee_left']
+        ee_putdown_right = plan.params['bp_ee_right']
+
+        basket = plan.params['basket']
 
 
+        left_pred = baxter_predicates.BaxterEEReachableLeftVer('test_ee_left', [robot, robot_pose, ee_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
+        right_pred = baxter_predicates.BaxterEEReachableRightVer('test_ee_right', [robot, robot_pose, ee_right], ['Robot', 'RobotPose', 'EEPose'], env=env)
+
+        left_pred2 = baxter_predicates.BaxterEEReachableLeftVer('test_ee_left', [robot, robot_pose, ee_putdown_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
+        right_pred2 = baxter_predicates.BaxterEEReachableRightVer('test_ee_right', [robot, robot_pose, ee_putdown_right], ['Robot', 'RobotPose', 'EEPose'], env=env)
+
+        basket_pos, offset = basket.pose[:, 24], [0,0.317,0]
+        ee_left.value = np.array([basket_pos + offset]).T
+        ee_left.rotation = np.array([[0,np.pi/2, 0]]).T
+        ee_right.value = np.array([basket_pos - offset]).T
+        ee_right.rotation = np.array([[0,np.pi/2, 0]]).T
+
+        self.assertFalse(left_pred.test(24))
+        self.assertFalse(right_pred.test(24))
+        self.assertFalse(left_pred2.test(53))
+        self.assertFalse(right_pred2.test(53))
+
+        def resample_check(pred, negated, t, plan):
+            res, attr_inds = baxter_sampling.resample_eereachable_ver(pred, negated, t, plan)
+            self.assertTrue(pred.test(t))
+
+        resample_check(left_pred, False, 24, plan)
+        resample_check(right_pred, False, 24, plan)
+        resample_check(left_pred2, False, 53, plan)
+        resample_check(right_pred2, False, 53, plan)
 
     def test_resample_ee_approach_retreat(self):
         pd = PlanDeserializer()
-        plan = pd.read_from_hdf5('initialized_plan')
+        plan = pd.read_from_hdf5('test_resample_plan')
         env = plan.env
         viewer = OpenRAVEViewer.create_viewer(env)
         viewer.draw_plan_ts(plan, 0)
@@ -201,7 +240,7 @@ class TestBaxterSampling(unittest.TestCase):
     def test_resample_in_gripper(self):
         # TODO resample in gripper doesn't quite work
         pd = PlanDeserializer()
-        plan = pd.read_from_hdf5('initialized_plan')
+        plan = pd.read_from_hdf5('test_resample_plan')
         env = plan.env
         viewer = OpenRAVEViewer.create_viewer(env)
         viewer.draw_plan_ts(plan, 0)
@@ -221,9 +260,28 @@ class TestBaxterSampling(unittest.TestCase):
         for ts in checking_ts:
             resampled_value(pred, False, ts, plan)
 
-    def test_resample_basket_moveholding(self):
+    def test_resample_cloth_in_gripper(self):
         pd = PlanDeserializer()
         plan = pd.read_from_hdf5('initialized_plan')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        cloth = plan.params['cloth']
+        pred = baxter_predicates.BaxterClothInGripperLeft('test_cloth_in_gripper', [robot, cloth], ['Robot', 'Cloth'], env=env)
+        self.assertFalse(pred.test(30))
+
+        def resampled_value(pred, negated, t, plan):
+            res, attr_inds = baxter_sampling.resample_cloth_in_gripper(pred, negated, t, plan)
+            self.assertTrue(pred.test(t))
+
+        for ts in range(30, 49):
+            resampled_value(pred, False, ts, plan)
+
+
+    def test_resample_basket_moveholding(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('test_resample_plan')
         env = plan.env
         viewer = OpenRAVEViewer.create_viewer(env)
         viewer.draw_plan_ts(plan, 0)
