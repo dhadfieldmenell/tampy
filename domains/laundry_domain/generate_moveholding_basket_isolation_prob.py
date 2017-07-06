@@ -5,18 +5,24 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-filename = "laundry_probs/cloth_grasp_isolation.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothInGripperLeft baxter cloth)"
+filename = "laundry_probs/moveholding_basket_isolation.prob"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterBasketInGripper baxter basket)"
 
 
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
-R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
+R_ARM_INIT = [ 0.8       , -1.04283752, -0.96074799,  1.25901501, -2.71593423, -1.56108259,  2.26129968]
+L_ARM_INIT = [-0.9       , -1.37465729, -0.37976225,  1.47880368,  0.07260239, 1.48054184, -0.49429886]
 INT_GRIPPER = [0.02]
-CLOSE_GRIPPER = [0.015]
+
+BAXTER_END_POSE = [0]
+R_ARM_END = [ 0.9       , -1.31104393,  0.48269435,  1.40766811, -0.11977619, 1.5032262 ,  0.59152858]
+L_ARM_END = [-0.2       , -1.16795162,  0.065334  ,  1.16072076, -0.02559873, 1.57879428,  0.64531233]
+
+END_GRIPPER = [0.015]
 # init basket pose
-BASKET_INIT_POS = [0.65 , -0.283,  0.81]
+BASKET_INIT_POS = [0.65 , -0.283,  1]
+# BASKET_INIT_POS = [0.65 , 0.323,  1]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
 
 # end basket pose
@@ -35,6 +41,9 @@ WASHER_ROT = [np.pi, 0, np.pi/2]
 WASHER_DOOR = [0.0]
 WASHER_END_DOOR = [-np.pi/2]
 WASHER_CONFIG = [True, True]
+
+CLOTH_INIT_POS = [2,2,2]
+CLOTH_INIT_ROT = [0,0,0]
 
 CLOTH_INIT_POS_1 = [0.65, 0.401, 0.557]
 CLOTH_INIT_ROT_1 = [0,0,0]
@@ -175,8 +184,8 @@ def main():
         s += "(rotation end_target {}), ".format(BASKET_END_ROT)
 
         s += "(geom cloth), "
-        s += "(pose cloth {}), ".format(CLOTH_INIT_POS_1)
-        s += "(rotation cloth {}), ".format(CLOTH_INIT_ROT_1)
+        s += "(pose cloth {}), ".format(CLOTH_INIT_POS)
+        s += "(rotation cloth {}), ".format(CLOTH_INIT_ROT)
 
         s += "(value cloth_target_begin_1 {}), ".format(CLOTH_INIT_POS_1)
         s += "(rotation cloth_target_begin_1 {}), ".format(CLOTH_INIT_ROT_1)
@@ -223,7 +232,7 @@ def main():
         s += get_undefined_robot_pose_str("cloth_putdown_end_2")
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
-        s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+        s += get_robot_pose_str('robot_end_pose', L_ARM_END, R_ARM_END, END_GRIPPER, BAXTER_END_POSE)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_POS)

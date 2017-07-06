@@ -1110,7 +1110,7 @@ def resample_basket_obstructs(pred, negated, t, plan):
     attempt, step = 0, 1
     while attempt < 50 and len(pred._cc.BodyVsBody(body, obs)) > 0:
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.01,0.01,0.1])
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.005,0.005,0.1])
         arm_pose = get_ik_from_pose(target_ee, [0, np.pi/2, 0], body, "{}_arm".format(arm))
         if arm_pose is None:
             step += 1
@@ -1185,7 +1185,7 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
 
     while attempt < 50 and (len(pred._cc.BodyVsBody(body, obs)) > 0 or len(pred._cc.BodyVsBody(held_env_body, obs))):
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.01,0.01,0.1])
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.005,0.005,0.1])
         arm_pose = get_ik_from_pose(target_ee, [0, np.pi/2, 0], body, "{}_arm".format(arm))
         if arm_pose is None:
             step += 1
