@@ -4,8 +4,7 @@ from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
 from openravepy import matrixFromAxisAngle
 from core.internal_repr.parameter import Object
-from core.util_classes import common_predicates
-from core.util_classes import baxter_predicates
+from core.util_classes import baxter_predicates, common_predicates, robot_predicates
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer
@@ -35,7 +34,7 @@ attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
 
 class RobotLLSolver(LLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
-        self.transfer_coeff = 1e1
+        self.transfer_coeff = 1e-2
         self.rs_coeff = 1e5
         self.trajopt_coeff = 1e-1
         self.initial_trust_region_size = 1e-2
@@ -76,31 +75,31 @@ class RobotLLSolver(LLSolver):
         inits = {}
         if a.name == 'moveto':
             ## find possible values for the final robot_pose
-            rs_params = [a.params[2]]
+            rs_param = a.params[2]
         elif a.name == 'moveholding_basket':
             ## find possible values for the final robot_pose
-            rs_params = [a.params[2]]
+            rs_param = a.params[2]
         elif a.name == 'moveholding_cloth':
             ## find possible values for the final robot_pose
-            rs_params = [a.params[2]]
+            rs_param = a.params[2]
         elif a.name == 'basket_grasp':
             ## find possible ee_poses for both arms
-            rs_params = None
+            rs_param = None
         elif a.name == 'basket_putdown':
             ## find possible ee_poses for both arms
-            rs_params = None
+            rs_param = None
         elif a.name == 'open_door':
             ## find possible ee_poses for left arms
-            rs_params = None
+            rs_param = None
         elif a.name == 'close_door':
             ## find possible ee_poses for left arms
-            rs_params = None
+            rs_param = None
         elif a.name == 'cloth_grasp':
             ## find possible ee_poses for right arms
-            rs_params = None
+            rs_param = None
         elif a.name == 'cloth_putdown':
             ## find possible ee_poses for right arms
-            rs_params = None
+            rs_param = None
         else:
             raise NotImplemented
 
@@ -126,15 +125,16 @@ class RobotLLSolver(LLSolver):
                 else:
                     p._free_attrs['pose'][:, active_ts[1]] = old_params_free[p]
             return False
-
-        if re_param is None or not np.all(rs_param._free_attrs['value']):
+        import ipdb; ipdb.set_trace()
+        # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
+        if rs_param is None or not np.all(rs_param._free_attrs['value']):
             ## this parameter is fixed
             if callback is not None:
                 callback_a = lambda: callback(a)
             else:
                 callback_a = None
             self.child_solver = RobotLLSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
                                               active_ts = active_ts, verbose=verbose, force_init=True)
 
             if not success:
@@ -144,45 +144,60 @@ class RobotLLSolver(LLSolver):
             return recursive_solve()
 
         ## so that this won't be optimized over
-        rs_free = rs_param._free_attrs['value'].copy()
+        rs_free = rs_param._free_attrs.copy()
         rs_param._free_attrs['value'][:] = 0
 
 
+        """
+        sampler_begin
+        """
+        assert anum + 1 > len(plan.actions) - 1
+        next_act = next_act = plan.actions[anum+1]
 
-        targets = plan.get_param('InContact', 2, {1:rs_param}, negated=False)
-        if len(targets) > 1:
-            import pdb; pdb.set_trace()
+        spacial_pred = [pred for pred in next_act.get_all_active_preds() if isinstance(pred, robot_predicates.EEReachable)]
+        if len(spacial_pred) == 0:
+            import ipdb; ipdb.set_trace()
+        spacial_pred = spacial_pred[0]
+        ee_target = spacial_pred.get_rel_pt(spacial_pred.active_range[0])
+        rotation = np.array([0,np.pi/2, 0])
+
+        robot_pose = []
+        if next_act.name.find("cloth_grasp") >= 0:
+            arm_poses = spacial_pred.robot.openrave_body.get_ik_from_pose(ee_target, rotation, "left_arm")
+            for pose in arm_poses:
+                robot_pose.append({'lArmPose': pose.reshape((7,1))})
+
+        elif next_act.name.find("basket_grasp") >= 0:
+            pass
+        elif next_act.name.find("cloth_putdown") >= 0:
+            arm_poses = spacial_pred.robot.openrave_body.get_ik_from_pose(ee_target, rotation, "left_arm")
+            for pose in arm_poses:
+                robot_pose.append({'lArmPose': pose.reshape((7,1))})
+
+        elif next_act.name.find("basket_putdown") >= 0:
+            pass
+        elif next_act.name.find("open_door") >= 0:
+            pass
+        elif next_act.name.find("close_door") >= 0:
+            pass
+        else:
+            raise NotImplementedError
 
         if callback is not None:
             callback_a = lambda: callback(a)
         else:
             callback_a = None
-
-        robot_poses = []
-
-        if len(targets) == 0 or np.all(targets[0]._free_attrs['value']):
-            ## sample 4 possible poses
-            coords = list(itertools.product(range(WIDTH), range(HEIGHT)))
-            random.shuffle(coords)
-            robot_poses = [np.array(x)[:, None] for x in coords[:4]]
-        elif np.any(targets[0]._free_attrs['value']):
-            ## there shouldn't be only some free_attrs set
-            raise NotImplementedError
-        else:
-            grasp_dirs = [np.array([0, -1]),
-                          np.array([1, 0]),
-                          np.array([0, 1]),
-                          np.array([-1, 0])]
-            grasp_len = plan.params['pr2'].geom.radius + targets[0].geom.radius - dsafe
-            for g_dir in grasp_dirs:
-                grasp = (g_dir*grasp_len).reshape((2, 1))
-                robot_poses.append(targets[0].value + grasp)
+        """
+        sampler end
+        """
 
         for rp in robot_poses:
-            rs_param.value = rp
+            for attr, val in rp.itertools():
+                setattr(rs_param, attr, val)
+
             success = False
             self.child_solver = RobotLLSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=0,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
                                               active_ts = active_ts, verbose=verbose,
                                               force_init=True)
             if success:
@@ -210,40 +225,23 @@ class RobotLLSolver(LLSolver):
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("initialized_plan.hdf5", plan)
 
-        """
-            For Debugging purposes
-        """
-        def check_cnt_violation():
-            preds = [(negated, pred, t) for negated, pred, t in plan.get_failed_preds(priority = priority, tol = 1e-3)]
-            pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds]
-            print pred_violation, "\n"
-        """
-            Debug End
-        """
-
         for priority in self.solve_priorities:
+            # if priority == 3: import ipdb; ipdb.set_trace()
             for attempt in range(n_resamples):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose)
 
-                if DEBUG: check_cnt_violation()
+                if DEBUG: plan.check_cnt_violation(priority = priority, tol = 1e-3)
 
                 if success:
                     break
 
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
-                if DEBUG: check_cnt_violation()
+                if DEBUG: plan.check_cnt_violation(priority = priority, tol = 1e-3)
 
-                """
-                    For Debugging purposes
-                """
-                if success and not len(plan.get_failed_preds(priority = priority, tol = 1e-3)) == 0:
-                    check_cnt_violation()
-                """
-                    Debug End
-                """
+                assert not (success and not len(plan.get_failed_preds(priority = priority, tol = 1e-3)) == 0)
 
             if not success:
                 return False
@@ -295,24 +293,26 @@ class RobotLLSolver(LLSolver):
             When Optimization fails, resample new values for certain timesteps
             of the trajectory and solver as initialization
             """
-            ## this should only get called with a full plan for now
-            failed_preds = plan.get_failed_preds(priority=priority, tol = tol)
+            obj_bexprs = []
+
+            failed_by_act = plan.get_failed_preds_by_action(priority=priority, tol = tol)
+            rs_obj = []
+            for failed in failed_by_act:
+                rs_obj.extend(self._resample(plan, failed, sample_all = True))
 
             ## this is an objective that places
             ## a high value on matching the resampled values
-            obj_bexprs = []
-            variable_helper()
-            rs_obj = self._resample(plan, failed_preds, sample_all = True)
+            # failed_preds = plan.get_failed_preds(priority=priority, tol = tol)
+            # rs_obj = self._resample(plan, failed_preds, sample_all = True)
+
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
 
             self._add_all_timesteps_of_actions(plan, priority=priority,
                 add_nonlin=False, active_ts= active_ts, verbose=verbose)
-            # variable_helper()
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
-            # variable_helper()
             initial_trust_region_size = 1e3
         else:
             self._bexpr_to_pred = {}
@@ -348,10 +348,10 @@ class RobotLLSolver(LLSolver):
         solv.initial_trust_region_size = initial_trust_region_size
         solv.initial_penalty_coeff = self.init_penalty_coeff
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
-        # if priority == 2 and not resample:
-        #     import ipdb; ipdb.set_trace()
+
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
         self._update_ll_params()
+
         if DEBUG: assert not plan.has_nan()
 
         if resample:
@@ -513,11 +513,15 @@ class RobotLLSolver(LLSolver):
         """
         bexprs = []
         val, attr_inds = None, None
+        pred_type = {}
         for negated, pred, t in preds:
             ## returns a vector of new values and an
             ## attr_inds (OrderedDict) that gives the mapping
             ## to parameter attributes
+            if pred_type.get(pred.get_type, False):
+                continue
             val, attr_inds = pred.resample(negated, t, plan)
+            if val is not None: pred_type[pred.get_type] = True
             ## if no resample defined for that pred, continue
             if val is not None:
                 for p in attr_inds:

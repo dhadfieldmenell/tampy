@@ -50,6 +50,14 @@ class Action(object):
             if start <= t and end >= t: res.append(pred_d['pred'])
         return res
 
+    def get_all_active_preds(self):
+        preds = set()
+        ts_range = self.active_timesteps
+        for t in range(ts_range[0], ts_range[1]+1):
+            for res in self.get_active_preds(t):
+                preds.add(res)
+        return preds
+
     def satisfied(self, active_ts=None):
         if active_ts is None:
             active_ts = self.active_timesteps

@@ -36,7 +36,7 @@ WASHER_DOOR = [0.0]
 WASHER_END_DOOR = [-np.pi/2]
 WASHER_CONFIG = [True, True]
 
-CLOTH_INIT_POS_1 = [0.65, 0.401, 0.597]
+CLOTH_INIT_POS_1 = [0.65, 0.401, 0.557]
 CLOTH_INIT_ROT_1 = [0,0,0]
 
 CLOTH_END_POS_1 = [0.65, -0.283,0.626]
@@ -60,8 +60,8 @@ WASHER_BEGIN_POSE = [np.pi/3]
 WASHER_BEGIN_LARMPOSE = [-0.8       , -0.93703369, -0.27464748,  1.09904023, -2.97863535, -1.4287909 ,  2.35686368]
 WASHER_BEGIN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
 
-CLOTH_PUTDOWN_BEGIN_1_POSE = [-0.399190268963]
-CLOTH_PUTDOWN_BEGIN_1_LARMPOSE = [-1.1, -0.96138319, -0.16294605,  1.58510145, -3.02770777, -0.95638685, 2.22795992]
+CLOTH_PUTDOWN_BEGIN_1_POSE = [0]
+CLOTH_PUTDOWN_BEGIN_1_LARMPOSE = [-1.2, 0.30161054, -2.28704166, 0.95204077, 2.26996069, 1.91600073, -1.12607844]
 CLOTH_PUTDOWN_BEGIN_1_RARMPOSE = [0, -0.785, 0, 0, 0, 0, 0]
 
 WASHER_EE_POS = [0.29 ,  0.781,  0.785]
@@ -164,6 +164,7 @@ def main():
         s += "(geom basket), "
         s += "(pose basket {}), ".format(BASKET_INIT_POS)
         s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
+        s += "(time basket {}), ".format([0])
 
         s += "(geom init_target)"
         s += "(value init_target {}), ".format(BASKET_INIT_POS)

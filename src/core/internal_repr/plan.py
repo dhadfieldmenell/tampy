@@ -128,6 +128,14 @@ class Plan(object):
             failed.extend(a.get_failed_preds(active_ts, priority, tol=tol))
         return failed
 
+    def get_failed_preds_by_action(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
+        if active_ts == None:
+            active_ts = (0, self.horizon-1)
+        failed = []
+        for a in self.actions:
+            failed.append(a.get_failed_preds(active_ts, priority, tol=tol))
+        return failed
+
     def satisfied(self, active_ts=None):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
@@ -143,6 +151,12 @@ class Plan(object):
             if start <= t and end >= t:
                 res.extend(a.get_active_preds(t))
         return res
+
+    def check_cnt_violation(self, priority, tol):
+        preds = [(negated, pred, t) for negated, pred, t in self.get_failed_preds(priority = priority, tol = tol)]
+        for negated, pred, t in preds:
+            pred.check_pred_violation(t, negated=negated, tol=tol)
+
 
     def prefix(self, fail_step):
         """

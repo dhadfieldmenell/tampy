@@ -37,7 +37,7 @@ class PrimitivePredicates(object):
         return prim_str
 
 pp = PrimitivePredicates()
-pp.add('Basket', [('geom', 'Basket'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('Basket', [('geom', 'Basket'), ('pose', 'Vector3d'), ('rotation', 'Vector3d'), ('time', 'Vector1d')])
 pp.add('BasketTarget', [('geom', 'Basket'), ('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Cloth', [('geom', 'Cloth'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('ClothTarget', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
@@ -175,6 +175,7 @@ class Move(Action):
             ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Washer)\
@@ -205,6 +206,7 @@ class MoveHoldingBasket(Action):
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?basket))\
             )', '0:{}'.format(end)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
@@ -235,6 +237,9 @@ class MoveHoldingCloth(Action):
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
             )', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
@@ -530,7 +535,7 @@ class ClothGrasp(Action):
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
-            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
@@ -586,7 +591,7 @@ class ClothPutdown(Action):
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
-            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\

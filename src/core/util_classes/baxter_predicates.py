@@ -491,17 +491,16 @@ class BaxterObstructs(robot_predicates.Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
         self.attr_dim = 17
         self.dof_cache = None
-        self.coeff = -const.OBSTRUCTS_COEEF
-        self.neg_coeff = const.OBSTRUCTS_COEEF
+        self.coeff = -const.OBSTRUCTS_COEFF
+        self.neg_coeff = const.OBSTRUCTS_COEFF
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
 
-    # def resample(self, negated, t, plan):
-        # return resample_pred(self, negated, t, plan)
-        # return resample_basket_obstructs(self, negated, t, plan)
-        # return None, None
+    def resample(self, negated, t, plan):
+        print "resample {}".format(self.get_type())
+        return baxter_sampling.resample_basket_obstructs(self, negated, t, plan)
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -537,19 +536,17 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
         self.attr_dim = 17
         self.dof_cache = None
-        self.coeff = -1
-        self.neg_coeff = 1
+        self.coeff = -const.OBSTRUCTS_COEFF
+        self.neg_coeff = const.OBSTRUCTS_COEFF
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[3], list(ATTRMAP[params[3]._type])),
                                  (params[4], list(ATTRMAP[params[4]._type]))])
-        self.OBSTRUCTS_OPT_COEFF = const.OBSTRUCTS_OPT_COEFF
         super(BaxterObstructsHolding, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
 
-    # def resample(self, negated, t, plan):
-        # return resample_basket_obstructs(self, negated, t, plan)
-        # return resample_pred(self, negated, t, plan)
-        # return None, None
+    def resample(self, negated, t, plan):
+        print "resample {}".format(self.get_type())
+        return baxter_sampling.resample_basket_obstructs_holding(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -566,7 +563,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
-        if reset == True and self.dof_cache != None:
+        if reset and self.dof_cache is not None:
             robot.SetActiveDOFs(self.dof_cache)
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
@@ -583,6 +580,8 @@ class BaxterCollides(robot_predicates.Collides):
     # Collides Basket Obstacle
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = -const.COLLIDE_COEFF
+        self.neg_coeff = const.COLLIDE_COEFF
         super(BaxterCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = const.COLLIDES_DSAFE
 
@@ -595,15 +594,13 @@ class BaxterRCollides(robot_predicates.RCollides):
         self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        self.coeff = -1
-        self.neg_coeff = 1
-        self.opt_coeff = const.RCOLLIDES_OPT_COEFF
+        self.coeff = -const.RCOLLIDE_COEFF
+        self.neg_coeff = const.RCOLLIDE_COEFF
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = const.RCOLLIDES_DSAFE
 
-    # def resample(self, negated, t, plan):
-        # return resample_pred(self, negated, t, plan)
-        # return resample_obstructs(self, negated, t, plan)
+    def resample(self, negated, t, plan):
+        return baxter_sampling.resample_basket_obstructs(self, negated, t, plan)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -989,113 +986,37 @@ class BaxterWasherInGripper(BaxterInGripperLeft):
         rel_pt = np.array([-0.035,0.055,-0.1])
         return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.rot_check_jac(x), 0]])
 
-class BaxterClothInGripperRight(BaxterInGripperRight):
+class BaxterClothInGripperRight(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "right"
-        self.eval_dim = 12
+        self.eval_dim = 3
         super(BaxterClothInGripperRight, self).__init__(name, params, expected_param_types, env, debug)
 
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_cloth_in_gripper(self, negated, t, plan)
 
-    def rot_error_f(self, obj_trans, robot_trans, local_dir):
-        """
-            This function calculates the value of the rotational error between
-            robot gripper's rotational axis and object's rotational axis
+    def stacked_f(self, x):
+        return self.coeff * self.pos_check_f(x)
 
-            obj_trans: object's rave_body transformation
-            robot_trans: robot gripper's rave_body transformation
-            axises: rotational axises of the object
-            arm_joints: list of robot joints
-        """
-        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
-        world_dir = robot_trans[:3,:3].dot([1,0,0])
-        obj_dir = obj_dir/np.linalg.norm(obj_dir)
-        world_dir = world_dir/np.linalg.norm(world_dir)
-        rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
-        return rot_val
+    def stacked_grad(self, x):
+        return self.coeff * self.pos_check_jac(x)
 
-    def rot_error_jac(self, obj_trans, robot_trans, axises, arm_joints, local_dir):
-        """
-            This function calculates the jacobian of the rotational error between
-            robot gripper's rotational axis and object's rotational axis
-
-            obj_trans: object's rave_body transformation
-            robot_trans: robot gripper's rave_body transformation
-            axises: rotational axises of the object
-            arm_joints: list of robot joints
-        """
-
-        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
-        world_dir = robot_trans[:3,:3].dot([1,0,0])
-        obj_dir = obj_dir/np.linalg.norm(obj_dir)
-        world_dir = world_dir/np.linalg.norm(world_dir)
-        sign = np.sign(np.dot(obj_dir, world_dir))
-        # computing robot's jacobian
-        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in arm_joints]).T.copy()
-        arm_jac = arm_jac.reshape((1, len(arm_joints)))
-        base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
-        # computing object's jacobian
-        obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
-        obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
-        # Create final 1x23 jacobian matrix
-        rot_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
-        return rot_jac
-
-class BaxterClothInGripperLeft(BaxterInGripperLeft):
+class BaxterClothInGripperLeft(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "left"
-        self.eval_dim = 12
+        self.eval_dim = 3
         super(BaxterClothInGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
-
-    def rot_error_f(self, obj_trans, robot_trans, local_dir):
-        """
-            This function calculates the value of the rotational error between
-            robot gripper's rotational axis and object's rotational axis
-
-            obj_trans: object's rave_body transformation
-            robot_trans: robot gripper's rave_body transformation
-            axises: rotational axises of the object
-            arm_joints: list of robot joints
-        """
-        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
-        world_dir = robot_trans[:3,:3].dot([1,0,0])
-        obj_dir = obj_dir/np.linalg.norm(obj_dir)
-        world_dir = world_dir/np.linalg.norm(world_dir)
-        rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
-        return rot_val
-
-    def rot_error_jac(self, obj_trans, robot_trans, axises, arm_joints, local_dir):
-        """
-            This function calculates the jacobian of the rotational error between
-            robot gripper's rotational axis and object's rotational axis
-
-            obj_trans: object's rave_body transformation
-            robot_trans: robot gripper's rave_body transformation
-            axises: rotational axises of the object
-            arm_joints: list of robot joints
-        """
-
-        obj_dir = np.dot(obj_trans[:3,:3], local_dir)
-        world_dir = robot_trans[:3,:3].dot([1,0,0])
-        obj_dir = obj_dir/np.linalg.norm(obj_dir)
-        world_dir = world_dir/np.linalg.norm(world_dir)
-        sign = np.sign(np.dot(obj_dir, world_dir))
-        # computing robot's jacobian
-        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in arm_joints]).T.copy()
-        arm_jac = arm_jac.reshape((1, len(arm_joints)))
-        base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
-        # computing object's jacobian
-        obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
-        obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
-        # Create final 1x23 jacobian matrix
-        rot_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
-        return rot_jac
 
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_cloth_in_gripper(self, negated, t, plan)
+
+    def stacked_f(self, x):
+        return self.coeff * self.pos_check_f(x)
+
+    def stacked_grad(self, x):
+        return self.coeff * self.pos_check_jac(x)
 
 """
     Basket Constraint Family

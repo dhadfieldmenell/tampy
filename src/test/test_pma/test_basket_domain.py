@@ -20,14 +20,7 @@ def load_environment(domain_file, problem_file):
     params = problem.init_state.params
     return domain, problem, params
 
-def traj_retiming(plan):
-    velocity = np.zeros(plan.horizon)
-    velocity[0:15] = 0.25
-    velocity[15:25] = 0.04
-    velocity[25:55] = 0.15
-    velocity[55:65] = 0.04
-    velocity[65:80] = 0.25
-
+def traj_retiming(plan, velocity):
     baxter = plan.params['baxter']
     rave_body = baxter.openrave_body
     body = rave_body.env_body
@@ -114,7 +107,6 @@ class TestBasketDomain(unittest.TestCase):
         # print "executing plan in Baxter..."
         # for act in plan.actions:
         #     action_execution.execute_action(act)
-
 
     def test_laundry_domain(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
@@ -209,7 +201,6 @@ class TestBasketDomain(unittest.TestCase):
         # for act in plan.actions:
         #     action_execution.execute_action(act)
 
-
     def cloth_grasp_isolation(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)
@@ -245,9 +236,104 @@ class TestBasketDomain(unittest.TestCase):
         """
             Uncomment to execution plan in baxter
         """
+        velocites = np.zeros((plan.horizon, ))
+        velocites[0:19] = 1
+        velocites[19:29] = 0.5
+        velocites[29:48] = 1
+        baxter = plan.params['baxter']
+        ee_time = traj_retiming(plan, velocites)
+        baxter.time = ee_time.reshape((1, ee_time.shape[0]))
         # print "executing plan in Baxter..."
         # for act in plan.actions:
         #     action_execution.execute_action(act)
+
+    def test_measurement(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/measure_physical_dist.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_END_POSE',
+        ]
+        plan = hls.get_plan(plan_str, domain, problem)
+
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback():
+            return viewer
+        start = time.time()
+        solver = robot_ll_solver.RobotLLSolver()
+        result = solver.solve(plan, callback = callback, n_resamples=20)
+        end = time.time()
+
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        # baxter.time = traj_retiming(plan).reshape((1, plan.horizon))
+        velocites = np.zeros((plan.horizon,))
+        velocites[0:19] = 0.2
+        baxter = plan.params['baxter']
+        ee_times = traj_retiming(plan, velocites)
+        baxter.time = ee_times.reshape((1, ee_times.shape[0]))
+        print "Saving current plan to file measure_phys_dist.hdf5..."
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("measure_phys_dist.hdf5", plan)
+        import ipdb; ipdb.set_trace()
+        """
+            Uncomment to execution plan in baxter
+        """
+
+    def test_basket_position(self):
+        domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
+                       '../domains/baxter_domain/baxter_probs/basket_move.prob')
+        env = problem.env
+
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [i[1] for i in params.items() if not i[1].is_symbol()]
+        viewer.draw(objLst, 0, 0.7)
+
+        robot = params['baxter']
+        basket = params['basket']
+        table = params['table']
+        end_targ = params['end_target']
+        baxter_body = OpenRAVEBody(env, 'baxter', robot.geom)
+        basket_body = OpenRAVEBody(env, 'basket', basket.geom)
+        offset = [0,const.BASKET_OFFSET,0]
+        basket_pos = basket.pose.flatten()
+
+        col_pred = BaxterCollides("collision_checker", [basket, table], ["Basket", "Obstacle"], env)
+
+        max_offset = const.EEREACHABLE_STEPS*const.APPROACH_DIST
+        ver_off = [0, 0,max_offset]
+        #Grasping Pose
+        left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+
+        left_arm_pose = baxter_body.get_ik_from_pose(basket_pos + offset + ver_off, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(basket_pos - offset + ver_off, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+
+        self.assertFalse(col_pred.test(0))
+        # Holding Pose
+        left_arm_pose = baxter_body.get_ik_from_pose(np.array([0.75, 0.02, 1.005 + max_offset]) + offset, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(np.array([0.75, 0.02, 1.005 + max_offset]) - offset, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+        basket_body.set_pose([0.75, 0.02, 1.01 + 0.15], end_targ.rotation.flatten())
+
+        #Putdown Pose
+        basket_body.set_pose(end_targ.value.flatten(), end_targ.rotation.flatten())
+        left_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() + offset, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() - offset, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+
+        left_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() + offset + ver_off, [0,np.pi/2,0], "left_arm")[0]
+        right_arm_pose = baxter_body.get_ik_from_pose(end_targ.value.flatten() - offset + ver_off, [0,np.pi/2,0], "right_arm")[0]
+        baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
+        basket.pose = end_targ.value
+        self.assertFalse(col_pred.test(0))
 
 
     def test_basket_position(self):
@@ -439,7 +525,7 @@ class TestBasketDomain(unittest.TestCase):
 
         ee_pos, ee_rot = cloth_target.value[:, 0] + np.array([0,0,const.APPROACH_DIST*const.EEREACHABLE_STEPS]), np.array([0, np.pi/2, 0])
         facing_pose = ee_pos[:2].dot([0,1])/np.linalg.norm(ee_pos[:2])
-        rave_body.set_pose([0,0,facing_pose])
+
         arm_pose = rave_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")[0]
         rave_body.set_dof({'lArmPose': arm_pose})
         print arm_pose, facing_pose

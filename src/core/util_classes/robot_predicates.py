@@ -1126,14 +1126,14 @@ class Obstructs(CollisionPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.COLLISION_TOL):
         assert len(params) == 4
         self._env = env
-        self.robot, self.startp, self.endp, self.obj = params
+        self.robot, self.startp, self.endp, self.obstacle = params
         # attr_inds for the robot must be in this exact order do to assumptions
         # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
         # CalculateActiveJacobian for robots work (base pose is always last)
         attr_inds = self.attr_inds
 
         self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
-                               self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
+                               self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom)}
 
         f = lambda x: self.coeff*self.robot_obj_collision(x)[0]
         grad = lambda x: self.coeff*self.robot_obj_collision(x)[1]
@@ -1145,7 +1145,7 @@ class Obstructs(CollisionPredicate):
         col_expr = Expr(f, grad)
         links = len(self.robot.geom.col_links)
 
-        self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.obj.geom.col_links)]
+        self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.obstacle.geom.col_links)]
         self.col_link_pairs = sorted(self.col_link_pairs)
 
         val = np.zeros((len(self.col_link_pairs),1))
@@ -1215,13 +1215,12 @@ class ObstructsHolding(CollisionPredicate):
 
         col_expr, col_expr_neg = Expr(f, grad), Expr(f_neg, grad_neg)
         e, self.neg_expr = LEqExpr(col_expr, val), LEqExpr(col_expr_neg, val)
-        self.neg_expr_opt = LEqExpr(get_expr_mult(self.OBSTRUCTS_OPT_COEFF, col_expr_neg), val)
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug, tol=tol, priority = 3)
         self.spacial_anchor = False
 
     def get_expr(self, negated):
         if negated:
-            return self.neg_expr_opt
+            return self.neg_expr
         else:
             return None
 
@@ -1247,12 +1246,12 @@ class Collides(CollisionPredicate):
         links = len(self.obj_obj_link_pairs)
 
 
-        f = lambda x: -self.obj_obj_collision(x)[0]
-        grad = lambda x: -self.obj_obj_collision(x)[1]
+        f = lambda x: self.coeff * self.obj_obj_collision(x)[0]
+        grad = lambda x: self.coeff * self.obj_obj_collision(x)[1]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.obj_obj_collision(x)[0]
-        grad_neg = lambda x: self.obj_obj_collision(x)[1]
+        f_neg = lambda x: self.neg_coeff * self.obj_obj_collision(x)[0]
+        grad_neg = lambda x: self.neg_coeff * self.obj_obj_collision(x)[1]
 
         col_expr, val = Expr(f, grad), np.zeros((1,1))
         e = LEqExpr(col_expr, val)
@@ -1301,23 +1300,17 @@ class RCollides(CollisionPredicate):
         f_neg = lambda x: self.neg_coeff * self.robot_obj_collision(x)[0]
         grad_neg = lambda x: self.neg_coeff * self.robot_obj_collision(x)[1]
 
-        f_neg_opt = lambda x: self.opt_coeff*self.robot_obj_collision(x)[0]
-        grad_neg_opt = lambda x: self.opt_coeff*self.robot_obj_collision(x)[1]
-
         col_expr = Expr(f, grad)
 
         self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.obstacle.geom.col_links)]
         self.col_link_pairs = sorted(self.col_link_pairs)
-
         links = len(self.col_link_pairs)
 
         val = np.zeros((links,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
-        col_expr_neg_opt = Expr(f_neg_opt, grad_neg_opt)
         self.neg_expr = LEqExpr(col_expr_neg, val)
-        self.neg_expr_opt = LEqExpr(col_expr_neg_opt, val)
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, priority = 3)
@@ -1325,7 +1318,7 @@ class RCollides(CollisionPredicate):
 
     def get_expr(self, negated):
         if negated:
-            return self.neg_expr_opt
+            return self.neg_expr
         else:
             return None
 
