@@ -744,7 +744,7 @@ class TestBasketDomain(unittest.TestCase):
             solver._backtrack_solve(plan, anum=action_n, amax=action_n)
             for param in plan.params:
                 for attr in param._free_attrs():
-                    prev_action_values[param][attr][:,ts[0]+1:ts[1]] = getattr(param, attr)[:,ts[0]+1:ts[1]]
+                    prev_action_values[param][attr][:,ts[0]+1:ts[1]+1] = getattr(param, attr)[:,ts[0]+1:ts[1]+1]
 
             for param in plan.params:
                 for attr in param._free_attrs():
