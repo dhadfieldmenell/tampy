@@ -5,22 +5,27 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-filename = "laundry_probs/cloth_grasp_isolation.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothInGripperLeft baxter cloth)"
+filename = "laundry_probs/basket_putdown_isolation.prob"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket end_target)"
 
 
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
-R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-INT_GRIPPER = [0.02]
-CLOSE_GRIPPER = [0.015]
+R_ARM_INIT = [ 1.        , -1.49547125, -0.39205374,  1.62825384,  0.02899117, 1.44376255, -0.18012606]
+L_ARM_INIT = [ 0.3       , -0.74377937, -1.74028495,  1.53368402,  0.82357135, 1.72052458, -0.5733158 ]
+INT_GRIPPER = [0.015]
+
+BAXTER_END_POSE = [0]
+R_ARM_END = [-0.8       , -1.07784943,  2.27334603,  1.82863798, -0.72634151, 1.25315778,  0.76842763]
+L_ARM_END = [-1.        , -1.46345906,  1.26152515,  1.51583913, -0.56246981, 1.33598454,  1.09313292]
+END_GRIPPER = [0.02]
+
 # init basket pose
-BASKET_INIT_POS = [0.65 , -0.283,  0.81]
+BASKET_INIT_POS = [0.65, 0, 1.00]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
 
 # end basket pose
-BASKET_END_POS = [0.65, 0.323, 0.81]
+BASKET_END_POS = [0.65, 0.2, 0.81]
 BASKET_END_ROT = [np.pi/2, 0, np.pi/2]
 
 
@@ -223,7 +228,7 @@ def main():
         s += get_undefined_robot_pose_str("cloth_putdown_end_2")
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
-        s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+        s += get_robot_pose_str('robot_end_pose', L_ARM_END, R_ARM_END, END_GRIPPER, BAXTER_END_POSE)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_POS)

@@ -144,7 +144,7 @@ class OpenRAVEViewer(Viewer):
                 dof_value_map = {"door": obj.door[:, t]}
                 pose = obj.pose[:, t]
                 rotation = obj.rotation[:, t]
-                
+
             self.name_to_rave_body[name].set_dof(dof_value_map)
         else:
             rotation = obj.rotation[:, t]
