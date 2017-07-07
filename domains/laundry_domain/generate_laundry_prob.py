@@ -5,8 +5,8 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-filename = "laundry_probs/cloth_grasp_isolation.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothInGripperLeft baxter cloth)"
+filename = "laundry_probs/laundry.prob"
+GOAL = "(BaxterRobotAt baxter robot_end_pose)"
 
 
 # init Baxter pose
@@ -20,7 +20,7 @@ BASKET_INIT_POS = [0.65 , -0.283,  0.81]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
 
 # end basket pose
-BASKET_END_POS = [0.65, 0.323, 0.81]
+BASKET_END_POS = [0.65, 0.2, 0.81]
 BASKET_END_ROT = [np.pi/2, 0, np.pi/2]
 
 

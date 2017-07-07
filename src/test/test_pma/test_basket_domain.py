@@ -460,7 +460,9 @@ class TestBasketDomain(unittest.TestCase):
         self.assertTrue(result)
         import ipdb; ipdb.set_trace()
 
-
+    """
+    Test Post Suggester in backtrack solve
+    """
     def test_pose_suggester(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)
@@ -485,20 +487,33 @@ class TestBasketDomain(unittest.TestCase):
         plan = hls.get_plan(plan_str, domain, problem)
         robot, ee_pose = plan.params['baxter'], plan.params["cg_ee_1"]
         rave_body = robot.openrave_body
-        manip = rave_body.env_body.GetManipulator("left_arm")
+        l_manip = rave_body.env_body.GetManipulator("left_arm")
+        r_manip = rave_body.env_body.GetManipulator("right_arm")
 
         solver = robot_ll_solver.RobotLLSolver()
         result = solver.solve(plan, callback = lambda: None, n_resamples=0)
 
         robot_poses = solver.pose_suggester(plan, 0)
         rave_body.set_dof(robot_poses[0])
-        self.assertTrue(np.allclose(manip.GetTransform()[:3,3], ee_pose.value[:, 0] + offset))
+        self.assertTrue(np.allclose(l_manip.GetTransform()[:3,3], ee_pose.value[:, 0] + offset))
 
         ee_pose = plan.params["cp_ee_1"]
         robot_poses = solver.pose_suggester(plan, 2)
         rave_body.set_dof(robot_poses[0])
-        self.assertTrue(np.allclose(manip.GetTransform()[:3,3], ee_pose.value[:, 0] + offset))
-        import ipdb; ipdb.set_trace()
+        self.assertTrue(np.allclose(l_manip.GetTransform()[:3,3], ee_pose.value[:, 0] + offset))
+
+        ee_left, ee_right = plan.params["bg_ee_left"], plan.params["bg_ee_right"]
+        robot_poses = solver.pose_suggester(plan, 4)
+        rave_body.set_dof(robot_poses[0])
+        self.assertTrue(np.allclose(l_manip.GetTransform()[:3,3], ee_left.value[:, 0] + offset))
+        self.assertTrue(np.allclose(r_manip.GetTransform()[:3,3], ee_right.value[:, 0] + offset))
+
+        ee_left, ee_right = plan.params["bp_ee_left"], plan.params["bp_ee_right"]
+        robot_poses = solver.pose_suggester(plan, 6)
+        rave_body.set_dof(robot_poses[0])
+        self.assertTrue(np.allclose(l_manip.GetTransform()[:3,3], ee_left.value[:, 0] + offset))
+        self.assertTrue(np.allclose(r_manip.GetTransform()[:3,3], ee_right.value[:, 0] + offset))
+
 
     def test_basket_position(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
