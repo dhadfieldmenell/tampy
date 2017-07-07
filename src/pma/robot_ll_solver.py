@@ -66,8 +66,11 @@ class RobotLLSolver(LLSolver):
         plan.restore_free_attrs()
         return success
 
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False):
-        if anum > len(plan.actions) - 1:
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = Mone):
+        if amax is None:
+            amax = len(plan.actions) - 1
+
+        if anum > amax:
             return True
 
         a = plan.actions[anum]
@@ -125,7 +128,7 @@ class RobotLLSolver(LLSolver):
                 else:
                     p._free_attrs['pose'][:, active_ts[1]] = old_params_free[p]
             return False
-        import ipdb; ipdb.set_trace()
+
         # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
         if rs_param is None or not np.all(rs_param._free_attrs['value']):
             ## this parameter is fixed
@@ -151,18 +154,19 @@ class RobotLLSolver(LLSolver):
         """
         sampler_begin
         """
-        assert anum + 1 > len(plan.actions) - 1
+        assert anum + 1 <= len(plan.actions) - 1
         next_act = next_act = plan.actions[anum+1]
 
         spacial_pred = [pred for pred in next_act.get_all_active_preds() if isinstance(pred, robot_predicates.EEReachable)]
-        if len(spacial_pred) == 0:
-            import ipdb; ipdb.set_trace()
-        spacial_pred = spacial_pred[0]
-        ee_target = spacial_pred.get_rel_pt(spacial_pred.active_range[0])
-        rotation = np.array([0,np.pi/2, 0])
+        resample_rot = np.array([0,np.pi/2, 0])
 
         robot_pose = []
         if next_act.name.find("cloth_grasp") >= 0:
+            assert len(spacial_pred) == 1
+            spacial_pred = spacial_pred[0]
+            ee_pose = spacial_pred.ee_pose
+            ee_target = ee_pose.pose[:, 0] +  spacial_pred.get_rel_pt(spacial_pred.active_range[0])
+
             arm_poses = spacial_pred.robot.openrave_body.get_ik_from_pose(ee_target, rotation, "left_arm")
             for pose in arm_poses:
                 robot_pose.append({'lArmPose': pose.reshape((7,1))})
@@ -170,15 +174,16 @@ class RobotLLSolver(LLSolver):
         elif next_act.name.find("basket_grasp") >= 0:
             pass
         elif next_act.name.find("cloth_putdown") >= 0:
+            assert len(spacial_pred) == 1
+            spacial_pred = spacial_pred[0]
+            ee_pose = spacial_pred.ee_pose
+            ee_target = ee_pose.pose[:, 0] +  spacial_pred.get_rel_pt(spacial_pred.active_range[0])
+
             arm_poses = spacial_pred.robot.openrave_body.get_ik_from_pose(ee_target, rotation, "left_arm")
             for pose in arm_poses:
                 robot_pose.append({'lArmPose': pose.reshape((7,1))})
 
         elif next_act.name.find("basket_putdown") >= 0:
-            pass
-        elif next_act.name.find("open_door") >= 0:
-            pass
-        elif next_act.name.find("close_door") >= 0:
             pass
         else:
             raise NotImplementedError
