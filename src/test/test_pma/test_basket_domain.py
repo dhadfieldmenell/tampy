@@ -435,7 +435,7 @@ class TestBasketDomain(unittest.TestCase):
         def callback():
             return viewer
 
-        # import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
         # offset = np.array([0,0.317,0])
         # lArmPose = baxter.openrave_body.get_ik_from_pose(basket.pose[:, 0]  + offset,[0, np.pi/2, 0],"left_arm")[0]
         # rArmPose = baxter.openrave_body.get_ik_from_pose(basket.pose[:, 0] - offset,[0, np.pi/2, 0],"right_arm")[0]
@@ -458,6 +458,46 @@ class TestBasketDomain(unittest.TestCase):
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("basket_putdown_isolation_plan.hdf5", plan)
         self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
+
+
+    def test_pose_suggester(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/laundry.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        offset = [0,0,const.EEREACHABLE_STEPS* const.APPROACH_DIST]
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        '1: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
+        '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 ROBOT_END_POSE',
+        '5: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        '7: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        '8: MOVETO BAXTER BASKET_PUTDOWN_END ROBOT_END_POSE'
+        ]
+
+        plan = hls.get_plan(plan_str, domain, problem)
+        robot, ee_pose = plan.params['baxter'], plan.params["cg_ee_1"]
+        rave_body = robot.openrave_body
+        manip = rave_body.env_body.GetManipulator("left_arm")
+
+        solver = robot_ll_solver.RobotLLSolver()
+        result = solver.solve(plan, callback = lambda: None, n_resamples=0)
+
+        robot_poses = solver.pose_suggester(plan, 0)
+        rave_body.set_dof(robot_poses[0])
+        self.assertTrue(np.allclose(manip.GetTransform()[:3,3], ee_pose.value[:, 0] + offset))
+
+        ee_pose = plan.params["cp_ee_1"]
+        robot_poses = solver.pose_suggester(plan, 2)
+        rave_body.set_dof(robot_poses[0])
+        self.assertTrue(np.allclose(manip.GetTransform()[:3,3], ee_pose.value[:, 0] + offset))
         import ipdb; ipdb.set_trace()
 
     def test_basket_position(self):
@@ -509,7 +549,6 @@ class TestBasketDomain(unittest.TestCase):
         baxter_body.set_dof({'lArmPose': left_arm_pose, "rArmPose": right_arm_pose})
         basket.pose = end_targ.value
         self.assertFalse(col_pred.test(0))
-
 
     def test_basket_position(self):
 

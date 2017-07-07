@@ -66,7 +66,7 @@ class RobotLLSolver(LLSolver):
         plan.restore_free_attrs()
         return success
 
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = Mone):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
         if amax is None:
             amax = len(plan.actions) - 1
 
@@ -162,47 +162,17 @@ class RobotLLSolver(LLSolver):
         """
         sampler_begin
         """
-        assert anum + 1 <= len(plan.actions) - 1
-        next_act = next_act = plan.actions[anum+1]
+        robot_poses = self.pose_suggester(plan, anum)
 
-        spacial_pred = [pred for pred in next_act.get_all_active_preds() if isinstance(pred, robot_predicates.EEReachable)]
-        resample_rot = np.array([0,np.pi/2, 0])
-
-        robot_pose = []
-        if next_act.name.find("cloth_grasp") >= 0:
-            assert len(spacial_pred) == 1
-            spacial_pred = spacial_pred[0]
-            ee_pose = spacial_pred.ee_pose
-            ee_target = ee_pose.pose[:, 0] +  spacial_pred.get_rel_pt(spacial_pred.active_range[0])
-
-            arm_poses = spacial_pred.robot.openrave_body.get_ik_from_pose(ee_target, rotation, "left_arm")
-            for pose in arm_poses:
-                robot_pose.append({'lArmPose': pose.reshape((7,1))})
-
-        elif next_act.name.find("basket_grasp") >= 0:
-            pass
-        elif next_act.name.find("cloth_putdown") >= 0:
-            assert len(spacial_pred) == 1
-            spacial_pred = spacial_pred[0]
-            ee_pose = spacial_pred.ee_pose
-            ee_target = ee_pose.pose[:, 0] +  spacial_pred.get_rel_pt(spacial_pred.active_range[0])
-
-            arm_poses = spacial_pred.robot.openrave_body.get_ik_from_pose(ee_target, rotation, "left_arm")
-            for pose in arm_poses:
-                robot_pose.append({'lArmPose': pose.reshape((7,1))})
-
-        elif next_act.name.find("basket_putdown") >= 0:
-            pass
-        else:
-            raise NotImplementedError
+        """
+        sampler end
+        """
 
         if callback is not None:
             callback_a = lambda: callback(a)
         else:
             callback_a = None
-        """
-        sampler end
-        """
+
 
         for rp in robot_poses:
             for attr, val in rp.itertools():
@@ -221,6 +191,47 @@ class RobotLLSolver(LLSolver):
 
         rs_param._free_attrs = rs_free
         return success
+
+    def pose_suggester(self, plan, anum):
+        assert anum + 1 <= len(plan.actions) - 1
+        next_act = plan.actions[anum+1]
+
+        spacial_pred = [pred for pred in next_act.get_all_active_preds() if isinstance(pred, robot_predicates.EEReachable)]
+        resample_rot = np.array([0,np.pi/2, 0])
+        robot_body = spacial_pred[0].robot.openrave_body
+        
+        robot_pose = []
+        if next_act.name.find("cloth_grasp") >= 0 or next_act.name.find("cloth_putdown") >= 0:
+            assert len(spacial_pred) == 1
+            spacial_pred = spacial_pred[0]
+            ee_pose = spacial_pred.ee_pose
+            rel_pt = spacial_pred.get_rel_pt(spacial_pred.active_range[0])
+            ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pose.value[:, 0], ee_pose.rotation[:, 0])
+            ee_target = ee_trans.dot(np.r_[rel_pt, 1])[:3]
+
+            arm_pose = robot_body.get_ik_from_pose(ee_target, resample_rot, "left_arm")[0]
+            robot_pose.append({'lArmPose': arm_pose.reshape((7,1))})
+
+        elif next_act.name.find("basket_grasp") >= 0 or next_act.name.find("basket_putdown") >= 0:
+            assert len(spacial_pred) == 2
+            left_pred, right_pred = spacial_pred[0], spacial_pred[1]
+            if left_pred.get_type().find("Right") or right_pred.get_type().find("Left"):
+                left_pred, right_pred = right_pred, left_pred
+
+            ee_left, ee_right = left_pred.ee_pose, right_pred.ee_pose
+            left_trans = OpenRAVEBody.transform_from_obj_pose(ee_left.value[:, 0], ee_left.rotation[:, 0])
+            right_trans = OpenRAVEBody.transform_from_obj_pose(ee_right.value[:, 0], ee_right.rotation[:, 0])
+
+            left_target = left_trans.dot(np.r_[left_pred.get_rel_pt(left_pred.active_range[0]),1])
+            right_target = right_trans.dot(np.r_[right_pred.get_rel_pt(right_pred.active_range[0]),1])
+
+            l_arm_poses = left_pred.robot.openrave_body.get_ik_from_pose(left_target, resample_rot, "left_arm")[0]
+            r_arm_poses = right_pred.robot.openrave_body.get_ik_from_pose(right_target, resample_rot, "right_arm")[0]
+
+            robot_pose.append({'lArmPose': l_arm_poses.reshape((7,1)), 'rArmPose': r_arm_poses.reshape((7,1))})
+        else:
+            raise NotImplementedError
+        return robot_pose
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
