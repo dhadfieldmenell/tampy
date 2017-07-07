@@ -112,10 +112,10 @@ class RobotLLSolver(LLSolver):
             for p in plan.params.itervalues():
                 if p.is_symbol():
                     if p not in a.params: continue
-                    old_params_free[p] = {}
+                    old_params_free[p] = p._free_attrs
+                    p._free_attrs = {}
                     for attr in p._free_attrs:
-                        old_params_free[p][attr] = p._free_attrs[attr].copy()
-                        p._free_attrs[attr][:] = 0
+                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                 else:
                     p_attrs = {}
                     old_params_free[p] = p_attrs
@@ -129,8 +129,7 @@ class RobotLLSolver(LLSolver):
             for p in a.params:
                 if p.is_symbol():
                     if p not in a.params: continue
-                    for attr in old_params_free[p]:
-                        p._free_attrs[attr] = old_params_free[p][attr]
+                    p._free_attrs = old_params_free[p]
                 else:
                     for attr in p._free_attrs:
                         p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
@@ -154,9 +153,10 @@ class RobotLLSolver(LLSolver):
             return recursive_solve()
 
         ## so that this won't be optimized over
-        rs_free = rs_param._free_attrs.copy()
-        for attr in rs_param._free_attrs:
-            rs_param._free_attrs[attr][:] = 0
+        rs_free = rs_param._free_attrs
+        rs_param._free_attrs = {}
+        for attr in rs_free:
+            rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
 
 
         """
@@ -218,7 +218,8 @@ class RobotLLSolver(LLSolver):
                     break
                 else:
                     success = False
-        rs_param._free_attrs['value'] = rs_free
+
+        rs_param._free_attrs = rs_free
         return success
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
