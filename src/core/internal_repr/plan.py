@@ -53,11 +53,16 @@ class Plan(object):
                     arr[np.isnan(v)] = 1
                     p._free_attrs[k] = arr
 
-    def has_nan(self):
+    def has_nan(self, active_ts = None):
+        if not active_ts:
+            active_ts = (0, self.horizon-1)
+
         for p in self.params.itervalues():
             for k, v in p.__dict__.iteritems():
                 if type(v) == np.ndarray:
-                    if np.any(np.isnan(v)):
+                    if p.is_symbol() and np.any(np.isnan(v)):
+                            return True
+                    if not p.is_symbol() and np.any(np.isnan(v[:, active_ts[0]:active_ts[1]+1])):
                         return True
         return False
 

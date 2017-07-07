@@ -766,7 +766,7 @@ class TestBasketDomain(unittest.TestCase):
         '1: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
         '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
         '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
-        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 ROBOT_END_POSE',
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 BASKET_GRASP_BEGIN',
         '5: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
         '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
         '7: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
@@ -776,25 +776,43 @@ class TestBasketDomain(unittest.TestCase):
         plan = hls.get_plan(plan_str, domain, problem)
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
+        serializer = PlanSerializer()
         def callback():
             return viewer
 
         solver = robot_ll_solver.RobotLLSolver()
+
         prev_action_values = {}
         for param in plan.params.values():
             prev_action_values[param] = {}
             for attr in param._free_attrs.keys():
                 prev_action_values[param][attr] = getattr(param, attr).copy()
+
         for action_n in range(len(plan.actions)):
+            print "optimizing action {}: {}".format(action_n, plan.actions[action_n])
             ts = plan.actions[action_n].active_timesteps
             solver._backtrack_solve(plan, anum=action_n, amax=action_n)
             for param in plan.params.values():
-                for attr in param._free_attrs.keys():
-                    prev_action_values[param][attr][:,ts[0]+1:ts[1]+1] = getattr(param, attr)[:,ts[0]+1:ts[1]+1]
+                if not param.is_symbol():
+                    for attr in param._free_attrs.keys():
+                        prev_action_values[param][attr][:,ts[0]+1:ts[1]+1] = getattr(param, attr)[:,ts[0]+1:ts[1]+1]
+                else:
+                    for attr in param._free_attrs.keys():
+                        prev_action_values[param][attr][:,0] = getattr(param, attr)[:,0]
 
-            for param in plan.params:
-                for attr in param._free_attrs():
-                    self.assertTrue(np.all(prev_action_values[param][attr][:,0:ts[0]+1] == getattr(param, attr)[:,0:ts[0]+1]))
+            serializer.write_plan_to_hdf5("test_backtrack_solve_{}.hdf5".format(action_n), plan)
+
+            print "finished optimizing action {}".format(plan.actions[action_n])
+            if plan.params['cloth'].pose.shape[1] < 176:
+                import ipdb; ipdb.set_trace()
+
+            for param in plan.params.values():
+                if not param.is_symbol():
+                    for attr in param._free_attrs.keys():
+                        self.assertTrue(np.all(prev_action_values[param][attr][:,0:ts[0]+1] == getattr(param, attr)[:,0:ts[0]+1]))
+                elif not np.all(np.isnan(prev_action_values[param]['value'][:,0])):
+                    for attr in param._free_attrs.keys():
+                        self.assertTrue(np.all(prev_action_values[param][attr][:,0] == getattr(param, attr)[:,0]))
 
 if __name__ == "__main__":
     unittest.main()

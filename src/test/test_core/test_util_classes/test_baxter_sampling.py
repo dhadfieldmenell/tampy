@@ -180,7 +180,6 @@ class TestBaxterSampling(unittest.TestCase):
         ee_right = plan.params['bg_ee_right']
         ee_putdown_left = plan.params['bp_ee_left']
         ee_putdown_right = plan.params['bp_ee_right']
-
         basket = plan.params['basket']
 
 

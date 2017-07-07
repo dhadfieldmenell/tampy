@@ -4,7 +4,7 @@ from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
 from openravepy import matrixFromAxisAngle
 from core.internal_repr.parameter import Object
-from core.util_classes import baxter_predicates, common_predicates, robot_predicates
+from core.util_classes import baxter_predicates, common_predicates, robot_predicates, baxter_sampling, baxter_constants
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer
@@ -24,6 +24,10 @@ TRAJOPT_COEFF=1e-1
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
 DEBUG = True
+
+# used for pose suggester
+RESAMPLE_FACTOR = [0.01,0.01,0.1]
+DOWN_ROT = [0, np.pi/2, 0]
 
 attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
             'RobotPose':['lArmPose', 'lGripper','rArmPose', 'rGripper', 'value'],
@@ -90,22 +94,22 @@ class RobotLLSolver(LLSolver):
             rs_param = a.params[2]
         elif a.name == 'basket_grasp':
             ## find possible ee_poses for both arms
-            rs_param = None
+            rs_param = a.params[-1]
         elif a.name == 'basket_putdown':
             ## find possible ee_poses for both arms
-            rs_param = None
+            rs_param = a.params[-1]
         elif a.name == 'open_door':
             ## find possible ee_poses for left arms
-            rs_param = None
+            rs_param = a.params[-3]
         elif a.name == 'close_door':
             ## find possible ee_poses for left arms
-            rs_param = None
+            rs_param = a.params[-3]
         elif a.name == 'cloth_grasp':
             ## find possible ee_poses for right arms
-            rs_param = None
+            rs_param = a.params[-1]
         elif a.name == 'cloth_putdown':
             ## find possible ee_poses for right arms
-            rs_param = None
+            rs_param = a.params[-1]
         else:
             raise NotImplemented
 
@@ -126,7 +130,7 @@ class RobotLLSolver(LLSolver):
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]]
                         p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = RobotLLSolver()
-            if self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose):
+            if self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax):
                 return True
             ## reset free_attrs
             for p in a.params:
@@ -165,7 +169,11 @@ class RobotLLSolver(LLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.pose_suggester(plan, anum)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 20)
+        if not robot_poses:
+            robot_poses = self.random_pose_suggester(plan, anum, resample_size = 20)
+            import ipdb; ipdb.set_trace()
+
 
         """
         sampler end
@@ -263,7 +271,92 @@ class RobotLLSolver(LLSolver):
 
         return robot_pose
 
-    def random
+    def obj_pose_suggester(self, plan, anum, resample_size = 10):
+        robot_pose = []
+        assert anum + 1 <= len(plan.actions) - 1
+        act, next_act = plan.actions[anum], plan.actions[anum+1]
+
+        robot = plan.params['baxter']
+        robot_body = robot.openrave_body
+        start_ts, end_ts = act.active_timesteps
+
+        old_l_arm_pose = robot.lArmPose[:, start_ts].reshape((7, 1))
+        old_r_arm_pose = robot.rArmPose[:, start_ts].reshape((7, 1))
+        old_pose = robot.pose[:, start_ts].reshape((1, 1))
+
+        if act.name.find("grasp") >= 0 or act.name.find("hold") >= 0:
+            gripper_val = np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]])
+        else:
+            gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
+
+
+        for i in range(resample_size):
+            if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
+                offset = np.array([0, 0.317, 0])
+                target = next_act.params[2]
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+
+                ee_left = target.value[:, 0] + offset + random_dir
+                ee_right = target.value[:, 0] - offset + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, robot.lArmPose[:, start_ts]).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, robot.rArmPose[:, start_ts]).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif next_act.name == 'cloth_grasp' or next_act.name == 'cloth_putdown':
+                target = next_act.params[2]
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+                ee_left = target.value[:, 0] + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                if not len(l_arm_pose):
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, robot.lArmPose[:, start_ts]).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
+                offset = np.array([0, 0.317, 0])
+                target = act.params[2]
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+
+                ee_left = target.value[:, 0] + offset + random_dir
+                ee_right = target.value[:, 0] - offset + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, robot.lArmPose[:, start_ts]).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, robot.rArmPose[:, start_ts]).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'cloth_grasp' or act.name == 'cloth_putdown':
+                target = act.params[2]
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+                ee_left = target.value[:, 0] + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                if not len(l_arm_pose):
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, robot.lArmPose[:, start_ts]).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+            else:
+                raise NotImplementedError
+
+        return robot_pose
+
+
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
@@ -276,7 +369,7 @@ class RobotLLSolver(LLSolver):
             #     active_ts=active_ts, verbose=verbose)
             plan.initialized=True
 
-        if success or len(plan.get_failed_preds()) == 0:
+        if success or len(plan.get_failed_preds(active_ts = active_ts)) == 0:
             return True
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("initialized_plan.hdf5", plan)
@@ -287,16 +380,16 @@ class RobotLLSolver(LLSolver):
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose)
 
-                if DEBUG: plan.check_cnt_violation(priority = priority, tol = 1e-3)
+                if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
 
                 if success:
                     break
 
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
-                if DEBUG: plan.check_cnt_violation(priority = priority, tol = 1e-3)
+                if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
 
-                assert not (success and not len(plan.get_failed_preds(priority = priority, tol = 1e-3)) == 0)
+                assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
             if not success:
                 return False
@@ -350,15 +443,10 @@ class RobotLLSolver(LLSolver):
             """
             obj_bexprs = []
 
-            failed_by_act = plan.get_failed_preds_by_action(priority=priority, tol = tol)
-            rs_obj = []
-            for failed in failed_by_act:
-                rs_obj.extend(self._resample(plan, failed, sample_all = True))
-
             ## this is an objective that places
             ## a high value on matching the resampled values
-            # failed_preds = plan.get_failed_preds(priority=priority, tol = tol)
-            # rs_obj = self._resample(plan, failed_preds, sample_all = True)
+            failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
+            rs_obj = self._resample(plan, failed_preds, sample_all = True)
 
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
@@ -406,13 +494,13 @@ class RobotLLSolver(LLSolver):
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
         self._update_ll_params()
 
-        if DEBUG: assert not plan.has_nan()
+        if DEBUG: assert not plan.has_nan(active_ts)
 
         if resample:
             # During resampling phases, there must be changes added to sampling_trace
             if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
                 reward = 0
-                if len(plan.get_failed_preds(priority=priority)) == 0:
+                if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
                     reward = len(plan.actions)
                 else:
                     failed_t = plan.get_failed_pred(priority=priority)[2]
@@ -426,10 +514,10 @@ class RobotLLSolver(LLSolver):
             For Debugging purposes
         """
         if success and not resample:
-            if not success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0):
+            if not success == (len(plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)) == 0):
                 print "Constraints Violations: ", self._prob.get_max_cnt_violation()
 
-                preds_list = plan.get_failed_preds(priority=priority, tol = tol)
+                preds_list = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
 
                 pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds_list]
                 #
@@ -464,12 +552,14 @@ class RobotLLSolver(LLSolver):
                 for attr_name in param.__dict__.iterkeys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):
+                        param_ll = self._param_to_ll[param]
                         if param.is_symbol():
                             T = 1
+                            attr_val = getattr(param, attr_name)
                         else:
-                            T = plan.horizon
+                            T = param_ll._horizon
+                            attr_val = getattr(param, attr_name)[:, param_ll.active_ts[0]:param_ll.active_ts[1]+1]
                         K = attr_type.dim
-                        attr_val = getattr(param, attr_name)
 
                         # pose = param.pose
                         if DEBUG: assert (K, T) == attr_val.shape
@@ -487,7 +577,6 @@ class RobotLLSolver(LLSolver):
                         # QuadExpr is 0.5*x^Tx + Ax + b
                         quad_expr = QuadExpr(2*self.transfer_coeff*Q,
                                              self.transfer_coeff*A, self.transfer_coeff*b)
-                        param_ll = self._param_to_ll[param]
                         ll_attr_val = getattr(param_ll, attr_name)
                         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
                         sco_var = self.create_variable(param_ll_grb_vars, cur_val)
@@ -584,7 +673,7 @@ class RobotLLSolver(LLSolver):
                     n_vals, i = 0, 0
                     grb_vars = []
                     for attr, ind_arr, t in attr_inds[p]:
-                        for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t].flatten()):
+                        for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t-ll_p.active_ts[0]].flatten()):
                             Q = np.eye(1)
                             A = -2*val[p][i+j]*np.ones((1, 1))
                             b = np.ones((1, 1))*np.power(val[p][i+j], 2)

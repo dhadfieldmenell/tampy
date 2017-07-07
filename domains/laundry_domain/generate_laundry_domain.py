@@ -273,10 +273,10 @@ class Grasp(Action):
             ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGrippers ?robot ?ee_left ?ee_right ?sp)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGrippers ?robot ?ee_left ?ee_right ?sp)', '{}:{}'.format(grasp_time,  end)),
-            ('(BaxterBasketGraspLeftPos ?ee_left ?target)', '{}:{}'.format(0, grasp_time)),
-            ('(BaxterBasketGraspLeftRot ?ee_left ?target)', '{}:{}'.format(0, grasp_time)),
-            ('(BaxterBasketGraspRightPos ?ee_right ?target)', '{}:{}'.format(0, grasp_time)),
-            ('(BaxterBasketGraspRightRot ?ee_right ?target)', '{}:{}'.format(0, grasp_time)),
+            ('(BaxterBasketGraspLeftPos ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterBasketGraspLeftRot ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterBasketGraspRightPos ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterBasketGraspRightRot ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterBasketInGripper ?robot ?basket)', '{}:{}'.format(grasp_time, end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterBasketInGripper ?robot ?basket))\
@@ -343,10 +343,10 @@ class Putdown(Action):
             ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterOpenGrippers ?robot ?ee_left ?ee_right ?sp)', '{}:{}'.format(putdown_time+1,  end)),
             ('(BaxterCloseGrippers ?robot ?ee_left ?ee_right ?sp)', '{}:{}'.format(0,  putdown_time)),
-            ('(BaxterBasketGraspLeftPos ?ee_left ?target)', '{}:{}'.format(0, putdown_time)),
-            ('(BaxterBasketGraspLeftRot ?ee_left ?target)', '{}:{}'.format(0, putdown_time)),
-            ('(BaxterBasketGraspRightPos ?ee_right ?target)', '{}:{}'.format(0, putdown_time)),
-            ('(BaxterBasketGraspRightRot ?ee_right ?target)', '{}:{}'.format(0, putdown_time)),
+            ('(BaxterBasketGraspLeftPos ?ee_left ?target)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterBasketGraspLeftRot ?ee_left ?target)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterBasketGraspRightPos ?ee_right ?target)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterBasketGraspRightRot ?ee_right ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterBasketInGripper ?robot ?basket)', '{}:{}'.format(0, putdown_time)),
             ('(forall (?obj - Basket)\
                 (not (BaxterBasketInGripper ?robot ?basket))\
