@@ -15,9 +15,11 @@
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.moveholding_cloth_isolation --debug
 
-# nose2 test.test_pma.test_basket_domain.TestBasketDomain.moveholding_basket_isolation --debug
+nose2 test.test_pma.test_basket_domain.TestBasketDomain.moveholding_basket_isolation --debug
 
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_pose_suggester --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_pose_suggester --debug
+
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain._test_backtrack_solve_action_isolation --debug
 
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.find_cloth_position --debug

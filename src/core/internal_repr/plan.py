@@ -152,8 +152,10 @@ class Plan(object):
                 res.extend(a.get_active_preds(t))
         return res
 
-    def check_cnt_violation(self, priority, tol):
-        preds = [(negated, pred, t) for negated, pred, t in self.get_failed_preds(priority = priority, tol = tol)]
+    def check_cnt_violation(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
+        if active_ts is None:
+            active_ts = (0, self.horizon-1)
+        preds = [(negated, pred, t) for negated, pred, t in self.get_failed_preds(active_ts=active_ts, priority = priority, tol = tol)]
         for negated, pred, t in preds:
             pred.check_pred_violation(t, negated=negated, tol=tol)
 

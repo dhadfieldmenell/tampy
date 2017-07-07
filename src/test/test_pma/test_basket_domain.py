@@ -435,13 +435,6 @@ class TestBasketDomain(unittest.TestCase):
         def callback():
             return viewer
 
-        import ipdb; ipdb.set_trace()
-        # offset = np.array([0,0.317,0])
-        # lArmPose = baxter.openrave_body.get_ik_from_pose(basket.pose[:, 0]  + offset,[0, np.pi/2, 0],"left_arm")[0]
-        # rArmPose = baxter.openrave_body.get_ik_from_pose(basket.pose[:, 0] - offset,[0, np.pi/2, 0],"right_arm")[0]
-        # baxter.openrave_body.set_dof({"lArmPose": lArmPose, "rArmPose":rArmPose})
-        # basket.openrave_body.set_pose(basket.pose[:, 0], basket.rotation[:, 0])
-
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
         result = solver.solve(plan, callback = callback, n_resamples=10)
@@ -777,7 +770,7 @@ class TestBasketDomain(unittest.TestCase):
         '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 ROBOT_END_POSE',
         '5: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
         '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
-        '7: BASKET_PUTDOWN BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        '7: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
         '8: MOVETO BAXTER BASKET_PUTDOWN_END ROBOT_END_POSE'
         ]
 
@@ -788,16 +781,18 @@ class TestBasketDomain(unittest.TestCase):
             return viewer
 
         solver = robot_ll_solver.RobotLLSolver()
+        solver.solve(plan, callback = lambda: None, n_resamples=0)
+        import ipdb; ipdb.set_trace()
         prev_action_values = {}
-        for param in plan.params:
+        for param in plan.params.values():
             prev_action_values[param] = {}
-            for attr in param._free_attrs():
+            for attr in param._free_attrs.keys():
                 prev_action_values[param][attr] = getattr(param, attr).copy()
         for action_n in range(len(plan.actions)):
             ts = plan.actions[action_n].active_timesteps
             solver._backtrack_solve(plan, anum=action_n, amax=action_n)
-            for param in plan.params:
-                for attr in param._free_attrs():
+            for param in plan.params.values():
+                for attr in param._free_attrs.keys():
                     prev_action_values[param][attr][:,ts[0]+1:ts[1]+1] = getattr(param, attr)[:,ts[0]+1:ts[1]+1]
 
             for param in plan.params:

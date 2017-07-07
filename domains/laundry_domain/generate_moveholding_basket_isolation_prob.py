@@ -11,7 +11,7 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterBasketInGripper baxter bas
 
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
-R_ARM_INIT = [ 0.8       , -1.04283752, -0.96074799,  1.25901501, -2.71593423, -1.56108259,  2.26129968]
+R_ARM_INIT = [-0.1       , -1.19867189,  0.46799631,  1.25141751, -0.16478213, 1.55519343, -0.44274586]
 L_ARM_INIT = [-0.9       , -1.37465729, -0.37976225,  1.47880368,  0.07260239, 1.48054184, -0.49429886]
 INT_GRIPPER = [0.02]
 

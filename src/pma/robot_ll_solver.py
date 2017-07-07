@@ -61,6 +61,9 @@ class RobotLLSolver(LLSolver):
         return success
 
     def backtrack_solve(self, plan, callback=None, verbose=False):
+        # pre-solve the plan to initialized all value
+        if not plan.initialized:
+            self.solve(plan, callback = lambda: None, n_resamples=0)
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
         plan.restore_free_attrs()
@@ -114,7 +117,7 @@ class RobotLLSolver(LLSolver):
                     if p not in a.params: continue
                     old_params_free[p] = p._free_attrs
                     p._free_attrs = {}
-                    for attr in p._free_attrs:
+                    for attr in old_params_free[p].keys():
                         p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                 else:
                     p_attrs = {}
@@ -136,15 +139,16 @@ class RobotLLSolver(LLSolver):
             return False
 
         # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
-        if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs[attr]]):
+        if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
             ## this parameter is fixed
             if callback is not None:
                 callback_a = lambda: callback(a)
             else:
                 callback_a = None
             self.child_solver = RobotLLSolver()
+            # TODO it used to set force init to True, but now I assumed it's presolved before it
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
-                                              active_ts = active_ts, verbose=verbose, force_init=True)
+                                              active_ts = active_ts, verbose=verbose, force_init=False)
 
             if not success:
                 ## if planning fails we're done
@@ -155,9 +159,8 @@ class RobotLLSolver(LLSolver):
         ## so that this won't be optimized over
         rs_free = rs_param._free_attrs
         rs_param._free_attrs = {}
-        for attr in rs_free:
+        for attr in rs_free.keys():
             rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
-
 
         """
         sampler_begin
@@ -173,9 +176,8 @@ class RobotLLSolver(LLSolver):
         else:
             callback_a = None
 
-
         for rp in robot_poses:
-            for attr, val in rp.itertools():
+            for attr, val in rp.iteritems():
                 setattr(rs_param, attr, val)
 
             success = False
@@ -241,7 +243,6 @@ class RobotLLSolver(LLSolver):
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
         success = False
-        viewer = callback()
 
         if force_init or not plan.initialized:
             self._solve_opt_prob(plan, priority=-2, callback=callback,
@@ -256,7 +257,6 @@ class RobotLLSolver(LLSolver):
         serializer.write_plan_to_hdf5("initialized_plan.hdf5", plan)
 
         for priority in self.solve_priorities:
-            # if priority == 3: import ipdb; ipdb.set_trace()
             for attempt in range(n_resamples):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
@@ -356,7 +356,6 @@ class RobotLLSolver(LLSolver):
                     priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
                 tol = 1e-1
                 initial_trust_region_size = 1e3
-                if DEBUG: assert plan.has_nan()
             elif priority == -1:
                 """
                 Solve the optimization problem while enforcing every constraints.
@@ -417,7 +416,7 @@ class RobotLLSolver(LLSolver):
 
 
 
-            if DEBUG: assert success == (len(plan.get_failed_preds(priority=priority, tol = tol)) == 0)
+            if DEBUG: assert success == (len(plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)) == 0)
         """
             Debug End
         """
