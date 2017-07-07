@@ -109,11 +109,16 @@ class RobotLLSolver(LLSolver):
             for p in plan.params.itervalues():
                 if p.is_symbol():
                     if p not in a.params: continue
-                    old_params_free[p] = p._free_attrs['value'].copy()
-                    p._free_attrs['value'][:] = 0
+                    old_params_free[p] = {}
+                    for attr in p._free_attrs:
+                        old_params_free[p][attr] = p._free_attrs[attr].copy()
+                        p._free_attrs[attr][:] = 0
                 else:
-                    old_params_free[p] = p._free_attrs['pose'][:, active_ts[1]].copy()
-                    p._free_attrs['pose'][:, active_ts[1]] = 0
+                    p_attrs = {}
+                    old_params_free[p] = p_attrs
+                    for attr in p._free_attrs:
+                        p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]]
+                        p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = RobotLLSolver()
             if self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose):
                 return True
@@ -121,13 +126,15 @@ class RobotLLSolver(LLSolver):
             for p in a.params:
                 if p.is_symbol():
                     if p not in a.params: continue
-                    p._free_attrs['value'] = old_params_free[p]
+                    for attr in old_params_free[p]:
+                        p._free_attrs[attr] = old_params_free[p][attr]
                 else:
-                    p._free_attrs['pose'][:, active_ts[1]] = old_params_free[p]
+                    for attr in p._free_attrs:
+                        p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
             return False
         import ipdb; ipdb.set_trace()
         # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
-        if rs_param is None or not np.all(rs_param._free_attrs['value']):
+        if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs[attr]]):
             ## this parameter is fixed
             if callback is not None:
                 callback_a = lambda: callback(a)
@@ -145,13 +152,14 @@ class RobotLLSolver(LLSolver):
 
         ## so that this won't be optimized over
         rs_free = rs_param._free_attrs.copy()
-        rs_param._free_attrs['value'][:] = 0
+        for attr in rs_param._free_attrs:
+            rs_param._free_attrs[attr][:] = 0
 
 
         """
         sampler_begin
         """
-        assert anum + 1 > len(plan.actions) - 1
+        assert anum + 1 <= len(plan.actions) - 1
         next_act = next_act = plan.actions[anum+1]
 
         spacial_pred = [pred for pred in next_act.get_all_active_preds() if isinstance(pred, robot_predicates.EEReachable)]
