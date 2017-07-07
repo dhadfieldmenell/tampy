@@ -507,7 +507,6 @@ class TestBasketDomain(unittest.TestCase):
         self.assertTrue(np.allclose(l_manip.GetTransform()[:3,3], ee_left.value[:, 0] + offset))
         self.assertTrue(np.allclose(r_manip.GetTransform()[:3,3], ee_right.value[:, 0] + offset))
 
-
     def test_basket_position(self):
         domain, problem, params = load_environment('../domains/baxter_domain/baxter_basket_grasp.domain',
                        '../domains/baxter_domain/baxter_probs/basket_move.prob')
@@ -781,8 +780,6 @@ class TestBasketDomain(unittest.TestCase):
             return viewer
 
         solver = robot_ll_solver.RobotLLSolver()
-        solver.solve(plan, callback = lambda: None, n_resamples=0)
-        import ipdb; ipdb.set_trace()
         prev_action_values = {}
         for param in plan.params.values():
             prev_action_values[param] = {}

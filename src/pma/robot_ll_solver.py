@@ -148,7 +148,7 @@ class RobotLLSolver(LLSolver):
             self.child_solver = RobotLLSolver()
             # TODO it used to set force init to True, but now I assumed it's presolved before it
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
-                                              active_ts = active_ts, verbose=verbose, force_init=False)
+                                              active_ts = active_ts, verbose=verbose, force_init=True)
 
             if not success:
                 ## if planning fails we're done
@@ -239,6 +239,31 @@ class RobotLLSolver(LLSolver):
         if len(robot_pose) == 0:
             return None
         return robot_pose
+
+    def random_pose_suggester(self, plan, anum, resample_size = 5):
+        robot_pose = []
+
+        robot_body = plan.actions[anum].params[0].openrave_body
+        robot = robot_body.env_body
+        dof_map = robot_body._geom.dof_map
+        left_dof_inds, right_dof_inds = dof_map["lArmPose"], dof_map["rArmPose"]
+        lb_limit, ub_limit = robot.GetDOFLimits()
+        left_active_ub = ub_limit[left_dof_inds].reshape((len(left_dof_inds),1))
+        left_active_lb = lb_limit[left_dof_inds].reshape((len(left_dof_inds),1))
+        left_dof_range = left_active_ub - left_active_lb
+
+        right_active_ub = ub_limit[right_dof_inds].reshape((len(right_dof_inds),1))
+        right_active_lb = lb_limit[right_dof_inds].reshape((len(right_dof_inds),1))
+        right_dof_range = right_active_ub - right_active_lb
+
+        for i in range(resample_size):
+            l_arm_pose = np.multiply(np.random.sample(len(left_dof_range)), left_dof_range)
+            r_arm_pose = np.multiply(np.random.sample(len(right_dof_range)), right_dof_range)
+            robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose})
+
+        return robot_pose
+
+    def random
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
