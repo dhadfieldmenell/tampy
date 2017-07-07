@@ -745,5 +745,49 @@ class TestBasketDomain(unittest.TestCase):
         print arm_pose, facing_pose
         import ipdb; ipdb.set_trace()
 
+    def _test_backtrack_solve_action_isolation(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/laundry.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        '1: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
+        '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 ROBOT_END_POSE',
+        '5: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        '7: BASKET_PUTDOWN BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        '8: MOVETO BAXTER BASKET_PUTDOWN_END ROBOT_END_POSE'
+        ]
+
+        plan = hls.get_plan(plan_str, domain, problem)
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback():
+            return viewer
+
+        solver = robot_ll_solver.RobotLLSolver()
+        prev_action_values = {}
+        for param in plan.params:
+            prev_action_values[param] = {}
+            for attr in param._free_attrs():
+                prev_action_values[param][attr] = getattr(param, attr).copy()
+        for action_n in range(len(plan.actions)):
+            ts = plan.actions[action_n].active_timesteps
+            solver._backtrack_solve(plan, anum=action_n, amax=action_n)
+            for param in plan.params:
+                for attr in param._free_attrs():
+                    prev_action_values[param][attr][:,ts[0]+1:ts[1]+1] = getattr(param, attr)[:,ts[0]+1:ts[1]+1]
+
+            for param in plan.params:
+                for attr in param._free_attrs():
+                    self.assertTrue(np.all(prev_action_values[param][attr][:,0:ts[0]+1] == getattr(param, attr)[:,0:ts[0]+1]))
+
 if __name__ == "__main__":
     unittest.main()
