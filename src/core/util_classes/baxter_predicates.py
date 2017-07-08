@@ -1227,3 +1227,11 @@ class BaxterEERetiming(robot_predicates.EERetiming):
         jac[0, 36] = 1
 
         return val, jac
+
+class BaxterObjRelPoseConstant(robot_predicates.ObjRelPoseConstant):
+
+    # BxterObjRelPoseConstant Basket Cloth
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][0])), (params[1], list(ATTRMAP[params[1]._type][0]))])
+        self.attr_dim = 3
+        super(BaxterObjRelPoseConstant).__init__(name, params, expected_param_types, env, debug)

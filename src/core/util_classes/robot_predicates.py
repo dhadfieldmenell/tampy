@@ -1399,3 +1399,17 @@ class EERetiming(PosePredicate):
         e = EqExpr(pos_expr, val)
         super(EERetiming, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=1, active_range = (0,1), priority = 3)
         self.spacial_anchor = False
+
+class ObjRelPoseConstant(ExprPredicate):
+    '''
+    Format: ObjRelPoseConstant Basket Cloth
+    '''
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        attr_inds = self.attr_inds
+        A = np.c_[np.eye[self.attr_dim], -np.eye[self.attr_dim], np.eye[self.attr_dim], -np.eye[self.attr_dim]]
+        b, val = np.zeros((4*self.attr_dim,1)), np.zeros((4*self.attr_dim,1))
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(ObjRelPoseConstant, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)
+
+        self.spacial_anchor = False
