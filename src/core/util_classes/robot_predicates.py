@@ -1406,8 +1406,8 @@ class ObjRelPoseConstant(ExprPredicate):
     '''
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         attr_inds = self.attr_inds
-        A = np.c_[np.eye[self.attr_dim], -np.eye[self.attr_dim], np.eye[self.attr_dim], -np.eye[self.attr_dim]]
-        b, val = np.zeros((4*self.attr_dim,1)), np.zeros((4*self.attr_dim,1))
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim), -np.eye(self.attr_dim), np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim,1)), np.zeros((self.attr_dim,1))
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(ObjRelPoseConstant, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority = -2)

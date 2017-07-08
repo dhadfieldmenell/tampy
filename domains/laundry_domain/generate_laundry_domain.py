@@ -97,6 +97,7 @@ dp.add('BaxterStationaryWasher', ['Washer'])
 dp.add('BaxterStationaryBase', ['Robot'])
 dp.add('BaxterStationaryArms', ['Robot'])
 dp.add('BaxterStationaryW', ['Obstacle'])
+dp.add('BaxterObjRelPoseConstant', ['Basket', 'Cloth'])
 dp.add('BaxterBasketGraspLeftPos', ['EEPose', 'BasketTarget'])
 dp.add('BaxterBasketGraspLeftRot', ['EEPose', 'BasketTarget'])
 dp.add('BaxterBasketGraspRightPos', ['EEPose', 'BasketTarget'])
@@ -212,7 +213,7 @@ class MoveHoldingBasket(Action):
             ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
-            ('(forall (?cloth - Cloth) (ObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end-1)),
+            ('(forall (?cloth - Cloth) (BaxterObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end-1)),
             ('(BaxterBasketLevel ?basket)', '{}:{}'.format(0, end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
@@ -367,7 +368,7 @@ class Putdown(Action):
             # ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
-            ('(forall (?cloth - Cloth) (ObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end-1)),
+            ('(forall (?cloth - Cloth) (BaxterObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\
