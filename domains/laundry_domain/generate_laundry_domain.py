@@ -178,6 +178,7 @@ class Move(Action):
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obj - Washer)\
                 (BaxterStationaryWasher ?obj))', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '{}:{}'.format(0, end-1)),
@@ -211,6 +212,7 @@ class MoveHoldingBasket(Action):
             ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(forall (?cloth - Cloth) (ObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end-1)),
             ('(BaxterBasketLevel ?basket)', '{}:{}'.format(0, end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
@@ -365,6 +367,7 @@ class Putdown(Action):
             # ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(forall (?cloth - Cloth) (ObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\

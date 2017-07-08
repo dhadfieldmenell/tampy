@@ -171,6 +171,7 @@ class RobotLLSolver(LLSolver):
         """
         robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 20)
         if not robot_poses:
+            print "Using Random Poses"
             robot_poses = self.random_pose_suggester(plan, anum, resample_size = 20)
             import ipdb; ipdb.set_trace()
 

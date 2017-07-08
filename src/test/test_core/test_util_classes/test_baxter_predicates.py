@@ -158,6 +158,33 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
 
 
+    def test_obj_rel_pose_constant(self):
+        cloth = ParamSetup.setup_cloth()
+        basket = ParamSetup.setup_basket()
+
+        pred = baxter_predicates.ObjRelPoseConstant("test_ObjRelPoseConstant", [basket, cloth], ["Basket", "Cloth"])
+        self.assertFalse(pred.test(0))
+
+        cloth.pose = np.array([[0,0,0],[1,1,1]]).T
+        cloth.rotation = np.array([[0,0,0],[0,0,0]]).T
+        basket.value = np.array([[0,0,0], [1,1,1]]).T
+        basket.rotation = np.array([[0,0,0], [0,0,0]]).T
+        self.assertTrue(pred.test(0))
+
+        cloth.pose = np.array([[0,0,0],[1,1,1]]).T
+        cloth.rotation = np.array([[0,0,0],[0,0,0]]).T
+        basket.value = np.array([[1,1,1], [2,2,2]]).T
+        basket.rotation = np.array([[0,0,0], [0,0,0]]).T
+        self.assertTrue(pred.test(0))
+
+        cloth.pose = np.array([[0,0,0],[1,0,1]]).T
+        cloth.rotation = np.array([[0,0,0],[0,0,0]]).T
+        basket.value = np.array([[1,0,1], [2,2,2]]).T
+        basket.rotation = np.array([[0,0,0], [0,0,0]]).T
+        self.assertFalse(pred.test(0))
+        import ipdb; ipdb.set_trace()
+
+
     def test_within_joint_limit(self):
 
         joint_factor = const.JOINT_MOVE_FACTOR
