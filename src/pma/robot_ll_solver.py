@@ -26,7 +26,7 @@ BASE_SAMPLE_SIZE = 5
 DEBUG = True
 
 # used for pose suggester
-RESAMPLE_FACTOR = [0.01,0.01,0.1]
+RESAMPLE_FACTOR = [0.01,0.01,0.15]
 DOWN_ROT = [0, np.pi/2, 0]
 
 attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
@@ -151,7 +151,7 @@ class RobotLLSolver(LLSolver):
                 callback_a = None
             self.child_solver = RobotLLSolver()
             # TODO it used to set force init to True, but now I assumed it's presolved before it
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
                                               active_ts = active_ts, verbose=verbose, force_init=True)
 
             if not success:
@@ -191,7 +191,7 @@ class RobotLLSolver(LLSolver):
 
             success = False
             self.child_solver = RobotLLSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
                                               active_ts = active_ts, verbose=verbose,
                                               force_init=True)
             if success:
@@ -295,14 +295,16 @@ class RobotLLSolver(LLSolver):
             if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
                 offset = np.array([0, 0.317, 0])
                 target = next_act.params[2]
+                plan.params['basket'].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
 
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
-
+                robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0]})
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
+                    print "Unable to find IK"
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, robot.lArmPose[:, start_ts]).reshape((7,1))
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, robot.rArmPose[:, start_ts]).reshape((7,1))
@@ -327,11 +329,12 @@ class RobotLLSolver(LLSolver):
             elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
                 offset = np.array([0, 0.317, 0])
                 target = act.params[2]
+                plan.params['basket'].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
 
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
-
+                robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0]})
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
