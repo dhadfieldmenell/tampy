@@ -580,7 +580,8 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False, both_ar
     # Finding a good robot pose so that robot is facing the basket
     basket_pos = (left_pose + right_pose)/2.
     facing_pose = basket_pos[:2].dot([0,1])/np.linalg.norm(basket_pos[:2])
-
+    # TODO for demo2 base can't move
+    facing_pose = 0
     # Make sure baxter is well positioned in the env
     dof_value = np.r_[robot.lArmPose[:, t],
                       robot.lGripper[:, t],
@@ -590,6 +591,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False, both_ar
     pred.set_robot_poses(dof_value, rave_body)
     for param in plan.params.values():
         if not param.is_symbol() and param != robot:
+            if param.openrave_body is None: continue
             param.openrave_body.set_pose(param.pose[:, t].flatten(), param.rotation[:, t].flatten())
 
     # Resample poses at grasping time
@@ -675,15 +677,15 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False, both_ar
     # import ipdb; ipdb.set_trace()
     return res, attr_inds
 
-
 def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = False):
     attr_inds, res = OrderedDict(), OrderedDict()
 
     # Preparing the variables
     robot, rave_body = pred.robot, pred.robot.openrave_body
     body = rave_body.env_body
+
     act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
-    print "resampling at {} action".format(action.name)
+    # print "resampling at {} action".format(action.name)
     ee_pose, arm = pred.params[2], pred.arm
 
     ee_pos, ee_rot = ee_pose.value[:, 0], ee_pose.rotation[:, 0]
@@ -691,18 +693,20 @@ def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = Fal
     robot_trans, arm_inds = pred.get_robot_info(rave_body, arm)
     arm_attr_name = '{}ArmPose'.format(arm[0])
 
-    if action.name == 'basket_gasp' or action.name == 'basket_putdown':
+    if action.name.find('basket_grasp') >= 0 or action.name.find('basket_putdown') >= 0:
         basket, offset = plan.params['basket'], np.array([0, const.BASKET_OFFSET, 0])
         if arm == 'left':
             basket_pos = ee_pos - offset
         else:
             basket_pos = ee_pos + offset
         facing_pose = basket_pos[:2].dot([0,1])/np.linalg.norm(basket_pos[:2])
-    elif action.name == 'cloth_grasp' or action.name == 'cloth_putdown':
+    elif action.name.find('cloth_grasp') >= 0 or action.name.find('cloth_putdown') >= 0:
         cloth = plan.params['cloth']
         facing_pose = ee_pos[:2].dot([0,1])/np.linalg.norm(ee_pos[:2])
     else:
         facing_pose = robot.pose[:, t]
+    # TODO for demo2 base can't move
+    facing_pose = 0
     # Make sure baxter is well positioned in the env
     dof_value = np.r_[robot.lArmPose[:, t],
                       robot.lGripper[:, t],
@@ -712,6 +716,7 @@ def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = Fal
     pred.set_robot_poses(dof_value, rave_body)
     for param in plan.params.values():
         if not param.is_symbol() and param != robot:
+            if param.openrave_body is None: continue
             param.openrave_body.set_pose(param.pose[:, t].flatten(), param.rotation[:, t].flatten())
 
     # Resample poses at grasping time
@@ -756,47 +761,47 @@ def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = Fal
     """
     Linear Interp Traj
     """
-    if act_inds > 0:
+    act_start, act_end = action.active_timesteps
+    timesteps = t-step - act_start
+    robot_poses = getattr(robot, arm_attr_name)
 
-        last_action = plan.actions[act_inds-1]
-        act_start, act_end = last_action.active_timesteps
-        if last_action.name == "moveto" or last_action.name == "moveholding_basket" or last_action.name == "moveholding_cloth":
-            timesteps = act_end - act_start
-            pose_traj = lin_interp_traj(robot.pose[:, act_start], robot.pose[:,t-step], timesteps)
+    pose_traj = lin_interp_traj(robot.pose[:, act_start], robot.pose[:,t-step], timesteps)
+    arm_traj = lin_interp_traj(robot_poses[:, act_start], robot_poses[:, t-step], timesteps)
+    for i in range(act_start+1, t-step):
+        traj_ind = i - act_start
+        add_to_attr_inds_and_res(i, attr_inds, res, robot, [(arm_attr_name, arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
+        rave_body.set_dof({arm_attr_name: arm_traj[:, traj_ind]})
 
-            robot_poses = getattr(robot, arm_attr_name)
-            arm_traj = lin_interp_traj(robot_poses[:, act_start], robot_poses[:, t-step], timesteps)
-
-            for i in range(act_start+1, act_end):
-                traj_ind = i - act_start
-                add_to_attr_inds_and_res(i, attr_inds, res, robot, [(arm_attr_name, arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
-                rave_body.set_dof({arm_attr_name: arm_traj[:, traj_ind]})
-
-
+    timesteps = act_end - (t+step)
+    pose_traj = lin_interp_traj(robot.pose[:, t+step], robot.pose[:, act_end], timesteps)
+    arm_traj = lin_interp_traj(robot_poses[:, t+step], robot_poses[:, act_end], timesteps)
+    for i in range(t+step+1, act_end):
+        traj_ind = i - (t+step)
+        add_to_attr_inds_and_res(i, attr_inds, res, robot, [(arm_attr_name, arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
+        rave_body.set_dof({arm_attr_name: arm_traj[:, traj_ind]})
     """
         Resample other parameters
     """
-    if action.name == 'basket_grasp':
+    if action.name.find('basket_grasp') >= 0:
         add_to_attr_inds_and_res(t, attr_inds, res, basket, [('pose', basket.pose[:, t])])
         for i in range(step):
             add_to_attr_inds_and_res(t+1+i, attr_inds, res, basket, [('pose', basket.pose[:, t] + np.array([0,0,const.RETREAT_DIST]) * (i+1))])
-    elif action.name == 'basket_putdown':
+    elif action.name.find('basket_putdown') >= 0:
         add_to_attr_inds_and_res(t, attr_inds, res, basket, [('pose', basket.pose[:, t])])
         for i in range(step):
             add_to_attr_inds_and_res(t-step+i, attr_inds, res, basket, [('pose', basket.pose[:, t] + np.array([0,0,const.RETREAT_DIST]) * (i+1))])
-    elif action.name == 'cloth_grasp':
-        cloth
-
-    begin = action.params[3]
-    end = action.params[-1]
-
-    add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
-    add_to_attr_inds_and_res(0, attr_inds, res, end, [('lArmPose', robot.lArmPose[:, t+step]), ('rArmPose', robot.rArmPose[:, t+step]), ('value', robot.pose[:,t+step])])
+    elif action.name.find('cloth_grasp') >= 0:
+        add_to_attr_inds_and_res(t, attr_inds, res, cloth, [('pose', cloth.pose[:, t])])
+        for i in range(step):
+            add_to_attr_inds_and_res(t+1+i, attr_inds, res, cloth, [('pose', cloth.pose[:, t] + np.array([0,0,const.RETREAT_DIST]) * (i+1))])
+    elif action.name.find('cloth_putdown') >= 0:
+        add_to_attr_inds_and_res(t, attr_inds, res, cloth, [('pose', cloth.pose[:, t])])
+        for i in range(step):
+            add_to_attr_inds_and_res(t-step+i, attr_inds, res, cloth, [('pose', cloth.pose[:, t] + np.array([0,0,const.RETREAT_DIST]) * (i+1))])
 
     if DEBUG: test_resample_order(attr_inds, res)
     assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds
-
 
 def resample_basket_moveholding_all(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -828,7 +833,8 @@ def resample_basket_moveholding_all(pred, negated, t, plan):
             basket.openrave_body.set_pose(basket_pos, [np.pi/2, 0, np.pi/2])
 
             facing_pose = basket_pos[:2].dot([0,1])/np.linalg.norm(basket_pos[:2])
-
+            # TODO for demo2 base can't move
+            facing_pose = 0
             rave_body.set_pose([0,0,facing_pose])
 
             ee_left = basket_pos + offset
@@ -859,7 +865,7 @@ def resample_basket_moveholding(pred, negated, t, plan):
     def set_pose(x, trag):
         basket.openrave_body.set_pose(trag[:, x], [np.pi/2, 0, np.pi/2])
 
-    if act_name == "moveholding":
+    if action.name.find("moveholding_basket") >= 0:
         start_ts, end_ts = action.active_timesteps
         basket_begin = basket.pose[:, start_ts]
         basket_end = basket.pose[:, end_ts]
@@ -874,7 +880,8 @@ def resample_basket_moveholding(pred, negated, t, plan):
         basket.openrave_body.set_pose(basket_pos, [np.pi/2, 0, np.pi/2])
 
         facing_pose = basket_pos[:2].dot([0,1])/np.linalg.norm(basket_pos[:2])
-
+        # TODO for demo2 base can't move
+        facing_pose = 0
         rave_body.set_pose([0,0,facing_pose])
 
         ee_left = basket_pos + offset
@@ -887,7 +894,6 @@ def resample_basket_moveholding(pred, negated, t, plan):
         return res, attr_inds
     else:
         return None, None
-
 
 
 def resample_basket_in_gripper(pred, negated, t, plan):
@@ -920,25 +926,33 @@ def resample_cloth_in_gripper(pred, negated, t, plan):
 
     robot, cloth = pred.robot, pred.obj
     rave_body, arm = robot.openrave_body, pred.arm
-    robot_trans, arm_inds = pred.get_robot_info(rave_body, arm)
+    manip = rave_body.env_body.GetManipulator("{}_arm".format(pred.arm))
 
-    dof_value = np.r_[robot.lArmPose[:, t],
-                      robot.lGripper[:, t],
-                      robot.rArmPose[:, t],
-                      robot.rGripper[:, t],
-                      robot.pose[:, t]]
-    pred.set_robot_poses(dof_value, rave_body)
-    for param in plan.params.values():
-        if not param.is_symbol() and param != robot:
-            param.openrave_body.set_pose(param.pose[:, t].flatten(), param.rotation[:, t].flatten())
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
 
-    pos_rot = OpenRAVEBody.obj_pose_from_transform(robot_trans)
-    pose, rotation = pos_rot[:3], pos_rot[3:] + [0,-np.pi/2,0]
-    add_to_attr_inds_and_res(t, attr_inds, res, cloth, [('pose', pose), ('rotation', rotation)])
+    if action.name.find("moveholding_cloth") >= 0 or action.name.find("moveholding_basket") >= 0:
+        ts_range = action.active_timesteps
+        for ts in range(ts_range[0], ts_range[1]+1):
+            dof_value = np.r_[robot.lArmPose[:, ts],
+                              robot.lGripper[:, ts],
+                              robot.rArmPose[:, ts],
+                              robot.rGripper[:, ts],
+                              robot.pose[:, ts]]
+            pred.set_robot_poses(dof_value, rave_body)
+            pose = manip.GetTransform()[:3,3]
+            add_to_attr_inds_and_res(ts, attr_inds, res, cloth, [('pose', pose)])
+        for ts in range(ts_range[0], ts_range[1]):
+            assert pred.test(ts, negated = negated, tol = 1e-3)
+    elif action.name.find("grasp") >= 0:
+        grasp_time = action.active_timesteps[0] + const.EEREACHABLE_STEPS
+
+    elif action.name.find("putdown") >= 0:
+        putdown_time = action.active_timesteps[0] + const.EEREACHABLE_STEPS
+
+
 
     assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds
-
 
 
 def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
@@ -965,6 +979,7 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
 
     for param in plan.params.values():
         if not param.is_symbol() and param != robot:
+            if param.openrave_body is None: continue
             if isinstance(param, Robot):
                 attrs = param.geom.dof_map.keys()
                 dof_val_map = {}
@@ -1018,7 +1033,7 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     if action_inds > 0:
         last_action = actions[action_inds-1]
         act_start, act_end = last_action.active_timesteps
-        if last_action.name == "move" or last_action.name == "moveholding":
+        if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
             timesteps = act_end - act_start
 
             pose_traj = lin_interp_traj(robot.pose[:, act_start], robot.pose[:,t-step], timesteps)
@@ -1055,8 +1070,166 @@ def resample_ee_grasp_valid(pred, negated, t, plan):
     return res, attr_inds
 
 def resample_basket_obstructs(pred, negated, t, plan):
-    # import ipdb; ipdb.set_trace()
-    return None, None
+    # viewer = OpenRAVEViewer.create_viewer(plan.env)
+    attr_inds, res = OrderedDict(), OrderedDict()
+    robot, obstacle = pred.robot, pred.obstacle
+    rave_body, obs_body = robot.openrave_body, obstacle.openrave_body
+    body, obs = rave_body.env_body, obs_body.env_body
+
+    dof_value = np.r_[robot.lArmPose[:, t],
+                      robot.lGripper[:, t],
+                      robot.rArmPose[:, t],
+                      robot.rGripper[:, t],
+                      robot.pose[:, t]]
+    pred.set_robot_poses(dof_value, rave_body)
+    for param in plan.params.values():
+        if not param.is_symbol() and param != robot:
+            if param.openrave_body is None: continue
+            param.openrave_body.set_pose(param.pose[:, t].flatten(), param.rotation[:, t].flatten())
+    pred._cc.SetContactDistance(pred.dsafe)
+    collisions = pred._cc.BodyVsBody(body, obs)
+    arm = 'left'
+    for col in collisions:
+        linkA, linkB = col.GetLinkAName(), col.GetLinkBName()
+        if linkA[0] == 'l' or linkB[0] == 'l':
+            arm = 'left'
+            break
+        elif linkA[0] == 'r' or linkB[0] == 'r':
+            arm = 'right'
+            break
+        else:
+            continue
+    if arm is None:
+        return None, None
+
+    # arm = "left"
+    manip = body.GetManipulator("{}_arm".format(arm))
+    robot_trans = manip.GetTransform()
+    pos_rot = OpenRAVEBody.obj_pose_from_transform(robot_trans)
+    ee_pos, ee_rot = pos_rot[:3], pos_rot[3:]
+    attempt, step = 0, 1
+    while attempt < 50 and len(pred._cc.BodyVsBody(body, obs)) > 0:
+        attempt += 1
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.005,0.005,0.1])
+        arm_pose = get_ik_from_pose(target_ee, [0, np.pi/2, 0], body, "{}_arm".format(arm))
+        if arm_pose is None:
+            step += 1
+            continue
+        add_to_attr_inds_and_res(t, attr_inds, res, robot, [('{}ArmPose'.format(arm[0]), arm_pose)])
+        rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
+
+
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+    print "resampling at {} action".format(action.name)
+    act_start, act_end = action.active_timesteps
+    if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
+        timesteps_1 = t - act_start
+        pose_traj_1 = lin_interp_traj(robot.pose[:, act_start], robot.pose[:, t], timesteps_1)
+        l_arm_traj_1 = lin_interp_traj(robot.lArmPose[:, act_start], robot.lArmPose[:, t], timesteps_1)
+        r_arm_traj_1 = lin_interp_traj(robot.rArmPose[:, act_start], robot.rArmPose[:, t], timesteps_1)
+        for i in range(act_start+1, t):
+            traj_ind = i - act_start
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', l_arm_traj_1[:, traj_ind]), ('rArmPose', r_arm_traj_1[:, traj_ind]), ('pose', pose_traj_1[:, traj_ind])])
+            rave_body.set_dof({'lArmPose': l_arm_traj_1[:, traj_ind], 'rArmPose': r_arm_traj_1[:, traj_ind]})
+            rave_body.set_pose([0,0,pose_traj_1[:, traj_ind]])
+
+        timesteps_2 = act_end - t
+        pose_traj_2 = lin_interp_traj(robot.pose[:, t], robot.pose[:, act_end], timesteps_2)
+        l_arm_traj_2 = lin_interp_traj(robot.lArmPose[:, t], robot.lArmPose[:, act_end], timesteps_2)
+        r_arm_traj_2 = lin_interp_traj(robot.rArmPose[:, t], robot.rArmPose[:, act_end], timesteps_2)
+
+        for i in range(t+1, act_end):
+            traj_ind = i - t
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', l_arm_traj_2[:, traj_ind]), ('rArmPose', r_arm_traj_2[:, traj_ind]), ('pose', pose_traj_2[:, traj_ind])])
+            rave_body.set_dof({'lArmPose': l_arm_traj_2[:, traj_ind], 'rArmPose': r_arm_traj_2[:, traj_ind]})
+            rave_body.set_pose([0,0,pose_traj_2[:, traj_ind]])
+
+    return res, attr_inds
+
+
+def resample_basket_obstructs_holding(pred, negated, t, plan):
+    # viewer = OpenRAVEViewer.create_viewer(plan.env)
+    attr_inds, res = OrderedDict(), OrderedDict()
+    robot, obstacle = pred.robot, pred.obstacle
+    rave_body, obs_body = robot.openrave_body, obstacle.openrave_body
+    body, obs = rave_body.env_body, obs_body.env_body
+    held, held_body = pred.obj, pred.obj.openrave_body
+    held_env_body = held_body.env_body
+    dof_value = np.r_[robot.lArmPose[:, t],
+                      robot.lGripper[:, t],
+                      robot.rArmPose[:, t],
+                      robot.rGripper[:, t],
+                      robot.pose[:, t]]
+    pred.set_robot_poses(dof_value, rave_body)
+    for param in plan.params.values():
+        if not param.is_symbol() and param != robot:
+            if param.openrave_body is None: continue
+            param.openrave_body.set_pose(param.pose[:, t].flatten(), param.rotation[:, t].flatten())
+    pred._cc.SetContactDistance(pred.dsafe)
+    l_manip = body.GetManipulator("left_arm")
+    r_manip = body.GetManipulator("right_arm")
+    left_ee = OpenRAVEBody.obj_pose_from_transform(l_manip.GetTransform())[:3]
+    right_ee = OpenRAVEBody.obj_pose_from_transform(r_manip.GetTransform())[:3]
+    dist_left = np.linalg.norm(held.pose[:, t] - left_ee)
+    dist_right = np.linalg.norm(held.pose[:, t] - right_ee)
+    if dist_left < dist_right:
+        arm = 'left'
+        manip = l_manip
+    else:
+        arm = 'right'
+        manip = r_manip
+
+    pos_rot = OpenRAVEBody.obj_pose_from_transform(manip.GetTransform())
+    ee_pos, ee_rot = pos_rot[:3], pos_rot[3:]
+    attempt, step = 0, 1
+
+    while attempt < 50 and (len(pred._cc.BodyVsBody(body, obs)) > 0 or len(pred._cc.BodyVsBody(held_env_body, obs))):
+        attempt += 1
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.005,0.005,0.1])
+        arm_pose = get_ik_from_pose(target_ee, [0, np.pi/2, 0], body, "{}_arm".format(arm))
+        if arm_pose is None:
+            step += 1
+            continue
+        add_to_attr_inds_and_res(t, attr_inds, res, robot, [('{}ArmPose'.format(arm[0]), arm_pose)])
+        add_to_attr_inds_and_res(t, attr_inds, res, held, [('pose', target_ee)])
+        rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
+        held_body.set_pose(target_ee)
+
+    """
+    Resample Trajectory
+    """
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+    print "resampling at {} action".format(action.name)
+    act_start, act_end = action.active_timesteps
+    if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
+        timesteps_1 = t - act_start
+        pose_traj_1 = lin_interp_traj(robot.pose[:, act_start], robot.pose[:, t], timesteps_1)
+        l_arm_traj_1 = lin_interp_traj(robot.lArmPose[:, act_start], robot.lArmPose[:, t], timesteps_1)
+        r_arm_traj_1 = lin_interp_traj(robot.rArmPose[:, act_start], robot.rArmPose[:, t], timesteps_1)
+        for i in range(max(t-5, act_start), t):
+            traj_ind = i - act_start
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', l_arm_traj_1[:, traj_ind]), ('rArmPose', r_arm_traj_1[:, traj_ind]), ('pose', pose_traj_1[:, traj_ind])])
+            rave_body.set_dof({'lArmPose': l_arm_traj_1[:, traj_ind], 'rArmPose': r_arm_traj_1[:, traj_ind]})
+            rave_body.set_pose([0,0,pose_traj_1[:, traj_ind]])
+            target_ee = OpenRAVEBody.obj_pose_from_transform(manip.GetTransform())[:3]
+            add_to_attr_inds_and_res(i, attr_inds, res, held, [('pose', target_ee)])
+            held_body.set_pose(target_ee)
+
+        timesteps_2 = act_end - t
+        pose_traj_2 = lin_interp_traj(robot.pose[:, t], robot.pose[:, act_end], timesteps_2)
+        l_arm_traj_2 = lin_interp_traj(robot.lArmPose[:, t], robot.lArmPose[:, act_end], timesteps_2)
+        r_arm_traj_2 = lin_interp_traj(robot.rArmPose[:, t], robot.rArmPose[:, act_end], timesteps_2)
+
+        for i in range(t+1, min(t+5, act_end)):
+            traj_ind = i - t
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', l_arm_traj_2[:, traj_ind]), ('rArmPose', r_arm_traj_2[:, traj_ind]), ('pose', pose_traj_2[:, traj_ind])])
+            rave_body.set_dof({'lArmPose': l_arm_traj_2[:, traj_ind], 'rArmPose': r_arm_traj_2[:, traj_ind]})
+            rave_body.set_pose([0,0,pose_traj_2[:, traj_ind]])
+            target_ee = OpenRAVEBody.obj_pose_from_transform(manip.GetTransform())[:3]
+            add_to_attr_inds_and_res(i, attr_inds, res, held, [('pose', target_ee)])
+            held_body.set_pose(target_ee)
+
+    return res, attr_inds
 
 def resample_obstructs(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner

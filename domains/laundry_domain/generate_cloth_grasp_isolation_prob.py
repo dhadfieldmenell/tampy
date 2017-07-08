@@ -5,14 +5,14 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-filename = "laundry_probs/laundry.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose)"
+filename = "laundry_probs/cloth_grasp_isolation.prob"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothInGripperLeft baxter cloth)"
 
 
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
 R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
+L_ARM_INIT = [ 0.7 , -0.77271635, -1.42337285,  1.94256044,  1.05746083, 0.7127481 , -0.38002847]
 INT_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
 # init basket pose
@@ -20,7 +20,7 @@ BASKET_INIT_POS = [0.65 , -0.283,  0.81]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
 
 # end basket pose
-BASKET_END_POS = [0.65, 0.2, 0.81]
+BASKET_END_POS = [0.65, 0.323, 0.81]
 BASKET_END_ROT = [np.pi/2, 0, np.pi/2]
 
 
@@ -223,7 +223,7 @@ def main():
         s += get_undefined_robot_pose_str("cloth_putdown_end_2")
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
-        s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+        s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, CLOSE_GRIPPER, BAXTER_INIT_POSE)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_POS)

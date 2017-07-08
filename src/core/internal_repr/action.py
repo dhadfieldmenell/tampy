@@ -38,6 +38,8 @@ class Action(object):
             start, end = pred_d['active_timesteps']
             for t in range(max(start, active_ts[0]),
                            min(end, active_ts[1])+1):
+                if pred.active_range[1]+t > active_ts[1] or pred.active_range[0] + t < active_ts[0]:
+                    continue
                 if not pred.test(t, negated=negated, tol=tol) and pred.priority <= priority:
                     failed.append((negated, pred, t))
         return failed
@@ -49,6 +51,14 @@ class Action(object):
             start, end = pred_d['active_timesteps']
             if start <= t and end >= t: res.append(pred_d['pred'])
         return res
+
+    def get_all_active_preds(self):
+        preds = set()
+        ts_range = self.active_timesteps
+        for t in range(ts_range[0], ts_range[1]+1):
+            for res in self.get_active_preds(t):
+                preds.add(res)
+        return preds
 
     def satisfied(self, active_ts=None):
         if active_ts is None:

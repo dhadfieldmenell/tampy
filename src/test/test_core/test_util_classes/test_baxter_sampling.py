@@ -144,7 +144,6 @@ class TestBaxterSampling(unittest.TestCase):
 
         basket = plan.params['basket']
 
-
         left_pred = baxter_predicates.BaxterEEReachableLeftVer('test_ee_left', [robot, robot_pose, ee_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
         right_pred = baxter_predicates.BaxterEEReachableRightVer('test_ee_right', [robot, robot_pose, ee_right], ['Robot', 'RobotPose', 'EEPose'], env=env)
 
@@ -181,7 +180,6 @@ class TestBaxterSampling(unittest.TestCase):
         ee_right = plan.params['bg_ee_right']
         ee_putdown_left = plan.params['bp_ee_left']
         ee_putdown_right = plan.params['bp_ee_right']
-
         basket = plan.params['basket']
 
 
@@ -190,7 +188,7 @@ class TestBaxterSampling(unittest.TestCase):
 
         left_pred2 = baxter_predicates.BaxterEEReachableLeftVer('test_ee_left', [robot, robot_pose, ee_putdown_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
         right_pred2 = baxter_predicates.BaxterEEReachableRightVer('test_ee_right', [robot, robot_pose, ee_putdown_right], ['Robot', 'RobotPose', 'EEPose'], env=env)
-
+        import ipdb; ipdb.set_trace()
         basket_pos, offset = basket.pose[:, 24], [0,0.317,0]
         ee_left.value = np.array([basket_pos + offset]).T
         ee_left.rotation = np.array([[0,np.pi/2, 0]]).T
@@ -210,6 +208,7 @@ class TestBaxterSampling(unittest.TestCase):
         resample_check(right_pred, False, 24, plan)
         resample_check(left_pred2, False, 53, plan)
         resample_check(right_pred2, False, 53, plan)
+        import ipdb; ipdb.set_trace()
 
     def test_resample_ee_approach_retreat(self):
         pd = PlanDeserializer()
@@ -268,12 +267,15 @@ class TestBaxterSampling(unittest.TestCase):
         viewer.draw_plan_ts(plan, 0)
         robot = plan.params['baxter']
         cloth = plan.params['cloth']
+
         pred = baxter_predicates.BaxterClothInGripperLeft('test_cloth_in_gripper', [robot, cloth], ['Robot', 'Cloth'], env=env)
         self.assertFalse(pred.test(30))
 
         def resampled_value(pred, negated, t, plan):
+            cloth_rot = cloth.rotation[:, t]
             res, attr_inds = baxter_sampling.resample_cloth_in_gripper(pred, negated, t, plan)
             self.assertTrue(pred.test(t))
+            self.assertTrue(np.allclose(cloth_rot, cloth.rotation[:, t]))
 
         for ts in range(30, 49):
             resampled_value(pred, False, ts, plan)
@@ -299,3 +301,23 @@ class TestBaxterSampling(unittest.TestCase):
 
         for ts in range(30, 50):
             resampled_value(pred, False, ts, plan)
+
+    def test_resample_obstruct(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('test_resample_obstruct.hdf5')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        sp = plan.params['cloth_grasp_begin_1']
+        ep = plan.params['cloth_grasp_end_1']
+        basket = plan.params['basket']
+        cloth = plan.params['cloth']
+        pred = baxter_predicates.BaxterObstructsHoldingCloth('test_in_gripper', [robot, sp, ep, basket, cloth], ['Robot', 'RobotPose', 'RobotPose', 'Basket', 'Cloth'], env=env)
+        self.assertFalse(pred.test(38, negated = True))
+        plan.check_cnt_violation(priority = 3, tol = 1e-3)
+        def resampled_value(pred, negated, t, plan):
+            res, attr_inds = baxter_sampling.resample_basket_obstructs_holding(pred, negated, t, plan)
+            self.assertTrue(pred.test(t, negated = negated))
+
+        resampled_value(pred, True, 38, plan)

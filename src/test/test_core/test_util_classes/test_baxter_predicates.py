@@ -158,6 +158,32 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
 
 
+    def test_obj_rel_pose_constant(self):
+        cloth = ParamSetup.setup_cloth()
+        basket = ParamSetup.setup_basket()
+
+        pred = baxter_predicates.BaxterObjRelPoseConstant("test_ObjRelPoseConstant", [basket, cloth], ["Basket", "Cloth"])
+        self.assertFalse(pred.test(0))
+
+        cloth.pose = np.array([[0,0,0],[1,1,1]]).T
+        cloth.rotation = np.array([[0,0,0],[0,0,0]]).T
+        basket.pose = np.array([[0,0,0], [1,1,1]]).T
+        basket.rotation = np.array([[0,0,0], [0,0,0]]).T
+        self.assertTrue(pred.test(0))
+
+        cloth.pose = np.array([[0,0,0],[1,1,1]]).T
+        cloth.rotation = np.array([[0,0,0],[0,0,0]]).T
+        basket.pose = np.array([[1,1,1], [2,2,2]]).T
+        basket.rotation = np.array([[0,0,0], [0,0,0]]).T
+        self.assertTrue(pred.test(0))
+
+        cloth.pose = np.array([[0,0,0],[1,0,1]]).T
+        cloth.rotation = np.array([[0,0,0],[0,0,0]]).T
+        basket.pose = np.array([[1,0,1], [2,2,2]]).T
+        basket.rotation = np.array([[0,0,0], [0,0,0]]).T
+        self.assertFalse(pred.test(0))
+
+
     def test_within_joint_limit(self):
 
         joint_factor = const.JOINT_MOVE_FACTOR
@@ -529,6 +555,43 @@ class TestBaxterPredicates(unittest.TestCase):
         if const.TEST_GRAD:
             in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
         test_grasping_pose(-np.pi/2, np.pi/2)
+
+
+    def test_in_gripper_cloth(self):
+        test_env = ParamSetup.setup_env()
+        robot = ParamSetup.setup_baxter()
+        cloth = ParamSetup.setup_cloth()
+
+        test_env.SetViewer('qtcoin')
+        in_gripper_cloth =  baxter_predicates.BaxterClothInGripperLeft("test_in_gripper_cloth_left", [robot, cloth], ["Robot", "Cloth"], test_env)
+        robot_body, cloth_body = robot.openrave_body, cloth.openrave_body
+        self.assertEqual(in_gripper_cloth.get_type(), "BaxterClothInGripperLeft")
+        self.assertFalse(in_gripper_cloth.test(0))
+        cloth.pose[:, 0] = [0.724, 0.282, 0.918]
+        cloth_body.set_pose(cloth.pose[:, 0])
+        arm_pose = robot_body.get_ik_from_pose(cloth.pose[:, 0], [0, np.pi/2, 0], "left_arm")[0]
+        robot.lArmPose = arm_pose.reshape((7,1))
+        robot_body.set_dof({'lArmPose': arm_pose})
+        self.assertTrue(in_gripper_cloth.test(0))
+        cloth.rotation[:, 0] = [0,0,np.pi/3]
+        cloth_body.set_pose(cloth.pose[:, 0], cloth.rotation[:, 0])
+        self.assertFalse(in_gripper_cloth.test(0))
+        cloth.rotation[:, 0] = [0,np.pi/3, 0]
+        self.assertFalse(in_gripper_cloth.test(0))
+        cloth.rotation[:, 0] = [np.pi/3, 0, 0]
+        self.assertTrue(in_gripper_cloth.test(0))
+        if const.TEST_GRAD:
+            in_gripper_cloth.expr.expr.grad(in_gripper_cloth.get_param_vector(0), True, 1e-3)
+
+        robot.lArmPose[:, 0] = [-0.55276514, -0.76798954, -0.42683427,  1.5060934 , -2.65894621, -0.99013659,  1.31596573]
+        robot.pose[:, 0] = [ 0.03922041]
+        cloth.pose[:, 0] = [ 0.75598524,  0.29131978,  0.68915563]
+        cloth.rotation = np.array([-1.65098378, -1.47650146,  3.08782187]).reshape((3,1))
+        robot_body.set_dof({'lArmPose': robot.lArmPose[:, 0]})
+        robot_body.set_pose([0,0,0.03922041])
+        cloth_body.set_pose(cloth.pose[:, 0], cloth.rotation[:, 0])
+        self.assertFalse(in_gripper_cloth.test(0))
+
 
     def test_ee_grasp_valid(self):
         test_env = ParamSetup.setup_env()

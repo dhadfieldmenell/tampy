@@ -53,11 +53,16 @@ class Plan(object):
                     arr[np.isnan(v)] = 1
                     p._free_attrs[k] = arr
 
-    def has_nan(self):
+    def has_nan(self, active_ts = None):
+        if not active_ts:
+            active_ts = (0, self.horizon-1)
+
         for p in self.params.itervalues():
             for k, v in p.__dict__.iteritems():
                 if type(v) == np.ndarray:
-                    if np.any(np.isnan(v)):
+                    if p.is_symbol() and np.any(np.isnan(v)):
+                            return True
+                    if not p.is_symbol() and np.any(np.isnan(v[:, active_ts[0]:active_ts[1]+1])):
                         return True
         return False
 
@@ -128,6 +133,14 @@ class Plan(object):
             failed.extend(a.get_failed_preds(active_ts, priority, tol=tol))
         return failed
 
+    def get_failed_preds_by_action(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
+        if active_ts == None:
+            active_ts = (0, self.horizon-1)
+        failed = []
+        for a in self.actions:
+            failed.append(a.get_failed_preds(active_ts, priority, tol=tol))
+        return failed
+
     def satisfied(self, active_ts=None):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
@@ -143,6 +156,14 @@ class Plan(object):
             if start <= t and end >= t:
                 res.extend(a.get_active_preds(t))
         return res
+
+    def check_cnt_violation(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
+        if active_ts is None:
+            active_ts = (0, self.horizon-1)
+        preds = [(negated, pred, t) for negated, pred, t in self.get_failed_preds(active_ts=active_ts, priority = priority, tol = tol)]
+        for negated, pred, t in preds:
+            pred.check_pred_violation(t, negated=negated, tol=tol)
+
 
     def prefix(self, fail_step):
         """

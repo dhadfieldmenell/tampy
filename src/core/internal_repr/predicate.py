@@ -1,5 +1,6 @@
 from IPython import embed as shell
 from errors_exceptions import ParamValidationException
+import numpy as np
 
 class Predicate(object):
     """
@@ -38,6 +39,19 @@ class Predicate(object):
         for i, p in enumerate(self.params):
             if not p.get_type() == expected_param_types[i]:
                 raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
+
+    def check_pred_violation(self, t, negated = False, tol = 1e-3):
+        violation = np.max(np.abs(self.get_expr(negated=negated).expr.eval(self.get_param_vector(t))))
+
+        if self.test(t, negated=negated, tol=tol):
+            if violation < tol:
+                import ipdb; ipdb.set_trace()
+                self.test(t, negated=negated, tol=tol)
+
+            return None
+
+        print ("{}-{}\n".format(self.get_type(), t), violation)
+
 
     def __repr__(self):
         s = "%s: (%s "%(self.name, self.get_type())

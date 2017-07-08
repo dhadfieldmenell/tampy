@@ -32,7 +32,7 @@ class PlanSerializer:
 
     def _add_action_to_group(self, group, action):
         action_group = group.create_group(str(action))
-        action_group['name'] = str(action)
+        action_group['name'] = action.name
         action_group['active_ts'] = action.active_timesteps
         action_group['params'] = map(lambda p: p.name, action.params)
         action_group['step_num'] = action.step_num
