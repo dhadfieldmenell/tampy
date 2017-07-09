@@ -848,9 +848,9 @@ class TestBasketDomain(unittest.TestCase):
             # viewer.draw_traj(obj_list, a.active_timesteps[0])
             return viewer
 
-        velocites = np.ones((plan.horizon, ))*0.3
+        velocites = np.ones((plan.horizon, ))*0.6
         slow_inds = np.array([range(19,39), range(58,78), range(97,117), range(136,156), range(175,195), range(214,234)]).flatten()
-        velocites[slow_inds] = 0.1
+        velocites[slow_inds] = 0.3
 
         """
             Finding good target values
@@ -872,16 +872,29 @@ class TestBasketDomain(unittest.TestCase):
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
 
+        if result:
+            solver.init_penalty_coeff = 1e8
+            import ipdb; ipdb.set_trace()
+            success = solver._solve_opt_prob(plan, priority=3, callback=None, active_ts=(0, 234), verbose=False, resample=False)
+
+<<<<<<< HEAD
+        
+=======
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
 
-        
+        baxter = plan.params['baxter']
+>>>>>>> e8cf5d0f42d90044d0f01ca0735ff94181fd40be
         ee_time = traj_retiming(plan, velocites)
         baxter.time = ee_time.reshape((1, ee_time.shape[0]))
 
         print "Saving current plan to file basket_putdown_isolation.hdf5..."
         serializer = PlanSerializer()
-        serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
+        serializer.write_plan_to_hdf5("cloth_manipulation_plan_1.hdf5", plan)
         self.assertTrue(result)
+
+
+
+        import ipdb; ipdb.set_trace()
 
 
 if __name__ == "__main__":
