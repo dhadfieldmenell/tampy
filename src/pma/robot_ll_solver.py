@@ -65,12 +65,16 @@ class RobotLLSolver(LLSolver):
         return success
 
     def backtrack_solve(self, plan, callback=None, verbose=False):
-        # pre-solve the plan to initialized all value
-        if not plan.initialized:
-            self.solve(plan, callback = lambda: None, n_resamples=0)
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
         plan.restore_free_attrs()
+
+        if success:
+            self.init_penalty_coeff = 1e8
+            success = self._solve_opt_prob(plan, priority=MAX_PRIORITY,
+                            callback=callback, active_ts=(0, plan.horizon-1), verbose=verbose, resample=False)
+            assert success
+
         return success
 
     def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
@@ -81,6 +85,7 @@ class RobotLLSolver(LLSolver):
             return True
 
         a = plan.actions[anum]
+        print "backtracking Solve on {}".format(a.name)
         active_ts = a.active_timesteps
         inits = {}
         if a.name == 'moveto':
@@ -290,17 +295,20 @@ class RobotLLSolver(LLSolver):
         else:
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
-
         for i in range(resample_size):
             if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
-                offset = np.array([0, 0.317, 0])
-                target = next_act.params[2]
-                plan.params['basket'].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+                target = next_act.params[1]
 
-                ee_left = target.value[:, 0] + offset + random_dir
-                ee_right = target.value[:, 0] - offset + random_dir
                 robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0]})
+
+                offset = np.array([0, 0.317, 0])
+                target_pos = target.pose[:, start_ts]
+                target.openrave_body.set_pose(target_pos, target.rotation[:, start_ts])
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+                ee_left = target_pos + offset + random_dir
+                ee_right = target_pos - offset + random_dir
+
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
@@ -313,9 +321,13 @@ class RobotLLSolver(LLSolver):
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
             elif next_act.name == 'cloth_grasp' or next_act.name == 'cloth_putdown':
-                target = next_act.params[2]
+                target = next_act.params[1]
+
+                robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0]})
+
+                target_pos = target.pose[:, start_ts]
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
-                ee_left = target.value[:, 0] + random_dir
+                ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
@@ -326,15 +338,19 @@ class RobotLLSolver(LLSolver):
 
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-            elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
-                offset = np.array([0, 0.317, 0])
-                target = act.params[2]
-                plan.params['basket'].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
 
+
+            elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
+                target = act.params[2]
+
+                robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0]})
+                act.params[1].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+
+                offset = np.array([0, 0.317, 0])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
-                robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0]})
+
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
@@ -346,8 +362,9 @@ class RobotLLSolver(LLSolver):
 
             elif act.name == 'cloth_grasp' or act.name == 'cloth_putdown':
                 target = act.params[2]
+                target_pos = target.value[:, 0]
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
-                ee_left = target.value[:, 0] + random_dir
+                ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
@@ -357,10 +374,9 @@ class RobotLLSolver(LLSolver):
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
             else:
                 raise NotImplementedError
-
+        if not robot_pose:
+            import ipdb; ipdb.set_trace()
         return robot_pose
-
-
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
