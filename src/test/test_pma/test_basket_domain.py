@@ -874,7 +874,7 @@ class TestBasketDomain(unittest.TestCase):
 
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
 
-
+        
         ee_time = traj_retiming(plan, velocites)
         baxter.time = ee_time.reshape((1, ee_time.shape[0]))
 

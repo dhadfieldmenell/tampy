@@ -158,7 +158,7 @@ class Trajectory(object):
 			self._r_grip.trajectory.points.append(point)
 
 	def load_trajectory(self, action):
-		baxter = filter(lambda p: p.name=='robot', action.params)[0] # plan.params['robot']
+		baxter = filter(lambda p: p.name=='baxter', action.params)[0] # plan.params['robot']
 		joint_names = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', \
 					   'left_w1', 'left_w2', 'right_s0', 'right_s1', 'right_e0', \
 					   'right_e1', 'right_w0', 'right_w1', 'right_w2']
@@ -193,15 +193,15 @@ class Trajectory(object):
 			offset = max(map(operator.div, diffs, dflt_vel))
 			return offset
 
-		ts = action.active_timesteps
+		ts = (0, 254) #action.active_timesteps
 		real_ts = 0
 		for t in range(ts[0], ts[1]):
 			cmd = {}
 			for i in range(7):
 				cmd['left'+joints[i]] = baxter.lArmPose[i][t]
 				cmd['right'+joints[i]] = baxter.rArmPose[i][t]
-			cmd['left_gripper'] = 100.0 if baxter.lGripper[0][t] > .015 else 0
-			cmd['right_gripper'] = 100.0 if baxter.rGripper[0][t] > .015 else 0
+			cmd['left_gripper'] = 100.0 if baxter.lGripper[0][t] > .016 else 0
+			cmd['right_gripper'] = 100.0 if baxter.rGripper[0][t] > .016 else 0
 			if t == ts[0]:
 				cur_cmd = [self._l_arm.joint_angle(jnt) for jnt in self._l_goal.trajectory.joint_names]
 				self._add_point(cur_cmd, 'left', 0.0)
@@ -219,7 +219,7 @@ class Trajectory(object):
 			self._add_point(cur_cmd, 'left_gripper', real_ts + start_offset)
 			cur_cmd = [cmd['right_gripper']]
 			self._add_point(cur_cmd, 'right_gripper', real_ts + start_offset)
-			real_ts += baxter.time[t]
+			real_ts += 0.8 #baxter.time[:, t]
 
 	def _feedback(self, data):
 		# Test to see if the actual playback time has exceeded
@@ -299,15 +299,15 @@ def execute_plan(plan):
 	Pass in a plan on an initialized ros node and it will execute the
 	trajectory of that plan for a single robot.
 	'''
-        env_monitor = EnvironmentMonitor()
-
-        basket = plan.params['basket']
-        cloth = plan.params['cloth']
-
-        # env_monitor.update_plan(plan, 0)
-
-        solver = RobotLLSolver()
-        success = solver.solve(plan)
+        # env_monitor = EnvironmentMonitor()
+		#
+        # basket = plan.params['basket']
+        # cloth = plan.params['cloth']
+		#
+        # # env_monitor.update_plan(plan, 0)
+		#
+        # solver = RobotLLSolver()
+        success = True #solver.solve(plan)
 
         if success:
             for action in plan.actions:

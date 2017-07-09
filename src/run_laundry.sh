@@ -21,7 +21,7 @@
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain._test_backtrack_solve_action_isolation --debug
 
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.find_cloth_position --debug
 
@@ -43,3 +43,5 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_obj_rel_pose_constant --debug
 
 # nose2 test.test_core.test_util_classes.test_baxter_sampling.TestBaxterSampling.test_resample_eereachable_ver --debug
+
+nose2 test.test_ros_interface.test_action_execution --debug
