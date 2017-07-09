@@ -1108,7 +1108,7 @@ def resample_basket_obstructs(pred, negated, t, plan):
     attempt, step = 0, 1
     while attempt < 50 and len(pred._cc.BodyVsBody(body, obs)) > 0:
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.005,0.005,0.1])
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.005,0.005,0.2])
         arm_pose = get_ik_from_pose(target_ee, [0, np.pi/2, 0], body, "{}_arm".format(arm))
         if arm_pose is None:
             step += 1
@@ -1176,6 +1176,21 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
     else:
         arm = 'right'
         manip = r_manip
+
+    pred._cc.SetContactDistance(pred.dsafe)
+    collisions = pred._cc.BodyVsBody(body, obs)
+    for col in collisions:
+        linkA, linkB = col.GetLinkAName(), col.GetLinkBName()
+        if linkA[0] == 'l' or linkB[0] == 'l':
+            arm = 'left'
+            manip = l_manip
+            break
+        elif linkA[0] == 'r' or linkB[0] == 'r':
+            arm = 'right'
+            manip = r_manip
+            break
+        else:
+            continue
 
     pos_rot = OpenRAVEBody.obj_pose_from_transform(manip.GetTransform())
     ee_pos, ee_rot = pos_rot[:3], pos_rot[3:]

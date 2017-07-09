@@ -321,3 +321,34 @@ class TestBaxterSampling(unittest.TestCase):
             self.assertTrue(pred.test(t, negated = negated))
 
         resampled_value(pred, True, 38, plan)
+
+    def test_resample_obstruct_2(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('test_resample_obstruct.hdf5')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        sp = plan.params['cloth_grasp_begin_1']
+        ep = plan.params['cloth_grasp_end_1']
+        basket = plan.params['basket']
+        offset = np.array([0, 0.317, 0])
+        cloth = plan.params['cloth']
+        pred = baxter_predicates.BaxterObstructsHoldingCloth('test_in_gripper', [robot, sp, ep, basket, cloth], ['Robot', 'RobotPose', 'RobotPose', 'Basket', 'Cloth'], env=env)
+        self.assertFalse(pred.test(38, negated = True))
+        lArmPose = robot.openrave_body.get_ik_from_pose(basket.pose[:, 0] , [0, np.pi/2,0], 'left_arm')[0]
+        rArmPose = robot.openrave_body.get_ik_from_pose(basket.pose[:, 0] - offset, [0, np.pi/2,0], 'right_arm')[0]
+
+        robot.lArmPose[:, 38] = lArmPose
+        robot.rArmPose[:, 38] = rArmPose
+        robot.lGripper[:, 38] = 0.015
+        robot.rGripper[:, 38] = 0
+        cloth.pose[:, 38] = basket.pose[:, 0]
+        self.assertFalse(pred.test(38, negated = True))
+
+        plan.check_cnt_violation(priority = 3, tol = 1e-3)
+        def resampled_value(pred, negated, t, plan):
+            res, attr_inds = baxter_sampling.resample_basket_obstructs_holding(pred, negated, t, plan)
+            self.assertTrue(pred.test(t, negated = negated))
+
+        resampled_value(pred, True, 38, plan)

@@ -42,4 +42,4 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
 
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_obj_rel_pose_constant --debug
 
-# nose2 test.test_core.test_util_classes.test_baxter_sampling.TestBaxterSampling.test_resample_eereachable_ver --debug
+# nose2 test.test_core.test_util_classes.test_baxter_sampling.TestBaxterSampling.test_resample_obstruct_2 --debug
