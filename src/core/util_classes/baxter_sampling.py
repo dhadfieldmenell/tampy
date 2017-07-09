@@ -800,7 +800,7 @@ def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = Fal
             add_to_attr_inds_and_res(t-step+i, attr_inds, res, cloth, [('pose', cloth.pose[:, t] + np.array([0,0,const.RETREAT_DIST]) * (i+1))])
 
     if DEBUG: test_resample_order(attr_inds, res)
-    assert pred.test(t, negated = negated, tol = 1e-3)
+    if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds
 
 def resample_basket_moveholding_all(pred, negated, t, plan):
@@ -949,9 +949,7 @@ def resample_cloth_in_gripper(pred, negated, t, plan):
     elif action.name.find("putdown") >= 0:
         putdown_time = action.active_timesteps[0] + const.EEREACHABLE_STEPS
 
-
-
-    assert pred.test(t, negated = negated, tol = 1e-3)
+    if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds
 
 

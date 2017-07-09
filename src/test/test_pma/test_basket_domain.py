@@ -814,5 +814,75 @@ class TestBasketDomain(unittest.TestCase):
                     for attr in param._free_attrs.keys():
                         self.assertTrue(np.all(prev_action_values[param][attr][:,0] == getattr(param, attr)[:,0]))
 
+    def test_full_plan(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/laundry.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        '1: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
+        '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 BASKET_GRASP_BEGIN',
+        '5: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        '7: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        '8: MOVETO BAXTER BASKET_PUTDOWN_END CLOTH_GRASP_BEGIN_2',
+        '9: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
+        '10: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
+        '11: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',
+        '12: MOVETO BAXTER CLOTH_PUTDOWN_END_2 ROBOT_END_POSE'
+        ]
+
+        plan = hls.get_plan(plan_str, domain, problem)
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        serializer = PlanSerializer()
+        # obj_list = [param for param in plan.params.values() if not param.is_symbol()]
+        def callback(a):
+            # viewer.draw_traj(obj_list, a.active_timesteps[0])
+            return viewer
+
+        velocites = np.ones((plan.horizon, ))*0.3
+        slow_inds = np.array([range(19,39), range(58,78), range(97,117), range(136,156), range(175,195), range(214,234)]).flatten()
+        velocites[slow_inds] = 0.1
+
+        """
+            Finding good target values
+        """
+        # viewer.draw_plan_ts(plan, 0)
+        # robot = plan.params["baxter"]
+        # robot_body = robot.openrave_body
+        # cloth = plan.params["cloth"]
+        # cloth_body = cloth.openrave_body
+        # basket = plan.params["basket"]
+        # basket_body = basket.openrave_body
+        # import ipdb; ipdb.set_trace()
+        """
+            Helper end
+        """
+
+        solver = robot_ll_solver.RobotLLSolver()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        end = time.time()
+
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+
+
+        ee_time = traj_retiming(plan, velocites)
+        baxter.time = ee_time.reshape((1, ee_time.shape[0]))
+
+        print "Saving current plan to file basket_putdown_isolation.hdf5..."
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
+        self.assertTrue(result)
+
+
 if __name__ == "__main__":
     unittest.main()
