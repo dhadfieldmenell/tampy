@@ -2,7 +2,7 @@ import unittest, os, h5py, time, scipy.stats, main
 import matplotlib.pylab as plt
 import numpy as np
 import sys
-sys.path.append(os.path.abspath("/home/simon0xzx/Research/tampy/src"))
+sys.path.append(os.path.abspath(os.getcwd()))
 from core.util_classes.learning import PostLearner
 from core.parsing import parse_domain_config, parse_problem_config
 from core.util_classes.can import GreenCan
