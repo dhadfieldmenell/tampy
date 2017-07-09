@@ -6,7 +6,7 @@ import random
 # SEED = 1234
 NUM_PROBS = 1
 filename = "laundry_probs/laundry.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket end_target), (BaxterClothAt cloth cloth_target_end_2)"
 
 
 # init Baxter pose
@@ -29,7 +29,6 @@ TABLE_GEOM = [0.3, 0.6, 0.018]
 TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
-# WASHER_POS = [2,2,2]
 WASHER_POS = [0.08, 0.781, 0.28]
 WASHER_ROT = [np.pi, 0, np.pi/2]
 WASHER_DOOR = [0.0]
@@ -39,9 +38,14 @@ WASHER_CONFIG = [True, True]
 CLOTH_INIT_POS_1 = [0.65, 0.401, 0.557]
 CLOTH_INIT_ROT_1 = [0,0,0]
 
-CLOTH_END_POS_1 = [0.65, -0.283,0.626]
+CLOTH_END_POS_1 =[ 0.65 , -0.283,  0.601]
 CLOTH_END_ROT_1 = [0,0,0]
 
+# CLOTH_INIT_POS_2 = [ 0.65 ,  0.2  ,  0.601]
+# CLOTH_INIT_ROT_2 = [0,0,0]
+
+CLOTH_END_POS_2 = [ 0.65 ,  0.801, 0.557]
+CLOTH_END_ROT_2 = [0,0,0]
 
 """
 Intermediate Poses adding it simplifies the plan
@@ -185,7 +189,9 @@ def main():
         s += "(rotation cloth_target_end_1 {}), ".format(CLOTH_END_ROT_1)
 
         s += get_underfine_symbol("cloth_target_begin_2")
-        s += get_underfine_symbol("cloth_target_end_2")
+
+        s += "(value cloth_target_end_2 {}), ".format(CLOTH_END_POS_2)
+        s += "(rotation cloth_target_end_2 {}), ".format(CLOTH_END_ROT_2)
 
         s += get_underfine_symbol("cg_ee_1")
         s += get_underfine_symbol("cp_ee_1")
@@ -208,14 +214,12 @@ def main():
         s += get_undefined_robot_pose_str("cloth_grasp_begin_1")
         s += get_undefined_robot_pose_str("cloth_grasp_end_1")
         s += get_undefined_robot_pose_str("cloth_putdown_begin_1")
-        # s += get_robot_pose_str('cloth_putdown_begin_1', CLOTH_PUTDOWN_BEGIN_1_LARMPOSE, CLOTH_PUTDOWN_BEGIN_1_RARMPOSE, CLOSE_GRIPPER, CLOTH_PUTDOWN_BEGIN_1_POSE)
         s += get_undefined_robot_pose_str("cloth_putdown_end_1")
         s += get_undefined_robot_pose_str("basket_grasp_begin")
         s += get_undefined_robot_pose_str("basket_grasp_end")
         s += get_undefined_robot_pose_str("basket_putdown_begin")
         s += get_undefined_robot_pose_str("basket_putdown_end")
-        # s += get_undefined_robot_pose_str("open_door_begin")
-        s += get_robot_pose_str('open_door_begin', WASHER_BEGIN_LARMPOSE, WASHER_BEGIN_RARMPOSE, INT_GRIPPER, WASHER_BEGIN_POSE)
+        s += get_undefined_robot_pose_str("open_door_begin")
         s += get_undefined_robot_pose_str("open_door_end")
         s += get_undefined_robot_pose_str("cloth_grasp_begin_2")
         s += get_undefined_robot_pose_str("cloth_grasp_end_2")

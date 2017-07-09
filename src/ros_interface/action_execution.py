@@ -35,6 +35,9 @@ import operator
 import sys
 import threading
 
+from pma.robot_ll_solver import RobotLLSolver
+from ros_interface.environment_monitor import EnvironmentMonitor
+
 import rospy
 
 import baxter_interface
@@ -56,7 +59,6 @@ from trajectory_msgs.msg import (
 )
 
 joints = ['_s0', '_s1', '_e0', '_e1', '_w0', '_w1', '_w2']
-time_rat = 2.0
 
 class Trajectory(object):
 	def __init__(self):
@@ -156,7 +158,7 @@ class Trajectory(object):
 			self._r_grip.trajectory.points.append(point)
 
 	def load_trajectory(self, action):
-		baxter = filter(lambda p: p.name == 'baxter', action.params)[0]
+		baxter = filter(lambda p: p.name=='baxter', action.params)[0] # plan.params['robot']
 		joint_names = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', \
 					   'left_w1', 'left_w2', 'right_s0', 'right_s1', 'right_e0', \
 					   'right_e1', 'right_w0', 'right_w1', 'right_w2']
@@ -191,18 +193,15 @@ class Trajectory(object):
 			offset = max(map(operator.div, diffs, dflt_vel))
 			return offset
 
-		action.active_timesteps
-
+		ts = (0, 254) #action.active_timesteps
 		real_ts = 0
 		for t in range(ts[0], ts[1]):
 			cmd = {}
 			for i in range(7):
 				cmd['left'+joints[i]] = baxter.lArmPose[i][t]
 				cmd['right'+joints[i]] = baxter.rArmPose[i][t]
-			cmd['left_gripper'] = 100.0 if baxter.lGripper[0][t] > .015 else 0
-			cmd['right_gripper'] = 100.0 if baxter.rGripper[0][t] > .015 else 0
-			# Right now this moves to where the action is supposed to start.
-			# TODO: Remove & replan if the robot is not where it expects to be
+			cmd['left_gripper'] = 100.0 if baxter.lGripper[0][t] > .016 else 0
+			cmd['right_gripper'] = 100.0 if baxter.rGripper[0][t] > .016 else 0
 			if t == ts[0]:
 				cur_cmd = [self._l_arm.joint_angle(jnt) for jnt in self._l_goal.trajectory.joint_names]
 				self._add_point(cur_cmd, 'left', 0.0)
@@ -220,7 +219,7 @@ class Trajectory(object):
 			self._add_point(cur_cmd, 'left_gripper', real_ts + start_offset)
 			cur_cmd = [cmd['right_gripper']]
 			self._add_point(cur_cmd, 'right_gripper', real_ts + start_offset)
-			real_ts += baxter.time[t]
+			real_ts += 0.8 #baxter.time[:, t]
 
 	def _feedback(self, data):
 		# Test to see if the actual playback time has exceeded
@@ -294,24 +293,40 @@ class Trajectory(object):
 			rospy.logwarn(msg)
 			return False
 
-def execute_action(action):
+
+def execute_plan(plan):
 	'''
-	Pass in an action on an initialized ros node and it will execute the
-	trajectory of that action for a single robot.
+	Pass in a plan on an initialized ros node and it will execute the
+	trajectory of that plan for a single robot.
 	'''
-	traj = Trajectory()
-	traj.load_trajectory(action)
+        # env_monitor = EnvironmentMonitor()
+		#
+        # basket = plan.params['basket']
+        # cloth = plan.params['cloth']
+		#
+        # # env_monitor.update_plan(plan, 0)
+		#
+        # solver = RobotLLSolver()
+        success = True #solver.solve(plan)
 
-	rospy.on_shutdown(traj.stop)
-	result = True
-	loop_iter = 0
+        if success:
+            for action in plan.actions:
+				# env_monitor.update_plan(plan, action.active_timesteps[0])
+				# solver.solve(plan, active_ts=(action.active_timesteps[0], plan.horizon-1))
+                traj = Trajectory()
+                traj.load_trajectory(action)
 
-	while (result == True and loop_iter < 1
-		   and not rospy.is_shutdown()):
-		traj.start()
-		result = traj.wait()
+	        rospy.on_shutdown(traj.stop)
+	        result = True
 
-	print("Exiting - Plan Completed")
+	        while (result and not rospy.is_shutdown()):
+		        traj.start()
+		        result = traj.wait()
+            print("Exiting - Plan Completed")
+
+        else:
+                print ("Could not solve plan.")
+
 
 def move_to_ts(action, ts):
 	def get_joint_positions(limb, pos, i):
@@ -319,7 +334,6 @@ def move_to_ts(action, ts):
 				limb + "_e0": pos[2][i], limb + "_e1": pos[3][i], \
 				limb + "_w0": pos[4][i], limb + "_w1": pos[5][i], \
 				limb + "_w2": pos[6][i]}
-
 
 	baxter = None
 	for param in action.params:
@@ -368,7 +382,6 @@ def move_to_ts(action, ts):
 	if (not grip_right.calibrated() and
 		grip_right.type() != 'custom'):
 		grip_right.calibrate()
-
 
 	def move_thread(limb, gripper, angle, grip, queue, timeout=15.0):
 			"""
@@ -420,114 +433,3 @@ def move_to_ts(action, ts):
 	result = right_queue.get()
 	if not result is None:
 		raise right_queue.get()
-
-
-def old_execute_action(action):
-	def get_joint_positions(limb, pos, i):
-		return {limb + "_s0": pos[0][i], limb + "_s1": pos[1][i], \
-				limb + "_e0": pos[2][i], limb + "_e1": pos[3][i], \
-				limb + "_w0": pos[4][i], limb + "_w1": pos[5][i], \
-				limb + "_w2": pos[6][i]}
-
-
-	baxter = None
-	for param in action.params:
-		if param.name == 'baxter':
-			baxter = param
-
-	if not baxter:
-		raise Exception("Baxter not found for action: %s" % action.name)
-
-	l_arm_pos = baxter.lArmPose
-	l_gripper = baxter.lGripper[0]
-	r_arm_pos = baxter.rArmPose
-	r_gripper = baxter.rGripper[0]
-
-	print("Getting robot state... ")
-	rs = baxter_interface.RobotEnable(CHECK_VERSION)
-	init_state = rs.state().enabled
-
-	def clean_shutdown():
-		print("\nExiting example...")
-		if not init_state:
-			print("Disabling robot...")
-			rs.disable()
-	rospy.on_shutdown(clean_shutdown)
-
-	print("Enabling robot... ")
-	rs.enable()
-	print("Running. Ctrl-c to quit")
-
-	left = baxter_interface.limb.Limb("left")
-	right = baxter_interface.limb.Limb("right")
-	grip_left = baxter_interface.Gripper('left', CHECK_VERSION)
-	grip_right = baxter_interface.Gripper('right', CHECK_VERSION)
-
-	left_queue = Queue.Queue()
-	right_queue = Queue.Queue()
-	rate = rospy.Rate(1000)
-
-	if grip_left.error():
-		grip_left.reset()
-	if grip_right.error():
-		grip_right.reset()
-	if (not grip_left.calibrated() and
-		grip_left.type() != 'custom'):
-		grip_left.calibrate()
-	if (not grip_right.calibrated() and
-		grip_right.type() != 'custom'):
-		grip_right.calibrate()
-
-
-	def move_thread(limb, gripper, angle, grip, queue, timeout=15.0):
-			"""
-			Threaded joint movement allowing for simultaneous joint moves.
-	        """
-			try:
-				limb.move_to_joint_positions(angle, timeout)
-				gripper.command_position(grip)
-				queue.put(None)
-			except Exception, exception:
-				print "Exception raised in joint movement thread"
-				queue.put(traceback.format_exc())
-				queue.put(exception)
-
-	for i in range(0, len(l_gripper)):
-
-		left_thread = threading.Thread(
-			target=move_thread,
-			args=(left,
-				grip_left,
-				get_joint_positions("left", l_arm_pos, i),
-				l_gripper[i],
-				left_queue
-				)
-		)
-		right_thread = threading.Thread(
-			target=move_thread,
-			args=(right,
-			grip_right,
-			get_joint_positions("right", r_arm_pos, i),
-			r_gripper[i],
-			right_queue
-			)
-		)
-
-		left_thread.daemon = True
-		right_thread.daemon = True
-		left_thread.start()
-		right_thread.start()
-		baxter_dataflow.wait_for(
-			lambda: not (left_thread.is_alive() or right_thread.is_alive()),
-			timeout=20.0,
-			timeout_msg=("Timeout while waiting for arm move threads to finish"),
-			rate=10,
-		)
-		left_thread.join()
-		right_thread.join()
-		result = left_queue.get()
-		if not result is None:
-			raise left_queue.get()
-		result = right_queue.get()
-		if not result is None:
-			raise right_queue.get()
