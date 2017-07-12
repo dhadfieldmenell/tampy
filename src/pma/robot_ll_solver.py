@@ -43,7 +43,7 @@ class RobotLLSolver(LLSolver):
         self.trajopt_coeff = 1e-1
         self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 1e4
-        # self.init_penalty_coeff = 1e5
+        self.smooth_penalty_coeff = 1e6
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
@@ -68,7 +68,8 @@ class RobotLLSolver(LLSolver):
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
         plan.restore_free_attrs()
-    
+        result = traj_smoother(plan, callback=callback, n_resamples=5, active_ts=None, verbose=verbose)
+        assert success != result
         return success
 
     def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
@@ -200,52 +201,6 @@ class RobotLLSolver(LLSolver):
         rs_param._free_attrs = rs_free
         return success
 
-    def pose_suggester(self, plan, anum):
-        assert anum + 1 <= len(plan.actions) - 1
-        next_act = plan.actions[anum+1]
-
-        spacial_pred = [pred for pred in next_act.get_all_active_preds() if isinstance(pred, robot_predicates.EEReachable)]
-        resample_rot = np.array([0,np.pi/2, 0])
-        robot_body = spacial_pred[0].robot.openrave_body
-
-        robot_pose = []
-        if next_act.name.find("cloth_grasp") >= 0 or next_act.name.find("cloth_putdown") >= 0:
-            assert len(spacial_pred) == 1
-            spacial_pred = spacial_pred[0]
-            ee_pose = spacial_pred.ee_pose
-            rel_pt = spacial_pred.get_rel_pt(spacial_pred.active_range[0])
-            ee_trans = OpenRAVEBody.transform_from_obj_pose(ee_pose.value[:, 0], ee_pose.rotation[:, 0])
-            ee_target = ee_trans.dot(np.r_[rel_pt, 1])[:3]
-
-            arm_pose = robot_body.get_ik_from_pose(ee_target, resample_rot, "left_arm")[0]
-            robot_body.set_dof({'lArmPose': arm_pose})
-            robot_pose.append({'lArmPose': arm_pose.reshape((7,1))})
-
-        elif next_act.name.find("basket_grasp") >= 0 or next_act.name.find("basket_putdown") >= 0:
-            assert len(spacial_pred) == 2
-            left_pred, right_pred = spacial_pred[0], spacial_pred[1]
-            if left_pred.get_type().find("Right") >= 0 or right_pred.get_type().find("Left") >= 0:
-                left_pred, right_pred = right_pred, left_pred
-
-            ee_left, ee_right = left_pred.ee_pose, right_pred.ee_pose
-            left_trans = OpenRAVEBody.transform_from_obj_pose(ee_left.value[:, 0], ee_left.rotation[:, 0])
-            right_trans = OpenRAVEBody.transform_from_obj_pose(ee_right.value[:, 0], ee_right.rotation[:, 0])
-
-            left_target = left_trans.dot(np.r_[left_pred.get_rel_pt(left_pred.active_range[0]),1])[:3]
-            right_target = right_trans.dot(np.r_[right_pred.get_rel_pt(right_pred.active_range[0]),1])[:3]
-
-            l_arm_poses = robot_body.get_ik_from_pose(left_target, resample_rot, "left_arm")[0]
-            robot_body.set_dof({'lArmPose': l_arm_poses})
-            r_arm_poses = robot_body.get_ik_from_pose(right_target, resample_rot, "right_arm")[0]
-            robot_body.set_dof({'rArmPose': r_arm_poses})
-            robot_pose.append({'lArmPose': l_arm_poses.reshape((7,1)), 'rArmPose': r_arm_poses.reshape((7,1))})
-        else:
-            raise NotImplementedError
-
-        if len(robot_pose) == 0:
-            return None
-        return robot_pose
-
     def random_pose_suggester(self, plan, anum, resample_size = 5):
         robot_pose = []
 
@@ -290,7 +245,7 @@ class RobotLLSolver(LLSolver):
         for i in range(resample_size):
             if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
                 target = next_act.params[2]
-                offset = np.array([0, 0.317, 0])
+                offset = np.array([0, baxter_constants.BASKET_OFFSET, 0])
                 target_pos = target.value[:, 0]
 
                 next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])
@@ -338,7 +293,7 @@ class RobotLLSolver(LLSolver):
 
                 act.params[1].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
 
-                offset = np.array([0, 0.317, 0])
+                offset = np.array([0, baxter_constants.BASKET_OFFSET, 0])
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
@@ -398,8 +353,9 @@ class RobotLLSolver(LLSolver):
 
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
-                if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
+                print "resample attempt: {}".format(n_resamples)
 
+                if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
             if not success:
@@ -412,12 +368,6 @@ class RobotLLSolver(LLSolver):
         self.plan = plan
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
-        # if callback is not None:
-        #     viewer = callback()
-        # def draw(t):
-        #     viewer.draw_plan_ts(plan, t)
-        ## active_ts is the inclusive timesteps to include
-        ## in the optimization
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
         plan.save_free_attrs()
@@ -428,8 +378,6 @@ class RobotLLSolver(LLSolver):
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
         initial_trust_region_size = self.initial_trust_region_size
-        # self.saver = PlanSerializer()
-        # self.saver.write_plan_to_hdf5("temp_plan.hdf5", plan) = self.initial_trust_region_size
         if resample:
             tol = 1e-3
             def  variable_helper():
@@ -521,31 +469,25 @@ class RobotLLSolver(LLSolver):
                 plan.sampling_trace[-1]['reward'] = reward
         ##Restore free_attrs values
         plan.restore_free_attrs()
-        """
-            For Debugging purposes
-        """
-        if success and not resample:
-            if not success == (len(plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)) == 0):
-                print "Constraints Violations: ", self._prob.get_max_cnt_violation()
 
-                preds_list = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
-
-                pred_violation = [(pred.get_type()+"_"+str(t), np.max(pred.get_expr(negated=negated).expr.eval(pred.get_param_vector(t)))) for negated, pred, t in preds_list]
-                #
-                cnt_list = [cnt for cnt in self._prob._nonlin_cnt_exprs if hasattr(cnt, "source") and cnt.source in preds_list]
-                cnt_violation = [(cnt.source[1].get_type() + "_" + str(cnt.source[2]), np.max(cnt.expr.expr.eval(cnt.var.get_value()))) for cnt in cnt_list]
-
-                pred_value = [pred.get_param_vector(t) for negated, pred, t in preds_list]
-                cnt_value = [cnt.var.get_value() for cnt in cnt_list]
-
-
-
-            if DEBUG: assert success == (len(plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)) == 0)
-        """
-            Debug End
-        """
         self.reset_variable()
         print "priority: {}\n".format(priority)
+        return success
+
+    def traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
+        act = plan.actions[0]
+        if callback is not None:
+            callback_a = lambda: callback(act)
+        else:
+            callback_a = None
+        priority = MAX_PRIORITY
+        for attempt in range(n_resamples):
+            ## refinement loop
+            success = self._solve_opt_prob(plan, priority=priority,
+                            callback=callback_a, active_ts=active_ts, verbose=verbose)
+            if success:
+                break
+            self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
         return success
 
     def _get_transfer_obj(self, plan, norm):
@@ -585,9 +527,11 @@ class RobotLLSolver(LLSolver):
                         cur_val = attr_val.reshape((KT, 1), order='F')
                         A = -2*cur_val.T.dot(Q)
                         b = cur_val.T.dot(Q.dot(cur_val))
+                        transfer_coeff = self.transfer_coeff/float(plan.horizon)
+
                         # QuadExpr is 0.5*x^Tx + Ax + b
-                        quad_expr = QuadExpr(2*self.transfer_coeff*Q,
-                                             self.transfer_coeff*A, self.transfer_coeff*b)
+                        quad_expr = QuadExpr(2*transfer_coeff*Q,
+                                             transfer_coeff*A, transfer_coeff*b)
                         ll_attr_val = getattr(param_ll, attr_name)
                         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
                         sco_var = self.create_variable(param_ll_grb_vars, cur_val)
@@ -688,8 +632,9 @@ class RobotLLSolver(LLSolver):
                             Q = np.eye(1)
                             A = -2*val[p][i+j]*np.ones((1, 1))
                             b = np.ones((1, 1))*np.power(val[p][i+j], 2)
+                            resample_coeff = self.rs_coeff/float(plan.horizon)
                             # QuadExpr is 0.5*x^Tx + Ax + b
-                            quad_expr = QuadExpr(2*Q*self.rs_coeff, A*self.rs_coeff, b*self.rs_coeff)
+                            quad_expr = QuadExpr(2*Q*resample_coeff, A*resample_coeff, b*resample_coeff)
                             v_arr = np.array([grb_var]).reshape((1, 1), order='F')
                             init_val = np.ones((1, 1))*val[p][i+j]
                             sco_var = self.create_variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1)), save = True)
@@ -862,7 +807,7 @@ class RobotLLSolver(LLSolver):
                         # that numpy will create a diagonal matrix with v and d as a diagonal
                         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
                         Q = np.dot(np.transpose(P), P)
-                        Q *= self.trajopt_coeff
+                        Q *= self.trajopt_coeff/float(plan.horizon)
 
                         quad_expr = None
                         if attr_name == 'pose' and param._type == 'Robot':

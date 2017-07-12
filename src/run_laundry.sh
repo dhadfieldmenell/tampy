@@ -23,6 +23,8 @@
 
 nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
 
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_traj_smoother --debug
+
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.find_cloth_position --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.collision_debug_env --debug

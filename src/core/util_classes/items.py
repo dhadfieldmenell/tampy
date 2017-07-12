@@ -76,7 +76,7 @@ class GreenCan(Can):
 
 class Cloth(Can):
     def __init__(self):
-        super(Cloth, self).__init__(0.02,0.03)
+        super(Cloth, self).__init__(0.02,0.04)
         self.color = "blue"
         self._type = "can"
 

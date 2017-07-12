@@ -843,55 +843,36 @@ class TestBasketDomain(unittest.TestCase):
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
-        # obj_list = [param for param in plan.params.values() if not param.is_symbol()]
-        def callback(a):
-            # viewer.draw_traj(obj_list, a.active_timesteps[0])
-            return viewer
+        def callback(a): return viewer
 
-        velocites = np.ones((plan.horizon, ))*0.6
+        velocites = np.ones((plan.horizon, ))*1
         slow_inds = np.array([range(19,39), range(58,78), range(97,117), range(136,156), range(175,195), range(214,234)]).flatten()
-        velocites[slow_inds] = 0.3
-
-        """
-            Finding good target values
-        """
-        # viewer.draw_plan_ts(plan, 0)
-        # robot = plan.params["baxter"]
-        # robot_body = robot.openrave_body
-        # cloth = plan.params["cloth"]
-        # cloth_body = cloth.openrave_body
-        # basket = plan.params["basket"]
-        # basket_body = basket.openrave_body
-        # import ipdb; ipdb.set_trace()
-        """
-            Helper end
-        """
+        velocites[slow_inds] = 0.6
 
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
-
-        if result:
-            solver.init_penalty_coeff = 1e8
-            import ipdb; ipdb.set_trace()
-            success = solver._solve_opt_prob(plan, priority=3, callback=None, active_ts=(0, 234), verbose=False, resample=False)
-
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
 
-        baxter = plan.params['baxter']
         ee_time = traj_retiming(plan, velocites)
-        baxter.time = ee_time.reshape((1, ee_time.shape[0]))
+        plan.time = ee_time.reshape((1, ee_time.shape[0]))
 
-        print "Saving current plan to file basket_putdown_isolation.hdf5..."
-        serializer = PlanSerializer()
-        serializer.write_plan_to_hdf5("cloth_manipulation_plan_1.hdf5", plan)
+        print "Saving current plan to file cloth_manipulation_plan.hdf5..."
+
+        serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
         self.assertTrue(result)
-
-
 
         import ipdb; ipdb.set_trace()
 
+    def test_traj_smoother(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5("cloth_manipulation_plan.hdf5")
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        solver = robot_ll_solver.RobotLLSolver()
+        assert not plan.get_failed_preds(tol=1e-3)
+        success = solver.traj_smoother(plan, n_resamples = 10)
+        self.assertTrue(success)
 
 if __name__ == "__main__":
     unittest.main()
