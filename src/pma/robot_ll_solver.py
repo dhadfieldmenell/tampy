@@ -68,7 +68,8 @@ class RobotLLSolver(LLSolver):
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
         plan.restore_free_attrs()
-        result = traj_smoother(plan, callback=callback, n_resamples=5, active_ts=None, verbose=verbose)
+
+        result = self.traj_smoother(plan, callback=None, n_resamples=5, active_ts=None, verbose=verbose)
         assert success != result
         return success
 
@@ -353,7 +354,7 @@ class RobotLLSolver(LLSolver):
 
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
-                print "resample attempt: {}".format(n_resamples)
+                print "resample attempt: {}".format(attempt)
 
                 if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
@@ -475,16 +476,11 @@ class RobotLLSolver(LLSolver):
         return success
 
     def traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
-        act = plan.actions[0]
-        if callback is not None:
-            callback_a = lambda: callback(act)
-        else:
-            callback_a = None
         priority = MAX_PRIORITY
         for attempt in range(n_resamples):
             ## refinement loop
             success = self._solve_opt_prob(plan, priority=priority,
-                            callback=callback_a, active_ts=active_ts, verbose=verbose)
+                            callback=callback, active_ts=active_ts, verbose=verbose)
             if success:
                 break
             self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
