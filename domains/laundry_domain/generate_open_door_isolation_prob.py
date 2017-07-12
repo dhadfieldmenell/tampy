@@ -35,7 +35,7 @@ TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
 # WASHER_POS = [2,2,2]
-WASHER_POS = [0.38, 0.95, 0.28]
+WASHER_POS = [0.1, 0.95, 0.28]
 WASHER_ROT = [0, 0, np.pi/2]
 WASHER_DOOR = [0.0]
 WASHER_END_DOOR = [-np.pi/2]
@@ -72,10 +72,10 @@ CLOTH_PUTDOWN_BEGIN_1_POSE = [0]
 CLOTH_PUTDOWN_BEGIN_1_LARMPOSE = [-1.2, 0.30161054, -2.28704166, 0.95204077, 2.26996069, 1.91600073, -1.12607844]
 CLOTH_PUTDOWN_BEGIN_1_RARMPOSE = [0, -0.785, 0, 0, 0, 0, 0]
 
-WASHER_EE_POS = [0.265,  .91,  0.8] 
+WASHER_EE_POS = [0.265-0.28,  .91,  0.8]
 WASHER_EE_ROT = [np.pi/2, 0, -np.pi/2]
 
-WASHER_END_EE_POS = [.78, .91, 1.075]
+WASHER_END_EE_POS = [.78-0.28, .91, 1.075]
 WASHER_END_EE_ROT = [np.pi/2,  0,  0]
 
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
@@ -172,7 +172,6 @@ def main():
         s += "(geom basket), "
         s += "(pose basket {}), ".format(BASKET_INIT_POS)
         s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
-        s += "(time basket {}), ".format([0])
 
         s += "(geom init_target)"
         s += "(value init_target {}), ".format(BASKET_INIT_POS)

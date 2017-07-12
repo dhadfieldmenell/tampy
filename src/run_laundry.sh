@@ -7,7 +7,7 @@
 #
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.cloth_putdown_isolation --debug
 #
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.move_to_isolation --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.move_to_isolation --debug
 #
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.basket_grasp_isolation --debug
 #
@@ -16,6 +16,10 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.move_to_isolation --debu
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.moveholding_cloth_isolation --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.moveholding_basket_isolation --debug
+
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.handle_grasp_isolation --debug
+
+nose2 test.test_pma.test_basket_domain.TestBasketDomain.move_door_isolation --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_pose_suggester --debug
 

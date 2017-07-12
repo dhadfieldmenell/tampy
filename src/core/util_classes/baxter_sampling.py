@@ -961,27 +961,55 @@ def resample_washer_in_gripper(pred, negated, t, plan):
     manip = rave_body.env_body.GetManipulator("{}_arm".format(pred.arm))
 
     act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+    ts_range = action.active_timesteps
+    print "resample at {}".format(action.name)
+    if action.name.find("move_door") >= 0:
+        resample_start, resample_end = ts_range[0], ts_range[1]
+        door_pose = lin_interp_traj(washer.door[:, ts_range[0]], washer.door[:, ts_range[1]], ts_range[1]-ts_range[0])
+        for i in range(ts_range[0], ts_range[1]):
+            ind = i - ts_range[0]
+            add_to_attr_inds_and_res(i, attr_inds, res, washer, [('door', door_pose[:, ind])])
 
-    if action.name.find("open_door") >= 0 or action.name.find("close_door") >= 0:
-        ts_range = action.active_timesteps
-        for ts in range(ts_range[0]+const.EEREACHABLE_STEPS+5, ts_range[1]+1-const.EEREACHABLE_STEPS-5):
-            washer.openrave_body.set_dof({'door': washer.door[0, ts]})
-            washer_trans, washer_inds = pred.get_washer_info(washer.openrave_body)
+    elif action.name.find("handle_grasp") >= 0:
+        resample_start, resample_end = 5+const.EEREACHABLE_STEPS, ts_range[1]
+    elif action.name.find("handle_release") >= 0:
+        resample_start, resample_end = ts_range[0], ts_range[1] - 5 -const.EEREACHABLE_STEPS
+    else:
+        raise NotImplementedError
+    for ts in range(resample_start+1, resample_end):
+        washer.openrave_body.set_dof({'door': washer.door[0, ts]})
+        washer_trans, washer_inds = pred.get_washer_info(washer.openrave_body)
 
-            rel_pt =  [-0.04, 0.07, -0.115]
-
-            targ_pos, targ_rot = washer_trans.dot(np.r_[rel_pt, 1])[:3],  OpenRAVEBody.obj_pose_from_transform(washer_trans)[3:]
-            targ_rot[2] -= np.pi
-            grasp_arm_pose = closest_arm_pose(rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(pred.arm)), robot.lArmPose[:,ts-1])
-            if grasp_arm_pose is None:
-                return res, attr_inds
-
-            add_to_attr_inds_and_res(ts, attr_inds, res, robot, [('{}ArmPose'.format(pred.arm[0]), grasp_arm_pose)])
-        for ts in range(ts_range[0]+const.EEREACHABLE_STEPS+5, ts_range[1]+1-const.EEREACHABLE_STEPS-5):
-            # TODO: Figure out why this sometimes fails within tolerance of 1e-3
-            assert pred.test(ts, negated = negated, tol = 1e-2)
+        rel_pt =  [-0.04, 0.07, -0.115]
+        targ_pos, targ_rot = washer_trans.dot(np.r_[rel_pt, 1])[:3],  OpenRAVEBody.obj_pose_from_transform(washer_trans)[3:]
+        targ_rot[2] -= np.pi
+        grasp_arm_pose = closest_arm_pose(rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(pred.arm)), robot.lArmPose[:,ts-1])
+        if grasp_arm_pose is None:
+            return res, attr_inds
+        rave_body.set_dof({'{}ArmPose'.format(pred.arm[0]): grasp_arm_pose})
+        add_to_attr_inds_and_res(ts, attr_inds, res, robot, [('{}ArmPose'.format(pred.arm[0]), grasp_arm_pose)])
+        assert pred.test(ts, negated = negated, tol = 1e-2)
 
     return res, attr_inds
+
+def get_is_mp_arm_pose(robot_body, arm_poses, last_pose):
+    robot = robot_body.env_body
+    dof_map = robot_body._geom.dof_map
+    dof_inds = np.r_[dof_map["lArmPose"], dof_map["rArmPose"]]
+    lb_limit, ub_limit = robot.GetDOFLimits()
+    active_ub = ub_limit[dof_inds].reshape((len(dof_inds),1))
+    active_lb = lb_limit[dof_inds].reshape((len(dof_inds),1))
+    joint_move = (active_ub-active_lb)/const.JOINT_MOVE_FACTOR
+
+    is_mp_poses = []
+    for pose in arm_poses:
+        dof_difference = pose - last_pose
+        if np.all(dof_difference < joint_move):
+            is_mp_poses.append(pose)
+    print "{} poses satisfied".format(len(is_mp_poses))
+    if not is_mp_poses:
+        return None
+    return closest_arm_pose(is_mp_poses, last_pose)
 
 
 def resample_washer_ee_approach(pred, negated, t, plan, approach = True):

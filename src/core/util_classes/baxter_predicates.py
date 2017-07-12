@@ -313,7 +313,6 @@ class BaxterBasketGraspRightRot(BaxterGraspValidRot):
 class BaxterEEGraspValid(robot_predicates.EEGraspValid):
 
     # BaxterEEGraspValid EEPose Washer
-    # TODO EEGraspValid's gradient is not working properly, go back and fix it
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
@@ -904,7 +903,7 @@ class BaxterWasherInGripper(BaxterInGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.eval_dim = 6
-        self.arm = 'left'
+        self.arm = 'right'
         super(BaxterWasherInGripper, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_washer_poses(self, x, washer_body):

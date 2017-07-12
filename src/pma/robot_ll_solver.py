@@ -340,7 +340,7 @@ class RobotLLSolver(LLSolver):
 
         if success or len(plan.get_failed_preds(active_ts = active_ts)) == 0:
             return True
-
+        
         for priority in self.solve_priorities:
             for attempt in range(n_resamples):
                 ## refinement loop
