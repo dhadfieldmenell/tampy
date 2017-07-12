@@ -2,7 +2,7 @@ import h5py
 import importlib
 import os
 import pickle
-
+import numpy as np
 from openravepy import Environment
 
 from core.internal_repr.action import Action
@@ -18,6 +18,8 @@ class PlanSerializer:
         hdf5_file = h5py.File(file_name, 'w')
         plan_group = hdf5_file.create_group('plan')
         plan_group['horizon'] = plan.horizon
+        time_data = plan_group.create_dataset('time', plan.time.shape, dtype = 'f')
+        time_data[:,:] = plan.time
         action_group = plan_group.create_group('actions')
         param_group = plan_group.create_group('params')
 
@@ -130,7 +132,9 @@ class PlanDeserializer:
         for action in group['actions'].values():
             actions.append(self._build_action(action, params, env))
 
-        return Plan(params, actions, group['horizon'].value, env, determine_free=False)
+        new_plan = Plan(params, actions, group['horizon'].value, env, determine_free=False)
+        new_plan.time = np.array(group['time'].value)
+        return new_plan
 
 
     def _build_action(self, group, plan_params, env):

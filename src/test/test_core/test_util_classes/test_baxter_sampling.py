@@ -150,7 +150,7 @@ class TestBaxterSampling(unittest.TestCase):
         left_pred2 = baxter_predicates.BaxterEEReachableLeftVer('test_ee_left', [robot, robot_pose, ee_putdown_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
         right_pred2 = baxter_predicates.BaxterEEReachableRightVer('test_ee_right', [robot, robot_pose, ee_putdown_right], ['Robot', 'RobotPose', 'EEPose'], env=env)
 
-        basket_pos, offset = basket.pose[:, 24], [0,0.317,0]
+        basket_pos, offset = basket.pose[:, 24], [0,const.BASKET_OFFSET,0]
         ee_left.value = np.array([basket_pos + offset]).T
         ee_left.rotation = np.array([[0,np.pi/2, 0]]).T
         ee_right.value = np.array([basket_pos - offset]).T
@@ -189,7 +189,7 @@ class TestBaxterSampling(unittest.TestCase):
         left_pred2 = baxter_predicates.BaxterEEReachableLeftVer('test_ee_left', [robot, robot_pose, ee_putdown_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
         right_pred2 = baxter_predicates.BaxterEEReachableRightVer('test_ee_right', [robot, robot_pose, ee_putdown_right], ['Robot', 'RobotPose', 'EEPose'], env=env)
         import ipdb; ipdb.set_trace()
-        basket_pos, offset = basket.pose[:, 24], [0,0.317,0]
+        basket_pos, offset = basket.pose[:, 24], [0,const.BASKET_OFFSET,0]
         ee_left.value = np.array([basket_pos + offset]).T
         ee_left.rotation = np.array([[0,np.pi/2, 0]]).T
         ee_right.value = np.array([basket_pos - offset]).T
@@ -332,7 +332,7 @@ class TestBaxterSampling(unittest.TestCase):
         sp = plan.params['cloth_grasp_begin_1']
         ep = plan.params['cloth_grasp_end_1']
         basket = plan.params['basket']
-        offset = np.array([0, 0.317, 0])
+        offset = np.array([0, baxter_constants.BASKET_OFFSET, 0])
         cloth = plan.params['cloth']
         pred = baxter_predicates.BaxterObstructsHoldingCloth('test_in_gripper', [robot, sp, ep, basket, cloth], ['Robot', 'RobotPose', 'RobotPose', 'Basket', 'Cloth'], env=env)
         self.assertFalse(pred.test(38, negated = True))

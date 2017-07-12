@@ -37,7 +37,7 @@ class PrimitivePredicates(object):
         return prim_str
 
 pp = PrimitivePredicates()
-pp.add('Basket', [('geom', 'Basket'), ('pose', 'Vector3d'), ('rotation', 'Vector3d'), ('time', 'Vector1d')])
+pp.add('Basket', [('geom', 'Basket'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('BasketTarget', [('geom', 'Basket'), ('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Cloth', [('geom', 'Cloth'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('ClothTarget', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
@@ -51,8 +51,7 @@ pp.add('Robot', [('geom', 'Baxter'),
                 ('lArmPose', 'ArmPose7d'),
                 ('lGripper', 'Vector1d'),
                 ('rArmPose', 'ArmPose7d'),
-                ('rGripper', 'Vector1d'),
-                ('time', 'Vector1d')])
+                ('rGripper', 'Vector1d')])
 pp.add('EEPose', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Washer', [('geom', 'Washer'), ('pose', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
 pp.add('WasherPose', [('geom', 'Washer'), ('value', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
@@ -557,10 +556,7 @@ class ClothGrasp(Action):
             )', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
-            )', '0:{}'.format(grasp_time-1)),
-            ('(forall (?obj - Basket)\
-                (not (BaxterObstructsHoldingCloth ?robot ?sp ?ep ?obj ?cloth))\
-            )', '{}:{}'.format(grasp_time, end))
+            )', '0:{}'.format(end))
         ]
         self.eff = [\
             ('(not (BaxterClothAt ?cloth ?target))', '{}:{}'.format(end, end-1)) ,
@@ -613,10 +609,7 @@ class ClothPutdown(Action):
             )', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
-            )', '{}:{}'.format(putdown_time, end)),
-            ('(forall (?obj - Basket)\
-                (not (BaxterObstructsHoldingCloth ?robot ?sp ?ep ?obj ?cloth))\
-            )', '{}:{}'.format(0, putdown_time-1))
+            )', '{}:{}'.format(0, end))
         ]
         self.eff = [\
             ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end-1)) ,

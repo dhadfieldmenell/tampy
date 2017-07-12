@@ -168,7 +168,6 @@ def main():
         s += "(geom basket), "
         s += "(pose basket {}), ".format(BASKET_INIT_POS)
         s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
-        s += "(time basket {}), ".format([0])
 
         s += "(geom init_target)"
         s += "(value init_target {}), ".format(BASKET_INIT_POS)

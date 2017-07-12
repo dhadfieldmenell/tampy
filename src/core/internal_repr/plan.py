@@ -20,6 +20,7 @@ class Plan(object):
         self.params = params
         self.actions = actions
         self.horizon = horizon
+        self.time = np.zeros((1, horizon))
         self.env = env
         self.initialized = False
         self._free_attrs = {}
