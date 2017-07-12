@@ -504,17 +504,15 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertEqual(in_gripper_washer.get_type(), "BaxterWasherInGripper")
         self.assertFalse(in_gripper_washer.test(0))
 
-        rel_pt = np.array([-0.035,0.055,-0.1])
+        rel_pt = np.array([-0.04, 0.07, -0.115])
         link = washer_body.env_body.GetLink("washer_handle")
         # test_env.SetViewer("qtcoin")
 
-        washer.pose[:, 0] = [0.08, 0.781, 0.28]
-        washer.rotation[:, 0] = [np.pi, 0, np.pi/2]
+        washer.pose[:,0] = [0.38, 0.95, 0.28]
+        washer.rotation[:,0] = [0, 0, np.pi/2]
         washer_body.set_pose(washer.pose[:, 0], washer.rotation[:, 0])
         handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
-        robot.pose = np.array([[np.pi/4]])
-        robot_body.set_pose([0,0,np.pi/4])
-        arm_pose = robot_body.get_ik_from_pose(handle_pos, [0,np.pi/2,np.pi/2], "left_arm")[0]
+        arm_pose = robot_body.get_ik_from_pose(handle_pos, [np.pi/2, 0, -np.pi/2], "left_arm")[0]
         robot.lArmPose = arm_pose.reshape((7, 1))
         self.assertTrue(in_gripper_washer.test(0))
         # marker = ParamSetup.setup_blue_can()
@@ -527,13 +525,13 @@ class TestBaxterPredicates(unittest.TestCase):
             washer_body.set_dof({'door': door})
             handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
             # handle_rot = [0,np.pi/2+door,np.pi/2]
-            trans = get_tran([0,-np.pi/2,0], link.GetTransform())
+            trans = link.GetTransform()
             handle_rot = get_rot(trans)
 
             arm_pose = robot_body.get_ik_from_pose(handle_pos, handle_rot, "left_arm")[0]
             robot_body.set_dof({'lArmPose': arm_pose})
             robot.lArmPose = arm_pose.reshape((7, 1))
-            # import ipdb; ipdb.set_trace()
+            import ipdb; ipdb.set_trace()
             self.assertTrue(in_gripper_washer.test(0))
 
         def get_tran(rot, trans):
@@ -544,17 +542,17 @@ class TestBaxterPredicates(unittest.TestCase):
         def get_rot(final):
             return OpenRAVEBody.obj_pose_from_transform(final)[3:]
 
-        test_grasping_pose(0, np.pi/4)
-        test_grasping_pose(-1*np.pi/8, np.pi/4)
+        test_grasping_pose(0, 0)
+        test_grasping_pose(-1*np.pi/8, 0)
         if const.TEST_GRAD:
             in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
-        test_grasping_pose(-2*np.pi/8, np.pi/3)
+        test_grasping_pose(-2*np.pi/8, 0)
         if const.TEST_GRAD:
             in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
-        test_grasping_pose(-3*np.pi/8, np.pi/3)
+        test_grasping_pose(-3*np.pi/8, 0)
         if const.TEST_GRAD:
             in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
-        test_grasping_pose(-np.pi/2, np.pi/2)
+        test_grasping_pose(-np.pi/2, 0)
 
 
     def test_in_gripper_cloth(self):

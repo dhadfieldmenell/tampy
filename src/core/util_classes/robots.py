@@ -87,7 +87,7 @@ class Washer(Robot):
     def __init__(self, mockup = True, topload = False):
         self._type = "washer"
         if mockup:
-            self.shape = "/home/simon0xzx/Research/tampy/models/items/washer_mock_up/washer_col.xml"
+            self.shape = "../models/items/washer_mock_up/washer_col_rot_handle.xml"
             """
             to variate the depth of the mockup washer, simply change the y-cord
             of the washer_bottom body in washer.xml
@@ -99,7 +99,7 @@ class Washer(Robot):
                 self.good_pos = np.array([0.505, 1.161, 1.498])
                 self.good_rot = np.array([np.pi, 0, 0])
         else:
-            self.shape = "/home/simon0xzx/Research/tampy/models/items/washer.xml"
+            self.shape = "../models/items/washer.xml"
             self.up_right_rot = [1.57, 0, 0]
             self.good_pos = np.array([0.5, 0.8, 0])
             self.good_rot = np.array([np.pi/2, 0, 0])

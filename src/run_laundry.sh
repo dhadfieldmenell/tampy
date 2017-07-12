@@ -21,7 +21,7 @@
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain._test_backtrack_solve_action_isolation --debug
 
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_traj_smoother --debug
 
@@ -44,4 +44,10 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
 
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_obj_rel_pose_constant --debug
 
+<<<<<<< HEAD
+# nose2 test.test_core.test_util_classes.test_baxter_sampling.TestBaxterSampling.test_resample_eereachable_ver --debug
+
+nose2 test.test_ros_interface.test_action_execution --debug
+=======
 # nose2 test.test_core.test_util_classes.test_baxter_sampling.TestBaxterSampling.test_resample_obstruct_2 --debug
+>>>>>>> e8cf5d0f42d90044d0f01ca0735ff94181fd40be

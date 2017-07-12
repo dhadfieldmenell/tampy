@@ -361,6 +361,7 @@ class TestBasketDomain(unittest.TestCase):
 
         ee_time = traj_retiming(plan, velocites)
         baxter.time = ee_time.reshape((1, ee_time.shape[0]))
+        import ipdb; ipdb.set_trace()
 
         print "Saving current plan to file basket_putdown_isolation.hdf5..."
         serializer = PlanSerializer()
@@ -452,6 +453,48 @@ class TestBasketDomain(unittest.TestCase):
         serializer.write_plan_to_hdf5("basket_putdown_isolation_plan.hdf5", plan)
         self.assertTrue(result)
         import ipdb; ipdb.set_trace()
+
+    """
+   OPEN_DOOR action Isolation
+    """
+    def open_door_isolation(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/open_door_isolation.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+         '0: OPEN_DOOR BAXTER WASHER ROBOT_INIT_POSE OPEN_DOOR_EE CLOSE_DOOR_EE ROBOT_END_POSE WASHER_INIT_POSE WASHER_END_POSE',
+        ]
+        plan = hls.get_plan(plan_str, domain, problem)
+        baxter, washer = plan.params['baxter'], plan.params['washer']
+        print "solving open door isolation problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback():
+            return viewer
+
+        start = time.time()
+        solver = robot_ll_solver.RobotLLSolver()
+        result = solver.solve(plan, callback = callback, n_resamples=10)
+        end = time.time()
+
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        velocites = np.zeros((plan.horizon, ))
+        velocites[0:5] = 0.3
+        velocites[5:16] = 0.1
+        velocites[16:21] = 0.3
+        import ipdb; ipdb.set_trace()
+
+        ee_time = traj_retiming(plan, velocites)
+        baxter.time = ee_time.reshape((1, ee_time.shape[0]))
+
+        # print "Saving current plan to file open_door_isolation.hdf5..."
+        # serializer = PlanSerializer()
+        # serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
+        self.assertTrue(result)
 
     """
     Test Post Suggester in backtrack solve

@@ -1,89 +1,46 @@
-import copy
-
 import rospy
+from std_msgs.msg import Int32MultiArray
+
+import cv_bridge
 
 class EnvironmentMonitor:
-	def __init__(self, plan_params, env):
-		self._plan_params = plan_params
-		self._env = env
-		self._recognized_objects
+	def __init__(self):
+		self.basket_net = BasketNet()
+		self.cloth_net = ClothNet()
+		self.basket_pose = []
+		self.cloth_pose = []
+		self.build()
+		self.subscribe_to_image_topics()
 
+	def subscribe_to_image_topics(self):
+		rospy.Subscriber('/camera/depth/image', Image, self.predict_basket)
+		rospy.Subscriber('/camera/rgb/image', Image, self.predict_cloth)
 
-	def listen_to_env(data):
-		rospy.Subscriber('Environment', RecognizedObject, self.update_objects)
+	def build(self):
+		self.basket_net.build()
+		self.cloth_net.build()
 
+	def predict_basket(self, msg):
+		depth_im = self.bridge.imgmsg_to_cv2(msg.data, 'passthrough')
+		depth_im = np.array(depth_im, dtype=np.float32).reshape((1,-1)) / 1000.0
+		self.basket_pose = self.basket_net.predict(depth_im)[0]
 
-	def update_objects(self, data):
-		# if not data.pose or not data.rotation or not data.type:
-		# 	raise Exception('Could not parse recognized object')
+	def predict_cloth(self, msg):
+		color_im = self.bridge.imgmsg_to_cv2(msg.data, 'passthrough')
+		color_im = np.array(dcolor_im, dtype=np.float32).reshape((1,-1)) / 1000.0
+		self.cloth_pose = self.cloth_net.predict(color_im)[0]
 
-		self._recognized_objects = data
+	def get_basket_pose(self):
+	    return self.basket_pose
 
+	def get_cloth_pose(self):
+	    return self.cloth_pose
 
-	def update_params(self, t):
-		self._match_objects()
-		obj = self.find_object(data)
-		if not obj:
-			self.add_to_env(data)
-		else:
-			self.update_param(obj, data)
+	def update_plan(self, plan, t):
+		basket = plan.params['basket']
+		cloth = plans.params['cloth']
 
-
-	def _match_objects(self):
-		matchings = {}
-		rec_objects = copy.copy(self._recognized_objects)
-
-		for obj in rec_objects:
-			params = copy.copy(self._plan_params)
-			matching_index, dist = self._find_object_index_dist(obj, params)
-			matching = params[matching_index]
-
-			while matching && matching in matchings:
-				dist0 = self.find_distance(obj.pose, matchings[matching].pose)
-				if dist0 < dist:
-					del params[i]
-					matching_index = self._find_object_index_dist(obj, params)
-					matching = params[matching_index]
-				else:
-					rec_objects.append(matchings[matching])
-
-			if matching:
-				matchings[matching] = obj
-
-		return matchings
-
-
-	def _find_object_index_dist(self, obj, params):
-		matching = 0
-		min_distance = -1
-
-		for i in range(len(params)):
-			param = params[i]
-			if obj.type != param.type:
-				continue
-
-			dist = self.find_distance(obj.pose, param.pose)
-			if dist < min_distance or min_distance < 0:
-				min_distance = dist
-				matching = i
-
-		return matching, min_distance
-
-
-	def add_param_to_env(self, param):
-		pass
-
-
-	def update_param(self, obj, data):
-		obj.pose = self._extract_position(data.position)
-		obj.rotation = self._extract_rotation(data.quaternion)
-
-
-	def _extract_position(self, position):
-		return [position.x, position.y, position.z]
-
-
-	def _extract_rotation(self, quaternion):
-		quaternion = [quaternion.x, quaternion.y, quaternion,z, quaternion.w]
-		rotation = tf.transformations.euler_from_quaternion(quaternion)
-		return rotation
+		basket.pose[:2, t] = self.basket_pose[:2]
+		basket.rotation[0,t] = self.basket_pose[2]
+		cloth.pose[:2,t] = self.cloth_pose[:2]
+		cloth.rotation[0,t] = self.coth_pose[2]
