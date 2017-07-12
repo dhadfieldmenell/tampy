@@ -952,6 +952,37 @@ def resample_cloth_in_gripper(pred, negated, t, plan):
     if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds
 
+def resample_washer_in_gripper(pred, negated, t, plan):
+    attr_inds, res = OrderedDict(), OrderedDict()
+
+    robot, washer = pred.robot, pred.obj
+    rave_body, arm = robot.openrave_body, pred.arm
+    body = rave_body.env_body
+    manip = rave_body.env_body.GetManipulator("{}_arm".format(pred.arm))
+
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+
+    if action.name.find("open_door") >= 0 or action.name.find("close_door") >= 0:
+        ts_range = action.active_timesteps
+        for ts in range(ts_range[0]+const.EEREACHABLE_STEPS+5, ts_range[1]+1-const.EEREACHABLE_STEPS-5):
+            washer.openrave_body.set_dof({'door': washer.door[0, ts]})
+            washer_trans, washer_inds = pred.get_washer_info(washer.openrave_body)
+
+            rel_pt =  [-0.04, 0.07, -0.115]
+
+            targ_pos, targ_rot = washer_trans.dot(np.r_[rel_pt, 1])[:3],  OpenRAVEBody.obj_pose_from_transform(washer_trans)[3:]
+            targ_rot[2] -= np.pi
+            grasp_arm_pose = closest_arm_pose(rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(pred.arm)), robot.lArmPose[:,ts-1])
+            if grasp_arm_pose is None:
+                return res, attr_inds
+
+            add_to_attr_inds_and_res(ts, attr_inds, res, robot, [('{}ArmPose'.format(pred.arm[0]), grasp_arm_pose)])
+        for ts in range(ts_range[0]+const.EEREACHABLE_STEPS+5, ts_range[1]+1-const.EEREACHABLE_STEPS-5):
+            # TODO: Figure out why this sometimes fails within tolerance of 1e-3
+            assert pred.test(ts, negated = negated, tol = 1e-2)
+
+    return res, attr_inds
+
 
 def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -1005,11 +1036,11 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     targ_pos, targ_rot
     for i in range(step):
         if approach:
-            targ_app_pos = targ_pos + np.array([0,0,const.APPROACH_DIST]) * (step-i)
+            targ_app_pos = targ_pos + np.array([0,-const.APPROACH_DIST,0]) * (step-i)
             approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
             add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot_base_pose)])
         else:
-            targ_app_pos = targ_pos + np.array([0,0,const.RETREAT_DIST]) * (i+1)
+            targ_app_pos = targ_pos + np.array([0,-const.RETREAT_DIST,0]) * (i+1)
             approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
             add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot_base_pose)])
 

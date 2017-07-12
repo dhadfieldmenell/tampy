@@ -5,7 +5,7 @@ import numpy as np
 from pma import hl_solver
 from core.parsing import parse_domain_config, parse_problem_config
 from core.internal_repr import parameter
-from core.util_classes import box, matrix, baxter_predicates, baxter_sampling
+from core.util_classes import  matrix, baxter_predicates, baxter_sampling
 from core.util_classes.param_setup import ParamSetup
 from core.util_classes.robots import Baxter
 from core.util_classes.openrave_body import OpenRAVEBody
@@ -212,29 +212,27 @@ class TestBaxterSampling(unittest.TestCase):
 
     def test_resample_ee_approach_retreat(self):
         pd = PlanDeserializer()
-        plan = pd.read_from_hdf5('test_resample_plan')
+        plan = pd.read_from_hdf5('test_resample_approach_retreat.hdf5')
         env = plan.env
         viewer = OpenRAVEViewer.create_viewer(env)
         viewer.draw_plan_ts(plan, 0)
         robot = plan.params['baxter']
-        robot_pose = plan.params['robot_washer_begin']
-        ee_left = plan.params['washer_ee']
+        robot_pose = plan.params['open_door_begin']
+        ee_left = plan.params['open_door_ee']
         washer = plan.params['washer']
         washer.door[:, :] = 0
         approach_pred = baxter_predicates.BaxterEEApproachLeft('test_approach_left', [robot, robot_pose, ee_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
 
         retreat_pred = baxter_predicates.BaxterEERetreatLeft('test_approach_left', [robot, robot_pose, ee_left], ['Robot', 'RobotPose', 'EEPose'], env=env)
-        self.assertFalse(approach_pred.test(82))
-        self.assertFalse(retreat_pred.test(82))
+        self.assertFalse(approach_pred.test(10))
+        self.assertFalse(retreat_pred.test(20))
 
         def resampled_value(pred, negated, t, plan, approach = True):
             res, attr_inds = baxter_sampling.resample_washer_ee_approach(pred, negated, t, plan, approach = approach)
             self.assertTrue(pred.test(t))
 
-        important_ts = [82]
-        for ts in important_ts:
-            resampled_value(approach_pred, False, ts, plan, approach = True)
-            resampled_value(retreat_pred, False, ts, plan, approach = False)
+        resampled_value(approach_pred, False, 10, plan, approach = True)
+        resampled_value(retreat_pred, False, 20, plan, approach = False)
 
     def test_resample_in_gripper(self):
         # TODO resample in gripper doesn't quite work
@@ -279,6 +277,47 @@ class TestBaxterSampling(unittest.TestCase):
 
         for ts in range(30, 49):
             resampled_value(pred, False, ts, plan)
+
+    def test_resample_washer_in_gripper(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('resample_washer_in_gripper_plan.hdf5')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        washer = plan.params['washer']
+
+        pred = baxter_predicates.BaxterWasherInGripper('test_washer_in_gripper', [robot, washer], ['Robot', 'Washer'], env=env)
+        # self.assertFalse(pred.test(10, tol=1e-3))
+
+        res, attr_inds = baxter_sampling.resample_washer_in_gripper(pred, False, 10, plan)
+
+        checking_ts = range(10, 20)
+        for ts in checking_ts:
+            self.assertTrue(pred.test(ts, tol=1e-3))
+
+        import ipdb; ipdb.set_trace()
+
+    def test_resample_washer_approach_in_gripper(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('resample_washer_in_gripper_plan.hdf5')
+        env = plan.env
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw_plan_ts(plan, 0)
+        robot = plan.params['baxter']
+        washer = plan.params['washer']
+        ee_pose  = plan.params['open_door_ee']
+        robot_pose = plan.params['robot_init_pose']
+
+        pred1 = baxter_predicates.BaxterEEApproachLeft('test_washer_in_gripper', [robot, robot_pose, ee_pose], ['Robot', 'RobotPose', "EEPose"], env=env)
+        pred2 = baxter_predicates.BaxterWasherInGripper('test_washer_in_gripper', [robot, washer], ['Robot', 'Washer'], env=env)
+
+        res, attr_inds = baxter_sampling.resample_washer_ee_approach(pred1, False, 10, plan, approach=True)
+        self.assertTrue(pred2.test(10, tol=1e-3))
+        res, attr_inds = baxter_sampling.resample_washer_in_gripper(pred2, False, 10, plan)
+        self.assertTrue(pred1.test(10, tol=1e-3))
+
+        import ipdb; ipdb.set_trace()
 
 
     def test_resample_basket_moveholding(self):
