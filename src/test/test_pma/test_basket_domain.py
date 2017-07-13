@@ -575,9 +575,9 @@ class TestBasketDomain(unittest.TestCase):
 
         robot, washer = ParamSetup.setup_baxter(), ParamSetup.setup_washer()
         env = ParamSetup.setup_env()
-        viewer = OpenRAVEViewer.create_viewer(env)
-        objLst = [robot, washer]
-        viewer.draw(objLst, 0, 0.5)
+        # viewer = OpenRAVEViewer.create_viewer(env)
+        # objLst = [robot, washer]
+        # viewer.draw(objLst, 0, 0.5)
 
 
         rave_body = OpenRAVEBody(env, robot.name, robot.geom)
@@ -607,10 +607,8 @@ class TestBasketDomain(unittest.TestCase):
                 arm_pose = baxter_sampling.get_is_mp_arm_pose(rave_body, ik_arm_poses, last_arm_pose, arm)
                 if arm_pose is None:
                     return False
-                rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
+                # rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
                 last_arm_pose = arm_pose
-
-
 
             rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
             trans = washer_body.env_body.GetTransform().dot(rot_mat)
@@ -618,10 +616,10 @@ class TestBasketDomain(unittest.TestCase):
             ik_arm_poses_right = rave_body.get_ik_solutions("right_arm", trans)
             if not len(ik_arm_poses_left) and not len(ik_arm_poses_right):
                 return False
-            elif not len(ik_arm_poses_left):
-                rave_body.set_dof({'rArmPose': ik_arm_poses_right[0]})
-            elif not len(ik_arm_poses_right):
-                rave_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+            # elif not len(ik_arm_poses_left):
+            #     rave_body.set_dof({'rArmPose': ik_arm_poses_right[0]})
+            # elif not len(ik_arm_poses_right):
+            #     rave_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
 
             return True
 
@@ -641,6 +639,7 @@ class TestBasketDomain(unittest.TestCase):
             else:
                 cashe_list.add(washer_dir)
                 effective_rot.append(rot)
+        print "{} effective rotation".format(len(effective_rot))
 
         print "calculating effective position"
         effective_pos = []
@@ -649,12 +648,13 @@ class TestBasketDomain(unittest.TestCase):
                 for angle in np.linspace(-np.pi/4, np.pi/4, 5):
                     effective_pos.append([radius*np.cos(angle), radius*np.sin(angle), hight])
 
+        print "{} effective poses".format(len(effective_pos))
+
         print "search space: {}".format(len(effective_pos) * len(effective_rot))
         print "finding good poses"
         good_washer_poses = []
         for pos in effective_pos:
             for rot in effective_rot:
-                washer_body.set_pose(pos, rot)
                 # print "testing with pos: {}, rot: {}".format(pos, rot)
                 if varify_feasibility(0, pos, rot, time_steps=20, arm='right'):
                     good_washer_poses.append((pos, rot, 'right'))
@@ -663,9 +663,20 @@ class TestBasketDomain(unittest.TestCase):
                     good_washer_poses.append((pos, rot, 'left'))
                     print '{} good poses so far'.format(len(good_washer_poses))
             print "saving good poses..."
-            np.save("good_poses.npy", np.array(good_washer_poses))
+            np.save("good_poses2.npy", np.array(good_washer_poses))
 
         import ipdb; ipdb.set_trace()
+
+    def showing_good_washer_poses(self):
+        good_poses = np.load("good_poses.npy")
+        env = ParamSetup.setup_env()
+        robot, washer = ParamSetup.setup_baxter(), ParamSetup.setup_washer()
+        robot_body, washer_body = OpenRAVEBody(env, robot.name, robot.geom), OpenRAVEBody(env, washer.name, washer.geom)
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw([robot, washer], 0, 0.5)
+        for pos, rot, arm in good_poses:
+            washer_body.set_pose(pos, rot)
+            import ipdb; ipdb.set_trace()
 
     def test_laundry_position(self):
         domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
@@ -899,10 +910,7 @@ class TestBasketDomain(unittest.TestCase):
         pd = PlanDeserializer()
         plan = pd.read_from_hdf5("cloth_manipulation_plan.hdf5")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
-        solver = robot_ll_solver.RobotLLSolver()
-        assert not plan.get_failed_preds(tol=1e-3)
-        success = solver.traj_smoother(plan, n_resamples = 10)
-        self.assertTrue(success)
+        import ipdb; ipdb.set_trace()
 
     def test_prototype2(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
@@ -918,17 +926,13 @@ class TestBasketDomain(unittest.TestCase):
         '1: CLOTH_GRASP BAXTER CLOTH CLOTH_INIT_TARGET CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
         '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
         '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
-
         '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 MONITOR_POSE',
         '5: MOVETO BAXTER MONITOR_POSE BASKET_GRASP_BEGIN',
-
         '6: BASKET_GRASP BAXTER BASKET BASKET_INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
         '7: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
         '8: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
-
         '9: MOVETO BAXTER BASKET_PUTDOWN_END MONITOR_POSE',
         '10: MOVETO BAXTER MONITOR_POSE CLOTH_GRASP_BEGIN_2',
-
         '11: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
         '12: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
         '13: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',

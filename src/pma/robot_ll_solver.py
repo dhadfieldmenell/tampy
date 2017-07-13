@@ -70,7 +70,7 @@ class RobotLLSolver(LLSolver):
         plan.restore_free_attrs()
 
         result = self.traj_smoother(plan, callback=None, n_resamples=5, active_ts=None, verbose=verbose)
-        assert success != result
+        assert success == result
         return success
 
     def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
@@ -365,7 +365,7 @@ class RobotLLSolver(LLSolver):
         return success
 
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
-                        active_ts=None, verbose=False, resample=False):
+                        active_ts=None, verbose=False, resample=False, smoothing = False):
         self.plan = plan
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
@@ -448,7 +448,12 @@ class RobotLLSolver(LLSolver):
 
         solv = Solver()
         solv.initial_trust_region_size = initial_trust_region_size
-        solv.initial_penalty_coeff = self.init_penalty_coeff
+
+        if smoothing:
+            solv.initial_penalty_coeff = self.smooth_penalty_coeff
+        else:
+            solv.initial_penalty_coeff = self.init_penalty_coeff
+
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
@@ -476,14 +481,16 @@ class RobotLLSolver(LLSolver):
         return success
 
     def traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
+        print "Smoothing Trajectory..."
         priority = MAX_PRIORITY
         for attempt in range(n_resamples):
             ## refinement loop
             success = self._solve_opt_prob(plan, priority=priority,
-                            callback=callback, active_ts=active_ts, verbose=verbose)
+                            callback=callback, active_ts=active_ts, verbose=verbose, resample = False, smoothing = True)
             if success:
                 break
-            self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
+            plan.check_cnt_violation(tol = 1e-3)
+            self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True, smoothing = True)
         return success
 
     def _get_transfer_obj(self, plan, norm):
