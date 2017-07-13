@@ -300,7 +300,9 @@ def execute_plan(plan):
 	trajectory of that plan for a single robot.
 	'''
 	env_monitor = EnvironmentMonitor()
-	env_monitor.update_plan(plan, 0)
+	while env_monitor.updating:
+		pass
+	env_monitor.update_plan(plan, 0,)
 
 	print "solving laundry domain problem..."
 	solver = robot_ll_solver.RobotLLSolver()
@@ -319,23 +321,27 @@ def execute_plan(plan):
 	    act_ts = act.active_timesteps
 	    act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
 
-	print "Saving current plan to file cloth_manipulation_plan.hdf5..."
-	serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
-
 
 	if success:
-		for action in plan.actions:
-			# env_monitor.update_plan(plan, action.active_timesteps[0])
-			# solver.solve(plan, active_ts=(action.active_timesteps[0], plan.horizon-1))
+		for i in range(len(plan.actions)):
+			action = plan.actions[i]
 			traj = Trajectory()
 			traj.load_trajectory(action)
 
-		rospy.on_shutdown(traj.stop)
-		result = True
+			rospy.on_shutdown(traj.stop)
+			result = True
 
-		while (result and not rospy.is_shutdown()):
-			traj.start()
-			result = traj.wait()
+			while (result and not rospy.is_shutdown()):
+				traj.start()
+				result = traj.wait()
+
+			if action.params[2].name is 'monitor_pose' and i < len(plan.actions) - 1:
+				env_monitor.update_plan(plan, action.active_timesteps[1], params=['basket'])
+				if len(plan.get_failed_preds((action.active_timesteps[1], plan.actions[i+1].active_timesteps[1]), tol=1e-3)):
+					success = solver._backtrack_solve(plan, callback = callback, anum=i, verbose=False)
+					success = solver.traj_smoother(plan, active_ts=(action.active_timesteps[0], plan.horizon-1))
+					if not success:
+
 		print("Exiting - Plan Completed")
 
 	else:
