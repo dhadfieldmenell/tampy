@@ -918,15 +918,21 @@ class TestBasketDomain(unittest.TestCase):
         '1: CLOTH_GRASP BAXTER CLOTH CLOTH_INIT_TARGET CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
         '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
         '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
-        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 BASKET_GRASP_BEGIN',
-        '5: BASKET_GRASP BAXTER BASKET BASKET_INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
-        '6: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
-        '7: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
-        '8: MOVETO BAXTER BASKET_PUTDOWN_END CLOTH_GRASP_BEGIN_2',
-        '9: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
-        '10: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
-        '11: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',
-        '12: MOVETO BAXTER CLOTH_PUTDOWN_END_2 ROBOT_END_POSE'
+
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 MONITOR_POSE',
+        '5: MOVETO BAXTER MONITOR_POSE BASKET_GRASP_BEGIN',
+
+        '6: BASKET_GRASP BAXTER BASKET BASKET_INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        '7: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        '8: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+
+        '9: MOVETO BAXTER BASKET_PUTDOWN_END MONITOR_POSE',
+        '10: MOVETO BAXTER MONITOR_POSE CLOTH_GRASP_BEGIN_2',
+
+        '11: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
+        '12: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
+        '13: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',
+        '14: MOVETO BAXTER CLOTH_PUTDOWN_END_2 ROBOT_END_POSE'
         ]
 
         plan = hls.get_plan(plan_str, domain, problem)
@@ -935,24 +941,19 @@ class TestBasketDomain(unittest.TestCase):
         serializer = PlanSerializer()
         def callback(a): return viewer
 
-        import ipdb; ipdb.set_trace()
-
-
         velocites = np.ones((plan.horizon, ))*1
-        slow_inds = np.array([range(19,39), range(58,78), range(97,117), range(136,156), range(175,195), range(214,234)]).flatten()
+        slow_inds = np.array([range(19,39), range(58,78), range(116,136), range(155, 175), range(213, 233), range(252, 272)]).flatten()
         velocites[slow_inds] = 0.6
 
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         end = time.time()
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+        print "Planning finished within {}s.".format(end - start)
 
         ee_time = traj_retiming(plan, velocites)
         plan.time = ee_time.reshape((1, ee_time.shape[0]))
-
         print "Saving current plan to file cloth_manipulation_plan.hdf5..."
-
         serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
         self.assertTrue(result)
 

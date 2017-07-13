@@ -15,6 +15,10 @@ R_ARM_INIT = [-np.pi/4, 0, 0, 0, 0, 0, 0]
 L_ARM_INIT = [ np.pi/4, 0, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
+
+MONITOR_LEFT = [ np.pi/4, 0, 0, 0, 0, 0, 0]
+MONITOR_RIGHT = [-np.pi/4, 0, 0, 0, 0, 0, 0]
+
 # init basket pose
 BASKET_INIT_POS = [0.65 , -0.283,  0.81]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
@@ -131,6 +135,7 @@ def main():
         s += "RobotPose (name {}); ".format("close_door_begin")
         s += "RobotPose (name {}); ".format("close_door_end")
         s += "RobotPose (name {}); ".format("robot_end_pose")
+        s += "RobotPose (name {}); ".format("monitor_pose")
         s += "Washer (name {}); ".format("washer")
         s += "WasherPose (name {}); ".format("washer_init_pose")
         s += "WasherPose (name {}); ".format("washer_end_pose")
@@ -204,6 +209,7 @@ def main():
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+        s += get_robot_pose_str('monitor_pose', MONITOR_LEFT, MONITOR_RIGHT, INT_GRIPPER, BAXTER_INIT_POSE)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_POS)
