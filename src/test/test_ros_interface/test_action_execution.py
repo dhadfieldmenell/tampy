@@ -1,18 +1,14 @@
-import sys
-import unittest
-import time
-import main
-import rospy
+import sys, unittest, time, main, rospy
 import numpy as np
-
+from pma import hl_solver, robot_ll_solver
 import baxter_interface
 from baxter_interface import CHECK_VERSION
-
-from ros_interface import action_execution_2, action_execution
-from core.util_classes.plan_hdf5_serialization import PlanDeserializer
+from core.parsing import parse_domain_config, parse_problem_config
+from ros_interface import action_execution
+from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
 from core.util_classes import baxter_constants
-
+from core.util_classes.viewer import OpenRAVEViewer
 class TestActionExecute(unittest.TestCase):
 
 	def test_execute(self):
@@ -44,6 +40,50 @@ class TestActionExecute(unittest.TestCase):
 		# for action in plan.actions:
 		# 	import ipdb; ipdb.set_trace()
 		# 	action_execution_2.execute_action(action)
+
+	def test_prototype2(self):
+		print "loading laundry domain..."
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/prototype2.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        '1: CLOTH_GRASP BAXTER CLOTH CLOTH_INIT_TARGET CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
+        '3: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_1 CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 MONITOR_POSE',
+        '5: MOVETO BAXTER MONITOR_POSE BASKET_GRASP_BEGIN',
+        '6: BASKET_GRASP BAXTER BASKET BASKET_INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        '7: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        '8: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        '9: MOVETO BAXTER BASKET_PUTDOWN_END MONITOR_POSE',
+        '10: MOVETO BAXTER MONITOR_POSE CLOTH_GRASP_BEGIN_2',
+        '11: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
+        '12: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
+        '13: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',
+        '14: MOVETO BAXTER CLOTH_PUTDOWN_END_2 ROBOT_END_POSE'
+        ]
+		print "constructing plan object"
+        plan = hls.get_plan(plan_str, domain, problem)
+
+		print("Initializing node... ")
+		rospy.init_node("rsdk_joint_trajectory_client")
+		print("Getting robot state... ")
+		rs = baxter_interface.RobotEnable(CHECK_VERSION)
+		print("Enabling robot... ")
+		rs.enable()
+		print("Running. Ctrl-c to quit")
+		baxter_interface.Gripper('left', CHECK_VERSION).calibrate()
+		baxter_interface.Gripper('right', CHECK_VERSION).calibrate()
+		import ipdb; ipdb.set_trace()
+		action_execution.execute_plan(plan)
+
+        import ipdb; ipdb.set_trace()
 
 def traj_retiming(plan, velocity):
     baxter = plan.params['baxter']

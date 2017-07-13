@@ -193,7 +193,7 @@ class Trajectory(object):
 			offset = max(map(operator.div, diffs, dflt_vel))
 			return offset
 
-		ts = (0, 254) #action.active_timesteps
+		ts = action.active_timesteps
 		real_ts = 0
 		for t in range(ts[0], ts[1]):
 			cmd = {}
@@ -219,7 +219,7 @@ class Trajectory(object):
 			self._add_point(cur_cmd, 'left_gripper', real_ts + start_offset)
 			cur_cmd = [cmd['right_gripper']]
 			self._add_point(cur_cmd, 'right_gripper', real_ts + start_offset)
-			real_ts += 0.8 #baxter.time[:, t]
+			real_ts += action.ee_retiming[t]
 
 	def _feedback(self, data):
 		# Test to see if the actual playback time has exceeded
@@ -299,33 +299,47 @@ def execute_plan(plan):
 	Pass in a plan on an initialized ros node and it will execute the
 	trajectory of that plan for a single robot.
 	'''
-        # env_monitor = EnvironmentMonitor()
-		#
-        # basket = plan.params['basket']
-        # cloth = plan.params['cloth']
-		#
-        # # env_monitor.update_plan(plan, 0)
-		#
-        # solver = RobotLLSolver()
-        success = True #solver.solve(plan)
+	env_monitor = EnvironmentMonitor()
+	env_monitor.update_plan(plan, 0)
 
-        if success:
-            for action in plan.actions:
-				# env_monitor.update_plan(plan, action.active_timesteps[0])
-				# solver.solve(plan, active_ts=(action.active_timesteps[0], plan.horizon-1))
-                traj = Trajectory()
-                traj.load_trajectory(action)
+	print "solving laundry domain problem..."
+	solver = robot_ll_solver.RobotLLSolver()
+	start = time.time()
+	def callback(a): return None
+	success = solver.backtrack_solve(plan, callback = callback, verbose=False)
+	end = time.time()
+	print "Planning finished within {}s.".format(end - start)
 
-	        rospy.on_shutdown(traj.stop)
-	        result = True
 
-	        while (result and not rospy.is_shutdown()):
-		        traj.start()
-		        result = traj.wait()
-            print("Exiting - Plan Completed")
+	velocites = np.ones((plan.horizon, ))*1
+	slow_inds = np.array([range(19,39), range(58,78), range(116,136), range(155, 175), range(213, 233), range(252, 272)]).flatten()
+	velocites[slow_inds] = 0.6
+	ee_time = traj_retiming(plan, velocites)
+	for act in plan.actions:
+	    act_ts = act.active_timesteps
+	    act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
 
-        else:
-                print ("Could not solve plan.")
+	print "Saving current plan to file cloth_manipulation_plan.hdf5..."
+	serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
+
+
+	if success:
+		for action in plan.actions:
+			# env_monitor.update_plan(plan, action.active_timesteps[0])
+			# solver.solve(plan, active_ts=(action.active_timesteps[0], plan.horizon-1))
+			traj = Trajectory()
+			traj.load_trajectory(action)
+
+		rospy.on_shutdown(traj.stop)
+		result = True
+
+		while (result and not rospy.is_shutdown()):
+			traj.start()
+			result = traj.wait()
+		print("Exiting - Plan Completed")
+
+	else:
+		print ("Could not solve plan.")
 
 
 def move_to_ts(action, ts):

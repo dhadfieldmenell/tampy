@@ -39,8 +39,15 @@ class EnvironmentMonitor:
 	def update_plan(self, plan, t):
 		basket = plan.params['basket']
 		cloth = plans.params['cloth']
+		basket_init_pose = plan.params['basket_init_pose']
+		cloth_init_pose = plan.params['cloth_init_pose']
 
 		basket.pose[:2, t] = self.basket_pose[:2]
 		basket.rotation[0,t] = self.basket_pose[2]
+		basket_init_pose.value[:2, t] = self.basket_pose[:2]
+		basket_init_pose.rotation[0,t] = self.basket_pose[2]
+
 		cloth.pose[:2,t] = self.cloth_pose[:2]
 		cloth.rotation[0,t] = self.coth_pose[2]
+		cloth_init_pose.value[:2,t] = self.cloth_pose[:2]
+		cloth_init_pose.rotation[0,t] = self.coth_pose[2]
