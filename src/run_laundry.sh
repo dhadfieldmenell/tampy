@@ -19,13 +19,15 @@
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.handle_grasp_isolation --debug
 
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.move_door_isolation --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.move_door_isolation --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_pose_suggester --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain._test_backtrack_solve_action_isolation --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
+
+nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_prototype2 --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_traj_smoother --debug
 
@@ -35,7 +37,7 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.move_door_isolation --de
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.laundry_basket_mesh --debug
 
-# nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_basket_domain --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.search_washer_position --debug
 
 # Collision Predicates Check
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_obstructs --debug

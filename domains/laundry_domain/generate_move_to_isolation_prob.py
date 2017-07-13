@@ -5,8 +5,8 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-filename = "laundry_probs/laundry.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket end_target), (BaxterClothAt cloth cloth_target_end_2)"
+filename = "laundry_probs/move_to_isolation.prob"
+GOAL = "(BaxterRobotAt baxter robot_end_pose)"
 
 
 # init Baxter pose
@@ -15,9 +15,17 @@ R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
+
+BAXTER_END_POSE = [0]
+R_ARM_END = [0, -0.785, 0, 0, 0, 0, 0]
+L_ARM_END = [-0.6 , -0.21495779, -0.96946697,  1.30436926,  1.15958407, 1.07349313, -0.9462785 ]
+END_GRIPPER = [0.015]
+
+
 # init basket pose
-BASKET_INIT_POS = [0.65 , -0.283,  0.81]
+BASKET_INIT_POS = [2 , 2,  2]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
+
 
 # end basket pose
 BASKET_END_POS = [0.65, 0.2, 0.81]
@@ -38,12 +46,35 @@ WASHER_CONFIG = [True, True]
 CLOTH_INIT_POS_1 = [0.65, 0.401, 0.557]
 CLOTH_INIT_ROT_1 = [0,0,0]
 
-CLOTH_END_POS_1 = [ 0.65 , -0.283,  0.601]
+CLOTH_END_POS_1 =[ 0.65 , -0.283,  0.601]
 CLOTH_END_ROT_1 = [0,0,0]
 
+# CLOTH_INIT_POS_2 = [ 0.65 ,  0.2  ,  0.601]
+# CLOTH_INIT_ROT_2 = [0,0,0]
 
 CLOTH_END_POS_2 = [ 0.65 ,  0.801, 0.557]
 CLOTH_END_ROT_2 = [0,0,0]
+
+"""
+Intermediate Poses adding it simplifies the plan
+"""
+GRASP_POSE = [-np.pi/8]
+GRASP_LARMPOSE = [-0.2       , -1.61656414, -0.61176606,  1.93732774, -0.02776806, 1.24185857, -0.40960045]
+GRASP_RARMPOSE = [ 0.7       , -0.96198717,  0.03612888,  0.99775438, -0.02067175, 1.5353429 , -0.44772444]
+GRASP_GRIPPER = [0.02]
+
+PUTDOWN_POSE = [np.pi/8]
+PUTDOWN_LARMPOSE = [-0.8       , -0.87594019,  0.2587353 ,  0.92223949,  2.97696004, -1.54149409, -2.5580562 ]
+PUTDOWN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
+PUTDOWN_GRIPPER = [0.02]
+
+WASHER_BEGIN_POSE = [np.pi/3]
+WASHER_BEGIN_LARMPOSE = [-0.8       , -0.93703369, -0.27464748,  1.09904023, -2.97863535, -1.4287909 ,  2.35686368]
+WASHER_BEGIN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
+
+CLOTH_PUTDOWN_BEGIN_1_POSE = [0]
+CLOTH_PUTDOWN_BEGIN_1_LARMPOSE = [-1.2, 0.30161054, -2.28704166, 0.95204077, 2.26996069, 1.91600073, -1.12607844]
+CLOTH_PUTDOWN_BEGIN_1_RARMPOSE = [0, -0.785, 0, 0, 0, 0, 0]
 
 WASHER_EE_POS = [0.29 ,  0.781,  0.785]
 WASHER_EE_ROT = [0, np.pi/2, -np.pi/2]
@@ -203,7 +234,7 @@ def main():
         s += get_undefined_robot_pose_str("cloth_putdown_end_2")
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
-        s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+        s += get_robot_pose_str('robot_end_pose', L_ARM_END, R_ARM_END, END_GRIPPER, BAXTER_END_POSE)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_POS)

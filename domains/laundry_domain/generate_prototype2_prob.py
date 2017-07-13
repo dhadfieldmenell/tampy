@@ -5,14 +5,14 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-filename = "laundry_probs/laundry.prob"
+filename = "laundry_probs/prototype2.prob"
 GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket end_target), (BaxterClothAt cloth cloth_target_end_2)"
 
 
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
-R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
+R_ARM_INIT = [-np.pi/4, 0, 0, 0, 0, 0, 0]
+L_ARM_INIT = [ np.pi/4, 0, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
 # init basket pose
@@ -29,7 +29,7 @@ TABLE_GEOM = [0.3, 0.6, 0.018]
 TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
-WASHER_POS = [0.08, 0.781, 0.28]
+WASHER_POS = [2,2,2]
 WASHER_ROT = [np.pi, 0, np.pi/2]
 WASHER_DOOR = [0.0]
 WASHER_END_DOOR = [-np.pi/2]
@@ -99,7 +99,7 @@ def main():
         s += "# The values after each attribute name are the values that get passed into the __init__ method for that attribute's class defined in the domain configuration.\n"
         s += "Objects: "
         s += "Basket (name {}); ".format("basket")
-        s += "BasketTarget (name {}); ".format("init_target")
+        s += "BasketTarget (name {}); ".format("basket_init_target")
         s += "BasketTarget (name {}); ".format("end_target")
 
         s += "Robot (name {}); ".format("baxter")
@@ -136,7 +136,7 @@ def main():
         s += "WasherPose (name {}); ".format("washer_end_pose")
         s += "Obstacle (name {}); ".format("table")
         s += "Cloth (name {}); ".format("cloth")
-        s += "ClothTarget (name {}); ".format("cloth_target_begin_1")
+        s += "ClothTarget (name {}); ".format("cloth_init_target")
         s += "ClothTarget (name {}); ".format("cloth_target_end_1")
         s += "ClothTarget (name {}); ".format("cloth_target_begin_2")
         s += "ClothTarget (name {}) \n\n".format("cloth_target_end_2")
@@ -146,9 +146,9 @@ def main():
         s += "(pose basket {}), ".format(BASKET_INIT_POS)
         s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
 
-        s += "(geom init_target)"
-        s += "(value init_target {}), ".format(BASKET_INIT_POS)
-        s += "(rotation init_target {}), ".format(BASKET_INIT_ROT)
+        s += "(geom basket_init_target)"
+        s += "(value basket_init_target {}), ".format(BASKET_INIT_POS)
+        s += "(rotation basket_init_target {}), ".format(BASKET_INIT_ROT)
 
         s += "(geom end_target), "
         s += "(value end_target {}), ".format(BASKET_END_POS)
@@ -158,8 +158,8 @@ def main():
         s += "(pose cloth {}), ".format(CLOTH_INIT_POS_1)
         s += "(rotation cloth {}), ".format(CLOTH_INIT_ROT_1)
 
-        s += "(value cloth_target_begin_1 {}), ".format(CLOTH_INIT_POS_1)
-        s += "(rotation cloth_target_begin_1 {}), ".format(CLOTH_INIT_ROT_1)
+        s += "(value cloth_init_target {}), ".format(CLOTH_INIT_POS_1)
+        s += "(rotation cloth_init_target {}), ".format(CLOTH_INIT_ROT_1)
 
         s += "(value cloth_target_end_1 {}), ".format(CLOTH_END_POS_1)
         s += "(rotation cloth_target_end_1 {}), ".format(CLOTH_END_ROT_1)
@@ -225,17 +225,17 @@ def main():
         s += "(rotation table {}); ".format(TABLE_ROT)
 
 
-        s += "(BaxterAt basket init_target), "
+        s += "(BaxterAt basket basket_init_target), "
         s += "(BaxterBasketLevel basket), "
         s += "(BaxterRobotAt baxter robot_init_pose), "
         s += "(BaxterWasherAt washer washer_init_pose), "
         s += "(BaxterEEReachableLeftVer baxter basket_grasp_begin bg_ee_left), "
         s += "(BaxterEEReachableRightVer baxter basket_grasp_begin bg_ee_right), "
 
-        s += "(BaxterBasketGraspLeftPos bg_ee_left init_target), "
-        s += "(BaxterBasketGraspLeftRot bg_ee_left init_target), "
-        s += "(BaxterBasketGraspRightPos bg_ee_right init_target), "
-        s += "(BaxterBasketGraspRightRot bg_ee_right init_target), "
+        s += "(BaxterBasketGraspLeftPos bg_ee_left basket_init_target), "
+        s += "(BaxterBasketGraspLeftRot bg_ee_left basket_init_target), "
+        s += "(BaxterBasketGraspRightPos bg_ee_right basket_init_target), "
+        s += "(BaxterBasketGraspRightRot bg_ee_right basket_init_target), "
 
         s += "(BaxterBasketGraspLeftPos bp_ee_left end_target), "
         s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
