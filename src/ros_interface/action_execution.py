@@ -305,8 +305,7 @@ def execute_plan(plan):
 	print "solving laundry domain problem..."
 	solver = robot_ll_solver.RobotLLSolver()
 	start = time.time()
-	def callback(a): return None
-	success = solver.backtrack_solve(plan, callback = callback, verbose=False)
+	success = solver.backtrack_solve(plan, callback = None, verbose=False)
 	end = time.time()
 	print "Planning finished within {}s.".format(end - start)
 

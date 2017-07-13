@@ -39,6 +39,10 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_prototype2 --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.search_washer_position --debug
 
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.showing_good_poses --debug
+
+
+
 # Collision Predicates Check
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_obstructs --debug
 

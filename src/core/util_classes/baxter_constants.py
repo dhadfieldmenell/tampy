@@ -20,7 +20,7 @@ JOINT_SLOW_VELOCITY = 0.01
 
 # Baxter Movement Constraints
 BASE_MOVE = 1
-JOINT_MOVE_FACTOR = 20
+JOINT_MOVE_FACTOR = 15
 
 # EEReachable Constants
 APPROACH_DIST = 0.025
