@@ -982,7 +982,7 @@ def resample_washer_in_gripper(pred, negated, t, plan):
 
         rel_pt =  [-0.04, 0.07, -0.115]
         targ_pos, targ_rot = washer_trans.dot(np.r_[rel_pt, 1])[:3],  OpenRAVEBody.obj_pose_from_transform(washer_trans)[3:]
-        targ_rot[2] -= np.pi
+
         grasp_arm_pose = closest_arm_pose(rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(pred.arm)), robot.lArmPose[:,ts-1])
         if grasp_arm_pose is None:
             return res, attr_inds
@@ -992,21 +992,20 @@ def resample_washer_in_gripper(pred, negated, t, plan):
 
     return res, attr_inds
 
-def get_is_mp_arm_pose(robot_body, arm_poses, last_pose):
+def get_is_mp_arm_pose(robot_body, arm_poses, last_pose, arm):
     robot = robot_body.env_body
     dof_map = robot_body._geom.dof_map
-    dof_inds = np.r_[dof_map["lArmPose"], dof_map["rArmPose"]]
+    dof_inds = dof_map["{}ArmPose".format(arm[0])]
     lb_limit, ub_limit = robot.GetDOFLimits()
     active_ub = ub_limit[dof_inds].reshape((len(dof_inds),1))
     active_lb = lb_limit[dof_inds].reshape((len(dof_inds),1))
-    joint_move = (active_ub-active_lb)/const.JOINT_MOVE_FACTOR
-
+    joint_move = np.round((active_ub-active_lb)/const.JOINT_MOVE_FACTOR, 3).flatten()
     is_mp_poses = []
     for pose in arm_poses:
-        dof_difference = pose - last_pose
+        dof_difference = np.abs(np.round(pose - last_pose, 3))
         if np.all(dof_difference < joint_move):
             is_mp_poses.append(pose)
-    print "{} poses satisfied".format(len(is_mp_poses))
+    # print "Total {} poses satisfied".format(len(is_mp_poses))
     if not is_mp_poses:
         return None
     return closest_arm_pose(is_mp_poses, last_pose)
