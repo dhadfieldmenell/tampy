@@ -174,6 +174,7 @@ class Trajectory(object):
 				self._r_gripper.command_position(r_cmd[idx].positions[0])
 			if self._l_gripper.type() != 'custom':
 				self._l_gripper.command_position(l_cmd[idx].positions[0])
+			import ipdb; ipdb.set_trace()
 			rate.sleep()
 			now_from_start = rospy.get_time() - start_time
 
@@ -253,7 +254,7 @@ class Trajectory(object):
 			self._add_point(cur_cmd, 'left_gripper', real_ts + start_offset)
 			cur_cmd = [cmd['right_gripper']]
 			self._add_point(cur_cmd, 'right_gripper', real_ts + start_offset)
-			real_ts += action.ee_retiming[t]
+			real_ts += action.ee_retiming[t-ts[0]]
 
 	def _feedback(self, data):
 		# Test to see if the actual playback time has exceeded
@@ -349,7 +350,7 @@ def execute_plan(plan):
 	ps.write_plan_to_hdf5('prototype2.hdf5', plan)
 
 
-	velocites = np.ones((plan.horizon, ))*1
+	velocites = np.ones((plan.horizon, ))*1.5
 	ee_time = traj_retiming(plan, velocites)
 	for act in plan.actions:
 		act_ts = act.active_timesteps

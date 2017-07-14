@@ -27,7 +27,9 @@
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
 
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_prototype2 --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_prototype2 --debug
+
+nose2 test.test_ros_interface.test_action_execution.TestActionExecute.test_prototype2 --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_traj_smoother --debug
 

@@ -69,6 +69,7 @@ class EnvironmentMonitor:
 		cloth_init_pose = plan.params['cloth_init_target']
 		table = plan.params['table']
 		table_pose = table.pose[:,0]
+		cloth_target_in_basket = plan.params['cloth_target_end_1']
 
 		# import ipdb; ipdb.set_trace()
 
@@ -76,9 +77,13 @@ class EnvironmentMonitor:
 			basket.pose[0, t] = table_pose[0] - self.basket_pose[0] 
 			basket.pose[1, t] = table_pose[1] +  self.basket_pose[1]
 			# basket.rotation[0,t] = self.basket_pose[2]
-			basket_init_pose.value[0, t] = table_pose[0] - self.basket_pose[0] 
-			basket_init_pose.value[1, t] = table_pose[1] +  self.basket_pose[1]
+			basket_init_pose.value[0, 0] = table_pose[0] - self.basket_pose[0] 
+			basket_init_pose.value[1, 0] = table_pose[1] +  self.basket_pose[1]
 			# basket_init_pose.rotation[0,t] = 1.57self.basket_pose[2]
+
+			cloth_target_in_basket.value[0,0] = basket.pose[0,t]
+			cloth_target_in_basket.value[1,0] = basket.pose[1,t]
+
 
 		if not params or 'cloth' in params:
 			cloth.pose[0,t] = table_pose[0] - self.cloth_pose[0]
