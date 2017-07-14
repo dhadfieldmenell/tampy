@@ -38,12 +38,12 @@ attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
 
 class RobotLLSolver(LLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
-        self.transfer_coeff = 1e-2
-        self.rs_coeff = 1e5
-        self.trajopt_coeff = 1e-1
-        self.initial_trust_region_size = 1e-2
-        self.init_penalty_coeff = 1e4
-        self.smooth_penalty_coeff = 1e6
+        self.transfer_coeff = 1e-3
+        self.rs_coeff = 1e4
+        self.trajopt_coeff = 1e-2
+        self.initial_trust_region_size = 1e-3
+        self.init_penalty_coeff = 1e3
+        self.smooth_penalty_coeff = 1e3
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
@@ -68,9 +68,11 @@ class RobotLLSolver(LLSolver):
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
         plan.restore_free_attrs()
-
-        result = self.traj_smoother(plan, callback=None, n_resamples=5, active_ts=None, verbose=verbose)
-        assert success == result
+        try:
+            result = self.traj_smoother(plan, callback=None, n_resamples=5, active_ts=None, verbose=verbose)
+        except:
+            print result
+            import ipdb; ipdb.set_trace()
         return success
 
     def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):

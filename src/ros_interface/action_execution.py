@@ -35,6 +35,7 @@ import operator
 import sys
 import threading
 
+from core.util_classes.plan_hdf5_serialization import PlanSerializer
 from pma.robot_ll_solver import RobotLLSolver
 from ros_interface.environment_monitor import EnvironmentMonitor
 
@@ -58,7 +59,40 @@ from trajectory_msgs.msg import (
 	JointTrajectoryPoint,
 )
 
+import time
+import numpy as np
+
+from core.util_classes.viewer import OpenRAVEViewer
+
 joints = ['_s0', '_s1', '_e0', '_e1', '_w0', '_w1', '_w2']
+
+def traj_retiming(plan, velocity):
+    baxter = plan.params['baxter']
+    rave_body = baxter.openrave_body
+    body = rave_body.env_body
+    lmanip = body.GetManipulator("left_arm")
+    rmanip = body.GetManipulator("right_arm")
+    left_ee_pose = []
+    right_ee_pose = []
+    for t in range(plan.horizon):
+        rave_body.set_dof({
+            'lArmPose': baxter.lArmPose[:, t],
+            'lGripper': baxter.lGripper[:, t],
+            'rArmPose': baxter.rArmPose[:, t],
+            'rGripper': baxter.rGripper[:, t]
+        })
+        rave_body.set_pose([0,0,baxter.pose[:, t]])
+
+        left_ee_pose.append(lmanip.GetTransform()[:3, 3])
+        right_ee_pose.append(rmanip.GetTransform()[:3, 3])
+    time = np.zeros(plan.horizon)
+    # import ipdb; ipdb.set_trace()
+    for t in range(plan.horizon-1):
+        left_dist = np.linalg.norm(left_ee_pose[t+1] - left_ee_pose[t])
+        right_dist = np.linalg.norm(right_ee_pose[t+1] - right_ee_pose[t])
+        time_spend = max(left_dist, right_dist)/velocity[t]
+        time[t+1] = time[t] + time_spend
+    return time
 
 class Trajectory(object):
 	def __init__(self):
@@ -300,25 +334,26 @@ def execute_plan(plan):
 	trajectory of that plan for a single robot.
 	'''
 	env_monitor = EnvironmentMonitor()
-	while env_monitor.updating:
-		pass
-	env_monitor.update_plan(plan, 0,)
+	print "Updating parameter locations..."
+	env_monitor.update_plan(plan, 0)
 
 	print "solving laundry domain problem..."
-	solver = robot_ll_solver.RobotLLSolver()
+	solver = RobotLLSolver()
 	start = time.time()
+	viewer = OpenRAVEViewer.create_viewer(plan.env)
 	success = solver.backtrack_solve(plan, callback = None, verbose=False)
 	end = time.time()
 	print "Planning finished within {}s.".format(end - start)
 
+	ps = PlanSerializer()
+	ps.write_plan_to_hdf5('prototype2.hdf5', plan)
+
 
 	velocites = np.ones((plan.horizon, ))*1
-	slow_inds = np.array([range(19,39), range(58,78), range(116,136), range(155, 175), range(213, 233), range(252, 272)]).flatten()
-	velocites[slow_inds] = 0.6
 	ee_time = traj_retiming(plan, velocites)
 	for act in plan.actions:
-	    act_ts = act.active_timesteps
-	    act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
+		act_ts = act.active_timesteps
+		act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
 
 
 	if success:
@@ -340,6 +375,7 @@ def execute_plan(plan):
 					success = solver._backtrack_solve(plan, callback = callback, anum=i, verbose=False)
 					success = solver.traj_smoother(plan, active_ts=(action.active_timesteps[0], plan.horizon-1))
 					if not success:
+						import ipdb; ipdb.set_trace()
 
 		print("Exiting - Plan Completed")
 
@@ -405,7 +441,7 @@ def move_to_ts(action, ts):
 	def move_thread(limb, gripper, angle, grip, queue, timeout=15.0):
 			"""
 			Threaded joint movement allowing for simultaneous joint moves.
-	        """
+			"""
 			try:
 				limb.move_to_joint_positions(angle, timeout)
 				gripper.command_position(grip)
