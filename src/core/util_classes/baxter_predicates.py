@@ -571,7 +571,23 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
             raise PredicateException("Incorrect Active DOF Setting")
 
 class BaxterObstructsHoldingCloth(BaxterObstructsHolding):
-    pass
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+        l_manip = robot_body.env_body.GetManipulator("left_arm")
+        l_pos = l_manip.GetTransform()[:3,3]
+        x[-6:-3] = l_pos.reshape(x[-6:-3].shape)
+        x[-3:] = np.zeros(x[-3:].shape)
 
 class BaxterCollides(robot_predicates.Collides):
 

@@ -26,7 +26,7 @@ BASE_SAMPLE_SIZE = 5
 DEBUG = True
 
 # used for pose suggester
-RESAMPLE_FACTOR = [0.01,0.01,0.15]
+RESAMPLE_FACTOR = baxter_constants.RESAMPLE_FACTOR
 DOWN_ROT = [0, np.pi/2, 0]
 
 attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
@@ -43,7 +43,7 @@ class RobotLLSolver(LLSolver):
         self.trajopt_coeff = 1e-1
         self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 1e4
-        self.smooth_penalty_coeff = 1e6
+        self.smooth_penalty_coeff = 1e4
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
@@ -68,9 +68,6 @@ class RobotLLSolver(LLSolver):
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
         plan.restore_free_attrs()
-
-        result = self.traj_smoother(plan, callback=None, n_resamples=5, active_ts=None, verbose=verbose)
-        assert success == result
         return success
 
     def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
@@ -131,7 +128,12 @@ class RobotLLSolver(LLSolver):
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]]
                         p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = RobotLLSolver()
-            if self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax):
+            try:
+                success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
+            except:
+                return False
+
+            if success:
                 return True
             ## reset free_attrs
             for p in a.params:
@@ -151,10 +153,11 @@ class RobotLLSolver(LLSolver):
             else:
                 callback_a = None
             self.child_solver = RobotLLSolver()
-            # TODO it used to set force init to True, but now I assumed it's presolved before it
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
-                                              active_ts = active_ts, verbose=verbose, force_init=True)
-
+            try:
+                success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
+                                                  active_ts = active_ts, verbose=verbose, force_init=True)
+            except:
+                return False
             if not success:
                 ## if planning fails we're done
                 return False
@@ -190,9 +193,12 @@ class RobotLLSolver(LLSolver):
 
             success = False
             self.child_solver = RobotLLSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
-                                              active_ts = active_ts, verbose=verbose,
-                                              force_init=True)
+            try:
+                success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
+                                                  active_ts = active_ts, verbose=verbose,
+                                                  force_init=True)
+            except:
+                return False
             if success:
                 if recursive_solve():
                     break
@@ -241,7 +247,7 @@ class RobotLLSolver(LLSolver):
         else:
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
-        robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0]})
+        robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
 
         for i in range(resample_size):
             if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
@@ -258,7 +264,6 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
-                    print "Unable to find IK"
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
@@ -286,7 +291,7 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
                 # TODO once we have the rotor_base we should resample pose
-                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[0,0,0,0,0,0,0]]).T, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
 
             elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
@@ -323,6 +328,7 @@ class RobotLLSolver(LLSolver):
             else:
                 raise NotImplementedError
         if not robot_pose:
+            print "Unable to find IK"
             import ipdb; ipdb.set_trace()
 
         return robot_pose
