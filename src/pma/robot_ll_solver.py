@@ -247,7 +247,7 @@ class RobotLLSolver(LLSolver):
         else:
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
-        robot_body.set_dof({'lArmPose': [0, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[0, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
+        robot_body.set_dof({'lArmPose': [0.785, 0, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, 0, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
 
         for i in range(resample_size):
             if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
@@ -282,7 +282,7 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['value'][:] = 0
                     target._free_attrs['rotation'][:] = 0
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.25], RESAMPLE_FACTOR)
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -291,7 +291,7 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
                 # TODO once we have the rotor_base we should resample pose
-                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[0,0,0,0,0,0,0]]).T, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[-0.785,0,0,0,0,0,0]]).T, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
 
             elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
