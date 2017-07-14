@@ -235,7 +235,7 @@ class MoveHoldingCloth(Action):
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?cloth - Cloth)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
-            ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
+            # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
             )', '0:{}'.format(end)),

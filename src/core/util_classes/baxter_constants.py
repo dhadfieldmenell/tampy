@@ -60,7 +60,7 @@ NUM_RESAMPLES = 10
 MAX_ITERATION_STEP = 200
 BIAS_RADIUS = 0.1
 ROT_BIAS = np.pi/8
-
+RESAMPLE_FACTOR = [0.005,0.005,0.25]
 """
 Following constants are for testing purposes
 """

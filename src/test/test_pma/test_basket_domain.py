@@ -575,9 +575,9 @@ class TestBasketDomain(unittest.TestCase):
 
         robot, washer = ParamSetup.setup_baxter(), ParamSetup.setup_washer()
         env = ParamSetup.setup_env()
-        # viewer = OpenRAVEViewer.create_viewer(env)
-        # objLst = [robot, washer]
-        # viewer.draw(objLst, 0, 0.5)
+        viewer = OpenRAVEViewer.create_viewer(env)
+        objLst = [robot, washer]
+        viewer.draw(objLst, 0, 0.5)
 
 
         rave_body = OpenRAVEBody(env, robot.name, robot.geom)
@@ -607,7 +607,7 @@ class TestBasketDomain(unittest.TestCase):
                 arm_pose = baxter_sampling.get_is_mp_arm_pose(rave_body, ik_arm_poses, last_arm_pose, arm)
                 if arm_pose is None:
                     return False
-                # rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
+                rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
                 last_arm_pose = arm_pose
 
             rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
@@ -616,10 +616,10 @@ class TestBasketDomain(unittest.TestCase):
             ik_arm_poses_right = rave_body.get_ik_solutions("right_arm", trans)
             if not len(ik_arm_poses_left) and not len(ik_arm_poses_right):
                 return False
-            # elif not len(ik_arm_poses_left):
-            #     rave_body.set_dof({'rArmPose': ik_arm_poses_right[0]})
-            # elif not len(ik_arm_poses_right):
-            #     rave_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+            elif not len(ik_arm_poses_left):
+                rave_body.set_dof({'rArmPose': ik_arm_poses_right[0]})
+            elif not len(ik_arm_poses_right):
+                rave_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
 
             return True
 
@@ -952,6 +952,12 @@ class TestBasketDomain(unittest.TestCase):
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+
+        try:
+            result = self.traj_smoother(plan, callback=None, n_resamples=10, active_ts=None, verbose=verbose)
+        except:
+            print "Trajectory Smoother Failed"
+
         end = time.time()
         print "Planning finished within {}s.".format(end - start)
 

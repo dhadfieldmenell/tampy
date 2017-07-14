@@ -1131,7 +1131,7 @@ def resample_basket_obstructs(pred, negated, t, plan):
     robot, obstacle = pred.robot, pred.obstacle
     rave_body, obs_body = robot.openrave_body, obstacle.openrave_body
     body, obs = rave_body.env_body, obs_body.env_body
-
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
     dof_value = np.r_[robot.lArmPose[:, t],
                       robot.lGripper[:, t],
                       robot.rArmPose[:, t],
@@ -1166,8 +1166,9 @@ def resample_basket_obstructs(pred, negated, t, plan):
     attempt, step = 0, 1
     while attempt < 50 and len(pred._cc.BodyVsBody(body, obs)) > 0:
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.005,0.005,0.2])
-        arm_pose = get_ik_from_pose(target_ee, [0, np.pi/2, 0], body, "{}_arm".format(arm))
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3), const.RESAMPLE_FACTOR)
+        ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/2, 0], "{}_arm".format(arm))
+        arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, "{}ArmPose".format(arm[0]))[:, action.active_timesteps[0]])
         if arm_pose is None:
             step += 1
             continue
@@ -1175,7 +1176,7 @@ def resample_basket_obstructs(pred, negated, t, plan):
         rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
 
 
-    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+
     print "resampling at {} action".format(action.name)
     act_start, act_end = action.active_timesteps
     if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
@@ -1211,6 +1212,7 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
     body, obs = rave_body.env_body, obs_body.env_body
     held, held_body = pred.obj, pred.obj.openrave_body
     held_env_body = held_body.env_body
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
     dof_value = np.r_[robot.lArmPose[:, t],
                       robot.lGripper[:, t],
                       robot.rArmPose[:, t],
@@ -1256,8 +1258,9 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
 
     while attempt < 50 and (len(pred._cc.BodyVsBody(body, obs)) > 0 or len(pred._cc.BodyVsBody(held_env_body, obs))):
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3), [0.005,0.005,0.1])
-        arm_pose = get_ik_from_pose(target_ee, [0, np.pi/2, 0], body, "{}_arm".format(arm))
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3), const.RESAMPLE_FACTOR)
+        ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/2, 0], "{}_arm".format(arm))
+        arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, "{}ArmPose".format(arm[0]))[:, action.active_timesteps[0]])
         if arm_pose is None:
             step += 1
             continue
@@ -1269,7 +1272,7 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
     """
     Resample Trajectory
     """
-    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+
     print "resampling at {} action".format(action.name)
     act_start, act_end = action.active_timesteps
     if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
