@@ -677,6 +677,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False, both_ar
     # import ipdb; ipdb.set_trace()
     return res, attr_inds
 
+# @profile
 def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = False):
     attr_inds, res = OrderedDict(), OrderedDict()
 
@@ -921,6 +922,7 @@ def resample_basket_in_gripper(pred, negated, t, plan):
 
     return res, attr_inds
 
+# @profile
 def resample_cloth_in_gripper(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
 
@@ -1125,6 +1127,7 @@ def resample_ee_grasp_valid(pred, negated, t, plan):
     # import ipdb; ipdb.set_trace()
     return res, attr_inds
 
+# @profile
 def resample_basket_obstructs(pred, negated, t, plan):
     # viewer = OpenRAVEViewer.create_viewer(plan.env)
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -1203,7 +1206,7 @@ def resample_basket_obstructs(pred, negated, t, plan):
 
     return res, attr_inds
 
-
+# @profile
 def resample_basket_obstructs_holding(pred, negated, t, plan):
     # viewer = OpenRAVEViewer.create_viewer(plan.env)
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -1304,6 +1307,7 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
             held_body.set_pose(target_ee)
 
     return res, attr_inds
+
 
 def resample_obstructs(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner

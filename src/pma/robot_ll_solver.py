@@ -70,6 +70,7 @@ class RobotLLSolver(LLSolver):
         plan.restore_free_attrs()
         return success
 
+    # @profile
     def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
         if amax is None:
             amax = len(plan.actions) - 1
@@ -231,6 +232,7 @@ class RobotLLSolver(LLSolver):
 
         return robot_pose
 
+    # @profile
     def obj_pose_suggester(self, plan, anum, resample_size = 10):
         robot_pose = []
         assert anum + 1 <= len(plan.actions) - 1
@@ -333,6 +335,7 @@ class RobotLLSolver(LLSolver):
 
         return robot_pose
 
+    # @profile
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
         success = False
@@ -370,6 +373,7 @@ class RobotLLSolver(LLSolver):
 
         return success
 
+    # @profile
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
                         active_ts=None, verbose=False, resample=False, smoothing = False):
         self.plan = plan
@@ -486,6 +490,7 @@ class RobotLLSolver(LLSolver):
         print "priority: {}\n".format(priority)
         return success
 
+    # @profile
     def traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
         print "Smoothing Trajectory..."
         priority = MAX_PRIORITY
@@ -499,6 +504,7 @@ class RobotLLSolver(LLSolver):
             self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True, smoothing = True)
         return success
 
+    # @profile
     def _get_transfer_obj(self, plan, norm):
         """
             This function returns the expression e(x) = P|x - cur|^2
@@ -550,6 +556,7 @@ class RobotLLSolver(LLSolver):
             raise NotImplemented
         return transfer_objs
 
+    # @profile
     def create_variable(self, grb_vars, init_vals, save=False):
         """
             if save is Ture
@@ -611,6 +618,7 @@ class RobotLLSolver(LLSolver):
         self.var_list = []
         self._grb_to_var_ind = {}
 
+    # @profile
     def _resample(self, plan, preds, sample_all = False):
         """
             This function first calls fail predicate's resample function,
@@ -654,6 +662,7 @@ class RobotLLSolver(LLSolver):
                     break
         return bexprs
 
+    # @profile
     def _add_pred_dict(self, pred_dict, effective_timesteps, add_nonlin=True,
                        priority=MAX_PRIORITY, verbose=False):
         """
@@ -700,6 +709,7 @@ class RobotLLSolver(LLSolver):
                                 groups.extend([param.name for param in pred.params])
                             self._prob.add_cnt_expr(bexpr, groups)
 
+    # @profile
     def _add_first_and_last_timesteps_of_actions(self, plan, priority = MAX_PRIORITY,
                                                  add_nonlin=False, active_ts=None, verbose=False):
         """
@@ -726,6 +736,7 @@ class RobotLLSolver(LLSolver):
                 self._add_pred_dict(pred_dict, timesteps, add_nonlin=False,
                                     priority=priority, verbose=verbose)
 
+    # @profile
     def _add_all_timesteps_of_actions(self, plan, priority=MAX_PRIORITY,
                                       add_nonlin=True, active_ts=None, verbose=False):
         """
@@ -745,6 +756,7 @@ class RobotLLSolver(LLSolver):
                 self._add_pred_dict(pred_dict, timesteps, priority=priority,
                                     add_nonlin=add_nonlin, verbose=verbose)
 
+    # @profile
     def _update_ll_params(self):
         """
             update plan's parameters from low level grb_vars.
@@ -755,6 +767,7 @@ class RobotLLSolver(LLSolver):
         if self.child_solver:
             self.child_solver._update_ll_params()
 
+    # @profile
     def _spawn_parameter_to_ll_mapping(self, model, plan, active_ts=None):
         """
             This function creates low level parameters for each parameter in the plan,
@@ -776,6 +789,7 @@ class RobotLLSolver(LLSolver):
         for ll_param in self._param_to_ll.values():
             ll_param.batch_add_cnts()
 
+    # @profile
     def _add_obj_bexprs(self, obj_bexprs):
         """
             This function adds objective bounded expressions to the Prob class
@@ -784,6 +798,7 @@ class RobotLLSolver(LLSolver):
         for bexpr in obj_bexprs:
             self._prob.add_obj_expr(bexpr)
 
+    # @profile
     def _get_trajopt_obj(self, plan, active_ts=None):
         """
             This function selects parameter of type Robot and Can and returns
