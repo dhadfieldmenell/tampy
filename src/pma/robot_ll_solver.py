@@ -356,7 +356,10 @@ class RobotLLSolver(LLSolver):
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose)
 
-                if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
+                try:
+                    if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
+                except:
+                    import ipdb; ipdb.set_trace()
 
                 if success:
                     break
@@ -365,7 +368,11 @@ class RobotLLSolver(LLSolver):
 
                 print "resample attempt: {}".format(attempt)
 
-                if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
+                try:
+                    if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
+                except:
+                    import ipdb; ipdb.set_trace()
+                    
                 assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
             if not success:

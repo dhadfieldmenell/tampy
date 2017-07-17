@@ -41,16 +41,14 @@ class Predicate(object):
                 raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
 
     def check_pred_violation(self, t, negated = False, tol = 1e-3):
-        violation = np.max(np.abs(self.get_expr(negated=negated).expr.eval(self.get_param_vector(t))))
-
-        if self.test(t, negated=negated, tol=tol):
-            if violation < tol:
-                import ipdb; ipdb.set_trace()
-                self.test(t, negated=negated, tol=tol)
-
+        if self.get_expr(negated=negated) is None:
             return None
 
-        print ("{}-{}\n".format(self.get_type(), t), violation)
+        assert not self.test(t, negated=negated, tol=tol)
+
+        violation = np.abs(self.get_expr(negated=negated).expr.eval(self.get_param_vector(t)))
+
+        return violation
 
 
     def __repr__(self):
