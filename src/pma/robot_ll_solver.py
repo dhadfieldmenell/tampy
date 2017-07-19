@@ -38,12 +38,15 @@ attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
 
 class RobotLLSolver(LLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
+        # To avoid numerical difficulties during optimization, try keep
+        # range of coefficeint within 1e9
+        # (largest_coefficient/smallest_coefficient < 1e9)
         self.transfer_coeff = 1e-2
-        self.rs_coeff = 1e5
-        self.trajopt_coeff = 1e-1
+        self.rs_coeff = 2e4
+        self.trajopt_coeff = 1e-2
         self.initial_trust_region_size = 1e-2
-        self.init_penalty_coeff = 1e4
-        self.smooth_penalty_coeff = 1e4
+        self.init_penalty_coeff = 4e4
+        self.smooth_penalty_coeff = 9e4
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
@@ -66,7 +69,11 @@ class RobotLLSolver(LLSolver):
 
     def backtrack_solve(self, plan, callback=None, verbose=False):
         plan.save_free_attrs()
-        success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
+        try:
+            success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
+        except:
+            print "Error occured during planning, but not catched"
+            return False
         plan.restore_free_attrs()
         return success
 
@@ -129,10 +136,7 @@ class RobotLLSolver(LLSolver):
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]]
                         p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = RobotLLSolver()
-            try:
-                success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
-            except:
-                return False
+            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
 
             if success:
                 return True
@@ -154,11 +158,9 @@ class RobotLLSolver(LLSolver):
             else:
                 callback_a = None
             self.child_solver = RobotLLSolver()
-            try:
-                success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
-                                                  active_ts = active_ts, verbose=verbose, force_init=True)
-            except:
-                return False
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
+                                              active_ts = active_ts, verbose=verbose, force_init=True)
+
             if not success:
                 ## if planning fails we're done
                 return False
@@ -194,12 +196,9 @@ class RobotLLSolver(LLSolver):
 
             success = False
             self.child_solver = RobotLLSolver()
-            try:
-                success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
-                                                  active_ts = active_ts, verbose=verbose,
-                                                  force_init=True)
-            except:
-                return False
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
+                                              active_ts = active_ts, verbose=verbose,
+                                              force_init=True)
             if success:
                 if recursive_solve():
                     break
@@ -339,7 +338,7 @@ class RobotLLSolver(LLSolver):
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
         success = False
-
+        viewer = callback()
         if force_init or not plan.initialized:
             self._solve_opt_prob(plan, priority=-2, callback=callback,
                 active_ts=active_ts, verbose=verbose)
@@ -349,6 +348,7 @@ class RobotLLSolver(LLSolver):
 
         if success or len(plan.get_failed_preds(active_ts = active_ts)) == 0:
             return True
+
 
         for priority in self.solve_priorities:
             for attempt in range(n_resamples):
@@ -364,6 +364,7 @@ class RobotLLSolver(LLSolver):
                 if success:
                     break
 
+                import ipdb; ipdb.set_trace()
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
                 print "resample attempt: {}".format(attempt)
@@ -372,7 +373,7 @@ class RobotLLSolver(LLSolver):
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 except:
                     import ipdb; ipdb.set_trace()
-                    
+
                 assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
             if not success:
@@ -383,6 +384,7 @@ class RobotLLSolver(LLSolver):
     # @profile
     def _solve_opt_prob(self, plan, priority, callback=None, init=True,
                         active_ts=None, verbose=False, resample=False, smoothing = False):
+        if callback is not None: viewer = callback()
         self.plan = plan
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
@@ -424,7 +426,7 @@ class RobotLLSolver(LLSolver):
             ## a high value on matching the resampled values
             failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
-
+            # import ipdb; ipdb.set_trace()
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
             # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
@@ -434,6 +436,7 @@ class RobotLLSolver(LLSolver):
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
             initial_trust_region_size = 1e3
+            # import ipdb; ipdb.set_trace()
         else:
             self._bexpr_to_pred = {}
             if priority == -2:
@@ -497,8 +500,18 @@ class RobotLLSolver(LLSolver):
         print "priority: {}\n".format(priority)
         return success
 
-    # @profile
     def traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
+        plan.save_free_attrs()
+        try:
+            success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
+        except:
+            print "Error occured during planning, but not catched"
+            return False
+        plan.restore_free_attrs()
+        return success
+
+    # @profile
+    def _traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
         print "Smoothing Trajectory..."
         priority = MAX_PRIORITY
         for attempt in range(n_resamples):

@@ -1,6 +1,7 @@
 from core.util_classes.common_predicates import ExprPredicate
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.pr2_sampling import get_expr_mult
+from core.util_classes.param_setup import ParamSetup
 import core.util_classes.common_constants as const
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from errors_exceptions import PredicateException
@@ -190,7 +191,7 @@ class CollisionPredicate(ExprPredicate):
 
             grad = np.zeros((1, self.attr_dim+6))
             grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
-            col_vec =  np.array([-sign*normal])
+            col_vec =  -sign*normal
             # Calculate object pose jacobian
             grad[:, self.attr_dim:self.attr_dim+3] = col_vec
             torque = ptObj - obj_pos[:3]
@@ -303,6 +304,22 @@ class CollisionPredicate(ExprPredicate):
         held_links = self.obj.geom.col_links
         obs_links = self.obstacle.geom.col_links
 
+        body = robot_body.env_body
+        l_manip = body.GetManipulator('left_arm')
+        r_manip = body.GetManipulator('right_arm')
+        l_ee_trans, r_ee_trans = l_manip.GetTransform(), r_manip.GetTransform()
+        l_arm_inds = self.robot.geom.dof_map['lArmPose']
+        r_arm_inds = self.robot.geom.dof_map['rArmPose']
+
+        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
+        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
+
+        l_diff = np.linalg.norm(obj_body.env_body.GetTransform()[:3,3] - l_ee_trans[:3,3])
+        r_diff = np.linalg.norm(obj_body.env_body.GetTransform()[:3,3] - r_ee_trans[:3,3])
+        arm = 'left'
+        if r_diff < l_diff:
+            arm = 'right'
+
         link_pair_to_col = {}
         for c in collisions:
             # Identify the collision points
@@ -328,14 +345,16 @@ class CollisionPredicate(ExprPredicate):
             normal = c.GetNormal()
 
             # Calculate robot joint jacobian
-            robot = robot_body.env_body
-            robot_link_ind = robot.GetLink(linkRobot).GetIndex()
-            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, linkObj)
-            # Calculate object pose jacobian
-            grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
+
+            if arm == "left":
+                l_arm_jac = np.array([np.cross(joint.GetAxis(), ptObj - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
+                grad[:, :7] = np.dot(sign * normal, l_arm_jac)
+            elif arm == "right":
+                r_arm_jac = -np.array([np.cross(joint.GetAxis(), ptObj - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
+                grad[:, 8:15] = np.dot(sign * normal, r_arm_jac)
 
             # Calculate obstruct pose jacobian
-            obstr_jac = np.array([-sign*normal])
+            obstr_jac = -sign*normal
             obstr_pos = OpenRAVEBody.obj_pose_from_transform(obstr_body.env_body.GetTransform())
             torque = ptObstr - obstr_pos[:3]
             Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obstr_pos[:3], obstr_pos[3:])
@@ -345,7 +364,7 @@ class CollisionPredicate(ExprPredicate):
             grad[:, self.attr_dim+3: self.attr_dim + 6] = rot_vec
 
             # Calculate object_held pose jacobian
-            obj_jac = np.array([sign*normal])
+            obj_jac = sign*normal
             obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
             torque = ptObj - obj_pos[:3]
             # Calculate object rotation jacobian
@@ -639,18 +658,22 @@ class PosePredicate(ExprPredicate):
 
             Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
         """
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
         self.arm = "left"
-        obj_body = self.obj.openrave_body
-        obj_body.set_pose(x[-6: -3], x[-3:])
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([const.BASKET_OFFSET,0,0])
-        l_pos_val = self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
-        self.arm = "right"
-        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([-const.BASKET_OFFSET,0,0])
-        r_pos_val = self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
 
-        return np.vstack([l_pos_val, r_pos_val])
+        l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
+        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
+        r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
+        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
+        rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
+        l_pos_val = self.rel_pos_error_f(r_ee_trans, l_ee_trans, rel_pt)
+        rel_pt = np.array([0,-2*const.BASKET_OFFSET,0])
+        r_pos_val = self.rel_pos_error_f(l_ee_trans, r_ee_trans, rel_pt)
+        rel_pt = np.array([const.BASKET_OFFSET,0,0])
+        obj_pos_val = self.rel_pos_error_f(obj_trans, l_ee_trans, rel_pt)
+        return np.vstack([l_pos_val, r_pos_val, obj_pos_val])
 
     def both_arm_pos_check_jac(self, x):
         """
@@ -662,18 +685,40 @@ class PosePredicate(ExprPredicate):
 
             Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
         """
+
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        self.set_robot_poses(x, robot_body)
+
+        l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
+        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
+        r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
+        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
+        # left_arm_focused
+        rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
+        robot_pos = l_ee_trans[:3, 3]
+        obj_pos = np.dot(r_ee_trans, np.r_[rel_pt, 1])[:3]
+        l_arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
+        r_arm_jac = -np.array([np.cross(joint.GetAxis(), obj_pos - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
+
+        l_pos_jac = np.hstack([l_arm_jac, np.zeros((3,1)), r_arm_jac, np.zeros((3, 8))])
+        # right_arm_focused
+        rel_pt = np.array([0,-2*const.BASKET_OFFSET,0])
+        robot_pos = r_ee_trans[:3, 3]
+        obj_pos = np.dot(l_ee_trans, np.r_[rel_pt, 1])[:3]
+        r_arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
+        l_arm_jac = -np.array([np.cross(joint.GetAxis(), obj_pos - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
+
+        r_pos_jac = np.hstack([l_arm_jac, np.zeros((3,1)), r_arm_jac, np.zeros((3, 8))])
+
         self.arm = "left"
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.array([const.BASKET_OFFSET,0,0])
-        l_pos_jac = self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
-        self.arm = "right"
-        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([-const.BASKET_OFFSET,0,0])
-        r_pos_jac = self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
+        obj_pos_jac = self.rel_pos_error_jac(obj_trans, l_ee_trans, axises, arm_joints, rel_pt)
 
-        return np.vstack([l_pos_jac, r_pos_jac])
+        return np.vstack([l_pos_jac, r_pos_jac, obj_pos_jac])
 
     def both_arm_rot_check_f(self, x):
         """
