@@ -166,7 +166,6 @@ def main():
         s += "(geom basket), "
         s += "(pose basket {}), ".format(BASKET_INIT_POS)
         s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
-        s += "(time basket {}), ".format([0])
 
         s += "(geom init_target)"
         s += "(value init_target {}), ".format(BASKET_INIT_POS)
@@ -263,7 +262,6 @@ def main():
         s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
         s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
         s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
-        s += "(BaxterEEGraspValid open_door_ee washer), "
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "
