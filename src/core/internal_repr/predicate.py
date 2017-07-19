@@ -44,7 +44,8 @@ class Predicate(object):
         if self.get_expr(negated=negated) is None:
             return None
 
-        assert not self.test(t, negated=negated, tol=tol)
+        # if not self.test(t, negated=negated, tol=tol):
+        #     return None
 
         violation = np.abs(self.get_expr(negated=negated).expr.eval(self.get_param_vector(t)))
 
