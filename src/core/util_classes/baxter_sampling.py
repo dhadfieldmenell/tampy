@@ -1095,6 +1095,7 @@ def resample_washer_in_gripper2(pred, negated, t, plan):
         assert pred.test(ts, negated = negated, tol = 1e-2)
 
     return res, attr_inds
+    
 
 #@profile 
 def get_is_mp_arm_pose(robot_body, arm_poses, last_pose, arm):

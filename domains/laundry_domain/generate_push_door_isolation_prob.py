@@ -34,10 +34,10 @@ TABLE_GEOM = [0.3, 0.6, 0.018]
 TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
-WASHER_POS = [0.85, 0.90, 0.85]
-WASHER_ROT = [np.pi/2,0,0]
+WASHER_POS = [1.2, .9, .85]
+WASHER_ROT = [2*np.pi/3,0,0]
 
-WASHER_DOOR = [-np.pi/4]
+WASHER_DOOR = [-np.pi/9]
 WASHER_END_DOOR = [-np.pi/2]
 WASHER_CONFIG = [True, True]
 

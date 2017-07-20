@@ -425,7 +425,7 @@ class TestBasketDomain(unittest.TestCase):
 
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
-        result = solver.solve(plan, callback = callback, n_resamples=10)
+        result = solver.solve(plan, callback = callback, n_resamples=20)
         end = time.time()
 
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
