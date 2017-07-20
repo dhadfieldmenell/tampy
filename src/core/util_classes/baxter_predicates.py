@@ -1256,12 +1256,12 @@ class BaxterPushWasher(robot_predicates.IsPushing):
         return rot_jac
 
     def stacked_f(self, x):
-        rel_pt = np.array([-.1,-0.07,0])
+        rel_pt = np.array([-.2,-0.07,0])
         rot_dir = np.array([0,np.pi/2,0])
         return np.vstack([self.coeff * self.ee_contact_check_f(x, rel_pt), self.rot_coeff * self.ee_rot_check_f(x)])
 
     def stacked_grad(self, x):
-        rel_pt = np.array([-.1,-0.07,0])
+        rel_pt = np.array([-.2,-0.07,0])
         return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.ee_rot_check_jac(x), np.zeros((1,))]])
 
 """
