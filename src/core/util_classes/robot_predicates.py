@@ -7,7 +7,7 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from errors_exceptions import PredicateException
 from collections import OrderedDict
 import numpy as np
-import ctrajoptpy_col
+import ctrajoptpy
 import itertools
 import time
 
@@ -18,7 +18,7 @@ class CollisionPredicate(ExprPredicate):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
-        self._cc = ctrajoptpy_col.GetCollisionChecker(self._env)
+        self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
