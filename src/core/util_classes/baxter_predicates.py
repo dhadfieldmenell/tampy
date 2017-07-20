@@ -1092,7 +1092,7 @@ class BaxterClothInGripperLeft(BaxterInGripper):
 class BaxterPushWasher(robot_predicates.IsPushing):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.eval_dim = 6
+        self.eval_dim = 4
         self.arm = 'left'
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
@@ -1126,8 +1126,7 @@ class BaxterPushWasher(robot_predicates.IsPushing):
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
-        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:], arm=='right')
-        import ipdb; ipdb.set_trace()
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
         if arm == "right":
             arm_inds = list(range(10,17))
         else:
@@ -1192,23 +1191,35 @@ class BaxterPushWasher(robot_predicates.IsPushing):
         return dist_jac
 
     #@profile
-    def ee_rot_check_f(self, rot_dir):
-        robot_body = self.robot1.openrave_body
-        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
-        ee_rot = OpenRAVEBody.obj_pose_from_transform(robot_trans)[3:].reshape((3,1))
-        rot_val = ee_rot - rot_dir.reshape((3,1))
+    def ee_rot_check_f(self, x, local_dir=[1,0,0]):
+        robot_trans, obj_trans, arm_joints, obj_joints, axises = self.robot_robot_kinematics(x)
+        world_dir = robot_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        rot_val = np.array([[np.abs(np.dot([0,0,-1], world_dir)) - 1]])
         return rot_val
 
     #@profile
     def ee_rot_check_jac(self, x,):
-        rot_jac = np.hstack([np.zeros((3,3)), np.eye(3), np.zeros((3, 7))])
+        robot_trans, obj_trans, arm_joints, obj_joints, axises = self.robot_robot_kinematics(x)
+        world_dir = robot_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        obj_dir = [0,0,-1]
+        sign = np.sign(np.dot(obj_dir, world_dir))
+        # computing robot's jacobian
+        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in arm_joints]).T.copy()
+        arm_jac = arm_jac.reshape((1, len(arm_joints)))
+        base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
+        # computing object's jacobian
+        obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+        obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
+        # Create final 1x23 jacobian matrix
+        rot_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
         return rot_jac
-
 
     def stacked_f(self, x):
         rel_pt = np.array([0,-0.07,0])
         rot_dir = np.array([0,np.pi/2,0])
-        return np.vstack([self.coeff * self.ee_contact_check_f(x, rel_pt), self.rot_coeff * self.ee_rot_check_f(rot_dir)])
+        return np.vstack([self.coeff * self.ee_contact_check_f(x, rel_pt), self.rot_coeff * self.ee_rot_check_f(x)])
 
     def stacked_grad(self, x):
         rel_pt = np.array([0,-0.07,0])

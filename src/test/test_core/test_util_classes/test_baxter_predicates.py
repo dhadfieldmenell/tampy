@@ -1500,11 +1500,19 @@ class TestBaxterPredicates(unittest.TestCase):
         pred = baxter_predicates.BaxterPushWasher('test_BaxterPushWasher', [baxter, washer], ['Robot', 'Washer'], env=env)
         self.assertFalse(pred.test(0))
 
-        env.SetViewer('qtcoin')
-
         ee_pose = washer.openrave_body.env_body.GetLink('washer_door').GetTransformPose()[-3:] - np.array([.07,0,0])
         lArmPose = baxter.openrave_body.get_ik_from_pose(ee_pose, [0,np.pi/2,0], 'left_arm')
         baxter.lArmPose = lArmPose[0].reshape((7,1))
-
-        baxter.openrave_body.set_dof({'lArmPose': lArmPose[0]})
         self.assertTrue(pred.test(0))
+
+        baxter.lArmPose[:,0] = [-0.7, -1.1325102, 0.0236696, 0.69209511, -0.01110441, 2.01129528, 0.1020981]
+        baxter.openrave_body.set_dof({'lArmPose':[-0.7, -1.1325102, 0.0236696, 0.69209511, -0.01110441, 2.01129528, 0.1020981]})
+        washer.pose[:,0] = [1.48, 0.3, 0.88]
+        washer.rotation[:,0] = [np.pi/2, 0, 0]
+        washer.openrave_body.set_pose(washer.pose[:,0], washer.rotation[:,0])
+        ee_pose = washer.openrave_body.env_body.GetLink('washer_door').GetTransformPose()[-3:] - np.array([0,0.07,0])
+        lArmPose = baxter.openrave_body.get_ik_from_pose(ee_pose, [0,np.pi/2,0], 'left_arm')
+        baxter.lArmPose = lArmPose[0].reshape((7,1))
+        self.assertTrue(pred.test(0))
+
+        washer.door[:,0] = -np.pi/4
