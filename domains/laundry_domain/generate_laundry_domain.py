@@ -465,16 +465,17 @@ class OpenDoor(Action):
 
 class PushDoor(Action):
     def __init__(self):
-        self.name = 'open_door'
-        self.timesteps = 2*(const.EEREACHABLE_STEPS+6) + 25
+        self.name = 'push_door'
+        self.timesteps = 20
         end = self.timesteps - 1
-        self.args = '(?robot - Robot ?washer - Washer ?sp - RobotPose ?ee_approach - EEPose ?ee_retreat - EEPose ?ep - RobotPose ?wsp - WasherPose ?wep - WasherPose)'
-        push_time = const.EEREACHABLE_STEPS + 5
-        retreat_time = end - const.EEREACHABLE_STEPS - 5
+        self.args = '(?robot - Robot ?washer - Washer ?sp - RobotPose ?ep - RobotPose ?wsp - WasherPose ?wep - WasherPose)'
+        push_time = 5
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterWasherAt ?washer ?wsp)', '0:{}'.format(push_time)),
-            ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(retreat_time, end)),
+            ('(BaxterPushingWasher ?robot ?washer)', '{},{}'.format(push_time, push_time))
+            ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(end, end)),
+            ('(BaxterPushingWasher ?robot ?washer)', '{},{}'.format(end, end))
             ('(BaxterStationaryWasher ?washer)', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
