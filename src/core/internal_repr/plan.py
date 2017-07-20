@@ -114,6 +114,7 @@ class Plan(object):
 
         return res
 
+    #@profile
     def get_failed_pred(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
         #just return the first one for now
         t_min = self.horizon+1
@@ -126,6 +127,7 @@ class Plan(object):
                 negated = n
         return negated, pred, t_min
 
+    #@profile
     def get_failed_preds(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
         if active_ts == None:
             active_ts = (0, self.horizon-1)

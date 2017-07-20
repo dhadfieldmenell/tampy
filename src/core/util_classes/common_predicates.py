@@ -55,6 +55,7 @@ class ExprPredicate(Predicate):
         self.x_dim *= end + 1 - start
         self.x = np.zeros(self.x_dim)
 
+    #@profile
     def lazy_spawn_or_body(self, param, name, geom):
         if param.openrave_body is not None:
             assert geom == param.openrave_body._geom
@@ -82,6 +83,7 @@ class ExprPredicate(Predicate):
                     raise err
         return self.x.reshape((self.x_dim, 1))
 
+    #@profile
     def test(self, time, negated=False, tol=None):
         if tol is None:
             tol = self.tol

@@ -35,6 +35,7 @@ import operator
 import sys
 import threading
 
+from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 from pma.robot_ll_solver import RobotLLSolver
 from ros_interface.environment_monitor import EnvironmentMonitor
 
@@ -58,7 +59,40 @@ from trajectory_msgs.msg import (
 	JointTrajectoryPoint,
 )
 
+import time
+import numpy as np
+
+from core.util_classes.viewer import OpenRAVEViewer
+
 joints = ['_s0', '_s1', '_e0', '_e1', '_w0', '_w1', '_w2']
+
+def traj_retiming(plan, velocity):
+    baxter = plan.params['baxter']
+    rave_body = baxter.openrave_body
+    body = rave_body.env_body
+    lmanip = body.GetManipulator("left_arm")
+    rmanip = body.GetManipulator("right_arm")
+    left_ee_pose = []
+    right_ee_pose = []
+    for t in range(plan.horizon):
+        rave_body.set_dof({
+            'lArmPose': baxter.lArmPose[:, t],
+            'lGripper': baxter.lGripper[:, t],
+            'rArmPose': baxter.rArmPose[:, t],
+            'rGripper': baxter.rGripper[:, t]
+        })
+        rave_body.set_pose([0,0,baxter.pose[:, t]])
+
+        left_ee_pose.append(lmanip.GetTransform()[:3, 3])
+        right_ee_pose.append(rmanip.GetTransform()[:3, 3])
+    time = np.zeros(plan.horizon)
+    # import ipdb; ipdb.set_trace()
+    for t in range(plan.horizon-1):
+        left_dist = np.linalg.norm(left_ee_pose[t+1] - left_ee_pose[t])
+        right_dist = np.linalg.norm(right_ee_pose[t+1] - right_ee_pose[t])
+        time_spend = max(left_dist, right_dist)/velocity[t]
+        time[t+1] = time[t] + time_spend
+    return time
 
 class Trajectory(object):
 	def __init__(self):
@@ -126,12 +160,12 @@ class Trajectory(object):
 		self._gripper_rate = 4.0  # Hz
 
 	def _execute_gripper_commands(self):
-		start_time = rospy.get_time() - self._trajectory_actual_offset.to_sec()
 		r_cmd = self._r_grip.trajectory.points
 		l_cmd = self._l_grip.trajectory.points
 		pnt_times = [pnt.time_from_start.to_sec() for pnt in r_cmd]
 		end_time = pnt_times[-1]
 		rate = rospy.Rate(self._gripper_rate)
+		start_time = rospy.get_time() - self._trajectory_actual_offset.to_sec()
 		now_from_start = rospy.get_time() - start_time
 		while(now_from_start < end_time + (1.0 / self._gripper_rate) and
 			  not rospy.is_shutdown()):
@@ -140,6 +174,7 @@ class Trajectory(object):
 				self._r_gripper.command_position(r_cmd[idx].positions[0])
 			if self._l_gripper.type() != 'custom':
 				self._l_gripper.command_position(l_cmd[idx].positions[0])
+
 			rate.sleep()
 			now_from_start = rospy.get_time() - start_time
 
@@ -207,9 +242,13 @@ class Trajectory(object):
 				self._add_point(cur_cmd, 'left', 0.0)
 				cur_cmd = [self._r_arm.joint_angle(jnt) for jnt in self._r_goal.trajectory.joint_names]
 				self._add_point(cur_cmd, 'right', 0.0)
+				# cur_cmd = [cmd['left_gripper']]
+				# self._add_point(cur_cmd, 'left_gripper', 0.0)
+				# cur_cmd = [cmd['right_gripper']]
+				# self._add_point(cur_cmd, 'right_gripper', 0.0)
 				start_offset = find_start_offset(cmd)
 				self._slow_move_offset = start_offset
-				self._trajectory_start_offset = rospy.Duration(start_offset + real_ts)
+				self._trajectory_start_offset = rospy.Duration(start_offset)
 
 			cur_cmd = [cmd[jnt] for jnt in self._l_goal.trajectory.joint_names]
 			self._add_point(cur_cmd, 'left', real_ts + start_offset)
@@ -219,7 +258,7 @@ class Trajectory(object):
 			self._add_point(cur_cmd, 'left_gripper', real_ts + start_offset)
 			cur_cmd = [cmd['right_gripper']]
 			self._add_point(cur_cmd, 'right_gripper', real_ts + start_offset)
-			real_ts += action.ee_retiming[t]
+			real_ts += action.ee_retiming[t-ts[0]]
 
 	def _feedback(self, data):
 		# Test to see if the actual playback time has exceeded
@@ -300,41 +339,52 @@ def execute_plan(plan):
 	trajectory of that plan for a single robot.
 	'''
 	env_monitor = EnvironmentMonitor()
+	print "Updating parameter locations..."
 	env_monitor.update_plan(plan, 0)
 
 	print "solving laundry domain problem..."
-	solver = robot_ll_solver.RobotLLSolver()
+	solver = RobotLLSolver()
 	start = time.time()
+	viewer = OpenRAVEViewer.create_viewer(plan.env)
 	success = solver.backtrack_solve(plan, callback = None, verbose=False)
 	end = time.time()
 	print "Planning finished within {}s.".format(end - start)
 
+	ps = PlanSerializer()
+	ps.write_plan_to_hdf5('prototype2.hdf5', plan)
+	# pd = PlanDeserializer()
+	# plan = pd.read_from_hdf5('prototype2.hdf5')
 
-	velocites = np.ones((plan.horizon, ))*1
-	slow_inds = np.array([range(19,39), range(58,78), range(116,136), range(155, 175), range(213, 233), range(252, 272)]).flatten()
-	velocites[slow_inds] = 0.6
+
+	velocites = np.ones((plan.horizon, ))*3
 	ee_time = traj_retiming(plan, velocites)
 	for act in plan.actions:
-	    act_ts = act.active_timesteps
-	    act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
-
-	print "Saving current plan to file cloth_manipulation_plan.hdf5..."
-	serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
+		act_ts = act.active_timesteps
+		act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
 
 
-	if success:
-		for action in plan.actions:
-			# env_monitor.update_plan(plan, action.active_timesteps[0])
-			# solver.solve(plan, active_ts=(action.active_timesteps[0], plan.horizon-1))
+	plan.actions.sort(key=lambda a:a.active_timesteps[0])
+	if True or success:
+		for i in range(len(plan.actions)):
+			action = plan.actions[i]
+			print action.name
 			traj = Trajectory()
 			traj.load_trajectory(action)
 
-		rospy.on_shutdown(traj.stop)
-		result = True
+			rospy.on_shutdown(traj.stop)
+			# result = True
 
-		while (result and not rospy.is_shutdown()):
 			traj.start()
 			result = traj.wait()
+
+			if action.params[2].name is 'monitor_pose' and i < len(plan.actions) - 1:
+				env_monitor.update_plan(plan, action.active_timesteps[1], params=['basket'])
+				if len(plan.get_failed_preds((action.active_timesteps[1], plan.actions[i+1].active_timesteps[1]), tol=1e-3)):
+					success = solver._backtrack_solve(plan, callback = callback, anum=i, verbose=False)
+					success = solver.traj_smoother(plan, active_ts=(action.active_timesteps[0], plan.horizon-1))
+					if not success:
+						import ipdb; ipdb.set_trace()
+
 		print("Exiting - Plan Completed")
 
 	else:
@@ -399,7 +449,7 @@ def move_to_ts(action, ts):
 	def move_thread(limb, gripper, angle, grip, queue, timeout=15.0):
 			"""
 			Threaded joint movement allowing for simultaneous joint moves.
-	        """
+			"""
 			try:
 				limb.move_to_joint_positions(angle, timeout)
 				gripper.command_position(grip)
