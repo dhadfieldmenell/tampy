@@ -23,7 +23,7 @@ BASE_MOVE_COEFF = 10
 TRAJOPT_COEFF=1e-1
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = False
+DEBUG = True
 
 # used for pose suggester
 RESAMPLE_FACTOR = baxter_constants.RESAMPLE_FACTOR
