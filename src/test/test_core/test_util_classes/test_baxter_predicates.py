@@ -1489,3 +1489,22 @@ class TestBaxterPredicates(unittest.TestCase):
             checker(cloth_target.value[:, 0], np.array([0,np.pi/2, angle]), expected = True)
             checker(cloth_target.value[:, 0], np.array([angle,np.pi/2, 0]), expected = True)
             checker(cloth_target.value[:, 0], np.array([0, angle, 0]), expected = (np.pi/2 == angle))
+
+    def test_baxter_push_washer(self):
+        env = ParamSetup.setup_env()
+        baxter = ParamSetup.setup_baxter()
+        washer = ParamSetup.setup_washer()
+        washer.pose[:,0] = [0.38, 0.85, 0.28]
+        washer.rotation[:,0] = [0, 0, np.pi/2]
+        washer.door[:,0] = -np.pi/2
+        pred = baxter_predicates.BaxterPushWasher('test_BaxterPushWasher', [baxter, washer], ['Robot', 'Washer'], env=env)
+        self.assertFalse(pred.test(0))
+
+        env.SetViewer('qtcoin')
+
+        ee_pose = washer.openrave_body.env_body.GetLink('washer_door').GetTransformPose()[-3:] - np.array([.07,0,0])
+        lArmPose = baxter.openrave_body.get_ik_from_pose(ee_pose, [0,np.pi/2,0], 'left_arm')
+        baxter.lArmPose = lArmPose[0].reshape((7,1))
+
+        baxter.openrave_body.set_dof({'lArmPose': lArmPose[0]})
+        self.assertTrue(pred.test(0))

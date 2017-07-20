@@ -1589,13 +1589,13 @@ class IsPushing(PosePredicate):
     '''
     #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        assert len(params) == 1
+        assert len(params) == 2
         self._env = env
         self.robot1 = params[0]
         self.robot2 = params[1]
         attr_inds = self.attr_inds
 
-        self._param_to_body = {self.robot1: self.lazy_spawn_or_body(self.robot1, self.robot1.name, self.robot1.geom), self.washer: self.lazy_spawn_or_body(self.robot2, self.robot2.name, self.robot2.geom)}
+        self._param_to_body = {self.robot1: self.lazy_spawn_or_body(self.robot1, self.robot1.name, self.robot1.geom), self.robot2: self.lazy_spawn_or_body(self.robot2, self.robot2.name, self.robot2.geom)}
 
         f = lambda x: self.coeff*self.eval_f(x)
         grad = lambda x: self.coeff*self.eval_grad(x)
@@ -1603,5 +1603,5 @@ class IsPushing(PosePredicate):
         pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
 
-        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 1)
+        super(IsPushing, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 1)
         self.spacial_anchor = False
