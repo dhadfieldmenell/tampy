@@ -344,94 +344,6 @@ class TestBasketDomain(unittest.TestCase):
         # import ipdb; ipdb.set_trace()
 
     """
-    Handle_Grasp action Isolation
-    """
-    def handle_grasp_isolation(self):
-        domain_fname = '../domains/laundry_domain/laundry.domain'
-        d_c = main.parse_file_to_dict(domain_fname)
-        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
-        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/handle_grasp_isolation.prob')
-        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-
-        plan_str = [
-         '0: HANDLE_GRASP BAXTER WASHER ROBOT_INIT_POSE OPEN_DOOR_EE ROBOT_END_POSE WASHER_INIT_POSE',
-        ]
-
-        plan = hls.get_plan(plan_str, domain, problem)
-        baxter, washer = plan.params['baxter'], plan.params['washer']
-        print "solving open door isolation problem..."
-        viewer = OpenRAVEViewer.create_viewer(plan.env)
-        def callback():
-            return viewer
-
-        # viewer.draw_plan_ts(plan, 0)
-        # robot, washer = plan.params['baxter'], plan.params['washer']
-        # rave_body, washer_body = robot.openrave_body, washer.openrave_body
-        # tool_link = washer_body.env_body.GetLink("washer_handle")
-        # handle_trans = tool_link.GetTransform()
-        # rel_pt = np.array([-0.035,0.055,-0.1])
-        # handle_pos = np.dot(handle_trans, np.r_[rel_pt, 1])[:3]
-        # arm_pose = rave_body.get_ik_from_pose(handle_pos, [-np.pi/2, 0, -np.pi/2], "left_arm")
-        # import ipdb; ipdb.set_trace()
-        # arm_pose = baxter_sampling.closest_arm_pose(arm_pose, robot.lArmPose[:, 0])
-        # rave_body.set_dof({'lArmPose': arm_pose})
-
-
-        start = time.time()
-        solver = robot_ll_solver.RobotLLSolver()
-        result = solver.solve(plan, callback = callback, n_resamples=10)
-        end = time.time()
-
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
-        print "Saving current plan to file handle_grasp_isolation.hdf5..."
-        serializer = PlanSerializer()
-        serializer.write_plan_to_hdf5("handle_grasp_isolation.hdf5", plan)
-        self.assertTrue(result)
-
-    """
-    MOVE_DOOR action Isolation
-    """
-    def move_door_isolation(self):
-        domain_fname = '../domains/laundry_domain/laundry.domain'
-        d_c = main.parse_file_to_dict(domain_fname)
-        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        hls = hl_solver.FFSolver(d_c)
-        print "loading laundry problem..."
-        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/move_door_isolation.prob')
-        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-
-        plan_str = [
-         '0: MOVE_DOOR BAXTER WASHER ROBOT_INIT_POSE ROBOT_END_POSE WASHER_INIT_POSE WASHER_END_POSE',
-        ]
-        plan = hls.get_plan(plan_str, domain, problem)
-        baxter, washer = plan.params['baxter'], plan.params['washer']
-        print "solving open door isolation problem..."
-        viewer = OpenRAVEViewer.create_viewer(plan.env)
-        def callback():
-            return viewer
-
-        # import ipdb; ipdb.set_trace()
-        # rave_body, washer_body = baxter.openrave_body, washer.openrave_body
-
-
-
-        start = time.time()
-        solver = robot_ll_solver.RobotLLSolver()
-        result = solver.solve(plan, callback = callback, n_resamples=10)
-        end = time.time()
-
-        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
-
-
-        print "Saving current plan to file lation.hdf5..."
-        serializer = PlanSerializer()
-        serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
-        self.assertTrue(result)
-        import ipdb; ipdb.set_trace()
-
-    """
     OPEN_DOOR action Isolation
     """
     def open_door_isolation(self):
@@ -453,6 +365,15 @@ class TestBasketDomain(unittest.TestCase):
         def callback():
             return viewer
 
+        # viewer.draw_plan_ts(plan, 0)
+        # offset = np.array([-0.035,0.055,-0.1])
+        # robot, washer = plan.params["baxter"], plan.params["washer"]
+        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # tool_link = washer_body.env_body.GetLink("washer_handle")
+        # handle_pos = np.dot(tool_link.GetTransform(), np.r_[offset, 1])[:3]
+        #
+        import ipdb; ipdb.set_trace()
+
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
         result = solver.solve(plan, callback = callback, n_resamples=10)
@@ -465,6 +386,54 @@ class TestBasketDomain(unittest.TestCase):
         serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
         self.assertTrue(result)
 
+        import ipdb; ipdb.set_trace()
+
+
+    """
+    PUSH_DOOR action Isolation
+    """
+    def push_door_isolation(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/open_door_isolation.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+         '0: PUSH_DOOR BAXTER WASHER ROBOT_INIT_POSE PUSH_DOOR_EE ROBOT_END_POSE WASHER_INIT_POSE WASHER_END_POSE',
+        ]
+        plan = hls.get_plan(plan_str, domain, problem)
+
+        print "solving open door isolation problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback():
+            return viewer
+
+        # viewer.draw_plan_ts(plan, 0)
+        # offset = np.array([-0.035,0.055,-0.1])
+        # robot, washer = plan.params["baxter"], plan.params["washer"]
+        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # tool_link = washer_body.env_body.GetLink("washer_handle")
+        # handle_pos = np.dot(tool_link.GetTransform(), np.r_[offset, 1])[:3]
+        #
+        import ipdb; ipdb.set_trace()
+
+        start = time.time()
+        solver = robot_ll_solver.RobotLLSolver()
+        result = solver.solve(plan, callback = callback, n_resamples=10)
+        end = time.time()
+
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+
+        print "Saving current plan to file open_door_isolation.hdf5..."
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
+        self.assertTrue(result)
+
+        import ipdb; ipdb.set_trace()
+
     """
     OPEN_DOOR action Isolation
     """
@@ -474,7 +443,7 @@ class TestBasketDomain(unittest.TestCase):
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
         print "loading laundry problem..."
-        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/open_door_isolation.prob')
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/close_door_isolation.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
         plan_str = [
@@ -499,6 +468,7 @@ class TestBasketDomain(unittest.TestCase):
         serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
         self.assertTrue(result)
 
+        import ipdb; ipdb.set_trace()
     """
     Test Post Suggester in backtrack solve
     """
@@ -723,6 +693,37 @@ class TestBasketDomain(unittest.TestCase):
             print "saving good poses..."
             np.save("good_poses_fix_grasp_dir.npy", np.array(good_washer_poses))
 
+    def test_washer_position(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/laundry.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        plan_str = ['0: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_END_POSE']
+
+        plan = hls.get_plan(plan_str, domain, problem)
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        viewer.draw_plan_ts(plan, 0)
+        serializer = PlanSerializer()
+        robot, washer = plan.params['baxter'], plan.params['washer']
+        basket, cloth = plan.params['basket'], plan.params['cloth']
+        table = plan.params['table']
+        robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        washer_body.set_pose([0.85, 0.90, 0.85], [np.pi/2,0,0])
+        washer_body.set_dof({'door': -np.pi/2})
+
+        rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
+        trans = washer_body.env_body.GetTransform().dot(rot_mat)
+        offset = np.eye(4)
+        offset[:3,3] = [0,0,0]
+        final_trans = np.dot(trans, offset)
+        ik_arm_poses_left = robot_body.get_ik_solutions("left_arm", final_trans)
+        obj_pos = OpenRAVEBody.obj_pose_from_transform(trans)
+        robot_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+
+        import ipdb; ipdb.set_trace()
 
     def show_good_washer_poses(self):
         good_poses = np.load("final_poses2.npy")
