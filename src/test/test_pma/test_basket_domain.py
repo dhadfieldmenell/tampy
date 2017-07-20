@@ -398,7 +398,7 @@ class TestBasketDomain(unittest.TestCase):
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
         print "loading laundry problem..."
-        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/open_door_isolation.prob')
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/push_door_isolation.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
         plan_str = [
@@ -418,7 +418,7 @@ class TestBasketDomain(unittest.TestCase):
         # tool_link = washer_body.env_body.GetLink("washer_handle")
         # handle_pos = np.dot(tool_link.GetTransform(), np.r_[offset, 1])[:3]
         #
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
