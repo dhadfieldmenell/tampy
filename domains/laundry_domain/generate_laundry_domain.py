@@ -112,6 +112,7 @@ dp.add('BaxterOpenGrippers', ['Robot', 'EEPose', 'EEPose', 'RobotPose'])
 dp.add('BaxterObstructs', ['Robot', 'RobotPose', 'RobotPose', 'Basket'])
 dp.add('BaxterObstructsHolding', ['Robot', 'RobotPose', 'RobotPose', 'Basket', 'Basket'])
 dp.add('BaxterObstructsCloth', ['Robot', 'RobotPose', 'RobotPose', 'Cloth'])
+dp.add('BaxterObstructsWasher', ['Robot', 'RobotPose', 'RobotPose', 'Washer'])
 dp.add('BaxterObstructsHoldingCloth', ['Robot', 'RobotPose', 'RobotPose', 'Basket', 'Cloth'])
 dp.add('BaxterCollides', ['Basket', 'Obstacle'])
 dp.add('BaxterRCollides', ['Robot', 'Obstacle'])
@@ -438,6 +439,7 @@ class OpenDoor(Action):
             # ('(BaxterWasherIsMP ?washer)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(BaxterWasherWithinJointLimit ?washer)', '0:{}'.format(end)),
+            ('(BaxterObstructsWasher ?robot ?sp ?ep ?washer)', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\

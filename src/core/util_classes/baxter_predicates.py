@@ -392,13 +392,13 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
     def stacked_f(self, x):
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         rel_pt = np.array([-0.035,0.055,-0.1])
-        rot_dir = np.array([-np.pi/2,0,-np.pi/2])
+        rot_dir = np.array([0,0,0])
         return np.vstack([self.coeff * self.washer_ee_check_f(x, rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, rot_dir)])
 
     def stacked_grad(self, x):
         # rel_pt =  np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         rel_pt = np.array([-0.035,0.055,-0.1])
-        rot_dir = np.array([-np.pi/2,0,-np.pi/2])
+        rot_dir = np.array([0,0,0])
         return np.vstack([self.coeff * self.washer_ee_check_jac(x, rel_pt), self.rot_coeff * self.washer_ee_rot_check_jac(x, rot_dir)])
 
 """
@@ -506,6 +506,45 @@ class BaxterObstructs(robot_predicates.Obstructs):
 
 class BaxterObstructsCloth(BaxterObstructs):
     pass
+
+class BaxterObstructsWasher(BaxterObstructs):
+    def robot_obj_collision(self, x):
+        """
+            This function is used to calculae collisiosn between Robot and Can
+            This function calculates the collision distance gradient associated to it
+            x: 26 dimensional list of values aligned in following order,
+            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
+        """
+        # Parse the pose value
+        self._plot_handles = []
+        flattened = tuple(x.flatten())
+        # cache prevents plotting
+        # if flattened in self._cache and not self._debug:
+        #     return self._cache[flattened]
+
+        # Set pose of each rave body
+        robot = self.params[self.ind0]
+        robot_body = self._param_to_body[robot]
+        self.set_robot_poses(x, robot_body)
+
+        obj = self.params[self.ind1]
+        obj_body = self._param_to_body[obj]
+        can_pos, can_rot = x[-7:-4], x[-4:-1]
+        obj_body.set_pose(can_pos, can_rot)
+
+        # Make sure two body is in the same environment
+        assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
+        self.set_active_dof_inds(robot_body, reset=False)
+        # Setup collision checkers
+        self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
+        collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
+        # Calculate value and jacobian
+        col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
+        # set active dof value back to its original state (For successive function call)
+        self.set_active_dof_inds(robot_body, reset=True)
+        # self._cache[flattened] = (col_val.copy(), col_jac.copy())
+        # print "col_val", np.max(col_val)
+        return col_val, col_jac
 
 class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
