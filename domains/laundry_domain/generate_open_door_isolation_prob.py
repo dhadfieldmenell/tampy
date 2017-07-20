@@ -12,16 +12,16 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_end
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
 R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_INIT = [ 0.3, -0.54512685, -1.21983209,  1.84432598,  1.08901496, 1.13391635, -0.55092932]
+L_ARM_INIT = [ 0.   ,  0.291, -0.701,  1.136,  2.703, -1.298, -2.189]
 INT_GRIPPER = [0.02]
 
 BAXTER_END_POSE = [0]
 R_ARM_END = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_END = [ 0.3, -0.54512685, -1.21983209,  1.84432598,  1.08901496, 1.13391635, -0.55092932]
+L_ARM_END = [ 0.4  ,  0.384, -2.321,  1.137,  0.571,  1.904, -0.455]
 
 END_GRIPPER = [0.02]
 # init basket pose
-BASKET_INIT_POS = [0.65 , -0.283,  0.81]
+BASKET_INIT_POS = [3, 3, 3]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
 
 # end basket pose
@@ -31,17 +31,18 @@ BASKET_END_ROT = [np.pi/2, 0, np.pi/2]
 
 ROBOT_DIST_FROM_TABLE = 0.05
 TABLE_GEOM = [0.3, 0.6, 0.018]
-TABLE_POS = [0.75, 0.02, 0.522]
+TABLE_POS = [2, 2, 2]
 TABLE_ROT = [0,0,0]
 
-# WASHER_POS = [2,2,2]
-WASHER_POS = [0.1, 0.95, 0.28]
-WASHER_ROT = [0, 0, np.pi/2]
+WASHER_POS = [0.636, -0.636, 0.800]
+WASHER_ROT = [-np.pi/2, -np.pi/2, np.pi/2]
+# WASHER_POS = [-0.6363961, -0.6363961,  0.8]
+# WASHER_ROT = [-np.pi/2, -np.pi/2, 0]
 WASHER_DOOR = [0.0]
 WASHER_END_DOOR = [-np.pi/2]
 WASHER_CONFIG = [True, True]
 
-CLOTH_INIT_POS = [0.65, 0.401, 0.7]
+CLOTH_INIT_POS = [2.5, 2.5, 2.5]
 CLOTH_INIT_ROT = [0,0,0]
 
 CLOTH_INIT_POS_1 = [0.65, 0.401, 0.7]
@@ -200,14 +201,14 @@ def main():
         s += get_underfine_symbol("bg_ee_right")
         s += get_underfine_symbol("bp_ee_left")
         s += get_underfine_symbol("bp_ee_right")
-        # s += get_underfine_symbol("open_door_ee")
-        s += '(value open_door_ee {}), '.format(WASHER_EE_POS)
-        s += '(rotation open_door_ee {}), '.format(WASHER_EE_ROT)
+        s += get_underfine_symbol("open_door_ee")
+        # s += '(value open_door_ee {}), '.format(WASHER_EE_POS)
+        # s += '(rotation open_door_ee {}), '.format(WASHER_EE_ROT)
         s += get_underfine_symbol("cg_ee_2")
         s += get_underfine_symbol("cp_ee_2")
-        # s += get_underfine_symbol("close_door_ee")
-        s += '(value close_door_ee {}), '.format(WASHER_END_EE_POS)
-        s += '(rotation close_door_ee {}), '.format(WASHER_END_EE_ROT)
+        s += get_underfine_symbol("close_door_ee")
+        # s += '(value close_door_ee {}), '.format(WASHER_END_EE_POS)
+        # s += '(rotation close_door_ee {}), '.format(WASHER_END_EE_ROT)
 
         s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
 
@@ -268,7 +269,6 @@ def main():
         s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
         s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
         s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
-        s += "(BaxterEEGraspValid open_door_ee washer), "
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "

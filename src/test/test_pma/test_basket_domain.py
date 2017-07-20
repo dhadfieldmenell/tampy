@@ -10,6 +10,8 @@ from core.util_classes.param_setup import ParamSetup
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 from ros_interface import action_execution
 import core.util_classes.baxter_constants as const
+from openravepy import matrixFromAxisAngle
+import itertools
 
 def load_environment(domain_file, problem_file):
     domain_fname = domain_file
@@ -172,7 +174,7 @@ class TestBasketDomain(unittest.TestCase):
         print "Saving current plan to file move_to_isolation.hdf5..."
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("move_to_isolation.hdf5", plan)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         self.assertTrue(result)
 
     """
@@ -251,7 +253,7 @@ class TestBasketDomain(unittest.TestCase):
 
         ee_time = traj_retiming(plan, velocites)
         baxter.time = ee_time.reshape((1, ee_time.shape[0]))
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
         print "Saving current plan to file basket_putdown_isolation.hdf5..."
         serializer = PlanSerializer()
@@ -261,6 +263,7 @@ class TestBasketDomain(unittest.TestCase):
     """
     MOVEHOLDING_CLOTH action Isolation
     """
+    #TODO having trouble to solve
     def moveholding_cloth_isolation(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)
@@ -317,8 +320,9 @@ class TestBasketDomain(unittest.TestCase):
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
         plan_str = [
-        '2: MOVEHOLDING_BASKET BAXTER ROBOT_INIT_POSE ROBOT_END_POSE BASKET',
+        '0: MOVEHOLDING_BASKET BAXTER ROBOT_INIT_POSE ROBOT_END_POSE BASKET',
         ]
+
         plan = hls.get_plan(plan_str, domain, problem)
         baxter, basket = plan.params['baxter'], plan.params['basket']
         print "solving basket putdown isolation problem..."
@@ -337,7 +341,7 @@ class TestBasketDomain(unittest.TestCase):
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("basket_putdown_isolation_plan.hdf5", plan)
         self.assertTrue(result)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
     """
     Handle_Grasp action Isolation
@@ -361,6 +365,19 @@ class TestBasketDomain(unittest.TestCase):
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         def callback():
             return viewer
+
+        # viewer.draw_plan_ts(plan, 0)
+        # robot, washer = plan.params['baxter'], plan.params['washer']
+        # rave_body, washer_body = robot.openrave_body, washer.openrave_body
+        # tool_link = washer_body.env_body.GetLink("washer_handle")
+        # handle_trans = tool_link.GetTransform()
+        # rel_pt = np.array([-0.035,0.055,-0.1])
+        # handle_pos = np.dot(handle_trans, np.r_[rel_pt, 1])[:3]
+        # arm_pose = rave_body.get_ik_from_pose(handle_pos, [-np.pi/2, 0, -np.pi/2], "left_arm")
+        # import ipdb; ipdb.set_trace()
+        # arm_pose = baxter_sampling.closest_arm_pose(arm_pose, robot.lArmPose[:, 0])
+        # rave_body.set_dof({'lArmPose': arm_pose})
+
 
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
@@ -406,23 +423,16 @@ class TestBasketDomain(unittest.TestCase):
         end = time.time()
 
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
-        velocites = np.zeros((plan.horizon, ))
-        velocites[0:5] = 0.3
-        velocites[5:16] = 0.1
-        velocites[16:21] = 0.3
+
+
+        print "Saving current plan to file lation.hdf5..."
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
+        self.assertTrue(result)
         import ipdb; ipdb.set_trace()
 
-        ee_time = traj_retiming(plan, velocites)
-        baxter.time = ee_time.reshape((1, ee_time.shape[0]))
-
-        # print "Saving current plan to file open_door_isolation.hdf5..."
-        # serializer = PlanSerializer()
-        # serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
-        self.assertTrue(result)
-
-
     """
-   OPEN_DOOR action Isolation
+    OPEN_DOOR action Isolation
     """
     def open_door_isolation(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
@@ -437,13 +447,11 @@ class TestBasketDomain(unittest.TestCase):
          '0: OPEN_DOOR BAXTER WASHER ROBOT_INIT_POSE OPEN_DOOR_EE CLOSE_DOOR_EE ROBOT_END_POSE WASHER_INIT_POSE WASHER_END_POSE',
         ]
         plan = hls.get_plan(plan_str, domain, problem)
-        baxter, washer = plan.params['baxter'], plan.params['washer']
+
         print "solving open door isolation problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         def callback():
             return viewer
-
-        import ipdb; ipdb.set_trace()
 
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
@@ -451,18 +459,44 @@ class TestBasketDomain(unittest.TestCase):
         end = time.time()
 
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
-        velocites = np.zeros((plan.horizon, ))
-        velocites[0:5] = 0.3
-        velocites[5:16] = 0.1
-        velocites[16:21] = 0.3
-        import ipdb; ipdb.set_trace()
 
-        ee_time = traj_retiming(plan, velocites)
-        baxter.time = ee_time.reshape((1, ee_time.shape[0]))
+        print "Saving current plan to file open_door_isolation.hdf5..."
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
+        self.assertTrue(result)
 
-        # print "Saving current plan to file open_door_isolation.hdf5..."
-        # serializer = PlanSerializer()
-        # serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
+    """
+    OPEN_DOOR action Isolation
+    """
+    def close_door_isolation(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/open_door_isolation.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+         '0: CLOSE_DOOR BAXTER WASHER ROBOT_INIT_POSE CLOSE_DOOR_EE OPEN_DOOR_EE ROBOT_END_POSE WASHER_INIT_POSE WASHER_END_POSE',
+        ]
+        plan = hls.get_plan(plan_str, domain, problem)
+
+        print "solving open door isolation problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback():
+            return viewer
+
+        start = time.time()
+        solver = robot_ll_solver.RobotLLSolver()
+        result = solver.solve(plan, callback = callback, n_resamples=10)
+        end = time.time()
+
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+
+        print "Saving current plan to file open_door_isolation.hdf5..."
+        serializer = PlanSerializer()
+        serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
         self.assertTrue(result)
 
     """
@@ -570,8 +604,7 @@ class TestBasketDomain(unittest.TestCase):
         self.assertFalse(col_pred.test(0))
 
     def search_washer_position(self):
-        from openravepy import matrixFromAxisAngle
-        import itertools
+
 
         robot, washer = ParamSetup.setup_baxter(), ParamSetup.setup_washer()
         env = ParamSetup.setup_env()
@@ -585,13 +618,13 @@ class TestBasketDomain(unittest.TestCase):
         tool_link = washer_body.env_body.GetLink("washer_handle")
         offset = [-0.04, 0.07, -0.115]
 
-        def varify_feasibility(robot_base_pose, pos, rot, time_steps = 20, arm='right'):
+        def varify_feasibility(robot_base_pose, pos, rot, time_steps = 20, arm='right', side = [0, np.pi/2, 0]):
             rave_body.set_pose([0,0,robot_base_pose])
             rave_body.set_dof({'lArmPose': [0,0,0,0,0,0,0], 'rArmPose': [0,0,0,0,0,0,0]})
             washer_body.set_pose(pos, rot)
-            washer_trans, last_arm_pose = tool_link.GetTransform(), [0,0,0,0,0,0,0]
             washer_body.set_dof({'door': 0})
-            targ_pos, targ_rot = washer_trans.dot(np.r_[offset, 1])[:3],  OpenRAVEBody.obj_pose_from_transform(washer_trans)[3:]
+            washer_trans, last_arm_pose = tool_link.GetTransform(), [0,0,0,0,0,0,0]
+            targ_pos, targ_rot = washer_trans.dot(np.r_[offset, 1])[:3],  side
             reaching_rot = targ_rot
             ik_arm_poses = rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(arm))
             last_arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, last_arm_pose)
@@ -601,7 +634,7 @@ class TestBasketDomain(unittest.TestCase):
             for door in np.linspace(0, -np.pi/2, time_steps):
                 washer_body.set_dof({'door': door})
                 washer_trans = tool_link.GetTransform()
-                targ_pos, targ_rot = washer_trans.dot(np.r_[offset, 1])[:3],  OpenRAVEBody.obj_pose_from_transform(washer_trans)[3:]
+                targ_pos, targ_rot = washer_trans.dot(np.r_[offset, 1])[:3],  side
                 ik_arm_poses = rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(arm))
 
                 arm_pose = baxter_sampling.get_is_mp_arm_pose(rave_body, ik_arm_poses, last_arm_pose, arm)
@@ -610,16 +643,17 @@ class TestBasketDomain(unittest.TestCase):
                 rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
                 last_arm_pose = arm_pose
 
-            rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
-            trans = washer_body.env_body.GetTransform().dot(rot_mat)
-            ik_arm_poses_left = rave_body.get_ik_solutions("left_arm", trans)
-            ik_arm_poses_right = rave_body.get_ik_solutions("right_arm", trans)
-            if not len(ik_arm_poses_left) and not len(ik_arm_poses_right):
-                return False
-            elif not len(ik_arm_poses_left):
-                rave_body.set_dof({'rArmPose': ik_arm_poses_right[0]})
-            elif not len(ik_arm_poses_right):
-                rave_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+            # rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
+            # trans = washer_body.env_body.GetTransform().dot(rot_mat)
+            # ik_arm_poses_left = rave_body.get_ik_solutions("left_arm", trans)
+            # ik_arm_poses_right = rave_body.get_ik_solutions("right_arm", trans)
+            # import ipdb; ipdb.set_trace()
+            # if not len(ik_arm_poses_left) and not len(ik_arm_poses_right):
+            #     return False
+            # elif not len(ik_arm_poses_left):
+                # rave_body.set_dof({'rArmPose': ik_arm_poses_right[0]})
+            # elif not len(ik_arm_poses_right):
+                # rave_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
 
             return True
 
@@ -628,12 +662,15 @@ class TestBasketDomain(unittest.TestCase):
         effective_rot = []
         cashe_list = set()
 
-        rot_angles = np.linspace(-np.pi, np.pi, 9)[:-1]
+        rot_angles = np.linspace(-np.pi, np.pi, 5)[:-1]
         rot_list = itertools.product(rot_angles,rot_angles,rot_angles)
         for rot in rot_list:
             washer_trans = OpenRAVEBody.transform_from_obj_pose(washer_pose, rot)
             local_dir = np.array([0,0,1])
             washer_dir = tuple(washer_trans[:3,:3].dot(local_dir))
+            if washer_dir[2] < 0:
+                continue
+
             if washer_dir in cashe_list:
                 continue
             else:
@@ -644,39 +681,163 @@ class TestBasketDomain(unittest.TestCase):
         print "calculating effective position"
         effective_pos = []
         for radius in np.linspace(0.7, 1.2, 6):
-            for hight in np.linspace(0.3, 1.4, 12):
+            for hight in np.linspace(0.1, 1.0, 10):
                 for angle in np.linspace(-np.pi/4, np.pi/4, 5):
                     effective_pos.append([radius*np.cos(angle), radius*np.sin(angle), hight])
 
         print "{} effective poses".format(len(effective_pos))
 
-        print "search space: {}".format(len(effective_pos) * len(effective_rot))
+        print "finding_grasping_position"
+        grasp_poses = []
+        cashe_list = set()
+        midpoint = [0.87, 0, 0.8]
+        washer_body.set_pose([2,2,2])
+        for grasp_dir in itertools.product(rot_angles,rot_angles,rot_angles):
+            arm_poses = rave_body.get_ik_from_pose(midpoint, grasp_dir, "left_arm")
+            if not len(arm_poses):
+                continue
+            rave_body.set_dof({'lArmPose': arm_poses[0]})
+            manip = rave_body.env_body.GetManipulator("left_arm")
+            trans = manip.GetTransform()
+            gripper_dir = tuple(np.dot(trans, np.array([1, 0, 0, 1]))[:3])
+            if gripper_dir in cashe_list:
+                continue
+            else:
+                cashe_list.add(gripper_dir)
+                grasp_poses.append(grasp_dir)
+
+        print "{} grasp_poses".format(len(grasp_poses))
+
+        print "search space: {}".format(len(effective_pos) * len(effective_rot)* len(grasp_poses))
         print "finding good poses"
         good_washer_poses = []
         for pos in effective_pos:
             for rot in effective_rot:
-                # print "testing with pos: {}, rot: {}".format(pos, rot)
-                if varify_feasibility(0, pos, rot, time_steps=20, arm='right'):
-                    good_washer_poses.append((pos, rot, 'right'))
-                    print '{} good poses so far'.format(len(good_washer_poses))
-                if varify_feasibility(0, pos, rot, time_steps=20, arm='left'):
-                    good_washer_poses.append((pos, rot, 'left'))
-                    print '{} good poses so far'.format(len(good_washer_poses))
+                for grasp_dir in grasp_poses:
+                    if varify_feasibility(0, pos, rot, time_steps=20, arm='right', side=grasp_dir):
+                        good_washer_poses.append((pos, rot, 'right', grasp_dir))
+                        print '{} good poses so far'.format(len(good_washer_poses))
+                    if varify_feasibility(0, pos, rot, time_steps=20, arm='left', side=grasp_dir):
+                        good_washer_poses.append((pos, rot, 'left', grasp_dir))
+                        print '{} good poses so far'.format(len(good_washer_poses))
             print "saving good poses..."
-            np.save("good_poses2.npy", np.array(good_washer_poses))
+            np.save("good_poses_fix_grasp_dir.npy", np.array(good_washer_poses))
+
+
+    def show_good_washer_poses(self):
+        good_poses = np.load("final_poses2.npy")
+        env = ParamSetup.setup_env()
+        robot, washer = ParamSetup.setup_baxter(), ParamSetup.setup_washer()
+        rave_body, washer_body = OpenRAVEBody(env, robot.name, robot.geom), OpenRAVEBody(env, washer.name, washer.geom)
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+
+        viewer = OpenRAVEViewer.create_viewer(env)
+        viewer.draw([robot, washer], 0, 0.5)
+
+        def get_feasible_arm_poses(robot_base_pose, pos, rot, time_steps = 20, arm='right', side = [0, np.pi/2, 0]):
+            offset = [-0.04, 0.07, -0.115]
+            rave_body.set_pose([0,0,robot_base_pose])
+            rave_body.set_dof({'lArmPose': [0,0,0,0,0,0,0], 'rArmPose': [0,0,0,0,0,0,0]})
+            washer_body.set_pose(pos, rot)
+            washer_body.set_dof({'door': 0})
+            washer_trans, last_arm_pose = tool_link.GetTransform(), [0,0,0,0,0,0,0]
+            targ_pos, targ_rot = washer_trans.dot(np.r_[offset, 1])[:3],  side
+            reaching_rot = targ_rot
+            ik_arm_poses = rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(arm))
+            last_arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, last_arm_pose)
+            if last_arm_pose is None:
+                return None
+            feasible_arm_poses = []
+            for door in np.linspace(0, -np.pi/2, time_steps):
+                washer_body.set_dof({'door': door})
+                washer_trans = tool_link.GetTransform()
+                targ_pos, targ_rot = washer_trans.dot(np.r_[offset, 1])[:3],  side
+                ik_arm_poses = rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(arm))
+
+                arm_pose = baxter_sampling.get_is_mp_arm_pose(rave_body, ik_arm_poses, last_arm_pose, arm)
+                if arm_pose is None:
+                    return None
+                feasible_arm_poses.append(arm_pose)
+                rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
+                last_arm_pose = arm_pose
+
+            rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
+            trans = washer_body.env_body.GetTransform().dot(rot_mat)
+            offset = np.eye(4)
+            offset[:3,3] = [0,0,0]
+            ik_trans = np.dot(trans, offset)
+            ik_arm_poses_left = rave_body.get_ik_solutions("left_arm", ik_trans)
+            ik_arm_poses_right = rave_body.get_ik_solutions("right_arm", ik_trans)
+
+            if not len(ik_arm_poses_left) and not len(ik_arm_poses_right):
+                return None
+            elif not len(ik_arm_poses_left):
+                rave_body.set_dof({'rArmPose': ik_arm_poses_right[0]})
+                feasible_arm_poses.append(ik_arm_poses_right)
+            elif not len(ik_arm_poses_right):
+                rave_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+                feasible_arm_poses.append(ik_arm_poses_left)
+
+            return feasible_arm_poses
+
+
+        i = 0
+        for pos, rot, arm, direction in good_poses:
+            print i
+            arm_poses = get_feasible_arm_poses(0, pos, rot, time_steps = 20, arm=arm, side=direction)
+            import ipdb; ipdb.set_trace()
+            i +=1
 
         import ipdb; ipdb.set_trace()
 
-    def showing_good_washer_poses(self):
-        good_poses = np.load("good_poses.npy")
+    def filter_good_washer_poses2(self):
+
+        good_poses = np.load("final_poses2.npy")
         env = ParamSetup.setup_env()
         robot, washer = ParamSetup.setup_baxter(), ParamSetup.setup_washer()
-        robot_body, washer_body = OpenRAVEBody(env, robot.name, robot.geom), OpenRAVEBody(env, washer.name, washer.geom)
+        rave_body, washer_body = OpenRAVEBody(env, robot.name, robot.geom), OpenRAVEBody(env, washer.name, washer.geom)
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        offset = [-0.04, 0.07, -0.115]
         viewer = OpenRAVEViewer.create_viewer(env)
         viewer.draw([robot, washer], 0, 0.5)
-        for pos, rot, arm in good_poses:
+
+        washer_body.set_dof({"door": -np.pi/2})
+        def check_hand_clearance(local_vec, pos, rot, arm, direction):
+            rave_body.set_dof({'lArmPose': [0,0,0,0,0,0,0], 'rArmPose': [0,0,0,0,0,0,0]})
             washer_body.set_pose(pos, rot)
-            import ipdb; ipdb.set_trace()
+            rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
+            trans = washer_body.env_body.GetTransform().dot(rot_mat)
+            offset = np.eye(4)
+            offset[:3,3] = local_vec
+            ik_trans = np.dot(trans, offset)
+            ik_arm_poses_left = rave_body.get_ik_solutions("left_arm", ik_trans)
+            ik_arm_poses_right = rave_body.get_ik_solutions("right_arm", ik_trans)
+            feasible_arm_poses = []
+            if not len(ik_arm_poses_left) and not len(ik_arm_poses_right):
+                return None
+            if not len(ik_arm_poses_left):
+                rave_body.set_dof({'rArmPose': ik_arm_poses_right[0]})
+                feasible_arm_poses.append(ik_arm_poses_right)
+            if not len(ik_arm_poses_right):
+                rave_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+                feasible_arm_poses.append(ik_arm_poses_left)
+
+            return feasible_arm_poses
+        final_good_poses = []
+
+        for pos, rot, arm, direction in good_poses:
+            good = True
+            local_vec = [0, 0, -0.2]
+            if not check_hand_clearance(local_vec, pos, rot, arm, direction):
+                good = False
+            if good:
+                final_good_poses.append((pos, rot, arm, direction))
+                print "found one"
+
+        print len(final_good_poses)
+        import ipdb; ipdb.set_trace()
+
+        np.save("final_poses3.npy", np.array(final_good_poses))
 
     def test_laundry_position(self):
         domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
@@ -746,7 +907,7 @@ class TestBasketDomain(unittest.TestCase):
         print (pred.get_type()+"_"+str(23), np.max(pred.get_expr(negated=True).expr.eval(pred.get_param_vector(23))))
         viewer.draw_plan_ts(plan, 23)
         viewer.draw_cols_ts(plan, 23)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
     def laundry_basket_mesh(self):
         from openravepy import KinBody, RaveCreateKinBody
@@ -765,7 +926,7 @@ class TestBasketDomain(unittest.TestCase):
         basket_mesh.SetTransform(trans)
         basket_body.SetTransform(trans)
 
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
     def find_cloth_position(self):
         domain, problem, params = load_environment('../domains/laundry_domain/laundry.domain',
@@ -791,7 +952,7 @@ class TestBasketDomain(unittest.TestCase):
         arm_pose = rave_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")[0]
         rave_body.set_dof({'lArmPose': arm_pose})
         print arm_pose, facing_pose
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
     def _test_backtrack_solve_action_isolation(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
@@ -904,13 +1065,16 @@ class TestBasketDomain(unittest.TestCase):
         serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
         self.assertTrue(result)
 
-        import ipdb; ipdb.set_trace()
 
     def test_traj_smoother(self):
         pd = PlanDeserializer()
         plan = pd.read_from_hdf5("cloth_manipulation_plan.hdf5")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
-        import ipdb; ipdb.set_trace()
+        solver = robot_ll_solver.RobotLLSolver()
+        print "Test Trajectory Smoother"
+        result = solver.traj_smoother(plan, callback=None, n_resamples=10, active_ts=None, verbose=False)
+        self.assertTrue(result)
+
 
     def test_prototype2(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
@@ -952,22 +1116,19 @@ class TestBasketDomain(unittest.TestCase):
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
-
-        try:
-            result = self.traj_smoother(plan, callback=None, n_resamples=10, active_ts=None, verbose=verbose)
-        except:
-            print "Trajectory Smoother Failed"
-
+        if result:
+            result = solver.traj_smoother(plan, callback = None)
+        else:
+            import ipdb; ipdb.set_trace()
         end = time.time()
         print "Planning finished within {}s.".format(end - start)
-
         ee_time = traj_retiming(plan, velocites)
         plan.time = ee_time.reshape((1, ee_time.shape[0]))
+
         print "Saving current plan to file cloth_manipulation_plan.hdf5..."
         serializer.write_plan_to_hdf5("cloth_manipulation_plan.hdf5", plan)
         self.assertTrue(result)
 
-        import ipdb; ipdb.set_trace()
 
 if __name__ == "__main__":
     unittest.main()

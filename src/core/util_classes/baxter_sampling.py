@@ -985,6 +985,78 @@ def resample_cloth_in_gripper(pred, negated, t, plan):
 
 #@profile 
 def resample_washer_in_gripper(pred, negated, t, plan):
+    return None, None
+    attr_inds, res = OrderedDict(), OrderedDict()
+    act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+    robot, washer = pred.robot, pred.obj
+    rave_body, washer_body = robot.openrave_body, washer.openrave_body
+    arm = pred.arm
+    body = rave_body.env_body
+    manip = body.GetManipulator("{}_arm".format(pred.arm))
+    # Make sure baxter is well positioned in the env
+    dof_value = np.r_[robot.lArmPose[:, t],
+                      robot.lGripper[:, t],
+                      robot.rArmPose[:, t],
+                      robot.rGripper[:, t],
+                      robot.pose[:,t]]
+    pred.set_robot_poses(dof_value, rave_body)
+    dof_value = np.r_[washer.pose[:, t],
+                      washer.rotation[:, t],
+                      washer.door[:, t]]
+    pred.set_washer_poses(dof_value, washer_body)
+
+    tool_link,offset = washer_body.env_body.GetLink("washer_handle"), np.array([-0.035,0.055,-0.1])
+    last_arm_pose = robot.lArmPose[:, action.active_timesteps[0] + 10]
+    rave_body.set_dof({'lArmPose': [0,-np.pi/2,0,0,0,0,0], 'rArmPose': [0,-np.pi/2,0,0,0,0,0]})
+    rave_body.set_dof({'{}ArmPose'.format(pred.arm[0]): last_arm_pose})
+    is_mp_arm_poses = []
+
+    door_range = np.linspace(0, -np.pi/2, 21)
+    open_door_range = (action.active_timesteps[0]+10, action.active_timesteps[1]-10)
+    for door in door_range:
+        washer_body.set_dof({'door': door})
+        washer_trans = tool_link.GetTransform()
+        targ_pos, targ_rot = washer_trans.dot(np.r_[offset, 1])[:3],  [-np.pi/2, 0, -np.pi/2]
+        ik_arm_poses = rave_body.get_ik_from_pose(targ_pos, targ_rot,  "{}_arm".format(arm))
+        arm_pose = get_is_mp_arm_pose(rave_body, ik_arm_poses, last_arm_pose, arm)
+        if arm_pose is None:
+            import ipdb; ipdb.set_trace()
+            arm_pose = closest_arm_pose(ik_arm_poses, last_arm_pose)
+            if arm_pose is None:
+                return None,None
+        rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
+        is_mp_arm_poses.append(arm_pose)
+        last_arm_pose = arm_pose
+
+    resample_attr_name = '{}ArmPose'.format(pred.arm[0])
+
+    arm_poses = lin_interp_traj(is_mp_arm_poses[-1], getattr(robot, "{}ArmPose".format(pred.arm[0]))[:, open_door_range[1]], 5)
+    for ts in range(open_door_range[0]+1, open_door_range[1]+1):
+        index = ts - open_door_range[0]
+        if index < 20:
+            add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(resample_attr_name, is_mp_arm_poses[index])])
+            add_to_attr_inds_and_res(ts, attr_inds, res, washer, [('door', np.array([door_range[index]]))])
+        else:
+            add_to_attr_inds_and_res(ts, attr_inds, res, robot, [(resample_attr_name, is_mp_arm_poses[20])])
+            add_to_attr_inds_and_res(ts, attr_inds, res, washer, [('door', np.array([door_range[20]]))])
+
+
+    # step = const.EEREACHABLE_STEPS
+    # for i in range(step):
+    #         targ_app_pos = targ_pos + np.array([0,+const.RETREAT_DIST,0]) * (i+1)
+    #         ik_arm_pose = rave_body.get_ik_from_pose(targ_app_pos, targ_rot, '{}_arm'.format(arm))
+    #         if ik_arm_pose is None:
+    #             return None, None
+    #         approach_arm_pose = closest_arm_pose(ik_arm_pose, last_arm_pose)
+    #         if approach_arm_pose is None:
+    #             return None, None
+    #         rave_body.set_dof({'lArmPose': approach_arm_pose})
+    #         add_to_attr_inds_and_res(open_door_range[1]+1+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot.pose[:,t])])
+
+    import ipdb; ipdb.set_trace()
+    return res, attr_inds
+
+def resample_washer_in_gripper2(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
 
     robot, washer = pred.robot, pred.obj
@@ -995,7 +1067,7 @@ def resample_washer_in_gripper(pred, negated, t, plan):
     act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
     ts_range = action.active_timesteps
     print "resample at {}".format(action.name)
-    if action.name.find("move_door") >= 0:
+    if action.name.find("open_door") >= 0:
         resample_start, resample_end = ts_range[0], ts_range[1]
         door_pose = lin_interp_traj(washer.door[:, ts_range[0]], washer.door[:, ts_range[1]], ts_range[1]-ts_range[0])
         for i in range(ts_range[0], ts_range[1]):
@@ -1094,15 +1166,19 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     # Resample entire approaching and retreating traj
     resample_failure = False
     step = const.EEREACHABLE_STEPS
-    targ_pos, targ_rot
+
     for i in range(step):
         if approach:
-            targ_app_pos = targ_pos + np.array([0,-const.APPROACH_DIST,0]) * (step-i)
+            targ_app_pos = targ_pos + np.array([0,+const.APPROACH_DIST,0]) * (step-i)
             approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
+            if approach_arm_pose is None:
+                return None, None
             add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot_base_pose)])
         else:
-            targ_app_pos = targ_pos + np.array([0,-const.RETREAT_DIST,0]) * (i+1)
+            targ_app_pos = targ_pos + np.array([0,+const.RETREAT_DIST,0]) * (i+1)
             approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
+            if approach_arm_pose is None:
+                return None, None
             add_to_attr_inds_and_res(t+1+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot_base_pose)])
 
         if DEBUG:
@@ -1134,12 +1210,12 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
                 add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_traj[:, traj_ind]), ('rArmPose', right_arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
                 rave_body.set_dof({'lArmPose': left_arm_traj[:, traj_ind], 'rArmPose': right_arm_traj[:, traj_ind]})
 
-    """
-        Resample other parameters
-    """
-    begin = pred.start_pose
-
-    add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
+    # """
+    #     Resample other parameters
+    # """
+    # begin = pred.start_pose
+    import ipdb; ipdb.set_trace()
+    # add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
     return res, attr_inds
 
 #@profile 
@@ -1150,14 +1226,14 @@ def resample_ee_grasp_valid(pred, negated, t, plan):
     ee_pose = pred.ee_pose
     washer_body = washer.openrave_body
     tool_link = washer_body.env_body.GetLink("washer_handle")
-    offset, door = np.array([-0.035,0.055,-0.1]), washer.door[0, t]
+    offset, door = np.array([-0.035,0.045,-0.1]), washer.door[0, t]
     washer_body.set_dof({'door': door})
     handle_pos = tool_link.GetTransform().dot(np.r_[offset, 1])[:3]
-    rot_mat = matrixFromAxisAngle([0,-np.pi/2,0]).dot(tool_link.GetTransform())
-    handle_rot = OpenRAVEBody.obj_pose_from_transform(rot_mat)[3:]
+
+    handle_rot = np.array([-np.pi/2, 0, -np.pi/2])
 
     add_to_attr_inds_and_res(t, attr_inds, res, ee_pose, [('value', handle_pos), ('rotation', handle_rot)])
-    # import ipdb; ipdb.set_trace()
+
     return res, attr_inds
 
 #@profile 
@@ -1202,7 +1278,7 @@ def resample_basket_obstructs(pred, negated, t, plan):
     attempt, step = 0, 1
     while attempt < 50 and len(pred._cc.BodyVsBody(body, obs)) > 0:
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3), const.RESAMPLE_FACTOR)
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5,-0.5,0.25], const.RESAMPLE_FACTOR)
         ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/2, 0], "{}_arm".format(arm))
         arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, "{}ArmPose".format(arm[0]))[:, action.active_timesteps[0]])
         if arm_pose is None:
@@ -1210,7 +1286,6 @@ def resample_basket_obstructs(pred, negated, t, plan):
             continue
         add_to_attr_inds_and_res(t, attr_inds, res, robot, [('{}ArmPose'.format(arm[0]), arm_pose)])
         rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
-
 
 
     print "resampling at {} action".format(action.name)
@@ -1293,9 +1368,9 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
     ee_pos, ee_rot = pos_rot[:3], pos_rot[3:]
     attempt, step = 0, 1
 
-    while attempt < 50 and (len(pred._cc.BodyVsBody(body, obs)) > 0 or len(pred._cc.BodyVsBody(held_env_body, obs))):
+    while attempt < 50 and (len(pred._cc.BodyVsBody(body, obs)) > 0 or len(pred._cc.BodyVsBody(held_env_body, obs)) > 0 ):
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3), const.RESAMPLE_FACTOR)
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5,-0.5,0.25], const.RESAMPLE_FACTOR)
         ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/2, 0], "{}_arm".format(arm))
         arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, "{}ArmPose".format(arm[0]))[:, action.active_timesteps[0]])
         if arm_pose is None:

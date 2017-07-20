@@ -164,8 +164,12 @@ class Plan(object):
         if active_ts is None:
             active_ts = (0, self.horizon-1)
         preds = [(negated, pred, t) for negated, pred, t in self.get_failed_preds(active_ts=active_ts, priority = priority, tol = tol)]
+        cnt_violations = []
         for negated, pred, t in preds:
-            pred.check_pred_violation(t, negated=negated, tol=tol)
+            cnt_violations.append(np.max(pred.check_pred_violation(t, negated=negated, tol=tol)))
+            print ("{}-{}\n".format(pred.get_type(), t), cnt_violations[-1])
+
+        return cnt_violations
 
 
     def prefix(self, fail_step):

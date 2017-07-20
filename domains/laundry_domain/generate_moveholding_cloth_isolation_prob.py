@@ -17,7 +17,7 @@ INT_GRIPPER = [0.02]
 
 BAXTER_END_POSE = [0]
 R_ARM_END = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_END = [-1.2       , -0.29857903, -1.03722766,  0.8427254 ,  0.98747898, 1.40289489, -1.12464317]
+L_ARM_END = [-0.8       , -0.41839797, -1.03702029,  1.3551361 ,  1.00788903, 1.19481397, -1.14387766]
 
 END_GRIPPER = [0.015]
 # init basket pose
@@ -172,7 +172,6 @@ def main():
         s += "(geom basket), "
         s += "(pose basket {}), ".format(BASKET_INIT_POS)
         s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
-        s += "(time basket {}), ".format([0])
 
         s += "(geom init_target)"
         s += "(value init_target {}), ".format(BASKET_INIT_POS)
@@ -269,7 +268,6 @@ def main():
         s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
         s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
         s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
-        s += "(BaxterEEGraspValid open_door_ee washer), "
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "

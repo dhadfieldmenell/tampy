@@ -7,6 +7,7 @@ import core.util_classes.baxter_constants as const
 from core.parsing import parse_domain_config, parse_problem_config
 from core.util_classes.viewer import OpenRAVEViewer
 from openravepy import matrixFromAxisAngle
+from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 import numpy as np
 import main
 
@@ -398,7 +399,7 @@ class TestBaxterPredicates(unittest.TestCase):
         basket = ParamSetup.setup_basket()
         basket_body = OpenRAVEBody(test_env, basket.name, basket.geom)
         basket.openrave_body = basket_body
-
+        test_env.SetViewer('qtcoin')
         in_gripper_basket = baxter_predicates.BaxterBasketInGripper("test_in_gripper_basket", [robot, basket], ["Robot", "Basket"], test_env)
         self.assertEqual(in_gripper_basket.get_type(), "BaxterBasketInGripper")
         self.assertFalse(in_gripper_basket.test(0))
@@ -461,7 +462,6 @@ class TestBaxterPredicates(unittest.TestCase):
         [0,0, 3*const.RETREAT_DIST], [0,np.pi/2,0], "right_arm")[2])
         right_trajectory = np.array(right_trajectory)
         robot.rArmPose = right_trajectory.T
-
         self.assertFalse(in_gripper_basket.test(0))
         self.assertFalse(in_gripper_basket.test(1))
         self.assertFalse(in_gripper_basket.test(2))
@@ -470,89 +470,69 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(in_gripper_basket.test(5))
         self.assertFalse(in_gripper_basket.test(6))
 
-        basket.rotation[:, 3] = [0,0,0]
-        self.assertFalse(in_gripper_basket.test(3))
-        basket.rotation[:, 3] = [np.pi/2,0,0]
-        self.assertFalse(in_gripper_basket.test(3))
-        basket.rotation[:, 3] = [0,np.pi/2,0]
-        self.assertFalse(in_gripper_basket.test(3))
-        basket.rotation[:, 3] = [0,0,np.pi/2]
-        self.assertFalse(in_gripper_basket.test(3))
-        basket.rotation[:, 3] = [np.pi/2,np.pi/2,0]
-        self.assertFalse(in_gripper_basket.test(3))
-        basket.rotation[:, 3] = [0,np.pi/2,np.pi/2]
-        self.assertFalse(in_gripper_basket.test(3))
-        basket.rotation[:, 3] = [np.pi/2,np.pi/2,np.pi/2]
-        self.assertFalse(in_gripper_basket.test(3))
-        basket.rotation[:, 3] = [np.pi/2,0,np.pi/2]
-        self.assertTrue(in_gripper_basket.test(3))
-
-
         if const.TEST_GRAD:
             in_gripper_basket.expr.expr.grad(in_gripper_basket.get_param_vector(3), True, 1e-3)
 
+    def test_ee_approach_in_gripper_conflict(self):
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5("ee_approach_in_gripper_conflict.hdf5")
+        pred1 = plan.find_pred("BaxterEEApproachLeft")[0]
+        pred2 = plan.find_pred("BaxterWasherInGripper")[0]
+
+        import ipdb; ipdb.set_trace()
+
+
     def test_in_gripper_washer(self):
-        test_env = ParamSetup.setup_env()
-        robot = ParamSetup.setup_baxter()
-        robot_body = OpenRAVEBody(test_env, robot.name, robot.geom)
-        robot.openrave_body = robot_body
-        washer = ParamSetup.setup_washer()
-        washer_body = OpenRAVEBody(test_env, washer.name, washer.geom)
-        washer.openrave_body = washer_body
-        test_env.SetViewer('qtcoin')
-        in_gripper_washer =  baxter_predicates.BaxterWasherInGripper("test_in_gripper_washer", [robot, washer], ["Robot", "Washer"], test_env)
-        self.assertEqual(in_gripper_washer.get_type(), "BaxterWasherInGripper")
-        self.assertFalse(in_gripper_washer.test(0))
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5("open_door_isolation_init.hdf5")
 
-        rel_pt = np.array([-0.04, 0.07, -0.115])
-        link = washer_body.env_body.GetLink("washer_handle")
-        # test_env.SetViewer("qtcoin")
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        viewer.draw_plan_ts(plan, 0)
+        open_ee, close_ee = plan.params["open_door_ee"], plan.params["close_door_ee"]
+        robot, washer = plan.params["baxter"], plan.params["washer"]
+        robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        pred = plan.find_pred("BaxterWasherInGripper")[0]
 
-        washer.pose[:,0] = [0.38, 0.95, 0.28]
-        washer.rotation[:,0] = [0, 0, np.pi/2]
-        washer_body.set_pose(washer.pose[:, 0], washer.rotation[:, 0])
-        handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
-        arm_pose = robot_body.get_ik_from_pose(handle_pos, [np.pi/2, 0, -np.pi/2], "left_arm")[0]
-        robot.lArmPose = arm_pose.reshape((7, 1))
-        self.assertTrue(in_gripper_washer.test(0))
-        # marker = ParamSetup.setup_blue_can()
-        # can_body = OpenRAVEBody(test_env, marker.name, marker.geom)
+        # self.assertFalse(pred.test(0))
 
-        def test_grasping_pose(door, pose):
-            robot_body.set_pose([0,0,pose])
-            robot.pose[:, 0] = pose
-            washer.door = np.array([[door]])
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        rel_pt = np.array([-0.035,0.055,-0.1])
+        washer_pos = tool_link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
+        washer_rot = np.array([-np.pi/2, 0, -np.pi/2])
+        arm_pose = robot_body.get_ik_from_pose(washer_pos, washer_rot, "left_arm")[0]
+        robot_body.set_dof({'lArmPose': arm_pose})
+        robot.lArmPose[:, 0] = arm_pose
+        self.assertTrue(pred.test(0, tol=1e-3))
+
+        def test_grasping_pose(door):
+            washer.door[:, 0] = door
             washer_body.set_dof({'door': door})
-            handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
-            # handle_rot = [0,np.pi/2+door,np.pi/2]
-            trans = link.GetTransform()
-            handle_rot = get_rot(trans)
+            handle_pos = tool_link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
+            handle_rot = [-np.pi/2, 0, -np.pi/2]
 
             arm_pose = robot_body.get_ik_from_pose(handle_pos, handle_rot, "left_arm")[0]
             robot_body.set_dof({'lArmPose': arm_pose})
             robot.lArmPose = arm_pose.reshape((7, 1))
-            import ipdb; ipdb.set_trace()
-            self.assertTrue(in_gripper_washer.test(0))
 
-        def get_tran(rot, trans):
-            rot_mat = matrixFromAxisAngle(rot)
-            final = rot_mat.dot(trans)
-            return final
+            self.assertTrue(pred.test(0,tol=1e-3))
 
-        def get_rot(final):
-            return OpenRAVEBody.obj_pose_from_transform(final)[3:]
+        test_grasping_pose(0)
+        test_grasping_pose(-np.pi/8*1)
+        test_grasping_pose(-np.pi/8*2)
+        test_grasping_pose(-np.pi/8*3)
+        test_grasping_pose(-np.pi/8*4)
 
-        test_grasping_pose(0, 0)
-        test_grasping_pose(-1*np.pi/8, 0)
-        if const.TEST_GRAD:
-            in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
-        test_grasping_pose(-2*np.pi/8, 0)
-        if const.TEST_GRAD:
-            in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
-        test_grasping_pose(-3*np.pi/8, 0)
-        if const.TEST_GRAD:
-            in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
-        test_grasping_pose(-np.pi/2, 0)
+        # test_grasping_pose(0, 0)
+        # test_grasping_pose(-1*np.pi/8, 0)
+        # if const.TEST_GRAD:
+        #     in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
+        # test_grasping_pose(-2*np.pi/8, 0)
+        # if const.TEST_GRAD:
+        #     in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
+        # test_grasping_pose(-3*np.pi/8, 0)
+        # if const.TEST_GRAD:
+        #     in_gripper_washer.expr.expr.grad(in_gripper_washer.get_param_vector(0), True, 1e-3)
+        # test_grasping_pose(-np.pi/2, 0)
 
 
     def test_in_gripper_cloth(self):
@@ -592,46 +572,62 @@ class TestBaxterPredicates(unittest.TestCase):
 
 
     def test_ee_grasp_valid(self):
-        test_env = ParamSetup.setup_env()
-        ee_pose = ParamSetup.setup_ee_pose()
-        washer = ParamSetup.setup_washer()
-        washer_body = OpenRAVEBody(test_env, washer.name, washer.geom)
-        washer.openrave_body = washer_body
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5("open_door_isolation_init.hdf5")
 
-        ee_grasp_valid =  baxter_predicates.BaxterEEGraspValid("test_ee_grasp_valid", [ee_pose, washer], ["EEPose", "Washer"], test_env)
-        self.assertEqual(ee_grasp_valid.get_type(), "BaxterEEGraspValid")
-        self.assertFalse(ee_grasp_valid.test(0))
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        viewer.draw_plan_ts(plan, 0)
+        open_ee, close_ee = plan.params["open_door_ee"], plan.params["close_door_ee"]
+        robot, washer = plan.params["baxter"], plan.params["washer"]
+        robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        preds = plan.find_pred("BaxterEEGraspValid")
+        if open_ee is preds[0].ee_pose:
+            approach = preds[0]
+            retreat = preds[1]
+        else:
+            approach = preds[1]
+            retreat = preds[0]
+        self.assertFalse(approach.test(0))
+        self.assertFalse(retreat.test(0))
 
+        tool_link = washer_body.env_body.GetLink("washer_handle")
         rel_pt = np.array([-0.035,0.055,-0.1])
-        link = washer_body.env_body.GetLink("washer_handle")
-        test_env.SetViewer("qtcoin")
+        washer_pos = tool_link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
+        washer_rot = np.array([-np.pi/2, 0, -np.pi/2])
 
-        marker = ParamSetup.setup_blue_can()
-        can_body = OpenRAVEBody(test_env, marker.name, marker.geom)
-        can_body.set_pose([1,1,1],[0,0,0])
+        open_ee.value[:, 0] = washer_pos
+        open_ee.rotation[:, 0] = washer_rot
 
-        washer.pose = np.array([[0.08, 0.781, 0.28]]).T
-        washer.rotation = np.array([[np.pi, 0, np.pi/2]]).T
-        washer.door = np.array([[-np.pi/8]])
-        washer_body.set_pose(washer.pose.flatten(), washer.rotation.flatten())
-        washer_body.set_dof({"door": washer.door.flatten()})
-        handle_pos = link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
-        handle_rot = np.array([0,np.pi/2-np.pi/8,np.pi/2])
+        self.assertTrue(approach.test(0))
+        self.assertFalse(retreat.test(0))
 
-        ee_pose.value = np.zeros((3,1))
-        ee_pose.rotation = np.zeros((3,1))
-        self.assertFalse(ee_grasp_valid.test(0))
+        washer.door[:, 0] = -np.pi/2
+        washer_body.set_dof({'door': -np.pi/2})
+        washer_pos = tool_link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
 
-        # This should work
-        ee_pose.value = np.array([[0.29 ,  0.781,  0.785]]).T
-        ee_pose.rotation = np.array([[0,  np.pi/2,  -np.pi/2]]).T
-        washer.door = np.array([[0]])
-        self.assertTrue(ee_grasp_valid.test(0))
+        close_ee.value[:, 0] = washer_pos
+        close_ee.rotation[:, 0] = washer_rot
+        self.assertFalse(approach.test(0))
+        self.assertTrue(retreat.test(0))
+        approach.check_pred_violation(0, tol=1e-3)
 
-        ee_pose.value = np.array([[-0.305,  0.781,  1.17 ]]).T
-        ee_pose.rotation = np.array([[0,  0,  -np.pi/2]]).T
-        washer.door = np.array([[-np.pi/2]])
-        self.assertTrue(ee_grasp_valid.test(0))
+
+        washer.door[:, 0] = -np.pi/4
+        washer_body.set_dof({'door': -np.pi/4})
+        washer_pos = tool_link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
+
+        close_ee.value[:, 0] = washer_pos
+        close_ee.rotation[:, 0] = washer_rot
+        self.assertFalse(approach.test(0))
+        self.assertTrue(retreat.test(0))
+        approach.check_pred_violation(0, tol=1e-3)
+
+
+        if const.TEST_GRAD: approach.expr.expr.grad(approach.get_param_vector(0), True, const.TOL)
+        if const.TEST_GRAD: retreat.expr.expr.grad(retreat.get_param_vector(0), True, const.TOL)
+
+        close_ee.rotation[:, 0] = [-np.pi/2, np.pi/8, -np.pi/2]
+        self.assertFalse(retreat.test(0))
 
         # def test_with_door(door, offset = [0,0,0], expect = True):
         #     washer.door[:, 0] = door
@@ -822,7 +818,7 @@ class TestBaxterPredicates(unittest.TestCase):
         can.pose = np.array([[0],[0],[0]])
         self.assertTrue(pred.test(0))
         # This gradient test passed
-        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-2)
+        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-2)
 
         # Move can away so there is no collision
         can.pose = np.array([[0],[0],[-2]])
@@ -860,7 +856,7 @@ class TestBaxterPredicates(unittest.TestCase):
 
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
-        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
+        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
 
     def test_obstructs_holding(self):
 
@@ -883,13 +879,13 @@ class TestBaxterPredicates(unittest.TestCase):
         can_held.pose = np.array([[.5],[.5],[0]])
         self.assertTrue(pred.test(0))
         # This Grandient test passes
-        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
+        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=1e-1)
 
         # Move can away so there is no collision
         can.pose = np.array([[0],[0],[-2]])
         self.assertFalse(pred.test(0))
         # This Grandient test passes
-        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
 
         # Move can to the center of the gripper (touching -> should recognize as collision)
         can.pose = np.array([[0.96897233, -1.10397558,  1.006976]]).T
@@ -897,7 +893,7 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
         # This Gradient test failed, because of discontinuity on gripper gradient
-        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
 
         robot.rGripper = np.matrix([[const.GRIPPER_OPEN_VALUE]])
         self.assertFalse(pred.test(0))
@@ -910,24 +906,23 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pred.test(0))
         self.assertTrue(pred.test(0, negated = True))
         # This Gradient test passed
-        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
 
         # Move caheldn into the robot arm, should have collision
         can.pose = np.array([[.5, -.6, .9]]).T
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
         # This gradient checks failed
-        if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
-        pred._plot_handles = []
+        # if TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        # pred._plot_handles = []
 
         pred2 = baxter_predicates.BaxterObstructsHolding("test_obstructs_held", [robot, rPose, rPose, can_held, can_held], ["Robot", "RobotPose", "RobotPose", "Can", "Can"], test_env, debug = True)
         rPose.value = can_held.pose = can.pose = np.array([[0],[0],[0]])
-        pred._param_to_body[can].set_pose(can.pose, can.rotation)
-        self.assertTrue(pred2.test(0))
+        pred._param_to_body[can_held].set_pose(can_held.pose, can_held.rotation)
         can_held.pose = np.array([[0],[0],[-2]])
         self.assertFalse(pred2.test(0))
         # This Grandient test passed
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
+        # if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
 
         # Move can to the center of the gripper (touching -> should allow touching)
         robot.rGripper = np.matrix([[const.GRIPPER_CLOSE_VALUE]])
@@ -943,14 +938,8 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertFalse(pred2.test(0))
         self.assertTrue(pred2.test(0, negated = True))
         # This Gradient test passed
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
+        # if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
 
-        # Move caheldn into the robot arm, should have collision
-        can_held.pose = np.array([[.5, -.6, .9]]).T
-        self.assertTrue(pred2.test(0))
-        self.assertFalse(pred.test(0, negated = True))
-        # This Gradient test failed -> failed link: r_gripper_l_finger, r_gripper_r_finger
-        if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
 
     def test_r_collides(self):
 
