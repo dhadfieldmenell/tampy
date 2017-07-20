@@ -324,7 +324,8 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         self.eval_grad = self.stacked_grad
         self.eval_dim = 6
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
-        self.rel_pt = np.array([-0.04,0.07,-0.1])
+        # self.rel_pt = np.array([-0.04,0.07,-0.1])
+        self.rel_pt = np.zeros((3,))
         self.rot_dir = np.array([0,0,0])
         super(BaxterEEGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -390,13 +391,13 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         return dist_jac
 
     def washer_ee_rot_check_f(self, x, rot_dir):
-        rot_val = x[3:6] - rot_dir.reshape((3,1))
-        return rot_val
+        robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        return self.rot_error_f(obj_trans, robot_trans, self.rot_dir)
 
     #@profile
     def washer_ee_rot_check_jac(self, x, rel_rot):
-        rot_jac = np.hstack([np.zeros((3,3)), np.eye(3), np.zeros((3, 7))])
-        return rot_jac
+        robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints, self.rot_dir)
 
     def stacked_f(self, x):
         return np.vstack([self.coeff * self.washer_ee_check_f(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, self.rot_dir)])
