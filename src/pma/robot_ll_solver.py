@@ -365,7 +365,6 @@ class RobotLLSolver(LLSolver):
                 if success:
                     break
 
-                import ipdb; ipdb.set_trace()
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
                 print "resample attempt: {}".format(attempt)

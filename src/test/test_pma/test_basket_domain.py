@@ -402,11 +402,11 @@ class TestBasketDomain(unittest.TestCase):
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
         plan_str = [
-         '0: PUSH_DOOR BAXTER WASHER ROBOT_INIT_POSE PUSH_DOOR_EE ROBOT_END_POSE WASHER_INIT_POSE WASHER_END_POSE',
+         '0: PUSH_DOOR BAXTER WASHER ROBOT_INIT_POSE ROBOT_END_POSE WASHER_INIT_POSE WASHER_END_POSE',
         ]
         plan = hls.get_plan(plan_str, domain, problem)
 
-        print "solving open door isolation problem..."
+        print "solving push door isolation problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         def callback():
             return viewer
@@ -427,9 +427,9 @@ class TestBasketDomain(unittest.TestCase):
 
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
 
-        print "Saving current plan to file open_door_isolation.hdf5..."
-        serializer = PlanSerializer()
-        serializer.write_plan_to_hdf5("open_door_isolation_plan.hdf5", plan)
+        # print "Saving current plan to file push_door_isolation.hdf5..."
+        # serializer = PlanSerializer()
+        # serializer.write_plan_to_hdf5("push_door_isolation.hdf5", plan)
         self.assertTrue(result)
 
         import ipdb; ipdb.set_trace()

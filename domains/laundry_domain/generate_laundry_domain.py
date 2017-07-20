@@ -127,6 +127,7 @@ dp.add('BaxterWasherInGripper', ['Robot', 'Washer'])
 dp.add('BaxterClothInGripperLeft', ['Robot', 'Cloth'])
 dp.add('BaxterClothInGripperRight', ['Robot', 'Cloth'])
 dp.add('BaxterBasketLevel', ['Basket'])
+dp.add('BaxterPushWasher', ['Robot', 'Washer'])
 
 
 
@@ -475,9 +476,9 @@ class PushDoor(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterWasherAt ?washer ?wsp)', '0:{}'.format(push_time)),
-            ('(BaxterPushingWasher ?robot ?washer)', '{},{}'.format(push_time, push_time))
+            ('(BaxterPushWasher ?robot ?washer)', '{}:{}'.format(push_time, push_time)),
             ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(end, end)),
-            ('(BaxterPushingWasher ?robot ?washer)', '{},{}'.format(end, end))
+            ('(BaxterPushWasher ?robot ?washer)', '{}:{}'.format(end, end)),
             ('(BaxterStationaryWasher ?washer)', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
@@ -848,7 +849,7 @@ class ClothPutdown(Action):
             )', '{}:{}'.format(end, end-1))
         ]
 
-actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(), OpenDoor(), CloseDoor(), ClothGrasp(), ClothPutdown(), HandleGrasp(), MoveDoor(), HandleRelease()]
+actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(), OpenDoor(), CloseDoor(), ClothGrasp(), ClothPutdown(), HandleGrasp(), MoveDoor(), HandleRelease(), PushDoor()]
 for action in actions:
     dom_str += '\n\n'
     dom_str += action.to_str()
