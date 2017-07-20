@@ -6,17 +6,18 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 from errors_exceptions import PredicateException
 from collections import OrderedDict
 import numpy as np
-import ctrajoptpy
+import ctrajoptpy_col
 import itertools
 import time
 
 class CollisionPredicate(ExprPredicate):
 
+    #@profile 
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.COLLISION_TOL, priority = 0):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
-        self._cc = ctrajoptpy.GetCollisionChecker(self._env)
+        self._cc = ctrajoptpy_col.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
@@ -24,6 +25,7 @@ class CollisionPredicate(ExprPredicate):
         # self._cache = {}
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, priority = priority)
 
+    #@profile 
     def robot_obj_collision(self, x):
         """
             This function is used to calculae collisiosn between Robot and Can
@@ -62,6 +64,7 @@ class CollisionPredicate(ExprPredicate):
         # print "col_val", np.max(col_val)
         return col_val, col_jac
 
+    #@profile 
     def obj_obj_collision(self, x):
         """
             This function calculates collision between object and obstructs
@@ -97,6 +100,7 @@ class CollisionPredicate(ExprPredicate):
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         return col_val, col_jac
 
+    #@profile 
     def robot_obj_held_collision(self, x):
         """
             Similar to robot_obj_collision in CollisionPredicate; however, this function take into account of object holding
@@ -142,6 +146,7 @@ class CollisionPredicate(ExprPredicate):
         # self._cache[flattened] = (val.copy(), jac.copy())
         return val, jac
 
+    #@profile 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
         """
             This function is helper function of robot_obj_collision(self, x)
@@ -232,6 +237,7 @@ class CollisionPredicate(ExprPredicate):
         # return vals, robot_grads
         return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim+6))
 
+    #@profile 
     def _calc_obj_grad_and_val(self, obj_body, obstr_body, collisions):
         """
             This function is helper function of robot_obj_collision(self, x) #Used in ObstructsHolding#
@@ -308,6 +314,7 @@ class CollisionPredicate(ExprPredicate):
         # grad = grads[ind].reshape((1,12))
         return vals, grads
 
+    #@profile 
     def test(self, time, negated=False, tol=None):
         if tol is None:
             tol = self.tol
@@ -322,6 +329,7 @@ class CollisionPredicate(ExprPredicate):
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
 
+    #@profile 
     def plot_cols(self, env, t):
         _debug = self._debug
         self._env = env
@@ -329,6 +337,7 @@ class CollisionPredicate(ExprPredicate):
         self.robot_obj_collision(self.get_param_vector(t))
         self._debug = _debug
 
+    #@profile 
     def plot_collision(self, ptA, ptB, distance):
         handles = []
         if not np.allclose(ptA, ptB, atol=1e-3):
@@ -340,6 +349,7 @@ class CollisionPredicate(ExprPredicate):
 
 class PosePredicate(ExprPredicate):
 
+    #@profile 
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.POSE_TOL, active_range=(0,0), priority = 0):
         self._debug = debug
         if self._debug:
@@ -350,6 +360,7 @@ class PosePredicate(ExprPredicate):
         self.handle = []
         super(PosePredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, active_range=active_range, priority = priority)
 
+    #@profile 
     def robot_obj_kinematics(self, x):
         """
             This function is used to check whether End Effective pose's position is at robot gripper's center
@@ -371,6 +382,7 @@ class PosePredicate(ExprPredicate):
         # Obtain the pos and rot val and jac from 2 function calls
         return obj_trans, robot_trans, axises, arm_joints
 
+    #@profile 
     def get_arm_jac(self, arm_jac, base_jac, obj_jac, arm):
         if not arm == "right" and not arm == "left":
             assert PredicateException("Invalid Arm Specified")
@@ -382,16 +394,19 @@ class PosePredicate(ExprPredicate):
             jacobian = np.hstack((np.zeros((dim, 8)), arm_jac, np.zeros((dim, 1)), base_jac, obj_jac))
         return jacobian
 
+    #@profile 
     def rel_ee_pos_check_f(self, x, rel_pt):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         return self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
 
+    #@profile 
     def rel_ee_pos_check_jac(self, x, rel_pt):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         return self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
 
+    #@profile 
     def rel_pos_error_f(self, obj_trans, robot_trans, rel_pt):
         """
             This function calculates the value of the displacement between center of gripper and a point relative to the object
@@ -406,6 +421,7 @@ class PosePredicate(ExprPredicate):
         dist_val = (robot_pos - obj_pos).reshape((3,1))
         return dist_val
 
+    #@profile 
     def rel_pos_error_jac(self, obj_trans, robot_trans, axises, arm_joints, rel_pt):
         """
             This function calculates the jacobian of the displacement between center of gripper and a point relative to the object
@@ -431,6 +447,7 @@ class PosePredicate(ExprPredicate):
 
         return dist_jac
 
+    #@profile 
     def ee_rot_check_f(self, x, offset):
         """
             This function is used to check whether End Effective pose's rotational axis is parallel to that of robot gripper
@@ -441,6 +458,7 @@ class PosePredicate(ExprPredicate):
 
         return self.rot_lock_f(obj_trans, robot_trans, offset)
 
+    #@profile 
     def ee_rot_check_jac(self, x):
         """
             This function is used to check whether End Effective pose's rotational axis is parallel to that of robot gripper
@@ -451,6 +469,7 @@ class PosePredicate(ExprPredicate):
 
         return self.rot_lock_jac(obj_trans, robot_trans, axises, arm_joints)
 
+    #@profile 
     def rot_lock_f(self, obj_trans, robot_trans, offset = np.eye(3)):
         """
             This function calculates the value of the angle
@@ -470,6 +489,7 @@ class PosePredicate(ExprPredicate):
         rot_val = np.vstack(rot_vals)
         return rot_val
 
+    #@profile 
     def rot_lock_jac(self, obj_trans, robot_trans, axises, arm_joints):
         """
             This function calculates the jacobian of the angle
@@ -498,30 +518,35 @@ class PosePredicate(ExprPredicate):
         rot_jac = np.vstack(rot_jacs)
         return rot_jac
 
+    #@profile 
     def pos_check_f(self, x):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.zeros((3, ))
 
         return self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
 
+    #@profile 
     def pos_check_jac(self, x):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.zeros((3, ))
 
         return self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
 
+    #@profile 
     def rot_check_f(self, x):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         local_dir = np.array([0.,0.,1.])
 
         return self.rot_error_f(obj_trans, robot_trans, local_dir)
 
+    #@profile 
     def rot_check_jac(self, x):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         local_dir = np.array([0.,0.,1.])
 
         return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints, local_dir)
 
+    #@profile 
     def rot_error_f(self, obj_trans, robot_trans, local_dir):
         """
             This function calculates the value of the rotational error between
@@ -539,6 +564,7 @@ class PosePredicate(ExprPredicate):
         rot_val = np.array([[np.abs(np.dot(obj_dir, world_dir)) - 1]])
         return rot_val
 
+    #@profile 
     def rot_error_jac(self, obj_trans, robot_trans, axises, arm_joints, local_dir):
         """
             This function calculates the jacobian of the rotational error between
@@ -566,6 +592,7 @@ class PosePredicate(ExprPredicate):
         rot_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
         return rot_jac
 
+    #@profile 
     def both_arm_pos_check_f(self, x):
         """
             This function is used to check whether:
@@ -589,6 +616,7 @@ class PosePredicate(ExprPredicate):
 
         return np.vstack([l_pos_val, r_pos_val])
 
+    #@profile 
     def both_arm_pos_check_jac(self, x):
         """
             This function is used to check whether:
@@ -612,6 +640,7 @@ class PosePredicate(ExprPredicate):
 
         return np.vstack([l_pos_jac, r_pos_jac])
 
+    #@profile 
     def both_arm_rot_check_f(self, x):
         """
             This function is used to check whether:
@@ -632,6 +661,7 @@ class PosePredicate(ExprPredicate):
 
         return np.vstack([l_rot_val, r_rot_val])
 
+    #@profile 
     def both_arm_rot_check_jac(self, x):
         """
             This function is used to check whether:
@@ -653,6 +683,7 @@ class PosePredicate(ExprPredicate):
 
         return np.vstack([l_rot_jac, r_rot_jac])
 
+    #@profile 
     def vel_check(self, x):
         """
         Check whether end effector are within range
@@ -725,6 +756,7 @@ class At(ExprPredicate):
 
         Non-robot related
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.target = params
@@ -750,6 +782,7 @@ class RobotAt(ExprPredicate):
             attr_inds[OrderedDict]: robot attribute indices
             attr_dim[Int]: dimension of robot attribute
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.robot, self.robot_pose = params
@@ -771,6 +804,7 @@ class IsMP(ExprPredicate):
             attr_inds[OrderedDict]: robot attribute indices
             setup_mov_limit_check[Function]: function that sets constraint matrix
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, = params
@@ -794,6 +828,7 @@ class WithinJointLimit(ExprPredicate):
             attr_inds[OrderedDict]: robot attribute indices
             setup_mov_limit_check[Function]: function that sets constraint matrix
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, = params
@@ -812,6 +847,7 @@ class Stationary(ExprPredicate):
 
         Non-robot related
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.obj,  = params
@@ -834,6 +870,7 @@ class StationaryBase(ExprPredicate):
             attr_inds[OrderedDict]: robot attribute indices
             attr_dim[Int]: dimension of robot attribute
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.robot,  = params
@@ -855,6 +892,7 @@ class StationaryArms(ExprPredicate):
             attr_inds[OrderedDict]: robot attribute indices
             attr_dim[Int]: dimension of robot attribute
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.robot,  = params
@@ -872,6 +910,7 @@ class StationaryW(ExprPredicate):
 
         Non-robot related
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.w, = params
         attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1, 2], dtype=np.int)),
@@ -888,6 +927,7 @@ class StationaryNEq(ExprPredicate):
 
         Non-robot related
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.obj, self.obj_held = params
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([0, 1, 2], dtype=np.int)),
@@ -913,6 +953,7 @@ class GraspValid(ExprPredicate):
             attr_inds[OrderedDict]: robot attribute indices
             attr_dim[Int]: dimension of robot attribute
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.ee_pose, self.target = params
         attr_inds = self.attr_inds
@@ -936,6 +977,7 @@ class InContact(ExprPredicate):
             GRIPPER_CLOSE[Float]: Constants, specifying gripper value when gripper is closed
             GRIPPER_OPEN[Float]: Constants, specifying gripper value when gripper is open
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, self.ee_pose, self.target = params
@@ -967,6 +1009,7 @@ class InContacts(ExprPredicate):
             GRIPPER_CLOSE[Float]: Constants, specifying gripper value when gripper is closed
             GRIPPER_OPEN[Float]: Constants, specifying gripper value when gripper is open
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, self.left_ee, self.right_ee, self.target = params
@@ -1001,6 +1044,7 @@ class InGripper(PosePredicate):
             coeff[Float]:In Gripper coeffitions, used during optimazation
             opt_coeff[Float]:In Gripper coeffitions, used during optimazation
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         assert len(params) == 2
         self._env = env
@@ -1018,6 +1062,7 @@ class EEGraspValid(PosePredicate):
 
     # EEGraspValid EEPose Washer
 
+    #@profile 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         assert len(params) == 2
         self._env = env
@@ -1045,6 +1090,7 @@ class EEReachable(PosePredicate):
             coeff[Float]:pose coeffitions
             rot_coeff[Float]:rotation coeffitions
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, active_range=(-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
         assert len(params) == 3
         self._env = env
@@ -1057,6 +1103,7 @@ class EEReachable(PosePredicate):
         super(EEReachable, self).__init__(name, e, self.attr_inds, params, expected_param_types, active_range = active_range, priority = 1)
         self.spacial_anchor = True
 
+    #@profile 
     def stacked_f(self, x):
         """
             Stacking values of all EEReachable timesteps in following order:
@@ -1082,6 +1129,7 @@ class EEReachable(PosePredicate):
 
         return np.vstack(f_res)
 
+    #@profile 
     def stacked_grad(self, x):
         """
             Stacking jacobian of all EEReachable timesteps in following order:
@@ -1123,6 +1171,7 @@ class Obstructs(CollisionPredicate):
             coeff[Float]:EEReachable coeffitions, used during optimazation
             neg_coeff[Float]:EEReachable coeffitions, used during optimazation
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.COLLISION_TOL):
         assert len(params) == 4
         self._env = env
@@ -1158,6 +1207,7 @@ class Obstructs(CollisionPredicate):
                                         expected_param_types, ind0=0, ind1=3, debug=debug, tol=tol, priority = 3)
         self.spacial_anchor = False
 
+    #@profile 
     def get_expr(self, negated):
         if negated:
             return self.neg_expr
@@ -1177,6 +1227,7 @@ class ObstructsHolding(CollisionPredicate):
             set_active_dof_inds[Function]:Function that sets robot's active dof indices
             OBSTRUCTS_OPT_COEFF[Float]: Obstructs_holding coeffitions, used during optimazation problem
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.COLLISION_TOL):
         assert len(params) == 5
         self._env = env
@@ -1218,6 +1269,7 @@ class ObstructsHolding(CollisionPredicate):
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types, ind0=0, ind1=3, debug = debug, tol=tol, priority = 3)
         self.spacial_anchor = False
 
+    #@profile 
     def get_expr(self, negated):
         if negated:
             return self.neg_expr
@@ -1230,6 +1282,7 @@ class Collides(CollisionPredicate):
 
         Non-robot related
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.obj, self.obstacle = params
@@ -1263,6 +1316,7 @@ class Collides(CollisionPredicate):
                                         expected_param_types, ind0=0, ind1=1, debug=debug, priority = 3)
         self.spacial_anchor = False
 
+    #@profile 
     def get_expr(self, negated):
         if negated:
             return self.neg_expr
@@ -1282,6 +1336,7 @@ class RCollides(CollisionPredicate):
             set_active_dof_inds[Function]:Function that sets robot's active dof indices
             RCOLLIDES_OPT_COEFF[Float]: Obstructs_holding coeffitions, used during optimazation problem
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.robot, self.obstacle = params
@@ -1316,6 +1371,7 @@ class RCollides(CollisionPredicate):
                                         expected_param_types, ind0=0, ind1=1, priority = 3)
         self.spacial_anchor = False
 
+    #@profile 
     def get_expr(self, negated):
         if negated:
             return self.neg_expr
@@ -1326,6 +1382,7 @@ class BasketLevel(ExprPredicate):
     '''
     Format: BasketLevel Basket
     '''
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         attr_inds = self.attr_inds
         A = np.c_[np.eye(self.attr_dim)]
@@ -1342,6 +1399,7 @@ class ObjectWithinRotLimit(ExprPredicate):
     '''
     Format: ObjectWithinRotLimit Object
     '''
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         attr_inds = self.attr_inds
         A = np.r_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
@@ -1355,6 +1413,7 @@ class GrippersLevel(PosePredicate):
     '''
     Format: GrippersLevel Robot
     '''
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         assert len(params) == 1
         self._env = env
@@ -1384,6 +1443,7 @@ class EERetiming(PosePredicate):
         self.eval_grad
         self.eval_dim
     """
+    #@profile 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         assert len(params) == 2
         self._env = env
@@ -1404,6 +1464,7 @@ class ObjRelPoseConstant(ExprPredicate):
     '''
     Format: ObjRelPoseConstant Basket Cloth
     '''
+    #@profile 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         attr_inds = self.attr_inds
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim), -np.eye(self.attr_dim), np.eye(self.attr_dim)]

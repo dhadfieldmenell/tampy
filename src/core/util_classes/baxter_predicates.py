@@ -87,6 +87,7 @@ class BaxterIsMP(robot_predicates.IsMP):
         self.dof_cache = None
         super(BaxterIsMP, self).__init__(name, params, expected_param_types, env, debug)
 
+    #@profile
     def setup_mov_limit_check(self):
         # Get upper joint limit and lower joint limit
         robot_body = self._param_to_body[self.robot]
@@ -116,6 +117,7 @@ class BaxterWasherWithinJointLimit(robot_predicates.WithinJointLimit):
         self.attr_inds = OrderedDict([(params[0], [(ATTRMAP[params[0]._type][2])])])
         super(BaxterWasherWithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
 
+    #@profile
     def setup_mov_limit_check(self):
         # Get upper joint limit and lower joint limit
         robot_body = self._param_to_body[self.robot]
@@ -338,6 +340,7 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         washer_inds = [0]
         return washer_trans, washer_inds
 
+    #@profile
     def washer_obj_kinematics(self, x):
         """
             This function is used to check whether End Effective pose's position is at robot gripper's center
@@ -361,6 +364,7 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         # Obtain the pos and rot val and jac from 2 function calls
         return robot_trans, obj_trans, axises, obj_axises, arm_joints
 
+    #@profile
     def washer_ee_check_f(self, x, rel_pt):
         washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
         robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
@@ -368,6 +372,7 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         dist_val = (robot_pos - obj_pos).reshape((3,1))
         return dist_val
 
+    #@profile
     def washer_ee_check_jac(self, x, rel_pt):
         washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
 
@@ -381,12 +386,14 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         dist_jac = np.hstack([-np.eye(3), obj_jac, np.eye(3), washer_jac, 1*joint_jac])
         return dist_jac
 
+    #@profile
     def washer_ee_rot_check_f(self, x, rel_rot):
         washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
 
         rot_val = self.rot_lock_f(obj_trans, washer_trans, rel_rot)
         return rot_val
 
+    #@profile
     def washer_ee_rot_check_jac(self, x, rel_rot):
         robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
 
@@ -496,6 +503,7 @@ class BaxterObstructs(robot_predicates.Obstructs):
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_basket_obstructs(self, negated, t, plan)
@@ -542,6 +550,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         super(BaxterObstructsHolding, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_basket_obstructs_holding(self, negated, t, plan)
@@ -613,6 +622,7 @@ class BaxterRCollides(robot_predicates.RCollides):
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = const.RCOLLIDES_DSAFE
 
+    #@profile
     def resample(self, negated, t, plan):
         return baxter_sampling.resample_basket_obstructs(self, negated, t, plan)
 
@@ -662,6 +672,7 @@ class BaxterEEReachable(robot_predicates.EEReachable):
         else:
             return rel_step*np.array([0, 0, const.RETREAT_DIST])
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_eereachable_rrt(self, negated, t, plan, inv = False)
@@ -679,6 +690,7 @@ class BaxterEEReachable(robot_predicates.EEReachable):
                          "rGripper": r_gripper}
         robot_body.set_dof(dof_value_map)
 
+    #@profile
     def get_robot_info(self, robot_body, arm):
         if not arm == "right" and not arm == "left":
             assert PredicateException("Invalid Arm Specified")
@@ -737,6 +749,7 @@ class BaxterEEReachableRightInv(BaxterEEReachableRight):
         else:
             return rel_step*np.array([-const.APPROACH_DIST, 0, 0])
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_eereachable_rrt(self, negated, t, plan, inv='True')
@@ -751,6 +764,7 @@ class BaxterEEReachableLeftVer(BaxterEEReachableLeft):
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_eereachable_ver(self, negated, t, plan)
@@ -763,6 +777,7 @@ class BaxterEEReachableRightVer(BaxterEEReachableRight):
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_eereachable_ver(self, negated, t, plan)
@@ -773,6 +788,7 @@ class BaxterEEApproachLeft(BaxterEEReachable):
         self.arm = "left"
         super(BaxterEEApproachLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = True)
@@ -789,6 +805,7 @@ class BaxterEEApproachRight(BaxterEEReachable):
         self.arm = "right"
         super(BaxterEEApproachRight, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = True)
@@ -811,6 +828,7 @@ class BaxterEERetreatLeft(BaxterEEReachable):
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = False)
@@ -827,6 +845,7 @@ class BaxterEERetreatRight(BaxterEEReachable):
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = False)
@@ -935,10 +954,12 @@ class BaxterWasherInGripper(BaxterInGripper):
 
         return washer_trans, washer_inds
 
+    #@profile
     def resample(self, negated, t, plan):
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_washer_in_gripper(self, negated, t, plan)
 
+    #@profile
     def robot_robot_kinematics(self, x):
         robot_body = self.robot.openrave_body
         body = robot_body.env_body
@@ -958,6 +979,7 @@ class BaxterWasherInGripper(BaxterInGripper):
 
         return robot_trans, obj_trans, arm_joints, obj_joints, axises
 
+    #@profile
     def ee_contact_check_f(self, x, rel_pt):
         robot_trans, obj_trans, arm_joints, obj_joints, axises = self.robot_robot_kinematics(x)
 
@@ -967,6 +989,7 @@ class BaxterWasherInGripper(BaxterInGripper):
 
         return dist_val
 
+    #@profile
     def ee_contact_check_jac(self, x, rel_pt):
         robot_trans, obj_trans, arm_joints, obj_joints, axises = self.robot_robot_kinematics(x)
 
@@ -981,17 +1004,20 @@ class BaxterWasherInGripper(BaxterInGripper):
         dist_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
         return dist_jac
 
+    #@profile
     def rot_check_f(self, x):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_rot = np.array([[-1,0,0], [0,-1,0], [0,0,1]])
 
         return self.rot_lock_f(obj_trans, robot_trans, rel_rot)
 
+    #@profile
     def rot_check_jac(self, x):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
 
         return self.rot_lock_jac(obj_trans, robot_trans, axises, arm_joints)
 
+    #@profile
     def robot_obj_kinematics(self, x):
         """
             This function is used to check whether End Effective pose's position is at robot gripper's center
@@ -1103,6 +1129,7 @@ class BaxterGrippersLevel(robot_predicates.GrippersLevel):
         self.eval_dim = 6
         super(BaxterGrippersLevel, self).__init__(name, params, expected_param_types, env, debug)
 
+    #@profile
     def get_robot_info(self, robot_body, arm = "left"):
         if not arm == "right" and not arm == "left":
             PredicateException("Invalid Arm Specified")
@@ -1134,6 +1161,7 @@ class BaxterGrippersLevel(robot_predicates.GrippersLevel):
                          "rGripper": r_gripper}
         robot_body.set_dof(dof_value_map)
 
+    #@profile
     def both_arm_pos_check(self, x):
         """
             This function is used to check whether:
@@ -1174,6 +1202,7 @@ class BaxterGrippersLevel(robot_predicates.GrippersLevel):
         pos_jac = np.vstack([l_pos_jac, r_pos_jac])
         return pos_val, pos_jac
 
+    #@profile
     def pos_error(self, robot_arm_trans, robot_aux_arm_trans, axises, arm_joints, aux_joints, rel_pt, arm):
         """
             This function calculates the value and the jacobian of the displacement between the height of the gripper and that of the inactive gripper
@@ -1230,6 +1259,7 @@ class BaxterEERetiming(robot_predicates.EERetiming):
                          "rGripper": r_gripper}
         robot_body.set_dof(dof_value_map)
 
+    #@profile
     def get_robot_info(self, robot_body, arm = "right"):
         if not arm == "right" and not arm == "left":
             PredicateException("Invalid Arm Specified")
@@ -1248,6 +1278,7 @@ class BaxterEERetiming(robot_predicates.EERetiming):
             arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
+    #@profile
     def vel_check(self, x):
         """
             Check whether val_check(x)[0] <= 0

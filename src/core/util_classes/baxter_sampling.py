@@ -12,6 +12,7 @@ import numpy as np
 PI = np.pi
 DEBUG = False
 #These functions are helper functions that can be used by many robots
+#@profile 
 def get_random_dir():
     """
         This helper function generates a random 2d unit vectors
@@ -20,6 +21,7 @@ def get_random_dir():
     rand_dir = rand_dir/np.linalg.norm(rand_dir)
     return rand_dir
 
+#@profile 
 def get_random_theta():
     """
         This helper function generates a random angle between -PI to PI
@@ -27,6 +29,7 @@ def get_random_theta():
     theta =  2*PI*np.random.rand(1) - PI
     return theta[0]
 
+#@profile 
 def smaller_ang(x):
     """
         This helper function takes in an angle in radius, and returns smaller angle
@@ -35,6 +38,7 @@ def smaller_ang(x):
     """
     return (x + PI)%(2*PI) - PI
 
+#@profile 
 def closer_ang(x,a,dir=0):
     """
         find angle y (==x mod 2*PI) that is close to a
@@ -49,6 +53,7 @@ def closer_ang(x,a,dir=0):
     elif dir == -1:
         return a + (x-a)%(2*PI) - 2*PI
 
+#@profile 
 def get_ee_transform_from_pose(pose, rotation):
     """
         This helper function that returns the correct end effector rotation axis (perpendicular to gripper side)
@@ -60,6 +65,7 @@ def get_ee_transform_from_pose(pose, rotation):
     ee_trans[:3, :3] = ee_rot_mat
     return ee_trans
 
+#@profile 
 def closer_joint_angles(pos,seed):
     """
         This helper function cleans up the dof if any angle is greater than 2 PI
@@ -69,6 +75,7 @@ def closer_joint_angles(pos,seed):
         result[i] = closer_ang(pos[i],seed[i],0)
     return result
 
+#@profile 
 def get_ee_from_target(targ_pos, targ_rot):
     """
         This function samples all possible EE Poses around the target
@@ -91,6 +98,7 @@ def get_ee_from_target(targ_pos, targ_rot):
         possible_ee_poses.append((ee_pos, ee_rot))
     return possible_ee_poses
 
+#@profile 
 def closest_arm_pose(arm_poses, cur_arm_pose):
     """
         Given a list of possible arm poses, select the one with the least displacement from current arm pose
@@ -104,6 +112,7 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
             min_change = change
     return chosen_arm_pose
 
+#@profile 
 def closest_base_poses(base_poses, robot_base):
     """
         Given a list of possible base poses, select the one with the least displacement from current base pose
@@ -119,6 +128,7 @@ def closest_base_poses(base_poses, robot_base):
             val = distance
     return chosen
 
+#@profile 
 def lin_interp_traj(start, end, time_steps):
     """
     This helper function returns a linear trajectory from start pose to end pose
@@ -135,6 +145,7 @@ def lin_interp_traj(start, end, time_steps):
         traj[i, :] = traj_row
     return traj
 
+#@profile 
 def plot_transform(env, T, s=0.1):
     """
     Helper function mainly used for debugging purpose
@@ -151,6 +162,7 @@ def plot_transform(env, T, s=0.1):
     h.append(env.drawlinestrip(points=np.array([o, o+s*z]), linewidth=3.0, colors=np.array(((0,0,1),(0,0,1)))))
     return h
 
+#@profile 
 def get_expr_mult(coeff, expr):
     """
         Multiply expresions with coefficients
@@ -160,6 +172,7 @@ def get_expr_mult(coeff, expr):
     return Expr(new_f, new_grad)
 
 # Sample base values to face the target
+#@profile 
 def sample_base(target_pose, base_pose):
     vec = target_pose[:2] - np.zeros((2,))
     vec = vec / np.linalg.norm(vec)
@@ -167,6 +180,7 @@ def sample_base(target_pose, base_pose):
     return theta
 
 # Resampling For IK
+#@profile 
 def get_ik_transform(pos, rot):
     trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
     # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
@@ -175,11 +189,13 @@ def get_ik_transform(pos, rot):
     trans[:3, :3] = trans_mat
     return trans
 
+#@profile 
 def get_ik_from_pose(pos, rot, robot, manip_name, col_filter = True):
     trans = get_ik_transform(pos, rot)
     solution = get_ik_solutions(robot, manip_name, trans, col_filter)
     return solution
 
+#@profile 
 def get_ik_solutions(robot, manip_name, trans, col_filter = True):
     manip = robot.GetManipulator(manip_name)
     iktype = IkParameterizationType.Transform6D
@@ -192,6 +208,7 @@ def get_ik_solutions(robot, manip_name, trans, col_filter = True):
 
 
 # Get RRT Planning Result
+#@profile 
 def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
     # assert body in env.GetRobot()
     active_dofs = robot.GetActiveDOFIndices()
@@ -227,6 +244,7 @@ def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
     return np.array(traj_list)
 
 
+#@profile 
 def process_traj(raw_traj, timesteps):
     """
         Process raw_trajectory so that it's length is desired timesteps
@@ -263,6 +281,7 @@ def process_traj(raw_traj, timesteps):
     return np.array(result_traj).T
 
 
+#@profile 
 def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
     # assert body in env.GetRobot()
     dof_inds = robot.GetActiveDOFIndices()
@@ -291,6 +310,7 @@ def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
 
 
 
+#@profile 
 def get_col_free_armPose(pred, negated, t, plan):
     robot = pred.robot
     body = pred._param_to_body[robot]
@@ -304,6 +324,7 @@ def get_col_free_armPose(pred, negated, t, plan):
     arm_pose = arm_pose + old_arm_pose
     return arm_pose
 
+#@profile 
 def resample_pred(pred, negated, t, plan):
     res, attr_inds = [], OrderedDict()
     # Determine which action failed first
@@ -321,6 +342,7 @@ def resample_pred(pred, negated, t, plan):
     else:
         raise NotImplemented
 
+#@profile 
 def resample_move(plan, t, pred, rs_action, ref_index):
     res, attr_inds = [], OrderedDict()
     robot = rs_action.params[0]
@@ -383,6 +405,7 @@ def resample_move(plan, t, pred, rs_action, ref_index):
     # import ipdb; ipdb.set_trace()
     return np.array(res), attr_inds
 
+#@profile 
 def resample_pick_place(plan, t, pred, rs_action, ref_index):
     res, attr_inds = [], OrderedDict()
     robot = rs_action.params[0]
@@ -457,6 +480,7 @@ def resample_pick_place(plan, t, pred, rs_action, ref_index):
 
     return np.array(res), attr_inds
 
+#@profile 
 def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
     # Preparing the variables
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -561,6 +585,7 @@ def resample_eereachable_rrt(pred, negated, t, plan, inv = False):
     return np.array(res), attr_inds
 
 
+#@profile 
 def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False, both_arm = False):
     attr_inds, res = OrderedDict(), OrderedDict()
     basket, offset = plan.params['basket'], np.array([0, const.BASKET_OFFSET, 0])
@@ -677,6 +702,7 @@ def resample_basket_eereachable_rrt(pred, negated, t, plan, inv = False, both_ar
     # import ipdb; ipdb.set_trace()
     return res, attr_inds
 
+#@profile 
 def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = False):
     attr_inds, res = OrderedDict(), OrderedDict()
 
@@ -803,6 +829,7 @@ def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = Fal
     if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds
 
+#@profile 
 def resample_basket_moveholding_all(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
 
@@ -849,6 +876,7 @@ def resample_basket_moveholding_all(pred, negated, t, plan):
         return None, None
 
 
+#@profile 
 def resample_basket_moveholding(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
 
@@ -862,8 +890,9 @@ def resample_basket_moveholding(pred, negated, t, plan):
     ind1, ind2 = act_name.find(': ')+2, act_name.find(' (')
     act_name = act_name[ind1:ind2]
 
-    def set_pose(x, trag):
-        basket.openrave_body.set_pose(trag[:, x], [np.pi/2, 0, np.pi/2])
+#@profile 
+def set_pose(x, trag):
+    basket.openrave_body.set_pose(trag[:, x], [np.pi/2, 0, np.pi/2])
 
     if action.name.find("moveholding_basket") >= 0:
         start_ts, end_ts = action.active_timesteps
@@ -896,6 +925,7 @@ def resample_basket_moveholding(pred, negated, t, plan):
         return None, None
 
 
+#@profile 
 def resample_basket_in_gripper(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
 
@@ -921,6 +951,7 @@ def resample_basket_in_gripper(pred, negated, t, plan):
 
     return res, attr_inds
 
+#@profile 
 def resample_cloth_in_gripper(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
 
@@ -952,6 +983,7 @@ def resample_cloth_in_gripper(pred, negated, t, plan):
     if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds
 
+#@profile 
 def resample_washer_in_gripper(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
 
@@ -992,6 +1024,7 @@ def resample_washer_in_gripper(pred, negated, t, plan):
 
     return res, attr_inds
 
+#@profile 
 def get_is_mp_arm_pose(robot_body, arm_poses, last_pose, arm):
     robot = robot_body.env_body
     dof_map = robot_body._geom.dof_map
@@ -1011,6 +1044,7 @@ def get_is_mp_arm_pose(robot_body, arm_poses, last_pose, arm):
     return closest_arm_pose(is_mp_poses, last_pose)
 
 
+#@profile 
 def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     attr_inds, res = OrderedDict(), OrderedDict()
     # Preparing the variables
@@ -1108,6 +1142,7 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
     return res, attr_inds
 
+#@profile 
 def resample_ee_grasp_valid(pred, negated, t, plan):
     # TODO EEGraspValid is not working properly, go back and fix it
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -1125,6 +1160,7 @@ def resample_ee_grasp_valid(pred, negated, t, plan):
     # import ipdb; ipdb.set_trace()
     return res, attr_inds
 
+#@profile 
 def resample_basket_obstructs(pred, negated, t, plan):
     # viewer = OpenRAVEViewer.create_viewer(plan.env)
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -1204,6 +1240,7 @@ def resample_basket_obstructs(pred, negated, t, plan):
     return res, attr_inds
 
 
+#@profile 
 def resample_basket_obstructs_holding(pred, negated, t, plan):
     # viewer = OpenRAVEViewer.create_viewer(plan.env)
     attr_inds, res = OrderedDict(), OrderedDict()
@@ -1305,6 +1342,7 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
 
     return res, attr_inds
 
+#@profile 
 def resample_obstructs(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner
     attr_inds = OrderedDict()
@@ -1333,6 +1371,7 @@ def resample_obstructs(pred, negated, t, plan):
     robot._free_attrs['rArmPose'][:, t] = 0
     return np.array(res), attr_inds
 
+#@profile 
 def resample_rcollides(pred, negated, t, plan):
     # Variable that needs to added to BoundExpr and latter pass to the planner
     JOINT_STEP = 20
@@ -1404,6 +1443,7 @@ def resample_rcollides(pred, negated, t, plan):
     return np.array(res), attr_inds
 
 # Alternative approaches, frequently failed, Not used
+#@profile 
 def get_col_free_armPose_ik(pred, negated, t, plan):
     ee_pose = OpenRAVEBody.obj_pose_from_transform(body.env_body.GetManipulator('right_arm').GetTransform())
     pos, rot = ee_pose[:3], ee_pose[3:]
@@ -1419,6 +1459,7 @@ def get_col_free_armPose_ik(pred, negated, t, plan):
             print iteration
             body.set_dof({'rArmPose': arm_pose})
 
+#@profile 
 def sample_arm_pose(robot_body, old_arm_pose=None):
     dof_inds = robot_body.GetManipulator("right_arm").GetArmIndices()
     lb_limit, ub_limit = robot_body.GetDOFLimits()
@@ -1432,6 +1473,7 @@ def sample_arm_pose(robot_body, old_arm_pose=None):
         arm_pose = np.multiply(arm_pose, active_ub - active_lb) + active_lb
     return arm_pose
 
+#@profile 
 def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
     # param_attr_inds = []
     if param.is_symbol():
@@ -1446,6 +1488,7 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
             res[param] = val[inds].flatten().tolist()
             attr_inds[param] = [(attr_name, inds, t)]
 
+#@profile 
 def test_resample_order(attr_inds, res):
     for p in attr_inds:
         i = 0
@@ -1459,6 +1502,7 @@ def test_resample_order(attr_inds, res):
 
 
 
+#@profile 
 def resample_eereachable(pred, negated, t, plan):
     attr_inds, res = OrderedDict(), OrderedDict()
     robot, rave_body = pred.robot, pred._param_to_body[pred.robot]
@@ -1502,6 +1546,7 @@ def resample_eereachable(pred, negated, t, plan):
     robot._free_attrs['pose'][:, t-const.EEREACHABLE_STEPS: t+const.EEREACHABLE_STEPS+1] = 0
     return np.array(res), attr_inds
 
+#@profile 
 def resample_rrt_planner(pred, netgated, t, plan):
     startp, endp = pred.startp, pred.endp
     robot = pred.robot

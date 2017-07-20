@@ -23,8 +23,8 @@ class EnvironmentMonitor:
 		# self.subscribe_to_image_topics()
 
 	def subscribe_to_image_topics(self):
-		rospy.Subscriber('/camera/depth/image', Image,  lambda msg: self.predict_basket(msg), queue=1)
-		rospy.Subscriber('/camera/rgb/image', Image, lambda msg: self.predict_cloth(msg), queue=1)
+		rospy.Subscriber('/camera/depth/image', Image,  lambda msg: self.predict_basket(msg), queue_size=1)
+		rospy.Subscriber('/camera/rgb/image', Image, lambda msg: self.predict_cloth(msg), queue_size=1)
 
 	def build(self):
 		self.basket_net.build()

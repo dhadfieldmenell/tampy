@@ -72,6 +72,7 @@ class LLParam(object):
         self._num_attrs = []
         self.active_ts = active_ts
 
+    #@profile
     def create_grb_vars(self):
         """
         Creates Gurobi variables for attributes of certain types.
@@ -103,6 +104,7 @@ class LLParam(object):
                 setattr(self, k, x)
 
 
+    #@profile
     def batch_add_cnts(self):
         """
         Adds all the equality constraints.
@@ -131,6 +133,7 @@ class LLParam(object):
                 value[index] = np.nan
         return value
 
+    #@profile
     def update_param(self):
         """
         Updates the numerical attributes in the original parameter based off of
@@ -313,7 +316,7 @@ class NAMOSolver(LLSolver):
                 return success
         return success
 
-    # @profile
+    # #@profile
     def _solve_opt_prob(self, plan, priority, callback=None, active_ts=None,
                         verbose=False, resample=True):
         ## active_ts is the inclusive timesteps to include

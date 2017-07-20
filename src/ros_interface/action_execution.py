@@ -35,7 +35,7 @@ import operator
 import sys
 import threading
 
-from core.util_classes.plan_hdf5_serialization import PlanSerializer
+from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 from pma.robot_ll_solver import RobotLLSolver
 from ros_interface.environment_monitor import EnvironmentMonitor
 
@@ -160,12 +160,12 @@ class Trajectory(object):
 		self._gripper_rate = 4.0  # Hz
 
 	def _execute_gripper_commands(self):
-		start_time = rospy.get_time() - self._trajectory_actual_offset.to_sec()
 		r_cmd = self._r_grip.trajectory.points
 		l_cmd = self._l_grip.trajectory.points
 		pnt_times = [pnt.time_from_start.to_sec() for pnt in r_cmd]
 		end_time = pnt_times[-1]
 		rate = rospy.Rate(self._gripper_rate)
+		start_time = rospy.get_time() - self._trajectory_actual_offset.to_sec()
 		now_from_start = rospy.get_time() - start_time
 		while(now_from_start < end_time + (1.0 / self._gripper_rate) and
 			  not rospy.is_shutdown()):
@@ -174,7 +174,7 @@ class Trajectory(object):
 				self._r_gripper.command_position(r_cmd[idx].positions[0])
 			if self._l_gripper.type() != 'custom':
 				self._l_gripper.command_position(l_cmd[idx].positions[0])
-			import ipdb; ipdb.set_trace()
+
 			rate.sleep()
 			now_from_start = rospy.get_time() - start_time
 
@@ -242,9 +242,13 @@ class Trajectory(object):
 				self._add_point(cur_cmd, 'left', 0.0)
 				cur_cmd = [self._r_arm.joint_angle(jnt) for jnt in self._r_goal.trajectory.joint_names]
 				self._add_point(cur_cmd, 'right', 0.0)
+				# cur_cmd = [cmd['left_gripper']]
+				# self._add_point(cur_cmd, 'left_gripper', 0.0)
+				# cur_cmd = [cmd['right_gripper']]
+				# self._add_point(cur_cmd, 'right_gripper', 0.0)
 				start_offset = find_start_offset(cmd)
 				self._slow_move_offset = start_offset
-				self._trajectory_start_offset = rospy.Duration(start_offset + real_ts)
+				self._trajectory_start_offset = rospy.Duration(start_offset)
 
 			cur_cmd = [cmd[jnt] for jnt in self._l_goal.trajectory.joint_names]
 			self._add_point(cur_cmd, 'left', real_ts + start_offset)
@@ -348,27 +352,30 @@ def execute_plan(plan):
 
 	ps = PlanSerializer()
 	ps.write_plan_to_hdf5('prototype2.hdf5', plan)
+	# pd = PlanDeserializer()
+	# plan = pd.read_from_hdf5('prototype2.hdf5')
 
 
-	velocites = np.ones((plan.horizon, ))*1.5
+	velocites = np.ones((plan.horizon, ))*3
 	ee_time = traj_retiming(plan, velocites)
 	for act in plan.actions:
 		act_ts = act.active_timesteps
 		act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
 
 
-	if success:
+	plan.actions.sort(key=lambda a:a.active_timesteps[0])
+	if True or success:
 		for i in range(len(plan.actions)):
 			action = plan.actions[i]
+			print action.name
 			traj = Trajectory()
 			traj.load_trajectory(action)
 
 			rospy.on_shutdown(traj.stop)
-			result = True
+			# result = True
 
-			while (result and not rospy.is_shutdown()):
-				traj.start()
-				result = traj.wait()
+			traj.start()
+			result = traj.wait()
 
 			if action.params[2].name is 'monitor_pose' and i < len(plan.actions) - 1:
 				env_monitor.update_plan(plan, action.active_timesteps[1], params=['basket'])

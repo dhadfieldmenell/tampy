@@ -20,17 +20,17 @@ MONITOR_LEFT = [ np.pi/4, 0, 0, 0, 0, 0, 0]
 MONITOR_RIGHT = [-np.pi/4, 0, 0, 0, 0, 0, 0]
 
 # init basket pose
-BASKET_INIT_POS = [0.65 , -0.283,  0.79]
+BASKET_INIT_POS = [0.65 , -0.283,  0.81]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
 
 # end basket pose
-BASKET_END_POS = [0.65, 0.2, 0.79]
+BASKET_END_POS = [0.65, 0.2, 0.81]
 BASKET_END_ROT = [np.pi/2, 0, np.pi/2]
 
 
 ROBOT_DIST_FROM_TABLE = 0.05
 TABLE_GEOM = [0.3, 0.6, 0.018]
-TABLE_POS = [0.75, 0.02, 0.502]
+TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
 WASHER_POS = [2,2,2]
@@ -39,14 +39,14 @@ WASHER_DOOR = [0.0]
 WASHER_END_DOOR = [-np.pi/2]
 WASHER_CONFIG = [True, True]
 
-CLOTH_INIT_POS_1 = [0.65, 0.401, 0.537]
+CLOTH_INIT_POS_1 = [0.65, 0.401, 0.557]
 CLOTH_INIT_ROT_1 = [0,0,0]
 
-CLOTH_END_POS_1 = [ 0.65 , -0.283,  0.581]
+CLOTH_END_POS_1 = [ 0.65 , -0.283,  0.601]
 CLOTH_END_ROT_1 = [0,0,0]
 
 
-CLOTH_END_POS_2 = [ 0.65 ,  0.801, 0.537]
+CLOTH_END_POS_2 = [ 0.65 ,  0.801, 0.557]
 CLOTH_END_ROT_2 = [0,0,0]
 
 WASHER_EE_POS = [0.29 ,  0.781,  0.785]
