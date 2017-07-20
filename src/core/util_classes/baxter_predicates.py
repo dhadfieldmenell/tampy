@@ -1138,6 +1138,7 @@ class BaxterPushWasher(robot_predicates.IsPushing):
         self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
+        self.rel_pt = np.array([-.2,-0.07,0])
         super(BaxterPushWasher, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_robot_poses(self, x, robot_body):
@@ -1255,13 +1256,20 @@ class BaxterPushWasher(robot_predicates.IsPushing):
         return rot_jac
 
     def stacked_f(self, x):
-        rel_pt = np.array([-.2,-0.07,0])
+        rel_pt = self.rel_pt
         rot_dir = np.array([0,np.pi/2,0])
         return np.vstack([self.coeff * self.ee_contact_check_f(x, rel_pt), self.rot_coeff * self.ee_rot_check_f(x)])
 
     def stacked_grad(self, x):
-        rel_pt = np.array([-.2,-0.07,0])
+        rel_pt = self.rel_pt
         return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.ee_rot_check_jac(x), np.zeros((1,))]])
+
+class BaxterPushHandle(BaxterPushWasher):
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterPushHandle, self).__init__(name, params, expected_param_types, env, debug)
+        self.rel_pt = np.array([-.4,-0.07,0])
+
 
 """
     Basket Constraint Family

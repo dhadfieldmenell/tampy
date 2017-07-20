@@ -471,14 +471,17 @@ class OpenDoor(Action):
 class PushDoor(Action):
     def __init__(self):
         self.name = 'push_door'
-        self.timesteps = 20
+        self.timesteps = 25
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?washer - Washer ?sp - RobotPose ?ep - RobotPose ?wsp - WasherPose ?wep - WasherPose)'
         push_time = 5
+        retreat_time = 20
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterWasherAt ?washer ?wsp)', '0:{}'.format(push_time)),
             ('(BaxterPushWasher ?robot ?washer)', '{}:{}'.format(push_time, push_time)),
+            ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(retreat_time, end)),
+            ('(BaxterPushWasher ?robot ?washer)', '{}:{}'.format(retreat_time, retreat_time)),
             ('(BaxterStationaryWasher ?washer)', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
