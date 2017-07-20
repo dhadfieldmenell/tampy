@@ -323,6 +323,9 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.eval_dim = 6
+        # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
+        self.rel_pt = np.array([-0.04,0.07,-0.1])
+        self.rot_dir = np.array([0,0,0])
         super(BaxterEEGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
     def resample(self, negated, t, plan):
@@ -396,17 +399,16 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         return rot_jac
 
     def stacked_f(self, x):
-        # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
-        rel_pt = np.array([-0.035,0.055,-0.1])
-        rot_dir = np.array([0,0,0])
-        return np.vstack([self.coeff * self.washer_ee_check_f(x, rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, rot_dir)])
+        return np.vstack([self.coeff * self.washer_ee_check_f(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, self.rot_dir)])
 
     def stacked_grad(self, x):
-        # rel_pt =  np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
-        rel_pt = np.array([-0.035,0.055,-0.1])
-        rot_dir = np.array([0,0,0])
-        return np.vstack([self.coeff * self.washer_ee_check_jac(x, rel_pt), self.rot_coeff * self.washer_ee_rot_check_jac(x, rot_dir)])
+        return np.vstack([self.coeff * self.washer_ee_check_jac(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_jac(x, self.rot_dir)])
 
+
+class BaxterEEGraspValidSide(BaxterEEGraspValid):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterEEGraspValidSide, self).__init__(name, params, expected_param_types, env, debug)
+        self.rot_dir = np.array([np.pi/2,0,0])
 """
     Gripper Constraints Family
 """
@@ -966,6 +968,7 @@ class BaxterWasherInGripper(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.eval_dim = 4
         self.arm = 'left'
+        self.rel_pt = np.array([-0.04,0.07,-0.1])
         super(BaxterWasherInGripper, self).__init__(name, params, expected_param_types, env, debug)
         self.rot_coeff = const.WASHER_IN_GRIPPER_ROT_COEFF
 
@@ -1087,14 +1090,10 @@ class BaxterWasherInGripper(BaxterInGripper):
 
 
     def stacked_f(self, x):
-        # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
-        rel_pt = np.array([-0.035,0.055,-0.1])
-        return np.vstack([self.coeff * self.ee_contact_check_f(x, rel_pt), self.rot_coeff * self.rot_check_f(x)])
+        return np.vstack([self.coeff * self.ee_contact_check_f(x, self.rel_pt), self.rot_coeff * self.rot_check_f(x)])
 
     def stacked_grad(self, x):
-        # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
-        rel_pt = np.array([-0.035,0.055,-0.1])
-        return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.rot_check_jac(x), np.zeros((1,))]])
+        return np.vstack([self.coeff * self.ee_contact_check_jac(x, self.rel_pt), self.rot_coeff * np.c_[self.rot_check_jac(x), np.zeros((1,))]])
 
 class BaxterClothInGripperRight(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
