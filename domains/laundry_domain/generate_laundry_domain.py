@@ -469,11 +469,11 @@ class OpenDoor(Action):
 class PushDoor(Action):
     def __init__(self):
         self.name = 'push_door'
-        self.timesteps = 25
+        self.timesteps = 35
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?washer - Washer ?sp - RobotPose ?ep - RobotPose ?wsp - WasherPose ?wep - WasherPose)'
         push_time = 5
-        retreat_time = 20
+        retreat_time = 25
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterWasherAt ?washer ?wsp)', '0:{}'.format(push_time)),

@@ -1538,6 +1538,9 @@ class TestBaxterPredicates(unittest.TestCase):
         baxter.lArmPose = lArmPose[0].reshape((7,1))
         self.assertTrue(pred.test(0))
 
+        if const.TEST_GRAD:
+            pred.expr.expr.grad(pred.get_param_vector(0), True, 1e-3)
+
         washer.door[:,0] = -np.pi/2
         self.assertFalse(pred.test(0))
 

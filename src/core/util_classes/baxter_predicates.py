@@ -1135,8 +1135,8 @@ class BaxterPushWasher(robot_predicates.IsPushing):
         self.arm = 'left'
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        self.coeff = const.IN_GRIPPER_COEFF
-        self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
+        self.coeff = 1e0#const.IN_GRIPPER_COEFF
+        self.rot_coeff = 1e0#const.IN_GRIPPER_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.rel_pt = np.array([-.2,-0.07,0])
