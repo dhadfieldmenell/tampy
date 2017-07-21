@@ -18,7 +18,7 @@ class TestActionExecute(unittest.TestCase):
 		'''
 		# import ipdb; ipdb.set_trace()
 		pd = PlanDeserializer()
-		plan = pd.read_from_hdf5("cloth_manipulation_plan.hdf5")
+		plan = pd.read_from_hdf5("washer_manipulation_plan.hdf5")
 
 		velocites = np.ones((plan.horizon, ))*1.5
 		# slow_inds = np.array([range(19,39), range(58,78), range(97,117), range(136,156), range(175,195), range(214,234)]).flatten()
@@ -35,7 +35,6 @@ class TestActionExecute(unittest.TestCase):
 		print("Running. Ctrl-c to quit")
 		baxter_interface.Gripper('left', CHECK_VERSION).calibrate()
 		baxter_interface.Gripper('right', CHECK_VERSION).calibrate()
-		import ipdb; ipdb.set_trace()
 		action_execution.execute_plan(plan)
 		# for action in plan.actions:
 		# 	import ipdb; ipdb.set_trace()

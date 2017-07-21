@@ -350,13 +350,15 @@ def execute_plan(plan):
 	end = time.time()
 	print "Planning finished within {}s.".format(end - start)
 
-	ps = PlanSerializer()
-	ps.write_plan_to_hdf5('prototype2.hdf5', plan)
+	# ps = PlanSerializer()
+	# ps.write_plan_to_hdf5('prototype2.hdf5', plan)
 	# pd = PlanDeserializer()
-	# plan = pd.read_from_hdf5('prototype2.hdf5')
+	# plan = pd.read_from_hdf5('washer_manipulation_plan.hdf5')
+	viewer = OpenRAVEViewer.create_viewer(plan.env)
+	import ipdb; ipdb.set_trace()
 
 
-	velocites = np.ones((plan.horizon, ))*3
+	velocites = np.ones((plan.horizon, ))*2
 	ee_time = traj_retiming(plan, velocites)
 	for act in plan.actions:
 		act_ts = act.active_timesteps
