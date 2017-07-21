@@ -1090,12 +1090,13 @@ class TestBasketDomain(unittest.TestCase):
 
     def test_traj_smoother(self):
         pd = PlanDeserializer()
-        plan = pd.read_from_hdf5("cloth_manipulation_plan.hdf5")
+        plan = pd.read_from_hdf5("washer_manipulation_plan.hdf5")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         solver = robot_ll_solver.RobotLLSolver()
-        print "Test Trajectory Smoother"
-        result = solver.traj_smoother(plan, callback=None, n_resamples=10, active_ts=None, verbose=False)
-        self.assertTrue(result)
+        # print "Test Trajectory Smoother"
+        # result = solver.traj_smoother(plan, callback=None, n_resamples=10, active_ts=None, verbose=False)
+        # self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
 
 
     def run_washer_manipulator_plan(self):
@@ -1109,8 +1110,8 @@ class TestBasketDomain(unittest.TestCase):
         plan_str = [
         '0: MOVETO BAXTER ROBOT_INIT_POSE OPEN_DOOR_BEGIN',
         '1: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN OPEN_DOOR_EE_1 OPEN_DOOR_EE_2 OPEN_DOOR_END WASHER_CLOSE_POSE WASHER_OPEN_POSE',
-        '2: MOVETO BAXTER OPEN_DOOR_END MONITOR_POSE',
-        '2: MOVETO BAXTER MONITOR_POSE CLOSE_DOOR_BEGIN',
+        '2: MOVETO BAXTER OPEN_DOOR_END CLOSE_DOOR_BEGIN',
+        # '2: MOVETO BAXTER MONITOR_POSE CLOSE_DOOR_BEGIN',
         '3: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN CLOSE_DOOR_EE_1 CLOSE_DOOR_EE_2 CLOSE_DOOR_END WASHER_OPEN_POSE WASHER_CLOSE_POSE',
         '4: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
         ]
@@ -1121,7 +1122,14 @@ class TestBasketDomain(unittest.TestCase):
         serializer = PlanSerializer()
         def callback(a): return viewer
         velocites = np.ones((plan.horizon, ))*1
+
+        # robot, washer = plan.params['baxter'], plan.params['washer']
+        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
+        # trans = washer_body.env_body.GetTransform().dot(rot_mat)
+        # ik_arm_poses_left = robot_body.get_ik_solutions("left_arm", trans)
         # import ipdb; ipdb.set_trace()
+        # robot_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
 
 
         solver = robot_ll_solver.RobotLLSolver()
@@ -1137,6 +1145,7 @@ class TestBasketDomain(unittest.TestCase):
         print "Saving current plan to file washer_manipulation_plan.hdf5..."
         serializer.write_plan_to_hdf5("washer_manipulation_plan.hdf5", plan)
         self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
 
 
     def test_prototype2(self):
