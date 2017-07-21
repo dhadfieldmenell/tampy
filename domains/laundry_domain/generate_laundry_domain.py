@@ -179,6 +179,8 @@ class Move(Action):
             ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),

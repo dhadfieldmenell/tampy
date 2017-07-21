@@ -366,10 +366,10 @@ class TestBasketDomain(unittest.TestCase):
         def callback():
             return viewer
 
-        viewer.draw_plan_ts(plan, 0)
-        robot, washer = plan.params["baxter"], plan.params["washer"]
-        robot_body, washer_body = robot.openrave_body, washer.openrave_body
-        tool_link = washer_body.env_body.GetLink("washer_handle")
+        # viewer.draw_plan_ts(plan, 0)
+        # robot, washer = plan.params["baxter"], plan.params["washer"]
+        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # tool_link = washer_body.env_body.GetLink("washer_handle")
         # washer_body.set_pose([1, 1.1, 0.85], [np.pi/2+np.pi/6,0,0])
 
         # def set_washer_pose(door):
@@ -464,17 +464,20 @@ class TestBasketDomain(unittest.TestCase):
         def callback():
             return viewer
 
-        viewer.draw_plan_ts(plan,0)
-        offset = np.array([-0.04,0.07,-0.1])
-        robot, washer = plan.params["baxter"], plan.params["washer"]
-        robot_body, washer_body = robot.openrave_body, washer.openrave_body
-        tool_link = washer_body.env_body.GetLink("washer_handle")
-        washer_body.set_dof({'door': -np.pi/2})
-        handle_pos = np.dot(tool_link.GetTransform(), np.r_[offset, 1])[:3]
-        arm_pose = robot_body.get_ik_from_pose(handle_pos + [0,0,0], [np.pi/2, 0, 0], 'left_arm')
-        robot_body.set_dof({'lArmPose': arm_pose[0]})
+        # viewer.draw_plan_ts(plan, 0)
+        # robot, washer = plan.params["baxter"], plan.params["washer"]
+        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # tool_link = washer_body.env_body.GetLink("washer_handle")
+        # handle_pos = tool_link.GetTransform()[:3,3]
+        # def set_washer_pose(door):
+        #     washer_body.set_dof({'door': door})
+        #     handle_pos = tool_link.GetTransform()[:3,3]
+        #     arm_pose = robot_body.get_ik_from_pose(handle_pos, [np.pi/4, 0, 0], 'left_arm')
+        #     robot_body.set_dof({'lArmPose': arm_pose[0]})
 
-        import ipdb; ipdb.set_trace()
+        # set_washer_pose(-np.pi/18*9)
+        # import ipdb; ipdb.set_trace()
+
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
         result = solver.solve(plan, callback = callback, n_resamples=10)
@@ -1088,12 +1091,62 @@ class TestBasketDomain(unittest.TestCase):
 
     def test_traj_smoother(self):
         pd = PlanDeserializer()
-        plan = pd.read_from_hdf5("cloth_manipulation_plan.hdf5")
+        plan = pd.read_from_hdf5("washer_manipulation_plan.hdf5")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         solver = robot_ll_solver.RobotLLSolver()
-        print "Test Trajectory Smoother"
-        result = solver.traj_smoother(plan, callback=None, n_resamples=10, active_ts=None, verbose=False)
+        # print "Test Trajectory Smoother"
+        # result = solver.traj_smoother(plan, callback=None, n_resamples=10, active_ts=None, verbose=False)
+        # self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
+
+
+    def run_washer_manipulator_plan(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/washer_manipulator_plan.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE OPEN_DOOR_BEGIN',
+        '1: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN OPEN_DOOR_EE_1 OPEN_DOOR_EE_2 OPEN_DOOR_END WASHER_CLOSE_POSE WASHER_OPEN_POSE',
+        '2: MOVETO BAXTER OPEN_DOOR_END CLOSE_DOOR_BEGIN',
+        # '2: MOVETO BAXTER MONITOR_POSE CLOSE_DOOR_BEGIN',
+        '3: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN CLOSE_DOOR_EE_1 CLOSE_DOOR_EE_2 CLOSE_DOOR_END WASHER_OPEN_POSE WASHER_CLOSE_POSE',
+        '4: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
+        ]
+        plan = hls.get_plan(plan_str, domain, problem)
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        viewer.draw_plan_ts(plan, 0)
+        serializer = PlanSerializer()
+        def callback(a): return viewer
+        velocites = np.ones((plan.horizon, ))*1
+
+        # robot, washer = plan.params['baxter'], plan.params['washer']
+        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
+        # trans = washer_body.env_body.GetTransform().dot(rot_mat)
+        # ik_arm_poses_left = robot_body.get_ik_solutions("left_arm", trans)
+        # import ipdb; ipdb.set_trace()
+        # robot_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+
+
+        solver = robot_ll_solver.RobotLLSolver()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        result = solver.traj_smoother(plan, callback = None)
+        end = time.time()
+
+        print "Planning finished within {}s.".format(end - start)
+        ee_time = traj_retiming(plan, velocites)
+        plan.time = ee_time.reshape((1, ee_time.shape[0]))
+
+        print "Saving current plan to file washer_manipulation_plan.hdf5..."
+        serializer.write_plan_to_hdf5("washer_manipulation_plan.hdf5", plan)
         self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
 
 
     def test_prototype2(self):
@@ -1102,7 +1155,7 @@ class TestBasketDomain(unittest.TestCase):
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
         print "loading laundry problem..."
-        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/prototype2.prob')
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/laundry.prob')
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
         plan_str = [
@@ -1116,11 +1169,15 @@ class TestBasketDomain(unittest.TestCase):
         '7: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
         '8: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
         '9: MOVETO BAXTER BASKET_PUTDOWN_END MONITOR_POSE',
-        '10: MOVETO BAXTER MONITOR_POSE CLOTH_GRASP_BEGIN_2',
-        '11: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
-        '12: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
-        '13: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',
-        '14: MOVETO BAXTER CLOTH_PUTDOWN_END_2 ROBOT_END_POSE'
+        '10: MOVETO BAXTER MONITOR_POSE OPEN_DOOR_BEGIN',
+        '11: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN OPEN_DOOR_EE_1 OPEN_DOOR_EE_2 OPEN_DOOR_END WASHER_INIT_POSE WASHER_END_POSE',
+        # '12: MOVETO BAXTER OPEN_DOOR_END CLOTH_GRASP_BEGIN_2',
+        # '13: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
+        # '14: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
+        # '15: CLOTH_PUTDOWN BAXTER CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',
+        # '16: MOVETO BAXTER CLOTH_PUTDOWN_END_2 CLOSE_DOOR_BEGIN'
+        '12: CLOSE_DOOR BAXTER WASHER OPEN_DOOR_END CLOSE_DOOR_EE_1 CLOSE_DOOR_EE_2 CLOSE_DOOR_END WASHER_END_POSE WASHER_INIT_POSE',
+        '13: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
         ]
 
         plan = hls.get_plan(plan_str, domain, problem)
@@ -1128,10 +1185,10 @@ class TestBasketDomain(unittest.TestCase):
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
         def callback(a): return viewer
-
         velocites = np.ones((plan.horizon, ))*1
-        slow_inds = np.array([range(19,39), range(58,78), range(116,136), range(155, 175), range(213, 233), range(252, 272)]).flatten()
-        velocites[slow_inds] = 0.6
+
+        import ipdb; ipdb.set_trace()
+        viewer.draw_plan_ts(plan, 0)
 
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()
