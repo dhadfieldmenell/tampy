@@ -367,14 +367,18 @@ class TestBasketDomain(unittest.TestCase):
             return viewer
 
         viewer.draw_plan_ts(plan, 0)
-        # offset = np.array([-0.04,0.07,-0.1])
-        # robot, washer = plan.params["baxter"], plan.params["washer"]
-        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
-        # tool_link = washer_body.env_body.GetLink("washer_handle")
-        # washer_body.set_dof({'door': -np.pi/6})
-        # handle_pos = np.dot(tool_link.GetTransform(), np.r_[offset, 1])[:3]
-        # arm_pose = robot_body.get_ik_from_pose(handle_pos, [0, 0, 0], 'left_arm')
-        # robot_body.set_dof({'lArmPose': arm_pose[0]})
+        robot, washer = plan.params["baxter"], plan.params["washer"]
+        robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        # washer_body.set_pose([1, 1.1, 0.85], [np.pi/2+np.pi/6,0,0])
+
+        # def set_washer_pose(door):
+        #     washer_body.set_dof({'door': door})
+        #     handle_pos = tool_link.GetTransform()[:3,3]
+        #     arm_pose = robot_body.get_ik_from_pose(handle_pos, [np.pi/4, 0, 0], 'left_arm')
+        #     robot_body.set_dof({'lArmPose': arm_pose[0]})
+        #
+        # set_washer_pose(-np.pi/18*0)
         # import ipdb; ipdb.set_trace()
 
         start = time.time()

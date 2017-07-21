@@ -485,30 +485,32 @@ class TestBaxterPredicates(unittest.TestCase):
     def test_in_gripper_washer(self):
         pd = PlanDeserializer()
         plan = pd.read_from_hdf5("open_door_isolation_init.hdf5")
-
+        robot, washer = plan.params["baxter"], plan.params["washer"]
+        robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        washer.pose[:,0] = [1.0, 0.84, 0.85]
+        washer.rotation[:,0] = [np.pi/2,0,0]
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         viewer.draw_plan_ts(plan, 0)
         open_ee, close_ee = plan.params["open_door_ee"], plan.params["close_door_ee"]
-        robot, washer = plan.params["baxter"], plan.params["washer"]
-        robot_body, washer_body = robot.openrave_body, washer.openrave_body
+
         pred = plan.find_pred("BaxterWasherInGripper")[0]
 
         # self.assertFalse(pred.test(0))
 
         tool_link = washer_body.env_body.GetLink("washer_handle")
-        rel_pt = np.array([-0.035,0.055,-0.1])
-        washer_pos = tool_link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
-        washer_rot = np.array([-np.pi/2, 0, -np.pi/2])
+        washer_pos = tool_link.GetTransform()[:3,3]
+        washer_rot = np.array([np.pi/4, 0, 0])
         arm_pose = robot_body.get_ik_from_pose(washer_pos, washer_rot, "left_arm")[0]
         robot_body.set_dof({'lArmPose': arm_pose})
         robot.lArmPose[:, 0] = arm_pose
-        self.assertTrue(pred.test(0, tol=1e-3))
 
+        self.assertTrue(pred.test(0, tol=1e-3))
+        import ipdb; ipdb.set_trace()
         def test_grasping_pose(door):
             washer.door[:, 0] = door
             washer_body.set_dof({'door': door})
-            handle_pos = tool_link.GetTransform().dot(np.r_[rel_pt, 1])[:3]
-            handle_rot = [-np.pi/2, 0, -np.pi/2]
+            handle_pos = tool_link.GetTransform()[:3,3]
+            handle_rot = [np.pi/4, 0, 0]
 
             arm_pose = robot_body.get_ik_from_pose(handle_pos, handle_rot, "left_arm")[0]
             robot_body.set_dof({'lArmPose': arm_pose})
@@ -596,22 +598,27 @@ class TestBaxterPredicates(unittest.TestCase):
         washer_body.set_pose(washer.pose.flatten(), washer.rotation.flatten())
         robot_body.set_dof({'lArmPose': robot.lArmPose[:, 0], 'rArmPose': robot.rArmPose[:, 0], 'lGripper': 0.02, 'rGripper': 0.02})
         robot_body.set_pose([0,0,0])
+        tool_link = washer_body.env_body.GetLink("washer_handle")
 
         def ee_pose_with_door(door):
             washer_body.set_dof({'door': door})
-            washer.door[:, 0] = door
-            tool_link = washer_body.env_body.GetLink("washer_handle")
+            washer.door = np.array([[door]])
             handle_pos = tool_link.GetTransform()[:3,3]
-
-            rot = np.array([np.pi/2,0, 0])
-            arm_pose = robot_body.get_ik_from_pose(handle_pos, rot, 'left_arm')
-            if not arm_pose:
+            ee_pose.value = handle_pos.reshape((3,1))
+            ee_pose.rotation = np.array([np.pi/4, 0, 0]).reshape((3,1))
+            arm_pose = robot_body.get_ik_from_pose(handle_pos, [np.pi/4, 0, 0], 'left_arm')
+            if not len(arm_pose):
                 return False
             robot_body.set_dof({'lArmPose': arm_pose[0]})
             robot.lArmPose[:, 0] = arm_pose[0]
             self.assertTrue(pred.test(0))
 
         ee_pose_with_door(0)
+        ee_pose_with_door(-np.pi/8*1)
+        ee_pose_with_door(-np.pi/8*2)
+        ee_pose_with_door(-np.pi/8*3)
+        ee_pose_with_door(-np.pi/8*4)
+
         import ipdb; ipdb.set_trace()
 
 

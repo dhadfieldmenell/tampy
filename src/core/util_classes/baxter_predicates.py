@@ -326,7 +326,7 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
         self.rel_pt = np.zeros((3,))
-        self.rot_dir = np.array([0,0,0])
+        self.rot_dir = np.array([0,0,1])
         super(BaxterEEGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
     def resample(self, negated, t, plan):
@@ -391,13 +391,16 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         return dist_jac
 
     def washer_ee_rot_check_f(self, x, rot_dir):
-        robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
-        return self.rot_error_f(obj_trans, robot_trans, self.rot_dir)
+        # robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        # return self.rot_error_f(obj_trans, robot_trans, self.rot_dir)
+        return x[3:6] - np.array([np.pi/4,0,0]).reshape((3,1))
+
 
     #@profile
     def washer_ee_rot_check_jac(self, x, rel_rot):
-        robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
-        return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints, self.rot_dir)
+        # robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        # return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints, self.rot_dir)
+        return np.hstack([np.zeros((3,3)), np.eye(3), np.zeros((3, 7))])
 
     def stacked_f(self, x):
         return np.vstack([self.coeff * self.washer_ee_check_f(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, self.rot_dir)])
@@ -969,9 +972,10 @@ class BaxterWasherInGripper(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.eval_dim = 4
         self.arm = 'left'
-        self.rel_pt = np.array([-0.04,0.07,-0.1])
+        # self.rel_pt = np.array([-0.04,0.07,-0.1])
+        self.rel_pt = np.zeros((3,))
         super(BaxterWasherInGripper, self).__init__(name, params, expected_param_types, env, debug)
-        self.rot_coeff = const.WASHER_IN_GRIPPER_ROT_COEFF
+        self.rot_coeff = 1e-2 #const.WASHER_IN_GRIPPER_ROT_COEFF
 
     def set_washer_poses(self, x, washer_body):
         pose, rotation = x[-7:-4], x[-4:-1]
@@ -987,9 +991,9 @@ class BaxterWasherInGripper(BaxterInGripper):
         return washer_trans, washer_inds
 
     #@profile
-    def resample(self, negated, t, plan):
-        print "resample {}".format(self.get_type())
-        return baxter_sampling.resample_washer_in_gripper(self, negated, t, plan)
+    # def resample(self, negated, t, plan):
+        # print "resample {}".format(self.get_type())
+        # return baxter_sampling.resample_washer_in_gripper(self, negated, t, plan)
 
     #@profile
     def robot_robot_kinematics(self, x):
@@ -1039,15 +1043,16 @@ class BaxterWasherInGripper(BaxterInGripper):
     #@profile
     def rot_check_f(self, x):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_rot = np.array([0,0,1])
-
-        return self.rot_error_f(obj_trans, robot_trans, rel_rot)
+        robot = np.array([0,0,1])
+        washer_rot = [0,1,0]
+        return self.rot_error_f(obj_trans, robot_trans, washer_rot, robot)
 
     #@profile
     def rot_check_jac(self, x):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_rot = np.array([0,0,1])
-        return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_rot)
+        robot = np.array([0,0,1])
+        washer_rot = [0,1,0]
+        return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints,  washer_rot, robot)
 
     #@profile
     def robot_obj_kinematics(self, x):

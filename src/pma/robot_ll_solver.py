@@ -360,8 +360,7 @@ class RobotLLSolver(LLSolver):
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 except:
-                    import ipdb; ipdb.set_trace()
-
+                    print "error in predicate checking"
                 if success:
                     break
 
@@ -372,7 +371,7 @@ class RobotLLSolver(LLSolver):
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 except:
-                    import ipdb; ipdb.set_trace()
+                    print "error in predicate checking"
 
                 assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
