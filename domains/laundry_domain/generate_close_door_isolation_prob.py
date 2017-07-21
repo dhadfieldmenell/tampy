@@ -12,16 +12,16 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_end
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
 R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_INIT = [ 1.6       , -0.57051993, -0.24838559,  2.39250902, -2.47919385, 1.62733949, -2.83230399]
+L_ARM_INIT = [ 0.5       , -1.18534201,  0.71007123,  1.76015989, -1.97408123, 1.33195381,  2.05750011]
 INT_GRIPPER = [0.02]
 
 BAXTER_END_POSE = [0]
 R_ARM_END = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_END = [ 1.4       , -0.62538099,  0.04780092,  2.25377059,  2.21439219, -1.56758749,  0.06887936]
+L_ARM_END = [-1.2       , -0.85051322,  2.00920346,  2.4238917 ,  0.73827866, -1.26725175, -1.15887414]
 
 END_GRIPPER = [0.02]
 # init basket pose
-BASKET_INIT_POS = [3, 3, 3]
+BASKET_INIT_POS = [0.65 , -0.283,  0.81]
 BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
 
 # end basket pose
@@ -31,14 +31,14 @@ BASKET_END_ROT = [np.pi/2, 0, np.pi/2]
 
 ROBOT_DIST_FROM_TABLE = 0.05
 TABLE_GEOM = [0.3, 0.6, 0.018]
-TABLE_POS = [2, 2, 2]
+TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
 WASHER_POS = [1.0, 0.84, 0.85]
 WASHER_ROT = [np.pi/2,0,0]
 
 WASHER_DOOR = [-np.pi/2]
-WASHER_END_DOOR = [-np.pi/6]
+WASHER_END_DOOR = [0]
 WASHER_CONFIG = [True, True]
 
 CLOTH_INIT_POS = [2.5, 2.5, 2.5]

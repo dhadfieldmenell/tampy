@@ -250,7 +250,6 @@ class RobotLLSolver(LLSolver):
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
         robot_body.set_dof({'lArmPose': [0.785, 0, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, 0, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
-
         for i in range(resample_size):
             if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
                 target = next_act.params[2]
@@ -295,7 +294,6 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[-0.785,0,0,0,0,0,0]]).T, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-
             elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
                 target = act.params[2]
 
@@ -327,6 +325,42 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif next_act.name == "open_door" or next_act.name == "close_door":
+                target = next_act.params[-2]
+                target_body = next_act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_body.set_dof({'door': target.door[:, 0]})
+                target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
+
+                random_dir = np.multiply(np.random.sample(3) - [1,1,0.5], [0.1, 0.1, 0.05])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([np.pi/4, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == "open_door" or act.name == "close_door":
+                target = act.params[-1]
+                target_body = act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_body.set_dof({'door': target.door[:, 0]})
+                target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
+
+                random_dir = np.multiply(np.random.sample(3) - [1,1,0.5], [0.1, 0.1, 0.05])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([np.pi/4, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
             else:
                 raise NotImplementedError
         if not robot_pose:
