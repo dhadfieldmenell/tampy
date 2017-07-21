@@ -52,12 +52,23 @@
        <diffuseColor>0 0.7 1</diffuseColor>
      </Geom>
    </Body>
-   <Body name="washer_handle">
+
+   <!-- <Body name="washer_handle">
      <Translation>-0.175 0.45 0.1</Translation>
      <RotationAxis>0 0 0 0</RotationAxis>
      <Geom type="trimesh">
        <Render>washer_handle.dae 0.002</Render>
        <collision>washer_handle.dae 0.002</collision>
+       <diffuseColor>0.4 1 0</diffuseColor>
+     </Geom>
+   </Body> -->
+
+   <Body name="washer_handle">
+     <Translation>0 0.425 0.375</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="cylinder">
+       <radius>0.01</radius>
+       <height>0.15</height>
        <diffuseColor>0.4 1 0</diffuseColor>
      </Geom>
    </Body>
