@@ -53,7 +53,8 @@
      </Geom>
    </Body>
    <Body name="washer_handle">
-     <Translation>-.33 .45 .12</Translation>
+     <Translation>.12 .45 .33</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
      <RotationAxis>0 0 1 90</RotationAxis>
      <Geom type="trimesh">
        <Render>washer_handle.dae 0.0025</Render>

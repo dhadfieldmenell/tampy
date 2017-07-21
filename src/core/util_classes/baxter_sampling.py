@@ -1215,7 +1215,7 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     #     Resample other parameters
     # """
     # begin = pred.start_pose
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     # add_to_attr_inds_and_res(0, attr_inds, res, begin, [('lArmPose', robot.lArmPose[:, t-step]), ('rArmPose', robot.rArmPose[:, t-step]), ('value', robot.pose[:,t-step])])
     return res, attr_inds
 
