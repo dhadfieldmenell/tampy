@@ -235,8 +235,8 @@ class Trajectory(object):
 			for i in range(7):
 				cmd['left'+joints[i]] = baxter.lArmPose[i][t]
 				cmd['right'+joints[i]] = baxter.rArmPose[i][t]
-			cmd['left_gripper'] = 100.0 if baxter.lGripper[0][t] > .016 else 0
-			cmd['right_gripper'] = 100.0 if baxter.rGripper[0][t] > .016 else 0
+			cmd['left_gripper'] = 100.0 if baxter.lGripper[0][t] > .015 else 0
+			cmd['right_gripper'] = 100.0 if baxter.rGripper[0][t] > .015 else 0
 			if t == ts[0]:
 				cur_cmd = [self._l_arm.joint_angle(jnt) for jnt in self._l_goal.trajectory.joint_names]
 				self._add_point(cur_cmd, 'left', 0.0)
@@ -313,7 +313,7 @@ class Trajectory(object):
 		#create a timeout for our trajectory execution
 		#total time trajectory expected for trajectory execution plus a buffer
 		last_time = self._r_goal.trajectory.points[-1].time_from_start.to_sec()
-		time_buffer = rospy.get_param(self._param_ns + 'goal_time', 0.0) + 1.5
+		time_buffer = rospy.get_param(self._param_ns + 'goal_time', 0.0) + 2.5
 		timeout = rospy.Duration(self._slow_move_offset +
 								 last_time +
 								 time_buffer)
@@ -333,22 +333,42 @@ class Trajectory(object):
 			return False
 
 
+def enforce_joint_limits(plan):
+	robot = plan.params['baxter'].openrave_body
+	lb_limit, ub_limit = robot.env_body.GetDOFLimits()
+	dof_map = robot._geom.dof_map
+	dof_inds = np.r_[dof_map["lArmPose"], dof_map["lGripper"], dof_map["rArmPose"], dof_map["rGripper"]]
+	active_ub = ub_limit[dof_inds].flatten()
+	active_lb = lb_limit[dof_inds].flatten()
+	for i in range(7):
+		for j in range(plan.horizon):
+			if plan.params['baxter'].lArmPose[i, j] < active_lb[i]:
+				plan.params['baxter'].lArmPose[i, j] = active_lb[i] + .001*active_lb[i]
+			if plan.params['baxter'].lArmPose[i,j] > active_ub[i]:
+				plan.params['baxter'].lArmPose[i, j] = active_ub[i] - .001*active_ub[i]
+	for i in range(7):
+		for j in range(plan.horizon):
+			if plan.params['baxter'].lArmPose[i, j] < active_lb[8+i]:
+				plan.params['baxter'].lArmPose[i, j] = active_lb[8+i] +.001*active_lb[8+i]
+			if plan.params['baxter'].lArmPose[i,j] > active_ub[8+i]:
+				plan.params['baxter'].lArmPose[i, j] = active_ub[8+i] - .001*active_ub[8+i]
+
 def execute_plan(plan):
 	'''
 	Pass in a plan on an initialized ros node and it will execute the
 	trajectory of that plan for a single robot.
 	'''
-	env_monitor = EnvironmentMonitor()
-	print "Updating parameter locations..."
-	env_monitor.update_plan(plan, 0)
+	# env_monitor = EnvironmentMonitor()
+	# print "Updating parameter locations..."
+	# env_monitor.update_plan(plan, 0)
 
-	print "solving laundry domain problem..."
-	solver = RobotLLSolver()
-	start = time.time()
-	viewer = OpenRAVEViewer.create_viewer(plan.env)
-	success = solver.backtrack_solve(plan, callback = None, verbose=False)
-	end = time.time()
-	print "Planning finished within {}s.".format(end - start)
+	# print "solving laundry domain problem..."
+	# solver = RobotLLSolver()
+	# start = time.time()
+	# viewer = OpenRAVEViewer.create_viewer(plan.env)
+	# success = solver.backtrack_solve(plan, callback = None, verbose=False)
+	# end = time.time()
+	# print "Planning finished within {}s.".format(end - start)
 
 	# ps = PlanSerializer()
 	# ps.write_plan_to_hdf5('prototype2.hdf5', plan)
@@ -364,7 +384,7 @@ def execute_plan(plan):
 		act_ts = act.active_timesteps
 		act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
 
-
+	enforce_joint_limits(plan)
 	plan.actions.sort(key=lambda a:a.active_timesteps[0])
 	if True or success:
 		for i in range(len(plan.actions)):

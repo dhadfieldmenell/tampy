@@ -325,12 +325,12 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         self.eval_dim = 6
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.zeros((3,))
-        self.rot_dir = np.array([0,0,1])
+        self.rel_pt = np.array([0,0,-.025]) # np.zeros((3,))
+        self.rot_dir = np.array([0,0,np.pi/2])
         super(BaxterEEGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
-    def resample(self, negated, t, plan):
-        return baxter_sampling.resample_ee_grasp_valid(self, negated, t, plan)
+    # def resample(self, negated, t, plan):
+    #     return baxter_sampling.resample_ee_grasp_valid(self, negated, t, plan)
 
     def set_washer_poses(self, x, washer_body):
         pose, rotation = x[-7:-4], x[-4:-1]
@@ -393,7 +393,7 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
     def washer_ee_rot_check_f(self, x, rot_dir):
         # robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
         # return self.rot_error_f(obj_trans, robot_trans, self.rot_dir)
-        return x[3:6] - np.array([np.pi/4,0,0]).reshape((3,1))
+        return x[3:6] - np.array(const.RESAMPLE_ROT).reshape((3,1))
 
 
     #@profile
@@ -521,6 +521,16 @@ class BaxterObstructsCloth(BaxterObstructs):
     pass
 
 class BaxterObstructsWasher(BaxterObstructs):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
+        self.attr_dim = 17
+        self.dof_cache = None
+        self.coeff = -const.OBSTRUCTS_COEFF
+        self.neg_coeff = const.OBSTRUCTS_COEFF
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+                                 (params[3], list(ATTRMAP[params[3]._type][:-1]))])
+        super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
+        self.dsafe = const.DIST_SAFE
+
     def robot_obj_collision(self, x):
         """
             This function is used to calculae collisiosn between Robot and Can
@@ -542,8 +552,8 @@ class BaxterObstructsWasher(BaxterObstructs):
 
         obj = self.params[self.ind1]
         obj_body = self._param_to_body[obj]
-        can_pos, can_rot = x[-7:-4], x[-4:-1]
-        obj_body.set_pose(can_pos, can_rot)
+        washer_pos, washer_rot = x[-7:-4], x[-4:-1]
+        obj_body.set_pose(washer_pos, washer_rot)
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
@@ -558,6 +568,9 @@ class BaxterObstructsWasher(BaxterObstructs):
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
         return col_val, col_jac
+
+    # def resample(self, negated, t, plan):
+    #     return None, None
 
 class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
@@ -973,7 +986,7 @@ class BaxterWasherInGripper(BaxterInGripper):
         self.eval_dim = 4
         self.arm = 'left'
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.zeros((3,))
+        self.rel_pt = np.array([0,0,-.025])#np.zeros((3,))
         super(BaxterWasherInGripper, self).__init__(name, params, expected_param_types, env, debug)
         self.rot_coeff = 1e-2 #const.WASHER_IN_GRIPPER_ROT_COEFF
 

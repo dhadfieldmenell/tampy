@@ -1095,7 +1095,7 @@ def resample_washer_in_gripper2(pred, negated, t, plan):
         assert pred.test(ts, negated = negated, tol = 1e-2)
 
     return res, attr_inds
-    
+
 
 #@profile 
 def get_is_mp_arm_pose(robot_body, arm_poses, last_pose, arm):
@@ -1124,7 +1124,7 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     robot, rave_body = pred.robot, pred.robot.openrave_body
     body = rave_body.env_body
     actions = plan.actions
-    action_inds = [i for i in range(len(actions)) if actions[i].active_timesteps[0] <= t and  t <= actions[i].active_timesteps[1]][0]
+    action_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
     ee_pose, arm = pred.ee_pose, pred.arm
     robot_base_pose = robot.pose[:, t]
 
@@ -1170,7 +1170,7 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
 
     for i in range(step):
         if approach:
-            targ_app_pos = targ_pos + np.array([0,+const.APPROACH_DIST,0]) * (step-i)
+            targ_app_pos = targ_pos + np.array([0,-const.APPROACH_DIST,0]) * (step-i)
             approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
             if approach_arm_pose is None:
                 return None, None

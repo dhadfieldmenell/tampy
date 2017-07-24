@@ -1111,10 +1111,10 @@ class TestBasketDomain(unittest.TestCase):
         plan_str = [
         '0: MOVETO BAXTER ROBOT_INIT_POSE OPEN_DOOR_BEGIN',
         '1: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN OPEN_DOOR_EE_1 OPEN_DOOR_EE_2 OPEN_DOOR_END WASHER_CLOSE_POSE WASHER_OPEN_POSE',
-        '2: MOVETO BAXTER OPEN_DOOR_END CLOSE_DOOR_BEGIN',
-        # '2: MOVETO BAXTER MONITOR_POSE CLOSE_DOOR_BEGIN',
-        '3: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN CLOSE_DOOR_EE_1 CLOSE_DOOR_EE_2 CLOSE_DOOR_END WASHER_OPEN_POSE WASHER_CLOSE_POSE',
-        '4: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
+        '2: MOVETO BAXTER OPEN_DOOR_END MONITOR_POSE',
+        '3: MOVETO BAXTER MONITOR_POSE CLOSE_DOOR_BEGIN',
+        '4: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN CLOSE_DOOR_EE_1 CLOSE_DOOR_EE_2 CLOSE_DOOR_END WASHER_OPEN_POSE WASHER_CLOSE_POSE',
+        '5: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
         ]
         plan = hls.get_plan(plan_str, domain, problem)
         print "solving basket domain problem..."
@@ -1126,6 +1126,7 @@ class TestBasketDomain(unittest.TestCase):
 
         # robot, washer = plan.params['baxter'], plan.params['washer']
         # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # washer_body.set_dof({'door':-np.pi/2})
         # rot_mat = matrixFromAxisAngle([np.pi/2, 0, 0])
         # trans = washer_body.env_body.GetTransform().dot(rot_mat)
         # ik_arm_poses_left = robot_body.get_ik_solutions("left_arm", trans)
@@ -1140,6 +1141,7 @@ class TestBasketDomain(unittest.TestCase):
         end = time.time()
 
         print "Planning finished within {}s.".format(end - start)
+        print "Planning succeeded: {}".format(result)
         ee_time = traj_retiming(plan, velocites)
         plan.time = ee_time.reshape((1, ee_time.shape[0]))
 

@@ -69,11 +69,7 @@ class RobotLLSolver(LLSolver):
 
     def backtrack_solve(self, plan, callback=None, verbose=False):
         plan.save_free_attrs()
-        try:
-            success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
-        except:
-            print "Error occured during planning, but not catched"
-            return False
+        success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
         plan.restore_free_attrs()
         return success
 
@@ -333,9 +329,9 @@ class RobotLLSolver(LLSolver):
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
 
-                random_dir = np.multiply(np.random.sample(3) - [1,1,0.5], [0.1, 0.1, 0.05])
+                random_dir = np.multiply(np.random.sample(3) - baxter_constants.RESAMPLE_DIR, baxter_constants.RESAMPLE_FACTOR_LR)
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([np.pi/4, 0, 0])
+                ee_rot = np.array(baxter_constants.RESAMPLE_ROT)
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
@@ -351,9 +347,9 @@ class RobotLLSolver(LLSolver):
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
 
-                random_dir = np.multiply(np.random.sample(3) - [1,1,0.5], [0.1, 0.1, 0.05])
+                random_dir = np.multiply(np.random.sample(3) - baxter_constants.RESAMPLE_DIR, baxter_constants.RESAMPLE_FACTOR_LR)
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([np.pi/4, 0, 0])
+                ee_rot = np.array(baxter_constants.RESAMPLE_ROT)
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue

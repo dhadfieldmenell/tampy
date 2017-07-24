@@ -20,7 +20,7 @@ class TestActionExecute(unittest.TestCase):
 		pd = PlanDeserializer()
 		plan = pd.read_from_hdf5("washer_manipulation_plan.hdf5")
 
-		velocites = np.ones((plan.horizon, ))*1.5
+		velocites = np.ones((plan.horizon, ))
 		# slow_inds = np.array([range(19,39), range(58,78), range(97,117), range(136,156), range(175,195), range(214,234)]).flatten()
 		# velocites[slow_inds] = 1.0
 		baxter = plan.params['baxter']

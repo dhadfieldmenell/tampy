@@ -444,7 +444,7 @@ class OpenDoor(Action):
             # ('(BaxterWasherIsMP ?washer)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(BaxterWasherWithinJointLimit ?washer)', '0:{}'.format(end)),
-            ('(BaxterObstructsWasher ?robot ?sp ?ep ?washer)', '0:{}'.format(end)),
+            # ('(BaxterObstructsWasher ?robot ?sp ?ep ?washer)', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\
@@ -591,7 +591,7 @@ class CloseDoor(Action):
             ('(BaxterWasherAt ?washer ?wsp)', '0:{}'.format(grasp_time)),
             ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(retreat_time, end)),
             ('(BaxterEEApproachLeft ?robot ?sp ?ee_approach)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEGraspValidSide ?ee_approach ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEGraspValid ?ee_approach ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterEEGraspValid ?ee_retreat ?washer)', '{}:{}'.format(retreat_time, retreat_time)),
             ('(BaxterOpenGripperLeft ?robot ?ee_approach ?sp)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperLeft ?robot ?ee_approach ?sp)', '{}:{}'.format(grasp_time,  retreat_time)),
