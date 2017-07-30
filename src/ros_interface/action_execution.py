@@ -54,6 +54,7 @@ import Queue
 from control_msgs.msg import (
 	FollowJointTrajectoryAction,
 	FollowJointTrajectoryGoal,
+	JointTolerance
 )
 from trajectory_msgs.msg import (
 	JointTrajectoryPoint,
@@ -118,6 +119,16 @@ class Trajectory(object):
 		#create our goal request
 		self._l_goal = FollowJointTrajectoryGoal()
 		self._r_goal = FollowJointTrajectoryGoal()
+
+		for jnt in joints:
+			left_tol = JointTolerance()
+			left_tol.name = 'left'+jnt
+			left_tol.position = .3
+			self._l_goal.path_tolerance.append(left_tol)
+			right_tol = JointTolerance()
+			right_tol.name = 'right'+jnt
+			right_tol.position = .3
+			self._r_goal.path_tolerance.append(right_tol)
 
 		#limb interface - current angles needed for start move
 		self._l_arm = baxter_interface.Limb('left')
@@ -258,7 +269,7 @@ class Trajectory(object):
 			self._add_point(cur_cmd, 'left_gripper', real_ts + start_offset)
 			cur_cmd = [cmd['right_gripper']]
 			self._add_point(cur_cmd, 'right_gripper', real_ts + start_offset)
-			real_ts += action.ee_retiming[t-ts[0]]
+			real_ts += 0.75 # action.ee_retiming[t-ts[0]]
 
 	def _feedback(self, data):
 		# Test to see if the actual playback time has exceeded
@@ -398,6 +409,8 @@ def execute_plan(plan):
 
 			traj.start()
 			result = traj.wait()
+
+			import ipdb; ipdb.set_trace()
 
 			if action.params[2].name is 'monitor_pose' and i < len(plan.actions) - 1:
 				env_monitor.update_plan(plan, action.active_timesteps[1], params=['basket'])

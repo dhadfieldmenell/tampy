@@ -116,7 +116,7 @@ class Washer(Robot):
                               "barrel_21", "barrel_22", "barrel_23",
                               "barrel_24", "barrel_25", "barrel_26",
                               "barrel_27", "barrel_28", "barrel_29",
-                              "barrel_30", "barrel_back"])
+                              "barrel_30", "barrel_back", "base"])
 
     def setup(self, robot):
         pass

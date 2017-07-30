@@ -41,12 +41,12 @@ class RobotLLSolver(LLSolver):
         # To avoid numerical difficulties during optimization, try keep
         # range of coefficeint within 1e9
         # (largest_coefficient/smallest_coefficient < 1e9)
-        self.transfer_coeff = 1e-2
+        self.transfer_coeff = 1e0
         self.rs_coeff = 2e4
-        self.trajopt_coeff = 1e-2
+        self.trajopt_coeff = 1e0
         self.initial_trust_region_size = 1e-2
-        self.init_penalty_coeff = 4e4
-        self.smooth_penalty_coeff = 9e4
+        self.init_penalty_coeff = 4e3
+        self.smooth_penalty_coeff = 7e3
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
@@ -70,11 +70,13 @@ class RobotLLSolver(LLSolver):
     def backtrack_solve(self, plan, callback=None, verbose=False):
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
-        plan.restore_free_attrs()
+        # plan.restore_free_attrs()
         return success
 
     #@profile
     def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
+        # if anum == 2:
+        #     import ipdb; ipdb.set_trace()
         if amax is None:
             amax = len(plan.actions) - 1
 
@@ -112,10 +114,17 @@ class RobotLLSolver(LLSolver):
         elif a.name == 'cloth_putdown':
             ## find possible ee_poses for right arms
             rs_param = a.params[-1]
+        elif a.name =='put_into_washer':
+            rs_param = a.params[-1]
+        elif a.name =='take_out_of_washer':
+            rs_param = a.params[-1]
+        elif a.name == 'put_into_basket':
+            rs_param = a.params[-1]
         else:
             raise NotImplemented
 
         def recursive_solve():
+            # import ipdb; ipdb.set_trace()
             ## don't optimize over any params that are already set
             old_params_free = {}
             for p in plan.params.itervalues():
@@ -129,22 +138,20 @@ class RobotLLSolver(LLSolver):
                     p_attrs = {}
                     old_params_free[p] = p_attrs
                     for attr in p._free_attrs:
-                        p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]]
+                        p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                         p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = RobotLLSolver()
             success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
 
-            if success:
-                return True
-            ## reset free_attrs
-            for p in a.params:
+            # reset free_attrs
+            for p in plan.params.itervalues():
                 if p.is_symbol():
                     if p not in a.params: continue
                     p._free_attrs = old_params_free[p]
                 else:
                     for attr in p._free_attrs:
                         p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
-            return False
+            return success
 
         # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
         if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
@@ -172,7 +179,7 @@ class RobotLLSolver(LLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 10)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 25)
         if not robot_poses:
             print "Using Random Poses"
             robot_poses = self.random_pose_suggester(plan, anum, resample_size = 10)
@@ -229,7 +236,7 @@ class RobotLLSolver(LLSolver):
         return robot_pose
 
     #@profile
-    def obj_pose_suggester(self, plan, anum, resample_size = 10):
+    def obj_pose_suggester(self, plan, anum, resample_size = 20):
         robot_pose = []
         assert anum + 1 <= len(plan.actions) - 1
         act, next_act = plan.actions[anum], plan.actions[anum+1]
@@ -245,7 +252,7 @@ class RobotLLSolver(LLSolver):
         else:
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
-        robot_body.set_dof({'lArmPose': [0.785, 0, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, 0, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
+        robot_body.set_dof({'lArmPose': [0.785, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
         for i in range(resample_size):
             if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
                 target = next_act.params[2]
@@ -268,6 +275,72 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
+            elif next_act.name == 'put_into_washer':
+                target = next_act.params[2]
+                target_body = next_act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_pos = target.value[:,0]
+
+                random_dir = np.multiply(np.random.sample(3) - [3.5, 0.75, 0.25], [0.2, 0.1, 0.1])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([0, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif next_act.name == 'take_out_washer':
+                target = next_act.params[2]
+                target_body = next_act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_pos = target.value[:,0]
+
+                random_dir = np.multiply(np.random.sample(3) - [3.5, 0.5, 0.5], [0.2, 0.01, 0.01])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([0, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'take_out_of_Washer':
+                target = act.params[2]
+                target_body = act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_pos = target.value[:,0]
+
+                random_dir = np.multiply(np.random.sample(3) - [3.5, 0.5, 0.5], [0.2, 0.01, 0.01])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([0, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'put_into_washer':
+                target = act.params[2]
+                target_body = act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_pos = target.value[:,0]
+
+                random_dir = np.multiply(np.random.sample(3) - [3.5, 0.5, 0.5], [0.2, 0.01, 0.01])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([0, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
             elif next_act.name == 'cloth_grasp' or next_act.name == 'cloth_putdown':
                 target = next_act.params[2]
                 target_pos = target.value[:, 0]
@@ -279,7 +352,7 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['value'][:] = 0
                     target._free_attrs['rotation'][:] = 0
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.25], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.25], RESAMPLE_FACTOR)
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -290,13 +363,29 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[-0.785,0,0,0,0,0,0]]).T, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
+            elif next_act.name == 'put_into_basket':
+                target = next_act.params[4]
+                target_body = next_act.params[2].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_pos = target.value[:,0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0.5], RESAMPLE_FACTOR)
+                ee_pos = target_pos + random_dir
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, DOWN_ROT, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
             elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
                 target = act.params[2]
 
                 act.params[1].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
 
                 offset = np.array([0, baxter_constants.BASKET_OFFSET, 0])
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1], RESAMPLE_FACTOR)
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
 
@@ -311,8 +400,10 @@ class RobotLLSolver(LLSolver):
 
             elif act.name == 'cloth_grasp' or act.name == 'cloth_putdown':
                 target = act.params[2]
+                target_body = act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1], RESAMPLE_FACTOR)
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -322,16 +413,32 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-            elif next_act.name == "open_door" or next_act.name == "close_door":
+            elif act.name == 'put_into_basket':
+                target = act.params[4]
+                target_body = act.params[2].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_pos = target.value[:,0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0.5], RESAMPLE_FACTOR)
+                ee_pos = target_pos + random_dir
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, DOWN_ROT, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif next_act.name == "open_door":
                 target = next_act.params[-2]
                 target_body = next_act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
 
-                random_dir = np.multiply(np.random.sample(3) - baxter_constants.RESAMPLE_DIR, baxter_constants.RESAMPLE_FACTOR_LR)
+                random_dir = np.multiply(np.random.sample(3) - [.5, 1, 0], [.005, .2, .1])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array(baxter_constants.RESAMPLE_ROT)
+                ee_rot = np.array([np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
@@ -340,16 +447,51 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-            elif act.name == "open_door" or act.name == "close_door":
+            elif  next_act.name == "close_door":
+                target = next_act.params[-2]
+                target_body = next_act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_body.set_dof({'door': target.door[:, 0]})
+                target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
+
+                random_dir = np.multiply(np.random.sample(3) - [.5, 3, 0.5], [.025, .1, .2])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([np.pi/2, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == "open_door":
                 target = act.params[-1]
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
 
-                random_dir = np.multiply(np.random.sample(3) - baxter_constants.RESAMPLE_DIR, baxter_constants.RESAMPLE_FACTOR_LR)
+                random_dir = np.multiply(np.random.sample(3) - [.5, 3, 0.5], [.025, .1, .2])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array(baxter_constants.RESAMPLE_ROT)
+                ee_rot = np.array([np.pi/2, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == "close_door":
+                target = act.params[-1]
+                target_body = act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_body.set_dof({'door': target.door[:, 0]})
+                target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
+
+                random_dir = np.multiply(np.random.sample(3) - [.5, 1, 0], [.005, .2, .1])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
@@ -517,7 +659,7 @@ class RobotLLSolver(LLSolver):
                 if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
                     reward = len(plan.actions)
                 else:
-                    failed_t = plan.get_failed_pred(priority=priority)[2]
+                    failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
                     for i in range(len(plan.actions)):
                         if failed_t > plan.actions[i].active_timesteps[1]:
                             reward += 1

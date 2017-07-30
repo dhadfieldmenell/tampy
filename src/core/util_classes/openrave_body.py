@@ -189,7 +189,7 @@ class OpenRAVEBody(object):
 
     @staticmethod
     def create_box(env, name, transform, dims, color=[0,0,1]):
-        infobox = OpenRAVEBody.create_body_info(dims, color, 0, True)
+        infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, dims, color, 0, True)
         box = RaveCreateKinBody(env,'')
         box.InitFromGeometries([infobox])
         box.SetName(name)

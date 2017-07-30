@@ -4,10 +4,12 @@ from errors_exceptions import PredicateException
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import baxter_sampling
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
+import ctrajoptpy
 from collections import OrderedDict
-from openravepy import DOFAffine, quatRotateDirection, matrixFromQuat
+from openravepy import DOFAffine, Environment, quatRotateDirection, matrixFromQuat
 import numpy as np
 import core.util_classes.baxter_constants as const
+from core.util_classes.items import Box
 from core.util_classes.param_setup import ParamSetup
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
@@ -182,6 +184,15 @@ class BaxterStationaryWasher(robot_predicates.StationaryBase):
         self.attr_dim = 6
         super(BaxterStationaryWasher, self).__init__(name, params, expected_param_types, env)
 
+class BaxterStationaryWasherDoor(robot_predicates.StationaryBase):
+
+    # BaxterStationaryWasher, Washer (Only pose, rotation)
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_inds = OrderedDict([(params[0], ATTRMAP[params[0]._type][2:])])
+        self.attr_dim = 1
+        super(BaxterStationaryWasherDoor, self).__init__(name, params, expected_param_types, env)
+
 class BaxterStationaryBase(robot_predicates.StationaryBase):
 
     # StationaryBase, Robot (Only Robot Base)
@@ -325,8 +336,8 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         self.eval_dim = 6
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.array([0,0,-.025]) # np.zeros((3,))
-        self.rot_dir = np.array([0,0,np.pi/2])
+        self.rel_pt = np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rot_dir = np.array([0,0,1])
         super(BaxterEEGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
     # def resample(self, negated, t, plan):
@@ -521,6 +532,9 @@ class BaxterObstructsCloth(BaxterObstructs):
     pass
 
 class BaxterObstructsWasher(BaxterObstructs):
+    """
+    This collision checks the washer as a solid cube
+    """
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
         self.attr_dim = 17
         self.dof_cache = None
@@ -530,14 +544,14 @@ class BaxterObstructsWasher(BaxterObstructs):
                                  (params[3], list(ATTRMAP[params[3]._type][:-1]))])
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
+        # self.test_env = Environment()
+        # self._cc = ctrajoptpy.GetCollisionChecker(self.test_env)
+        # self._param_to_body = {}
+        # self._param_to_body[params[0]] = OpenRAVEBody(self._env, 'baxter_obstruct', params[0].geom)
+        self._param_to_body[params[3]] = OpenRAVEBody(self._env, 'washer_obstruct', Box([.325, .325, .325]))
+        self._env.Remove(self._param_to_body[params[3]].env_body)
 
     def robot_obj_collision(self, x):
-        """
-            This function is used to calculae collisiosn between Robot and Can
-            This function calculates the collision distance gradient associated to it
-            x: 26 dimensional list of values aligned in following order,
-            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
-        """
         # Parse the pose value
         self._plot_handles = []
         flattened = tuple(x.flatten())
@@ -550,27 +564,56 @@ class BaxterObstructsWasher(BaxterObstructs):
         robot_body = self._param_to_body[robot]
         self.set_robot_poses(x, robot_body)
 
-        obj = self.params[self.ind1]
-        obj_body = self._param_to_body[obj]
-        washer_pos, washer_rot = x[-7:-4], x[-4:-1]
-        obj_body.set_pose(washer_pos, washer_rot)
+        washer = self.params[self.ind1]
+        washer_body = self._param_to_body[washer]
+        self._env.Add(washer_body.env_body)
+        self._env.Remove(washer.openrave_body.env_body)
+        washer_pos, washer_rot = x[-6:-3], x[-3:]
+        washer_body.set_pose(washer_pos-[[0.1],[0],[0]], washer_rot)
 
         # Make sure two body is in the same environment
-        assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
+        assert robot_body.env_body.GetEnv() == washer_body.env_body.GetEnv()
         self.set_active_dof_inds(robot_body, reset=False)
         # Setup collision checkers
         self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
-        collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
+        collisions = self._cc.BodyVsBody(robot_body.env_body, washer_body.env_body)
         # Calculate value and jacobian
-        col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
+        col_val, col_jac = self._calc_grad_and_val(robot_body, washer_body, collisions)
         # set active dof value back to its original state (For successive function call)
         self.set_active_dof_inds(robot_body, reset=True)
+        self._env.Remove(washer_body.env_body)
+        self._env.Add(washer.openrave_body.env_body)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
         return col_val, col_jac
 
-    # def resample(self, negated, t, plan):
-    #     return None, None
+    def set_active_dof_inds(self, robot_body, reset = False):
+        robot = robot_body.env_body
+        if reset and self.dof_cache is not None:
+            robot.SetActiveDOFs(self.dof_cache)
+            self.dof_cache = None
+        elif not reset and self.dof_cache is None:
+            self.dof_cache = robot.GetActiveDOFIndices()
+            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
+        else:
+            raise PredicateException("Incorrect Active DOF Setting")
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def resample(self, negated, t, plan):
+        print "resample {}".format(self.get_type())
+        return baxter_sampling.resample_washer_obstructs(self, negated, t, plan)
 
 class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
@@ -695,6 +738,81 @@ class BaxterRCollides(robot_predicates.RCollides):
             robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
+
+class BaxterCollidesWasher(BaxterRCollides):
+    """
+    This collision checks the full mock-up as a set of its individual parts
+    """
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_dim = 17
+        self.dof_cache = None
+        self.coeff = -const.RCOLLIDE_COEFF
+        self.neg_coeff = const.RCOLLIDE_COEFF
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+                                 (params[1], list(ATTRMAP[params[1]._type][:-1]))])
+        super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
+        self.dsafe = const.RCOLLIDES_DSAFE
+
+    def robot_obj_collision(self, x):
+        # Parse the pose value
+        self._plot_handles = []
+        flattened = tuple(x.flatten())
+        # cache prevents plotting
+        # if flattened in self._cache and not self._debug:
+        #     return self._cache[flattened]
+
+        # Set pose of each rave body
+        robot = self.params[self.ind0]
+        robot_body = self._param_to_body[robot]
+        self.set_robot_poses(x, robot_body)
+
+        obj = self.params[self.ind1]
+        obj_body = self._param_to_body[obj]
+        washer_pos, washer_rot = x[-6:-3], x[-3:]
+        obj_body.set_pose(washer_pos, washer_rot)
+
+        # Make sure two body is in the same environment
+        assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
+        self.set_active_dof_inds(robot_body, reset=False)
+       # Setup collision checkers
+        self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
+        collisions = self._cc.BodyVsBody(robot_body.env_body, obj_body.env_body)
+        # Calculate value and jacobian
+        col_val, col_jac = self._calc_grad_and_val(robot_body, obj_body, collisions)
+        # set active dof value back to its original state (For successive function call)
+        self.set_active_dof_inds(robot_body, reset=True)
+        # self._cache[flattened] = (col_val.copy(), col_jac.copy())
+        # print "col_val", np.max(col_val)
+        return col_val, col_jac
+
+    def set_active_dof_inds(self, robot_body, reset = False):
+        robot = robot_body.env_body
+        if reset and self.dof_cache is not None:
+            robot.SetActiveDOFs(self.dof_cache)
+            self.dof_cache = None
+        elif not reset and self.dof_cache is None:
+            self.dof_cache = robot.GetActiveDOFIndices()
+            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
+        else:
+            raise PredicateException("Incorrect Active DOF Setting")
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def resample(self, negated, t, plan):
+        # return None, None
+        print "resample {}".format(self.get_type())
+        return baxter_sampling.resample_washer_rcollides(self, negated, t, plan)
 
 """
     EEReachable Constraints Family
@@ -986,7 +1104,7 @@ class BaxterWasherInGripper(BaxterInGripper):
         self.eval_dim = 4
         self.arm = 'left'
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.array([0,0,-.025])#np.zeros((3,))
+        self.rel_pt = np.array([0, 0.06, 0]) # np.zeros((3,))
         super(BaxterWasherInGripper, self).__init__(name, params, expected_param_types, env, debug)
         self.rot_coeff = 1e-2 #const.WASHER_IN_GRIPPER_ROT_COEFF
 
@@ -1295,12 +1413,42 @@ class BaxterPushHandle(BaxterPushWasher):
 """
 
 class BaxterBasketLevel(robot_predicates.BasketLevel):
-    # BaxterBasketLevel Basket
+    # BaxterBasketLevel BasketTarget
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-            self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]])])
-            self.attr_dim = 3
-            self.basket = params[0]
-            super(BaxterBasketLevel, self).__init__(name, params, expected_param_types, env, debug)
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]])])
+        self.attr_dim = 3
+        self.basket = params[0]
+        super(BaxterBasketLevel, self).__init__(name, params, expected_param_types, env, debug)
+
+class BaxterClothTargetInWasher(ExprPredicate):
+    # BaxterClothTargetInWasher ClothTarget WasherTarget
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_dim = 6
+        self.cloth_target = params[0]
+        self.washer_pose = params[1]
+        A = np.c_[np.eye(self.attr_dim/2), -np.eye(self.attr_dim/2)]
+        b = np.zeros((self.attr_dim/2,1))
+        val = np.array([[const.WASHER_DEPTH_OFFSET], [0], [-.17]])
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(BaxterClothTargetInWasher, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
+
+class BaxterClothInBasket(ExprPredicate):
+    # BaxterClothInBasket ClothTarget BasketTarget
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_dim = 6
+        self.cloth_target = params[0]
+        self.washer_pose = params[1]
+        A = np.c_[-np.eye(self.attr_dim/2), np.eye(self.attr_dim/2)]
+        A[:, -self.attr_dim/2-1] *= -1
+        A[:, -1] *= -1
+        b = np.zeros((self.attr_dim/2,1))
+        val = np.array([[0], [0], [-.2]])
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(BaxterClothInBasket, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
 
 class BaxterObjectWithinRotLimit(robot_predicates.ObjectWithinRotLimit):
     # BaxterObjectWithinRotLimit Object

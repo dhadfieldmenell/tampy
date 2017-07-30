@@ -994,6 +994,43 @@ class TestBaxterPredicates(unittest.TestCase):
         # if const.TEST_GRAD: pred2.expr.expr.grad(pred2.get_param_vector(0), num_check=True, atol=.1)
 
 
+    def test_obstructs_washer(self):
+        env = ParamSetup.setup_env()
+        baxter = ParamSetup.setup_baxter()
+        washer = ParamSetup.setup_washer()
+        sp = ParamSetup.setup_baxter_pose()
+        ep = ParamSetup.setup_baxter_pose()
+
+        pred = baxter_predicates.BaxterObstructsWasher("test_washer_obstructs", [baxter, sp, ep, washer], ["Robot", "RobotPose", "RobotPose", "Washer"], env, debug=True)
+        washer.pose[:,0] = [10, 10, 10]
+        self.assertFalse(pred.test(0))
+        lArmPoses = baxter.openrave_body.get_ik_from_pose([1, .84, .85], [0, 0, 0], "left_arm")
+        baxter.lArmPose = lArmPoses[0].reshape((7,1))
+        washer.pose[:,0] = [1, .84, .85]
+        self.assertTrue(pred.test(0))
+        washer.openrave_body.set_pose([10, 10, 10])
+        lArmPoses = baxter.openrave_body.get_ik_from_pose([1, .7, .85], [0, 0, 0], "left_arm")
+        baxter.lArmPose = lArmPoses[0].reshape((7,1))
+        self.assertTrue(pred.test(0))
+
+        washer.pose[:,0] = [10, 10, 10]
+        self.assertTrue(pred.test(0, negated=True))
+        lArmPoses = baxter.openrave_body.get_ik_from_pose([1, .84, .85], [0, 0, 0], "left_arm")
+        baxter.lArmPose = lArmPoses[0].reshape((7,1))
+        washer.pose[:,0] = [1, .84, .85]
+        self.assertFalse(pred.test(0, negated=True))
+        washer.openrave_body.set_pose([10, 10, 10])
+        lArmPoses = baxter.openrave_body.get_ik_from_pose([1, .7, .85], [0, 0, 0], "left_arm")
+        baxter.lArmPose = lArmPoses[0].reshape((7,1))
+        self.assertFalse(pred.test(0, negated=True))
+        self.assertTrue(pred.test(0))
+
+
+        washer.pose[:,0] = [10, 10, 10]
+        # This passes if the box is moved away, but not if it's in collision
+        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+
+
     def test_r_collides(self):
 
         # RCollides Robot Obstacle

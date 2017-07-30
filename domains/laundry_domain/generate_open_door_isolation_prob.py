@@ -13,13 +13,15 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_end
 BAXTER_INIT_POSE = [0]
 R_ARM_INIT = [0, -0.785, 0, 0, 0, 0, 0]
 # L_ARM_INIT = [1.4, -0.60014095, -0.02380042, 1.6950544, -1.01672975, 1.81809439, 2.73013861]
-L_ARM_INIT = [-1.2       , -0.85051322,  2.00920346,  2.4238917 ,  0.73827866, -1.26725175, -1.15887414]
+# L_ARM_INIT = [-1.2       , -0.85051322,  2.00920346,  2.4238917 ,  0.73827866, -1.26725175, -1.15887414]
+L_ARM_INIT = [0.1, -1.59057591, -0.6801021 ,  1.94044291, -1.51026054, -1.37401754,  1.20927025]
 INT_GRIPPER = [0.02]
 
 BAXTER_END_POSE = [0]
 R_ARM_END = [0, -0.785, 0, 0, 0, 0, 0]
-L_ARM_END = [ 0.5       , -1.18534201,  0.71007123,  1.76015989, -1.97408123, 1.33195381,  2.05750011]
+# L_ARM_END = [ 0.5       , -1.18534201,  0.71007123,  1.76015989, -1.97408123, 1.33195381,  2.05750011]
 # L_ARM_END = [1.6, -0.04485502, -0.19430292, 0.72713453, -0.8831729 , 2.06704384, 2.35019064]
+L_ARM_END = [0.4, -1.02689441, -0.13207545, 2.33743036, -0.50830039, -1.37165694, 0.18739024]
 
 END_GRIPPER = [0.02]
 # init basket pose
@@ -234,6 +236,7 @@ def main():
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
         s += get_robot_pose_str('robot_end_pose', L_ARM_END, R_ARM_END, END_GRIPPER, BAXTER_END_POSE)
+        # s += get_undefined_robot_pose_str('robot_end_pose')
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_POS)
