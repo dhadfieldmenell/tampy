@@ -827,6 +827,7 @@ class RobotLLSolver(LLSolver):
         # _free_attrs is paied attentioned in here
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
+        self._bexpr_to_pred = {}
         tol = 1e-3
         obj_bexprs = []
         rs_obj = self._update(plan, update_values)

@@ -1,5 +1,4 @@
 import numpy as np
-
 import unittest, time, main
 from pma import hl_solver, robot_ll_solver
 from core.parsing import parse_domain_config, parse_problem_config
@@ -178,7 +177,6 @@ class TestBasketDomain(unittest.TestCase):
         serializer.write_plan_to_hdf5("move_to_isolation.hdf5", plan)
         # import ipdb; ipdb.set_trace()
         self.assertTrue(result)
-
 
     """
     MOVETO action Isolation
@@ -438,7 +436,6 @@ class TestBasketDomain(unittest.TestCase):
         self.assertTrue(result)
 
         import ipdb; ipdb.set_trace()
-
 
     """
     PUSH_DOOR action Isolation
@@ -1349,7 +1346,6 @@ class TestBasketDomain(unittest.TestCase):
 
 
     def test_monitor_update(self):
-
         domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
@@ -1387,6 +1383,36 @@ class TestBasketDomain(unittest.TestCase):
         result = solver.monitor_update(plan, update_values)
 
         self.assertTrue(result)
+
+
+    def monitor_update_real_context(self):
+        from ros_interface.environment_monitor import EnvironmentMonitor
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5("env_mon.hdf5")
+        solver = robot_ll_solver.RobotLLSolver()
+        update_values = []
+        cloth = plan.params['cloth']
+        basket = plan.params['basket']
+        cloth_pos = cloth.pose[:, 5] + [0,0,0.01]
+        basket_pos = basket.pose[:, 5] + [-0.01,0,0]
+        np.save('basket_pose.npy', basket_pos)
+        np.save('cloth_pose.npy', cloth_pos)
+        # attr_inds, res = OrderedDict(), OrderedDict()
+        # baxter_sampling.add_to_attr_inds_and_res(5, attr_inds, res, cloth, [('pose', cloth_pos)])
+        # update_values.append((res, attr_inds))
+        #
+        # attr_inds, res = OrderedDict(), OrderedDict()
+        # baxter_sampling.add_to_attr_inds_and_res(5, attr_inds, res, basket, [('pose', basket_pos)])
+        env_mon = EnvironmentMonitor()
+        env_mon.basket_pose = basket_pos
+        env_mon.cloth_pose = cloth_pos
+
+        update_values = env_mon.update_plan(plan, 5, False)
+        result = solver.monitor_update(plan, update_values)
+
+        # self.assertTrue(result)
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,7 +8,7 @@ from std_msgs.msg import Int32MultiArray
 import cv_bridge
 
 import numpy as np
-
+from collections import OrderedDict
 import time
 
 def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
@@ -89,19 +89,19 @@ class EnvironmentMonitor:
 
 		if not params or 'basket' in params:
 			attr_inds, res = OrderedDict(), OrderedDict()
-			basket.pose[0, t] = table_pose[0] - self.basket_pose[0] 
+			basket.pose[0, t] = table_pose[0] - self.basket_pose[0]
 			basket.pose[1, t] = table_pose[1] +  self.basket_pose[1]
 			# basket.rotation[0,t] = self.basket_pose[2]
 			add_to_attr_inds_and_res(t, attr_inds, res, basket, [('pose', basket.pose[:,t]), ('rotation', basket.rotation[:,t])])
 			updated_values.append((res, attr_inds))
 
 			attr_inds, res = OrderedDict(), OrderedDict()
-			basket_init_target.value[0, 0] = table_pose[0] - self.basket_pose[0] 
+			basket_init_target.value[0, 0] = table_pose[0] - self.basket_pose[0]
 			basket_init_target.value[1, 0] = table_pose[1] +  self.basket_pose[1]
 			# basket_init_pose.rotation[0,t] = 1.57self.basket_pose[2]
-			add_to_attr_inds_and_res(t, attr_inds, res, basket, [('value', basket_init_target.value[:,0]), ('rotation', basket_init_target.rotation[:,0])])
+			add_to_attr_inds_and_res(t, attr_inds, res, basket, [('pose', basket_init_target.value[:,0]), ('rotation', basket_init_target.rotation[:,0])])
 			updated_values.append((res, attr_inds))
-			
+
 
 
 		if not params or 'cloth' in params:
@@ -113,8 +113,8 @@ class EnvironmentMonitor:
 			updated_values.append((res, attr_inds))
 
 			attr_inds, res = OrderedDict(), OrderedDict()
-			cloth_init_target.value[0,t] = table_pose[0] - self.cloth_pose[0]
-			cloth_init_target.value[1,t] = table_pose[1] + self.cloth_pose[1]
+			cloth_init_target.value[0,0] = table_pose[0] - self.cloth_pose[0]
+			cloth_init_target.value[1,0] = table_pose[1] + self.cloth_pose[1]
 			# cloth_init_pose.rotation[0,t] = self.coth_pose[2]
 			add_to_attr_inds_and_res(t, attr_inds, res, cloth_init_target, [('value', cloth_init_target.value[:,0]), ('rotation', cloth_init_target.rotation[:,0])])
 			updated_values.append((res, attr_inds))
