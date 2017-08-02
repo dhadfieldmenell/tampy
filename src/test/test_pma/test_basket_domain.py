@@ -13,6 +13,7 @@ from ros_interface import action_execution
 import core.util_classes.baxter_constants as const
 from openravepy import matrixFromAxisAngle
 import itertools
+from collections import OrderedDict
 
 def load_environment(domain_file, problem_file):
     domain_fname = domain_file
@@ -1346,6 +1347,46 @@ class TestBasketDomain(unittest.TestCase):
         self.assertTrue(result)
         import ipdb; ipdb.set_trace()
 
+
+    def test_monitor_update(self):
+
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/move_to_isolation.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_END_POSE',
+        ]
+        plan = hls.get_plan(plan_str, domain, problem)
+
+        print "solving move to isolation problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback():
+            return viewer
+
+        start = time.time()
+        solver = robot_ll_solver.RobotLLSolver()
+        result = solver.solve(plan, callback = callback, n_resamples=20)
+        end = time.time()
+
+        cloth = plan.params['cloth']
+        basket = plan.params['basket']
+        update_values = []
+
+        attr_inds, res = OrderedDict(), OrderedDict()
+        baxter_sampling.add_to_attr_inds_and_res(5, attr_inds, res, cloth, [('pose', np.array([0,1,0])), ('rotation', np.array([0,0,0]))])
+        update_values.append((res, attr_inds))
+
+        attr_inds, res = OrderedDict(), OrderedDict()
+        baxter_sampling.add_to_attr_inds_and_res(5, attr_inds, res, basket, [('pose', np.array([1,1,1])), ('rotation', np.array([0,np.pi/2,0]))])
+        update_values.append((res, attr_inds))
+        result = solver.monitor_update(plan, update_values)
+
+        self.assertTrue(result)
 
 if __name__ == "__main__":
     unittest.main()

@@ -511,7 +511,8 @@ class RobotLLSolver(LLSolver):
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
               verbose=False, force_init=False):
         success = False
-        viewer = callback()
+        if callback is not None:
+            viewer = callback()
         if force_init or not plan.initialized:
             self._solve_opt_prob(plan, priority=-2, callback=callback,
                 active_ts=active_ts, verbose=verbose)
@@ -811,6 +812,70 @@ class RobotLLSolver(LLSolver):
         self.grb_init_mapping = {}
         self.var_list = []
         self._grb_to_var_ind = {}
+
+    def monitor_update(self, plan, update_values, callback=None, n_resamples=5, active_ts=None, verbose=False):
+        if callback is not None: viewer = callback()
+        if active_ts==None:
+            active_ts = (0, plan.horizon-1)
+
+        plan.save_free_attrs()
+        model = grb.Model()
+        model.params.OutputFlag = 0
+        self._prob = Prob(model, callback=callback)
+        # _free_attrs is paied attentioned in here
+        self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
+        model.update()
+        tol = 1e-3
+        obj_bexprs = []
+        rs_obj = self._update(plan, update_values)
+        obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+
+        self._add_all_timesteps_of_actions(plan, priority=MAX_PRIORITY,
+            add_nonlin=False, active_ts= active_ts, verbose=verbose)
+        obj_bexprs.extend(rs_obj)
+        self._add_obj_bexprs(obj_bexprs)
+        initial_trust_region_size = 1e3
+
+        solv = Solver()
+        solv.initial_trust_region_size = initial_trust_region_size
+        solv.initial_penalty_coeff = self.init_penalty_coeff
+        solv.max_merit_coeff_increases = self.max_merit_coeff_increases
+        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
+        self._update_ll_params()
+
+        if DEBUG: assert not plan.has_nan(active_ts)
+
+        plan.restore_free_attrs()
+
+        self.reset_variable()
+        print "monitor_update\n"
+        return success
+
+    def _update(self, plan, update_values):
+        bexprs = []
+        for val, attr_inds in update_values:
+            if val is not None:
+                for p in attr_inds:
+                    ## get the ll_param for p and gurobi variables
+                    ll_p = self._param_to_ll[p]
+                    n_vals, i = 0, 0
+                    grb_vars = []
+                    for attr, ind_arr, t in attr_inds[p]:
+                        for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t-ll_p.active_ts[0]].flatten()):
+                            Q = np.eye(1)
+                            A = -2*val[p][i+j]*np.ones((1, 1))
+                            b = np.ones((1, 1))*np.power(val[p][i+j], 2)
+                            resample_coeff = self.rs_coeff/float(plan.horizon)
+                            # QuadExpr is 0.5*x^Tx + Ax + b
+                            quad_expr = QuadExpr(2*Q*resample_coeff, A*resample_coeff, b*resample_coeff)
+                            v_arr = np.array([grb_var]).reshape((1, 1), order='F')
+                            init_val = np.ones((1, 1))*val[p][i+j]
+                            sco_var = self.create_variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1)), save = True)
+                            bexpr = BoundExpr(quad_expr, sco_var)
+                            bexprs.append(bexpr)
+                        i += len(ind_arr)
+        return bexprs
+
 
     #@profile
     def _resample(self, plan, preds, sample_all = False):
