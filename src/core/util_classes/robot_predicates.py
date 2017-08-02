@@ -63,6 +63,7 @@ class CollisionPredicate(ExprPredicate):
         self.set_active_dof_inds(robot_body, reset=True)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
+        # import ipdb; ipdb.set_trace()
         return col_val, col_jac
 
     #@profile
@@ -145,6 +146,81 @@ class CollisionPredicate(ExprPredicate):
         self.set_active_dof_inds(robot_body, reset=True)
         # self._cache[flattened] = (val.copy(), jac.copy())
         return val, jac
+
+    def _old_calc_grad_and_val(self, robot_body, obj_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        col_links = robot.geom.col_links
+        num_links = len(col_links)
+        obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+        rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot, linkObj = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtA(), c.GetPtB()
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == robot_body.name and linkAParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtB(), c.GetPtA()
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
+            else:
+                continue
+            if linkRobot not in col_links:
+                continue
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot).GetIndex()
+            import ipdb; ipdb.set_trace()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptObj)
+            grad = np.zeros((1, self.attr_dim+6))
+            grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
+            # robot_grad = np.dot(sign * normal, robot_jac).reshape((1,20))
+            col_vec = -sign*normal
+            # Calculate object pose jacobian
+            # obj_jac = np.array([-sign*normal])
+            grad[:, self.attr_dim:self.attr_dim+3] = np.array([-sign*normal])
+            torque = ptObj - obj_pos[:3]
+            # Calculate object rotation jacobian
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
+            # obj_jac = np.c_[obj_jac, rot_vec]
+            grad[:, self.attr_dim+3:self.attr_dim+6] = rot_vec
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            # links.append((robot_link_ind, self.dsafe - distance, robot_grad, robot.GetLink(linkRobot)))
+            links.append((robot_link_ind, self.dsafe - distance, grad, robot.GetLink(linkRobot)))
+
+            if self._debug:
+                self.plot_collision(ptRobot, ptObj, distance)
+
+        # arrange gradients in proper link order
+        max_dist = self.dsafe - const.MAX_CONTACT_DISTANCE
+        vals, robot_grads = max_dist*np.ones((num_links,1)), np.zeros((num_links, self.attr_dim+6))
+        links = sorted(links, key = lambda x: x[0])
+        vals[:len(links),0] = np.array([link[1] for link in links])
+        robot_grads[:len(links), range(self.attr_dim+6)] = np.array([link[2] for link in links]).reshape((len(links), self.attr_dim+6))
+        # TODO: remove line below which was added for debugging purposes
+        self.links = links
+        return vals, robot_grads
 
     #@profile
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):

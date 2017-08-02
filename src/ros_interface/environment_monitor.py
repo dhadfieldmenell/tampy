@@ -11,6 +11,19 @@ import numpy as np
 
 import time
 
+def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
+    # param_attr_inds = []
+    if param.is_symbol():
+        t = 0
+    for attr_name, val in attr_name_val_tuples:
+        inds = np.where(param._free_attrs[attr_name][:, t])[0]
+        getattr(param, attr_name)[inds, t] = val[inds]
+        if param in attr_inds:
+            res[param].extend(val[inds].flatten().tolist())
+            attr_inds[param].append((attr_name, inds, t))
+        else:
+            res[param] = val[inds].flatten().tolist()
+            attr_inds[param] = [(attr_name, inds, t)]
 
 class EnvironmentMonitor:
 	def __init__(self):
@@ -66,25 +79,43 @@ class EnvironmentMonitor:
 				time.sleep(5)
 		basket = plan.params['basket']
 		cloth = plan.params['cloth']
-		basket_init_pose = plan.params['basket_init_target']
-		cloth_init_pose = plan.params['cloth_init_target']
+		basket_init_target = plan.params['basket_init_target']
+		cloth_init_target = plan.params['cloth_init_target']
 		table = plan.params['table']
 		table_pose = table.pose[:,0]
 		# import ipdb; ipdb.set_trace()
 
+		updated_values = []
+
 		if not params or 'basket' in params:
+			attr_inds, res = OrderedDict(), OrderedDict()
 			basket.pose[0, t] = table_pose[0] - self.basket_pose[0] 
 			basket.pose[1, t] = table_pose[1] +  self.basket_pose[1]
 			# basket.rotation[0,t] = self.basket_pose[2]
-			basket_init_pose.value[0, 0] = table_pose[0] - self.basket_pose[0] 
-			basket_init_pose.value[1, 0] = table_pose[1] +  self.basket_pose[1]
+			add_to_attr_inds_and_res(t, attr_inds, res, basket, [('pose', basket.pose[:,t]), ('rotation', basket.rotation[:,t])])
+			updated_values.append((res, attr_inds))
+
+			attr_inds, res = OrderedDict(), OrderedDict()
+			basket_init_target.value[0, 0] = table_pose[0] - self.basket_pose[0] 
+			basket_init_target.value[1, 0] = table_pose[1] +  self.basket_pose[1]
 			# basket_init_pose.rotation[0,t] = 1.57self.basket_pose[2]
+			add_to_attr_inds_and_res(t, attr_inds, res, basket, [('value', basket_init_target.value[:,0]), ('rotation', basket_init_target.rotation[:,0])])
+			updated_values.append((res, attr_inds))
+			
 
 
 		if not params or 'cloth' in params:
+			attr_inds, res = OrderedDict(), OrderedDict()
 			cloth.pose[0,t] = table_pose[0] - self.cloth_pose[0]
 			cloth.pose[1,t] = table_pose[1] + self.cloth_pose[1]
 			# cloth.rotation[0,t] = self.coth_pose[2]
-			cloth_init_pose.value[0,t] = table_pose[0] - self.cloth_pose[0]
-			cloth_init_pose.value[1,t] = table_pose[1] + self.cloth_pose[1]
+			add_to_attr_inds_and_res(t, attr_inds, res, cloth, [('pose', cloth.pose[:,t]), ('rotation', cloth.rotation[:,t])])
+			updated_values.append((res, attr_inds))
+
+			attr_inds, res = OrderedDict(), OrderedDict()
+			cloth_init_target.value[0,t] = table_pose[0] - self.cloth_pose[0]
+			cloth_init_target.value[1,t] = table_pose[1] + self.cloth_pose[1]
 			# cloth_init_pose.rotation[0,t] = self.coth_pose[2]
+			add_to_attr_inds_and_res(t, attr_inds, res, cloth_init_target, [('value', cloth_init_target.value[:,0]), ('rotation', cloth_init_target.rotation[:,0])])
+			updated_values.append((res, attr_inds))
+		return updated_values

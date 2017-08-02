@@ -1040,8 +1040,9 @@ class TestBaxterPredicates(unittest.TestCase):
         rPose = ParamSetup.setup_baxter_pose()
         table = ParamSetup.setup_box()
         test_env = ParamSetup.setup_env()
-        # test_env.SetViewer("qtcoin")
+        test_env.SetViewer("qtcoin")
         pred = baxter_predicates.BaxterRCollides("test_r_collides", [robot, table], ["Robot", "Table"], test_env, debug = True)
+        pred._debug = True
         # self.assertEqual(pred.get_type(), "RCollides")
         # Since can is not yet defined
         self.assertFalse(pred.test(0))
@@ -1049,6 +1050,7 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
         # This gradient test passed with a box
+        # import ipdb; ipdb.set_trace()
         if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
         # Move can so that it collide with robot base
         table.pose = np.array([[0],[0],[1.5]])
@@ -1092,7 +1094,14 @@ class TestBaxterPredicates(unittest.TestCase):
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
         # This gradient test is not passed
-        # if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+
+        table.pose = np.array([[.5],[1.45],[.5]])
+        table.rotation = np.array([[0,0,0]]).T
+        self.assertTrue(pred.test(0))
+        self.assertFalse(pred.test(0, negated = True))
+        # This gradient test is not passed
+        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
 
 
 

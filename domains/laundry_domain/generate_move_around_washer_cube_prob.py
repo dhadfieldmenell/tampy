@@ -12,7 +12,7 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose)"
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
 R_ARM_INIT = [-np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
-L_ARM_INIT = [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
+L_ARM_INIT = np.zeros((7,)) # [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
 

@@ -111,7 +111,7 @@ class OpenRAVEBody(object):
     def _add_wall(self, geom):
         self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
         self.env_body.SetName(self.name)
-        self._env.A.dd(self.env_body)
+        self._env.Add(self.env_body)
 
     def _add_obj(self, geom):
         self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)

@@ -1441,11 +1441,9 @@ class BaxterClothInBasket(ExprPredicate):
         self.attr_dim = 6
         self.cloth_target = params[0]
         self.washer_pose = params[1]
-        A = np.c_[-np.eye(self.attr_dim/2), np.eye(self.attr_dim/2)]
-        A[:, -self.attr_dim/2-1] *= -1
-        A[:, -1] *= -1
+        A = np.c_[np.eye(self.attr_dim/2), -np.eye(self.attr_dim/2)]
         b = np.zeros((self.attr_dim/2,1))
-        val = np.array([[0], [0], [-.2]])
+        val = np.array([[0], [0], [-.21]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(BaxterClothInBasket, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
