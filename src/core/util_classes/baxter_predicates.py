@@ -549,7 +549,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         # self._param_to_body = {}
         # self._param_to_body[params[0]] = OpenRAVEBody(self._env, 'baxter_obstruct', params[0].geom)
         self._param_to_body[params[3]] = OpenRAVEBody(self._env, 'washer_obstruct', Box([.325, .325, .325]))
-        self._env.Remove(self._param_to_body[params[3]].env_body)
+        self._param_to_body[params[3]].set_pose([10,10,10])
 
     def robot_obj_collision(self, x):
         # Parse the pose value
@@ -566,8 +566,6 @@ class BaxterObstructsWasher(BaxterObstructs):
 
         washer = self.params[self.ind1]
         washer_body = self._param_to_body[washer]
-        self._env.Add(washer_body.env_body)
-        self._env.Remove(washer.openrave_body.env_body)
         washer_pos, washer_rot = x[-6:-3], x[-3:]
         washer_body.set_pose(washer_pos-[[0.1],[0],[0]], washer_rot)
 
@@ -581,10 +579,9 @@ class BaxterObstructsWasher(BaxterObstructs):
         col_val, col_jac = self._calc_grad_and_val(robot_body, washer_body, collisions)
         # set active dof value back to its original state (For successive function call)
         self.set_active_dof_inds(robot_body, reset=True)
-        self._env.Remove(washer_body.env_body)
-        self._env.Add(washer.openrave_body.env_body)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
+        washer_body.set_pose([10,10,10])
         return col_val, col_jac
 
     def set_active_dof_inds(self, robot_body, reset = False):

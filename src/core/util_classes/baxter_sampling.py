@@ -1454,8 +1454,7 @@ def resample_washer_obstructs(pred, negated, t, plan):
     robot, obstacle = pred.robot, pred.obstacle
     rave_body, obs_body = robot.openrave_body, pred._param_to_body[obstacle] # obstacle.openrave_body
     body, obs = rave_body.env_body, obs_body.env_body
-    pred._env.Add(obs)
-    pred._env.Remove(obstacle.openrave_body.env_body)
+    obs_body.set_pose(obstacle.pose[:,t]-[.1,0,0])
     act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
     dof_value = np.r_[robot.lArmPose[:, t],
                       robot.lGripper[:, t],
@@ -1526,8 +1525,7 @@ def resample_washer_obstructs(pred, negated, t, plan):
             rave_body.set_dof({'lArmPose': l_arm_traj_2[:, traj_ind], 'rArmPose': r_arm_traj_2[:, traj_ind]})
             rave_body.set_pose([0,0,pose_traj_2[:, traj_ind]])
 
-    pred._env.Remove(obs)
-    pred._env.Add(obstacle.openrave_body.env_body)
+    obs_body.set_pose([0,0,0])
     return res, attr_inds
 
 
