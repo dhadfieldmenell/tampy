@@ -27,7 +27,7 @@
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_full_plan --debug
 
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.run_washer_manipulator_plan --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.run_washer_manipulator_plan --debug
 
 # nose2 test.test_ros_interface.test_action_execution.TestActionExecute.test_prototype2 --debug
 
@@ -52,7 +52,7 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.run_washer_manipulator_p
 
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_obstructs_holding --debug
 
-# nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_r_collides --debug
+nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_r_collides --debug
 #
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_new_ee_grasp_valid --debug
 

@@ -46,7 +46,7 @@ class RobotLLSolver(LLSolver):
         self.trajopt_coeff = 1e0
         self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 4e3
-        self.smooth_penalty_coeff = 7e3
+        self.smooth_penalty_coeff = 7e4
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
@@ -261,7 +261,7 @@ class RobotLLSolver(LLSolver):
 
                 next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], RESAMPLE_FACTOR)
                 ee_left = target_pos + offset + random_dir
                 ee_right = target_pos - offset + random_dir
 
@@ -352,7 +352,7 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['value'][:] = 0
                     target._free_attrs['rotation'][:] = 0
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.25], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.5], RESAMPLE_FACTOR)
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -369,7 +369,7 @@ class RobotLLSolver(LLSolver):
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0.5], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], [0.1, 0.1, 0.2])
                 ee_pos = target_pos + random_dir
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, DOWN_ROT, "left_arm")
                 if not len(ik_arm_poses):
@@ -385,7 +385,7 @@ class RobotLLSolver(LLSolver):
                 act.params[1].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
 
                 offset = np.array([0, baxter_constants.BASKET_OFFSET, 0])
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], RESAMPLE_FACTOR)
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
 
@@ -673,13 +673,14 @@ class RobotLLSolver(LLSolver):
 
     #@profile
     def traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
-        plan.save_free_attrs()
-        try:
-            success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
-        except:
-            print "Error occured during planning, but not catched"
-            return False
-        plan.restore_free_attrs()
+        # plan.save_free_attrs()
+        success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
+        # try:
+        #     success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
+        # except:
+        #     print "Error occured during planning, but not catched"
+        #     return False
+        # plan.restore_free_attrs()
         return success
 
     # @profile
@@ -687,7 +688,8 @@ class RobotLLSolver(LLSolver):
         print "Smoothing Trajectory..."
         priority = MAX_PRIORITY
         for attempt in range(n_resamples):
-            ## refinement loop
+            # refinement loop
+            print 'Smoother iteration #: {}\n'.format(attempt)
             success = self._solve_opt_prob(plan, priority=priority,
                             callback=callback, active_ts=active_ts, verbose=verbose, resample = False, smoothing = True)
             if success:
