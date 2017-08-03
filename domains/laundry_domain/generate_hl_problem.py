@@ -6,7 +6,7 @@ import random
 # SEED = 1234
 NUM_PROBS = 1
 filename = "laundry_probs/laundry_hl.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothInGripperLeft baxter cloth)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothAt cloth cloth_target_end_1)"
 
 
 # robot_init_pose
@@ -249,10 +249,13 @@ def main():
         s += "(BaxterOpenGripperLeft baxter), "
 
         s += "(BaxterPosePair cloth_grasp_begin_1 cloth_grasp_end_1), "
+        s += "(BaxterPosePair cloth_putdown_begin_1 cloth_putdown_end_1), "
 
         s += "(BaxterEEReachableLeftVer baxter cloth_grasp_begin_1 cg_ee_1), "
-        s += "(BaxterClothGraspValid cg_ee_1 cloth_init_target) "
+        s += "(BaxterClothGraspValid cg_ee_1 cloth_init_target), "
 
+        s += "(BaxterEEReachableLeftVer baxter cloth_putdown_begin_1 cp_ee_1), "
+        s += "(BaxterClothGraspValid cp_ee_1 cloth_target_end_1) "
         s += " \n\n"
 
         s += "Goal: {}".format(GOAL)
