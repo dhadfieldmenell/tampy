@@ -8,7 +8,7 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.param_setup import ParamSetup
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
-from ros_interface import action_execution
+# from ros_interface import action_execution
 import core.util_classes.baxter_constants as const
 from openravepy import matrixFromAxisAngle
 import itertools
@@ -1134,7 +1134,7 @@ class TestBasketDomain(unittest.TestCase):
         pd = PlanDeserializer()
         plan = pd.read_from_hdf5("washer_manipulation_plan.hdf5")
         viewer = OpenRAVEViewer.create_viewer(plan.env)
-        solver = robot_ll_solver.RobotLLSolver()
+        # solver = robot_ll_solver.RobotLLSolver()
         # print "Test Trajectory Smoother"
         # result = solver.traj_smoother(plan, callback=None, n_resamples=10, active_ts=None, verbose=False)
         # self.assertTrue(result)
