@@ -961,7 +961,7 @@ class At(ExprPredicate):
 
 class HLAnchor(ExprPredicate):
     """
-        Format: # HLAnchor, RobotPose, Item
+        Format: # HLAnchor, RobotPose, RobotPose
 
         Non-robot related
         Should Always return True
@@ -969,9 +969,9 @@ class HLAnchor(ExprPredicate):
     #@profile
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
-        self.robot_pose, self.target = params
-        attr_inds = OrderedDict([(self.robot_pose, [("value", np.array([0,1,2], dtype=np.int))]),
-                                 (self.target, [("pose", np.array([0,1,2], dtype=np.int))])])
+        self.rpose1, self.rpose2 = params
+        attr_inds = OrderedDict([(self.rpose1, [("value", np.array([0,1,2], dtype=np.int))]),
+                                 (self.rpose2, [("value", np.array([0,1,2], dtype=np.int))])])
 
         A = np.zeros((6, 6))
         b, val = np.zeros((6, 1)), np.zeros((6, 1))
@@ -1188,7 +1188,7 @@ class InContact(ExprPredicate):
     #@profile
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
-        self.robot, self.ee_pose, self.target = params
+        self.robot = params[0]
         attr_inds = self.attr_inds
 
         A = np.eye(1).reshape((1,1))
@@ -1220,7 +1220,7 @@ class InContacts(ExprPredicate):
     #@profile
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
-        self.robot, self.left_ee, self.right_ee, self.target = params
+        self.robot = params[0]
         attr_inds = self.attr_inds
 
         A = np.eye(2).reshape((2,2))

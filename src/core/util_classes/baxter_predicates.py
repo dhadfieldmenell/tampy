@@ -80,7 +80,7 @@ class BaxterWasherAt(robot_predicates.RobotAt):
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(BaxterWasherAt, self).__init__(name, params, expected_param_types, env)
 
-class BaxterClothPreGrasp(robot_predicates.HLAnchor):
+class BaxterPosePair(robot_predicates.HLAnchor):
     pass
 
 

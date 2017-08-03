@@ -234,18 +234,27 @@ def main():
 
 
         s += "(BaxterRobotAt baxter robot_init_pose), "
+        s += "(BaxterClothAt cloth cloth_init_target), "
+
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterStationary basket), "
         s += "(BaxterStationaryCloth cloth), "
         s += "(BaxterStationaryWasher washer), "
         s += "(BaxterStationaryWasherDoor washer), "
         s += "(BaxterStationaryW table), "
+
         s += "(BaxterBasketLevel basket), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "
+        s += "(BaxterOpenGripperLeft baxter), "
 
-        s += "(BaxterClothPreGrasp cloth_grasp_begin_1 cloth), "
-        s += "(BaxterClothAt cloth cloth_init_target) \n\n"
+        s += "(BaxterPosePair cloth_grasp_begin_1 cloth_grasp_end_1), "
+
+        s += "(BaxterEEReachableLeftVer baxter cloth_grasp_begin_1 cg_ee_1), "
+        s += "(BaxterClothGraspValid cg_ee_1 cloth_init_target) "
+
+        s += " \n\n"
+
         s += "Goal: {}".format(GOAL)
 
         with open(filename, "w") as f:
