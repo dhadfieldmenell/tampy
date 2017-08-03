@@ -81,7 +81,7 @@ class ParseProblemConfig(object):
                                                                           env=env))
                 except TypeError:
                     print("type error for {}".format(pred))
-                    import pdb; pdb.set_trace()
+                    import ipdb; ipdb.set_trace()
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0)

@@ -74,11 +74,15 @@ class BaxterWasherAt(robot_predicates.RobotAt):
 
         # RobotAt, Washer, WasherPose
 
-        def __init__(self, name, params, expected_param_types, env=None):
-            self.attr_dim = 7
-            self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
-                                     (params[1], list(ATTRMAP[params[1]._type]))])
-            super(BaxterWasherAt, self).__init__(name, params, expected_param_types, env)
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_dim = 7
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
+                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        super(BaxterWasherAt, self).__init__(name, params, expected_param_types, env)
+
+class BaxterClothPreGrasp(robot_predicates.HLAnchor):
+    pass
+
 
 class BaxterIsMP(robot_predicates.IsMP):
 

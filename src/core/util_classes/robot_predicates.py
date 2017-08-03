@@ -959,6 +959,27 @@ class At(ExprPredicate):
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
+class HLAnchor(ExprPredicate):
+    """
+        Format: # HLAnchor, RobotPose, Item
+
+        Non-robot related
+        Should Always return True
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.robot_pose, self.target = params
+        attr_inds = OrderedDict([(self.robot_pose, [("value", np.array([0,1,2], dtype=np.int))]),
+                                 (self.target, [("pose", np.array([0,1,2], dtype=np.int))])])
+
+        A = np.zeros((6, 6))
+        b, val = np.zeros((6, 1)), np.zeros((6, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(HLAnchor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
 class RobotAt(ExprPredicate):
     """
         Format: RobotAt, Robot, RobotPose
