@@ -9,7 +9,7 @@ from collections import OrderedDict
 from openravepy import DOFAffine, Environment, quatRotateDirection, matrixFromQuat
 import numpy as np
 import core.util_classes.baxter_constants as const
-from core.util_classes.items import Box
+from core.util_classes.items import Box, Can
 from core.util_classes.param_setup import ParamSetup
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
@@ -430,7 +430,7 @@ class BaxterEEGraspValidSide(BaxterEEGraspValid):
 
 class BaxterCloseGripperLeft(robot_predicates.InContact):
 
-    # BaxterCloseGripperLeft Robot EEPose Target
+    # BaxterCloseGripperLeft Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # Define constants
@@ -441,7 +441,7 @@ class BaxterCloseGripperLeft(robot_predicates.InContact):
 
 class BaxterCloseGripperRight(robot_predicates.InContact):
 
-    # BaxterCloseGripperRight Robot EEPose Target
+    # BaxterCloseGripperRight Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # Define constants
@@ -464,7 +464,7 @@ class BaxterOpenGripperRight(BaxterCloseGripperRight):
 
 class BaxterCloseGrippers(robot_predicates.InContacts):
 
-    # BaxterBasketCloseGripper robot EEPose EEPose BasketTarget
+    # BaxterBasketCloseGripper robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # Define constants
@@ -475,7 +475,7 @@ class BaxterCloseGrippers(robot_predicates.InContacts):
 
 class BaxterOpenGrippers(BaxterCloseGrippers):
 
-    # InContact robot EEPose EEPose BasketTarget
+    # InContact robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(BaxterOpenGrippers, self).__init__(name, params, expected_param_types, env, debug)
@@ -541,15 +541,19 @@ class BaxterObstructsWasher(BaxterObstructs):
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
-                                 (params[3], list(ATTRMAP[params[3]._type][:-1]))])
+                                 (params[3], list(ATTRMAP[params[3]._type]))])
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
         # self.test_env = Environment()
         # self._cc = ctrajoptpy.GetCollisionChecker(self.test_env)
         # self._param_to_body = {}
         # self._param_to_body[params[0]] = OpenRAVEBody(self._env, 'baxter_obstruct', params[0].geom)
-        self._param_to_body[params[3]] = OpenRAVEBody(self._env, 'washer_obstruct', Box([.325, .325, .325]))
-        self._param_to_body[params[3]].set_pose([10,10,10])
+        self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.325, .325, .325])),
+                                                                        OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
+                                                                        OpenRAVEBody(self._env, 'obstruct_handle', Can(.02, .15))]
+        self._param_to_body[params[3]][0].set_pose([10,10,10])
+        self._param_to_body[params[3]][1].set_pose([10,10,10])
+        self._param_to_body[params[3]][2].set_pose([10,10,10])
 
     def robot_obj_collision(self, x):
         # Parse the pose value
@@ -565,9 +569,16 @@ class BaxterObstructsWasher(BaxterObstructs):
         self.set_robot_poses(x, robot_body)
 
         washer = self.params[self.ind1]
-        washer_body = self._param_to_body[washer]
-        washer_pos, washer_rot = x[-6:-3], x[-3:]
+        washer_body = self._param_to_body[washer][0]
+        washer_door = self._param_to_body[washer][1]
+        washer_handle = self._param_to_body[washer][2]
+        washer_pos, washer_rot = x[-7:-4], x[-4:-1]
+        washer_door_pos = washer_pos.flatten()
+        washer_door_pos[0] += -.425 + np.sin(x[-1])*.325
+        washer_door_pos[1] += .325 - np.cos(x[-1])*.325
         washer_body.set_pose(washer_pos-[[0.1],[0],[0]], washer_rot)
+        washer_door.set_pose(washer_door_pos, [x[-1], np.pi/2, 0])
+        washer_handle.set_pose(washer_door_pos+[0,0,0.4])
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == washer_body.env_body.GetEnv()
@@ -582,7 +593,83 @@ class BaxterObstructsWasher(BaxterObstructs):
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
         washer_body.set_pose([10,10,10])
+        washer_door.set_pose([10,10,10])
+        washer_handle.set_pose([10,10,10])
         return col_val, col_jac
+
+    def _calc_grad_and_val(self, robot_body, obj_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        obj = self.params[self.ind1]
+        col_links = robot.geom.col_links
+        obj_links = obj.geom.col_links
+        obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+        rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot, linkObj = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtA(), c.GetPtB()
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == robot_body.name and linkAParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtB(), c.GetPtA()
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
+            else:
+                continue
+
+            if linkRobot not in col_links or linkObj not in obj_links:
+                continue
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
+
+            grad = np.zeros((1, self.attr_dim+7))
+            grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
+            col_vec =  -sign*normal
+            # Calculate object pose jacobian
+            grad[:, self.attr_dim:self.attr_dim+3] = col_vec
+            torque = ptObj - obj_pos[:3]
+            # Calculate object rotation jacobian
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
+            # obj_jac = np.c_[obj_jac, rot_vec]
+            grad[:, self.attr_dim+3:self.attr_dim+6] = rot_vec
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot), robot.GetLink(linkObj)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot, ptObj, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim+7)), None, None])
+            vals.append(col_infos[0])
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim+7))
+
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -609,6 +696,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         robot_body.set_dof(dof_value_map)
 
     def resample(self, negated, t, plan):
+        import ipdb; ipdb.set_trace()
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_washer_obstructs(self, negated, t, plan)
 
@@ -711,6 +799,43 @@ class BaxterRCollides(robot_predicates.RCollides):
     #@profile
     def resample(self, negated, t, plan):
         return baxter_sampling.resample_basket_obstructs(self, negated, t, plan)
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def set_active_dof_inds(self, robot_body, reset = False):
+        robot = robot_body.env_body
+        if reset and self.dof_cache is not None:
+            robot.SetActiveDOFs(self.dof_cache)
+            self.dof_cache = None
+        elif not reset and self.dof_cache is None:
+            self.dof_cache = robot.GetActiveDOFIndices()
+            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
+        else:
+            raise PredicateException("Incorrect Active DOF Setting")
+
+class BaxterRSelfCollides(robot_predicates.RSelfCollides):
+
+    # RCollides Robot
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_dim = 17
+        self.dof_cache = None
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
+        self.coeff = -const.RCOLLIDE_COEFF
+        self.neg_coeff = const.RCOLLIDE_COEFF
+        super(BaxterRSelfCollides, self).__init__(name, params, expected_param_types, env, debug)
+        self.dsafe = const.RCOLLIDES_DSAFE
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses

@@ -1452,7 +1452,7 @@ def resample_washer_obstructs(pred, negated, t, plan):
     # viewer = OpenRAVEViewer.create_viewer(plan.env)
     attr_inds, res = OrderedDict(), OrderedDict()
     robot, obstacle = pred.robot, pred.obstacle
-    rave_body, obs_body = robot.openrave_body, pred._param_to_body[obstacle] # obstacle.openrave_body
+    rave_body, obs_body = robot.openrave_body, pred._param_to_body[obstacle][0] # obstacle.openrave_body
     body, obs = rave_body.env_body, obs_body.env_body
     obs_body.set_pose(obstacle.pose[:,t]-[.1,0,0])
     act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
@@ -1480,8 +1480,6 @@ def resample_washer_obstructs(pred, negated, t, plan):
         else:
             continue
     if arm is None:
-        pred._env.Remove(obs)
-        pred._env.Add(obstacle.openrave_body.env_body)
         return None, None
 
     # arm = "left"
@@ -1561,7 +1559,6 @@ def resample_washer_rcollides(pred, negated, t, plan):
         else:
             continue
     if arm is None:
-        pred._env.Remove(obs)
         return None, None
 
     # arm = "left"

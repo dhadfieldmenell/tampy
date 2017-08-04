@@ -27,6 +27,39 @@ class CollisionPredicate(ExprPredicate):
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, tol=tol, priority = priority)
 
     #@profile
+    def robot_self_collision(self, x):
+        """
+            This function is used to calculae collisiosn between Robot and Can
+            This function calculates the collision distance gradient associated to it
+            x: 26 dimensional list of values aligned in following order,
+            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->CanPose->CanRot
+        """
+        # Parse the pose value
+        self._plot_handles = []
+        flattened = tuple(x.flatten())
+        # cache prevents plotting
+        # if flattened in self._cache and not self._debug:
+        #     return self._cache[flattened]
+
+        # Set pose of each rave body
+        robot = self.params[self.ind0]
+        robot_body = self._param_to_body[robot]
+        self.set_robot_poses(x, robot_body)
+
+        self.set_active_dof_inds(robot_body, reset=False)
+        # Setup collision checkers
+        self._cc.SetContactDistance(const.MAX_CONTACT_DISTANCE)
+        collisions = self._cc.BodyVsBody(robot_body.env_body, robot_body.env_body)
+        # Calculate value and jacobian
+        col_val, col_jac = self._calc_self_grad_and_val(robot_body, collisions)
+        # set active dof value back to its original state (For successive function call)
+        self.set_active_dof_inds(robot_body, reset=True)
+        # self._cache[flattened] = (col_val.copy(), col_jac.copy())
+        # print "col_val", np.max(col_val)
+        # import ipdb; ipdb.set_trace()
+        return col_val, col_jac
+
+    #@profile
     def robot_obj_collision(self, x):
         """
             This function is used to calculae collisiosn between Robot and Can
@@ -295,6 +328,69 @@ class CollisionPredicate(ExprPredicate):
             greds.append(col_infos[1])
 
         return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim+6))
+
+    #@profile
+    def _calc_self_grad_and_val(self, robot_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        col_links = robot.geom.col_links
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot1, linkRobot2 = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == robot_body.name:
+                ptRobot1, ptRobot2 = c.GetPtA(), c.GetPtB()
+                linkRobot1, linkRobot2 = linkA, linkB
+                sign = -1
+            else:
+                continue
+
+            if not (linkRobot1.startswith('right') or linkRobot1.startswith('left')) or \
+                        linkRobot1 == linkRobot2 or linkRobot2 == 'torso' or \
+                        linkRobot2.startswith('right') or linkRobot2.startswith('left'):
+                continue
+
+            if linkRobot1 not in col_links or linkRobot2 not in col_links:
+                continue
+
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot1).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot1)
+
+            grad = np.zeros((1, self.attr_dim))
+            grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot1, linkRobot2)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot1), robot.GetLink(linkRobot2)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot1, ptRobot2, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim)), None, None])
+            vals.append(col_infos[0])
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim))
 
     #@profile
     def _calc_obj_grad_and_val(self, obj_body, obstr_body, collisions):
@@ -1154,7 +1250,7 @@ class GraspValid(ExprPredicate):
 
 class InContact(ExprPredicate):
     """
-        Format: InContact robot EEPose(Right Arm) target
+        Format: InContact Robot
 
         Robot related
 
@@ -1167,7 +1263,7 @@ class InContact(ExprPredicate):
     #@profile
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
-        self.robot, self.ee_pose, self.target = params
+        self.robot = params[0]
         attr_inds = self.attr_inds
 
         A = np.eye(1).reshape((1,1))
@@ -1186,8 +1282,7 @@ class InContact(ExprPredicate):
 
 class InContacts(ExprPredicate):
     """
-        Format: InContact Robot EEPose(Left Arm) EEPose(Right Arm) Target
-
+        Format: InContact Robot
         Robot related
 
         Requires:
@@ -1199,7 +1294,7 @@ class InContacts(ExprPredicate):
     #@profile
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
-        self.robot, self.left_ee, self.right_ee, self.target = params
+        self.robot = params
         attr_inds = self.attr_inds
 
         A = np.eye(2).reshape((2,2))
@@ -1556,6 +1651,60 @@ class RCollides(CollisionPredicate):
 
         super(RCollides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1, priority = 3)
+        self.spacial_anchor = False
+
+    #@profile
+    def get_expr(self, negated):
+        if negated:
+            return self.neg_expr
+        else:
+            return None
+
+class RSelfCollides(CollisionPredicate):
+    """
+        Format: RCollides Robot
+
+        Robot related
+
+        Requires:
+            attr_dim[Int]:number of attribute in robot's full pose
+            attr_inds[OrderedDict]: robot attribute indices
+            set_robot_poses[Function]:Function that sets robot's poses
+            set_active_dof_inds[Function]:Function that sets robot's active dof indices
+            RCOLLIDES_OPT_COEFF[Float]: Obstructs_holding coeffitions, used during optimazation problem
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.robot = params[0]
+        # attr_inds for the robot must be in this exact order do to assumptions
+        # in OpenRAVEBody's _set_active_dof_inds and the way OpenRAVE's
+        # CalculateActiveJacobian for robots work (base pose is always last)
+        attr_inds = self.attr_inds
+
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        f = lambda x: self.coeff * self.robot_self_collision(x)[0]
+        grad = lambda x: self.coeff * self.robot_self_collision(x)[1]
+
+        ## so we have an expr for the negated predicate
+        f_neg = lambda x: self.neg_coeff * self.robot_self_collision(x)[0]
+        grad_neg = lambda x: self.neg_coeff * self.robot_self_collision(x)[1]
+
+        col_expr = Expr(f, grad)
+
+        self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.robot.geom.col_links)]
+        self.col_link_pairs = sorted(self.col_link_pairs)
+        links = len(self.col_link_pairs)
+
+        val = np.zeros((links,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, val)
+
+        super(RSelfCollides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=0, priority = 3)
         self.spacial_anchor = False
 
     #@profile

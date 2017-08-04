@@ -6,7 +6,7 @@ import random
 # SEED = 1234
 NUM_PROBS = 1
 filename = "laundry_probs/washer_manipulator_plan.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target), (BaxterClothAt cloth cloth_target_end_2), (BaxterWasherAt washer washer_close_pose)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_close_pose)"
 
 
 # robot_init_pose
@@ -41,7 +41,7 @@ TABLE_ROT = [0,0,0]
 
 # washer_pose
 WASHER_CONFIG = [True, True]
-WASHER_INIT_POS = [1.0, 0.84, 0.85]
+WASHER_INIT_POS = [0.95, 0.84, 0.85]
 WASHER_INIT_ROT = [np.pi/2,0,0]
 WASHER_OPEN_DOOR = [-np.pi/2]
 WASHER_CLOSE_DOOR = [0.0]

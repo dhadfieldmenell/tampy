@@ -1093,14 +1093,20 @@ class TestBaxterPredicates(unittest.TestCase):
         table.rotation = np.array([[0.8,0,0]]).T
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
-        # This gradient test is not passed
         if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
 
-        table.pose = np.array([[.5],[1.45],[.5]])
+        table.pose = np.array([[.6],[1.45],[.5]])
         table.rotation = np.array([[0,0,0]]).T
         self.assertTrue(pred.test(0))
         self.assertFalse(pred.test(0, negated = True))
-        # This gradient test is not passed
+        # There is an issue with the gradient here
+        if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
+
+        table.pose = np.array([[.5],[1.55],[.5]])
+        table.rotation = np.array([[0,0,0]]).T
+        self.assertTrue(pred.test(0))
+        # The coefficient on the RCollides constraint is small enough this gets through the normal tolerance
+        self.assertFalse(pred.test(0, negated = True, tol = 1e-4))
         if const.TEST_GRAD: pred.expr.expr.grad(pred.get_param_vector(0), num_check=True, atol=.1)
 
 

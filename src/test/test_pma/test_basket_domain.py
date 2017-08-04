@@ -1141,7 +1141,7 @@ class TestBasketDomain(unittest.TestCase):
         import ipdb; ipdb.set_trace()
 
 
-    def run_washer_manipulator_plan(self):
+    def test_washer_manipulation(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
@@ -1152,8 +1152,7 @@ class TestBasketDomain(unittest.TestCase):
         plan_str = [
         '0: MOVETO BAXTER ROBOT_INIT_POSE OPEN_DOOR_BEGIN',
         '1: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN OPEN_DOOR_EE_1 OPEN_DOOR_EE_2 OPEN_DOOR_END WASHER_CLOSE_POSE WASHER_OPEN_POSE',
-        '2: MOVETO BAXTER OPEN_DOOR_END MONITOR_POSE',
-        '3: MOVETO BAXTER MONITOR_POSE CLOSE_DOOR_BEGIN',
+        '2: MOVETO BAXTER OPEN_DOOR_END  CLOSE_DOOR_BEGIN',
         '4: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN CLOSE_DOOR_EE_1 CLOSE_DOOR_EE_2 CLOSE_DOOR_END WASHER_OPEN_POSE WASHER_CLOSE_POSE',
         '5: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
         ]
@@ -1281,6 +1280,69 @@ class TestBasketDomain(unittest.TestCase):
         self.assertTrue(result)
         import ipdb; ipdb.set_trace()
 
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        ]
+
+        plan = hls.get_plan(plan_str, domain, problem)
+        print "solving basket domain problem..."
+        # viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback(a): return viewer
+        velocites = np.ones((plan.horizon, ))*1
+
+        viewer.draw_plan_ts(plan, 0)
+        # import ipdb; ipdb.set_trace()
+
+        plan.params['robot_init_pose'].lArmPose[:,0] = [-0.2, -1.48486412, -0.57556553, 1.49087887, 0.04673458, 1.57856552, 0.01188452]
+        plan.params['baxter'].lArmPose[:,0] = [-0.2, -1.48486412, -0.57556553, 1.49087887, 0.04673458, 1.57856552, 0.01188452]
+        plan.params['cloth_grasp_begin_1'].lArmPose[:,0] = [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
+        plan.params['cloth_grasp_begin_1']._free_attrs['lArmPose'][:,:] = 0
+
+        solver = robot_ll_solver.RobotLLSolver()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        end = time.time()
+        # pd = PlanDeserializer()
+        # plan = pd.read_from_hdf5('prototype_plan.hdf5')
+        # import ipdb; ipdb.set_trace()
+        print "Planning finished within {}s.".format(end - start)
+        ee_time = traj_retiming(plan, velocites)
+        plan.time = ee_time.reshape((1, ee_time.shape[0]))
+
+        self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        ]
+
+        plan = hls.get_plan(plan_str, domain, problem)
+        print "solving basket domain problem..."
+        # viewer = OpenRAVEViewer.create_viewer(plan.env)
+        def callback(a): return viewer
+        velocites = np.ones((plan.horizon, ))*1
+
+        viewer.draw_plan_ts(plan, 0)
+        # import ipdb; ipdb.set_trace()
+
+        plan.params['robot_init_pose'].lArmPose[:,0] = [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
+        plan.params['cloth_grasp_begin_1'].lArmPose[:,0] = [-0.4, -1.17058344, -0.60703633,  1.29084892,  0.22444338, 1.51769343, -0.19577044]
+        plan.params['cloth_grasp_begin_1']._free_attrs['lArmPose'][:,:] = 0
+
+        solver = robot_ll_solver.RobotLLSolver()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        end = time.time()
+        # pd = PlanDeserializer()
+        # plan = pd.read_from_hdf5('prototype_plan.hdf5')
+        # import ipdb; ipdb.set_trace()
+        print "Planning finished within {}s.".format(end - start)
+        ee_time = traj_retiming(plan, velocites)
+        plan.time = ee_time.reshape((1, ee_time.shape[0]))
+
+        self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
+
     def test_prototype2(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)
@@ -1303,7 +1365,7 @@ class TestBasketDomain(unittest.TestCase):
         '9: MOVETO BAXTER BASKET_PUTDOWN_END MONITOR_POSE',
         '10: MOVETO BAXTER MONITOR_POSE OPEN_DOOR_BEGIN',
         '11: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN OPEN_DOOR_EE_1 OPEN_DOOR_EE_2 OPEN_DOOR_END WASHER_INIT_POSE WASHER_END_POSE',
-        '12: MOVETO BAXTER OPEN_DOOR_END CLOTH_GRASP_BEGIN_2',
+        '12: MOVETO BAXTER OPEN_DOOR_END  CLOTH_GRASP_BEGIN_2',
         '13: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
         '14: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
         '15: PUT_INTO_WASHER BAXTER WASHER WASHER_END_POSE CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',
@@ -1311,6 +1373,30 @@ class TestBasketDomain(unittest.TestCase):
         '17: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN CLOSE_DOOR_EE_1 CLOSE_DOOR_EE_2 CLOSE_DOOR_END WASHER_END_POSE WASHER_INIT_POSE',
         '18: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
         ]
+
+        # plan_str = [
+        # '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_1',
+        # '1: CLOTH_GRASP BAXTER CLOTH CLOTH_INIT_TARGET CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
+        # '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH',
+        # '3: PUT_INTO_BASKET BAXTER CLOTH BASKET CLOTH_TARGET_END_1 BASKET_INIT_TARGET CLOTH_PUTDOWN_BEGIN_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
+        # '4: MOVETO BAXTER CLOTH_PUTDOWN_END_1 MONITOR_POSE',
+        # '5: MOVETO BAXTER MONITOR_POSE BASKET_GRASP_BEGIN',
+        # '6: BASKET_GRASP BAXTER BASKET BASKET_INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+        # '7: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+        # '8: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+        # '9: MOVETO BAXTER BASKET_PUTDOWN_END MONITOR_POSE',
+        # '10: MOVETO BAXTER MONITOR_POSE OPEN_DOOR_BEGIN',
+        # '11: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN OPEN_DOOR_EE_1 OPEN_DOOR_EE_2 OPEN_DOOR_END WASHER_INIT_POSE WASHER_PUSH_POSE',
+        # '12: MOVETO BAXTER OPEN_DOOR_END PUSH_DOOR_BEGIN',
+        # '13: PUSH_DOOR BAXTER WASHER PUSH_DOOR_BEGIN PUSH_DOOR_END WASHER_PUSH_POSE WASHER_END_POSE',
+        # '14: MOVETO BAXTER PUSH_DOOR_END CLOTH_GRASP_BEGIN_2',
+        # '15: CLOTH_GRASP BAXTER CLOTH CLOTH_TARGET_BEGIN_2 CLOTH_GRASP_BEGIN_2 CG_EE_2 CLOTH_GRASP_END_2',
+        # '16: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_2 CLOTH_PUTDOWN_BEGIN_2 CLOTH',
+        # '17: PUT_INTO_WASHER BAXTER WASHER WASHER_END_POSE CLOTH CLOTH_TARGET_END_2 CLOTH_PUTDOWN_BEGIN_2 CP_EE_2 CLOTH_PUTDOWN_END_2',
+        # '18: MOVETO BAXTER CLOTH_PUTDOWN_END_2 CLOSE_DOOR_BEGIN',
+        # '19: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN CLOSE_DOOR_EE_1 CLOSE_DOOR_EE_2 CLOSE_DOOR_END WASHER_END_POSE WASHER_INIT_POSE',
+        # '20: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
+        # ]
 
         plan = hls.get_plan(plan_str, domain, problem)
         print "solving basket domain problem..."

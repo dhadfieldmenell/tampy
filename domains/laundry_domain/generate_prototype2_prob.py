@@ -34,10 +34,11 @@ TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
 WASHER_CONFIG = [True, True]
-WASHER_INIT_POS = [0.95, 0.84, 0.85]
+WASHER_INIT_POS = [0.95, 0.875, 0.85]
 WASHER_INIT_ROT = [np.pi/2,0,0]
 WASHER_OPEN_DOOR = [-np.pi/2]
 WASHER_CLOSE_DOOR = [0.0]
+WASHER_PUSH_DOOR = [-np.pi/6]
 
 CLOTH_INIT_POS_1 = [0.75, 0.251, 0.557]
 CLOTH_INIT_ROT_1 = [0,0,0]
@@ -134,12 +135,15 @@ def main():
         s += "RobotPose (name {}); ".format("cloth_grasp_end_2")
         s += "RobotPose (name {}); ".format("cloth_putdown_begin_2")
         s += "RobotPose (name {}); ".format("cloth_putdown_end_2")
+        s += "RobotPose (name {}); ".format("push_door_begin")
+        s += "RobotPose (name {}); ".format("push_door_end")
         s += "RobotPose (name {}); ".format("close_door_begin")
         s += "RobotPose (name {}); ".format("close_door_end")
         s += "RobotPose (name {}); ".format("robot_end_pose")
         s += "RobotPose (name {}); ".format("monitor_pose")
         s += "Washer (name {}); ".format("washer")
         s += "WasherPose (name {}); ".format("washer_init_pose")
+        s += "WasherPose (name {}); ".format("washer_push_pose")
         s += "WasherPose (name {}); ".format("washer_end_pose")
         s += "Obstacle (name {}); ".format("table")
         s += "Cloth (name {}); ".format("cloth")
@@ -214,6 +218,8 @@ def main():
         s += get_undefined_robot_pose_str("cloth_grasp_end_2")
         s += get_undefined_robot_pose_str("cloth_putdown_begin_2")
         s += get_undefined_robot_pose_str("cloth_putdown_end_2")
+        s += get_undefined_robot_pose_str("push_door_begin")
+        s += get_undefined_robot_pose_str("push_door_end")
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
@@ -228,6 +234,11 @@ def main():
         s += "(value washer_init_pose {}), ".format(WASHER_INIT_POS)
         s += "(rotation washer_init_pose {}), ".format(WASHER_INIT_ROT)
         s += "(door washer_init_pose {}), ".format(WASHER_CLOSE_DOOR)
+
+        s += "(geom washer_push_pose {}), ".format(WASHER_CONFIG)
+        s += "(value washer_push_pose {}), ".format(WASHER_INIT_POS)
+        s += "(rotation washer_push_pose {}), ".format(WASHER_INIT_ROT)
+        s += "(door washer_push_pose {}), ".format(WASHER_PUSH_DOOR)
 
         s += "(geom washer_end_pose {}), ".format(WASHER_CONFIG)
         s += "(value washer_end_pose {}), ".format(WASHER_INIT_POS)
