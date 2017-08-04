@@ -232,5 +232,19 @@ class TestHLSolver(unittest.TestCase):
         plan = self.hls.solve(self.hls.translate_problem(problem), self.domain, problem)
         self.assertEqual(plan, Plan.IMPOSSIBLE)
 
+
+    def test_hl_plan(self):
+        domain_fname, problem_fname = '../domains/laundry_domain/laundry_hl.domain', '../domains/laundry_domain/laundry_probs/laundry_hl.prob'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+
+        p_c = main.parse_file_to_dict(problem_fname)
+        hls = hl_solver.FFSolver(d_c)
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan = hls.solve(hls.translate_problem(problem), domain, problem)
+        print "\n\n" + str(plan.plan_str) + "\n\n"
+        self.assertFalse(plan == Plan.IMPOSSIBLE)
+
 if __name__ == '__main__':
     unittest.main()

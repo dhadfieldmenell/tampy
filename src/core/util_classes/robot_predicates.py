@@ -1055,6 +1055,27 @@ class At(ExprPredicate):
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
+class HLAnchor(ExprPredicate):
+    """
+        Format: # HLAnchor, RobotPose, RobotPose
+
+        Non-robot related
+        Should Always return True
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.rpose1, self.rpose2 = params
+        attr_inds = OrderedDict([(self.rpose1, [("value", np.array([0,1,2], dtype=np.int))]),
+                                 (self.rpose2, [("value", np.array([0,1,2], dtype=np.int))])])
+
+        A = np.zeros((6, 6))
+        b, val = np.zeros((6, 1)), np.zeros((6, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(HLAnchor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
 class RobotAt(ExprPredicate):
     """
         Format: RobotAt, Robot, RobotPose
@@ -1263,7 +1284,7 @@ class InContact(ExprPredicate):
     #@profile
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
-        self.robot = params[0]
+        self.robot = params
         attr_inds = self.attr_inds
 
         A = np.eye(1).reshape((1,1))

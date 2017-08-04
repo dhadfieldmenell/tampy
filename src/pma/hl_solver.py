@@ -182,7 +182,9 @@ class FFSolver(HLSolver):
                 plan_str[i] = str(len(prefix) + int(step)) + ':' + action
             plan_str = prefix + plan_str
         print plan_str
-        return self.get_plan(plan_str, domain, concr_prob)
+        plan = self.get_plan(plan_str, domain, concr_prob)
+        plan.plan_str = plan_str
+        return plan
 
     def get_plan(self, plan_str, domain, concr_prob):
         """
