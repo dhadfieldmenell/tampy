@@ -700,7 +700,6 @@ class BaxterObstructsWasher(BaxterObstructs):
         robot_body.set_dof(dof_value_map)
 
     def resample(self, negated, t, plan):
-        import ipdb; ipdb.set_trace()
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_washer_obstructs(self, negated, t, plan)
 
@@ -798,7 +797,7 @@ class BaxterRCollides(robot_predicates.RCollides):
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = const.RCOLLIDES_DSAFE
+        self.dsafe = 5e-2 # const.RCOLLIDES_DSAFE
 
     #@profile
     def resample(self, negated, t, plan):

@@ -1197,19 +1197,19 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
     """
     Linear Interp Traj
     """
-    # if action_inds > 0:
-    #     last_action = actions[action_inds-1]
-    #     act_start, act_end = last_action.active_timesteps
-    #     if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
-    #         timesteps = act_end - act_start
+    if action_inds > 0:
+        last_action = actions[action_inds-1]
+        act_start, act_end = last_action.active_timesteps
+        if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
+            timesteps = act_end - act_start
 
-    #         pose_traj = lin_interp_traj(robot.pose[:, act_start], robot.pose[:,t-step], timesteps)
-    #         left_arm_traj = lin_interp_traj(robot.lArmPose[:, act_start], robot.lArmPose[:, t-step], timesteps)
-    #         right_arm_traj = lin_interp_traj(robot.rArmPose[:, act_start], robot.rArmPose[:, t-step], timesteps)
-    #         for i in range(act_start+1, act_end):
-    #             traj_ind = i - act_start
-    #             add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_traj[:, traj_ind]), ('rArmPose', right_arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
-    #             rave_body.set_dof({'lArmPose': left_arm_traj[:, traj_ind], 'rArmPose': right_arm_traj[:, traj_ind]})
+            pose_traj = lin_interp_traj(robot.pose[:, act_start], robot.pose[:,t-step], timesteps)
+            left_arm_traj = lin_interp_traj(robot.lArmPose[:, act_start], robot.lArmPose[:, t-step], timesteps)
+            right_arm_traj = lin_interp_traj(robot.rArmPose[:, act_start], robot.rArmPose[:, t-step], timesteps)
+            for i in range(act_start+1, act_end):
+                traj_ind = i - act_start
+                add_to_attr_inds_and_res(i, attr_inds, res, robot, [('lArmPose', left_arm_traj[:, traj_ind]), ('rArmPose', right_arm_traj[:, traj_ind]), ('pose', pose_traj[:, traj_ind])])
+                rave_body.set_dof({'lArmPose': left_arm_traj[:, traj_ind], 'rArmPose': right_arm_traj[:, traj_ind]})
 
     # """
     #     Resample other parameters

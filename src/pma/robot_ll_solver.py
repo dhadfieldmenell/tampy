@@ -711,9 +711,44 @@ class RobotLLSolver(LLSolver):
         return success
 
     #@profile
-    def traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
+    def traj_smoother(self, plan, callback=None, n_resamples=5, verbose=False):
         # plan.save_free_attrs()
-        success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
+        a_num = 0
+        while a_num < len(plan.actions) - 1:
+            act_1 = plan.actions[a_num]
+            act_2 = plan.actions[a_num+1]
+            active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
+            # print active_ts
+            old_params_free = {}
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p in act_1.params or p in act_2.params: continue
+                    old_params_free[p] = p._free_attrs
+                    p._free_attrs = {}
+                    for attr in old_params_free[p].keys():
+                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                else:
+                    p_attrs = {}
+                    old_params_free[p] = p_attrs
+                    for attr in p._free_attrs:
+                        p_attrs[attr] = [p._free_attrs[attr][:, :active_ts[0]].copy(), p._free_attrs[attr][:, active_ts[1]:].copy()]
+                        p._free_attrs[attr][:, active_ts[1]:] = 0
+                        p._free_attrs[attr][:, :active_ts[0]] = 0
+            success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
+            # reset free_attrs
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p in act_1.params or p in act_2.params: continue
+                    p._free_attrs = old_params_free[p]
+                else:
+                    for attr in p._free_attrs:
+                        p._free_attrs[attr][:, :active_ts[0]] = old_params_free[p][attr][0]
+                        p._free_attrs[attr][:, active_ts[1]:] = old_params_free[p][attr][1]
+
+            if not success:
+                return success
+            print 'Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name)
+            a_num += 1
         # try:
         #     success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
         # except:
