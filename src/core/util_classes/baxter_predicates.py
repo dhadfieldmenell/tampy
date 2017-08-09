@@ -81,8 +81,24 @@ class BaxterWasherAt(robot_predicates.RobotAt):
         super(BaxterWasherAt, self).__init__(name, params, expected_param_types, env)
 
 class BaxterPosePair(robot_predicates.HLAnchor):
-    pass
 
+    # BaxterPosePair RobotPose RobotPose
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.one, self.two = params
+        self.attr_inds = OrderedDict([(self.one, [("value", np.array([0,1,2], dtype=np.int))]),
+                                      (self.two, [("value", np.array([0,1,2], dtype=np.int))])])
+        super(BaxterPosePair, self).__init__(name, params, expected_param_types, env)
+
+class BaxterClothInWasher(robot_predicates.HLAnchor):
+
+    # BaxterClothInWasher Cloth Washer
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.one, self.two = params
+        self.attr_inds = OrderedDict([(self.one, [("pose", np.array([0,1,2], dtype=np.int))]),
+                                      (self.two, [("pose", np.array([0,1,2], dtype=np.int))])])
+        super(BaxterClothInWasher, self).__init__(name, params, expected_param_types, env)
 
 class BaxterIsMP(robot_predicates.IsMP):
 

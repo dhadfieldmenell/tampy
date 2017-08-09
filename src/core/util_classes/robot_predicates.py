@@ -1065,9 +1065,7 @@ class HLAnchor(ExprPredicate):
     #@profile
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
-        self.rpose1, self.rpose2 = params
-        attr_inds = OrderedDict([(self.rpose1, [("value", np.array([0,1,2], dtype=np.int))]),
-                                 (self.rpose2, [("value", np.array([0,1,2], dtype=np.int))])])
+        attr_inds = self.attr_inds
 
         A = np.zeros((6, 6))
         b, val = np.zeros((6, 1)), np.zeros((6, 1))

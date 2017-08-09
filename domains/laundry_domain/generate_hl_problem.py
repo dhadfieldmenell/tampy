@@ -6,7 +6,9 @@ import random
 # SEED = 1234
 NUM_PROBS = 1
 filename = "laundry_probs/laundry_hl.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target), (BaxterClothAt cloth cloth_target_end_1)"
+# GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target), (BaxterWasherAt washer washer_open_pose), (BaxterClothAt cloth cloth_target_end_1)"
+
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target), (BaxterWasherAt washer washer_open_pose), (BaxterClothInWasher cloth washer)"
 
 
 # robot_init_pose
@@ -121,6 +123,7 @@ def main():
         s += "EEPose (name {}); ".format("cp_ee_2")
         s += "EEPose (name {}); ".format("close_door_ee_1")
         s += "EEPose (name {}); ".format("close_door_ee_2")
+        s += "EEPose (name {}); ".format("putin_washer_ee")
         s += "RobotPose (name {}); ".format("robot_init_pose")
         s += "RobotPose (name {}); ".format("cloth_grasp_begin_1")
         s += "RobotPose (name {}); ".format("cloth_grasp_end_1")
@@ -138,6 +141,8 @@ def main():
         s += "RobotPose (name {}); ".format("cloth_putdown_end_2")
         s += "RobotPose (name {}); ".format("close_door_begin")
         s += "RobotPose (name {}); ".format("close_door_end")
+        s += "RobotPose (name {}); ".format("putin_washer_begin")
+        s += "RobotPose (name {}); ".format("putin_washer_end")
         s += "RobotPose (name {}); ".format("robot_end_pose")
         s += "RobotPose (name {}); ".format("monitor_pose")
         s += "Washer (name {}); ".format("washer")
@@ -148,7 +153,9 @@ def main():
         s += "ClothTarget (name {}); ".format("cloth_init_target")
         s += "ClothTarget (name {}); ".format("cloth_target_end_1")
         s += "ClothTarget (name {}); ".format("cloth_target_begin_2")
-        s += "ClothTarget (name {}) \n\n".format("cloth_target_end_2")
+        s += "ClothTarget (name {}); ".format("cloth_target_end_2")
+        s += "ClothTarget (name {}) \n\n".format("cloth_in_washer_target")
+
 
         s += "Init: "
         s += "(geom basket), "
@@ -178,6 +185,9 @@ def main():
         s += "(value cloth_target_end_2 {}), ".format(CLOTH_END_POS_2)
         s += "(rotation cloth_target_end_2 {}), ".format(CLOTH_END_ROT_2)
 
+        s += "(value cloth_in_washer_target undefined), "
+        s += "(rotation cloth_in_washer_target undefined), "
+
         s += get_underfine_symbol("cg_ee_1")
         s += get_underfine_symbol("cp_ee_1")
         s += get_underfine_symbol("bg_ee_left")
@@ -190,6 +200,7 @@ def main():
         s += get_underfine_symbol("cp_ee_2")
         s += get_underfine_symbol("close_door_ee_1")
         s += get_underfine_symbol("close_door_ee_2")
+        s += get_underfine_symbol("putin_washer_ee")
 
         s += get_baxter_str('baxter', BAXTER_INIT_L_ARM, BAXTER_INIT_R_ARM, BAXTER_OPEN_GRIPPER, BAXTER_INIT_POSE)
 
@@ -210,6 +221,8 @@ def main():
         s += get_undefined_robot_pose_str("cloth_putdown_end_2")
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
+        s += get_undefined_robot_pose_str("putin_washer_begin")
+        s += get_undefined_robot_pose_str("putin_washer_end")
         s += get_robot_pose_str('monitor_pose', MONITOR_L_ARM, MONITOR_R_ARM, BAXTER_OPEN_GRIPPER, MONITOR_POSE)
         s += get_robot_pose_str('robot_end_pose', BAXTER_INIT_L_ARM, BAXTER_INIT_R_ARM, BAXTER_OPEN_GRIPPER, BAXTER_INIT_POSE)
 
@@ -236,6 +249,8 @@ def main():
         s += "(BaxterRobotAt baxter robot_init_pose), "
         s += "(BaxterClothAt cloth cloth_init_target), "
         s += "(BaxterAt basket basket_init_target), "
+        s += "(BaxterWasherAt washer washer_close_pose), "
+
         # Stationary Constraints
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterStationary basket), "
@@ -248,6 +263,8 @@ def main():
         s += "(BaxterPosePair cloth_putdown_begin_1 cloth_putdown_end_1), "
         s += "(BaxterPosePair basket_grasp_begin basket_grasp_end), "
         s += "(BaxterPosePair basket_putdown_begin basket_putdown_end), "
+        s += "(BaxterPosePair open_door_begin open_door_end), "
+        s += "(BaxterPosePair putin_washer_begin putin_washer_end), "
 
         # Cloth Grasp Constraints
         s += "(BaxterEEReachableLeftVer baxter cloth_grasp_begin_1 cg_ee_1), "
@@ -273,10 +290,22 @@ def main():
         s += "(BaxterBasketGraspRightPos bp_ee_right basket_end_target), "
         s += "(BaxterBasketGraspRightRot bp_ee_right basket_end_target), "
 
+        # Open Washer Constraints
+        s += "(BaxterEEApproachLeft baxter open_door_begin open_door_ee_1), "
+        s += "(BaxterEERetreatLeft baxter open_door_end open_door_ee_2), "
+        s += "(BaxterEEGraspValid open_door_ee_1 washer), "
+        s += "(BaxterEEGraspValid open_door_ee_2 washer), "
+
+        # Putin Washer Constraints
+        s += "(BaxterClothGraspValid putin_washer_ee cloth_in_washer_target), "
+        s += "(BaxterClothTargetInWasher cloth_in_washer_target washer_open_pose), "
+
+
 
         s += "(BaxterBasketLevel basket), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "
+        s += "(BaxterWasherWithinJointLimit washer), "
         s += "(BaxterOpenGripperLeft baxter), "
         s += "(BaxterOpenGripperRight baxter) "
 
