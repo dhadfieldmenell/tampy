@@ -99,7 +99,7 @@ class EnvironmentMonitor:
 			basket_init_target.value[0, 0] = table_pose[0] - self.basket_pose[0]
 			basket_init_target.value[1, 0] = table_pose[1] +  self.basket_pose[1]
 			# basket_init_pose.rotation[0,t] = 1.57self.basket_pose[2]
-			add_to_attr_inds_and_res(t, attr_inds, res, basket, [('value', basket_init_target.value[:,0]), ('rotation', basket_init_target.rotation[:,0])])
+			add_to_attr_inds_and_res(t, attr_inds, res, basket_init_target, [('value', basket_init_target.value[:,0]), ('rotation', basket_init_target.rotation[:,0])])
 			updated_values.append((res, attr_inds))
 
 

@@ -119,6 +119,7 @@ dp.add('BaxterObstructsWasher', ['Robot', 'RobotPose', 'RobotPose', 'Washer'])
 dp.add('BaxterObstructsHoldingCloth', ['Robot', 'RobotPose', 'RobotPose', 'Basket', 'Cloth'])
 dp.add('BaxterCollides', ['Basket', 'Obstacle'])
 dp.add('BaxterRCollides', ['Robot', 'Obstacle'])
+dp.add('BaxterRSelfCollides', ['Robot'])
 dp.add('BaxterCollidesWasher', ['Robot', 'Washer'])
 dp.add('BaxterEEReachableLeftVer', ['Robot', 'RobotPose', 'EEPose'])
 dp.add('BaxterEEReachableRightVer', ['Robot', 'RobotPose', 'EEPose'])
@@ -201,7 +202,8 @@ class Move(Action):
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\
                 ))','{}:{}'.format(0, end)),
-            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end))
+            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
         ]
         self.eff = [\
             (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
@@ -216,6 +218,7 @@ class MoveHoldingBasket(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
+            ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?basket))\
             )', '0:{}'.format(end)),
@@ -234,6 +237,7 @@ class MoveHoldingBasket(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
         ]
         self.eff = [\
@@ -251,6 +255,7 @@ class MoveHoldingCloth(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
+            ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
             )', '0:{}'.format(end)),
@@ -269,6 +274,7 @@ class MoveHoldingCloth(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
         ]
         self.eff = [\
@@ -465,6 +471,7 @@ class OpenDoor(Action):
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
             )', '0:{}'.format(grasp_time-1))
@@ -510,12 +517,14 @@ class PushDoor(Action):
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             # ('(BaxterWasherIsMP ?washer)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(not (BaxterObstructsWasher ?robot ?sp ?ep ?washer))', '0:{}'.format(end)),
             ('(BaxterWasherWithinJointLimit ?washer)', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -577,6 +586,7 @@ class CloseDoor(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -633,6 +643,7 @@ class ClothGrasp(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -687,6 +698,7 @@ class ClothPutdown(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -740,6 +752,7 @@ class PutIntoWasher(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -795,6 +808,7 @@ class TakeOutOfWasher(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -845,6 +859,7 @@ class PutIntoBasket(Action):
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\

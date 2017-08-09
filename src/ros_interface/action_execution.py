@@ -37,7 +37,7 @@ import threading
 
 from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 from pma.robot_ll_solver import RobotLLSolver
-from ros_interface.environment_monitor import EnvironmentMonitor
+# from ros_interface.environment_monitor import EnvironmentMonitor
 
 import rospy
 
@@ -324,7 +324,7 @@ class Trajectory(object):
 		#create a timeout for our trajectory execution
 		#total time trajectory expected for trajectory execution plus a buffer
 		last_time = self._r_goal.trajectory.points[-1].time_from_start.to_sec()
-		time_buffer = rospy.get_param(self._param_ns + 'goal_time', 0.0) + 2.5
+		time_buffer = rospy.get_param(self._param_ns + 'goal_time', 0.0) + 1 # 2.5
 		timeout = rospy.Duration(self._slow_move_offset +
 								 last_time +
 								 time_buffer)
@@ -396,7 +396,6 @@ def execute_plan(plan):
 		act.ee_retiming = ee_time[act_ts[0]:act_ts[1]]
 
 	enforce_joint_limits(plan)
-	plan.actions.sort(key=lambda a:a.active_timesteps[0])
 	if True or success:
 		for i in range(len(plan.actions)):
 			action = plan.actions[i]

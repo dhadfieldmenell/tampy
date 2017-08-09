@@ -118,6 +118,7 @@ class PlanDeserializer:
 
         plan = self._build_plan(file['plan'])
         file.close()
+        plan.actions.sort(key=lambda a:a.active_timesteps[0])
         return plan
 
 

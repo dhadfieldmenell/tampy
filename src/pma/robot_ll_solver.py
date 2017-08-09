@@ -42,7 +42,7 @@ class RobotLLSolver(LLSolver):
         # range of coefficeint within 1e9
         # (largest_coefficient/smallest_coefficient < 1e9)
         self.transfer_coeff = 1e0
-        self.rs_coeff = 2e4
+        self.rs_coeff = 2e2
         self.trajopt_coeff = 1e0
         self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 4e3
@@ -120,6 +120,8 @@ class RobotLLSolver(LLSolver):
             rs_param = a.params[-1]
         elif a.name == 'put_into_basket':
             rs_param = a.params[-1]
+        elif a.name == 'push_door':
+            rs_param = a.params[-3]
         else:
             raise NotImplemented
 
@@ -309,6 +311,24 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
+            elif next_act.name == 'push_door':
+                target = next_act.params[4]
+                target_body = next_act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_body.set_dof({'door': target.door[:, 0]})
+                target_pos = target_body.env_body.GetLink('washer_door').GetTransform()[:3,3]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5, 1, -4.0], [0.01, 0.05, 0.1])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([np.pi/2, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
             elif act.name == 'take_out_of_Washer':
                 target = act.params[2]
                 target_body = act.params[1].openrave_body
@@ -338,6 +358,24 @@ class RobotLLSolver(LLSolver):
                 if not len(ik_arm_poses):
                     continue
                 arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'push_door':
+                target = act.params[4]
+                target_body = act.params[1].openrave_body
+                target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+                target_body.set_dof({'door': target.door[:, 0]})
+                target_pos = target_body.env_body.GetLink('washer_door').GetTransform()[:3,3]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5, 1, -4.0], [0.01, 0.05, 0.1])
+                ee_pos = target_pos + random_dir
+                ee_rot = np.array([np.pi/2, 0, 0])
+                ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
+                if not len(ik_arm_poses):
+                    continue
+                arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
+
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
@@ -673,9 +711,44 @@ class RobotLLSolver(LLSolver):
         return success
 
     #@profile
-    def traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False):
+    def traj_smoother(self, plan, callback=None, n_resamples=5, verbose=False):
         # plan.save_free_attrs()
-        success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
+        a_num = 0
+        while a_num < len(plan.actions) - 1:
+            act_1 = plan.actions[a_num]
+            act_2 = plan.actions[a_num+1]
+            active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
+            # print active_ts
+            old_params_free = {}
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p in act_1.params or p in act_2.params: continue
+                    old_params_free[p] = p._free_attrs
+                    p._free_attrs = {}
+                    for attr in old_params_free[p].keys():
+                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                else:
+                    p_attrs = {}
+                    old_params_free[p] = p_attrs
+                    for attr in p._free_attrs:
+                        p_attrs[attr] = [p._free_attrs[attr][:, :active_ts[0]].copy(), p._free_attrs[attr][:, active_ts[1]:].copy()]
+                        p._free_attrs[attr][:, active_ts[1]:] = 0
+                        p._free_attrs[attr][:, :active_ts[0]] = 0
+            success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
+            # reset free_attrs
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p in act_1.params or p in act_2.params: continue
+                    p._free_attrs = old_params_free[p]
+                else:
+                    for attr in p._free_attrs:
+                        p._free_attrs[attr][:, :active_ts[0]] = old_params_free[p][attr][0]
+                        p._free_attrs[attr][:, active_ts[1]:] = old_params_free[p][attr][1]
+
+            if not success:
+                return success
+            print 'Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name)
+            a_num += 1
         # try:
         #     success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
         # except:
@@ -816,6 +889,7 @@ class RobotLLSolver(LLSolver):
         self._grb_to_var_ind = {}
 
     def monitor_update(self, plan, update_values, callback=None, n_resamples=5, active_ts=None, verbose=False):
+        print 'Resolving after environment update...\n'
         if callback is not None: viewer = callback()
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
@@ -834,10 +908,10 @@ class RobotLLSolver(LLSolver):
         obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
 
         self._add_all_timesteps_of_actions(plan, priority=MAX_PRIORITY,
-            add_nonlin=False, active_ts= active_ts, verbose=verbose)
+            add_nonlin=True, active_ts= active_ts, verbose=verbose)
         obj_bexprs.extend(rs_obj)
         self._add_obj_bexprs(obj_bexprs)
-        initial_trust_region_size = 1e3
+        initial_trust_region_size = 1e-2
 
         solv = Solver()
         solv.initial_trust_region_size = initial_trust_region_size
