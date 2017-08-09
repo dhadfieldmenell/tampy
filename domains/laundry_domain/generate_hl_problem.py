@@ -7,7 +7,7 @@ import random
 NUM_PROBS = 1
 filename = "laundry_probs/laundry_hl.prob"
 # GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothAt cloth cloth_target_end_1)"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterBasketInGripper baxter basket)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target)"
 
 
 # robot_init_pose
@@ -248,6 +248,7 @@ def main():
         s += "(BaxterPosePair cloth_grasp_begin_1 cloth_grasp_end_1), "
         s += "(BaxterPosePair cloth_putdown_begin_1 cloth_putdown_end_1), "
         s += "(BaxterPosePair basket_grasp_begin basket_grasp_end), "
+        s += "(BaxterPosePair basket_putdown_begin basket_putdown_end), "
 
         # Cloth Grasp Constraints
         s += "(BaxterEEReachableLeftVer baxter cloth_grasp_begin_1 cg_ee_1), "
@@ -264,6 +265,14 @@ def main():
         s += "(BaxterBasketGraspLeftRot bg_ee_left basket_init_target), "
         s += "(BaxterBasketGraspRightPos bg_ee_right basket_init_target), "
         s += "(BaxterBasketGraspRightRot bg_ee_right basket_init_target), "
+
+        # Basket Putdown Constraints
+        s += "(BaxterEEReachableLeftVer baxter basket_putdown_begin bp_ee_left), "
+        s += "(BaxterEEReachableRightVer baxter basket_putdown_begin bp_ee_right), "
+        s += "(BaxterBasketGraspLeftPos bp_ee_left basket_end_target), "
+        s += "(BaxterBasketGraspLeftRot bp_ee_left basket_end_target), "
+        s += "(BaxterBasketGraspRightPos bp_ee_right basket_end_target), "
+        s += "(BaxterBasketGraspRightRot bp_ee_right basket_end_target), "
 
 
         s += "(BaxterBasketLevel basket), "
