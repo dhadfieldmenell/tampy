@@ -121,6 +121,7 @@ def main():
         s += "EEPose (name {}); ".format("cp_ee_2")
         s += "EEPose (name {}); ".format("close_door_ee_1")
         s += "EEPose (name {}); ".format("close_door_ee_2")
+        s += "EEPose (name {}); ".format("putin_washer_ee")
         s += "RobotPose (name {}); ".format("robot_init_pose")
         s += "RobotPose (name {}); ".format("cloth_grasp_begin_1")
         s += "RobotPose (name {}); ".format("cloth_grasp_end_1")
@@ -138,6 +139,8 @@ def main():
         s += "RobotPose (name {}); ".format("cloth_putdown_end_2")
         s += "RobotPose (name {}); ".format("close_door_begin")
         s += "RobotPose (name {}); ".format("close_door_end")
+        s += "RobotPose (name {}); ".format("putin_washer_begin")
+        s += "RobotPose (name {}); ".format("putin_washer_end")
         s += "RobotPose (name {}); ".format("robot_end_pose")
         s += "RobotPose (name {}); ".format("monitor_pose")
         s += "Washer (name {}); ".format("washer")
@@ -148,7 +151,8 @@ def main():
         s += "ClothTarget (name {}); ".format("cloth_init_target")
         s += "ClothTarget (name {}); ".format("cloth_target_end_1")
         s += "ClothTarget (name {}); ".format("cloth_target_begin_2")
-        s += "ClothTarget (name {}) \n\n".format("cloth_target_end_2")
+        s += "ClothTarget (name {});".format("cloth_target_end_2")
+        s += "ClothTarget (name {}) \n\n".format("cloth_in_washer_target")
 
         s += "Init: "
         s += "(geom basket), "
@@ -178,6 +182,9 @@ def main():
         s += "(value cloth_target_end_2 {}), ".format(CLOTH_END_POS_2)
         s += "(rotation cloth_target_end_2 {}), ".format(CLOTH_END_ROT_2)
 
+        s += "(value cloth_in_washer_target undefined), "
+        s += "(rotation cloth_in_washer_target undefined), "
+
         s += get_underfine_symbol("cg_ee_1")
         s += get_underfine_symbol("cp_ee_1")
         s += get_underfine_symbol("bg_ee_left")
@@ -190,6 +197,7 @@ def main():
         s += get_underfine_symbol("cp_ee_2")
         s += get_underfine_symbol("close_door_ee_1")
         s += get_underfine_symbol("close_door_ee_2")
+        s += get_underfine_symbol("putin_washer_ee")
 
         s += get_baxter_str('baxter', BAXTER_INIT_L_ARM, BAXTER_INIT_R_ARM, BAXTER_OPEN_GRIPPER, BAXTER_INIT_POSE)
 
@@ -210,6 +218,9 @@ def main():
         s += get_undefined_robot_pose_str("cloth_putdown_end_2")
         s += get_undefined_robot_pose_str("close_door_begin")
         s += get_undefined_robot_pose_str("close_door_end")
+        s += get_undefined_robot_pose_str("putin_washer_begin")
+        s += get_undefined_robot_pose_str("putin_washer_end")
+
         s += get_robot_pose_str('monitor_pose', MONITOR_L_ARM, MONITOR_R_ARM, BAXTER_OPEN_GRIPPER, MONITOR_POSE)
         s += get_robot_pose_str('robot_end_pose', BAXTER_INIT_L_ARM, BAXTER_INIT_R_ARM, BAXTER_OPEN_GRIPPER, BAXTER_INIT_POSE)
 
