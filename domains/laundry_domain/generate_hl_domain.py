@@ -359,7 +359,112 @@ class ClothPutdown(Action):
             ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end))
         ]
 
-actions = [Move(), ClothGrasp(), MoveHoldingCloth(), ClothPutdown()]
+class BasketGrasp(Action):
+    def __init__(self):
+        self.name = 'basket_grasp'
+        self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?basket - Basket ?target - BasketTarget ?sp - RobotPose ?ee_left - EEPose ?ee_right - EEPose ?ep - RobotPose)'
+        grasp_time = const.EEREACHABLE_STEPS + 5
+        approach_time = 5
+        retreat_time = end-5
+        self.pre = [\
+            ('(BaxterAt ?basket ?target)', '0:{}'.format(grasp_time)),
+            ('(BaxterPosePair ?sp ?ep)', '0:0'),
+            ('(BaxterRobotAt ?robot ?sp)', '0:0'),
+            ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
+            ('(BaxterOpenGripperRight ?robot)', '{}:{}'.format(0,  grasp_time-1)),
+            ('(BaxterBasketGraspLeftPos ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterBasketGraspLeftRot ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterBasketGraspRightPos ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterBasketGraspRightRot ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterBasketInGripper ?robot ?basket))\
+            )', '0:{}'.format(grasp_time-1)),
+            ('(BaxterBasketLevel ?basket)', '{}:{}'.format(0, end)),
+            ('(forall (?obj - Basket) \
+                (BaxterStationary ?obj)\
+            )', '0:{}'.format(grasp_time-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle)\
+                (BaxterStationaryW ?obs)\
+            )', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
+            # ('(BaxterStationaryBase ?robot)', '{}:{}'.format(approach_time, retreat_time-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                )\
+            )', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle)\
+                (not (BaxterRCollides ?robot ?obs))\
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
+            )', '0:{}'.format(grasp_time-1)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructsHolding ?robot ?sp ?ep ?obj ?basket))\
+            )', '{}:{}'.format(grasp_time, end))
+        ]
+        self.eff = [\
+            ('(not (BaxterAt ?basket ?target))', '{}:{}'.format(end, end-1)) ,
+            ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
+            ('(BaxterBasketInGripper ?robot ?basket)', '{}:{}'.format(grasp_time, end)),
+            ('(BaxterCloseGrippers ?robot)', '{}:{}'.format(grasp_time,  end)),
+            ('(forall (?cloth - Cloth) (BaxterObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end-1)),
+            ('(forall (?sym1 - RobotPose)\
+                (forall (?sym2 - RobotPose)\
+                    (not (BaxterObstructs ?robot ?sym1 ?sym2 ?basket))\
+                )\
+            )', '{}:{}'.format(end, end-1)),
+            ('(forall (?sym1 - Robotpose)\
+                (forall (?sym2 - RobotPose)\
+                    (forall (?obj - Basket) (not (BaxterObstructsHolding ?robot ?sym1 ?sym2 ?basket ?obj)))\
+                )\
+            )', '{}:{}'.format(end, end-1))
+        ]
+
+class MoveHoldingBasket(Action):
+    def __init__(self):
+        self.name = 'moveholding_basket'
+        self.timesteps = 20
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?basket - Basket)'
+        self.pre = [\
+            ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?basket))\
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(forall (?cloth - Cloth) (BaxterObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end-1)),
+            ('(BaxterBasketLevel ?basket)', '{}:{}'.format(0, end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                )\
+            )', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
+        ]
+        self.eff = [\
+            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
+        ]
+
+actions = [Move(), ClothGrasp(), MoveHoldingCloth(), ClothPutdown(), BasketGrasp(), MoveHoldingBasket()]
 for action in actions:
     dom_str += '\n\n'
     dom_str += action.to_str()
@@ -369,6 +474,8 @@ dom_str = dom_str.replace('            ', '')
 dom_str = dom_str.replace('    ', '')
 dom_str = dom_str.replace('    ', '')
 
-print dom_str
+# print dom_str
 f = open('laundry_hl.domain', 'w')
 f.write(dom_str)
+
+print "Domain File Generated Successfully "

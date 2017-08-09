@@ -6,7 +6,8 @@ import random
 # SEED = 1234
 NUM_PROBS = 1
 filename = "laundry_probs/laundry_hl.prob"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothAt cloth cloth_target_end_1)"
+# GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothAt cloth cloth_target_end_1)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterBasketInGripper baxter basket)"
 
 
 # robot_init_pose
@@ -232,30 +233,45 @@ def main():
         s += "(pose table {}), ".format(TABLE_POS)
         s += "(rotation table {}); ".format(TABLE_ROT)
 
-
+        # Positional Constraints
         s += "(BaxterRobotAt baxter robot_init_pose), "
         s += "(BaxterClothAt cloth cloth_init_target), "
-
+        s += "(BaxterAt basket basket_init_target), "
+        # Stationary Constraints
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterStationary basket), "
         s += "(BaxterStationaryCloth cloth), "
         s += "(BaxterStationaryWasher washer), "
         s += "(BaxterStationaryWasherDoor washer), "
         s += "(BaxterStationaryW table), "
+        # Pose Pairing Constraints
+        s += "(BaxterPosePair cloth_grasp_begin_1 cloth_grasp_end_1), "
+        s += "(BaxterPosePair cloth_putdown_begin_1 cloth_putdown_end_1), "
+        s += "(BaxterPosePair basket_grasp_begin basket_grasp_end), "
+
+        # Cloth Grasp Constraints
+        s += "(BaxterEEReachableLeftVer baxter cloth_grasp_begin_1 cg_ee_1), "
+        s += "(BaxterClothGraspValid cg_ee_1 cloth_init_target), "
+
+        # Cloth Putdown Constraints
+        s += "(BaxterEEReachableLeftVer baxter cloth_putdown_begin_1 cp_ee_1), "
+        s += "(BaxterClothGraspValid cp_ee_1 cloth_target_end_1), "
+
+        # Basket Grasp Constraints
+        s += "(BaxterEEReachableLeftVer baxter basket_grasp_begin bg_ee_left), "
+        s += "(BaxterEEReachableRightVer baxter basket_grasp_begin bg_ee_right), "
+        s += "(BaxterBasketGraspLeftPos bg_ee_left basket_init_target), "
+        s += "(BaxterBasketGraspLeftRot bg_ee_left basket_init_target), "
+        s += "(BaxterBasketGraspRightPos bg_ee_right basket_init_target), "
+        s += "(BaxterBasketGraspRightRot bg_ee_right basket_init_target), "
+
 
         s += "(BaxterBasketLevel basket), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "
         s += "(BaxterOpenGripperLeft baxter), "
+        s += "(BaxterOpenGripperRight baxter) "
 
-        s += "(BaxterPosePair cloth_grasp_begin_1 cloth_grasp_end_1), "
-        s += "(BaxterPosePair cloth_putdown_begin_1 cloth_putdown_end_1), "
-
-        s += "(BaxterEEReachableLeftVer baxter cloth_grasp_begin_1 cg_ee_1), "
-        s += "(BaxterClothGraspValid cg_ee_1 cloth_init_target), "
-
-        s += "(BaxterEEReachableLeftVer baxter cloth_putdown_begin_1 cp_ee_1), "
-        s += "(BaxterClothGraspValid cp_ee_1 cloth_target_end_1) "
         s += " \n\n"
 
         s += "Goal: {}".format(GOAL)
@@ -265,3 +281,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print "Problem File Generated Successfully "
