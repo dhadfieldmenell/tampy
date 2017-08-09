@@ -710,7 +710,72 @@ class PutIntoWasher(Action):
             )', '{}:{}'.format(end, end-1))
         ]
 
-actions = [Move(), ClothGrasp(), MoveHoldingCloth(), ClothPutdown(), BasketGrasp(), MoveHoldingBasket(), BasketPutdown(), OpenDoor(), PutIntoWasher()]
+class CloseDoor(Action):
+    def __init__(self):
+        self.name = 'close_door'
+        self.timesteps = 2*(const.EEREACHABLE_STEPS+6) + 25
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?washer - Washer ?sp - RobotPose ?ee_approach - EEPose ?ee_retreat - EEPose ?ep - RobotPose ?wsp - WasherPose ?wep - WasherPose)'
+        grasp_time = const.EEREACHABLE_STEPS + 5
+        retreat_time = end - const.EEREACHABLE_STEPS - 5
+        self.pre = [\
+            ('(BaxterPosePair ?sp ?ep)', '0:0'),
+            ('(BaxterRobotAt ?robot ?sp)', '0:0'),
+            ('(BaxterWasherAt ?washer ?wsp)', '0:{}'.format(grasp_time)),
+            ('(BaxterEEApproachLeft ?robot ?sp ?ee_approach)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEGraspValid ?ee_approach ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEGraspValid ?ee_retreat ?washer)', '{}:{}'.format(retreat_time, retreat_time)),
+            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
+            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(retreat_time+1,  end)),
+            ('(BaxterEERetreatLeft ?robot ?ep ?ee_retreat)', '{}:{}'.format(retreat_time, retreat_time)),
+
+            ('(BaxterStationaryWasher ?washer)', '0:{}'.format(end-1)),
+            ('(forall (?obj - Basket) \
+                (BaxterStationary ?obj)\
+            )', '0:{}'.format(end-1)),
+            ('(forall (?obj - Cloth) \
+                (BaxterStationaryCloth ?obj)\
+            )', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle)\
+                (BaxterStationaryW ?obs)\
+            )', '{}:{}'.format(0, end-1)),
+            # ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, grasp_time-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            # ('(BaxterWasherIsMP ?washer)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(BaxterWasherWithinJointLimit ?washer)', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                )\
+            )', '0:{}'.format(end-1)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle)\
+                (not (BaxterRCollides ?robot ?obs))\
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
+            )', '0:{}'.format(grasp_time-1))
+        ]
+        self.eff = [\
+            ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  retreat_time)),
+            ('(not (BaxterCloseGripperLeft ?robot))', '{}:{}'.format(end,  end-1)),
+            ('(BaxterWasherInGripper ?robot ?washer)', '{}:{}'.format(grasp_time, retreat_time)),
+            ('(not (BaxterWasherInGripper ?robot ?washer))', '{}:{}'.format(end, end-1)),
+            ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
+            ('(not (BaxterWasherAt ?washer ?wsp))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
+            ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(retreat_time, end)),
+            ('(forall (?sym1 - RobotPose)\
+                (forall (?sym2 - RobotPose)\
+                (forall (?obj - Basket)\
+                    (not (BaxterObstructs ?robot ?sym1 ?sym2 ?obj)))\
+                )\
+            )', '{}:{}'.format(end, end-1))
+        ]
+
+actions = [Move(), ClothGrasp(), MoveHoldingCloth(), ClothPutdown(), BasketGrasp(), MoveHoldingBasket(), BasketPutdown(), OpenDoor(), PutIntoWasher(), CloseDoor()]
 for action in actions:
     dom_str += '\n\n'
     dom_str += action.to_str()

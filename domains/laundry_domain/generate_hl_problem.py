@@ -8,7 +8,7 @@ NUM_PROBS = 1
 filename = "laundry_probs/laundry_hl.prob"
 # GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target), (BaxterWasherAt washer washer_open_pose), (BaxterClothAt cloth cloth_target_end_1)"
 
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target), (BaxterWasherAt washer washer_open_pose), (BaxterClothInWasher cloth washer)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target), (BaxterWasherAt washer washer_close_pose), (BaxterClothInWasher cloth washer)"
 
 
 # robot_init_pose
@@ -258,6 +258,7 @@ def main():
         s += "(BaxterStationaryWasher washer), "
         s += "(BaxterStationaryWasherDoor washer), "
         s += "(BaxterStationaryW table), "
+
         # Pose Pairing Constraints
         s += "(BaxterPosePair cloth_grasp_begin_1 cloth_grasp_end_1), "
         s += "(BaxterPosePair cloth_putdown_begin_1 cloth_putdown_end_1), "
@@ -265,6 +266,7 @@ def main():
         s += "(BaxterPosePair basket_putdown_begin basket_putdown_end), "
         s += "(BaxterPosePair open_door_begin open_door_end), "
         s += "(BaxterPosePair putin_washer_begin putin_washer_end), "
+        s += "(BaxterPosePair close_door_begin close_door_end), "
 
         # Cloth Grasp Constraints
         s += "(BaxterEEReachableLeftVer baxter cloth_grasp_begin_1 cg_ee_1), "
@@ -290,7 +292,7 @@ def main():
         s += "(BaxterBasketGraspRightPos bp_ee_right basket_end_target), "
         s += "(BaxterBasketGraspRightRot bp_ee_right basket_end_target), "
 
-        # Open Washer Constraints
+        # Open Door Constraints
         s += "(BaxterEEApproachLeft baxter open_door_begin open_door_ee_1), "
         s += "(BaxterEERetreatLeft baxter open_door_end open_door_ee_2), "
         s += "(BaxterEEGraspValid open_door_ee_1 washer), "
@@ -300,7 +302,11 @@ def main():
         s += "(BaxterClothGraspValid putin_washer_ee cloth_in_washer_target), "
         s += "(BaxterClothTargetInWasher cloth_in_washer_target washer_open_pose), "
 
-
+        # Close Door Constraints
+        s += "(BaxterEEApproachLeft baxter close_door_begin close_door_ee_1), "
+        s += "(BaxterEERetreatLeft baxter close_door_end close_door_ee_2), "
+        s += "(BaxterEEGraspValid close_door_ee_1 washer), "
+        s += "(BaxterEEGraspValid close_door_ee_2 washer), "
 
         s += "(BaxterBasketLevel basket), "
         s += "(BaxterIsMP baxter), "
