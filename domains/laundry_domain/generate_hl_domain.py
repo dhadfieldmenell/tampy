@@ -543,6 +543,8 @@ class BasketPutdown(Action):
             )', '{}:{}'.format(end, end-1))
         ]
 
+
+
 actions = [Move(), ClothGrasp(), MoveHoldingCloth(), ClothPutdown(), BasketGrasp(), MoveHoldingBasket(), BasketPutdown()]
 for action in actions:
     dom_str += '\n\n'

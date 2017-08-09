@@ -6,8 +6,7 @@ import random
 # SEED = 1234
 NUM_PROBS = 1
 filename = "laundry_probs/laundry_hl.prob"
-# GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterClothAt cloth cloth_target_end_1)"
-GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target)"
+GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterAt basket basket_end_target), (BaxterClothAt cloth cloth_target_end_1)"
 
 
 # robot_init_pose
