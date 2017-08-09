@@ -20,8 +20,8 @@ MONITOR_LEFT = [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 MONITOR_RIGHT = [-np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 
 # init basket pose
-BASKET_INIT_POS = [0.65 , -0.283,  0.81]
-BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
+BASKET_INIT_POS = [0.675, -0.283,  0.81]
+BASKET_INIT_ROT = [7*np.pi/12, 0, np.pi/2]
 
 # end basket pose
 BASKET_END_POS = [0.65, 0., 0.81]
@@ -30,7 +30,7 @@ BASKET_END_ROT = [np.pi/2, 0, np.pi/2]
 
 ROBOT_DIST_FROM_TABLE = 0.05
 TABLE_GEOM = [0.3, 0.6, 0.018]
-TABLE_POS = [0.75, 0.02, 0.502]
+TABLE_POS = [0.75, 0.02, 0.5]
 TABLE_ROT = [0,0,0]
 
 WASHER_CONFIG = [True, True]
@@ -40,10 +40,10 @@ WASHER_OPEN_DOOR = [-np.pi/2]
 WASHER_CLOSE_DOOR = [0.0]
 WASHER_PUSH_DOOR = [-np.pi/6]
 
-CLOTH_INIT_POS_1 = [0.75, 0.251, 0.517]
+CLOTH_INIT_POS_1 = [0.75, 0.251, 0.53]
 CLOTH_INIT_ROT_1 = [0,0,0]
 
-CLOTH_END_POS_1 = [ 0.65 , -0.283,  0.561]
+CLOTH_END_POS_1 = [ 0.65 , -0.283,  0.54]
 CLOTH_END_ROT_1 = [0,0,0]
 
 
@@ -257,15 +257,18 @@ def main():
         s += "(BaxterEEReachableLeftVer baxter basket_grasp_begin bg_ee_left), "
         s += "(BaxterEEReachableRightVer baxter basket_grasp_begin bg_ee_right), "
 
-        s += "(BaxterBasketGraspLeftPos bg_ee_left basket_init_target), "
-        s += "(BaxterBasketGraspLeftRot bg_ee_left basket_init_target), "
-        s += "(BaxterBasketGraspRightPos bg_ee_right basket_init_target), "
-        s += "(BaxterBasketGraspRightRot bg_ee_right basket_init_target), "
+        # s += "(BaxterBasketGraspLeftPos bg_ee_left basket_init_target), "
+        # s += "(BaxterBasketGraspLeftRot bg_ee_left basket_init_target), "
+        # s += "(BaxterBasketGraspRightPos bg_ee_right basket_init_target), "
+        # s += "(BaxterBasketGraspRightRot bg_ee_right basket_init_target), "
+        s += "(BaxterBasketGraspValid bg_ee_left bg_ee_right basket_init_target), "
 
-        s += "(BaxterBasketGraspLeftPos bp_ee_left end_target), "
-        s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
-        s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
-        s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
+        # s += "(BaxterBasketGraspLeftPos bp_ee_left end_target), "
+        # s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
+        # s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
+        # s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
+        s += "(BaxterBasketGraspValid bp_ee_left bp_ee_right end_target), "
+
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "

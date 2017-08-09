@@ -21,8 +21,8 @@ L_ARM_END = [-0.8       , -1.52215574, -0.03973991,  1.35989406,  0.00195743, 1.
 
 END_GRIPPER = [0.015]
 # init basket pose
-BASKET_INIT_POS = [0.65 , -0.283,  0.81]
-BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
+BASKET_INIT_POS = [0.675 , -0.283,  0.81]
+BASKET_INIT_ROT = [7*np.pi/12, 0, np.pi/2]
 
 # end basket pose
 BASKET_END_POS = [0.65, 0.323, 0.81]
@@ -256,15 +256,17 @@ def main():
         s += "(BaxterEEReachableLeftVer baxter basket_grasp_begin bg_ee_left), "
         s += "(BaxterEEReachableRightVer baxter basket_grasp_begin bg_ee_right), "
 
-        s += "(BaxterBasketGraspLeftPos bg_ee_left init_target), "
-        s += "(BaxterBasketGraspLeftRot bg_ee_left init_target), "
-        s += "(BaxterBasketGraspRightPos bg_ee_right init_target), "
-        s += "(BaxterBasketGraspRightRot bg_ee_right init_target), "
+        # s += "(BaxterBasketGraspLeftPos bg_ee_left init_target), "
+        # s += "(BaxterBasketGraspLeftRot bg_ee_left init_target), "
+        # s += "(BaxterBasketGraspRightPos bg_ee_right init_target), "
+        # s += "(BaxterBasketGraspRightRot bg_ee_right init_target), "
 
-        s += "(BaxterBasketGraspLeftPos bp_ee_left end_target), "
-        s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
-        s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
-        s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
+        # s += "(BaxterBasketGraspLeftPos bp_ee_left end_target), "
+        # s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
+        # s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
+        # s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
+        s += "(BaxterBasketGraspValid bg_ee_left bg_ee_right init_target), "
+        s += "(BaxterBasketGraspValid bp_ee_left bp_ee_right end_target), "
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "
