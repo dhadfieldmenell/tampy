@@ -90,6 +90,16 @@ class BaxterPosePair(robot_predicates.HLAnchor):
                                       (self.two, [("value", np.array([0,1,2], dtype=np.int))])])
         super(BaxterPosePair, self).__init__(name, params, expected_param_types, env)
 
+class BaxterClothInBasket(robot_predicates.HLAnchor):
+
+    # BaxterClothInBasket Cloth ClothTarget Basket
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.one, self.two = params
+        self.attr_inds = OrderedDict([(self.one, [("pose", np.array([0,1,2], dtype=np.int))]),
+                                      (self.two, [("pose", np.array([0,1,2], dtype=np.int))])])
+        super(BaxterPosePair, self).__init__(name, params, expected_param_types, env)
+
 class BaxterClothInWasher(robot_predicates.HLAnchor):
 
     # BaxterClothInWasher Cloth Washer
