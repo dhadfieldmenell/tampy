@@ -31,7 +31,7 @@
 
 # nose2 test.test_ros_interface.test_action_execution.TestActionExecute.test_prototype2 --debug
 
-nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_traj_smoother --debug
+# nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_traj_smoother --debug
 
 # nose2 test.test_pma.test_basket_domain.TestBasketDomain.find_cloth_position --debug
 
@@ -50,7 +50,7 @@ nose2 test.test_pma.test_basket_domain.TestBasketDomain.test_traj_smoother --deb
 # Collision Predicates Check
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_obstructs --debug
 
-# nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_obstructs_holding --debug
+nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_basket_grasp_valid --debug
 
 # nose2 test.test_core.test_util_classes.test_baxter_predicates.TestBaxterPredicates.test_r_collides --debug
 #
