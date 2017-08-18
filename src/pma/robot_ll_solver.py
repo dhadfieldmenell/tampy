@@ -258,7 +258,9 @@ class RobotLLSolver(LLSolver):
         for i in range(resample_size):
             if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
                 target = next_act.params[2]
-                offset = np.array([0, baxter_constants.BASKET_OFFSET, 0])
+                target_rot = target.rotation[0, 0]
+                handle_dist = baxter_constants.BASKET_OFFSET
+                offset = np.array([handle_dist*np.cos(target_rot), handle_dist*np.sin(target_rot), 0])
                 target_pos = target.value[:, 0]
 
                 next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])

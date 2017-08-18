@@ -281,13 +281,13 @@ class BaxterGraspValidRot(BaxterGraspValid):
         self.attr_dim = 3
         super(BaxterGraspValidRot, self).__init__(name, params, expected_param_types, env, debug)
 
-class BaxterBasketGraspValid(robot_predicates.PosePredicate):
+class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
 
     # BaxterBasketGraspValid EEPose, EEPose, BasketTarget
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])), (params[1], list(ATTRMAP[params[1]._type])), (params[2], list(ATTRMAP[params[2]._type]))])
-        self.eval_dim = 12
+        self.eval_dim = 6
         self._env = env
         self.l_ee_pose, self.r_ee_pose, self.basket_target = params
 
@@ -297,7 +297,7 @@ class BaxterBasketGraspValid(robot_predicates.PosePredicate):
         self.eval_grad = self.stacked_grad
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(BaxterBasketGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, debug=debug, priority=0)
+        super(BaxterBasketGraspValidPos, self).__init__(name, e, self.attr_inds, params, expected_param_types, debug=debug, priority=0)
 
     # def resample(self, negated, t, plan):
     #     print "resample {}".format(self.get_type())
@@ -309,7 +309,7 @@ class BaxterBasketGraspValid(robot_predicates.PosePredicate):
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(left_ee_pos, left_ee_rot)
         left_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
 
-        right_ee_pos, right_ee_rot = x[:3], x[3:6]
+        right_ee_pos, right_ee_rot = x[6:9], x[9:12]
         right_trans = OpenRAVEBody.transform_from_obj_pose(right_ee_pos, right_ee_rot)
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(right_ee_pos, right_ee_rot)
         right_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
@@ -326,40 +326,109 @@ class BaxterBasketGraspValid(robot_predicates.PosePredicate):
         """
             This function is used to check whether:
                 basket is at both robot gripper's center
+
+            x -> left_ee_pos, left_ee_rot, right_ee_pos, right_ee_rot, basket_pos, basket_rot
         """
         left_rel_pt = [const.BASKET_OFFSET, 0, 0]
         right_rel_pt = [-const.BASKET_OFFSET, 0, 0]
-        left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.washer_obj_kinematics(x)
+        left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.pose_basket_kinematics(x)
 
-        left_target_pose = basket.dot(np.r_[left_rel_pt, 1])[:3]
-        left_pose = left_trans[:3, 3]
-        left_dist_val = (left_target_pose - left_pose).reshape((3,1))
+        left_target_pos =basket_trans.dot(np.r_[left_rel_pt, 1])[:3]
+        left_pos = left_trans[:3, 3]
+        left_dist_val = (left_target_pos - left_pos).reshape((3,1))
 
-        right_target_pose = basket.dot(np.r_[right_rel_pt, 1])[:3]
-        right_pose = right_trans[:3, 3]
-        right_dist_val = (right_target_pose - right_pose).reshape((3,1))
+        right_target_pos = basket_trans.dot(np.r_[right_rel_pt, 1])[:3]
+        right_pos = right_trans[:3, 3]
+        right_dist_val = (right_target_pos - right_pos).reshape((3,1))
 
-        return np.vstack(left_dist_val, right_dist_val)
+        return np.vstack([left_dist_val, right_dist_val])
+
+    def both_arm_ee_check_jac(self, x):
+        left_rel_pt = [const.BASKET_OFFSET, 0, 0]
+        right_rel_pt = [-const.BASKET_OFFSET, 0, 0]
+        left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.pose_basket_kinematics(x)
+
+        left_target_pos =basket_trans.dot(np.r_[left_rel_pt, 1])[:3]
+        left_pos = left_trans[:3, 3]
+        left_dist_val = (left_target_pos - left_pos).flatten()
+
+        right_target_pos = basket_trans.dot(np.r_[right_rel_pt, 1])[:3]
+        right_pos = right_trans[:3, 3]
+        right_dist_val = (right_target_pos - right_pos).flatten()
+
+        basket_pos_jac = np.vstack([np.array([np.cross(axis, left_target_pos - x[12:15, 0]) for axis in basket_axises]).T, \
+                                                             np.array([np.cross(axis, right_target_pos - x[12:15, 0]) for axis in basket_axises]).T])
+
+        left_jac = -1 * np.array([np.cross(axis, left_target_pos - left_pos) for axis in left_axises]).T
+        right_jac = -1 * np.array([np.cross(axis, right_target_pos - right_pos) for axis in right_axises]).T
+
+        return np.hstack([-np.eye(6,3), np.vstack([left_jac, np.zeros((3,3))]), -np.eye(6,3,-3), np.vstack([np.zeros((3,3)), right_jac]), np.eye(6,3)+np.eye(6,3,-3), np.zeros((6,3))])
+
+    def stacked_f(self, x):
+        return self.coeff * self.both_arm_pos_check_f(x)
+
+    def stacked_grad(self, x):
+        return self.coeff*self.both_arm_ee_check_jac(x)
+
+class BaxterBasketGraspValidRot(robot_predicates.PosePredicate):
+
+    # BaxterBasketGraspValid EEPose, EEPose, BasketTarget
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])), (params[1], list(ATTRMAP[params[1]._type])), (params[2], list(ATTRMAP[params[2]._type]))])
+        self.eval_dim = 6
+        self._env = env
+        self.l_ee_pose, self.r_ee_pose, self.basket_target = params
+
+        self.coeff = const.GRASP_VALID_COEFF
+        self.rot_coeff = const.GRASP_VALID_COEFF
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+
+        e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
+        super(BaxterBasketGraspValidRot, self).__init__(name, e, self.attr_inds, params, expected_param_types, debug=debug, priority=0)
+
+    # def resample(self, negated, t, plan):
+    #     print "resample {}".format(self.get_type())
+    #     return baxter_sampling.resample_basket_moveholding(self, negated, t, plan)
+
+    def pose_basket_kinematics(self, x):
+        left_ee_pos, left_ee_rot = x[:3], x[3:6]
+        left_trans = OpenRAVEBody.transform_from_obj_pose(left_ee_pos, left_ee_rot)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(left_ee_pos, left_ee_rot)
+        left_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        right_ee_pos, right_ee_rot = x[6:9], x[9:12]
+        right_trans = OpenRAVEBody.transform_from_obj_pose(right_ee_pos, right_ee_rot)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(right_ee_pos, right_ee_rot)
+        right_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        basket_pose, basket_rot = x[12:15], x[15:]
+        basket_trans = OpenRAVEBody.transform_from_obj_pose(basket_pose, basket_rot)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(basket_pose, basket_rot)
+        basket_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        return left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises
 
     #@profile
     def both_arm_rot_check_f(self, x):
         """
             This function is used to check whether:
-                object is at robot gripper's center
+                basket is at robot gripper's center
         """
-        pass
-
-    def both_arm_ee_check_jac(self, x):
-        pass
+        left_rot, right_rot, basket_rot = x[3:6], x[9:12], x[15:18]
+        left_rot_error = np.array([basket_rot[0]-np.pi/2, [np.pi/2], [0]]) - left_rot
+        right_rot_error = np.array([basket_rot[0]-np.pi/2, [np.pi/2], [0]]) - right_rot
+        return np.vstack([left_rot_error, right_rot_error])
 
     def both_arm_ee_rot_check_jac(self, x):
-        pass
+        return np.hstack([np.zeros((6, 3)), -np.eye(6,3), np.zeros((6,3)), -np.eye(6,3,-3), np.zeros((6,3)), np.eye(6,1)+np.eye(6,1,-3), np.zeros((6, 2))])
 
     def stacked_f(self, x):
-        return np.vstack([self.coeff * self.both_arm_pos_check_f(x), self.rot_coeff * self.both_arm_rot_check_f(x)])
+        return self.rot_coeff * self.both_arm_rot_check_f(x)
 
     def stacked_grad(self, x):
-        return np.vstack([self.coeff*self.both_arm_ee_check_jac(x), self.rot_coeff*self.both_arm_ee_rot_check_jac(x)])
+        return self.rot_coeff*self.both_arm_ee_rot_check_jac(x)
 
 class BaxterBasketGraspLeftPos(BaxterGraspValidPos):
     # BaxterBasketGraspLeftPos, EEPose, BasketTarget

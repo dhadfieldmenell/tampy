@@ -233,18 +233,19 @@ class TestBasketDomain(unittest.TestCase):
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
         plan_str = [
-         '0: BASKET_GRASP BAXTER BASKET INIT_TARGET ROBOT_INIT_POSE BG_EE_LEFT BG_EE_RIGHT ROBOT_END_POSE',
+         '0: MOVETO BAXTER ROBOT_INIT_POSE BASKET_GRASP_BEGIN',
+         '1: BASKET_GRASP BAXTER BASKET INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT ROBOT_END_POSE',
         ]
         plan = hls.get_plan(plan_str, domain, problem)
         baxter, basket = plan.params['baxter'], plan.params['basket']
         print "solving basket grasp isolation problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
-        def callback():
+        def callback(a):
             return viewer
 
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()
-        result = solver.solve(plan, callback = callback, n_resamples=10)
+        result = solver.backtrack_solve(plan, callback = callback)
         end = time.time()
 
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
@@ -259,6 +260,7 @@ class TestBasketDomain(unittest.TestCase):
         print "Saving current plan to file basket_grasp_isolation.hdf5..."
         serializer = PlanSerializer()
         serializer.write_plan_to_hdf5("basket_grasp_isolation.hdf5", plan)
+        import ipdb; ipdb.set_trace()
         self.assertTrue(result)
 
     """
