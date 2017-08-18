@@ -263,9 +263,9 @@ class RobotLLSolver(LLSolver):
 
                 next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], RESAMPLE_FACTOR)
-                ee_left = target_pos + offset + random_dir
-                ee_right = target_pos - offset + random_dir
+                const_dir = [0, 0, .125]
+                ee_left = target_pos + offset + const_dir
+                ee_right = target_pos - offset + const_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
