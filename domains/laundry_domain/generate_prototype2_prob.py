@@ -256,19 +256,10 @@ def main():
         s += "(BaxterWasherAt washer washer_init_pose), "
         s += "(BaxterEEReachableLeftVer baxter basket_grasp_begin bg_ee_left), "
         s += "(BaxterEEReachableRightVer baxter basket_grasp_begin bg_ee_right), "
-
-        # s += "(BaxterBasketGraspLeftPos bg_ee_left basket_init_target), "
-        # s += "(BaxterBasketGraspLeftRot bg_ee_left basket_init_target), "
-        # s += "(BaxterBasketGraspRightPos bg_ee_right basket_init_target), "
-        # s += "(BaxterBasketGraspRightRot bg_ee_right basket_init_target), "
-        s += "(BaxterBasketGraspValid bg_ee_left bg_ee_right basket_init_target), "
-
-        # s += "(BaxterBasketGraspLeftPos bp_ee_left end_target), "
-        # s += "(BaxterBasketGraspLeftRot bp_ee_left end_target), "
-        # s += "(BaxterBasketGraspRightPos bp_ee_right end_target), "
-        # s += "(BaxterBasketGraspRightRot bp_ee_right end_target), "
-        s += "(BaxterBasketGraspValid bp_ee_left bp_ee_right end_target), "
-
+        s += "(BaxterBasketGraspValidPos bg_ee_left bg_ee_right basket_init_target), "
+        s += "(BaxterBasketGraspValidRot bg_ee_left bg_ee_right basket_init_target), "
+        s += "(BaxterBasketGraspValidPos bp_ee_left bp_ee_right end_target), "
+        s += "(BaxterBasketGraspValidRot bp_ee_left bp_ee_right end_target), "
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "

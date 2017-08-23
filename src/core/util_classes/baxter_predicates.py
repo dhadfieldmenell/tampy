@@ -1230,7 +1230,6 @@ class BaxterEEReachableLeftVer(BaxterEEReachableLeft):
 
     #@profile
     def resample(self, negated, t, plan):
-        import ipdb; ipdb.set_trace()
         print "resample {}".format(self.get_type())
         return baxter_sampling.resample_eereachable_ver(self, negated, t, plan)
 
