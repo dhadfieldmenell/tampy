@@ -6,38 +6,53 @@ STATE_ENUM = 1
 OBS_ENUM = 2
 NOISE_ENUM = 3
 
-def get_action_description(action, u_params=None):
+def get_action_description(action, x_params=[], u_params=[]):
     params = action.params
     preds = action.preds
 
     params_to_x_inds, params_to_u_inds = {}, {}
     cur_x_ind, cur_u_ind = 0, 0
+    x_params_init, u_params_init = len(x_params), len(u_params)
     for param in params:
-        param_inds = {}
+        attr_to_x_inds = {}
+        attr_to_u_inds = {}
         param_attr_map = const.ATTR_MAP[param._type]
+        # Uses all parameters for state unless otherwise specified
+        if not x_params_init:
+            x_params.append(param)
+
         # Uses all non-symbol parameters for policy actions unless otherwise specified
-        if (u_params and param in u_params) or not (u_params or param.is_symbol()):
+        if not u_params_init and not param.is_symbol():
+            u_params.append(param)
+
+        if (param in x_params and param in u_params):
             param_attr_map = const.ATTR_MAP[param._type]
-            attr_to_u_inds = {}
             for attr in param_attr_map:
                 x_inds = attr[1] + cur_x_ind
                 cur_x_ind = x_inds[-1] + 1
                 x_vel_inds = attr[1] + cur_u_ind
                 cur_x_ind = x_vel_inds[-1] + 1
-                param_inds[attr[0]] = x_inds
-                param_inds[attr[0]+'__vel'] = x_vel_inds
+                attr_to_x_inds[attr[0]] = x_inds
+                attr_to_x_inds[attr[0]+'__vel'] = x_vel_inds
 
                 u_inds = attr[1] + cur_u_ind
                 cur_u_ind = u_inds[-1] + 1
                 attr_to_u_inds[attr[0]] = u_inds
+                
             params_to_u_inds[param] = attr_to_u_inds
-            params_to_x_inds[param] = param_inds
-        else:
+            params_to_x_inds[param] = attr_to_x_inds
+        elif param in x_params:
             for attr in param_attr_map:
                 inds = attr[1] + cur_x_ind
                 cur_x_ind = inds[-1] + 1
-                param_inds[attr[0]] = inds
-            params_to_x_inds[param] = param_inds
+                attr_to_x_inds[attr[0]] = inds
+            params_to_x_inds[param] = attr_to_x_inds
+        elif param in u_params:
+            for attr in param_attr_map:
+                inds = attr[1] + cur_u_ind
+                cur_u_ind = inds[-1] + 1
+                attr_to_u_inds[attr[0]] = inds
+            params_to_u_inds[param] = attr_to_u_inds
 
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds

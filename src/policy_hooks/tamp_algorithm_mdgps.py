@@ -10,6 +10,8 @@ from gps.algorithm.algorithm_utils import PolicyInfo
 from gps.algorithm.config import ALG_MDGPS
 from gps.sample.sample_list import SampleList
 
+import policy_hooks.policy_solver_utils as utils
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -87,9 +89,6 @@ class TAMPAlgorithmMDGPS(Algorithm):
 
         # Compute cost.
         cs = np.zeros((N, T))
-        cc = np.zeros((N, T))
-        cv = np.zeros((N, T, dX+dU))
-        Cm = np.zeros((N, T, dX+dU, dX+dU))
         for n in range(N):
             sample = self.cur[cond].sample_list[n]
             utils.fill_state_from_sample(sample, self.action, self.state_inds)

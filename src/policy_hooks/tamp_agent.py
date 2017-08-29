@@ -8,7 +8,7 @@ from gps.agent.agent_utils import generate_noise
 from gps.agent.config import AGENT
 from gps.sample.sample import Sample
 
-import pma.policy_solver_utils as utils
+import policy_hooks.policy_solver_utils as utils
 
 
 class TAMPAgent(Agent):
@@ -16,6 +16,12 @@ class TAMPAgent(Agent):
         config = copy.deepcopy(AGENT)
         config.update(hyperparams)
         self._hyperparams = config
+
+        self.plan = self._hyperparams['plan']
+        self.action = self._hyperparams['action']
+        self.state_inds = self._hyperparams['state_inds']
+        self.action_inds = self._hyperparams['action_inds']
+        self.solver = self._hyperparams['solver']
 
         # Store samples, along with size/index information for samples.
         self._samples = [[] for _ in range(self._hyperparams['conditions'])]
@@ -61,13 +67,15 @@ class TAMPAgent(Agent):
                                                    self._meta_idx)}
 
 
-    def sample(self, policy, condition, verbose=True, save=True, noisy=True):
+    def sample(self, policy, condition, verbose=False, save=True, noisy=False):
         sample = Sample(self)
         if noisy:
             noise = generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
         utils.reset_action(self.action, self.state_inds, self.x0[condition])
+        #TODO: Enforce this sample is close to the global policy
+        self.solver.solve(self.plan, n_resamples=5, active_ts=self.action.active_timesteps force_init=True)
         utils.fill_sample_ts_from_trajectory(sample, self.action, self.state_inds, self.action_inds, noise[0, :], 0, self.dX)
         active_ts = self.action.active_ts
         for t in range(active_ts[0], active_ts[1]+1):

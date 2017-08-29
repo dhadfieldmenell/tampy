@@ -5,6 +5,7 @@ from gps.algorithm.algorithm_utils import IterationData
 from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
 from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
 from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
+from gps.gps_main import GPSMain
 from gps.proto.gps_pb2 import JOINT_ANGLES, JOINT_VELOCITIES, \
         END_EFFECTOR_POINTS, END_EFFECTOR_POINT_VELOCITIES, \
         END_EFFECTOR_POINT_JACOBIANS, ACTION, RGB_IMAGE, NOISE
@@ -17,9 +18,9 @@ from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
 
 
 import core.util_classes.baxter_constants as const
-import pma.policy_hyperparams as hyperparams
-import pma.policy_solver_utils as utils
 from  pma.robot_ll_solver import RobotLLSolver
+import policy_hooks.policy_hyperparams as hyperparams
+import policy_hooks.policy_solver_utils as utils
 
 IMAGE_HEIGHT = 40
 IMAGE_WIDTH = 64
@@ -97,9 +98,7 @@ class BaxterPolicySolver(RobotLLSolver):
         self.agent = None
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
-    # TODO: Add hooks into the GPS policy optimizers
     # TODO: Add hooks for online policy learning
-    # TODO: Add more robust description of state
     def train_action_policy(self, action, n_samples=5, iterations=5, active_ts=None, num_conditions=1, callback=None, n_resamples=5, verbose=False):
         '''
         Integrates the GPS code base with the TAMPy codebase to create a robust
@@ -115,6 +114,9 @@ class BaxterPolicySolver(RobotLLSolver):
             utils.ACtiON_ENUM: dU
         }
 
+        x0 = np.zeros((1, dX))
+        utils.fill_vector(action.params, state_inds, x0[0], active_ts[0])
+
         config['agent'] = {
             'type': TAMPAgent,
             'x0': x0,
@@ -124,64 +126,17 @@ class BaxterPolicySolver(RobotLLSolver):
             'state_include': [utils.STATE_ENUM],
             'obs_include': [],
             'conditions': num_conditions,
+            'plan': plan,
             'action': action,
             'state_inds': state_inds,
-            'action_inds': action_inds
+            'action_inds': action_inds,
+            'solver': self
         }
 
-        self.agent = DummyAgent(active_ts[1] - active_ts[0] + 1)
-        dummy_hyperparams = {
-            'conditions': num_conditions,
-            'x0': self._get_random_initial_states(plan, action_type, num_conditions, action.active_timesteps),
-            'dU': agent.dU,
-            'dX': agent.dX,
-            'dO': agent.dO,
-            'dM': agent.dM,
-            'dQ': 14,
-            'T': agent.T,
-            'dt': agent.dt,
-            'state_include': agent.x_data_types,
-            'obs_include': agent.obs_data_types,
-            'smooth_noise': True,
-            'smooth_noise_var': 1.0,
-            'smooth_noise_renormalize': True
-        }
-        alg = DummyAlgorithm(dummy_hyperparams)
-        traj_opt = TrajOptPI2(dummy_hyperparams)
-
-        local_policies = []
-
-        # TODO: Move the block specific to centering the gripper to a separate function
-        for i in range(num_conditions):
-            self._reset_plan(plan, dummy_hyperparams['x0'][i], active_ts, i)
-            alg.cur[i].traj_distr = init_pd(dummy_hyperparams)
-            samples = []
-            sample_costs = np.zeros((n_samples, active_ts[1]-active_ts[0]+1))
-            for j in range(n_samples):
-                self.solve(plan, callback, n_resamples, active_ts=active_ts, verbose=verbose, force_init=True)
-                samples.append(self._traj_to_sample(plan, agent, active_ts))
-                sample_costs[j] = self._get_traj_cost(plan, active_ts)
-            alg.cur[i].sample_list = SampleList(samples)
-            alg.cur[i].traj_distr = traj_opt.update(i, alg, costs=sample_costs)[0]
-            local_policies.append(alg.cur[i].traj_distr)
-
-        for _ in range(1, iterations):
-            for i in range(num_conditions):
-                self._reset_plan(plan, dummy_hyperparams['x0'][i], active_ts, i)
-                samples = []
-                sample_costs = np.ndarray((n_samples, active_ts[1]-active_ts[0]+1))
-                for j in range(n_samples):
-                    joint_values = self._sample_to_traj(self._sample_policy(local_policies[i], agent, plan, active_ts, dummy_hyperparams))
-                    plan.params['baxter'].lArmPose[:,active_ts[0]:active_ts[1]+1] = joint_values[:7]
-                    plan.params['baxter'].rArmPose[:,active_ts[0]:active_ts[1]+1] = joint_values[7:14]                
-                    # self.solve(plan, callback, n_resamples, active_ts=active_ts, verbose=verbose, force_init=True)
-                    samples.append(self._traj_to_sample(plan, agent, active_ts))
-                    sample_costs[j] = self._get_traj_cost(plan, active_ts)
-                alg.cur[i].sample_list = SampleList(samples)
-                alg.cur[i].traj_distr = traj_opt.update(i, alg, costs=sample_costs)[0]
-                local_policies[i] = alg.cur[i].traj_distr
-        delattr(plan, 'target_arm_poses')
-        return policy
+        #TODO fill in call to algorithm
+        gps = GPSMain(config)
+        gps.run()
+        
 
     def train_pi2_policy(self, plan, policy=None, n_samples=10, iterations=10, num_conditions=1, active_ts=None, callback=None, n_resamples=0, verbose=False):
         '''
