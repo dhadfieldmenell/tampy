@@ -297,7 +297,7 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
         self.eval_grad = self.stacked_grad
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(BaxterBasketGraspValidPos, self).__init__(name, e, self.attr_inds, params, expected_param_types, debug=debug, priority=0)
+        super(BaxterBasketGraspValidPos, self).__init__(name, e, self.attr_inds, params, expected_param_types, debug=debug, priority=1)
 
     # def resample(self, negated, t, plan):
     #     print "resample {}".format(self.get_type())
@@ -386,7 +386,7 @@ class BaxterBasketGraspValidRot(robot_predicates.PosePredicate):
         self.eval_grad = self.stacked_grad
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        super(BaxterBasketGraspValidRot, self).__init__(name, e, self.attr_inds, params, expected_param_types, debug=debug, priority=0)
+        super(BaxterBasketGraspValidRot, self).__init__(name, e, self.attr_inds, params, expected_param_types, debug=debug, priority=1)
 
     # def resample(self, negated, t, plan):
     #     print "resample {}".format(self.get_type())

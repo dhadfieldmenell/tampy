@@ -17,10 +17,14 @@ from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
 
 
 import core.util_classes.baxter_constants as const
+import pma.policy_hyperparams as hyperparams
+import pma.policy_solver_utils as utils
 from  pma.robot_ll_solver import RobotLLSolver
 
 IMAGE_HEIGHT = 40
 IMAGE_WIDTH = 64
+
+config = hyperparams.config
 
 class DummyAgent(object):
     def __init__(self, T, dU, dX, dO, dM, sensor_dims):
@@ -94,18 +98,37 @@ class BaxterPolicySolver(RobotLLSolver):
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
     # TODO: Add hooks into the GPS policy optimizers
-    # TODO: Add hooks for direct baxter control
     # TODO: Add hooks for online policy learning
     # TODO: Add more robust description of state
-    def train_action_policy(self, plan, n_samples=5, iterations=5, active_ts=None, num_conditions=1, callback=None, n_resamples=5, verbose=False):
+    def train_action_policy(self, action, n_samples=5, iterations=5, active_ts=None, num_conditions=1, callback=None, n_resamples=5, verbose=False):
         '''
         Integrates the GPS code base with the TAMPy codebase to create a robust
         system for combining motion planning with policy learning
         '''
-        if not active_ts:
-                active_ts = (0, plan.horizon-1)
-        action = filter(lambda a: a.active_timesteps[0] >= active_ts[0], plan.actions)[0]
-        action_type = action.name
+        config = baxter_config
+        dX, state_inds, dU, action_inds = get_action_description(action)
+        active_ts = action.active_timesteps
+        T = active_ts[1] - active_ts[0] + 1
+
+        sensor_dims = {
+            utils.STATE_ENUM: dX,
+            utils.ACtiON_ENUM: dU
+        }
+
+        config['agent'] = {
+            'type': TAMPAgent,
+            'x0': x0,
+            'T': T,
+            'dT': 1,
+            'sensor_dims': SENSOR_DIMS,
+            'state_include': [utils.STATE_ENUM],
+            'obs_include': [],
+            'conditions': num_conditions,
+            'action': action,
+            'state_inds': state_inds,
+            'action_inds': action_inds
+        }
+
         self.agent = DummyAgent(active_ts[1] - active_ts[0] + 1)
         dummy_hyperparams = {
             'conditions': num_conditions,
@@ -301,7 +324,7 @@ class BaxterPolicySolver(RobotLLSolver):
             END_EFFECTOR_POINTS: 4,
             END_EFFECTOR_POINT_VELOCITIES: 4
         }
-        agent = DummyAgent(active_ts[1] - active_ts[0] , 18, 36, 0, 0, sensor_dims)
+        agent = DummyAgent(active_ts[1] - active_ts[0], 14, 36, 0, 0, sensor_dims)
         self.agent = agent
         self.dummy_hyperparams = {
             'conditions': num_conditions,
@@ -310,21 +333,21 @@ class BaxterPolicySolver(RobotLLSolver):
             'dX': agent.dX,
             'dO': agent.dO,
             'dM': agent.dM,
-            'dQ': 18,
+            'dQ': 14,
             'T': agent.T,
             'dt': agent.dt,
             'state_include': agent.x_data_types,
             'obs_include': agent.obs_data_types,
             'smooth_noise': False,
-            'smooth_noise_var': 0.0,
+            'smooth_noise_var': 0.0001,
             'smooth_noise_renormalize': False,
             # 'pos_gains':  np.array([0.3, 0.5, 0.65, 0.75, 1.5, 1.65, 1.5, 0.3, 0.5, 0.65, 0.75, 1.5, 1.65, 1.5]).reshape((14,1))*1e-6,
-            'pos_gains': np.ones((18,1))*1e-8, # np.array([0.25, 0.4, 0.65, 0.75, 1.25, 1.35, 1.275, 0.25, 0.4, 0.65, 0.75, 1.25, 1.35, 1.275, 0.5, 0.5, 0.5, 10]).reshape((18,1))*1e-5,
-            'init_gains': np.array([2.25, 1, 1, 1, 0.5, 0.5, 0.5, 2.25, 1, 1, 1, 0.5, 0.5, 0.5])*1e3,
-            'init_acc': np.zeros((14,)),
-            'init_var': 0.01,
-            'stiffness': 0.5,
-            'stiffness_vel': 0.5,
+            'pos_gains': np.array([0.25, 0.4, 0.65, 0.75, 1.25, 1.35, 1.275, 0.25, 0.4, 0.65, 0.75, 1.25, 1.35, 1.275]).reshape((14,1))*1e-7,
+            'init_gains': np.array([.25, .5, .5, .75, 1, 1, 1, .25, .5, .5, .75, 1, 1, 1])*1e-2,
+            'init_acc': np.zeros((18,)),
+            'init_var': 0.00001,
+            'stiffness': 5.0,
+            'stiffness_vel': 5.0,
             'final_weight': 50.0,
             'type': DynamicsLRPrior,
             'regularization': 1e-6,
@@ -353,7 +376,8 @@ class BaxterPolicySolver(RobotLLSolver):
             for j in range(n_samples):
                 # self._solve_opt_prob(plan, priority=-2, active_ts=active_ts, verbose=verbose)
                 # import ipdb; ipdb.set_trace()
-                self.backtrack_solve(plan, callback=callback, verbose=verbose)
+                self.solve(plan, callback=callback, verbose=verbose, n_resamples=5, force_init=True)
+                plan.basket_trajs.append((plan.params['basket'].pose[:, active_ts[0]:active_ts[1]+1], plan.params['basket'].rotation[0, active_ts[0]:active_ts[1]+1]))
                 if j < n_samples / 2:
                     noise = generate_noise(agent.T, agent.dU, self.dummy_hyperparams)
                     cur_noise = np.zeros((agent.dU))
@@ -361,12 +385,10 @@ class BaxterPolicySolver(RobotLLSolver):
                         cur_noise += alg.cur[0].traj_distr.chol_pol_covar[k-1].T.dot(noise[k-1,:])
                         plan.params['baxter'].lArmPose[:, active_ts[0]+k] += cur_noise[:7]
                         plan.params['baxter'].rArmPose[:, active_ts[0]+k] += cur_noise[7:14]
-                        plan.params['basket'].pose[:, active_ts[0]+k] += cur_noise[14:17]
-                        plan.params['basket'].rotation[0, active_ts[0]+k] += cur_noise[17:]
                 else:
                     noise = np.zeros((agent.T, agent.dU))
                 samples.append(self._traj_to_sample(plan, noise, agent, active_ts, 'basket_grasp'))
-                sample_costs[j] = self._get_traj_cost(plan, active_ts) * 1000
+                sample_costs[j] = self._get_traj_cost(plan, active_ts) * 1e0
             # dummy_hyperparams['x0'] = self._get_random_initial_states(plan, action_type, num_conditions, action.active_timesteps)
 
         alg.cur[0].sample_list = SampleList(samples)
@@ -389,14 +411,12 @@ class BaxterPolicySolver(RobotLLSolver):
                     traj_values = self._sample_to_traj(sample, 'basket_grasp')
                     plan.params['baxter'].lArmPose[:,active_ts[0]+1:active_ts[1]+1] = traj_values[:7]
                     plan.params['baxter'].rArmPose[:,active_ts[0]+1:active_ts[1]+1] = traj_values[7:14]
-                    plan.params['basket'].pose[:,active_ts[0]+1:active_ts[1]+1] = traj_values[14:17]
-                    plan.params['basket'].rotation[0,active_ts[0]+1:active_ts[1]+1] = traj_values[17:]
                     plan.params['robot_end_pose'].lArmPose[:,0] = traj_values[:7, -1]
                     plan.params['robot_end_pose'].rArmPose[:,0] = traj_values[7:14, -1]
                     # self._solve_opt_prob(plan, priority=3, callback=callback,  active_ts=active_ts, verbose=verbose)
                     samples.append(sample)
                     # self._clip_joint_angles(plan, active_ts)
-                    sample_costs[j] = self._get_traj_cost(plan, active_ts)
+                    sample_costs[j] = self._get_traj_cost(plan, active_ts) * 1e0
             max_cost = sample_costs.max()
             print max_cost
             if max_cost == 0:
@@ -441,6 +461,7 @@ class BaxterPolicySolver(RobotLLSolver):
             plan.target_arm_poses = []
             plan.start_arm_poses = []
             plan.basket_poses = []
+            plan.basket_trajs = []
             for i in range(num_conditions):
                 state, iter_count = [], 0
                 while not len(state):
@@ -473,10 +494,15 @@ class BaxterPolicySolver(RobotLLSolver):
             # plan.params['robot_end_pose'].rArmPose[:,0] = plan.target_arm_poses[i][1]
             plan.params['basket'].pose[:, active_ts[0]] = plan.basket_poses[i][:3]
             plan.params['basket'].rotation[0, active_ts[0]] = plan.basket_poses[i][3]
+            plan.params['init_target'].value[:, active_ts[0]] = plan.basket_poses[i][:3]
+            plan.params['init_target'].rotation[0, active_ts[0]] = plan.basket_poses[i][3]
             plan.params['robot_init_pose'].lArmPose[:,0] = plan.start_arm_poses[i][0]
             plan.params['robot_init_pose'].rArmPose[:,0] = plan.start_arm_poses[i][1]
             plan.params['baxter'].lArmPose[:,active_ts[0]] = plan.start_arm_poses[i][0]
             plan.params['baxter'].rArmPose[:,active_ts[0]] = plan.start_arm_poses[i][1]
+            if len(plan.basket_trajs):
+                plan.params['basket'].pose[:,active_ts[0]:active_ts[1]+1] = plan.basket_trajs[i][0]
+                plan.params['basket'].rotation[0,active_ts[0]:active_ts[1]+1] = plan.basket_trajs[i][1]
 
     def _clip_joint_angles(self, plan, active_ts):
         DOF_limits = plan.params['baxter'].openrave_body.env_body.GetDOFLimits()
@@ -510,8 +536,8 @@ class BaxterPolicySolver(RobotLLSolver):
                 sample.set(END_EFFECTOR_POINTS, np.r_[plan.params['basket'].pose[:, t], plan.params['basket'].rotation[0,t]], t-active_ts[0])
                 sample.set(END_EFFECTOR_POINT_VELOCITIES, np.zeros((4,)), t-active_ts[0])
                 sample.set(JOINT_ANGLES, np.r_[plan.params['baxter'].lArmPose[:,t], plan.params['baxter'].rArmPose[:,t]], t-active_ts[0])
-                sample.set(JOINT_VELOCITIES, np.r_[(plan.params['baxter'].lArmPose[:,t+1]-plan.params['baxter'].lArmPose[:,t]), (plan.params['baxter'].rArmPose[:,t+1]-plan.params['baxter'].rArmPose[:,t])] / agent.dt, t-active_ts[0])
-                sample.set(ACTION, np.r_[plan.params['baxter'].lArmPose[:,t+1]-plan.params['baxter'].lArmPose[:,t], plan.params['baxter'].rArmPose[:,t+1]-plan.params['baxter'].rArmPose[:,t], plan.params['basket'].pose[:,t+1]-plan.params['basket'].pose[:,t], plan.params['basket'].rotation[0,t+1]-plan.params['basket'].rotation[0,t]], t-active_ts[0])
+                sample.set(JOINT_VELOCITIES, np.zeros((14,)), t-active_ts[0])
+                sample.set(ACTION, np.r_[plan.params['baxter'].lArmPose[:,t+1]-plan.params['baxter'].lArmPose[:,t], plan.params['baxter'].rArmPose[:,t+1]-plan.params['baxter'].rArmPose[:,t]], t-active_ts[0])
                 sample.set(NOISE, noise[t-active_ts[0], :], t-active_ts[0])
         return sample
 
@@ -526,8 +552,8 @@ class BaxterPolicySolver(RobotLLSolver):
             return joint_values
         elif action == 'basket_grasp':
             # Ordered as lArmPose, rArmPose, basket pose, basket rot
-            traj_values = np.zeros((18, sample.T))
-            X_t = np.r_[sample.get_X(t=0)[:14], sample.get_X(t=0)[-8:-4]]
+            traj_values = np.zeros((14, sample.T))
+            X_t = sample.get_X(t=0)[:14]
             for t in range(sample.T):
                 U_t = sample.get(ACTION, t=t)
                 traj_values[:, t] = X_t + U_t
@@ -565,6 +591,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 costs[ts-1] += timestep_cost
         if costs.max() < 1e-3:
             return np.zeros(costs.shape)
+        print plan.get_failed_preds(tol=1e-3)
         # costs += 1e1 * np.sum(np.abs(plan.params['baxter'].lArmPose[:,-1]-plan.params['robot_end_pose'].lArmPose[:,0]) + np.abs(plan.params['baxter'].rArmPose[:,-1]-plan.params['robot_end_pose'].rArmPose[:,-1]))# costs[-1]
         return costs
 
@@ -595,10 +622,10 @@ class BaxterPolicySolver(RobotLLSolver):
                 X_t[:14] += cur_U
         elif action == 'basket_grasp':
             X_t = np.r_[plan.params['baxter'].lArmPose[:,active_ts[0]], plan.params['baxter'].rArmPose[:,active_ts[0]], np.zeros((14,)), plan.params['basket'].pose[:,0], plan.params['basket'].rotation[0,0], np.zeros((4,))]
-            cur_U = np.zeros((18,))
+            cur_U = np.zeros((14,))
             for t in range(active_ts[1] - active_ts[0]):
                 new_sample.set(JOINT_ANGLES, X_t[:14], t-active_ts[0])
-                new_sample.set(END_EFFECTOR_POINTS, X_t[-4:], t-active_ts[0])
+                new_sample.set(END_EFFECTOR_POINTS, X_t[-8:-4], t-active_ts[0])
                 new_sample.set(END_EFFECTOR_POINT_VELOCITIES, np.zeros((4,)), t-active_ts[0])
                 if np.any(map(np.isnan, X_t)):
                     import ipdb; ipdb.set_trace()
@@ -606,12 +633,11 @@ class BaxterPolicySolver(RobotLLSolver):
                 cur_U = policy.act(X_t, obs_t, t, noise[t-active_ts[0], :])
                 U[t, :] = cur_U
                 # TODO: Make this general to sampling any state
-                new_sample.set(JOINT_VELOCITIES, cur_U[:14] / agent.dt, t-active_ts[0])
+                new_sample.set(JOINT_VELOCITIES, np.zeros((14,)), t-active_ts[0])
                 new_sample.set(ACTION, cur_U, t-active_ts[0])
                 new_sample.set(NOISE, noise[t-active_ts[0], :], t-active_ts[0])
                 X_t = new_sample.get_X(t=t-active_ts[0])
                 X_t[:14] += cur_U[:14]
-                X_t[-8:-4] += cur_U[-4:]
         return new_sample
 
     def _generate_random_basket_grasp_config(self, plan, active_ts=None):
@@ -619,7 +645,7 @@ class BaxterPolicySolver(RobotLLSolver):
             active_ts = (0, plan.horizon-1)
 
         # TODO: Make these values general
-        basket_x_pose = np.random.choice(range(-10,5))*.01+0.75
+        basket_x_pose = np.random.choice(range(-10,0))*.01+0.75
         basket_y_pose = np.random.choice(range(-30,30))*.01+0.02
         basket_z_pose = 0.81
         basket_rot = np.random.choice([np.pi/3, 3*np.pi/8, 5*np.pi/12, 11*np.pi/24, np.pi/2, 13*np.pi/24, 7*np.pi/12, 5*np.pi/8, 2*np.pi/3])
@@ -683,10 +709,25 @@ class BaxterPolicySolver(RobotLLSolver):
         plan.params['basket'].rotation[0, active_ts[0]] = basket_rot
         plan.params['init_target'].value[:, 0] = [basket_x_pose, basket_y_pose, 0.81]
         plan.params['init_target'].rotation[0, 0] = basket_rot
-        plan.params['robot_init_pose'].lArmPose[:,0] = lArmPose
-        plan.params['robot_init_pose'].rArmPose[:,0] = rArmPose
-        plan.params['baxter'].lArmPose[:,active_ts[0]] = lArmPose
-        plan.params['baxter'].rArmPose[:,active_ts[0]] = rArmPose
+        plan.params['robot_init_pose'].lArmPose[:,0] = lArmPose.copy()
+        plan.params['robot_init_pose'].rArmPose[:,0] = rArmPose.copy()
+        plan.params['baxter'].lArmPose[:,active_ts[0]] = lArmPose.copy()
+        plan.params['baxter'].rArmPose[:,active_ts[0]] = rArmPose.copy()
+
+        # self._solve_opt_prob(plan, priority=-2, active_ts=active_ts)
+        # self._solve_opt_prob(plan, priority=0, active_ts=active_ts)
+        # self._solve_opt_prob(plan, priority=1, active_ts=active_ts)
+        # bg_ee_left = plan.params['bg_ee_left']
+        # bg_ee_right = plan.params['bg_ee_right']
+        # baxter_body = plan.params['baxter'].openrave_body
+
+        # plan.params['table'].openrave_body.set_pose([10,10,10])
+        # plan.params['basket'].openrave_body.set_pose([10,10,10])
+
+        # if not len(baxter_body.get_ik_from_pose(bg_ee_left.value.flatten(), bg_ee_left.rotation.flatten(), "left_arm")) \
+        #    or not len(baxter_body.get_ik_from_pose(bg_ee_right.value.flatten(), bg_ee_right.rotation.flatten(), "right_arm")):
+        #    print bg_ee_left.value, bg_ee_right.value
+        #    return []
 
         if len(plan.get_failed_preds(active_ts=(active_ts[0], active_ts[0]), tol=1e-3)):
             return []
@@ -699,7 +740,7 @@ class BaxterPolicySolver(RobotLLSolver):
 
         # TODO: Make these values general
         basket_x_pose = np.random.choice(range(-10,5))*.01+0.75
-        basket_y_pose = np.random.choice(range(-30,20))*.01+0.02
+        basket_y_pose = np.random.choice(range(-20,20))*.01+0.02
         basket_z_pose = 0.81
         basket_rot = np.random.choice([5*np.pi/12, 11*np.pi/24, np.pi/2, 13*np.pi/24, 7*np.pi/12])
 

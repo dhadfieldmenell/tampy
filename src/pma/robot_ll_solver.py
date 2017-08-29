@@ -181,10 +181,10 @@ class RobotLLSolver(LLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 25)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 10)
         if not robot_poses:
             print "Using Random Poses"
-            robot_poses = self.random_pose_suggester(plan, anum, resample_size = 10)
+            robot_poses = self.random_pose_suggester(plan, anum, resample_size = 5)
 
         """
         sampler end
@@ -606,7 +606,6 @@ class RobotLLSolver(LLSolver):
         model = grb.Model()
         model.params.OutputFlag = 0
         self._prob = Prob(model, callback=callback)
-        # _free_attrs is paied attentioned in here
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
         initial_trust_region_size = self.initial_trust_region_size
@@ -808,7 +807,7 @@ class RobotLLSolver(LLSolver):
                         # that numpy will create a diagonal matrix with v and d as a diagonal
                         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
                         # P = np.eye(KT)
-                        Q = np.dot(np.transpose(P), P)
+                        Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
                         cur_val = attr_val.reshape((KT, 1), order='F')
                         A = -2*cur_val.T.dot(Q)
                         b = cur_val.T.dot(Q.dot(cur_val))

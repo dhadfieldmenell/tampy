@@ -36,8 +36,8 @@ COLLIDES_DSAFE = 1e-3
 
 EEREACHABLE_COEFF = 5e0
 EEREACHABLE_ROT_COEFF = 5e0
-IN_GRIPPER_COEFF = 7e0
-IN_GRIPPER_ROT_COEFF = 2e0
+IN_GRIPPER_COEFF = 7e1
+IN_GRIPPER_ROT_COEFF = 2e1
 WASHER_IN_GRIPPER_ROT_COEFF = 1e-2
 
 OBSTRUCTS_COEFF = 1e-1
@@ -73,3 +73,42 @@ Following constants are for testing purposes
 
 TOL = 1e-4
 TEST_GRAD = True
+
+ATTRMAP = {
+    "Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
+                 ("lGripper", np.array([0], dtype=np.int)),
+                 ("rArmPose", np.array(range(7), dtype=np.int)),
+                 ("rGripper", np.array([0], dtype=np.int)),
+                 ("pose", np.array([0], dtype=np.int)),
+                 ("time", np.array([0], dtype=np.int))),
+   "RobotPose": (("lArmPose", np.array(range(7), dtype=np.int)),
+                 ("lGripper", np.array([0], dtype=np.int)),
+                 ("rArmPose", np.array(range(7), dtype=np.int)),
+                 ("rGripper", np.array([0], dtype=np.int)),
+                 ("value", np.array([0], dtype=np.int))),
+   "Can": (("pose", np.array([0,1,2], dtype=np.int)),
+                 ("rotation", np.array([0,1,2], dtype=np.int))),
+   "EEPose": (("value", np.array([0,1,2], dtype=np.int)),
+                 ("rotation", np.array([0,1,2], dtype=np.int))),
+   "Target": (("value", np.array([0,1,2], dtype=np.int)),
+                 ("rotation", np.array([0,1,2], dtype=np.int))),
+   "Table": (("pose", np.array([0,1,2], dtype=np.int)),
+                ("rotation", np.array([0,1,2], dtype=np.int))),
+   "Obstacle": (("pose", np.array([0,1,2], dtype=np.int)),
+                ("rotation", np.array([0,1,2], dtype=np.int))),
+   "Basket": (("pose", np.array([0,1,2], dtype=np.int)),
+                ("rotation", np.array([0,1,2], dtype=np.int))),
+   "BasketTarget": (("value", np.array([0,1,2], dtype=np.int)),
+                ("rotation", np.array([0,1,2], dtype=np.int))),
+   "Washer": (("pose", np.array([0,1,2], dtype=np.int)),
+                ("rotation", np.array([0,1,2], dtype=np.int)),
+                ("door", np.array([0], dtype=np.int))),
+   "WasherPose": (("value", np.array([0,1,2], dtype=np.int)),
+                ("rotation", np.array([0,1,2], dtype=np.int)),
+                ("door", np.array([0], dtype=np.int))),
+   "Cloth": (("pose", np.array([0,1,2], dtype=np.int)),
+                ("rotation", np.array([0,1,2], dtype=np.int))),
+   "ClothTarget": (("value", np.array([0,1,2], dtype=np.int)),
+                ("rotation", np.array([0,1,2], dtype=np.int))),
+   "EEVel": (("value", np.array([0], dtype=np.int)))
+}
