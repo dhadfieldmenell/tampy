@@ -21,6 +21,7 @@ class TAMPAgent(Agent):
         self.state_inds = self._hyperparams['state_inds']
         self.action_inds = self._hyperparams['action_inds']
         self.solver = self._hyperparams['solver']
+        self.x0 = self._hyperparams['x0']
 
         # Store samples, along with size/index information for samples.
         self._samples = [[] for _ in range(self._hyperparams['conditions'])]
