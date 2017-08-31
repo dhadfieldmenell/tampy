@@ -6,6 +6,7 @@ import os.path
 
 import numpy as np
 
+from gps.algorithm.algorithm_mdgps import AlgorithmMDGPS
 from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
 from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
@@ -15,14 +16,13 @@ from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
 from gps.algorithm.policy.policy_prior import PolicyPrior
 
 import policy_hooks.policy_solver_utils as utils
-from policy_hooks.tamp_algorithm_mdgps import TAMPAlgorithmMDGPS
 
 common = {
     'conditions': 20,
 }
 
 algorithm = {
-    'type': TAMPAlgorithmMDGPS,
+    'type': AlgorithmMDGPS,
     'conditions': common['conditions'],
     'iterations': 12,
     'kl_step': 1.0,
