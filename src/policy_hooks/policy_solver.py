@@ -5,8 +5,6 @@ from  pma.robot_ll_solver import RobotLLSolver
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 import policy_hooks.policy_solver_utils as utils
 
-IMAGE_HEIGHT = 40
-IMAGE_WIDTH = 64
 
 class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
@@ -74,11 +72,11 @@ class BaxterPolicySolver(RobotLLSolver):
         if not self.gps:
             self.gps = GPSMain(config)
         else:
-            self.update_agent(plans, x0)
-            self.update_algorithm(plans, self.config['algorithm']['cost'][-len(plans):])
+            self._update_agent(plans, x0)
+            self._update_algorithm(plans, self.config['algorithm']['cost'][-len(plans):])
         self.gps.run()
 
-    def update_algorithm(self, plans, costs):
+    def _update_algorithm(self, plans, costs):
         if not self.gps: return
         alg = self.gps.algorithm
         alg.M += len(plans)
@@ -109,10 +107,10 @@ class BaxterPolicySolver(RobotLLSolver):
             for i in range(len(plans))
         ])
 
-    def update_agent(self, plans, x0):
+    def _update_agent(self, plans, x0):
         if not self.gps: return
         agent = self.gps.agent
-        # Store samples, along with size/index information for samples.
         agent._samples.extend([[] for _ in range(self._hyperparams['conditions'])])
         agent.x0.extend(x0)
         agent.conditions += len(plans)
+        agent.plans.extend(plans)

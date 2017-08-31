@@ -23,48 +23,7 @@ class TAMPAgent(Agent):
         self.solver = self._hyperparams['solver']
         self.x0 = self._hyperparams['x0']
 
-        # Store samples, along with size/index information for samples.
-        self._samples = [[] for _ in range(self._hyperparams['conditions'])]
-        self.T = self._hyperparams['T']
-        self.dU = self._hyperparams['sensor_dims'][utils.ACTION_ENUM]
-
-        self.x_data_types = self._hyperparams['state_include']
-        self.obs_data_types = self._hyperparams['obs_include']
-        if 'meta_include' in self._hyperparams:
-            self.meta_data_types = self._hyperparams['meta_include']
-        else:
-            self.meta_data_types = []
-
-        # List of indices for each data type in state X.
-        self._state_idx, i = [], 0
-        for sensor in self.x_data_types:
-            dim = self._hyperparams['sensor_dims'][sensor]
-            self._state_idx.append(list(range(i, i+dim)))
-            i += dim
-        self.dX = i
-
-        # List of indices for each data type in observation.
-        self._obs_idx, i = [], 0
-        for sensor in self.obs_data_types:
-            dim = self._hyperparams['sensor_dims'][sensor]
-            self._obs_idx.append(list(range(i, i+dim)))
-            i += dim
-        self.dO = i
-
-        # List of indices for each data type in meta data.
-        self._meta_idx, i = [], 0
-        for sensor in self.meta_data_types:
-            dim = self._hyperparams['sensor_dims'][sensor]
-            self._meta_idx.append(list(range(i, i+dim)))
-            i += dim
-        self.dM = i
-
-        self._x_data_idx = {d: i for d, i in zip(self.x_data_types,
-                                                 self._state_idx)}
-        self._obs_data_idx = {d: i for d, i in zip(self.obs_data_types,
-                                                   self._obs_idx)}
-        self._meta_data_idx = {d: i for d, i in zip(self.meta_data_types,
-                                                   self._meta_idx)}
+        Agent.__init__(self, config)
 
 
     # TODO: Fill this in with proper behavior
