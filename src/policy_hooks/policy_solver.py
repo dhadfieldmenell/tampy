@@ -9,7 +9,7 @@ import policy_hooks.policy_solver_utils as utils
 class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.plans = []
-        self.config = baxter_hyperparams.config
+        self.config = None
         self.gps = None
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
