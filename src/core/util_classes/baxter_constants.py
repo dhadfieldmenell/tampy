@@ -74,6 +74,9 @@ Following constants are for testing purposes
 TOL = 1e-4
 TEST_GRAD = True
 
+'''
+Following constants are for general use
+'''
 ATTRMAP = {
     "Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                  ("lGripper", np.array([0], dtype=np.int)),

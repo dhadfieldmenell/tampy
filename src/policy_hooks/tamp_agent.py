@@ -5,9 +5,11 @@ import numpy as np
 
 import xml.etree.ElementTree as xml
 
+import openravepy
 from openravepy import RaveCreatePhysicsEngine
 
-from mujoco_py import mjcore
+from mujoco_py import mjcore, mjconstants
+from mujoco_py.mjlib import mjlib
 
 from gps.agent.agent import Agent
 from gps.agent.agent_utils import generate_noise
@@ -16,25 +18,30 @@ from gps.sample.sample import Sample
 
 import core.util_classes.baxter_constants as const
 import core.util_classes.items as items
+from core.util_classes.openrave_body import OpenRAVEBody
 import policy_hooks.policy_solver_utils as utils
 
 '''
 Mujoco specific
 '''
-cloth_xml = '\n<body name={0} pos="{1} {2} {3}" euler = "0 0 0">\n    <geom name="cloth" type="cylinder" size="{4} {5}"/>\n</body>\n'
-table_xml = '\n<body name={0} pos="{1} {2} {3}" euler = "0 0 0>\n     <geom name="table" type="box" size="{4} {5} {6}"/>\n</body>\n'
-options_xml = '<option timestep="0.01" iterations="{0}" integrator="RK4" />'
+cloth_xml = '\n<body name="{0}"" pos="{1} {2} {3}" euler = "0 0 0">\n    <geom name="cloth" type="cylinder" size="{4} {5}"/>\n</body>\n'
+table_xml = '\n<body name="{0}"" pos="{1} {2} {3}" euler = "0 0 0>\n     <geom name="table" type="box" size="{4} {5} {6}"/>\n</body>\n'
+# table_leg_xml = '\n<body name={0} pos="{1} {2} {3}" euler = "0 0 0">\n    <geom name="leg" type="cylinder" size="{5} {6}"/>\n</body>\n'
+# table_rigid_xml = '\n<equality\n   <weld  body1="table" body2="leg_{0}">\n<\equality>'
+options_xml = '<option timestep="{0}" iterations="{1}" integrator="RK4" />'
+laundry_basket_xml = '\n<body name="{0}" pos="{1} {2} {3}" quat="{4} {5} {6} {7}">\n    <intertial pos="0 0 0" mass="1" diaginertial="2 1 1"/>\n    <geom type="mesh" mesh="laundry_basket"/>\n</body>\n'
 
 BASE_POS_XML = '../models/baxter/baxter_mujoco_pos.xml'
 BASE_MOTOR_XML = '../models/baxter/baxter_mujoco.xml'
 ENV_XML = 'current_env.xml'
 
-MUJOCO_JOINT_ORDER = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_e2', 'left_w0', 'left_w1', 'left_w2', 'l_gripper_l_finger_joint', 'l_gripper_r_finger_joint'\
-                                              'right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2', 'r_gripper_l_finger_joint', 'r_gripper_r_finger_joint']
+MUJOCO_TIME_DELTA = 0.01
+
+MUJOCO_JOINT_ORDER = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_e2', 'left_w0', 'left_w1', 'left_w2', 'left_gripper_l_finger_joint', 'left_gripper_r_finger_joint'\
+                                              'right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2', 'right_gripper_l_finger_joint', 'right_gripper_r_finger_joint']
 
 # TODO: Split this into two agents for the different simulators (Mujooc & Bullet).
-# TODO: Handle gripper signals. I think we should do a binary approach (open or closed) due the its simpler nature.
-class LaundryWorldAgent(Agent):
+class LaundryWorldMujocoAgent(Agent):
     def __init__(self, hyperparams):
         config = copy.deepcopy(AGENT)
         config.update(hyperparams)
@@ -42,13 +49,14 @@ class LaundryWorldAgent(Agent):
 
         self.plans = self._hyperparams['plans']
         self.state_inds = self._hyperparams['state_inds']
-        self.action_inds = self._hyperparams['action_inds']
+        self.action_inds = self._hyperparams['action_inds'] # These are currently assumed to be specific to Baxter joints
         self.solver = self._hyperparams['solver']
         self.x0 = self._hyperparams['x0']
         self.sim = hyperparams['sim']
+        self._traj_info_cache = {}
         if self.sim == 'mujoco'
-            self.pos_model = self._setup_mujoco_model(self.plans[0], motor=False)
-            self.motor_model = self._setup_mujoco_model(self.plans[0])
+            # self.pos_model = self.setup_mujoco_model(self.plans[0], motor=False)
+            self.motor_model = self.setup_mujoco_model(self.plans[0])
             self.viewer = None
         elif self.sim == 'bullet':
             self.physics = {}
@@ -56,29 +64,48 @@ class LaundryWorldAgent(Agent):
         Agent.__init__(self, config)
 
     def _generate_xml(self, plan, motor=True):
+        '''
+            Search a plan for cloths, tables, and baskets to create a proper XML file that Mujoco can generate a model from
+        '''
         base_xml = xml.parse(BASE_MOTOR_XML) if motor else xml.parse(BASE_POS_XML)
         root = base_xml.getroot()
         worldbody = root.find('worldbody')
-        active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
-        root.append(xml.fromstring(options_xml.format(active_ts[1]-active_ts[0]+1)))
-        for param in plan.params:
+        if plan in self._traj_info_cache:
+            active_ts, params = self._traj_info_cache[plan]
+        else:
+            active_ts, params = utils.get_plan_traj_info(plan)
+            self._traj_info_cache[plan] = (active_ts, params)
+        real_t = np.sum([t for t in plan.params['baxter'].time[:, active_ts[0]:active_ts[1]+1]])
+        root.append(xml.fromstring(options_xml.format(MUJOCO_TIME_DELTA, real_t/MUJOCO_TIME_DELTA)))
+        for param in params:
             if param.is_symbol(): continue
-            if param.geom._type == 'can':
+            if param._type == 'Cloth':
                 height = param.geom.height
                 radius = param.geom.radius
                 x, y, z = param.pose[:, active_ts[0]]
                 body = xml.fromstring(cloth_xml.format(param.name, x, y, z, height, radius))
                 worldbody.append(body)
-            elif param.geom._type == 'box':
+                self.num_cloths += 1
+            # We might want to change this; in Openrave we model tables as hovering box so there's no easy translation to Mujoco
+            elif param._type == 'Obstacle': 
                 length = param.geom.table_dim[0]
                 width = param.geom.table_dim[1]
                 thickness = param.geom.thickness
                 x, y, z = param.pose[:, active_ts[0]]
-                body = xml.fromstring(table_xml.format(param.name, x, y, z, length, width, thickness))
+                # body = xml.fromstring(table_xml.format(param.name, x, y, z, length/2.0, width/2.0, thickness/2.0))
+                body = xml.fromstring(table_xml.format(param.name, x, y, z/2.0+thickness/2, length/2.0, width/2.0, z/2.0+thickness/2.0))
+                worldbody.append(body)
+            elif param._type == 'Basket':
+                trans = OpenRAVEBody.transform_from_obj_pose(param.pose[:,0], param.rotation[:,0])
+                quat = openravepy.quatFromMatrix(trans)
+                body = xml.fromstring(laundry_basket_xml.format(param.name, param.pose[0, 0], param.pose[1, 0], param.pose[2, 0], quat[0], quat[1], quat[2], quat[3]))
                 worldbody.append(body)
         base_xml.write(ENV_XML)
 
-    def _setup_mujoco_model(self, plan, pos=True, view=False):
+    def setup_mujoco_model(self, plan, pos=True, view=False):
+        '''
+            Create the Mujoco model and intiialize the viewer if desired
+        '''
         self._generate_xml(plan, pos)
         model = mjcore.MjModel(ENV_XML)
         if view:
@@ -88,100 +115,93 @@ class LaundryWorldAgent(Agent):
             self.viewer.loop_once()
         return model
 
-    def _run_trajectory(self, condition):
-        plan = self.plans[condition]
-        active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
-        T = active_ts[1] - active_ts[0] + 1
-        start_t = active_ts[0]
-        env  = plan.env
-        params = set()
-        for action in plan.actions:
-            params.update(action.params)
-        params = list(params)
-
-        if self.sim == 'mujoco':
-            pass
-        elif self.sim == 'bullet':
-            for param in params:
-                if not param.is_symbol():
-                    param_body = param.openrave_body.set_pose(param.pose[:, start_t], param.rotation[:, start_t])
-                    dof_map = {attr[0]:getattr(param, attr[0])[:, start_t] for attr in const.ATTR_MAP[param._type]}
-                    param_body = param.openrave_body.set_dof(dof_map)
-
-            # if env not in self.physics:
-            #     self.physics[env] = RaveCreatePhysicsEngine(env, 'bullet')
-            #     self.physics[env].SetGravity((0, 0, -0.981))
-            #     env.SetPhysicsEngine(self.physics[env])
-            
-            # action_attrs = self.action_inds.keys()
-
-            # positions = np.zeros((self.dU, T))
-            # velocities = np.zeros((self.dU, T))
-            # acceleraions = np.zeros((self.dU, T))
-
-            # t = active_ts[0]
-            # utils.positions[:,0]
-
-            # physics = self.physics[env]
-            # baxter.openrave_body.env_body.GetLinks()[0].SetStatic(True)
-            # env.StopSimulation()
-            # env.StartSimulation(timestep=0.001)
-
-
-            # baxter = plan.params['baxter']
-            # baxter.lArmPose
-            # baxter.lGripper
-            # baxter.rArmPose
-            # baxter.rGripper
-
-            # env.StopSimulation()
-
     def _run_policy(self, cond, policy, noise):
+        '''
+            Run the policy in simulation and fill in the joint values in the plan
+        '''
         plan = self.plans[cond]
-        active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
         x0 = self.x0[conds]
-        self._set_simulator(x0, plan, active_ts[0])
+        if plan in self._traj_info_cache:
+            active_ts, params = self._traj_info_cache[plan]
+        else:
+            active_ts, params = utils.get_plan_traj_info(plan)
+            self._traj_info_cache[plan] = (active_ts, params)
+        self._set_simulator_state(x0, plan, active_ts[0])
         for t in range(active_ts[0], active_ts[1]+1)
             obs = self._get_obs()
             u = policy.act(x0, obs, noise[:, t-active_ts[0]], t-active_ts[0])
+            # The grippers need some special handling as they have binary state (open or close) on the real robot
+            u[7] = (u[7] - 0.5)*10
+            u[15] = (u[15] - 0.5)*10
             mj_u = np.zeros((18,1))
             mj_u[:8] = u[:8].reshape(-1, 1)
             mj_u[8] = -u[7]
-            mj_u[9:16] = u[8:].reshape(-1, 1)
-            mj_u[17] = -u[15]
+            mj_u[9:17] = u[8:].reshape(-1, 1)
+            mj_u[18] = -u[15]
             real_t = plan.params['baxter'].time[:,t]
             self.motor_model.data.ctrl = mj_u
             start_t = self.motor_model.data.time
             cur_t = start_t
             while cur_t < start_t + real_t:
                 self.motor_model.step()
-            utils.set_param_attrs(self.action_inds.values(), self.action_inds, np.delete(self.motor_model.data.qpos, [0, 9, 18]), t)
+                cur_t += 0.01 # Make sure this value matches the time increment used in Mujoco
+            joint_angles = np.delete(self.motor_model.data.qpos, [0, 9, 18]).flatten()
+            joint_angles[7] = const.GRIPPER_OPEN_VALUE if mj_u[0, 7] > 0 else const.GRIPPER_CLOSE_VALUE
+            joint_angles[15] = const.GRIPPER_OPEN_VALUE if mj_u[0, 15] > 0 else const.GRIPPER_CLOSE_VALUE
+            utils.set_param_attrs(params, self.action_inds, joint_angles, t)
             # TODO: Fill state values from Mujoco instead of action
 
 
-    def _set_simulator(self, x, plan, t):
-        pass
+    def _set_simulator_state(self, x, cond, t):
+        '''
+            Set the simulator to the state of the specified condition at the specified timestep, except for the robot
+        '''
+        plan  = self.plans[cond]
+        model  = self.motor_model
+        xpos = model.data.xpos.copy()
+        xquat = model.data.xquat.copy()
+        qpos = model.data.qpos.copy()
+        if plan in self._traj_info_cache:
+            active_ts, params = self._traj_info_cache[plan]
+        else:
+            active_ts, params = utils.get_plan_traj_info(self.plans[cond])
+            self._traj_info_cache[plan] = (active_ts, params)
 
+        for param in params:
+            if param._type != 'Robot':
+                param_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, param.name)
+                xpos[param_ind] = param.pose[:, t]
+                xquat[param_ind] = openravepy.quatFromMatrix(OpenRAVEBody.transform_from_obj_pose(param.pose[:,t], param.rotation[:,t]))
+
+        model.data.xpos = xpos
+        model.data.xquat = xquat
+
+    
+    # TODO: Fill this in
     def _get_obs(self):
-        return []
-
-    def _get_sim_state(self):
         return []
 
 
     def _inverse_dynamics(self, plan):
         '''
-            Compute the joint forces necessary to achieve the provided trajectory. Currently assumes negligible mass of any held objects.
+            Compute the joint forces necessary to achieve the provided trajectory.
+
+            The state is assumed to be ordered (left then right) s0, s1, e0, e1, w0, w1, w2, gripper where gripper is one value in the plan and two in 
+            Mujoco.
         '''
         vel, acc = utils.map_trajecotory_to_vel_acc(plan, self.dU, self.action_inds)
-        active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
+        if plan in self._traj_info_cache:
+            active_ts, _ = self._traj_info_cache[plan]
+        else:
+            active_ts, params = utils.get_plan_traj_info(plan)
+            self._traj_info_cache[plan] = (active_ts, params)
         T = active_ts[1] - active_ts[0] + 1
         U = np.zeros((self.dU, T))
         if self.simulator == 'mujoco':
             for t in range(active_ts[0], active_ts[1]+1):
                 x_t = np.zeros((self.dX))
-                utils.fill_vector(self.state_inds.values(), self.state_inds, x_t, t)
-                self._set_simulator(x_t, plan, t)
+                utils.fill_vector(map(lambda p: p[0], self.state_inds.keys()), self.state_inds, x_t, t)
+                self._set_simulator_state(x_t, plan, t)
                 self.model.data.qpos = self._baxter_to_mujoco(plan, t)
                 vel_t = np.zeros((18,1))
                 vel_t[:8] = vel[:8,t]
@@ -198,34 +218,45 @@ class LaundryWorldAgent(Agent):
                 acc_t = np.r_[0, acc_t] # Mujoco includes the head joint which we don't use
                 self.model.data.qacc = acc_t
                 mjlib.mj_inverse(self.model.ptr, self.model.data.ptr)
-                qfrc = self.model.data.qfrc_inverse
-                U[:, t-active_ts[0]] = np.delete(qfrc, [0, 9, 18]).flatten()
+                qfrc = np.delete(self.model.data.qfrc_inverse, [0, 9, 18], axis=0) # Only want the joints we use
+                qfrc[7] = 0 if plan.plan.params['baxter'],lGripper[:, t] < const.GRIPPER_CLOSE_VALUE else 1
+                qfrc[15] = 0 if plan.plan.params['baxter'],rGripper[:, t] < const.GRIPPER_OPEN_VALUE else 1
+                U[:, t-active_ts[0]] = qfrc
         elif self.simulator == 'bullet':
             # TODO: Fill this in using the bullet physics simulator & openrave inverse dynamics
             pass
 
         return U
 
-
     def _baxter_to_mujoco(self, plan, t):
         baxter = plan.params['baxter']
         return np.r_[0, baxter.lArmPos[:,t], baxter.lGripper[:,t], -baxter.lGripper[:,t], baxter.rArmPose[:,t], baxter.rGripper[:,t], -baxter.rGripper[:,t]]
 
-    # TODO: Fill this in with proper behavior
     def sample(self, policy, condition, verbose=False, save=True, noisy=False):
+        '''
+            Take samples for an entire trajectory for the given condition
+        '''
         sample = Sample(self)
+        plan = self.plans[condition]
+
+        if plan in self._traj_info_cache:
+            active_ts, params = self._traj_info_cache[plan]
+        else:
+            active_ts, params = utils.get_plan_traj_info(plan)
+            self._traj_info_cache[plan] = (active_ts, params)
+
         if noisy:
             noise = generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
-        utils.reset_plan(self.plans[condition], self.state_inds, self.x0[condition])
+
+        utils.set_params_attrs(params, self.state_inds, x0, active_ts[0])
+
         #TODO: Enforce this sample is close to the global policy
-        self.solver.solve(self.plans[condition], n_resamples=5, active_ts=self.action.active_timesteps force_init=True)
-        utils.fill_sample_ts_from_trajectory(sample, self.action, self.state_inds, self.action_inds, noise[0, :], 0, self.dX)
-        active_ts = self.action.active_ts
+        self.solver.solve(self.plans[condition], n_resamples=5, active_ts=active_ts, force_init=True)
+        U = self._inverse_dynamics(plan)
         for t in range(active_ts[0], active_ts[1]+1):
-            utils.fill_trajectory_ts_from_policy(policy, self.action, self.state_inds, self.action_inds, noise[t-active_ts[0]], t, self.dX)
-            utils.fill_sample_ts_from_trajectory(sample, self.action, self.state_inds, self.action_inds, noise[t-active_ts[0], :], t, self.dX)
+            utils.fill_sample_from_trajectory(sample, plan, self.state_inds, self.action_inds, U[:, t-active_ts[0]], noise[t-active_ts[0], :], t, self.dX)
         if save:
             self._samples[condition].append(sample)
         return sample

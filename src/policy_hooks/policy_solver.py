@@ -4,6 +4,7 @@ from gps.gps_main import GPSMain
 from  pma.robot_ll_solver import RobotLLSolver
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 import policy_hooks.policy_solver_utils as utils
+from policy_hooks.tamp_agent import LaundryWorldMujocoAgent
 
 
 class BaxterPolicySolver(RobotLLSolver):
@@ -23,7 +24,7 @@ class BaxterPolicySolver(RobotLLSolver):
         '''
         if hyperparams and self.config:
             self.config.update(hyperparams)
-        dX, state_inds, dU, action_inds = get_plan_to_policy_mapping(plans[0])
+        dX, state_inds, dU, action_inds = get_plan_to_policy_mapping(plans[0], u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
         T = active_ts[1] - active_ts[0] + 1
 
@@ -40,7 +41,7 @@ class BaxterPolicySolver(RobotLLSolver):
         if not self.config:
             self.config = baxter_hyperparams.config if not hyperparams else hyperparams
             self.config['agent'] = {
-                'type': TAMPAgent,
+                'type': LaundryWorldMujocoAgent,
                 'x0': x0,
                 'plans': plans,
                 'T': T,
