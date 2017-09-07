@@ -159,7 +159,8 @@ def get_trajectory_cost(plan, state_inds, dX, action_inds, dU):
             comp_expr = p['pred'].get_expr(negated=p['negated'])
 
             # Constant terms
-            expr = comp_expr.expr if comp_expr else continue
+            expr = comp_expr.expr if comp_expr else None
+            if not expr: continue
             param_vector = expr.eval(p['pred'].get_param_vector(t))
             param_attr_inds = pred_param_attr_inds[pred]
             timestep_costs[t-active_ts[0]] += np.sum(-1 * param_vector)
