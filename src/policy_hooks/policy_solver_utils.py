@@ -39,8 +39,6 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[]):
     cur_x_ind, cur_u_ind = 0, 0
     x_params_init, u_params_init = len(x_params), len(u_params)
     for param in params:
-        attr_to_x_inds = {}
-        attr_to_u_inds = {}
         param_attr_map = const.ATTR_MAP[param._type]
         # Uses all parameters for state unless otherwise specified
         if not x_params_init:
@@ -57,56 +55,45 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[]):
                 cur_x_ind = x_inds[-1] + 1
                 x_vel_inds = attr[1] + cur_u_ind
                 cur_x_ind = x_vel_inds[-1] + 1
-                attr_to_x_inds[attr[0]] = x_inds
-                attr_to_x_inds[attr[0]+'__vel'] = x_vel_inds
+                params_to_x_inds[(param, attr[0])] = x_inds
+                params_to_x_inds[(param, attr[0]+'__vel')] = x_vel_inds
 
                 u_inds = attr[1] + cur_u_ind
                 cur_u_ind = u_inds[-1] + 1
-                attr_to_u_inds[attr[0]] = u_inds
+                params_to_u_inds[(param, attr[0])] = u_inds
 
-            params_to_u_inds[param] = attr_to_u_inds
-            params_to_x_inds[param] = attr_to_x_inds
         elif param in x_params:
             for attr in param_attr_map:
                 inds = attr[1] + cur_x_ind
                 cur_x_ind = inds[-1] + 1
-                attr_to_x_inds[attr[0]] = inds
-            params_to_x_inds[param] = attr_to_x_inds
+                params_to_x_inds[(param, attr[0])] = inds
         elif param in u_params:
             for attr in param_attr_map:
                 inds = attr[1] + cur_u_ind
                 cur_u_ind = inds[-1] + 1
-                attr_to_u_inds[attr[0]] = inds
-            params_to_u_inds[param] = attr_to_u_inds
+                params_to_u_inds[(param, attr[0])] = inds
 
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds
 
 def fill_vector(params, params_to_inds, vec, t):
     for param in params:
-        if param not in params_to_inds: continue
-        param_inds = params_to_inds[param]
-        if not param.is_symbol():
-            for attr in param_inds:
-                if hasattr(param, attr):
-                    vec[param_inds[attr]] = getattr(param, attr)[:, t]
-        else:
-            for attr in param_inds:
-                if hasattr(param, attr):
-                    vec[param_inds[attr]] = getattr(param, attr)[:, 0]
+        for attr in const.ATTR_MAP[param._type]:
+            if (param, attr) not in params_to_inds: continue
+            inds = params_to_inds[(param, inds)]
+            if param.is_symbol():
+                vec[inds] = getattr(param, attr)[:, 0]
+            else:
+                vec[inds] = getattr(param, attr)[:, t]
 
 def set_params_attrs(params, params_to_inds, vec, t):
     for param in params:
-        if param not in params_to_inds: continue
-        param_inds = params_to_inds[param]
-        if not param.is_symbol():
-            for attr in param_inds:
-                if hasattr(param, attr):
-                    getattr(param, attr)[:, t] = vec[param_inds[attr]]
-        else:
-            for attr in param_inds:
-                if hasattr(param, attr):
-                    getattr(param, attr)[:, 0] = vec[param_inds[attr]]
+        for attr in const.ATTR_MAP[param._type]:
+            if (param, attr) not in params_to_inds: continue
+            if param.is_symbol():
+                getattr(param, attr)[:, 0] = vec[params_to_inds[(param, attr)]]
+            else:
+                getattr(param, attr)[:, t] = vvec[params_to_inds[(param, attr)]]
 
 def fill_sample_ts_from_trajectory(sample, plan, state_inds, action_inds, noise, t, dU, dX):
     params = set()
@@ -245,3 +232,29 @@ def reset_plan(plan, state_inds, x0):
         params.update(action.params)
     params = list(params)
     set_params_attrs(params, state_inds, x0, 0)
+
+def map_trajectory_to_vel_acc(plan, dU, action_inds):
+    params = set()
+    for action in plan.actions:
+        params.update(action.params)
+    params = list(params)
+    active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
+    T = active_ts[1] - active_ts[0] + 1
+    vels = np.zeros((dU, T))
+    accs = np.zeros((dU, T))
+
+    a = np.zeros((dU,))
+    v = np.zeros((dU,))
+    for t in range(active_ts[0], active_ts[1]):
+        U_0 = np.zeros((dU,))
+        U = np.zeros((dU,))
+        fill_vector(params, action_inds, U_0, t)
+        fill_vector(params, action_inds, U, t+1)
+        real_t = plan.params['baxter'].time[t]
+        vels[:, t-active_ts[0]] = v
+        a = 2*(U-U_0+v*real_t) / (real_t**2)
+        accs[:, t-active_ts[0]] = a
+        v = v + a*real_t
+    vels[:, active_ts[1]-active_ts[0]] = v + a*plan.params['baxter'].time[action_ts[1]]
+
+    return vels, accs
