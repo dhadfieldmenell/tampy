@@ -189,7 +189,7 @@ class LaundryWorldMujocoAgent(Agent):
     def _get_obs(self, cond, t):
         plan = self.plans[cond]
         o_t = np.zeros((self.dX))
-        utils.fill_vector(map(lambda p: plan.params[p[0]], plan.state_inds.keys()), plan.state_inds, o_t, t)
+        utils.fill_vector(utils.get_state_params(plan), plan.state_inds, o_t, t)
         return o_t
 
 
@@ -211,7 +211,7 @@ class LaundryWorldMujocoAgent(Agent):
         if self.simulator == 'mujoco':
             for t in range(active_ts[0], active_ts[1]+1):
                 x_t = np.zeros((self.dX))
-                utils.fill_vector(map(lambda p: p[0], plan.state_inds.keys()), plan.state_inds, x_t, t)
+                utils.fill_vector(utils.get_state_params(plan), plan.state_inds, x_t, t)
                 self._set_simulator_state(x_t, plan, t)
                 self.model.data.qpos  = self._baxter_to_mujoco(plan, t)
                 vel_t = np.zeros((18,1))

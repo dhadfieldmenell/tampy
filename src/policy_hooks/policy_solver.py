@@ -46,8 +46,8 @@ class BaxterPolicySolver(RobotLLSolver):
         x0 = np.zeros((len(plans), dX))
         for i in range(len(plans)):
             plan = plans[i]
-            utils.fill_vector(plan.actions[0].params, plan.state_inds, x0[i], plan.active_ts[0])
-        x0 = xo.tolist()
+            utils.fill_vector(utils.get_state_params(plan), plan.state_inds, x0[i], plan.active_ts[0])
+        x0 = x0.tolist()
 
         if not self.config:
             self.config = baxter_hyperparams.config if not hyperparams else hyperparams

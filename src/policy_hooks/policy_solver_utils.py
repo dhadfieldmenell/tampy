@@ -218,10 +218,7 @@ def map_trajectory_to_vel_acc(plan):
     '''
         Perform basic kienmatic calculations to find the velocity and acceleration of each joint at each timestep
     '''
-    params = set()
-    for action in plan.actions:
-        params.update(action.params)
-    params = list(params)
+    params = get_action_params(plan)
     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
     T = active_ts[1] - active_ts[0] + 1
     vels = np.zeros((plan.dU, T))
@@ -252,10 +249,7 @@ def get_plan_traj_info(plan):
     #     params = list(set(map(lambda k: k[0], plan.state_inds.keys())))
     # else:
     #     params = plan.params.values()
-    params = set()
-    for action in plan.actions:
-        params.update(action.params)
-    params = list(params)
+    params = utils.get_state_params(plan)
     return active_ts, params
 
 def create_sub_plans(plan, action_sequence):
@@ -276,3 +270,11 @@ def create_sub_plans(plan, action_sequence):
             cur_seq_ind = 0
 
     return plans
+
+def get_state_params(plan):
+    assert hasattr(plan, 'state_inds')
+    return map(lambda k: plan.params[k[0]], plan.state_inds.keys())
+
+def get_action_params(plan):
+    assert hasattr(plan, 'action_inds')
+    return map(lambda k: plan.params[k[0]], plan.action_inds.keys())
