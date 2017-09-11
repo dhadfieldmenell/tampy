@@ -52,7 +52,7 @@ algorithm['traj_opt'] = {
 }
 
 algorithm['policy_opt'] = {
-    'type': PolicyOptTF,
+    'type': PolicyOptTf,
     'iterations': 4000,
 }
 

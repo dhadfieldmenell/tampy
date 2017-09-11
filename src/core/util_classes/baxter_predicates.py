@@ -1734,19 +1734,21 @@ class BaxterClothTargetInWasher(ExprPredicate):
         e = EqExpr(pos_expr, val)
         super(BaxterClothTargetInWasher, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
 
-class BaxterClothInBasket(ExprPredicate):
-    # BaxterClothInBasket ClothTarget BasketTarget
+class BaxterClothTargetInBasket(ExprPredicate):
+    # BaxterClothTargetInBasket ClothTarget BasketTarget
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
         self.attr_dim = 6
         self.cloth_target = params[0]
         self.washer_pose = params[1]
-        A = np.c_[np.eye(self.attr_dim/2), -np.eye(self.attr_dim/2)]
-        b = np.zeros((self.attr_dim/2,1))
-        val = np.array([[0], [0], [-.21]])
+
+        A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
+        b = np.zeros((6,1))
+
+        val = np.array([[.12], [.12], [.16], [.12], [.12], [.18]])
         pos_expr = AffExpr(A, b)
-        e = EqExpr(pos_expr, val)
-        super(BaxterClothInBasket, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
+        e = LEqExpr(pos_expr, val)
+        super(BaxterClothTargetInBasket, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
 
 class BaxterObjectWithinRotLimit(robot_predicates.ObjectWithinRotLimit):
     # BaxterObjectWithinRotLimit Object

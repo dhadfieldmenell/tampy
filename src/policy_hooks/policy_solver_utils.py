@@ -1,5 +1,6 @@
-import core.util_Classes.baxter_constants as const
+import core.util_classes.baxter_constants as const
 
+import numpy as np
 
 ACTION_ENUM = 0
 STATE_ENUM = 1
@@ -23,21 +24,22 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
         The dimension of the action vector
         Mappings from paramters to indices in the action vector
     '''
-    assert all(map(lambda a: a.train_policy, plan.actions))
+    # assert all(map(lambda a: a.train_policy, plan.actions))
     if not len(plan.actions):
         return 0, {}, 0, {}
-
-    actions = plan.actions
-    active_ts = (actions[0].active_timesteps[0], actions[-1].active_timesteps[1])
-    params = set()
-    for action in actions:
-        params.update(action.params)
-    preds = action.preds
 
     params_to_x_inds, params_to_u_inds = {}, {}
     cur_x_ind, cur_u_ind = 0, 0
     x_params_init, u_params_init = len(x_params), len(u_params)
+
+    if not x_params_init:
+        params = plan.params.values()
+        x_params_init = len(x_params)
+    else:
+        params = x_params
+
     for param in params:
+        if param.is_symbol(): continue
         param_attr_map = const.ATTR_MAP[param._type]
         # Uses all parameters for state unless otherwise specified
         if not x_params_init:
@@ -56,7 +58,7 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
                 cur_x_ind = x_vel_inds[-1] + 1
                 params_to_x_inds[(param, attr[0])] = x_inds
                 params_to_x_inds[(param, attr[0]+'__vel')] = x_vel_inds
-                if atrr not in u_attrs: continue
+                if attr[0] not in u_attrs: continue
                 u_inds = attr[1] + cur_u_ind
                 cur_u_ind = u_inds[-1] + 1
                 params_to_u_inds[(param, attr[0])] = u_inds
@@ -69,7 +71,7 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
 
         elif param in u_params:
             for attr in param_attr_map:
-                if attr not in u_attrs: continue
+                if attr[0] not in u_attrs: continue
                 inds = attr[1] + cur_u_ind
                 cur_u_ind = inds[-1] + 1
                 params_to_u_inds[(param, attr[0])] = inds
@@ -78,36 +80,37 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds
 
 def fill_vector(params, params_to_inds, vec, t):
+    vec = np.array(vec)
     for param in params:
         for attr in const.ATTR_MAP[param._type]:
-            if (param, attr) not in params_to_inds: continue
-            inds = params_to_inds[(param, inds)]
+            if (param, attr[0]) not in params_to_inds: continue
+            inds = params_to_inds[(param, attr[0])]
             if param.is_symbol():
-                vec[inds] = getattr(param, attr)[:, 0]
+                vec[inds] = getattr(param, attr[0])[:, 0]
             else:
-                vec[inds] = getattr(param, attr)[:, t]
+                vec[inds] = getattr(param, attr[0])[:, t]
 
 def set_params_attrs(params, params_to_inds, vec, t):
     for param in params:
         for attr in const.ATTR_MAP[param._type]:
-            if (param, attr) not in params_to_inds: continue
+            if (param, attr[0]) not in params_to_inds: continue
             if param.is_symbol():
-                getattr(param, attr)[:, 0] = vec[params_to_inds[(param, attr)]]
+                getattr(param, attr[0])[:, 0] = vec[params_to_inds[(param, attr[0])]]
             else:
-                getattr(param, attr)[:, t] = vvec[params_to_inds[(param, attr)]]
+                getattr(param, attr[0])[:, t] = vvec[params_to_inds[(param, attr[0])]]
 
-def fill_sample_from_trajectory(sample, plan, state_inds, action_inds, u_vec, noise, t, dX):
+def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
     active_ts, params = get_plan_traj_info(plan)
 
     sample.set(ACTION_ENUM, u_vec, t-active_ts[0])
 
     X = np.zeros((dU, 1))
-    fill_vector(params, state_inds, X, t)
+    fill_vector(params, plan.state_inds, X, t)
     sample.set(STATE_ENUM, X, t-active_ts[0])
 
     sample.set(NOISE, noise, t-active_ts[0])
 
-def fill_trajectory_from_sample(sample, plan, state_inds):
+def fill_trajectory_from_sample(sample, plan):
     params = set()
     for action in plan.actions:
         params.update(action.params)
@@ -115,9 +118,9 @@ def fill_trajectory_from_sample(sample, plan, state_inds):
     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
     for t in range(active_ts[0], active_ts[1]+1):
         X = sample.get_X(t)
-        set_params_attrs(params, state_inds, X, t)
+        set_params_attrs(params, plan.state_inds, X, t)
 
-def get_trajectory_cost(plan, state_inds, dX, action_inds, dU):
+def get_trajectory_cost(plan):
     '''
     Calculates the constraint violations at the provided timestep for the current trajectory, as well as the first and second order approximations.
     This function handles the hierarchies of mappings from parameters to attributes to indices and translates between how the predicates consturct
@@ -126,6 +129,10 @@ def get_trajectory_cost(plan, state_inds, dX, action_inds, dU):
     state_inds & action_inds map (param. attr_name) to the the relevant indices
     '''
     preds = []
+    state_inds = plan.state_inds
+    action_inds = plan.action_inds
+    dX = plan.dX
+    dU = plan.dU
     for action in plan.actions:
         preds.extend(action.preds)
     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
@@ -185,7 +192,7 @@ def get_trajectory_cost(plan, state_inds, dX, action_inds, dU):
                                 x_inds_2 = state_inds[(param_2, attr_name_2)]
                                 pred_inds_1 = param_attr_inds[param_1][attr_name_1]
                                 pred_inds_2 = param_attr_inds[param_2][attr_name_2]
-                                assert len(x_inds_1) == len(pred_inds_1) amd len(x_inds_2) == len(pred_inds_2)
+                                assert len(x_inds_1) == len(pred_inds_1) and len(x_inds_2) == len(pred_inds_2)
                                 second_order_xx_approx[t-active_ts[0], x_inds_1, x_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
 
                             if (param_1, attr_name_1) in action_inds[(param_1, attr_name_1)] and (param_2, attr_name_2) in action_inds[(param_2, attr_name_2)]:
@@ -193,7 +200,7 @@ def get_trajectory_cost(plan, state_inds, dX, action_inds, dU):
                                 u_inds_2 = action_inds[(param_2, attr_name_2)]
                                 pred_inds_1 = param_attr_inds[param_1][attr_name_1]
                                 pred_inds_2 = param_attr_inds[param_2][attr_name_2]
-                                assert len(u_inds_1) == len(pred_inds_1) amd len(u_inds_2) == len(pred_inds_2)
+                                assert len(u_inds_1) == len(pred_inds_1) and len(u_inds_2) == len(pred_inds_2)
                                 second_order_uu_approx[t-active_ts[0], u_inds_1, u_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
 
                             if (param_1, attr_name_1) in action_inds[(param_1, attr_name_1)] and (param_2, attr_name_2) in state_inds[(param_2, attr_name_2)]:
@@ -201,14 +208,14 @@ def get_trajectory_cost(plan, state_inds, dX, action_inds, dU):
                                 x_inds_2 = state_inds[(param_2, attr_name_2)]
                                 pred_inds_1 = param_attr_inds[param_1][attr_name_1]
                                 pred_inds_2 = param_attr_inds[param_2][attr_name_2]
-                                assert len(u_inds_1) == len(pred_inds_1) amd len(x_inds_2) == len(pred_inds_2)
+                                assert len(u_inds_1) == len(pred_inds_1) and len(x_inds_2) == len(pred_inds_2)
                                 second_order_ux_approx[t-active_ts[0], u_inds_1, x_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
 
             preds_checked.append(p['pred'])
 
     return timestep_costs, first_order_x_approx, first_order_u_approx, second_order_xx_approx, second_order_uu_approx, second_order_ux_approx
 
-def map_trajectory_to_vel_acc(plan, dU, action_inds):
+def map_trajectory_to_vel_acc(plan):
     '''
         Perform basic kienmatic calculations to find the velocity and acceleration of each joint at each timestep
     '''
@@ -218,16 +225,16 @@ def map_trajectory_to_vel_acc(plan, dU, action_inds):
     params = list(params)
     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
     T = active_ts[1] - active_ts[0] + 1
-    vels = np.zeros((dU, T))
-    accs = np.zeros((dU, T))
+    vels = np.zeros((plan.dU, T))
+    accs = np.zeros((plan.dU, T))
 
-    a = np.zeros((dU,))
-    v = np.zeros((dU,))
+    a = np.zeros((plan.dU,))
+    v = np.zeros((plan.dU,))
     for t in range(active_ts[0], active_ts[1]):
-        U_0 = np.zeros((dU,))
-        U = np.zeros((dU,))
-        fill_vector(params, action_inds, U_0, t)
-        fill_vector(params, action_inds, U, t+1)
+        U_0 = np.zeros((plan.dU,))
+        U = np.zeros((plan.dU,))
+        fill_vector(params, plan.action_inds, U_0, t)
+        fill_vector(params, plan.action_inds, U, t+1)
         real_t = plan.params['baxter'].time[t]
         vels[:, t-active_ts[0]] = v
         a = 2*(U-U_0+v*real_t) / (real_t**2)
@@ -242,8 +249,8 @@ def get_plan_traj_info(plan):
         Extract active timesteps and active parameters from the plan
     '''
     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
-    params = set()
-    for action in plan.actions:
-        params.update(action.params)
-    params = list(params)
-    return active_ts, paarams
+    if hasattr(plan, 'state_inds'):
+        params = list(set(map(lambda k: k[0], plan.state_inds.keys())))
+    else:
+        params = plan.params.values()
+    return active_ts, params

@@ -77,13 +77,12 @@ TEST_GRAD = True
 '''
 Following constants are for general use
 '''
-ATTRMAP = {
+ATTR_MAP = {
     "Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                  ("lGripper", np.array([0], dtype=np.int)),
                  ("rArmPose", np.array(range(7), dtype=np.int)),
                  ("rGripper", np.array([0], dtype=np.int)),
-                 ("pose", np.array([0], dtype=np.int)),
-                 ("time", np.array([0], dtype=np.int))),
+                 ("pose", np.array([0], dtype=np.int))),
    "RobotPose": (("lArmPose", np.array(range(7), dtype=np.int)),
                  ("lGripper", np.array([0], dtype=np.int)),
                  ("rArmPose", np.array(range(7), dtype=np.int)),
