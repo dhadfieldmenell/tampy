@@ -120,7 +120,7 @@ class LaundryWorldMujocoAgent(Agent):
         self._set_simulator_state(x0, plan, active_ts[0])
         trajectory_state = np.zeros((plan.dX, plan.T))
         for t in range(active_ts[0], active_ts[1]+1):
-            obs = self._get_obs()
+            obs = self._get_obs(cond, t)
             u = policy.act(x0, obs, noise[:, t-active_ts[0]], t-active_ts[0])
             # The grippers need some special handling as they have binary state (open or close) on the real robot
             u[7] = (u[7] - 0.5)*10
@@ -145,19 +145,19 @@ class LaundryWorldMujocoAgent(Agent):
                 quat = self.motor_model.data.xquat[param_ind].flatten()
                 rotation = [np.atan2(2*(quat[0]*quat[1]+quat[2]*quat[3]), 1-2*(quat[1]**2+quat[2]**2)), np.arcsin(2*(quat[0]*quat[2] - q[3]*quat[1])), \
                                     np.arctan2(2*(quat[0]*quat[3] + quat[1]*quat[2]), 1-2*(quat[2]**2+quat[3]**2))]
-                trajectory_state[plan.state_inds[(param, 'pose')]] = pose - np.array([0, 0, MUJOCO_MODEL_Z_OFFSET])
-                trajectory_state[plan.state_inds[(param, 'rotation')]] = rotation
+                trajectory_state[plan.state_inds[(param.name, 'pose')]] = pose - np.array([0, 0, MUJOCO_MODEL_Z_OFFSET])
+                trajectory_state[plan.state_inds[(param.name, 'rotation')]] = rotation
 
                 if param._type == 'Robot':
                     # Assume Baxter joints, order head, left arm, left gripper, right arm, right gripper
-                    trajectory_state[plan.state_inds[(param, 'lArmPose')]] = self.motor_model.data.qpos[1:8].flatten()
-                    trajectory_state[plan.state_inds[(param, 'lGripper')] ]= self.motor_model.data.qpos[8][0]
-                    trajectory_state[plan.state_inds[(param, 'rArmPose')]] = self.motor_model.data.qpos[10:18].flatten()
-                    trajectory_state[plan.state_inds[(param, 'rGripper')]] = self.motor_model.data.qpos[18][0]
-                    trajectory_state[plan.state_inds[(param, 'lArmPose__vel')]] = self.motor_model.data.qvel[1:8].flatten()
-                    trajectory_state[plan.state_inds[(param, 'lGripper__vel')] ]= self.motor_model.data.qvel[8][0]
-                    trajectory_state[plan.state_inds[(param, 'rArmPose__vel')]] = self.motor_model.data.qvel[10:18].flatten()
-                    trajectory_state[plan.state_inds[(param, 'rGripper__vel')]] = self.motor_model.data.qvel[18][0]
+                    trajectory_state[plan.state_inds[(param.name, 'lArmPose')]] = self.motor_model.data.qpos[1:8].flatten()
+                    trajectory_state[plan.state_inds[(param.name, 'lGripper')] ]= self.motor_model.data.qpos[8][0]
+                    trajectory_state[plan.state_inds[(param.name, 'rArmPose')]] = self.motor_model.data.qpos[10:18].flatten()
+                    trajectory_state[plan.state_inds[(param.name, 'rGripper')]] = self.motor_model.data.qpos[18][0]
+                    trajectory_state[plan.state_inds[(param.name, 'lArmPose__vel')]] = self.motor_model.data.qvel[1:8].flatten()
+                    trajectory_state[plan.state_inds[(param.name 'lGripper__vel')] ]= self.motor_model.data.qvel[8][0]
+                    trajectory_state[plan.state_inds[(param.name, 'rArmPose__vel')]] = self.motor_model.data.qvel[10:18].flatten()
+                    trajectory_state[plan.state_inds[(param.name, 'rGripper__vel')]] = self.motor_model.data.qvel[18][0]
             return trajectory_state
 
 
@@ -186,9 +186,11 @@ class LaundryWorldMujocoAgent(Agent):
         model.data.xquat = xquat
 
     
-    # TODO: Fill this in
-    def _get_obs(self):
-        return []
+    def _get_obs(self, cond, t):
+        plan = self.plans[cond]
+        o_t = np.zeros((self.dX))
+        utils.fill_vector(map(lambda p: plan.params[p[0]], plan.state_inds.keys()), plan.state_inds, o_t, t)
+        return o_t
 
 
     def _inverse_dynamics(self, plan):

@@ -39,7 +39,6 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
         params = x_params
 
     for param in params:
-        if param.is_symbol(): continue
         param_attr_map = const.ATTR_MAP[param._type]
         # Uses all parameters for state unless otherwise specified
         if not x_params_init:
@@ -56,25 +55,25 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
                 cur_x_ind = x_inds[-1] + 1
                 x_vel_inds = attr[1] + cur_x_ind
                 cur_x_ind = x_vel_inds[-1] + 1
-                params_to_x_inds[(param, attr[0])] = x_inds
-                params_to_x_inds[(param, attr[0]+'__vel')] = x_vel_inds
+                params_to_x_inds[(param.name, attr[0])] = x_inds
+                params_to_x_inds[(param.name, attr[0]+'__vel')] = x_vel_inds
                 if attr[0] not in u_attrs: continue
                 u_inds = attr[1] + cur_u_ind
                 cur_u_ind = u_inds[-1] + 1
-                params_to_u_inds[(param, attr[0])] = u_inds
+                params_to_u_inds[(param.name, attr[0])] = u_inds
 
         elif param in x_params:
             for attr in param_attr_map:
                 inds = attr[1] + cur_x_ind
                 cur_x_ind = inds[-1] + 1
-                params_to_x_inds[(param, attr[0])] = inds
+                params_to_x_inds[(param.name, attr[0])] = inds
 
         elif param in u_params:
             for attr in param_attr_map:
                 if attr[0] not in u_attrs: continue
                 inds = attr[1] + cur_u_ind
                 cur_u_ind = inds[-1] + 1
-                params_to_u_inds[(param, attr[0])] = inds
+                params_to_u_inds[(param.name, attr[0])] = inds
 
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds
@@ -84,7 +83,7 @@ def fill_vector(params, params_to_inds, vec, t):
     for param in params:
         for attr in const.ATTR_MAP[param._type]:
             if (param, attr[0]) not in params_to_inds: continue
-            inds = params_to_inds[(param, attr[0])]
+            inds = params_to_inds[(param.name, attr[0])]
             if param.is_symbol():
                 vec[inds] = getattr(param, attr[0])[:, 0]
             else:
@@ -93,11 +92,11 @@ def fill_vector(params, params_to_inds, vec, t):
 def set_params_attrs(params, params_to_inds, vec, t):
     for param in params:
         for attr in const.ATTR_MAP[param._type]:
-            if (param, attr[0]) not in params_to_inds: continue
+            if (param.name, attr[0]) not in params_to_inds: continue
             if param.is_symbol():
-                getattr(param, attr[0])[:, 0] = vec[params_to_inds[(param, attr[0])]]
+                getattr(param, attr[0])[:, 0] = vec[params_to_inds[(param.name, attr[0])]]
             else:
-                getattr(param, attr[0])[:, t] = vvec[params_to_inds[(param, attr[0])]]
+                getattr(param, attr[0])[:, t] = vec[params_to_inds[(param.name, attr[0])]]
 
 def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
     active_ts, params = get_plan_traj_info(plan)
@@ -152,9 +151,9 @@ def get_trajectory_cost(plan):
         attr_inds = p['pred'].attr_inds
         cur_ind = 0
         for param in attr_inds:
-            pred_param_attr_inds[pred][param] = {}
-            for attr_name, inds in attr_inds[param]:
-                pred_param_attr_inds[pred][param][attr_name] = np.array(range(cur_ind, cur_ind+len(inds)))
+            pred_param_attr_inds[pred][param.name] = {}
+            for attr_name, inds in attr_inds[param.name]:
+                pred_param_attr_inds[pred][param.name][attr_name] = np.array(range(cur_ind, cur_ind+len(inds)))
                 cur_ind += len(inds)
 
     for t in range(active_ts[0], active_ts[1]+1):
@@ -176,38 +175,38 @@ def get_trajectory_cost(plan):
             first_degree_convexification = expr.convexify(param_vector, degree=1).eval(param_vector)
             for param in param_attr_inds:
                 for attr_name in param_attr_inds[param]:
-                    if (param, attr_name) in state_inds:
-                        first_order_x_approx[t-active_ts[0], state_inds[(param, attr_name)]] += first_degree_convexification[param_attr_inds[param][attr_name]]
-                    if (param, attr_name) in action_inds:
-                        first_order_u_approx[t-active_ts[0], action_inds[(param, attr_name)]] += first_degree_convexification[param_attr_inds[param][attr_name]]
+                    if (param.name, attr_name) in state_inds:
+                        first_order_x_approx[t-active_ts[0], state_inds[(param.name, attr_name)]] += first_degree_convexification[param_attr_inds[param.name][attr_name]]
+                    if (param.name, attr_name) in action_inds:
+                        first_order_u_approx[t-active_ts[0], action_inds[(param.name, attr_name)]] += first_degree_convexification[param_attr_inds[param.name][attr_name]]
 
             # Quadratic terms
             second_degree_convexification = expr.convexify(param_vector, degree=2).eval(param_vector)
             for param_1 in param_attr_inds:
                 for param_2 in param_attr_inds:
-                    for attr_name_1 in param_attr_inds[param_1]:
-                        for attr_name_2 in param_attr_inds[param2]:
-                            if (param_1, attr_name_1) in state_inds and (param_2, attr_name_2) in state_inds:
-                                x_inds_1 = state_inds[(param_1, attr_name_1)]
-                                x_inds_2 = state_inds[(param_2, attr_name_2)]
-                                pred_inds_1 = param_attr_inds[param_1][attr_name_1]
-                                pred_inds_2 = param_attr_inds[param_2][attr_name_2]
+                    for attr_name_1 in param_attr_inds[param_1.name]:
+                        for attr_name_2 in param_attr_inds[param2.name]:
+                            if (param_1.name, attr_name_1) in state_inds and (param_2.name, attr_name_2) in state_inds:
+                                x_inds_1 = state_inds[(param_1.name, attr_name_1)]
+                                x_inds_2 = state_inds[(param_2.name, attr_name_2)]
+                                pred_inds_1 = param_attr_inds[param_1.name][attr_name_1]
+                                pred_inds_2 = param_attr_inds[param_2.name][attr_name_2]
                                 assert len(x_inds_1) == len(pred_inds_1) and len(x_inds_2) == len(pred_inds_2)
                                 second_order_xx_approx[t-active_ts[0], x_inds_1, x_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
 
-                            if (param_1, attr_name_1) in action_inds[(param_1, attr_name_1)] and (param_2, attr_name_2) in action_inds[(param_2, attr_name_2)]:
-                                u_inds_1 = action_inds[(param_1, attr_name_1)]
-                                u_inds_2 = action_inds[(param_2, attr_name_2)]
-                                pred_inds_1 = param_attr_inds[param_1][attr_name_1]
-                                pred_inds_2 = param_attr_inds[param_2][attr_name_2]
+                            if (param_1.name, attr_name_1) in action_inds and (param_2, attr_name_2) in action_inds:
+                                u_inds_1 = action_inds[(param_1.name, attr_name_1)]
+                                u_inds_2 = action_inds[(param_2.name, attr_name_2)]
+                                pred_inds_1 = param_attr_inds[param_1.name][attr_name_1]
+                                pred_inds_2 = param_attr_inds[param_2.name][attr_name_2]
                                 assert len(u_inds_1) == len(pred_inds_1) and len(u_inds_2) == len(pred_inds_2)
                                 second_order_uu_approx[t-active_ts[0], u_inds_1, u_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
 
-                            if (param_1, attr_name_1) in action_inds[(param_1, attr_name_1)] and (param_2, attr_name_2) in state_inds[(param_2, attr_name_2)]:
-                                u_inds_1 = action_inds[(param_1, attr_name_1)]
-                                x_inds_2 = state_inds[(param_2, attr_name_2)]
-                                pred_inds_1 = param_attr_inds[param_1][attr_name_1]
-                                pred_inds_2 = param_attr_inds[param_2][attr_name_2]
+                            if (param_1.name, attr_name_1) in action_inds and (param_2.name, attr_name_2) in state_inds:
+                                u_inds_1 = action_inds[(param_1.name, attr_name_1)]
+                                x_inds_2 = state_inds[(param_2.name, attr_name_2)]
+                                pred_inds_1 = param_attr_inds[param_1.name][attr_name_1]
+                                pred_inds_2 = param_attr_inds[param_2.name][attr_name_2]
                                 assert len(u_inds_1) == len(pred_inds_1) and len(x_inds_2) == len(pred_inds_2)
                                 second_order_ux_approx[t-active_ts[0], u_inds_1, x_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
 
@@ -249,8 +248,31 @@ def get_plan_traj_info(plan):
         Extract active timesteps and active parameters from the plan
     '''
     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
-    if hasattr(plan, 'state_inds'):
-        params = list(set(map(lambda k: k[0], plan.state_inds.keys())))
-    else:
-        params = plan.params.values()
+    # if hasattr(plan, 'state_inds'):
+    #     params = list(set(map(lambda k: k[0], plan.state_inds.keys())))
+    # else:
+    #     params = plan.params.values()
+    params = set()
+    for action in plan.actions:
+        params.update(action.params)
+    params = list(params)
     return active_ts, params
+
+def create_sub_plans(plan, action_sequence):
+    next_plan_acts = []
+    cur_seq_ind = 0
+    plans = []
+    for i in range(len(plan.actions)):
+        act = plan.actions[i]
+        if act.name == action_sequnce[cur_seq_ind]:
+            next_plan_acts.append(act)
+            cur_seq_ind += 1
+            if cur_seq_ind >= len(action_sequnce):
+                plans.append(Plan(plan.params, next_plan_acts, plan.horizon, plan.env, False))
+                next_plan_acts = []
+                cur_seq_ind = 0
+        else:
+            next_plan_acts = []
+            cur_seq_ind = 0
+
+    return plans

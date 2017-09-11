@@ -58,7 +58,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'T': T,
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM],
-                'obs_include': [],
+                'obs_include': [utils.STATE_ENUM],
                 'conditions': len(plans),
                 'dX': dX,
                 'dU': dU,
@@ -139,13 +139,14 @@ class BaxterPolicySolver(RobotLLSolver):
     def _traj_policy_opt(self, plan, traj_state, norm='min-vel'):
         transfer_objs = []
         if norm == 'min-vel':
-            for param, attr_name in plan.state_inds.keys():
+            for param_name, attr_name in plan.state_inds.keys():
+                param = plan.params[param_name]
                 if param.is_symbol(): continue
                 attr_type = param.get_attr_type(attr_name)
                 param_ll = self._param_to_ll[param]
                 T = param_ll._horizon
                 active_ts = plan.active_ts
-                attr_val = traj_state[plan.state_inds[(param, attr_name)], active_ts[0]:active_ts[1]+1]
+                attr_val = traj_state[plan.state_inds[(param_name, attr_name)], active_ts[0]:active_ts[1]+1]
                 K = attr_type.dim
 
                 # pose = param.pose
