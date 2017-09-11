@@ -24,13 +24,6 @@ TABLE_GEOM = [0.3, 0.6, 0.018]
 TABLE_POS = [0.75, 0.02, 0.522]
 TABLE_ROT = [0,0,0]
 
-# WASHER_POS = [2,2,2]
-WASHER_POS = [0.08, 0.781, 0.28]
-WASHER_ROT = [np.pi, 0, np.pi/2]
-WASHER_DOOR = [0.0]
-WASHER_END_DOOR = [-np.pi/2]
-WASHER_CONFIG = [True, True]
-
 CLOTH_ROT = [0,0,0]
 
 """
@@ -46,19 +39,11 @@ PUTDOWN_LARMPOSE = [-0.8       , -0.87594019,  0.2587353 ,  0.92223949,  2.97696
 PUTDOWN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
 PUTDOWN_GRIPPER = [0.02]
 
-WASHER_BEGIN_POSE = [np.pi/3]
-WASHER_BEGIN_LARMPOSE = [-0.8       , -0.93703369, -0.27464748,  1.09904023, -2.97863535, -1.4287909 ,  2.35686368]
-WASHER_BEGIN_RARMPOSE = [-0.2       , -1.38881187,  1.25178981,  1.81230334, -0.18056559, 1.27622517,  0.70704811]
 
 CLOTH_PUTDOWN_BEGIN_1_POSE = [0]
 CLOTH_PUTDOWN_BEGIN_1_LARMPOSE = [-1.2, 0.30161054, -2.28704166, 0.95204077, 2.26996069, 1.91600073, -1.12607844]
 CLOTH_PUTDOWN_BEGIN_1_RARMPOSE = [0, -0.785, 0, 0, 0, 0, 0]
 
-WASHER_EE_POS = [0.29 ,  0.781,  0.785]
-WASHER_EE_ROT = [0, np.pi/2, -np.pi/2]
-
-WASHER_END_EE_POS = [-0.305,  0.781,  1.17 ]
-WASHER_END_EE_ROT = [0,  0,  -np.pi/2]
 
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
@@ -155,9 +140,6 @@ def main():
 
         s += "RobotPose (name {}); ".format("robot_init_pose")
         s += "RobotPose (name {}); ".format("robot_end_pose")
-        s += "Washer (name {}); ".format("washer")
-        s += "WasherPose (name {}); ".format("washer_init_pose")
-        s += "WasherPose (name {}); ".format("washer_end_pose")
         s += "Obstacle (name {})\n\n".format("table")
 
         s += "Init: "
@@ -198,20 +180,6 @@ def main():
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, CLOSE_GRIPPER, BAXTER_INIT_POSE)
 
-        s += "(geom washer {}), ".format(WASHER_CONFIG)
-        s += "(pose washer {}), ".format(WASHER_POS)
-        s += "(rotation washer {}), ".format(WASHER_ROT)
-        s += "(door washer {}), ".format(WASHER_DOOR)
-
-        s += "(geom washer_init_pose {}), ".format(WASHER_CONFIG)
-        s += "(value washer_init_pose {}), ".format(WASHER_POS)
-        s += "(rotation washer_init_pose {}), ".format(WASHER_ROT)
-        s += "(door washer_init_pose {}), ".format(WASHER_DOOR)
-
-        s += "(geom washer_end_pose {}), ".format(WASHER_CONFIG)
-        s += "(value washer_end_pose {}), ".format(WASHER_POS)
-        s += "(rotation washer_end_pose {}), ".format(WASHER_ROT)
-        s += "(door washer_end_pose {}), ".format(WASHER_END_DOOR)
 
         s += "(geom table {}), ".format(TABLE_GEOM)
         s += "(pose table {}), ".format(TABLE_POS)
@@ -221,7 +189,6 @@ def main():
         s += "(BaxterAt basket init_target), "
         s += "(BaxterBasketLevel basket), "
         s += "(BaxterRobotAt baxter robot_init_pose), "
-        s += "(BaxterWasherAt washer washer_init_pose), "
 
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "

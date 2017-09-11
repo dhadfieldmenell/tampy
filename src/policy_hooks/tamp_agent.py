@@ -155,7 +155,7 @@ class LaundryWorldMujocoAgent(Agent):
                     trajectory_state[plan.state_inds[(param.name, 'rArmPose')]] = self.motor_model.data.qpos[10:18].flatten()
                     trajectory_state[plan.state_inds[(param.name, 'rGripper')]] = self.motor_model.data.qpos[18][0]
                     trajectory_state[plan.state_inds[(param.name, 'lArmPose__vel')]] = self.motor_model.data.qvel[1:8].flatten()
-                    trajectory_state[plan.state_inds[(param.name 'lGripper__vel')] ]= self.motor_model.data.qvel[8][0]
+                    trajectory_state[plan.state_inds[(param.name, 'lGripper__vel')] ] = self.motor_model.data.qvel[8][0]
                     trajectory_state[plan.state_inds[(param.name, 'rArmPose__vel')]] = self.motor_model.data.qvel[10:18].flatten()
                     trajectory_state[plan.state_inds[(param.name, 'rGripper__vel')]] = self.motor_model.data.qvel[18][0]
             return trajectory_state

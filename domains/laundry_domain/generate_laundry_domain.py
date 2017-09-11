@@ -935,7 +935,7 @@ class PutIntoBasket(Action):
         self.eff = [\
             ('(BaxterClothAt ?cloth ?ct)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
-            ('(BaxterClothInBasket ?ct ?bt)', '{}:{}'.format(end, end)),
+            ('(BaxterClothTargetInBasket ?ct ?bt)', '{}:{}'.format(end, end)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end)),
             ('(forall (?sym1 - RobotPose)\
