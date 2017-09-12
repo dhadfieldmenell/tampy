@@ -392,7 +392,7 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['value'][:] = 0
                     target._free_attrs['rotation'][:] = 0
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.5], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], RESAMPLE_FACTOR)
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -404,8 +404,8 @@ class RobotLLSolver(LLSolver):
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[-0.785,0,0,0,0,0,0]]).T, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
             elif next_act.name == 'put_into_basket':
-                target = next_act.params[4]
-                target_body = next_act.params[2].openrave_body
+                target = next_act.params[3]
+                target_body = next_act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
 
@@ -454,8 +454,8 @@ class RobotLLSolver(LLSolver):
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
             elif act.name == 'put_into_basket':
-                target = act.params[4]
-                target_body = act.params[2].openrave_body
+                target = act.params[3]
+                target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
 

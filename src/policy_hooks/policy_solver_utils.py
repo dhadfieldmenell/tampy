@@ -79,10 +79,9 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds
 
 def fill_vector(params, params_to_inds, vec, t):
-    vec = np.array(vec)
     for param in params:
         for attr in const.ATTR_MAP[param._type]:
-            if (param, attr[0]) not in params_to_inds: continue
+            if (param.name, attr[0]) not in params_to_inds: continue
             inds = params_to_inds[(param.name, attr[0])]
             if param.is_symbol():
                 vec[inds] = getattr(param, attr[0])[:, 0]
@@ -231,12 +230,12 @@ def map_trajectory_to_vel_acc(plan):
         U = np.zeros((plan.dU,))
         fill_vector(params, plan.action_inds, U_0, t)
         fill_vector(params, plan.action_inds, U, t+1)
-        real_t = plan.params['baxter'].time[t]
+        real_t = plan.time[0, t]
         vels[:, t-active_ts[0]] = v
-        a = 2*(U-U_0+v*real_t) / (real_t**2)
+        a = 2*(U-U_0-v*real_t) / (real_t**2)
         accs[:, t-active_ts[0]] = a
         v = v + a*real_t
-    vels[:, active_ts[1]-active_ts[0]] = v + a*plan.params['baxter'].time[action_ts[1]]
+    vels[:, active_ts[1]-active_ts[0]] = v + a*plan.time[0, active_ts[1]]
 
     return vels, accs
 
@@ -249,7 +248,7 @@ def get_plan_traj_info(plan):
     #     params = list(set(map(lambda k: k[0], plan.state_inds.keys())))
     # else:
     #     params = plan.params.values()
-    params = utils.get_state_params(plan)
+    params = get_state_params(plan)
     return active_ts, params
 
 def create_sub_plans(plan, action_sequence):
@@ -273,8 +272,10 @@ def create_sub_plans(plan, action_sequence):
 
 def get_state_params(plan):
     assert hasattr(plan, 'state_inds')
-    return map(lambda k: plan.params[k[0]], plan.state_inds.keys())
+    params = map(lambda k: plan.params[k[0]], plan.state_inds.keys())
+    return list(set(params))
 
 def get_action_params(plan):
     assert hasattr(plan, 'action_inds')
-    return map(lambda k: plan.params[k[0]], plan.action_inds.keys())
+    params = map(lambda k: plan.params[k[0]], plan.action_inds.keys())
+    return list(set(params))

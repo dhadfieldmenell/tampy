@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import random
 
-NUM_CLOTHS = 1
+NUM_CLOTHS = 20
 NUM_PROBS=1
 filename = "laundry_probs/cloth_grasp_policy_{}.prob".format(NUM_CLOTHS)
 GOAL = "(BaxterRobotAt baxter robot_end_pose)"
@@ -16,7 +16,7 @@ L_ARM_INIT = [ 0.7 , -0.77271635, -1.42337285,  1.94256044,  1.05746083, 0.71274
 INT_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
 # init basket pose
-BASKET_INIT_POS = [0.75 , -0.3,  0.81]
+BASKET_INIT_POS = [0.8, -0.15,  0.81]
 BASKET_INIT_ROT = [0, 0, np.pi/2]
 
 ROBOT_DIST_FROM_TABLE = 0.05
@@ -101,15 +101,15 @@ def get_random_cloth_init_poses():
     return cloth_poses
 
 def get_random_cloth_end_poses():
-    cur_xy = [-.11, .11]
+    cur_xy = [-.1, .1]
     cloth_poses = []
     for i in range(NUM_CLOTHS):
         if not (i+1) % 4:
             cur_xy = np.array(cur_xy) + np.array([np.random.uniform(-0.21, -0.23), np.random.uniform(0.045, 0.055)])
             cur_xy[0] = max(cur_xy[0], -.11)
         else:
-            cur_xy = np.array(cur_xy) + np.array([np.random.uniform(0.045, 0.055), np.random.uniform(-0.01, 0.01)])
-        pos = np.array(BASKET_INIT_POS) + np.array([cur_xy[0], cur_xy[1], 0.04])
+            cur_xy = np.array(cur_xy) + np.array([np.random.uniform(0.04, 0.05), np.random.uniform(-0.01, 0.01)])
+        pos = np.array(BASKET_INIT_POS) + np.array([cur_xy[0], cur_xy[1], -0.17])
         cloth_poses.append(pos.tolist())
     return cloth_poses
 

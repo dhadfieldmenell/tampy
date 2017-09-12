@@ -58,6 +58,11 @@ def get_random_cloth_init_poses(num_cloths, table_pos):
         cloth_poses.append(pos.tolist())
     return cloth_poses
 
+def get_random_cloth_init_pose(table_pos):
+    cur_xy = np.array([np.random.uniform(-0.3, 0.1), np.random.uniform(0.1, 0.5)])
+    pos = np.array(table_pos) + np.array([cur_xy[0], cur_xy[1], 0.05])
+    return pos
+
 # Useful for creating sample plans
 def get_random_cloth_end_poses(num_cloths, basket_init_pos):
     cur_xy = [-.11, .11]
@@ -80,17 +85,18 @@ class TestPolicySolver(unittest.TestCase):
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = hl_solver.FFSolver(d_c)
         print "loading laundry problem..."
-        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/cloth_grasp_policy_1.prob')
-        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/single_cloth_policy.prob')
 
         plans = []
 
-        for i in range(50):
+        for i in range(5):
 
             plan_str = [
                 '1: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0',
                 '2: CLOTH_GRASP  BAXTER CLOTH_0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0',
-                '3: CLOTH_PUTDOWN BAXTER CLOTH_0 CLOTH_TARGET_END_0, CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0'
+                '3: MOVEHOLDING_CLOTH  BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH_0',
+                '4: PUT_INTO_BASKET BAXTER CLOTH_0 BASKET CLOTH_TARGET_END_0 END_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0',
+                '5: MOVETO BAXTER CLOTH_PUTDOWN_END_0 ROBOT_END_POSE'
             ]
 
             ## Use this if multiple cloths in the plan
@@ -99,7 +105,21 @@ class TestPolicySolver(unittest.TestCase):
             #     plan_str.append('{0}: CLOTH_GRASP  BAXTER CLOTH_{1} CLOTH_TARGET_BEGIN_{2} CLOTH_GRASP_BEGIN_{3} CG_EE_{4} CLOTH_GRASP_END_{5}'.format((i-1)*3+2, i, i, i, i, i))
             #     plan_str.append('{0}: CLOTH_PUTDOWN BAXTER CLOTH_{1} CLOTH_TARGET_END_{2}, CLOTH_PUTDOWN_BEGIN_{3} CP_EE_{4} CLOTH_PUTDOWN_END_{5}'.format((i-1)*3+3, i, i, i, i, i))
 
-            plan = hls.get_plan(plan_str, domain, problem)
-            plan.params['baxter'].time = np.ones((1, plan.horizon))
+            problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+            random_pose = get_random_cloth_init_pose(problem.init_state.params['basket'].pose[:,0])
+            problem.init_state.params['cloth_target_begin_0'].value[:,0] = random_pose
+            problem.init_state.params['cloth_0'].pose[:,0] = random_pose
 
+            plan = hls.get_plan(plan_str, domain, problem)
+            plan.time = np.ones((1, plan.horizon))
+            baxter = plan.params['baxter']
+            cloth = plan.params['cloth_0']
+            basket = plan.params['basket']
+            table = plan.params['table']
+            plan.dX, plan.state_inds, plan.dU, plan.action_inds = policy_solver_utils.get_plan_to_policy_mapping(plan, x_params=[baxter, cloth, basket, table], \
+                                                                                                                                                                                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
             plans.append(plan)
+
+        solver = policy_solver.BaxterPolicySolver()
+        solver.train_policy(plans)
+        import ipdb; ipdb.set_trace()

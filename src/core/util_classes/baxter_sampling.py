@@ -727,7 +727,7 @@ def resample_eereachable_ver(pred, negated, t, plan, inv = False, both_arm = Fal
             basket_pos = ee_pos + offset
         facing_pose = basket_pos[:2].dot([0,1])/np.linalg.norm(basket_pos[:2])
     elif action.name.find('cloth_grasp') >= 0 or action.name.find('cloth_putdown') >= 0:
-        cloth = plan.params['cloth']
+        cloth = action.params[1]
         facing_pose = ee_pos[:2].dot([0,1])/np.linalg.norm(ee_pos[:2])
     else:
         facing_pose = robot.pose[:, t]

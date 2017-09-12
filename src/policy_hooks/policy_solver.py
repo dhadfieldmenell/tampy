@@ -1,11 +1,20 @@
+import os
+
 import numpy as np
+
 from gps.gps_main import GPSMain
+from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
+from gps.algorithm.policy_opt.tf_model_example import tf_network
 
 from  pma.robot_ll_solver import RobotLLSolver
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 import policy_hooks.policy_solver_utils as utils
 from policy_hooks.tamp_agent import LaundryWorldMujocoAgent
+from policy_hooks.tamp_cost import TAMPCost
 
+
+BASE_DIR = os.getcwd() + '/policy_hooks/'
+EXP_DIR = BASE_DIR + '/experiments'
 
 class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
@@ -43,11 +52,11 @@ class BaxterPolicySolver(RobotLLSolver):
             utils.ACTION_ENUM: dU
         }
 
-        x0 = np.zeros((len(plans), dX))
+        x0 = []
         for i in range(len(plans)):
+            x0.append(np.zeros((dX,)))
             plan = plans[i]
             utils.fill_vector(utils.get_state_params(plan), plan.state_inds, x0[i], plan.active_ts[0])
-        x0 = x0.tolist()
 
         if not self.config:
             self.config = baxter_hyperparams.config if not hyperparams else hyperparams
@@ -79,8 +88,24 @@ class BaxterPolicySolver(RobotLLSolver):
                 'dU': dU,
         })
 
+        self.config['dQ'] =  dU
+        self.config['algorithm']['init_traj_distr']['dQ'] = dU
+        self.config['algorithm']['init_traj_distr']['T'] = T
+
+        self.config['algorithm']['policy_opt'] = {
+            'type': PolicyOptTf,
+            'network_params': {
+                'obs_include': [utils.STATE_ENUM],
+                'obs_vector_data': [utils.STATE_ENUM],
+                'sensor_dims': sensor_dims,
+            },
+            'network_model': tf_network,
+            'iterations': 1000,
+            'weights_file_prefix': EXP_DIR + 'policy',
+        }
+
         if not self.gps:
-            self.gps = GPSMain(config)
+            self.gps = GPSMain(self.config)
         else:
             self._update_agent(plans, x0)
             self._update_algorithm(plans, self.config['algorithm']['cost'][-len(plans):])
@@ -134,7 +159,7 @@ class BaxterPolicySolver(RobotLLSolver):
             obj_bexprs = self._traj_policy_opt(plan, traj_state)
             self._add_obj_bexprs(obj_bexprs)
 
-        return super(BaxterPolicySolver, self)._solve_opt_prob(self, plan, priority, callback, init, active_ts, verbose, resample, smoothing)
+        return super(BaxterPolicySolver, self)._solve_opt_prob(plan, priority, callback, init, active_ts, verbose, resample, smoothing)
 
     def _traj_policy_opt(self, plan, traj_state, norm='min-vel'):
         transfer_objs = []

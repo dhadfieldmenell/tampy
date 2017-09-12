@@ -65,8 +65,8 @@ class LaundryWorldMujocoAgent(Agent):
         else:
             active_ts, params = utils.get_plan_traj_info(plan)
             self._traj_info_cache[plan] = (active_ts, params)
-        real_t = np.sum([t for t in plan.params['baxter'].time[:, active_ts[0]:active_ts[1]+1]])
 
+        # real_t = np.sum([t for t in plan.time[:, active_ts[0]:active_ts[1]+1]])
         # root.append(xml.fromstring(options_xml.format(MUJOCO_TIME_DELTA, real_t/MUJOCO_TIME_DELTA)))
 
         for param in params:
@@ -130,7 +130,7 @@ class LaundryWorldMujocoAgent(Agent):
             mj_u[8] = -u[7]
             mj_u[9:17] = u[8:].reshape(-1, 1)
             mj_u[18] = -u[15]
-            real_t = plan.params['baxter'].time[:,t]
+            real_t = plan.time[:,t]
             self.motor_model.data.ctrl = mj_u
             start_t = self.motor_model.data.time
             cur_t = start_t
@@ -200,7 +200,7 @@ class LaundryWorldMujocoAgent(Agent):
             The state is assumed to be ordered (left then right) s0, s1, e0, e1, w0, w1, w2, gripper where gripper is one value in the plan and two in 
             Mujoco.
         '''
-        vel, acc = utils.map_trajecotory_to_vel_acc(plan)
+        vel, acc = utils.map_trajectory_to_vel_acc(plan)
         if plan in self._traj_info_cache:
             active_ts, _ = self._traj_info_cache[plan]
         else:
@@ -208,7 +208,7 @@ class LaundryWorldMujocoAgent(Agent):
             self._traj_info_cache[plan] = (active_ts, params)
         T = active_ts[1] - active_ts[0] + 1
         U = np.zeros((self.dU, T))
-        if self.simulator == 'mujoco':
+        if self.sim == 'mujoco':
             for t in range(active_ts[0], active_ts[1]+1):
                 x_t = np.zeros((self.dX))
                 utils.fill_vector(utils.get_state_params(plan), plan.state_inds, x_t, t)
@@ -233,7 +233,7 @@ class LaundryWorldMujocoAgent(Agent):
                 qfrc[7] = 0 if plan.plan.params['baxter'].lGripper[:, t] < const.GRIPPER_CLOSE_VALUE else 1
                 qfrc[15] = 0 if plan.plan.params['baxter'].rGripper[:, t] < const.GRIPPER_OPEN_VALUE else 1
                 U[:, t-active_ts[0]] = qfrc
-        elif self.simulator == 'bullet':
+        elif self.sim == 'bullet':
             # TODO: Fill this in using the bullet physics simulator & openrave inverse dynamics
             pass
 
@@ -261,10 +261,10 @@ class LaundryWorldMujocoAgent(Agent):
         else:
             noise = np.zeros((self.T, self.dU))
 
-        utils.set_params_attrs(params, plan.state_inds, x0, active_ts[0])
+        utils.set_params_attrs(params, plan.state_inds, self.x0[condition], active_ts[0])
 
         #TODO: Enforce this sample is close to the global policy
-        self.solver.solve(self.plans[condition], n_resamples=5, active_ts=active_ts, force_init=True)
+        self.solver._backtrack_solve(self.plans[condition])
         U = self._inverse_dynamics(plan)
         for t in range(active_ts[0], active_ts[1]+1):
             utils.fill_sample_from_trajectory(sample, plan, U[:, t-active_ts[0]], noise[t-active_ts[0], :], t, self.dX)

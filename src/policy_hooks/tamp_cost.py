@@ -1,4 +1,4 @@
-from gps.costs import Cost
+from gps.algorithm.cost.cost import Cost
 
 import policy_hooks.policy_solver_utils as utils
 
