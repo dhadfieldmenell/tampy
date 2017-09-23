@@ -102,11 +102,11 @@ def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
 
     sample.set(ACTION_ENUM, u_vec, t-active_ts[0])
 
-    X = np.zeros((dU, 1))
+    X = np.zeros((plan.dX,))
     fill_vector(params, plan.state_inds, X, t)
     sample.set(STATE_ENUM, X, t-active_ts[0])
 
-    sample.set(NOISE, noise, t-active_ts[0])
+    sample.set(NOISE_ENUM, noise, t-active_ts[0])
 
 def fill_trajectory_from_sample(sample, plan):
     params = set()
@@ -238,6 +238,25 @@ def map_trajectory_to_vel_acc(plan):
     vels[:, active_ts[1]-active_ts[0]] = v + a*plan.time[0, active_ts[1]]
 
     return vels, accs
+
+
+def timestep_vel_acc(plan, t, int_vel, real_ts_offset):
+    '''
+        Perform basic kienmatic calculations to find the velocity and acceleration of each joint at each timestep
+    '''
+    assert t < plan.T
+    params = get_action_params(plan)
+    a = np.zeros((plan.dU,))
+    v = int_vel.copy()
+    U_0 = np.zeros((plan.dU,))
+    U = np.zeros((plan.dU,))
+    fill_vector(params, plan.action_inds, U_0, t)
+    fill_vector(params, plan.action_inds, U, t+1)
+    real_t = plan.time[0, t] - real_ts_offset
+    vels[:, t-active_ts[0]] = v
+    a = 2*(U-U_0-v*real_t) / (real_t**2)
+
+    return a
 
 def get_plan_traj_info(plan):
     '''

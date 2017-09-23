@@ -183,8 +183,9 @@ class RobotLLSolver(LLSolver):
         """
         robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 10)
         if not robot_poses:
-            print "Using Random Poses"
-            robot_poses = self.random_pose_suggester(plan, anum, resample_size = 5)
+            return False
+            # print "Using Random Poses"
+            # robot_poses = self.random_pose_suggester(plan, anum, resample_size = 5)
 
         """
         sampler end
@@ -392,7 +393,7 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['value'][:] = 0
                     target._free_attrs['rotation'][:] = 0
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.10])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -443,7 +444,7 @@ class RobotLLSolver(LLSolver):
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.10])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -543,7 +544,7 @@ class RobotLLSolver(LLSolver):
                 raise NotImplementedError
         if not robot_pose:
             print "Unable to find IK"
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
 
         return robot_pose
 

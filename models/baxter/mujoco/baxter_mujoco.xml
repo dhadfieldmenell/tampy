@@ -18,7 +18,7 @@
 
 <mujoco model="baxter(v1.31)">
     <compiler coordinate="local" angle="radian" meshdir="../../models/baxter/mujoco/meshes/" strippath="false" />
-    <option timestep="0.01" gravity="0 0 0" iterations="20" integrator="RK4" />
+    <option timestep="0.002" gravity="0 0 -9.81" iterations="20" integrator="RK4" />
     <size njmax="795" nconmax="250" nstack="631875" />
    
    <asset>
@@ -335,16 +335,6 @@
     </worldbody>
 
     <actuator>
-        <motor joint="left_s0"/>
-        <motor joint="left_s1"/>
-        <motor joint="left_e0"/>
-        <motor joint="left_e1"/>
-        <motor joint="left_w0"/>
-        <motor joint="left_w1"/>
-        <motor joint="left_w2"/>
-        <motor joint="left_gripper_l_finger_joint"/>
-        <motor joint="left_gripper_r_finger_joint"/>
-
         <motor joint="right_s0"/>
         <motor joint="right_s1"/>
         <motor joint="right_e0"/>
@@ -354,5 +344,15 @@
         <motor joint="right_w2"/>
         <motor joint="right_gripper_l_finger_joint"/>
         <motor joint="right_gripper_r_finger_joint"/>
+        
+        <motor joint="left_s0"/>
+        <motor joint="left_s1"/>
+        <motor joint="left_e0"/>
+        <motor joint="left_e1"/>
+        <motor joint="left_w0"/>
+        <motor joint="left_w1"/>
+        <motor joint="left_w2"/>
+        <motor joint="left_gripper_l_finger_joint"/>
+        <motor joint="left_gripper_r_finger_joint"/>
     </actuator>
 </mujoco>

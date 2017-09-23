@@ -1400,15 +1400,17 @@ class TestBasketDomain(unittest.TestCase):
         # '20: MOVETO BAXTER CLOSE_DOOR_END ROBOT_END_POSE'
         # ]
 
-        plan = hls.get_plan(plan_str, domain, problem)
-        print "solving basket domain problem..."
+        # plan = hls.get_plan(plan_str, domain, problem)
+        # print "solving basket domain problem..."
+        pd = PlanDeserializer()
+        plan = pd.read_from_hdf5('vel_acc_test_plan.hdf5')
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()
         def callback(a): return viewer
         velocites = np.ones((plan.horizon, ))*1
 
         viewer.draw_plan_ts(plan, 0)
-        # import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
 
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()

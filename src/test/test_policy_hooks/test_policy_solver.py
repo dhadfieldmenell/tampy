@@ -3,7 +3,7 @@ import unittest, time, main
 import numpy as np
 
 from core.parsing import parse_domain_config, parse_problem_config
-from pma import hl_solver
+from pma import hl_solver, robot_ll_solver
 from policy_hooks import policy_solver, tamp_agent, policy_hyperparams, policy_solver_utils
 
 def load_environment(domain_file, problem_file):
@@ -59,7 +59,7 @@ def get_random_cloth_init_poses(num_cloths, table_pos):
     return cloth_poses
 
 def get_random_cloth_init_pose(table_pos):
-    cur_xy = np.array([np.random.uniform(-0.3, 0.1), np.random.uniform(0.1, 0.5)])
+    cur_xy = np.array([np.random.uniform(-0.2, 0.1), np.random.uniform(0.1, 0.5)])
     pos = np.array(table_pos) + np.array([cur_xy[0], cur_xy[1], 0.05])
     return pos
 
@@ -89,7 +89,9 @@ class TestPolicySolver(unittest.TestCase):
 
         plans = []
 
-        for i in range(5):
+        ll_solver = robot_ll_solver.RobotLLSolver()
+
+        for i in range(50):
 
             plan_str = [
                 '1: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0',
@@ -106,11 +108,14 @@ class TestPolicySolver(unittest.TestCase):
             #     plan_str.append('{0}: CLOTH_PUTDOWN BAXTER CLOTH_{1} CLOTH_TARGET_END_{2}, CLOTH_PUTDOWN_BEGIN_{3} CP_EE_{4} CLOTH_PUTDOWN_END_{5}'.format((i-1)*3+3, i, i, i, i, i))
 
             problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-            random_pose = get_random_cloth_init_pose(problem.init_state.params['basket'].pose[:,0])
+            random_pose = get_random_cloth_init_pose(problem.init_state.params['table'].pose[:,0])
             problem.init_state.params['cloth_target_begin_0'].value[:,0] = random_pose
             problem.init_state.params['cloth_0'].pose[:,0] = random_pose
 
             plan = hls.get_plan(plan_str, domain, problem)
+            result = ll_solver.backtrack_solve(plan)
+            if not result:
+                continue
             plan.time = np.ones((1, plan.horizon))
             baxter = plan.params['baxter']
             cloth = plan.params['cloth_0']

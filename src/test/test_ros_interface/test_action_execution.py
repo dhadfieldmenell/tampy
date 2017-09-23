@@ -4,11 +4,13 @@ from pma import hl_solver, robot_ll_solver
 import baxter_interface
 from baxter_interface import CHECK_VERSION
 from core.parsing import parse_domain_config, parse_problem_config
-from ros_interface import action_execution
+from ros_interface import action_execution, trajectory_controller
 from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
 from core.util_classes import baxter_constants
 from core.util_classes.viewer import OpenRAVEViewer
+
+
 class TestActionExecute(unittest.TestCase):
 
 	def test_execute(self):
@@ -36,6 +38,35 @@ class TestActionExecute(unittest.TestCase):
 		baxter_interface.Gripper('left', CHECK_VERSION).calibrate()
 		baxter_interface.Gripper('right', CHECK_VERSION).calibrate()
 		action_execution.execute_plan(plan)
+		# for action in plan.actions:
+		# 	import ipdb; ipdb.set_trace()
+		# 	action_execution_2.execute_action(action)
+
+	def test_trajectory_controller(self):
+		'''
+		This will try to talk to the Baxter, so launch the sim or real robot
+		first
+		'''
+		# import ipdb; ipdb.set_trace()
+		pd = PlanDeserializer()
+		plan = pd.read_from_hdf5("prototype2.hdf5")
+
+		velocites = np.ones((plan.horizon, ))
+		# slow_inds = np.array([range(19,39), range(58,78), range(97,117), range(136,156), range(175,195), range(214,234)]).flatten()
+		# velocites[slow_inds] = 1.0
+		baxter = plan.params['baxter']
+		plan.time = np.ones((1, plan.horizon))
+		print("Initializing node... ")
+		rospy.init_node("rsdk_joint_trajectory_client")
+		print("Getting robot state... ")
+		rs = baxter_interface.RobotEnable(CHECK_VERSION)
+		print("Enabling robot... ")
+		rs.enable()
+		print("Running. Ctrl-c to quit")
+		ctrl = trajectory_controller.TrajectoryController()
+		baxter_interface.Gripper('left', CHECK_VERSION).calibrate()
+		baxter_interface.Gripper('right', CHECK_VERSION).calibrate()
+		ctrl.execute_plan(plan)
 		# for action in plan.actions:
 		# 	import ipdb; ipdb.set_trace()
 		# 	action_execution_2.execute_action(action)

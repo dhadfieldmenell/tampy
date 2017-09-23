@@ -129,7 +129,7 @@ class LaundryWorldMujocoAgent(Agent):
             mj_u[:8] = u[:8].reshape(-1, 1)
             mj_u[8] = -u[7]
             mj_u[9:17] = u[8:].reshape(-1, 1)
-            mj_u[18] = -u[15]
+            mj_u[17] = -u[15]
             real_t = plan.time[:,t]
             self.motor_model.data.ctrl = mj_u
             start_t = self.motor_model.data.time
@@ -161,11 +161,10 @@ class LaundryWorldMujocoAgent(Agent):
             return trajectory_state
 
 
-    def _set_simulator_state(self, x, cond, t):
+    def _set_simulator_state(self, x, plan, t):
         '''
-            Set the simulator to the state of the specified condition at the specified timestep, except for the robot
+            Set the simulator to the state of the specified condition, except for the robot
         '''
-        plan  = self.plans[cond]
         model  = self.motor_model
         xpos = model.data.xpos.copy()
         xquat = model.data.xquat.copy()
@@ -176,11 +175,13 @@ class LaundryWorldMujocoAgent(Agent):
             self._traj_info_cache[plan] = (active_ts, params)
 
         for param in params:
-            if param._type != 'Robot':
+            if param._type != 'Robot' and (param.name, 'pose') in plan.state_inds and (param.name, 'rotation') in plan.state_inds:
                 param_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, param.name)
                 if param_ind == -1: continue
-                xpos[param_ind] = param.pose[:, t] + np.array([0, 0, MUJOCO_MODEL_Z_OFFSET])
-                xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(param.pose[:,t], param.rotation[:,t])[:3,:3])
+                pos = x[plan.state_inds[(param.name, 'pose')]]
+                rot = x[plan.state_inds[(param.name, 'rotation')]]
+                xpos[param_ind] = pos + np.array([0, 0, MUJOCO_MODEL_Z_OFFSET])
+                xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(pos, rot)[:3,:3])
 
         model.data.xpos = xpos
         model.data.xquat = xquat
@@ -213,35 +214,67 @@ class LaundryWorldMujocoAgent(Agent):
                 x_t = np.zeros((self.dX))
                 utils.fill_vector(utils.get_state_params(plan), plan.state_inds, x_t, t)
                 self._set_simulator_state(x_t, plan, t)
-                self.model.data.qpos  = self._baxter_to_mujoco(plan, t)
-                vel_t = np.zeros((18,1))
-                vel_t[:8] = vel[:8,t]
-                vel_t[8] = -vel[7,t]
-                vel_t[9:17] = vel[8:16, t]
-                vel_tl[17] = -vel[15, t]
+                self.motor_model.data.qpos  = self._baxter_to_mujoco(plan, t)
+                vel_t = np.zeros((18,))
+                vel_t[9:17] = vel[:8,t]
+                vel_t[17] = -vel[7,t]
+                vel_t[:8] = vel[8:16, t]
+                vel_t[8] = -vel[15, t]
                 vel_t = np.r_[0, vel_t] # Mujoco includes the head joint which we don't use
-                self.model.data.qvel = vel_t
-                acc_t = np.zeros((18,1))
-                acc_t[:8] = acc[:8,t]
-                acc_t[8] = -acc[7,t]
-                acc_t[9:17] = acc[8:16, t]
-                acc_t[17] = -acc[15, t]
+                self.motor_model.data.qvel = vel_t.reshape((19,1))
+                acc_t = np.zeros((18,))
+                acc_t[9:17] = acc[:8,t]
+                acc_t[17] = -acc[7,t]
+                acc_t[:8] = acc[8:16, t]
+                acc_t[8] = -acc[15, t]
                 acc_t = np.r_[0, acc_t] # Mujoco includes the head joint which we don't use
-                self.model.data.qacc = acc_t
-                mjlib.mj_inverse(self.model.ptr, self.model.data.ptr)
-                qfrc = np.delete(self.model.data.qfrc_inverse, [0, 9, 18], axis=0) # Only want the joints we use
-                qfrc[7] = 0 if plan.plan.params['baxter'].lGripper[:, t] < const.GRIPPER_CLOSE_VALUE else 1
-                qfrc[15] = 0 if plan.plan.params['baxter'].rGripper[:, t] < const.GRIPPER_OPEN_VALUE else 1
-                U[:, t-active_ts[0]] = qfrc
+                self.motor_model.data.qacc = acc_t.reshape((19,1))
+                mjlib.mj_inverse(self.motor_model.ptr, self.motor_model.data.ptr)
+                # mjlib.mj_fwdActuation(self.motor_model.ptr, self.motor_model.data.ptr)
+                # qfrc = np.delete(self.motor_model.data.qfrc_inverse, [0, 9, 18], axis=0) # Only want the joints we use
+                qfrc = np.delete(self.motor_model.data.qfrc_inverse, [0, 9, 18], axis=0)
+                qfrc[7] = 0 if plan.params['baxter'].lGripper[:, t] < const.GRIPPER_CLOSE_VALUE else 1
+                qfrc[15] = 0 if plan.params['baxter'].rGripper[:, t] < const.GRIPPER_OPEN_VALUE else 1
+                U[:, t-active_ts[0]] = qfrc.flatten()
         elif self.sim == 'bullet':
             # TODO: Fill this in using the bullet physics simulator & openrave inverse dynamics
             pass
 
         return U
 
+    def _inverse_dynamics_openrave(self, cond):
+        plan = self.plans[cond]
+        vel, acc = utils.map_trajectory_to_vel_acc(plan)
+        if plan in self._traj_info_cache:
+            active_ts, params = self._traj_info_cache[plan]
+        else:
+            active_ts, params = utils.get_plan_traj_info(plan)
+            self._traj_info_cache[plan] = (active_ts, params)
+
+        T = active_ts[1] - active_ts[0] + 1
+        U = np.zeros((self.dU, T))
+        for t in range(active_ts[0], active_ts[1]+1):
+            for param in params:
+                if not param.is_symbol():
+                    param.openrave_body.set_pose(param.pose[:,t], param.rotation[:,t])
+                    if param.name == 'baxter':
+                        param.set_dof({'lArmPose':param.lArmOose[:,t], 'lGripper':param.lGripper[:,t], 'rArmPose':param.rArmPose[:,t], 'rGripper':param.rGripper[:,t]})
+                        lArmVel = vel[plan.action_inds['baxter', 'lArmPose'], t-active_ts[0]]
+                        lGripperVel = vel[plan.action_inds['baxter', 'lGripper'], t-active_ts[0]]
+                        rArmVel = vel[plan.action_inds['baxter', 'rArmPose'], t-active_ts[0]]
+                        rGripperVel = vel[plan.action_inds['baxter', 'rGripper'], t-active_ts[0]]
+                        param.openrave_body.env_body.SetDOFVelocities(np.r_[0, 0, lArmVel, lGripperVel, rArmVel, rGripperVel])
+                        lArmAcc = acc[plan.action_inds['baxter', 'lArmPose'], t-active_ts[0]]
+                        lGripperAcc = acc[plan.action_inds['baxter', 'lGripper'], t-active_ts[0]]
+                        rArmAcc = acc[plan.action_inds['baxter', 'rArmPose'], t-active_ts[0]]
+                        rGripperAcc = acc[plan.action_inds['baxter', 'rGripper'], t-active_ts[0]]
+
+            u_t = plan.params['baxter'].openrave_body.env_body.ComputeInverseDynamics(np.r_[0, 0, lArmAcc, lGripperAcc, rArmAcc, rGripperAcc])
+            U[:, t-active_ts[0]] = u_t[2:]
+
     def _baxter_to_mujoco(self, plan, t):
         baxter = plan.params['baxter']
-        return np.r_[0, baxter.lArmPos[:,t], baxter.lGripper[:,t], -baxter.lGripper[:,t], baxter.rArmPose[:,t], baxter.rGripper[:,t], -baxter.rGripper[:,t]]
+        return np.r_[0, baxter.rArmPose[:,t], baxter.rGripper[:,t], -baxter.rGripper[:,t], baxter.lArmPose[:,t], baxter.lGripper[:,t], -baxter.lGripper[:,t]]
 
     def sample(self, policy, condition, verbose=False, save=True, noisy=False):
         '''
@@ -271,3 +304,10 @@ class LaundryWorldMujocoAgent(Agent):
         if save:
             self._samples[condition].append(sample)
         return sample
+
+
+    def _run_trajectory(self, condition, model):
+        plan = self.plans[condition]
+        baxter = plan.params['baxter']
+        model.data.qpos = np.r_[0, baxter.lArmPose[:,t], baxter.lGripper[:,t], -baxter.lGripper[:,t], baxter.rArmPose[:,t], baxter.rGripper[:,t], -baxter.rGripper[:,t]]
+        model.data.qpos = self._baxter_to_mujoco
