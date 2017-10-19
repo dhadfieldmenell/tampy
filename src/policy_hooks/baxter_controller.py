@@ -8,6 +8,10 @@ class BaxterMujocoController(object):
             This defines a P Controller for a Baxter simulated in Mujoco
 
             All gains are assumed to either have a dimension of 16 (7 joints per arm & 1 joint per gripper) to match with the real Baxter or to be scalars
+
+            Some good values for pos/vel gains (empircally tested):
+                pos_gains = 2.5e2
+                vel_gains = 1e1
         '''
         self.pos_gains = pos_gains
         self.vel_gains = vel_gains
@@ -41,7 +45,7 @@ class BaxterMujocoController(object):
 
     def step_control_loop(self, plan, next_timestep, real_t, mode=POS_VEL_MODE):
         '''
-            Provides a torque delta to follow a given trajectory
+            Returns a torque delta to follow a given trajectory
 
             PARAMETERS:
                 plan: A TAMP plan containing a baxter object that stores trajectory information
@@ -56,7 +60,7 @@ class BaxterMujocoController(object):
             pos_target = np.r_[baxter.rArmPose[:, t], baxter.rGripper[:, t], baxter.lArmPose[:, t], baxter.lGripper[:, t]]
             pos_error = self._pos_error(pos_target)
             vel_error = self._vel_error(pos_error / time_to_go)
-            return self.pos_gains * pos_error + self.vel_gains * vel_error
+            return self.pos_gains * (np.abs(pos_error) * pos_error) + self.vel_gains * vel_error
 
     def convert_torques_to_mujoco(self, torques):
         return np.r_[torques[:8], -torques[7], torques[8:], -torques[15]].reshape((18, 1))

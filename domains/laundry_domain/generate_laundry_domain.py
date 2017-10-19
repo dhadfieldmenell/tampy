@@ -137,6 +137,7 @@ dp.add('BaxterBasketLevel', ['Basket'])
 dp.add('BaxterPushWasher', ['Robot', 'Washer'])
 dp.add('BaxterClothTargetInWasher', ['ClothTarget', 'WasherPose'])
 dp.add('BaxterClothTargetInBasket', ['ClothTarget', 'BasketTarget'])
+dp.add('BaxterGrippersCenteredOverBasket', ['Robot', 'Basket'])
 
 
 
@@ -945,7 +946,41 @@ class PutIntoBasket(Action):
             )', '{}:{}'.format(end, end-1))
         ]
 
-actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(), OpenDoor(), CloseDoor(), ClothGrasp(), ClothPutdown(), PushDoor(), PutIntoWasher(), TakeOutOfWasher(), PutIntoBasket()]
+class CenterGrippers(Action):
+    def __init__(self):
+        self.name = 'center_grippers'
+        self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?basket - Basket ?bt - BasketTarget ?sp - RobotPose)'
+        self.pre = [\
+            ('(BaxterRobotAt ?robot ?sp)', '0:0'),
+            ('(BaxterAt ?basket ?bt)', '0:{}'.format(end)),
+            ('(BaxterStationary ?basket)', '0:{}'.format(end-1)),
+            ('(forall (?obs - Washer)\
+                (BaxterStationaryWasher ?obs)\
+            )', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle)\
+                (BaxterStationaryW ?obs)\
+            )', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                )\
+            )', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle)\
+                (not (BaxterRCollides ?robot ?obs))\
+            )', '0:{}'.format(end))
+        ]
+        self.eff = [\
+            ('(BaxterGrippersCenteredOverBasket ?robot ?basket)', '{}:{}'.format(end, end)),
+        ]
+
+actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(), OpenDoor(), CloseDoor(), ClothGrasp(), ClothPutdown(), PushDoor(), PutIntoWasher(), TakeOutOfWasher(), PutIntoBasket(), CenterGrippers()]
 for action in actions:
     dom_str += '\n\n'
     dom_str += action.to_str()

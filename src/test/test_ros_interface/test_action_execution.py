@@ -51,13 +51,12 @@ class TestActionExecute(unittest.TestCase):
 		pd = PlanDeserializer()
 		plan = pd.read_from_hdf5("prototype2.hdf5")
 
-		velocites = np.ones((plan.horizon, ))
 		# slow_inds = np.array([range(19,39), range(58,78), range(97,117), range(136,156), range(175,195), range(214,234)]).flatten()
 		# velocites[slow_inds] = 1.0
 		baxter = plan.params['baxter']
-		plan.time = np.ones((1, plan.horizon))
+		plan.time = np.ones((1, plan.horizon)) * 0.25
 		print("Initializing node... ")
-		rospy.init_node("rsdk_joint_trajectory_client")
+	 	rospy.init_node("rsdk_joint_trajectory_client")
 		print("Getting robot state... ")
 		rs = baxter_interface.RobotEnable(CHECK_VERSION)
 		print("Enabling robot... ")
@@ -70,6 +69,20 @@ class TestActionExecute(unittest.TestCase):
 		# for action in plan.actions:
 		# 	import ipdb; ipdb.set_trace()
 		# 	action_execution_2.execute_action(action)
+
+	def test_environment_updates(self):
+		'''
+		This will try to talk to the Baxter, so launch the sim or real robot
+		first
+		'''
+		pd = PlanDeserializer()
+		plan = pd.read_from_hdf5("prototype2.hdf5")
+		baxter = plan.params['baxter']
+		plan.time = np.ones((1, plan.horizon)) * 0.25
+		print("Initializing node... ")
+	 	rospy.init_node("rsdk_joint_trajectory_client")
+		print("Running. Ctrl-c to quit")
+		action_execution.execute_plan(plan)
 
 	def test_prototype2(self):
 		print "loading laundry domain..."
@@ -109,6 +122,50 @@ class TestActionExecute(unittest.TestCase):
 		baxter_interface.Gripper('left', CHECK_VERSION).calibrate()
 		baxter_interface.Gripper('right', CHECK_VERSION).calibrate()
 		action_execution.execute_plan(plan)
+
+		import ipdb; ipdb.set_trace()
+
+	def test_basket_grasp(self):
+		print "loading laundry domain..."
+		domain_fname = '../domains/laundry_domain/laundry.domain'
+		d_c = main.parse_file_to_dict(domain_fname)
+		domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+		hls = hl_solver.FFSolver(d_c)
+		print "loading laundry problem..."
+		p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/basket_move.prob')
+		problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+		plan_str = [
+		'0: MOVETO BAXTER ROBOT_INIT_POSE BASKET_GRASP_BEGIN',
+		'1: BASKET_GRASP BAXTER BASKET BASKET_INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END',
+		'2: MOVEHOLDING_BASKET BAXTER BASKET_GRASP_END BASKET_PUTDOWN_BEGIN BASKET',
+		'3: BASKET_PUTDOWN BAXTER BASKET END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END',
+		'4: MOVETO BAXTER BASKET_PUTDOWN_END ROBOT_INIT_POSE'
+		]
+		print "constructing plan object"
+		plan = hls.get_plan(plan_str, domain, problem)
+
+		print "solving laundry domain problem..."
+		solver = robot_ll_solver.RobotLLSolver()
+		start = time.time()
+		# viewer = OpenRAVEViewer.create_viewer(plan.env)
+		success = solver.backtrack_solve(plan, callback = None, verbose=False)
+		end = time.time()
+		print "Planning finished within {}s.".format(end - start)
+
+		import ipdb; ipdb.set_trace()
+
+		print("Initializing node... ")
+		rospy.init_node("rsdk_joint_trajectory_client")
+		print("Getting robot state... ")
+		rs = baxter_interface.RobotEnable(CHECK_VERSION)
+		print("Enabling robot... ")
+		rs.enable()
+		print("Running. Ctrl-c to quit")
+		baxter_interface.Gripper('left', CHECK_VERSION).calibrate()
+		baxter_interface.Gripper('right', CHECK_VERSION).calibrate()
+		ctrl = trajectory_controller.TrajectoryController()
+		ctrl.execute_plan(plan)
 
 		import ipdb; ipdb.set_trace()
 

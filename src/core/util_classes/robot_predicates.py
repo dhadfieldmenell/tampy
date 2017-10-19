@@ -1067,8 +1067,8 @@ class HLAnchor(ExprPredicate):
         assert len(params) == 2
         attr_inds = self.attr_inds
 
-        A = np.zeros((6, 6))
-        b, val = np.zeros((6, 1)), np.zeros((6, 1))
+        A = np.zeros((self.attr_dim, self.attr_dim))
+        b, val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(HLAnchor, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)

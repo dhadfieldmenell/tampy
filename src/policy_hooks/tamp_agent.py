@@ -19,6 +19,7 @@ from gps.sample.sample import Sample
 import core.util_classes.baxter_constants as const
 import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
+from policy_hooks.baxter_controller import BaxterMujocoController
 import policy_hooks.policy_solver_utils as utils
 
 '''
@@ -50,6 +51,7 @@ class LaundryWorldMujocoAgent(Agent):
         # self.pos_model = self.setup_mujoco_model(self.plans[0], motor=False)
         self.motor_model = self.setup_mujoco_model(self.plans[0])
         self.viewer = None
+        self.controller = BaxterMujocoController(self.model, pos_gains=2.5e2, vel_gains=1e1)
 
         Agent.__init__(self, config)
 
@@ -308,6 +310,25 @@ class LaundryWorldMujocoAgent(Agent):
 
     def _run_trajectory(self, condition, model):
         plan = self.plans[condition]
+        if plan in self._traj_info_cache:
+            active_ts, params = self._traj_info_cache[plan]
+        else:
+            active_ts, params = utils.get_plan_traj_info(plan)
+            self._traj_info_cache[plan] = (active_ts, params)
+
+        t0 = active_ts[0]
         baxter = plan.params['baxter']
-        model.data.qpos = np.r_[0, baxter.lArmPose[:,t], baxter.lGripper[:,t], -baxter.lGripper[:,t], baxter.rArmPose[:,t], baxter.rGripper[:,t], -baxter.rGripper[:,t]]
-        model.data.qpos = self._baxter_to_mujoco
+        model.data.qpos = np.r_[0, baxter.lArmPose[:,t0], baxter.lGripper[:,t0], -baxter.lGripper[:,t0], baxter.rArmPose[:,t0], baxter.rGripper[:,t0], -baxter.rGripper[:,t0]]
+
+        error_limits = np.array([.2, .75, .2, .075, .075, .5, .001, .001, .05, .5, .2, .075, .075, .5, .001, .001,])
+        for ts in range(active_ts[0], active_ts[1]+1):
+            cur_pos_error = np.ones((16,))
+            i = 1.0;
+            cur_t = 0;
+            while np.any(cur_pos_error > error_limits) and i < 100:
+                torques = controller.step_control_loop(plan, t+1, cur_t)
+                model.data.ctrl = controller.convert_torques_to_mujoco(torques)
+                model.step()
+                cur_t += 0.002
+                i += 1.0
+                

@@ -37,7 +37,7 @@ import threading
 
 from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 from pma.robot_ll_solver import RobotLLSolver
-# from ros_interface.environment_monitor import EnvironmentMonitor
+from ros_interface.environment_monitor import EnvironmentMonitor
 
 import rospy
 
@@ -369,9 +369,9 @@ def execute_plan(plan):
 	Pass in a plan on an initialized ros node and it will execute the
 	trajectory of that plan for a single robot.
 	'''
-	# env_monitor = EnvironmentMonitor()
-	# print "Updating parameter locations..."
-	# env_monitor.update_plan(plan, 0)
+	env_monitor = EnvironmentMonitor()
+	print "Updating parameter locations..."
+	env_monitor.update_plan(plan, 0)
 
 	# print "solving laundry domain problem..."
 	# solver = RobotLLSolver()
@@ -385,7 +385,7 @@ def execute_plan(plan):
 	# ps.write_plan_to_hdf5('prototype2.hdf5', plan)
 	# pd = PlanDeserializer()
 	# plan = pd.read_from_hdf5('washer_manipulation_plan.hdf5')
-	viewer = OpenRAVEViewer.create_viewer(plan.env)
+	# viewer = OpenRAVEViewer.create_viewer(plan.env)
 	import ipdb; ipdb.set_trace()
 
 
@@ -400,14 +400,16 @@ def execute_plan(plan):
 		for i in range(len(plan.actions)):
 			action = plan.actions[i]
 			print action.name
-			traj = Trajectory()
-			traj.load_trajectory(action)
+			# traj = Trajectory()
+			# traj.load_trajectory(action)
 
-			rospy.on_shutdown(traj.stop)
+			# rospy.on_shutdown(traj.stop)
 			# result = True
 
-			traj.start()
-			result = traj.wait()
+			# traj.start()
+			# result = traj.wait()
+
+			env_monitor.update_plan(plan, action.active_timesteps[1], params=['basket'])
 
 			import ipdb; ipdb.set_trace()
 

@@ -52,7 +52,11 @@ GRIPPER_OPEN_VALUE = 0.02
 GRIPPER_CLOSE_VALUE = 0.015
 BASKET_OFFSET = 0.317
 
+# How far to go into the washer
 WASHER_DEPTH_OFFSET = -0.1
+
+# Added height from rotor base
+ROTOR_BASE_HEIGHT = 0.12
 
 """
 Following constants are used in baxter_sampling
@@ -73,6 +77,11 @@ Following constants are for testing purposes
 
 TOL = 1e-4
 TEST_GRAD = True
+
+'''
+Following constants are for computing torque controllers
+'''
+time_delta = 0.005
 
 '''
 Following constants are for general use
