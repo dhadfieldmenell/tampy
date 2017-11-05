@@ -252,24 +252,21 @@ class LaundryWorldMujocoAgent(Agent):
 
         first_act = self.plan.actions[x0[1][0]]
         last_act = self.plan.actions[x0[1][1]]
-
         init_t = first_act.active_timesteps[0]
         final_t = last_act.active_timesteps[1]
 
         old_first_pose = first_act.params[1]
         first_act.params[1] = plan.params['robot_init_pose'] # Cloth world specific
-
         utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
         utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], final_t)
         self.plan._determine_free_attrs()
-
         self.solver._backtrack_solve(self.plans[condition], anum=x0[1][0], amax=x0[1][1])
 
+        use_noise = np.random.choice([0,1], [self.expert_ratio, 1-self.expert_ratio])
         X = np.zeros((self.plan.symbolic_bound,))
         utils.fill_vector(self.params, self.plan.state_inds, X, init_t)
         U_x0 = np.zeros(self.plan.dU)
         utils.fill_vector(self.params, self.plan.action_inds, U_x0, init_t)
-
         for ts in range(init_t, final_t):
             cur_X = X.copy()
             utils.fill_vector(self.params, self.plan.state_inds, X, ts+1)
@@ -278,7 +275,6 @@ class LaundryWorldMujocoAgent(Agent):
             utils.fill_vector(self.params, self.plan.action_inds, U_x1, ts+1)
             U = U_x1 - U_x0
 
-            use_noise = np.random.choice([0,1], [self.expert_ratio, 1-self.expert_ratio])
             if use_noise:
                 noise = np.random.normal(U, 0.1)
                 U += noise
@@ -286,6 +282,7 @@ class LaundryWorldMujocoAgent(Agent):
                 X[self.plan.state_inds[('baxter', 'lGripper')]] = cur_X[self.plan.state_inds[('baxter', 'lArmPose')]] + U[self.plan.action_inds[('baxter', 'lArmPose')]]
                 X[self.plan.state_inds[('baxter', 'rArmPose')]] = cur_X[self.plan.state_inds[('baxter', 'lArmPose')]] + U[self.plan.action_inds[('baxter', 'lArmPose')]]
                 X[self.plan.state_inds[('baxter', 'rGripper')]] = cur_X[self.plan.state_inds[('baxter', 'lArmPose')]] + U[self.plan.action_inds[('baxter', 'lArmPose')]]
+                self._clip_joint_angles(X)
 
             U_x0 = U_x1
 
@@ -342,6 +339,22 @@ class LaundryWorldMujocoAgent(Agent):
             self.pos_model.step()
             cur_right_joints = self.pos_model.data.qpos[1:8]
             cur_left_joints = self.pos_model.data.qpos[10:17]
+
+    def _clip_joint_angles(self, X):
+        DOF_limits = self.plan.params['baxter'].openrave_body.env_body.GetDOFLimits()
+        left_DOF_limits = (DOF_limits[0][2:9], DOF_limits[1][2:9])
+        right_DOF_limits = (DOF_limits[0][10:17], DOF_limits[1][10:17])
+        lArmPose = X[self.plan.state_inds[('baxter', 'lArmPose')]]
+        rArmPose = X[self.plan.state_inds[('baxter', 'rArmPose')]]
+        for i in range(7):
+            if lArmPose[i] < left_DOF_limits[0][i]:
+                lArmPose[i] = left_DOF_limits[0][i]
+            if lArmPose[i] > left_DOF_limits[1][i]:
+                lArmPose[i] = left_DOF_limits[1][i]
+            if rArmPose[i] < right_DOF_limits[0][i]:
+                rArmPose[i] = right_DOF_limits[0][i]
+            if rArmPose[i] > right_DOF_limits[1][i]:
+                rArmPose[i] = right_DOF_limits[1][i]
 
     # def run_policy_traj_step(self, U):
     #     pass

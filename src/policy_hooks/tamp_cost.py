@@ -33,21 +33,5 @@ class TAMPCost(Cost):
     def fill_trajectory_from_sample(self, sample):
         set_params_attrs(self.params, plan.state_inds, self.x0[0], 0)
         for t in range(self.init_t+1, self.final_t+1):
-            X = self._clip_joint_angles(sample.get_X(t-init_t))
+            X = sample.get_X(t-init_t)
             set_params_attrs(self.params, self.plan.state_inds, X, t)
-
-    def _clip_joint_angles(self, X):
-        DOF_limits = self.plan.params['baxter'].openrave_body.env_body.GetDOFLimits()
-        left_DOF_limits = (DOF_limits[0][2:9], DOF_limits[1][2:9])
-        right_DOF_limits = (DOF_limits[0][10:17], DOF_limits[1][10:17])
-        lArmPose = X[self.plan.state_inds[('baxter', 'lArmPose')]]
-        rArmPose = X[self.plan.state_inds[('baxter', 'rArmPose')]]
-        for i in range(7):
-            if lArmPose[i] < left_DOF_limits[0][i]:
-                lArmPose[i] = left_DOF_limits[0][i]
-            if lArmPose[i] > left_DOF_limits[1][i]:
-                lArmPose[i] = left_DOF_limits[1][i]
-            if rArmPose[i] < right_DOF_limits[0][i]:
-                rArmPose[i] = right_DOF_limits[0][i]
-            if rArmPose[i] > right_DOF_limits[1][i]:
-                rArmPose[i] = right_DOF_limits[1][i]
