@@ -55,6 +55,7 @@ class LaundryWorldMujocoAgent(Agent):
         self.motor_model = self.setup_mujoco_model(self.plan)
         self.controller = BaxterMujocoController(self.model, pos_gains=2.5e2, vel_gains=1e1)
         self.demonstrations = np.ones((len(self.plans))) * self._hyperparams['demonstrations']
+        self.expert_ratio = self._hyperparams['expert_ratio'] # Probability a demonstration has no added noise
 
         self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
         self.params = filter(lambda p: not p.is_symbol(), self.plan.params.values())
@@ -81,7 +82,8 @@ class LaundryWorldMujocoAgent(Agent):
                 radius = param.geom.radius
                 x, y, z = param.pose[:, active_ts[0]]
                 cloth_body = xml.SubElement(worldbody, 'body', {'name': param.name, 'pos': "{} {} {}".format(x,y,z+MUJOCO_MODEL_Z_OFFSET), 'euler': "0 0 0"})
-                cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'cylinder', 'size':"{} {}".format(radius, height), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
+                # cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'cylinder', 'size':"{} {}".format(radius, height), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
+                cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
             # We might want to change this; in Openrave we model tables as hovering box so there's no easy translation to Mujoco
             elif param._type == 'Obstacle': 
                 length = param.geom.dim[0]
@@ -202,14 +204,19 @@ class LaundryWorldMujocoAgent(Agent):
                 robot_name = param.name
                 robot_pose = self.pos_model.data.xpos[self.pos_model.body_names.index('baxter')]
                 right_arm = self.pos_model.data.qpos[1:8]
-                x[('baxter', 'rArmPose')] = right_arm
+                X[x_inds[('baxter', 'rArmPose')]] = right_arm
                 right_grip = const.GRIPPER_OPEN_VALUE if self.pos_model.data.qpos[8] > 0 else const.GRIPPER_CLOSE_VALUE
-                x[('baxter', 'rGripper')] = right_grip
+                X[x_inds[('baxter', 'rGripper')]] = right_grip
 
                 left_arm = self.pos_model.data.qpos[10:17]
-                x[('baxter', 'lArmPose')] = left_arm
+                X[x_inds[('baxter', 'lArmPose')]] = left_arm
                 left_grip = const.GRIPPER_OPEN_VALUE if self.pos_model.data.qpos[17] > 0 else const.GRIPPER_CLOSE_VALUE
-                x[('baxter', 'lGripper')] - left_grip
+                X[x_inds[('baxter', 'lGripper')]] - left_grip
+
+                X[x_inds[('baxter', 'rArmPose__vel')]] = self.pos_model.data.qvel[1:8]
+                X[x_inds[('baxter', 'rGripper__vel')]] = self.pos_model.data.qvel[8]
+                X[x_inds[('baxter', 'lArmPose__vel')]] = self.pos_model.data.qvel[10:17]
+                X[x_inds[('baxter', 'lGripper__vel')]] = self.pos_model.data.qvel[17]
 
         return X
     
@@ -259,17 +266,38 @@ class LaundryWorldMujocoAgent(Agent):
         self.solver._backtrack_solve(self.plans[condition], anum=x0[1][0], amax=x0[1][1])
 
         X = np.zeros((self.plan.symbolic_bound,))
+        utils.fill_vector(self.params, self.plan.state_inds, X, init_t)
+        U_x0 = np.zeros(self.plan.dU)
+        utils.fill_vector(self.params, self.plan.action_inds, U_x0, init_t)
+
         for ts in range(init_t, final_t):
-            U_x0 = np.zeros(self.plan.dU)
+            cur_X = X.copy()
+            utils.fill_vector(self.params, self.plan.state_inds, X, ts+1)
+
             U_x1 = np.zeros(self.plan.dU)
-            utils.fill_vector(self.params, self.plan.action_inds, U_x0, ts)
             utils.fill_vector(self.params, self.plan.action_inds, U_x1, ts+1)
             U = U_x1 - U_x0
+
+            use_noise = np.random.choice([0,1], [self.expert_ratio, 1-self.expert_ratio])
+            if use_noise:
+                noise = np.random.normal(U, 0.1)
+                U += noise
+                X[self.plan.state_inds[('baxter', 'lArmPose')]] = cur_X[self.plan.state_inds[('baxter', 'lArmPose')]] + U[self.plan.action_inds[('baxter', 'lArmPose')]]
+                X[self.plan.state_inds[('baxter', 'lGripper')]] = cur_X[self.plan.state_inds[('baxter', 'lArmPose')]] + U[self.plan.action_inds[('baxter', 'lArmPose')]]
+                X[self.plan.state_inds[('baxter', 'rArmPose')]] = cur_X[self.plan.state_inds[('baxter', 'lArmPose')]] + U[self.plan.action_inds[('baxter', 'lArmPose')]]
+                X[self.plan.state_inds[('baxter', 'rGripper')]] = cur_X[self.plan.state_inds[('baxter', 'lArmPose')]] + U[self.plan.action_inds[('baxter', 'lArmPose')]]
+
+            U_x0 = U_x1
+
             sample.set(ACTION_ENUM, U, ts-init_t)
-            utils.fill_vector(self.params, self.plan.state_inds, X, ts)
-            sample.set(STATE_ENUM, X, ts-init_t)
-            sample.set(OBS_ENUM, X, ts-init_t)
+            sample.set(STATE_ENUM, cur_X, ts-init_t)
+            sample.set(OBS_ENUM, cur_X, ts-init_t)
             sample.set(NOISE_ENUM, np.zeros((self.dU)), ts-init_t)
+
+            X[self.plan.state_inds[('baxter', 'rArmPose__vel')]] = U[plan.action_inds[('baxter', 'rArmPose')]] / plan.time[ts+1]
+            X[self.plan.state_inds[('baxter', 'rGripper__vel')]] = U[plan.action_inds[('baxter', 'rGripper')]] / plan.time[ts+1]
+            X[self.plan.state_inds[('baxter', 'lArmPose__vel')]] = U[plan.action_inds[('baxter', 'lArmPose')]] / plan.time[ts+1]
+            X[self.plan.state_inds[('baxter', 'lGripper__vel')]] = U[plan.action_inds[('baxter', 'lGripper')]] / plan.time[ts+1]
 
         sample.set(STATE_ENUM, X, final_t-init_t)
         sample.set(OBS_ENUM, X, final_t-init_t)
@@ -303,10 +331,10 @@ class LaundryWorldMujocoAgent(Agent):
         return sample
 
     def run_traj_policy_step(self, u, u_inds):
-        next_right_pose = u[u_inds['baxter', 'rArmPose']]
-        next_left_pose = u[u_inds['baxter', 'lArmPose']]
         cur_right_joints = self.pos_model.data.qpos[1:8]
         cur_left_joints = self.pos_model.data.qpos[10:17]
+        next_right_pose = cur_right_joints + u[u_inds['baxter', 'rArmPose']]
+        next_left_pose = cur_left_joints + u[u_inds['baxter', 'lArmPose']]
         r_grip = (u[u_inds['baxter', 'rGripper']] / np.abs(u[u_inds['baxter', 'rGripper']])) * 5
         l_grip = (u[u_inds['baxter', 'lGripper']] / np.abs(u[u_inds['baxter', 'lGripper']])) * 5
         self.pos_model.data.ctrl = np.r_[next_right_pose, r_grip -r_grip, next_left_pose, l_grip, -l_grip]

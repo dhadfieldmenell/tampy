@@ -1760,7 +1760,7 @@ class BaxterClothTargetInBasket(ExprPredicate):
         A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
         b = np.zeros((6,1))
 
-        val = np.array([[.12], [.12], [.16], [.12], [.12], [.18]])
+        val = np.array([[.12], [.12], [-.24], [.12], [.12], [.24]])
         pos_expr = AffExpr(A, b)
         e = LEqExpr(pos_expr, val)
         super(BaxterClothTargetInBasket, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)

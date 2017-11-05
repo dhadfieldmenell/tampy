@@ -58,6 +58,9 @@ WASHER_DEPTH_OFFSET = -0.1
 # Added height from rotor base
 ROTOR_BASE_HEIGHT = 0.12
 
+# Height difference from table top to bottom of basket
+BASKET_BASE_DELTA = 0.035
+
 """
 Following constants are used in baxter_sampling
 """

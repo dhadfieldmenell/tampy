@@ -65,7 +65,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'dX': inital_plan.symbolic_bound,
                 'dU': inital_plan.dU,
                 'demonstrations': 25,
-                'expert_ratio': 0.5,
+                'expert_ratio': 0.75,
                 'solver': self
             }
             self.config['algorithm']['cost'] = []
