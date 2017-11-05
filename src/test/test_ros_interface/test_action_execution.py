@@ -4,7 +4,7 @@ from pma import hl_solver, robot_ll_solver
 import baxter_interface
 from baxter_interface import CHECK_VERSION
 from core.parsing import parse_domain_config, parse_problem_config
-from ros_interface import action_execution, trajectory_controller
+from ros_interface import action_execution, controllers
 from core.util_classes.plan_hdf5_serialization import PlanDeserializer, PlanSerializer
 from openravepy import Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, ikfast, IkParameterizationType, IkParameterization, IkFilterOptions, databases, matrixFromAxisAngle
 from core.util_classes import baxter_constants

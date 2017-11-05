@@ -7,7 +7,6 @@ STATE_ENUM = 1
 OBS_ENUM = 2
 NOISE_ENUM = 3
 
-# TODO: Is there actually a reason to map to the action vector? How should we handle the action vector if it contains joint torques?
 def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
     '''
     Maps the parameters of the plan actions to indices in the policy state and action vectors, and returns the dimensions of those vectors.
@@ -38,45 +37,62 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
     else:
         params = x_params
 
+    robot = plan.params['baxter'] #TODO: Make this more general
+    robot_attr_map = const.ATTR_MAP[robot._type]
+    if len(u_attrs):
+        for attr in u_attrs:
+            x_inds = attr[1] + cur_x_ind
+            cur_x_ind = x_inds[-1] + 1
+            params_to_x_inds[(robot.name, attr[0])] = x_inds
+            u_inds = attr[1] + cur_u_ind
+            cur_u_ind = u_inds[-1] + 1
+            params_to_u_inds[(robot.name, attr[0])] = u_inds
+        for attr in u_attrs:
+            x_vel_inds = attr[1] + cur_x_ind
+            cur_x_ind = x_vel_inds[-1] + 1
+            params_to_x_inds[(robot.name, attr[0]+'__vel')] = x_vel_inds
+    else:
+        # Use each Baxter attribute if none are specified
+        for attr in robot_attr_map:
+            x_inds = attr[1] + cur_x_ind
+            cur_x_ind = x_inds[-1] + 1
+            params_to_x_inds[(robot.name, attr[0])] = x_inds
+            u_inds = attr[1] + cur_u_ind
+            cur_u_ind = u_inds[-1] + 1
+            params_to_u_inds[(robot.name, attr[0])] = u_inds
+        for attr in robot_attr_map:
+            x_vel_inds = attr[1] + cur_x_ind
+            cur_x_ind = x_vel_inds[-1] + 1
+            params_to_x_inds[(robot.name, attr[0]+'__vel')] = x_vel_inds
+
     for param in params:
         param_attr_map = const.ATTR_MAP[param._type]
         # Uses all parameters for state unless otherwise specified
-        if not x_params_init:
-            x_params.append(param)
+        if not x_params_init: x_params.append(param)
 
-        # Uses all robots for policy actions unless otherwise specified
-        if not u_params_init and param._type == 'Robot':
-            u_params.append(param)
-
-        if (param in x_params and param in u_params):
-            param_attr_map = const.ATTR_MAP[param._type]
+        if param in x_params:
             for attr in param_attr_map:
-                x_inds = attr[1] + cur_x_ind
-                cur_x_ind = x_inds[-1] + 1
-                x_vel_inds = attr[1] + cur_x_ind
-                cur_x_ind = x_vel_inds[-1] + 1
-                params_to_x_inds[(param.name, attr[0])] = x_inds
-                params_to_x_inds[(param.name, attr[0]+'__vel')] = x_vel_inds
-                if attr[0] not in u_attrs: continue
-                u_inds = attr[1] + cur_u_ind
-                cur_u_ind = u_inds[-1] + 1
-                params_to_u_inds[(param.name, attr[0])] = u_inds
-
-        elif param in x_params:
-            for attr in param_attr_map:
+                if (param.name, attr[0]) in params_to_x_inds or param.is_symbol(): continue
                 inds = attr[1] + cur_x_ind
                 cur_x_ind = inds[-1] + 1
                 params_to_x_inds[(param.name, attr[0])] = inds
 
-        elif param in u_params:
+    symbolic_boundary = cur_x_ind # Used to differntiate parameters from symbols in the state vector
+
+    for param in params:
+        param_attr_map = const.ATTR_MAP[param._type]
+        # Uses all parameters for state unless otherwise specified
+        if not x_params_init: x_params.append(param)
+
+        if param in x_params:
             for attr in param_attr_map:
-                if attr[0] not in u_attrs: continue
-                inds = attr[1] + cur_u_ind
-                cur_u_ind = inds[-1] + 1
-                params_to_u_inds[(param.name, attr[0])] = inds
+                if (param.name, attr[0]) in params_to_x_inds: continue
+                inds = attr[1] + cur_x_ind
+                cur_x_ind = inds[-1] + 1
+                params_to_x_inds[(param.name, attr[0])] = inds
 
     # dX, state index map, dU, (policy) action map
-    return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds
+    return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary
 
 def fill_vector(params, params_to_inds, vec, t):
     for param in params:
@@ -213,62 +229,62 @@ def get_trajectory_cost(plan):
 
     return timestep_costs, first_order_x_approx, first_order_u_approx, second_order_xx_approx, second_order_uu_approx, second_order_ux_approx
 
-def map_trajectory_to_vel_acc(plan):
-    '''
-        Perform basic kienmatic calculations to find the velocity and acceleration of each joint at each timestep
-    '''
-    params = get_action_params(plan)
-    active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
-    T = active_ts[1] - active_ts[0] + 1
-    vels = np.zeros((plan.dU, T))
-    accs = np.zeros((plan.dU, T))
+# def map_trajectory_to_vel_acc(plan):
+#     '''
+#         Perform basic kienmatic calculations to find the velocity and acceleration of each joint at each timestep
+#     '''
+#     params = get_action_params(plan)
+#     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
+#     T = active_ts[1] - active_ts[0] + 1
+#     vels = np.zeros((plan.dU, T))
+#     accs = np.zeros((plan.dU, T))
 
-    a = np.zeros((plan.dU,))
-    v = np.zeros((plan.dU,))
-    for t in range(active_ts[0], active_ts[1]):
-        U_0 = np.zeros((plan.dU,))
-        U = np.zeros((plan.dU,))
-        fill_vector(params, plan.action_inds, U_0, t)
-        fill_vector(params, plan.action_inds, U, t+1)
-        real_t = plan.time[0, t]
-        vels[:, t-active_ts[0]] = v
-        a = 2*(U-U_0-v*real_t) / (real_t**2)
-        accs[:, t-active_ts[0]] = a
-        v = v + a*real_t
-    vels[:, active_ts[1]-active_ts[0]] = v + a*plan.time[0, active_ts[1]]
+#     a = np.zeros((plan.dU,))
+#     v = np.zeros((plan.dU,))
+#     for t in range(active_ts[0], active_ts[1]):
+#         U_0 = np.zeros((plan.dU,))
+#         U = np.zeros((plan.dU,))
+#         fill_vector(params, plan.action_inds, U_0, t)
+#         fill_vector(params, plan.action_inds, U, t+1)
+#         real_t = plan.time[0, t]
+#         vels[:, t-active_ts[0]] = v
+#         a = 2*(U-U_0-v*real_t) / (real_t**2)
+#         accs[:, t-active_ts[0]] = a
+#         v = v + a*real_t
+#     vels[:, active_ts[1]-active_ts[0]] = v + a*plan.time[0, active_ts[1]]
 
-    return vels, accs
+#     return vels, accs
 
 
-def timestep_vel_acc(plan, t, int_vel, real_ts_offset):
-    '''
-        Perform basic kienmatic calculations to find the velocity and acceleration of each joint at each timestep
-    '''
-    assert t < plan.T
-    params = get_action_params(plan)
-    a = np.zeros((plan.dU,))
-    v = int_vel.copy()
-    U_0 = np.zeros((plan.dU,))
-    U = np.zeros((plan.dU,))
-    fill_vector(params, plan.action_inds, U_0, t)
-    fill_vector(params, plan.action_inds, U, t+1)
-    real_t = plan.time[0, t] - real_ts_offset
-    vels[:, t-active_ts[0]] = v
-    a = 2*(U-U_0-v*real_t) / (real_t**2)
+# def timestep_vel_acc(plan, t, int_vel, real_ts_offset):
+#     '''
+#         Perform basic kienmatic calculations to find the velocity and acceleration of each joint at each timestep
+#     '''
+#     assert t < plan.T
+#     params = get_action_params(plan)
+#     a = np.zeros((plan.dU,))
+#     v = int_vel.copy()
+#     U_0 = np.zeros((plan.dU,))
+#     U = np.zeros((plan.dU,))
+#     fill_vector(params, plan.action_inds, U_0, t)
+#     fill_vector(params, plan.action_inds, U, t+1)
+#     real_t = plan.time[0, t] - real_ts_offset
+#     vels[:, t-active_ts[0]] = v
+#     a = 2*(U-U_0-v*real_t) / (real_t**2)
 
-    return a
+#     return a
 
-def get_plan_traj_info(plan):
-    '''
-        Extract active timesteps and active parameters from the plan
-    '''
-    active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
-    # if hasattr(plan, 'state_inds'):
-    #     params = list(set(map(lambda k: k[0], plan.state_inds.keys())))
-    # else:
-    #     params = plan.params.values()
-    params = get_state_params(plan)
-    return active_ts, params
+# def get_plan_traj_info(plan):
+#     '''
+#         Extract active timesteps and active parameters from the plan
+#     '''
+#     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
+#     # if hasattr(plan, 'state_inds'):
+#     #     params = list(set(map(lambda k: k[0], plan.state_inds.keys())))
+#     # else:
+#     #     params = plan.params.values()
+#     params = get_state_params(plan)
+#     return active_ts, params
 
 def create_sub_plans(plan, action_sequence):
     next_plan_acts = []
@@ -298,3 +314,13 @@ def get_action_params(plan):
     assert hasattr(plan, 'action_inds')
     params = map(lambda k: plan.params[k[0]], plan.action_inds.keys())
     return list(set(params))
+
+def closest_arm_pose(arm_poses, cur_arm_pose):
+    min_change = np.inf
+    chosen_arm_pose = None
+    for arm_pose in arm_poses:
+        change = sum((arm_pose - cur_arm_pose)**2)
+        if change < min_change:
+            chosen_arm_pose = arm_pose
+            min_change = change
+    return chosen_arm_pose

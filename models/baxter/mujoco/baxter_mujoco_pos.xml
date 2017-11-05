@@ -17,8 +17,8 @@
 ====================================================== -->
 
 <mujoco model="baxter(v1.31)">
-    <compiler coordinate="local" angle="radian" meshdir="meshes/" strippath="false" />
-    <option timestep="0.01" gravity="0 0 0" iterations="20" integrator="RK4" />
+    <compiler coordinate="local" angle="radian" meshdir="../../models/baxter/mujoco/meshes/" strippath="false" />
+    <option timestep="0.002" gravity="0 0 -9.81" iterations="20" integrator="RK4" />
     <size njmax="795" nconmax="250" nstack="631875" />
    
    <asset>
@@ -38,7 +38,7 @@
         <mesh name="half_round_tip" file="electric_gripper/fingers/half_round_tip.STL" />
         <mesh name="electric_gripper_base" file="electric_gripper/electric_gripper_base.STL" />
         <mesh name="extended_narrow" file="electric_gripper/fingers/extended_narrow.STL"/>
-        <mesh name="paddle_tip" file="electric_gripper/fingers/paddle_tip.STL"/>        
+        <mesh name="paddle_tip" file="electric_gripper/fingers/paddle_tip.STL"/>
         <mesh name="laundry_basket" file="laundry_basket.STL" scale="0.001 0.001 0.001"/>
    </asset>
 
@@ -98,7 +98,7 @@
                 </body>-->
                 <body name="pedestal" pos="0 0 0">
                     <inertial pos="0 0 0" quat="0.659267 -0.259505 -0.260945 0.655692" mass="60.864" diaginertia="6.0869 5.81635 4.20915" />
-                    <geom class="viz" rgba="0.2 0.2 0.2 1"mesh="PEDESTAL"/>
+                    <geom class="viz" rgba="0.2 0.2 0.2 1" mesh="PEDESTAL"/>
                     <!--<geom rgba="0.2 0.2 0.2 1" type="mesh" mesh="pedestal_link_collision"/>-->
                     <geom pos="-.04 0 -.8" rgba="0.2 0.2 0.2 1" type="box" size=".46 .425 .16"/>
                     <geom pos="0 0 -.35" rgba="0.2 0.2 0.2 1" type="capsule" size=".165 .25"/>
@@ -335,24 +335,24 @@
     </worldbody>
 
     <actuator>
-        <position kp=5 ctrllimited="true" ctrlrange="-1.7016 1.7016 " joint="left_s0"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-2.147 1.047" joint="left_s1"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-3.0541 3.0541" joint="left_e0"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-0.05 2.618" joint="left_e1"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-3.059 3.059" joint="left_w0"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-1.5707 2.094" joint="left_w1"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-3.059  3.059 " joint="left_w2"/>
-        <motor kp=5 ctrllimited="true" ctrlrange="0 0.020833" joint="left_gripper_l_finger_joint"/>
-        <motor kp=5 ctrllimited="true" ctrlrange="-0.020833 0" joint="left_gripper_r_finger_joint"/>
-
-        <position kp=5 ctrllimited="true" ctrlrange="-1.7016 1.7016 " joint="right_s0"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-2.147 1.047" joint="right_s1"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-3.0541 3.0541" joint="right_e0"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-0.05 2.618" joint="right_e1"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-3.059 3.059" joint="right_w0"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-1.5707 2.094" joint="right_w1"/>
-        <position kp=5 ctrllimited="true" ctrlrange="-3.059  3.059 " joint="right_w2"/>
-        <motor kp=5 ctrllimited="true" ctrlrange="0 0.020833" joint="right_gripper_l_finger_joint"/>
-        <motor kp=5 ctrllimited="true" ctrlrange="-0.020833 0" joint="right_gripper_r_finger_joint"/>
+        <position kp="100" joint="right_s0"/>
+        <position kp="100" joint="right_s1"/>
+        <position kp="100" joint="right_e0"/>
+        <position kp="100" joint="right_e1"/>
+        <position kp="100" joint="right_w0"/>
+        <position kp="100" joint="right_w1"/>
+        <position kp="100" joint="right_w2"/>
+        <motor joint="right_gripper_l_finger_joint"/>
+        <motor joint="right_gripper_r_finger_joint"/>
+        
+        <position kp="100" joint="left_s0"/>
+        <position kp="100" joint="left_s1"/>
+        <position kp="100" joint="left_e0"/>
+        <position kp="100" joint="left_e1"/>
+        <position kp="100" joint="left_w0"/>
+        <position kp="100" joint="left_w1"/>
+        <position kp="100" joint="left_w2"/>
+        <motor joint="left_gripper_l_finger_joint"/>
+        <motor joint="left_gripper_r_finger_joint"/>
     </actuator>
 </mujoco>

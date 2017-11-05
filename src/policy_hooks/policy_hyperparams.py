@@ -78,5 +78,7 @@ config = {
     'common': common,
     'algorithm': algorithm,
     'num_samples': 5,
+    'num_conds': 100,
+    'mode': 'position'
 }
 

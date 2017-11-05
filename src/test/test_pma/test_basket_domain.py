@@ -1229,7 +1229,7 @@ class TestBasketDomain(unittest.TestCase):
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
         if result:
             result = solver.traj_smoother(plan, callback = None)
-        else:
+        else: 
             import ipdb; ipdb.set_trace()
         end = time.time()
         # pd = PlanDeserializer()
@@ -1433,6 +1433,27 @@ class TestBasketDomain(unittest.TestCase):
         serializer.write_plan_to_hdf5("prototype_plan.hdf5", plan)
         self.assertTrue(result)
         import ipdb; ipdb.set_trace()
+
+    def generate_one_cloth_prob(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/cloth_grasp_policy_1.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0',
+        '1: CLOTH_GRASP BAXTER CLOTH_0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH_0',
+        '3: PUT_INTO_BASKET BAXTER CLOTH_0 BASKET CLOTH_TARGET_END_0 INIT_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0',
+        '4: MOVETO BAXTER CLOTH_PUTDOWN_END_0 ROBOT_INIT_POSE'
+        ]
+
+        plan = hls.get_plan(plan_str, domain, problem)
+        ps = PlanSerializer()
+        ps.write_plan_to_hdf5('one_cloth_grasp', plan)
 
 
     def test_monitor_update(self):

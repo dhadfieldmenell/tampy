@@ -74,7 +74,7 @@ class RobotLLSolver(LLSolver):
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None):
         # if anum == 2:
         #     import ipdb; ipdb.set_trace()
         if amax is None:

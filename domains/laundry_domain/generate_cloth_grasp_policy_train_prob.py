@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import random
 
-NUM_CLOTHS = 20
+NUM_CLOTHS = 1
 NUM_PROBS=1
 filename = "laundry_probs/cloth_grasp_policy_{}.prob".format(NUM_CLOTHS)
 GOAL = "(BaxterRobotAt baxter robot_end_pose)"

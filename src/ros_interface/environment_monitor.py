@@ -30,8 +30,13 @@ class EnvironmentMonitor:
 		self.state_dict = {}
 		self.add_predictor('cloth_pose', ClothNet, 3)
 		self.add_predictor('basket_pose', BasketNet, 3)
+		# self.add_predictor('basket_wrist_error', BasketWristNet, 3)
+		# self.add_predictor('cloth_wrist_error', ClothWristNet, 2)
+		# self.add_predictor('handle_wrist_error', HandleWristNet, 1)
 		self.add_subscriber('/zed/depth/depth_registered', Image, self.predict_basket)
 		self.add_subscriber('/camera/rgb/image_raw', Image, predict_cloth)
+		# self.add_subscriber('/cameras/right_hand_camera/image', Image, predict_right_error)
+		# self.add_subscriber('/cameras/left_hand_camera/image', Image, predict_left_error)
 
 		self.bridge = cv_bridge.CvBridge()
 
