@@ -124,15 +124,15 @@ def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
 
     sample.set(NOISE_ENUM, noise, t-active_ts[0])
 
-def fill_trajectory_from_sample(sample, plan):
-    params = set()
-    for action in plan.actions:
-        params.update(action.params)
-    params = list(params)
-    active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
-    for t in range(active_ts[0], active_ts[1]+1):
-        X = sample.get_X(t)
-        set_params_attrs(params, plan.state_inds, X, t)
+# def fill_trajectory_from_sample(sample, plan):
+#     params = set()
+#     for action in plan.actions:
+#         params.update(action.params)
+#     params = list(params)
+#     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
+#     for t in range(active_ts[0], active_ts[1]+1):
+#         X = sample.get_X(t)
+#         set_params_attrs(params, plan.state_inds, X, t)
 
 def get_trajectory_cost(plan):
     '''

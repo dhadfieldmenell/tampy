@@ -124,7 +124,6 @@ def main():
         s += "Objects: "
         s += "Basket (name {}); ".format("basket")
         s += "BasketTarget (name {}); ".format("init_target")
-        s += "BasketTarget (name {}); ".format("end_target")
 
         s += "Robot (name {}); ".format("baxter")
         for i in range(NUM_CLOTHS):
@@ -149,10 +148,6 @@ def main():
         s += "(geom init_target)"
         s += "(value init_target {}), ".format(BASKET_INIT_POS)
         s += "(rotation init_target {}), ".format(BASKET_INIT_ROT)
-
-        s += "(geom end_target), "
-        s += "(value end_target {}), ".format(BASKET_INIT_POS)
-        s += "(rotation end_target {}), ".format(BASKET_INIT_ROT)
 
         for i in range(NUM_CLOTHS):
             s += "(geom cloth_{0}), ".format(i)

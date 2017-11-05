@@ -44,7 +44,19 @@ class Baxter(Robot):
     def __init__(self):
         self._type = "baxter"
         baxter_shape = "../models/baxter/baxter.zae"
-        self.col_links = set(["torso", "pedestal", "head", "sonar_ring", "screen", "collision_head_link_1",
+        # self.col_links = set(["torso", "pedestal", "head", "sonar_ring", "screen", "collision_head_link_1",
+        #                       "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
+        #                       "right_upper_elbow", "right_upper_elbow_visual", "right_lower_elbow",
+        #                       "right_upper_forearm", "right_upper_forearm_visual", "right_lower_forearm",
+        #                       "right_wrist", "right_hand", "right_gripper_base", "right_gripper",
+        #                       "right_gripper_l_finger", "right_gripper_r_finger", "right_gripper_l_finger_tip",
+        #                       "right_gripper_r_finger_tip", "left_upper_shoulder", "left_lower_shoulder",
+        #                       "left_upper_elbow", "left_upper_elbow_visual", "left_lower_elbow",
+        #                       "left_upper_forearm", "left_upper_forearm_visual", "left_lower_forearm",
+        #                       "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
+        #                       "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
+        #                       "left_gripper_r_finger_tip"])
+        self.col_links = set(["torso", "head", "sonar_ring", "screen", "collision_head_link_1",
                               "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
                               "right_upper_elbow", "right_upper_elbow_visual", "right_lower_elbow",
                               "right_upper_forearm", "right_upper_forearm_visual", "right_lower_forearm",

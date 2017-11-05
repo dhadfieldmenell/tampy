@@ -42,6 +42,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config.update(hyperparams)
 
         inital_plan = generate_cond(num_cloths)
+        inital_plan.time = np.ones((plan.horizon+1,))
         inital_plan.dX, inital_plan.state_inds, inital_plan.dU, inital_plan.action_inds, inital_plan.symbolic_bound = utils.get_plan_to_policy_mapping(inital_plan, u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         x0s = []
         for c in range(self.config['num_conds']):

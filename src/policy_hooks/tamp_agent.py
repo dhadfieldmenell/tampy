@@ -47,7 +47,6 @@ class LaundryWorldMujocoAgent(Agent):
         self._hyperparams = config
 
         self.plan = self._hyperparams['plan']
-        self.active_ts, self.params = utils.get_plan_traj_info(plan)
         self.solver = self._hyperparams['solver']
         self.x0s = self._hyperparams['x0s']
         self.sim = 'mujoco'
@@ -56,6 +55,9 @@ class LaundryWorldMujocoAgent(Agent):
         self.motor_model = self.setup_mujoco_model(self.plan)
         self.controller = BaxterMujocoController(self.model, pos_gains=2.5e2, vel_gains=1e1)
         self.demonstrations = np.ones((len(self.plans))) * self._hyperparams['demonstrations']
+
+        self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
+        self.params = filter(lambda p: not p.is_symbol(), self.plan.params.values())
 
         Agent.__init__(self, config)
 
@@ -240,7 +242,6 @@ class LaundryWorldMujocoAgent(Agent):
 
         # Initialize the plan for the given condition
         x0 = self.x0s[condition]
-        utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], 0)
 
         first_act = self.plan.actions[x0[1][0]]
         last_act = self.plan.actions[x0[1][1]]
@@ -248,28 +249,39 @@ class LaundryWorldMujocoAgent(Agent):
         init_t = first_act.active_timesteps[0]
         final_t = last_act.active_timesteps[1]
 
+        old_first_pose = first_act.params[1]
         first_act.params[1] = plan.params['robot_init_pose'] # Cloth world specific
+
+        utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
+        utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], final_t)
+        self.plan._determine_free_attrs()
 
         self.solver._backtrack_solve(self.plans[condition], anum=x0[1][0], amax=x0[1][1])
 
-        for ts in range(first_act.active_timesteps[0], last_act.active_timesteps[1]):
-            U = np.zeros(self.plan.dU)
-            utils.fill_vector(params, self.plan.action_inds, U, ts+1)
-            sample.set(ACTION_ENUM, np.r_[left_vec, right_vec], ts - first_act.active_timesteps[0])
-            X = np.zeros((self.plan.dX,))
-            utils.fill_vector(params, self.plan.state_inds, X, ts)
+        X = np.zeros((self.plan.symbolic_bound,))
+        for ts in range(init_t, final_t):
+            U_x0 = np.zeros(self.plan.dU)
+            U_x1 = np.zeros(self.plan.dU)
+            utils.fill_vector(self.params, self.plan.action_inds, U_x0, ts)
+            utils.fill_vector(self.params, self.plan.action_inds, U_x1, ts+1)
+            U = U_x1 - U_x0
+            sample.set(ACTION_ENUM, U, ts-init_t)
+            utils.fill_vector(self.params, self.plan.state_inds, X, ts)
             sample.set(STATE_ENUM, X, ts-init_t)
             sample.set(OBS_ENUM, X, ts-init_t)
             sample.set(NOISE_ENUM, np.zeros((self.dU)), ts-init_t)
 
+        sample.set(STATE_ENUM, X, final_t-init_t)
+        sample.set(OBS_ENUM, X, final_t-init_t)
+
+        first_act.params[1] = old_first_pose
         return sample
 
     def sample_joint_trajectory_policy(self, pol, cond, noise):
         sample = Sample(self)
         x0 = self.x0s[cond]
-        utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], 0)
-        self._set_simulator_state(x0, self.plan)
         obs = x0
+        self._set_simulator_state(x0, self.plan)
 
         first_act = self.plan.actions[x0[1][0]]
         last_act = self.plan.actions[x0[1][1]]
@@ -295,7 +307,9 @@ class LaundryWorldMujocoAgent(Agent):
         next_left_pose = u[u_inds['baxter', 'lArmPose']]
         cur_right_joints = self.pos_model.data.qpos[1:8]
         cur_left_joints = self.pos_model.data.qpos[10:17]
-        self.pos_model.data.ctrl = np.r_[next_right_pose, u[u_inds['baxter', 'rGripper']], -u[u_inds['baxter', 'rGripper']], next_left_pose, u[u_inds['baxter', 'lGripper']], -u[u_inds['baxter', 'lGripper']]]
+        r_grip = (u[u_inds['baxter', 'rGripper']] / np.abs(u[u_inds['baxter', 'rGripper']])) * 5
+        l_grip = (u[u_inds['baxter', 'lGripper']] / np.abs(u[u_inds['baxter', 'lGripper']])) * 5
+        self.pos_model.data.ctrl = np.r_[next_right_pose, r_grip -r_grip, next_left_pose, l_grip, -l_grip]
         while(np.any(np.abs(cur_right_joints - next_right_pose) > 0.05) or np.any(np.abs(cur_left_joints - next_left_pose) > 0.05)):
             self.pos_model.step()
             cur_right_joints = self.pos_model.data.qpos[1:8]
