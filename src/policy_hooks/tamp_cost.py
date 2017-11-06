@@ -10,13 +10,13 @@ class TAMPCost(Cost):
         self.dU = hyperparams['dU']
         self.x0 = hyperparams['x0']
 
-        self.first_act = self.plan.actions[x0[1][0]]
-        self.last_act = self.plan.actions[x0[1][1]]
-        self.init_t = first_act.active_timesteps[0]
-        self.final_t = last_act.active_timesteps[1]
+        self.first_act = self.plan.actions[self.x0[1][0]]
+        self.last_act = self.plan.actions[self.x0[1][1]]
+        self.init_t = self.first_act.active_timesteps[0]
+        self.final_t = self.last_act.active_timesteps[1]
 
         params = set()
-        for act in range(x[1][0], x[1][1]):
+        for act in range(self.x0[1][0], self.x0[1][1]):
             next_act = self.plan.actions[act]
             params.update(next_act.params)
         self.symbols = filter(lambda p: p.is_symbol(), list(params))
@@ -25,7 +25,11 @@ class TAMPCost(Cost):
     def eval(self, sample):
         self.fill_symbolic_values()
         self.fill_trajectory_from_sample(sample)
-        return utils.get_trajectory_cost(self.plan)
+        first_act = self.plan.actions[self.x0[1][0]]
+        last_act = self.plan.actions[self.x0[1][1]]
+        init_t = first_act.active_timesteps[0]
+        final_t = last_act.active_timesteps[1]
+        return utils.get_trajectory_cost(self.plan, init_t, final_t) / (final_t - init_t + 1)
 
     def fill_symbolic_values(self):
         set_params_attrs(self.symbols, self.plan.state_inds, self.x0[0], 0)

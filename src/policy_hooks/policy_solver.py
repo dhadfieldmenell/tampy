@@ -41,32 +41,35 @@ class BaxterPolicySolver(RobotLLSolver):
         if hyperparams and self.config:
             self.config.update(hyperparams)
 
-        inital_plan = generate_cond(num_cloths)
-        inital_plan.time = np.ones((plan.horizon+1,))
-        inital_plan.dX, inital_plan.state_inds, inital_plan.dU, inital_plan.action_inds, inital_plan.symbolic_bound = utils.get_plan_to_policy_mapping(inital_plan, u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
+        initial_plan = generate_cond(num_cloths)
+        initial_plan.time = np.ones((initial_plan.horizon+1,))
+        initial_plan.dX, initial_plan.state_inds, initial_plan.dU, initial_plan.action_inds, initial_plan.symbolic_bound = utils.get_plan_to_policy_mapping(initial_plan, u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         x0s = []
         for c in range(self.config['num_conds']):
-            x0s.append(get_randomized_initial_state(inital_plan))
+            x0s.append(get_randomized_initial_state(initial_plan))
 
         sensor_dims = {
-            utils.STATE_ENUM: dX,
-            utils.ACTION_ENUM: dU
+            utils.STATE_ENUM: initial_plan.symbolic_bound,
+            utils.ACTION_ENUM: initial_plan.dU,
+            utils.OBS_ENUM: initial_plan.symbolic_bound
         }
 
         if is_first_run:
             self.config['agent'] = {
                 'type': LaundryWorldMujocoAgent,
-                'x0': x0s,
-                'plan': inital_plan,
+                'x0s': x0s,
+                'x0': map(lambda x: x[0][:initial_plan.symbolic_bound], x0s),
+                'plan': initial_plan,
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM],
                 'obs_include': [utils.OBS_ENUM],
                 'conditions': len(x0s),
-                'dX': inital_plan.symbolic_bound,
-                'dU': inital_plan.dU,
-                'demonstrations': 25,
+                'dX': initial_plan.symbolic_bound,
+                'dU': initial_plan.dU,
+                'demonstrations': 5,
                 'expert_ratio': 0.75,
-                'solver': self
+                'solver': self,
+                'T': initial_plan.horizon + 1
             }
             self.config['algorithm']['cost'] = []
 
@@ -78,15 +81,15 @@ class BaxterPolicySolver(RobotLLSolver):
         for cond in range(len(x0s)):
             self.config['algorithm']['cost'].append({
                 'type': TAMPCost,
-                'plan': inital_plan,
-                'dX': inital_plan.symbolic_bound,
-                'dU': inital_plan.dU,
+                'plan': initial_plan,
+                'dX': initial_plan.symbolic_bound,
+                'dU': initial_plan.dU,
                 'x0': x0s[cond]
         })
 
-        self.config['dQ'] = inital_plan.dU
-        self.config['algorithm']['init_traj_distr']['dQ'] = inital_plan.dU
-        self.config['algorithm']['init_traj_distr']['T'] = (inital_plan.actions[0].active_timesteps[0], inital_plan.actions[-1].active_timesteps[1])
+        self.config['dQ'] = initial_plan.dU
+        self.config['algorithm']['init_traj_distr']['dQ'] = initial_plan.dU
+        self.config['algorithm']['init_traj_distr']['T'] = initial_plan.horizon + 1
 
         self.config['algorithm']['policy_opt'] = {
             'type': PolicyOptTf,
@@ -96,7 +99,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'sensor_dims': sensor_dims,
             },
             'network_model': tf_network,
-            'iterations': 1000,
+            'iterations': 20,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -194,3 +197,7 @@ class BaxterPolicySolver(RobotLLSolver):
     #         bexpr = BoundExpr(quad_expr, sco_var)
     #         transfer_objs.append(bexpr)
     #     return transfer_objs
+
+if __name__ == '__main__':
+    PS = BaxterPolicySolver()
+    PS.train_policy(1)

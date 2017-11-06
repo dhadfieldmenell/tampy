@@ -39,31 +39,19 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
 
     robot = plan.params['baxter'] #TODO: Make this more general
     robot_attr_map = const.ATTR_MAP[robot._type]
-    if len(u_attrs):
-        for attr in u_attrs:
-            x_inds = attr[1] + cur_x_ind
-            cur_x_ind = x_inds[-1] + 1
-            params_to_x_inds[(robot.name, attr[0])] = x_inds
-            u_inds = attr[1] + cur_u_ind
-            cur_u_ind = u_inds[-1] + 1
-            params_to_u_inds[(robot.name, attr[0])] = u_inds
-        for attr in u_attrs:
-            x_vel_inds = attr[1] + cur_x_ind
-            cur_x_ind = x_vel_inds[-1] + 1
-            params_to_x_inds[(robot.name, attr[0]+'__vel')] = x_vel_inds
-    else:
-        # Use each Baxter attribute if none are specified
-        for attr in robot_attr_map:
-            x_inds = attr[1] + cur_x_ind
-            cur_x_ind = x_inds[-1] + 1
-            params_to_x_inds[(robot.name, attr[0])] = x_inds
-            u_inds = attr[1] + cur_u_ind
-            cur_u_ind = u_inds[-1] + 1
-            params_to_u_inds[(robot.name, attr[0])] = u_inds
-        for attr in robot_attr_map:
-            x_vel_inds = attr[1] + cur_x_ind
-            cur_x_ind = x_vel_inds[-1] + 1
-            params_to_x_inds[(robot.name, attr[0]+'__vel')] = x_vel_inds
+    for attr in robot_attr_map:
+        if len(u_attrs) and attr[0] not in u_attrs: continue
+        x_inds = attr[1] + cur_x_ind
+        cur_x_ind = x_inds[-1] + 1
+        params_to_x_inds[(robot.name, attr[0])] = x_inds
+        u_inds = attr[1] + cur_u_ind
+        cur_u_ind = u_inds[-1] + 1
+        params_to_u_inds[(robot.name, attr[0])] = u_inds
+    for attr in robot_attr_map:
+        if len(u_attrs) and attr[0] not in u_attrs: continue
+        x_vel_inds = attr[1] + cur_x_ind
+        cur_x_ind = x_vel_inds[-1] + 1
+        params_to_x_inds[(robot.name, attr[0]+'__vel')] = x_vel_inds
 
     for param in params:
         param_attr_map = const.ATTR_MAP[param._type]
@@ -134,7 +122,7 @@ def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
 #         X = sample.get_X(t)
 #         set_params_attrs(params, plan.state_inds, X, t)
 
-def get_trajectory_cost(plan):
+def get_trajectory_cost(plan, init_t, final_t):
     '''
     Calculates the constraint violations at the provided timestep for the current trajectory, as well as the first and second order approximations.
     This function handles the hierarchies of mappings from parameters to attributes to indices and translates between how the predicates consturct
@@ -149,7 +137,7 @@ def get_trajectory_cost(plan):
     dU = plan.dU
     for action in plan.actions:
         preds.extend(action.preds)
-    active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
+    active_ts = (init_t, final_t)
     T = active_ts[1] - active_ts[0] + 1
 
     timestep_costs = np.zeros((T, )) # l

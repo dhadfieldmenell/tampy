@@ -74,7 +74,7 @@ class RobotLLSolver(LLSolver):
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
         # if anum == 2:
         #     import ipdb; ipdb.set_trace()
         if amax is None:
@@ -405,12 +405,12 @@ class RobotLLSolver(LLSolver):
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[-0.785,0,0,0,0,0,0]]).T, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
             elif next_act.name == 'put_into_basket':
-                target = next_act.params[3]
-                target_body = next_act.params[1].openrave_body
+                target = next_act.params[4]
+                target_body = next_act.params[2].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], [0.1, 0.1, 0.2])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], [0.3, 0.3, 0.3])
                 ee_pos = target_pos + random_dir
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, DOWN_ROT, "left_arm")
                 if not len(ik_arm_poses):
@@ -455,12 +455,12 @@ class RobotLLSolver(LLSolver):
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
             elif act.name == 'put_into_basket':
-                target = act.params[3]
-                target_body = act.params[1].openrave_body
+                target = act.params[4]
+                target_body = act.params[2].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0.5], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0.0], [0.3,0.3,0.3])
                 ee_pos = target_pos + random_dir
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, DOWN_ROT, "left_arm")
                 if not len(ik_arm_poses):

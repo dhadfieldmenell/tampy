@@ -30,7 +30,7 @@ common = {
     'data_files_dir': EXP_DIR + 'data_files/',
     'target_filename': EXP_DIR + 'target.npz',
     'log_filename': EXP_DIR + 'log.txt',
-    'conditions': 50,
+    'conditions': 10,
 }
 
 algorithm = {
@@ -78,7 +78,7 @@ config = {
     'common': common,
     'algorithm': algorithm,
     'num_samples': 5,
-    'num_conds': 100,
+    'num_conds': 10,
     'mode': 'position'
 }
 
