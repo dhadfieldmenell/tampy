@@ -183,7 +183,7 @@ class RobotLLSolver(LLSolver):
         """
         robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 10)
         if not robot_poses:
-            return False
+            success = False
             # print "Using Random Poses"
             # robot_poses = self.random_pose_suggester(plan, anum, resample_size = 5)
 

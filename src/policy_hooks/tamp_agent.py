@@ -52,7 +52,7 @@ class LaundryWorldMujocoAgent(Agent):
         self.x0 = self._hyperparams['x0']
         self.sim = 'mujoco'
         self.viewer = None
-        self.pos_model = self.setup_mujoco_model(self.plan, motor=False)
+        self.pos_model = self.setup_mujoco_model(self.plan, motor=False, view=True)
         # self.motor_model = self.setup_mujoco_model(self.plan)
         # self.controller = BaxterMujocoController(self.motor_model, pos_gains=2.5e2, vel_gains=1e1)
         self.demonstrations = np.ones((len(self.init_plan_states))) * self._hyperparams['demonstrations']
@@ -72,7 +72,7 @@ class LaundryWorldMujocoAgent(Agent):
         base_xml = xml.parse(BASE_MOTOR_XML) if motor else xml.parse(BASE_POS_XML)
         root = base_xml.getroot()
         worldbody = root.find('worldbody')
-        active_ts = (0, plan.horizon+1)
+        active_ts = (0, plan.horizon)
         params = plan.params.values()
 
         # real_t = np.sum([t for t in plan.time[:, active_ts[0]:active_ts[1]+1]])
@@ -86,7 +86,7 @@ class LaundryWorldMujocoAgent(Agent):
                 x, y, z = param.pose[:, active_ts[0]]
                 cloth_body = xml.SubElement(worldbody, 'body', {'name': param.name, 'pos': "{} {} {}".format(x,y,z+MUJOCO_MODEL_Z_OFFSET), 'euler': "0 0 0"})
                 # cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'cylinder', 'size':"{} {}".format(radius, height), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
-                cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
+                cloth_geom = xml.SubElement(cloth_body, 'geom', {'name': param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
             # We might want to change this; in Openrave we model tables as hovering box so there's no easy translation to Mujoco
             elif param._type == 'Obstacle': 
                 length = param.geom.dim[0]
@@ -113,6 +113,9 @@ class LaundryWorldMujocoAgent(Agent):
             self.viewer = mjviewer.MjViewer()
             self.viewer.start()
             self.viewer.set_model(model)
+            self.viewer.cam.distance = 3
+            self.viewer.cam.azimuth = 180.0
+            self.viewer.cam.elevation = -22.5
             self.viewer.loop_once()
         return model
 
@@ -169,23 +172,24 @@ class LaundryWorldMujocoAgent(Agent):
         '''
             Set the simulator to the state of the specified condition, except for the robot
         '''
-        model  = self.motor_model
-        xpos = model.data.xpos.copy()
-        xquat = model.data.xquat.copy()
+        model  = self.pos_model
+        xpos = model.body_pos.copy()
+        xquat = model.body_quat.copy()
         param = plan.params.values()
 
-        for param in params:
+        for param in self.params:
             if param._type != 'Robot' and (param.name, 'pose') in plan.state_inds and (param.name, 'rotation') in plan.state_inds:
                 param_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, param.name)
                 if param_ind == -1: continue
                 pos = x[plan.state_inds[(param.name, 'pose')]]
                 rot = x[plan.state_inds[(param.name, 'rotation')]]
-                xpos[param_ind] = pos + np.array([0, 0, MUJOCO_MODEL_Z_OFFSET])
+                xpos[param_ind] = pos + np.array([0, 0, MUJOCO_MODEL_Z_OFFSET]) + np.array([0, 0, 0.05])
                 xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(pos, rot)[:3,:3])
 
-        model.data.xpos = xpos
-        model.data.xquat = xquat
-        model.data.qpos = self._baxter_to_mujoco(x, plan.state_inds).reshape(18,1)
+        model.body_pos = xpos
+        model.body_quat = xquat
+        model.data.qpos = self._baxter_to_mujoco(x, plan.state_inds).reshape((19,1))
+        model.forward()
 
     def _baxter_to_mujoco(self, x, x_inds):
         return np.r_[0, x[x_inds['baxter', 'rArmPose']], x[x_inds['baxter', 'rGripper']], -x[x_inds['baxter', 'rGripper']], x[x_inds['baxter', 'lArmPose']], x[x_inds['baxter', 'lGripper']], -x[x_inds['baxter', 'lGripper']]]
@@ -196,7 +200,7 @@ class LaundryWorldMujocoAgent(Agent):
         for param in self.params:
             if param._type != "Robot":
                 param_ind = self.pos_model.body_names.index(param.name)
-                X[x_inds[param.name, 'pose']] = self.pos_model.data.xpos[param_ind].flatten()
+                X[x_inds[param.name, 'pose']] = self.pos_model.data.xpos[param_ind].flatten() - np.array([0,0, MUJOCO_MODEL_Z_OFFSET])
                 quat = self.pos_model.data.xquat[param_ind].flatten()
                 rotation = [np.arctan2(2*(quat[0]*quat[1]+quat[2]*quat[3]), 1-2*(quat[1]**2+quat[2]**2)), np.arcsin(2*(quat[0]*quat[2] - quat[3]*quat[1])), \
                             np.arctan2(2*(quat[0]*quat[3] + quat[1]*quat[2]), 1-2*(quat[2]**2+quat[3]**2))]
@@ -207,13 +211,11 @@ class LaundryWorldMujocoAgent(Agent):
                 robot_name = param.name
                 right_arm = self.pos_model.data.qpos[1:8]
                 X[x_inds[('baxter', 'rArmPose')]] = right_arm.flatten()
-                right_grip = const.GRIPPER_OPEN_VALUE if self.pos_model.data.qpos[8, 0] > 0 else const.GRIPPER_CLOSE_VALUE
-                X[x_inds[('baxter', 'rGripper')]] = right_grip
+                X[x_inds[('baxter', 'rGripper')]] = self.pos_model.data.qpos[8, 0]
 
                 left_arm = self.pos_model.data.qpos[10:17]
                 X[x_inds[('baxter', 'lArmPose')]] = left_arm.flatten()
-                left_grip = const.GRIPPER_OPEN_VALUE if self.pos_model.data.qpos[17, 0] > 0 else const.GRIPPER_CLOSE_VALUE
-                X[x_inds[('baxter', 'lGripper')]] - left_grip
+                X[x_inds[('baxter', 'lGripper')]] = self.pos_model.data.qpos[17, 0]
 
                 # X[x_inds[('baxter', 'rArmPose__vel')]] = self.pos_model.data.qvel[1:8]
                 # X[x_inds[('baxter', 'rGripper__vel')]] = self.pos_model.data.qvel[8]
@@ -246,7 +248,7 @@ class LaundryWorldMujocoAgent(Agent):
             save = True
             self.demonstrations[condition] -= 1
         else:
-            self.sample_joint_trajectory_policy(self, policy, condition, noise)
+            sample = self.sample_joint_trajectory_policy(policy, condition, noise)
 
         if save:
             self._samples[condition].append(sample)
@@ -276,22 +278,28 @@ class LaundryWorldMujocoAgent(Agent):
         X = x0[0][:self.plan.symbolic_bound]
         U_x0 = np.zeros(self.plan.dU)
         utils.fill_vector(self.params, self.plan.action_inds, U_x0, init_t)
+        self._set_simulator_state(x0[0], self.plan)
+        print "Reset Mujoco Sim to Condition {0}".format(condition)
         for ts in range(init_t, final_t):
             U_x1 = np.zeros(self.plan.dU)
             utils.fill_vector(self.params, self.plan.action_inds, U_x1, ts+1)
             U = U_x1 - U_x0
-            U_x0 = U_x1
+            # U_x0 = U_x1
 
             sample.set(STATE_ENUM, X, ts)
             sample.set(OBS_ENUM, X, ts)
             sample.set(ACTION_ENUM, U, ts)
-            sample.set(NOISE_ENUM, np.zeros((self.plan.symbolic_bound)), ts)
-            self.run_traj_policy_step(U, self.plan.action_inds)
+            sample.set(NOISE_ENUM, np.zeros((self.plan.dU)), ts)
+            self.run_traj_policy_step(U_x1, self.plan.action_inds, mode='state_abs')
             X = self._get_simulator_state(self.plan.state_inds, self.plan.dX)[:self.plan.symbolic_bound]
+            utils.set_params_attrs(self.params, self.plan.state_inds, X, ts+1)
+            utils.fill_vector(self.params, self.plan.action_inds, U_x0, ts+1)
             obs = X
 
-        sample.set(STATE_ENUM, X, ts)
-        sample.set(OBS_ENUM, X, ts)
+        sample.set(STATE_ENUM, X, ts+1)
+        sample.set(OBS_ENUM, X, ts+1)
+        sample.set(ACTION_ENUM, np.zeros((self.plan.dU)), ts+1)
+        sample.set(NOISE_ENUM, np.zeros((self.plan.dU)), ts+1)
 
         # use_noise = np.random.choice([0,1], [self.expert_ratio, 1-self.expert_ratio])
         # X = np.zeros((self.plan.symbolic_bound,))
@@ -336,8 +344,7 @@ class LaundryWorldMujocoAgent(Agent):
     def sample_joint_trajectory_policy(self, pol, cond, noise):
         sample = Sample(self)
         x0 = self.init_plan_states[cond]
-        obs = x0
-        self._set_simulator_state(x0, self.plan)
+        self._set_simulator_state(x0[0], self.plan)
 
         first_act = self.plan.actions[x0[1][0]]
         last_act = self.plan.actions[x0[1][1]]
@@ -345,45 +352,78 @@ class LaundryWorldMujocoAgent(Agent):
         init_t = first_act.active_timesteps[0]
         final_t = last_act.active_timesteps[1]
 
-        X = x0[:self.plan.symbolic_bound]
+        X = x0[0][:self.plan.symbolic_bound]
+        obs = X
         for ts in range(0, final_t-init_t):
-            U = policy.act(X, obs, ts, noise[ts, :])
+            U = pol.act(X, obs, ts, noise[ts, :])
             sample.set(STATE_ENUM, X, ts)
-            sample.set(OBS_ENUM, X, ts)
+            sample.set(OBS_ENUM, obs, ts)
             sample.set(ACTION_ENUM, U, ts)
             sample.set(NOISE_ENUM, noise[ts, :], ts)
-            self.run_traj_policy_step(U, self.plan.action_inds)
+            self.run_traj_policy_step(U, self.plan.action_inds, mode='state_delta')
             X = self._get_simulator_state(self.plan.state_inds, self.plan.dX)[:self.plan.symbolic_bound]
             obs = X
 
-        sample.set(STATE_ENUM, X, ts)
-        sample.set(OBS_ENUM, X, ts)
+        sample.set(STATE_ENUM, X, ts+1)
+        sample.set(OBS_ENUM, X, ts+1)
+        sample.set(ACTION_ENUM, np.zeros((self.plan.dU)), ts+1)
+        sample.set(NOISE_ENUM, np.zeros((self.plan.dU)), ts+1)
 
         return sample
 
     # TODO: When switching to torques, change this
-    def run_traj_policy_step(self, u, u_inds):
-        cur_right_joints = self.pos_model.data.qpos[1:8].flatten()
-        cur_left_joints = self.pos_model.data.qpos[10:17].flatten()
-        next_right_pose = cur_right_joints.flatten() + u[u_inds['baxter', 'rArmPose']]
-        next_left_pose = cur_left_joints.flatten() + u[u_inds['baxter', 'lArmPose']]
-        r_grip = (u[u_inds['baxter', 'rGripper']] / np.abs(u[u_inds['baxter', 'rGripper']])) * 5
-        l_grip = (u[u_inds['baxter', 'lGripper']] / np.abs(u[u_inds['baxter', 'lGripper']])) * 5
+    def run_traj_policy_step(self, u, u_inds, mode='state_delta'):
+        if mode == 'state_abs':
+            cur_right_joints = self.pos_model.data.qpos[1:8].flatten()
+            cur_left_joints = self.pos_model.data.qpos[10:17].flatten()
+            next_right_pose = u[u_inds[('baxter', 'rArmPose')]]
+            next_left_pose = u[u_inds[('baxter', 'lArmPose')]]
+            r_grip = u[u_inds[('baxter', 'rGripper')]]
+            l_grip = u[u_inds[('baxter', 'lGripper')]]
+        else:
+            cur_right_joints = self.pos_model.data.qpos[1:8].flatten()
+            cur_left_joints = self.pos_model.data.qpos[10:17].flatten()
+            next_right_pose = cur_right_joints.flatten() + u[u_inds[('baxter', 'rArmPose')]]
+            next_left_pose = cur_left_joints.flatten() + u[u_inds[('baxter', 'lArmPose')]]
+
+            if u[u_inds[('baxter', 'rGripper')]] > 0.005:
+                r_grip = const.GRIPPER_OPEN_VALUE
+            elif u[u_inds[('baxter', 'rGripper')]] < -0.005:
+                r_grip = const.GRIPPER_CLOSE_VALUE
+            else:
+                r_grip = self.pos_model.data.qpos[8, 0]
+
+            if u[u_inds[('baxter', 'lGripper')]] > 0.005:
+                l_grip = const.GRIPPER_OPEN_VALUE
+            elif u[u_inds[('baxter', 'lGripper')]] < -0.005:
+                l_grip = const.GRIPPER_CLOSE_VALUE
+            else:
+                l_grip = self.pos_model.data.qpos[17, 0]
+
         self.pos_model.data.ctrl = np.r_[next_right_pose, r_grip, -r_grip, next_left_pose, l_grip, -l_grip].reshape(-1,1)
         self.avg_vels = np.zeros((18,))
         steps = 0
-        error_limit = 0.05
+        error_limit = 0.01
+        if self.viewer:
+            self.viewer.loop_once()
         while(np.any(np.abs(cur_right_joints - next_right_pose) > error_limit) or np.any(np.abs(cur_left_joints - next_left_pose) > error_limit)):
+            # Avoid crashing from excess collisions
+            if self.pos_model.data.ncon >= 15:
+                print 'Collision Limit Exceeded'
+                break
             self.pos_model.step()
             cur_right_joints = self.pos_model.data.qpos[1:8].flatten()
             cur_left_joints = self.pos_model.data.qpos[10:17].flatten()
             if hasattr(self.pos_model, 'qvel'):
                 self.avg_vels += self.pos_model.qvel[1:].flatten()
             steps += 1
-            if not steps % 200:
-                error_limit += 0.05
-        print 'Steps in simulation: ', steps
-        print 'Error Limit: ', error_limit, '\n'
+            if not steps % 100:
+                error_limit += 0.01
+        print '\nSteps in simulation: ', steps
+        print 'Contacts: ', self.pos_model.data.ncon
+        print 'Error Limit: ', error_limit
+        print 'Right Joint Errors: ', np.round(np.abs(cur_right_joints - next_right_pose), 3)
+        print 'Left Joint Errors: ', np.round(np.abs(cur_left_joints - next_left_pose), 3), '\n'
         self.avg_vels /= (steps or 1)
 
     def _clip_joint_angles(self, X):

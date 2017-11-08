@@ -69,7 +69,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'demonstrations': 5,
                 'expert_ratio': 0.75,
                 'solver': self,
-                'T': initial_plan.horizon + 1
+                'T': initial_plan.horizon
             }
             self.config['algorithm']['cost'] = []
 
@@ -89,7 +89,10 @@ class BaxterPolicySolver(RobotLLSolver):
 
         self.config['dQ'] = initial_plan.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = initial_plan.dU
-        self.config['algorithm']['init_traj_distr']['T'] = initial_plan.horizon + 1
+        self.config['algorithm']['init_traj_distr']['init_gains'] = np.ones((initial_plan.dU)) * 500
+        self.config['algorithm']['init_traj_distr']['init_acc'] = np.zeros((sensor_dims[utils.ACTION_ENUM],))
+        self.config['algorithm']['init_traj_distr']['dt'] = 0.005
+        self.config['algorithm']['init_traj_distr']['T'] = self.config['agent']['T']
 
         self.config['algorithm']['policy_opt'] = {
             'type': PolicyOptTf,

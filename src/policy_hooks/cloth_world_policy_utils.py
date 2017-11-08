@@ -7,7 +7,7 @@ import unittest, time, main
 
 
 BASKET_POSE = [0.7, 0.35, 0.875]
-BASKET_X_RANGE = [0.65, 0.8]
+BASKET_X_RANGE = [0.7, 0.85]
 BASKET_Y_RANGE = [0.7, 0.8]
 # CLOTH_INIT_X_RANGE = [-0.1, 0.9]
 # CLOTH_INIT_Y_RANGE = [0.15, 1.15]
@@ -16,7 +16,7 @@ CLOTH_INIT_Y_RANGE = [-0.1, 0.5]
 STEP_DELTA = 4
 TABLE_POSE = [1.23/2-0.1, 0, 0.97/2-0.375]
 TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2] # XYZ
-TABLE_TOP = 0.97 - 0.375 + 0.02
+TABLE_TOP = 0.97 - 0.375 + 0.03
 BASKET_HEIGHT_DELTA = 0.035
 
 def generate_cond(num_cloths):
@@ -60,7 +60,7 @@ def generate_cond(num_cloths):
     basket_target.value[:,:] = np.array(BASKET_POSE).reshape(3,1)
     basket_target.rotation[:,:] = [[0], [0], [np.pi/2]]
 
-    plan.params['table'].pose[:,:] = 0
+    plan.params['table'].pose[:,:] = np.array(TABLE_POSE).reshape(-1,1)
     plan.params['table'].rotation[:,:] = 0
 
     all_are_on_table = True # np.random.randInt(0, 2)
