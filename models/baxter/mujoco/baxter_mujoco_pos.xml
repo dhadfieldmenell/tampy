@@ -384,8 +384,8 @@
     </actuator> -->
 
     <actuator>
-        <position kp="11000" gear="1 0 0 0 0 0" joint="right_s0"/>
-        <position kp="3000" gear="1 0 0 0 0 0" joint="right_s1"/>
+        <position kp="8000" gear="1 0 0 0 0 0" joint="right_s0"/>
+        <position kp="5000" gear="1 0 0 0 0 0" joint="right_s1"/>
         <position kp="1000" gear="1 0 0 0 0 0" joint="right_e0"/>
         <position kp="4000" gear="1 0 0 0 0 0" joint="right_e1"/>
         <position kp="1000" joint="right_w0"/>
@@ -395,7 +395,7 @@
         <position kp="500" joint="right_gripper_r_finger_joint"/>
         
         <position kp="11000" gear="1 0 0 0 0 0" joint="left_s0"/>
-        <position kp="4000" gear="1 0 0 0 0 0" joint="left_s1"/>
+        <position kp="5000" gear="1 0 0 0 0 0" joint="left_s1"/>
         <position kp="2000" gear="1 0 0 0 0 0" joint="left_e0"/>
         <position kp="4000" gear="1 0 0 0 0 0" joint="left_e1"/>
         <position kp="1000" joint="left_w0"/>

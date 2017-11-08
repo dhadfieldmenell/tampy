@@ -87,6 +87,7 @@ class LaundryWorldMujocoAgent(Agent):
                 cloth_body = xml.SubElement(worldbody, 'body', {'name': param.name, 'pos': "{} {} {}".format(x,y,z+MUJOCO_MODEL_Z_OFFSET), 'euler': "0 0 0"})
                 # cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'cylinder', 'size':"{} {}".format(radius, height), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
                 cloth_geom = xml.SubElement(cloth_body, 'geom', {'name': param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
+                cloth_intertial = xml.SubElement(cloth_body, 'inertial', {'pos':'0 0 0', 'quat':'0 0 0 1', 'mass':'0.1', 'diaginertia': '0.01 0.01 0.01'})
             # We might want to change this; in Openrave we model tables as hovering box so there's no easy translation to Mujoco
             elif param._type == 'Obstacle': 
                 length = param.geom.dim[0]
@@ -345,6 +346,7 @@ class LaundryWorldMujocoAgent(Agent):
         sample = Sample(self)
         x0 = self.init_plan_states[cond]
         self._set_simulator_state(x0[0], self.plan)
+        print "Reset Mujoco Sim to Condition {0}".format(cond)
 
         first_act = self.plan.actions[x0[1][0]]
         last_act = self.plan.actions[x0[1][1]]

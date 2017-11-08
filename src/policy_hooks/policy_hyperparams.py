@@ -1,4 +1,3 @@
-""" Hyperparameters for MJC peg insertion policy optimization. """
 from __future__ import division
 
 from datetime import datetime
@@ -8,10 +7,13 @@ import os.path
 import numpy as np
 
 from gps.algorithm.algorithm_mdgps import AlgorithmMDGPS
+from gps.algorithm.algorithm_pigps import AlgorithmPIGPS
+from gps.algorithm.algorithm_traj_opt_pilqr import AlgorithmTrajOptPILQR
 from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
 from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
 from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
+from gps.algorithm.traj_opt.traj_opt_pilqr import TrajOptPILQR
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
 from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
@@ -24,7 +26,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 1
+NUM_CONDS = 5
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \
@@ -37,49 +39,84 @@ common = {
 }
 
 algorithm = {
-    'type': AlgorithmMDGPS,
+    'type': AlgorithmPIGPS,
     'conditions': common['conditions'],
-    'iterations': 10,
-    'kl_step': 1.0,
-    'min_step_mult': 0.5,
-    'max_step_mult': 3.0,
     'policy_sample_mode': 'replace',
+    'sample_on_policy': True,
+    'iterations': 30,
 }
-
-# algorithm['init_traj_distr'] = {
-#     'type': init_lqr,
-#     'pos_gains':  1e-5,
-# }
 
 algorithm['init_traj_distr'] = {
-    'type': init_lqr,
+    'type': init_pd,
     'init_var': 1.0,
-    'stiffness': 1.0,
-    'stiffness_vel': 0.5,
-    'final_weight': 50.0,
-}
-
-algorithm['dynamics'] = {
-    'type': DynamicsLRPrior,
-    'regularization': 1e-6,
-    'prior': {
-        'type': DynamicsPriorGMM,
-        'max_clusters': 20,
-        'min_samples_per_cluster': 40,
-        'max_samples': 20,
-    },
+    'pos_gains': 0.0,
 }
 
 algorithm['traj_opt'] = {
-    'type': TrajOptLQRPython,
+    'type': TrajOptPI2,
+    'kl_threshold': 2.0,
+    'covariance_damping': 2.0,
+    'min_temperature': 0.001,
 }
 
 algorithm['policy_prior'] = {
-    'type': PolicyPriorGMM,
-    'max_clusters': 20,
-    'min_samples_per_cluster': 40,
-    'max_samples': 20,
+    'type': PolicyPrior,
 }
+
+# algorithm = {
+#     'type': AlgorithmMDGPS,
+#     'conditions': common['conditions'],
+#     'iterations': 10,
+#     'kl_step': 1.0,
+#     'min_step_mult': 0.5,
+#     'max_step_mult': 3.0,
+#     'policy_sample_mode': 'replace',
+# }
+
+# algorithm['init_traj_distr'] = {
+#     'type': init_pd,
+#     'pos_gains':  1e-5,
+# }
+
+# algorithm['init_traj_distr'] = {
+#     'type': init_lqr,
+#     'init_var': 1.0,
+#     'stiffness': 1.0,
+#     'stiffness_vel': 0.5,
+#     'final_weight': 50.0,
+# }
+
+# algorithm = {
+#     'type': AlgorithmTrajOptPILQR,
+#     'conditions': common['conditions'],
+#     'iterations': 20,
+#     'step_rule': 'res_percent',
+#     'step_rule_res_ratio_dec': 0.2,
+#     'step_rule_res_ratio_inc': 0.05,
+#     'kl_step': np.linspace(0.6, 0.2, 100),
+# }
+
+# algorithm['dynamics'] = {
+#     'type': DynamicsLRPrior,
+#     'regularization': 1e-6,
+#     'prior': {
+#         'type': DynamicsPriorGMM,
+#         'max_clusters': 20,
+#         'min_samples_per_cluster': 40,
+#         'max_samples': 20,
+#     },
+# }
+
+# algorithm['traj_opt'] = {
+#     'type': TrajOptPILQR,
+# }
+
+# algorithm['policy_prior'] = {
+#     'type': PolicyPriorGMM,
+#     'max_clusters': 20,
+#     'min_samples_per_cluster': 40,
+#     'max_samples': 20,
+# }
 
 config = {
     'gui_on': False,
