@@ -140,7 +140,7 @@ def get_trajectory_cost(plan, init_t, final_t):
     for action in plan.actions:
         preds.extend(action.preds)
     active_ts = (init_t, final_t)
-    T = active_ts[1] - active_ts[0] + 1
+    T = active_ts[1] - active_ts[0]
 
     timestep_costs = np.zeros((T, )) # l
     first_order_x_approx = np.zeros((T, dX, )) # lx
@@ -177,55 +177,55 @@ def get_trajectory_cost(plan, init_t, final_t):
             #     import ipdb; ipdb.set_trace()
             cost_vector = expr.eval(param_vector)
             param_attr_inds = pred_param_attr_inds[p['pred']]
-            timestep_costs[t-active_ts[0]] += np.sum(-1 * cost_vector)
+            timestep_costs[t-active_ts[0]] += np.sum(cost_vector) * 1e-3
 
-            if hasattr(expr, '_grad') and expr._grad:
-                # Linear terms
-                first_degree_convexification = expr._grad(param_vector) # expr.convexify(param_vector, degree=1).eval(param_vector)
-                try:
-                    for param in param_attr_inds:
-                        if plan.params[param].is_symbol(): continue
-                        for attr_name in param_attr_inds[param]:
-                            if (param, attr_name) in state_inds:
-                                first_order_x_approx[t-active_ts[0], state_inds[(param, attr_name)]] += np.sum(first_degree_convexification[:, param_attr_inds[param][attr_name]], axis=0)
-                            if (param, attr_name) in action_inds:
-                                first_order_u_approx[t-active_ts[0], action_inds[(param, attr_name)]] += np.sum(first_degree_convexification[:, param_attr_inds[param][attr_name]], axis=0)
-                except Exception as e:
-                    import ipdb; ipdb.set_trace()
-            if hasattr(expr, '_hess') and expr._hess:
-                # Quadratic terms
-                try:
-                    second_degree_convexification = expr._hess(param_vector) # expr.convexify(param_vector, degree=2).eval(param_vector)
-                    for param_1 in param_attr_inds:
-                        for param_2 in param_attr_inds:
-                            if plan.params[param_1].is_symbol() or plan.params[param_2].is_symbol(): continue
-                            for attr_name_1 in param_attr_inds[param_1]:
-                                for attr_name_2 in param_attr_inds[param2]:
-                                    if (param_1, attr_name_1) in state_inds and (param_2, attr_name_2) in state_inds:
-                                        x_inds_1 = state_inds[(param_1, attr_name_1)]
-                                        x_inds_2 = state_inds[(param_2, attr_name_2)]
-                                        pred_inds_1 = param_attr_inds[param_1][attr_name_1]
-                                        pred_inds_2 = param_attr_inds[param_2][attr_name_2]
-                                        assert len(x_inds_1) == len(pred_inds_1) and len(x_inds_2) == len(pred_inds_2)
-                                        second_order_xx_approx[t-active_ts[0], x_inds_1, x_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
+            # if hasattr(expr, '_grad') and expr._grad:
+            #     # Linear terms
+            #     first_degree_convexification = expr._grad(param_vector) # expr.convexify(param_vector, degree=1).eval(param_vector)
+            #     try:
+            #         for param in param_attr_inds:
+            #             if plan.params[param].is_symbol(): continue
+            #             for attr_name in param_attr_inds[param]:
+            #                 if (param, attr_name) in state_inds:
+            #                     first_order_x_approx[t-active_ts[0], state_inds[(param, attr_name)]] += np.sum(first_degree_convexification[:, param_attr_inds[param][attr_name]], axis=0)
+            #                 if (param, attr_name) in action_inds:
+            #                     first_order_u_approx[t-active_ts[0], action_inds[(param, attr_name)]] += np.sum(first_degree_convexification[:, param_attr_inds[param][attr_name]], axis=0)
+            #     except Exception as e:
+            #         import ipdb; ipdb.set_trace()
+            # if hasattr(expr, '_hess') and expr._hess:
+            #     # Quadratic terms
+            #     try:
+            #         second_degree_convexification = expr._hess(param_vector) # expr.convexify(param_vector, degree=2).eval(param_vector)
+            #         for param_1 in param_attr_inds:
+            #             for param_2 in param_attr_inds:
+            #                 if plan.params[param_1].is_symbol() or plan.params[param_2].is_symbol(): continue
+            #                 for attr_name_1 in param_attr_inds[param_1]:
+            #                     for attr_name_2 in param_attr_inds[param2]:
+            #                         if (param_1, attr_name_1) in state_inds and (param_2, attr_name_2) in state_inds:
+            #                             x_inds_1 = state_inds[(param_1, attr_name_1)]
+            #                             x_inds_2 = state_inds[(param_2, attr_name_2)]
+            #                             pred_inds_1 = param_attr_inds[param_1][attr_name_1]
+            #                             pred_inds_2 = param_attr_inds[param_2][attr_name_2]
+            #                             assert len(x_inds_1) == len(pred_inds_1) and len(x_inds_2) == len(pred_inds_2)
+            #                             second_order_xx_approx[t-active_ts[0], x_inds_1, x_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
 
-                                    if (param_1, attr_name_1) in action_inds and (param_2, attr_name_2) in action_inds:
-                                        u_inds_1 = action_inds[(param_1, attr_name_1)]
-                                        u_inds_2 = action_inds[(param_2, attr_name_2)]
-                                        pred_inds_1 = param_attr_inds[param_1][attr_name_1]
-                                        pred_inds_2 = param_attr_inds[param_2][attr_name_2]
-                                        assert len(u_inds_1) == len(pred_inds_1) and len(u_inds_2) == len(pred_inds_2)
-                                        second_order_uu_approx[t-active_ts[0], u_inds_1, u_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
+            #                         if (param_1, attr_name_1) in action_inds and (param_2, attr_name_2) in action_inds:
+            #                             u_inds_1 = action_inds[(param_1, attr_name_1)]
+            #                             u_inds_2 = action_inds[(param_2, attr_name_2)]
+            #                             pred_inds_1 = param_attr_inds[param_1][attr_name_1]
+            #                             pred_inds_2 = param_attr_inds[param_2][attr_name_2]
+            #                             assert len(u_inds_1) == len(pred_inds_1) and len(u_inds_2) == len(pred_inds_2)
+            #                             second_order_uu_approx[t-active_ts[0], u_inds_1, u_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
 
-                                    if (param_1, attr_name_1) in action_inds and (param_2, attr_name_2) in state_inds:
-                                        u_inds_1 = action_inds[(param_1, attr_name_1)]
-                                        x_inds_2 = state_inds[(param_2, attr_name_2)]
-                                        pred_inds_1 = param_attr_inds[param_1][attr_name_1]
-                                        pred_inds_2 = param_attr_inds[param_2][attr_name_2]
-                                        assert len(u_inds_1) == len(pred_inds_1) and len(x_inds_2) == len(pred_inds_2)
-                                        second_order_ux_approx[t-active_ts[0], u_inds_1, x_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
-                except:
-                    import ipdb; ipdb.set_trace()
+            #                         if (param_1, attr_name_1) in action_inds and (param_2, attr_name_2) in state_inds:
+            #                             u_inds_1 = action_inds[(param_1, attr_name_1)]
+            #                             x_inds_2 = state_inds[(param_2, attr_name_2)]
+            #                             pred_inds_1 = param_attr_inds[param_1][attr_name_1]
+            #                             pred_inds_2 = param_attr_inds[param_2][attr_name_2]
+            #                             assert len(u_inds_1) == len(pred_inds_1) and len(x_inds_2) == len(pred_inds_2)
+            #                             second_order_ux_approx[t-active_ts[0], u_inds_1, x_inds_2] += second_degree_convexification[pred_inds_1, pred_inds_2]
+            #     except:
+            #         import ipdb; ipdb.set_trace()
             preds_checked.append(p['pred'])
 
     return timestep_costs, first_order_x_approx, first_order_u_approx, second_order_xx_approx, second_order_uu_approx, second_order_ux_approx

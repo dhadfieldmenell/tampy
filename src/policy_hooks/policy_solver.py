@@ -21,7 +21,7 @@ class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.config = None
         self.gps = None
-        self.policy_transfer_coeff = 1e-1
+        self.policy_transfer_coeff = 5e1
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
     # TODO: Add hooks for online policy learning
@@ -42,7 +42,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config.update(hyperparams)
 
         initial_plan = generate_cond(num_cloths)
-        initial_plan.time = np.ones((initial_plan.horizon+1,))
+        initial_plan.time = np.ones((initial_plan.horizon,))
         initial_plan.dX, initial_plan.state_inds, initial_plan.dU, initial_plan.action_inds, initial_plan.symbolic_bound = utils.get_plan_to_policy_mapping(initial_plan, u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         x0s = []
         for c in range(self.config['num_conds']):
@@ -69,7 +69,8 @@ class BaxterPolicySolver(RobotLLSolver):
                 'demonstrations': 5,
                 'expert_ratio': 0.75,
                 'solver': self,
-                'T': initial_plan.horizon
+                # 'T': initial_plan.horizon - 1
+                'T': (initial_plan.horizon - 1) * 200
             }
             self.config['algorithm']['cost'] = []
 
@@ -102,7 +103,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'sensor_dims': sensor_dims,
             },
             'network_model': tf_network,
-            'iterations': 20,
+            'iterations': 2000,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -112,7 +113,29 @@ class BaxterPolicySolver(RobotLLSolver):
             # TODO: Handle this case
             self._update_agent(x0s)
             self._update_algorithm(self.config['algorithm']['cost'][-len(x0s):])
+        self.center_trajectories_around_demonstrations()
         self.gps.run()
+
+    def center_trajectories_around_demonstrations(self):
+        alg = self.gps.algorithm
+        agent = self.gps.agent
+        agent.initial_samples = True
+        for m in range(alg.M):
+            traj_distr = alg.cur[m].traj_distr
+            traj_sample = agent.sample(traj_distr, m, on_policy=False)
+            k = np.zeros((traj_distr.T, traj_distr.dU))
+            for t in range(traj_distr.T):
+                k[t] = traj_sample.get_U(t)
+            traj_distr.k = k
+        agent.initial_samples = False
+
+    def center_trajectory_around_demonstration(self, alg, agent, condition):
+        traj_distr = alg.cur[condition].traj_distr
+        traj_sample = agent.sample(traj_distr, condition)
+        k = np.zeros((traj_distr.T, traj_distr.dU))
+        for t in range(traj_distr.T):
+            k[t] = traj_sample.get_U(t)
+        traj_distr.k = k
 
     # def _update_algorithm(self, plans, costs):
     #     if not self.gps: return
@@ -154,52 +177,58 @@ class BaxterPolicySolver(RobotLLSolver):
     #     agent.conditions += len(plans)
     #     agent.plans.extend(plans)
 
-    # def _solve_opt_prob(self, plan, priority, callback=None, init=True, active_ts=None, verbose=False, resample=False, smoothing=False):
-    #     if priority == 3:
-    #         policy = self.gps.algorithm.policy_opt
-    #         cond = self._plan_to_cond[plan]
-    #         pol_sample = self.agent.sample_joint_trajectory_policy(policy, cond, np.zeros((plan.T, plan.dU)))
-    #         obj_bexprs = self._traj_policy_opt(plan, traj_state)
-    #         self._add_obj_bexprs(obj_bexprs)
+    def _solve_opt_prob(self, plan, priority, callback=None, init=True, active_ts=None, verbose=False, resample=False, smoothing=False):
+        if self.gps.agent.initial_samples:
+            if priority == 3:
+                policy = self.gps.algorithm.policy_opt
+                pol_sample = self.agent.sample_joint_trajectory_policy(policy, self.gps.agent.current_condition, np.zeros((plan.horizon, plan.dU)))
+                traj_state = np.zeros((plan.dX, plan.horizon))
+                for t in range(plan.horizon-1):
+                    traj_state[:, t] = pol_sample.get_X(t)
+                traj_state[:,plan.horizon-1] = pol_sample.get_X(plan.horizon-1)
+                obj_bexprs = self._traj_policy_opt(plan, traj_state)
+                self._add_obj_bexprs(obj_bexprs)
 
-    #     return super(BaxterPolicySolver, self)._solve_opt_prob(plan, priority, callback, init, active_ts, verbose, resample, smoothing)
+        # if not self.gps.agent.initial_samples:
+        #     if priority == 3:
+        #         traj_distr = self.gps.algorithm.cur[self.gps.agent.current_condition].traj_distr
+        #         obj_bexprs = self._traj_policy_opt(plan, traj_distr.k)
+        #         self._add_obj_bexprs(obj_bexprs)
 
-    # def _traj_policy_opt(self, plan, traj_state):
-    #     transfer_objs = []
-    #     for param_name, attr_name in plan.state_inds.keys():
-    #         param = plan.params[param_name]
-    #         if param.is_symbol(): continue
-    #         attr_type = param.get_attr_type(attr_name)
-    #         param_ll = self._param_to_ll[param]
-    #         T = param_ll._horizon
-    #         active_ts = plan.active_ts
-    #         attr_val = traj_state[plan.state_inds[(param_name, attr_name)], active_ts[0]:active_ts[1]+1]
-    #         K = attr_type.dim
+    def _traj_policy_opt(self, plan, traj_mean):
+        transfer_objs = []
+        for param_name, attr_name in plan.action_inds.keys():
+            param = plan.params[param_name]
+            attr_type = param.get_attr_type(attr_name)
+            param_ll = self._param_to_ll[param]
+            T = param_ll._horizon
+            attr_val = traj_mean[:, plan.action_inds[(param_name, attr_name)]].T
+            K = attr_type.dim
 
-    #         # pose = param.pose
-    #         if DEBUG: assert (K, T) == attr_val.shape
-    #         KT = K*T
-    #         v = -1 * np.ones((KT - K, 1))
-    #         d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-    #         # [:,0] allows numpy to see v and d as one-dimensional so
-    #         # that numpy will create a diagonal matrix with v and d as a diagonal
-    #         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-    #         # P = np.eye(KT)
-    #         Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-    #         cur_val = attr_val.reshape((KT, 1), order='F')
-    #         A = -2*cur_val.T.dot(Q)
-    #         b = cur_val.T.dot(Q.dot(cur_val))
-    #         policy_transfer_coeff = self.policy_transfer_coeff/float(plan.T)
+            # pose = param.pose
+            if DEBUG: assert (K, T) == attr_val.shape
+            KT = K*T
+            v = -1 * np.ones((KT - K, 1))
+            d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+            # [:,0] allows numpy to see v and d as one-dimensional so
+            # that numpy will create a diagonal matrix with v and d as a diagonal
+            P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+            # P = np.eye(KT)
+            Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
+            cur_val = attr_val.reshape((KT, 1), order='F')
+            A = -2*cur_val.T.dot(Q)
+            b = cur_val.T.dot(Q.dot(cur_val))
+            policy_transfer_coeff = self.policy_transfer_coeff/float(plan.T)
 
-    #         # QuadExpr is 0.5*x^Tx + Ax + b
-    #         quad_expr = QuadExpr(2*transfer_coeff*Q,
-    #                              transfer_coeff*A, transfer_coeff*b)
-    #         ll_attr_val = getattr(param_ll, attr_name)
-    #         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-    #         sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-    #         bexpr = BoundExpr(quad_expr, sco_var)
-    #         transfer_objs.append(bexpr)
-    #     return transfer_objs
+            # QuadExpr is 0.5*x^Tx + Ax + b
+            quad_expr = QuadExpr(2*transfer_coeff*Q,
+                                 transfer_coeff*A, transfer_coeff*b)
+            ll_attr_val = getattr(param_ll, attr_name)
+            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+            sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+            bexpr = BoundExpr(quad_expr, sco_var)
+            transfer_objs.append(bexpr)
+        return transfer_objs
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
