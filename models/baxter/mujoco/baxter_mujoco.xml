@@ -18,8 +18,8 @@
 
 <mujoco model="baxter(v1.31)">
     <compiler coordinate="local" angle="radian" meshdir="../../models/baxter/mujoco/meshes/" strippath="false" />
-    <option timestep="0.002" gravity="0 0 -9.81" iterations="20" integrator="RK4" />
-    <size njmax="795" nconmax="250" nstack="631875" />
+    <option timestep="0.005" gravity="0 0 -9.81" iterations="20" integrator="Euler" />
+    <size njmax="10000" nconmax="70000" nstack="500000" />
    
    <asset>
         <mesh name="base_link" file="torso/base_link.STL"/>

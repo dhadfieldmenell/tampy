@@ -26,7 +26,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 50
+NUM_CONDS = 5
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \
@@ -50,8 +50,8 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.001,
-    'pos_gains': 0.0001,
+    'init_var': 0.00001,
+    'pos_gains': 0.000001,
 }
 
 algorithm['traj_opt'] = {
@@ -127,7 +127,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 1,
+    'num_samples': 10,
     'num_conds': NUM_CONDS,
     'mode': 'position'
 }

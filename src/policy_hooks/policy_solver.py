@@ -2,6 +2,11 @@ import os
 
 import numpy as np
 
+import gurobipy as grb
+
+from sco.prob import Prob
+from sco.solver import Solver
+
 from gps.gps_main import GPSMain
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
@@ -21,7 +26,7 @@ class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.config = None
         self.gps = None
-        self.policy_transfer_coeff = 5e1
+        self.policy_transfer_coeff = 5e1 # Coefficient on cost for deviaitng from global policy
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
     # TODO: Add hooks for online policy learning
@@ -113,6 +118,9 @@ class BaxterPolicySolver(RobotLLSolver):
             # TODO: Handle this case
             self._update_agent(x0s)
             self._update_algorithm(self.config['algorithm']['cost'][-len(x0s):])
+        
+        # Bootstrap the algorithm
+        self.optimal_trajs = []
         self.center_trajectories_around_demonstrations()
         self.gps.run()
 
@@ -177,29 +185,100 @@ class BaxterPolicySolver(RobotLLSolver):
     #     agent.conditions += len(plans)
     #     agent.plans.extend(plans)
 
-    def _solve_opt_prob(self, plan, priority, callback=None, init=True, active_ts=None, verbose=False, resample=False, smoothing=False):
-        if self.gps.agent.initial_samples:
-            if priority == 3:
-                policy = self.gps.algorithm.policy_opt
-                pol_sample = self.agent.sample_joint_trajectory_policy(policy, self.gps.agent.current_condition, np.zeros((plan.horizon, plan.dU)))
-                traj_state = np.zeros((plan.dX, plan.horizon))
-                for t in range(plan.horizon-1):
-                    traj_state[:, t] = pol_sample.get_X(t)
-                traj_state[:,plan.horizon-1] = pol_sample.get_X(plan.horizon-1)
-                obj_bexprs = self._traj_policy_opt(plan, traj_state)
-                self._add_obj_bexprs(obj_bexprs)
+    def _solve_opt_prob(self, plan, priority, callback=None, init=True, active_ts=None, verbose=False, resample=False, smoothing = False):
+        if not self.gps.agent.initial_samples or priority < 3:
+            return super(BaxterPolicySolver, self)._solve_opt_prob(plan, priority, callback, init, active_ts, verbose, resample, smoothing)
 
-        # if not self.gps.agent.initial_samples:
-        #     if priority == 3:
-        #         traj_distr = self.gps.algorithm.cur[self.gps.agent.current_condition].traj_distr
-        #         obj_bexprs = self._traj_policy_opt(plan, traj_distr.k)
-        #         self._add_obj_bexprs(obj_bexprs)
+        self.plan = plan
+        robot = plan.params['baxter']
+        body = plan.env.GetRobot("baxter")
+        if active_ts==None:
+            active_ts = (0, plan.horizon-1)
+        plan.save_free_attrs()
+        model = grb.Model()
+        model.params.OutputFlag = 0
+        self._prob = Prob(model, callback=callback)
+        self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
+        model.update()
+        initial_trust_region_size = self.initial_trust_region_size
+        if resample:
+            tol = 1e-3
+            """
+            When Optimization fails, resample new values for certain timesteps
+            of the trajectory and solver as initialization
+            """
+            obj_bexprs = []
+
+            ## this is an objective that places
+            ## a high value on matching the resampled values
+            failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
+            rs_obj = self._resample(plan, failed_preds, sample_all = True)
+            # import ipdb; ipdb.set_trace()
+            # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
+            # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
+            obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+
+            self._add_all_timesteps_of_actions(plan, priority=priority,
+                add_nonlin=False, active_ts= active_ts, verbose=verbose)
+            obj_bexprs.extend(rs_obj)
+            self._add_obj_bexprs(obj_bexprs)
+            initial_trust_region_size = 1e3
+            # import ipdb; ipdb.set_trace()
+        else:
+            self._bexpr_to_pred = {}
+            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
+            self._add_obj_bexprs(obj_bexprs)
+            self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
+                                               active_ts=active_ts, verbose=verbose)
+            tol=1e-3
+
+        # Constrain optimization against the global policy
+        pol_sample = self.gps.agent.cond_global_pol_sample[self.gps.agent.current_cond]
+        traj_state = np.zeros((plan.symbolic_bound, plan.horizon))
+        for t in range(plan.horizon-1):
+            traj_state[:, t] = pol_sample.get_X(t*200)
+        traj_state[:,plan.horizon-1] = pol_sample.get_X((plan.horizon-1)*200-1)
+        obj_bexprs = self._traj_policy_opt(plan, traj_state)
+        self._add_obj_bexprs(obj_bexprs)
+
+        solv = Solver()
+        solv.initial_trust_region_size = initial_trust_region_size
+
+        if smoothing:
+            solv.initial_penalty_coeff = self.smooth_penalty_coeff
+        else:
+            solv.initial_penalty_coeff = self.init_penalty_coeff
+
+        solv.max_merit_coeff_increases = self.max_merit_coeff_increases
+
+        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
+        self._update_ll_params()
+
+        if resample:
+            # During resampling phases, there must be changes added to sampling_trace
+            if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
+                reward = 0
+                if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
+                    reward = len(plan.actions)
+                else:
+                    failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
+                    for i in range(len(plan.actions)):
+                        if failed_t > plan.actions[i].active_timesteps[1]:
+                            reward += 1
+                plan.sampling_trace[-1]['reward'] = reward
+        ##Restore free_attrs values
+        plan.restore_free_attrs()
+
+        self.reset_variable()
+        print "priority: {}\n".format(priority)
+        return success
 
     def _traj_policy_opt(self, plan, traj_mean):
         transfer_objs = []
         for param_name, attr_name in plan.action_inds.keys():
             param = plan.params[param_name]
             attr_type = param.get_attr_type(attr_name)
+            import ipdb; ipdb.set_trace()
             param_ll = self._param_to_ll[param]
             T = param_ll._horizon
             attr_val = traj_mean[:, plan.action_inds[(param_name, attr_name)]].T

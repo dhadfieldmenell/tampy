@@ -114,17 +114,19 @@ def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
 
     sample.set(NOISE_ENUM, noise, t-active_ts[0])
 
-# def fill_trajectory_from_sample(sample, plan):
-#     params = set()
-#     for action in plan.actions:
-#         params.update(action.params)
-#     params = list(params)
-#     active_ts = (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
-#     for t in range(active_ts[0], active_ts[1]+1):
-#         X = sample.get_X(t)
-#         set_params_attrs(params, plan.state_inds, X, t)
+def fill_trajectory_from_sample(sample, plan, time_interval=200):
+    params = set()
+    for action in plan.actions:
+        params.update(action.params)
+    params = filter(lambda p: not p.is_symbol(), list(params))
+    active_ts = (0, plan.horizon-1) # (plan.actions[0].active_timesteps[0], plan.actions[-1].active_timesteps[1])
+    for t in range(active_ts[0], active_ts[1]):
+        X = sample.get_X(t*time_interval)
+        set_params_attrs(params, plan.state_inds, X, t)
+    X = sample.get_X(active_ts[1]*time_interval-1)
+    set_params_attrs(params, plan.state_inds, X, active_ts[1])
 
-def get_trajectory_cost(plan, init_t, final_t):
+def get_trajectory_cost(plan, init_t, final_t, time_interval):
     '''
     Calculates the constraint violations at the provided timestep for the current trajectory, as well as the first and second order approximations.
     This function handles the hierarchies of mappings from parameters to attributes to indices and translates between how the predicates consturct
@@ -142,12 +144,12 @@ def get_trajectory_cost(plan, init_t, final_t):
     active_ts = (init_t, final_t)
     T = active_ts[1] - active_ts[0]
 
-    timestep_costs = np.zeros((T, )) # l
-    first_order_x_approx = np.zeros((T, dX, )) # lx
-    first_order_u_approx = np.zeros((T, dU, )) # lu
-    second_order_xx_approx = np.zeros((T, dX, dX)) # lxx
-    second_order_uu_approx = np.zeros((T, dU, dU)) # luu
-    second_order_ux_approx = np.zeros((T, dU, dX)) # lux
+    timestep_costs = np.zeros((T*time_interval, )) # l
+    first_order_x_approx = np.zeros((T*time_interval, dX, )) # lx
+    first_order_u_approx = np.zeros((T*time_interval, dU, )) # lu
+    second_order_xx_approx = np.zeros((T*time_interval, dX, dX)) # lxx
+    second_order_uu_approx = np.zeros((T*time_interval, dU, dU)) # luu
+    second_order_ux_approx = np.zeros((T*time_interval, dU, dX)) # lux
 
     pred_param_attr_inds = {}
     for p in preds:
@@ -177,7 +179,8 @@ def get_trajectory_cost(plan, init_t, final_t):
             #     import ipdb; ipdb.set_trace()
             cost_vector = expr.eval(param_vector)
             param_attr_inds = pred_param_attr_inds[p['pred']]
-            timestep_costs[t-active_ts[0]] += np.sum(cost_vector) * 1e-3
+            time_ind = (t-active_ts[0])*time_interval
+            timestep_costs[time_ind:time_ind+time_interval] += np.sum(cost_vector) * 1e-3
 
             # if hasattr(expr, '_grad') and expr._grad:
             #     # Linear terms

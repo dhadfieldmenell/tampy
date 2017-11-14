@@ -40,7 +40,8 @@ def generate_cond(num_cloths):
         act_num += 1
         i += 1
 
-    plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_{1} ROBOT_END_POSE'.format(act_num, i-1))
+    # plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_{1} ROBOT_END_POSE'.format(act_num, i-1))
+    plan_str.append('{0}: MOVETO BAXTER CLOTH_GRASP_END_{1} ROBOT_END_POSE'.format(act_num, i-1))
 
     domain_fname = '../domains/laundry_domain/laundry.domain'
     d_c = main.parse_file_to_dict(domain_fname)

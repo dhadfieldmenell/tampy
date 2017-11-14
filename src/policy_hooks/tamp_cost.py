@@ -30,7 +30,7 @@ class TAMPCost(Cost):
         init_t = first_act.active_timesteps[0]
         final_t = last_act.active_timesteps[1]
         self._clip_joint_angles()
-        return utils.get_trajectory_cost(self.plan, init_t, final_t)
+        return utils.get_trajectory_cost(self.plan, init_t, final_t, time_interval=200)
 
     def fill_symbolic_values(self):
         utils.set_params_attrs(self.symbols, self.plan.state_inds, self.x0[0], 0)
@@ -38,7 +38,7 @@ class TAMPCost(Cost):
     def fill_trajectory_from_sample(self, sample):
         utils.set_params_attrs(self.params, self.plan.state_inds, self.x0[0], 0)
         for t in range(self.init_t+1, self.final_t):
-            X = sample.get_X(t-self.init_t)
+            X = sample.get_X((t-self.init_t)*200)
             utils.set_params_attrs(self.params, self.plan.state_inds, X, t)
 
     def _clip_joint_angles(self):
