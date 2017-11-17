@@ -9,7 +9,9 @@ NOISE_ENUM = 3
 
 GPS_RATIO = 1e3
 
-def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
+MUJOCO_STEPS_PER_SECOND = 80
+
+def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_attrs=[]):
     '''
     Maps the parameters of the plan actions to indices in the policy state and action vectors, and returns the dimensions of those vectors.
     This mapping should apply to any plan with the given actions
@@ -37,7 +39,7 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
         params = plan.params.values()
         x_params_init = len(x_params)
     else:
-        params = x_params
+        params = map(lambda p: plan.params[p], x_params)
 
     robot = plan.params['baxter'] #TODO: Make this more general
     robot_attr_map = const.ATTR_MAP[robot._type]
@@ -58,28 +60,23 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], u_attrs=[]):
     for param in params:
         param_attr_map = const.ATTR_MAP[param._type]
         # Uses all parameters for state unless otherwise specified
-        if not x_params_init: x_params.append(param)
 
-        if param in x_params:
-            for attr in param_attr_map:
-                if (param.name, attr[0]) in params_to_x_inds or param.is_symbol(): continue
-                inds = attr[1] + cur_x_ind
-                cur_x_ind = inds[-1] + 1
-                params_to_x_inds[(param.name, attr[0])] = inds
+        for attr in param_attr_map:
+            if (param.name, attr[0]) in params_to_x_inds or param.is_symbol() or attr[0] not in x_attrs: continue
+            inds = attr[1] + cur_x_ind
+            cur_x_ind = inds[-1] + 1
+            params_to_x_inds[(param.name, attr[0])] = inds
 
     symbolic_boundary = cur_x_ind # Used to differntiate parameters from symbols in the state vector
 
-    for param in params:
+    for param in plan.params.values():
+        if not param.is_symbol(): continue
         param_attr_map = const.ATTR_MAP[param._type]
-        # Uses all parameters for state unless otherwise specified
-        if not x_params_init: x_params.append(param)
-
-        if param in x_params:
-            for attr in param_attr_map:
-                if (param.name, attr[0]) in params_to_x_inds: continue
-                inds = attr[1] + cur_x_ind
-                cur_x_ind = inds[-1] + 1
-                params_to_x_inds[(param.name, attr[0])] = inds
+        for attr in param_attr_map:
+            if (param.name, attr[0]) in params_to_x_inds: continue
+            inds = attr[1] + cur_x_ind
+            cur_x_ind = inds[-1] + 1
+            params_to_x_inds[(param.name, attr[0])] = inds
 
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary
@@ -114,7 +111,7 @@ def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
 
     sample.set(NOISE_ENUM, noise, t-active_ts[0])
 
-def fill_trajectory_from_sample(sample, plan, time_interval=200):
+def fill_trajectory_from_sample(sample, plan, time_interval=MUJOCO_STEPS_PER_SECOND):
     params = set()
     for action in plan.actions:
         params.update(action.params)
@@ -126,7 +123,7 @@ def fill_trajectory_from_sample(sample, plan, time_interval=200):
     X = sample.get_X(active_ts[1]*time_interval-1)
     set_params_attrs(params, plan.state_inds, X, active_ts[1])
 
-def get_trajectory_cost(plan, init_t, final_t, time_interval):
+def get_trajectory_cost(plan, init_t, final_t, time_interval=MUJOCO_STEPS_PER_SECOND):
     '''
     Calculates the constraint violations at the provided timestep for the current trajectory, as well as the first and second order approximations.
     This function handles the hierarchies of mappings from parameters to attributes to indices and translates between how the predicates consturct
@@ -163,7 +160,7 @@ def get_trajectory_cost(plan, init_t, final_t, time_interval):
                 pred_param_attr_inds[p['pred']][param.name][attr_name] = np.array(range(cur_ind, cur_ind+len(inds)))
                 cur_ind += len(inds)
 
-    for t in range(active_ts[0], active_ts[1]):
+    for t in range(active_ts[0], active_ts[1]+1):
         active_preds = plan.get_active_preds(t)
         preds_checked = []
         for p in preds:
@@ -180,7 +177,7 @@ def get_trajectory_cost(plan, init_t, final_t, time_interval):
             cost_vector = expr.eval(param_vector)
             param_attr_inds = pred_param_attr_inds[p['pred']]
             time_ind = (t-active_ts[0])*time_interval
-            timestep_costs[time_ind:time_ind+time_interval] += np.sum(cost_vector) * 1e-3
+            timestep_costs[time_ind:time_ind+time_interval] += np.sum(cost_vector)
 
             # if hasattr(expr, '_grad') and expr._grad:
             #     # Linear terms

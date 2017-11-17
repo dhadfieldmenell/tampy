@@ -15,12 +15,12 @@ class TAMPCost(Cost):
         self.init_t = self.first_act.active_timesteps[0]
         self.final_t = self.last_act.active_timesteps[1]
 
-        params = set()
-        for act in range(self.x0[1][0], self.x0[1][1]):
-            next_act = self.plan.actions[act]
-            params.update(next_act.params)
-        self.symbols = filter(lambda p: p.is_symbol(), list(params))
-        self.params = filter(lambda p: not p.is_symbol(), list(params))
+        # params = set()
+        # for act in range(self.x0[1][0], self.x0[1][1]+1):
+        #     next_act = self.plan.actions[act]
+        #     params.update(next_act.params)
+        self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
+        self.params = filter(lambda p: not p.is_symbol(), self.plan.params.values())
 
     def eval(self, sample):
         self.fill_symbolic_values()
@@ -30,16 +30,17 @@ class TAMPCost(Cost):
         init_t = first_act.active_timesteps[0]
         final_t = last_act.active_timesteps[1]
         self._clip_joint_angles()
-        return utils.get_trajectory_cost(self.plan, init_t, final_t, time_interval=200)
+        return utils.get_trajectory_cost(self.plan, init_t, final_t)
 
     def fill_symbolic_values(self):
         utils.set_params_attrs(self.symbols, self.plan.state_inds, self.x0[0], 0)
 
     def fill_trajectory_from_sample(self, sample):
-        utils.set_params_attrs(self.params, self.plan.state_inds, self.x0[0], 0)
-        for t in range(self.init_t+1, self.final_t):
-            X = sample.get_X((t-self.init_t)*200)
+        for t in range(self.init_t, self.final_t):
+            X = sample.get_X((t-self.init_t)*utils.MUJOCO_STEPS_PER_SECOND)
             utils.set_params_attrs(self.params, self.plan.state_inds, X, t)
+        X = sample.get_X((self.final_t-self.init_t)*utils.MUJOCO_STEPS_PER_SECOND-1)
+        utils.set_params_attrs(self.params, self.plan.state_inds, X, self.final_t)
 
     def _clip_joint_angles(self):
         DOF_limits = self.plan.params['baxter'].openrave_body.env_body.GetDOFLimits()

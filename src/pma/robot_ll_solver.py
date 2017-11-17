@@ -163,7 +163,7 @@ class RobotLLSolver(LLSolver):
             else:
                 callback_a = None
             self.child_solver = RobotLLSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
                                               active_ts = active_ts, verbose=verbose, force_init=True)
 
             if not success:
@@ -181,7 +181,7 @@ class RobotLLSolver(LLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.obj_pose_suggester(plan, anum, resample_size = 10)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=10)
         if not robot_poses:
             success = False
             # print "Using Random Poses"
@@ -202,7 +202,7 @@ class RobotLLSolver(LLSolver):
 
             success = False
             self.child_solver = RobotLLSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
                                               active_ts = active_ts, verbose=verbose,
                                               force_init=True)
             if success:
@@ -215,7 +215,7 @@ class RobotLLSolver(LLSolver):
         return success
 
     #@profile
-    def random_pose_suggester(self, plan, anum, resample_size = 5):
+    def random_pose_suggester(self, plan, anum, resample_size=5):
         robot_pose = []
 
         robot_body = plan.actions[anum].params[0].openrave_body
@@ -239,7 +239,7 @@ class RobotLLSolver(LLSolver):
         return robot_pose
 
     #@profile
-    def obj_pose_suggester(self, plan, anum, resample_size = 20):
+    def obj_pose_suggester(self, plan, anum, resample_size=20):
         robot_pose = []
         assert anum + 1 <= len(plan.actions) - 1
         act, next_act = plan.actions[anum], plan.actions[anum+1]
@@ -716,6 +716,7 @@ class RobotLLSolver(LLSolver):
     def traj_smoother(self, plan, callback=None, n_resamples=5, verbose=False):
         # plan.save_free_attrs()
         a_num = 0
+        success = True
         while a_num < len(plan.actions) - 1:
             act_1 = plan.actions[a_num]
             act_2 = plan.actions[a_num+1]

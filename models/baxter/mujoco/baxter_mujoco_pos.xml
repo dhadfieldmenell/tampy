@@ -18,9 +18,9 @@
 
 <mujoco model="baxter(v1.31)">
     <compiler coordinate="local" angle="radian" meshdir="../../models/baxter/mujoco/meshes/" strippath="false" />
-    <option timestep="0.005" gravity="0 0 -9.81" iterations="20" integrator="Euler" />
-    <!-- <size njmax="795" nconmax="250" nstack="631875" /> -->
-    <size njmax="10000" nconmax="70000" nstack="500000" />
+    <option timestep="0.0125" gravity="0 0 -9.81" iterations="20" integrator="Euler" />
+    <size njmax="795" nconmax="250" nstack="631875" />
+    <!-- <size njmax="10000" nconmax="70000" nstack="500000" /> -->
    
    <asset>
         <mesh name="base_link" file="torso/base_link.STL"/>
@@ -383,7 +383,7 @@
         <position kp="100" joint="left_gripper_r_finger_joint"/>
     </actuator> -->
 
-    <actuator>
+    <!-- <actuator>
         <position kp="8000" gear="1 0 0 0 0 0" joint="right_s0"/>
         <position kp="5000" gear="1 0 0 0 0 0" joint="right_s1"/>
         <position kp="1000" gear="1 0 0 0 0 0" joint="right_e0"/>
@@ -403,5 +403,27 @@
         <position kp="1000" joint="left_w2"/>
         <position kp="50" joint="left_gripper_l_finger_joint"/>
         <position kp="50" joint="left_gripper_r_finger_joint"/>
+    </actuator> -->
+
+    <actuator>
+        <position kp="600" gear="1 0 0 0 0 0" joint="right_s0"/>
+        <position kp="750" gear="1 0 0 0 0 0" joint="right_s1"/>
+        <position kp="100" gear="1 0 0 0 0 0" joint="right_e0"/>
+        <position kp="500" gear="1 0 0 0 0 0" joint="right_e1"/>
+        <position kp="100" joint="right_w0"/>
+        <position kp="300" joint="right_w1"/>
+        <position kp="100" joint="right_w2"/>
+        <position kp="10" joint="right_gripper_l_finger_joint"/>
+        <position kp="10" joint="right_gripper_r_finger_joint"/>
+        
+        <position kp="600" gear="1 0 0 0 0 0" joint="left_s0"/>
+        <position kp="750" gear="1 0 0 0 0 0" joint="left_s1"/>
+        <position kp="100" gear="1 0 0 0 0 0" joint="left_e0"/>
+        <position kp="500" gear="1 0 0 0 0 0" joint="left_e1"/>
+        <position kp="100" joint="left_w0"/>
+        <position kp="300" joint="left_w1"/>
+        <position kp="100" joint="left_w2"/>
+        <position kp="10" joint="left_gripper_l_finger_joint"/>
+        <position kp="10" joint="left_gripper_r_finger_joint"/>
     </actuator>
 </mujoco>

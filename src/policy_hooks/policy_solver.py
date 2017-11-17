@@ -26,7 +26,7 @@ class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.config = None
         self.gps = None
-        self.policy_transfer_coeff = 5e1 # Coefficient on cost for deviaitng from global policy
+        self.policy_transfer_coeff = 2.5e1 # Coefficient on cost for deviaitng from global policy
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
     # TODO: Add hooks for online policy learning
@@ -48,7 +48,7 @@ class BaxterPolicySolver(RobotLLSolver):
 
         initial_plan = generate_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
-        initial_plan.dX, initial_plan.state_inds, initial_plan.dU, initial_plan.action_inds, initial_plan.symbolic_bound = utils.get_plan_to_policy_mapping(initial_plan, u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
+        initial_plan.dX, initial_plan.state_inds, initial_plan.dU, initial_plan.action_inds, initial_plan.symbolic_bound = utils.get_plan_to_policy_mapping(initial_plan, x_params=['baxter', 'cloth_0', 'basket'], x_attrs=['pose'], u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         x0s = []
         for c in range(self.config['num_conds']):
             x0s.append(get_randomized_initial_state(initial_plan))
@@ -75,7 +75,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'expert_ratio': 0.75,
                 'solver': self,
                 # 'T': initial_plan.horizon - 1
-                'T': (initial_plan.horizon - 1) * 200
+                'T': (initial_plan.horizon - 1) * utils.MUJOCO_STEPS_PER_SECOND
             }
             self.config['algorithm']['cost'] = []
 
@@ -107,8 +107,9 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
             },
+            'lr': 1e-2,
             'network_model': tf_network,
-            'iterations': 2000,
+            'iterations': 250,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -121,29 +122,28 @@ class BaxterPolicySolver(RobotLLSolver):
         
         # Bootstrap the algorithm
         self.optimal_trajs = []
-        self.center_trajectories_around_demonstrations()
         self.gps.run()
 
-    def center_trajectories_around_demonstrations(self):
-        alg = self.gps.algorithm
-        agent = self.gps.agent
-        agent.initial_samples = True
-        for m in range(alg.M):
-            traj_distr = alg.cur[m].traj_distr
-            traj_sample = agent.sample(traj_distr, m, on_policy=False)
-            k = np.zeros((traj_distr.T, traj_distr.dU))
-            for t in range(traj_distr.T):
-                k[t] = traj_sample.get_U(t)
-            traj_distr.k = k
-        agent.initial_samples = False
+    # def center_trajectories_around_demonstrations(self):
+    #     alg = self.gps.algorithm
+    #     agent = self.gps.agent
+    #     # agent.initial_samples = True
+    #     for m in range(alg.M):
+    #         traj_distr = alg.cur[m].traj_distr
+    #         traj_sample = agent.sample(traj_distr, m, on_policy=False)
+    #         k = np.zeros((traj_distr.T, traj_distr.dU))
+    #         for t in range(traj_distr.T):
+    #             k[t] = traj_sample.get_U(t)
+    #         traj_distr.k = k
+    #     # agent.initial_samples = False
 
-    def center_trajectory_around_demonstration(self, alg, agent, condition):
-        traj_distr = alg.cur[condition].traj_distr
-        traj_sample = agent.sample(traj_distr, condition)
-        k = np.zeros((traj_distr.T, traj_distr.dU))
-        for t in range(traj_distr.T):
-            k[t] = traj_sample.get_U(t)
-        traj_distr.k = k
+    # def center_trajectory_around_demonstration(self, alg, agent, condition):
+    #     traj_distr = alg.cur[condition].traj_distr
+    #     traj_sample = agent.sample(traj_distr, condition)
+    #     k = np.zeros((traj_distr.T, traj_distr.dU))
+    #     for t in range(traj_distr.T):
+    #         k[t] = traj_sample.get_U(t)
+    #     traj_distr.k = k
 
     # def _update_algorithm(self, plans, costs):
     #     if not self.gps: return
@@ -236,8 +236,8 @@ class BaxterPolicySolver(RobotLLSolver):
         pol_sample = self.gps.agent.cond_global_pol_sample[self.gps.agent.current_cond]
         traj_state = np.zeros((plan.symbolic_bound, plan.horizon))
         for t in range(plan.horizon-1):
-            traj_state[:, t] = pol_sample.get_X(t*200)
-        traj_state[:,plan.horizon-1] = pol_sample.get_X((plan.horizon-1)*200-1)
+            traj_state[:, t] = pol_sample.get_X(t*utils.MUJOCO_STEPS_PER_SECOND)
+        traj_state[:,plan.horizon-1] = pol_sample.get_X((plan.horizon-1)*utils.MUJOCO_STEPS_PER_SECOND-1)
         obj_bexprs = self._traj_policy_opt(plan, traj_state)
         self._add_obj_bexprs(obj_bexprs)
 
@@ -278,7 +278,6 @@ class BaxterPolicySolver(RobotLLSolver):
         for param_name, attr_name in plan.action_inds.keys():
             param = plan.params[param_name]
             attr_type = param.get_attr_type(attr_name)
-            import ipdb; ipdb.set_trace()
             param_ll = self._param_to_ll[param]
             T = param_ll._horizon
             attr_val = traj_mean[:, plan.action_inds[(param_name, attr_name)]].T
