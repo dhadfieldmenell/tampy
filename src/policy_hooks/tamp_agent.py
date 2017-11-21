@@ -51,7 +51,7 @@ class LaundryWorldMujocoAgent(Agent):
         self.sim = 'mujoco'
         self.viewer = None
         self.motor_viewer = None
-        self.pos_model = self.setup_mujoco_model(self.plan, motor=False, view=False)
+        self.pos_model = self.setup_mujoco_model(self.plan, motor=False, view=True)
         # self.motor_model = self.setup_mujoco_model(self.plan, motor=True, view=False)
         # self.controller = BaxterMujocoController(self.motor_model, pos_gains=2.5e2, vel_gains=1e1)
         self.demonstrations = np.ones((len(self.init_plan_states))) * self._hyperparams['demonstrations']
@@ -66,7 +66,7 @@ class LaundryWorldMujocoAgent(Agent):
         self.current_cond = 0
         self.cond_optimal_traj_sample = [Sample(self) for _ in  range(len(self.x0))] # Samples from the initial bootstrap
         self.cond_optimal_traj = [None for _ in range(len(self.x0))]
-        self.cond_global_pol_sample = [Sample(self) for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
+        self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
 
     def _generate_xml(self, plan, motor=True):
         '''
@@ -268,16 +268,19 @@ class LaundryWorldMujocoAgent(Agent):
     #         self._samples[condition].append(sample)
     #     return sample
 
-    def sample(self, policy, condition, on_policy=True, save_global=False, verbose=False, save=True, noisy=False):
+    def sample(self, policy, condition, on_policy=True, save_global=False, verbose=False, save=True, noisy=True):
         '''
             Take a sample for a given condition
         '''
         self.current_cond = condition
         x0 = self.init_plan_states[condition]
+        sample = Sample(self)
         if on_policy:
             print 'Starting on-policy sample for condition {0}.'.format(condition)
-            noise = np.random.uniform(-1, 1, (self.T, self.dU)) * 0.001 # Trick to ensure covariance maintains rank
-            sample = Sample(self)
+            if noisy:
+                noise = np.random.uniform(-1, 1, (self.T, self.dU)) * 0.0
+            else:
+                noise = np.zeros((self.T, self.dU))
             self._set_simulator_state(x0[0], self.plan)
             last_success_X = x0[0]
             for t in range(self.T):
@@ -298,7 +301,7 @@ class LaundryWorldMujocoAgent(Agent):
                 self.cond_global_pol_sample[condition] = sample
             print 'Finished on-policy sample.\n'.format(condition)
         else:
-            sample = self.sample_joint_trajectory(condition)
+            success = self.sample_joint_trajectory(condition, sample)
 
         if save:
             self._samples[condition].append(sample)
@@ -458,9 +461,7 @@ class LaundryWorldMujocoAgent(Agent):
     #     # print 'Left Joint Errors: ', np.round(np.abs(cur_left_joints - next_left_pose), 3), '\n'
     #     self.avg_vels /= (steps or 1)
 
-    def sample_joint_trajectory(self, condition, bootstrap=False):
-        sample = Sample(self)
-
+    def sample_joint_trajectory(self, condition, sample, bootstrap=False):
         # Initialize the plan for the given condition
         x0 = self.init_plan_states[condition]
 
@@ -518,10 +519,9 @@ class LaundryWorldMujocoAgent(Agent):
         if self.initial_samples:
             self.cond_optimal_traj_sample[condition] = sample
 
-        return sample
+        return success
 
     def run_traj_step(self, u, u_inds, sample, plan_t=0, timelimit=1.0):
-        u += np.random.normal(0, 0.005, u.shape)
         next_right_pose = u[u_inds[('baxter', 'rArmPose')]]
         next_left_pose = u[u_inds[('baxter', 'lArmPose')]]
         r_grip = u[u_inds[('baxter', 'rGripper')]]
@@ -529,12 +529,12 @@ class LaundryWorldMujocoAgent(Agent):
         if r_grip > const.GRIPPER_CLOSE_VALUE:
             r_grip = const.GRIPPER_OPEN_VALUE
         else:
-            r_grip = 0.001
+            r_grip = 0.0001
 
         if l_grip > const.GRIPPER_CLOSE_VALUE:
             l_grip = const.GRIPPER_OPEN_VALUE
         else:
-            l_grip = 0.001
+            l_grip = 0.0001
 
         steps = int(timelimit * utils.MUJOCO_STEPS_PER_SECOND)
 
@@ -555,7 +555,7 @@ class LaundryWorldMujocoAgent(Agent):
             sample.set(OBS_ENUM, X, plan_t*steps+t)
             self.pos_model.step()
             if self.pos_model.data.ncon >= N_CONTACT_LIMIT:
-                # print 'Collision Limit Exceeded in Position Model.'
+                print 'Collision Limit Exceeded in Position Model.'
                 self._set_simulator_state(last_success_X, self.plan)
                 qpos_delta = np.zeros((19,))
                 success = False
@@ -568,10 +568,14 @@ class LaundryWorldMujocoAgent(Agent):
             # self.motor_model.step()
             # import ipdb; ipdb.set_trace()
             U = np.zeros((self.plan.dU,))
-            U[u_inds[('baxter', 'rArmPose')]] = qpos_delta[1:8]
-            U[u_inds[('baxter', 'rGripper')]] = qpos_delta[8]
-            U[u_inds[('baxter', 'lArmPose')]] = qpos_delta[10:17]
-            U[u_inds[('baxter', 'lGripper')]] = qpos_delta[17]
+            # U[u_inds[('baxter', 'rArmPose')]] = qpos[1:8]
+            # U[u_inds[('baxter', 'rGripper')]] = qpos[8]
+            # U[u_inds[('baxter', 'lArmPose')]] = qpos[10:17]
+            # U[u_inds[('baxter', 'lGripper')]] = qpos[17]
+            U[u_inds[('baxter', 'rArmPose')]] = next_right_pose
+            U[u_inds[('baxter', 'rGripper')]] = r_grip
+            U[u_inds[('baxter', 'lArmPose')]] = next_left_pose
+            U[u_inds[('baxter', 'lGripper')]] = l_grip
             sample.set(ACTION_ENUM, U, plan_t*steps+t)
             sample.set(NOISE_ENUM, np.zeros((self.plan.dU,)), plan_t*steps+t)
         if self.viewer:
@@ -605,9 +609,9 @@ class LaundryWorldMujocoAgent(Agent):
         l_grip = u[u_inds[('baxter', 'lGripper')]]
         success = True
         if self.pos_model.data.ncon < N_CONTACT_LIMIT:
-            self.pos_model.data.ctrl = self.pos_model.data.qpos[1:] + np.r_[r_joints, r_grip, -r_grip, l_joints, l_grip, -l_grip].reshape((18, 1))
+            self.pos_model.data.ctrl = np.r_[r_joints, r_grip, -r_grip, l_joints, l_grip, -l_grip].reshape((18, 1)) # self.pos_model.data.qpos[1:] + np.r_[r_joints, r_grip, -r_grip, l_joints, l_grip, -l_grip].reshape((18, 1))
         else:
-            # print 'Collision Limit Exceeded in Position Model.'
+            print 'Collision Limit Exceeded in Position Model.'
             self.pos_model.data.ctrl = np.zeros((18,1))
             success = False
         self.pos_model.step()

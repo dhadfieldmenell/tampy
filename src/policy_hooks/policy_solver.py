@@ -26,7 +26,7 @@ class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.config = None
         self.gps = None
-        self.policy_transfer_coeff = 2.5e1 # Coefficient on cost for deviaitng from global policy
+        self.policy_transfer_coeff = 5e0 # Coefficient on cost for deviaitng from global policy
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
     # TODO: Add hooks for online policy learning
@@ -48,16 +48,25 @@ class BaxterPolicySolver(RobotLLSolver):
 
         initial_plan = generate_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
-        initial_plan.dX, initial_plan.state_inds, initial_plan.dU, initial_plan.action_inds, initial_plan.symbolic_bound = utils.get_plan_to_policy_mapping(initial_plan, x_params=['baxter', 'cloth_0', 'basket'], x_attrs=['pose'], u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
+
+        initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
+        initial_plan.action_inds, initial_plan.symbolic_bound = \
+        utils.get_plan_to_policy_mapping(initial_plan, 
+                                         x_params=['baxter', 'cloth_0', 'cloth_1', 'cloth_2', 'cloth_3', 'basket'], 
+                                         x_attrs=['pose'], 
+                                         u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
+        
         x0s = []
         for c in range(self.config['num_conds']):
-            x0s.append(get_randomized_initial_state(initial_plan))
+            x0s.append(get_randomized_initial_state_move(initial_plan))
 
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
             utils.ACTION_ENUM: initial_plan.dU,
             utils.OBS_ENUM: initial_plan.symbolic_bound
         }
+
+        self.T = initial_plan.actions[x0s[0][1][1]].active_timesteps[1] - initial_plan.actions[x0s[0][1][0]].active_timesteps[0]
 
         if is_first_run:
             self.config['agent'] = {
@@ -74,8 +83,9 @@ class BaxterPolicySolver(RobotLLSolver):
                 'demonstrations': 5,
                 'expert_ratio': 0.75,
                 'solver': self,
+                'num_cloths': 4,
                 # 'T': initial_plan.horizon - 1
-                'T': (initial_plan.horizon - 1) * utils.MUJOCO_STEPS_PER_SECOND
+                'T': self.T * utils.MUJOCO_STEPS_PER_SECOND
             }
             self.config['algorithm']['cost'] = []
 
@@ -95,8 +105,8 @@ class BaxterPolicySolver(RobotLLSolver):
 
         self.config['dQ'] = initial_plan.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = initial_plan.dU
-        self.config['algorithm']['init_traj_distr']['init_gains'] = np.ones((initial_plan.dU)) * 500
-        self.config['algorithm']['init_traj_distr']['init_acc'] = np.zeros((sensor_dims[utils.ACTION_ENUM],))
+        # self.config['algorithm']['init_traj_distr']['init_gains'] = np.ones((initial_plan.dU)) * 500
+        # self.config['algorithm']['init_traj_distr']['init_acc'] = np.zeros((sensor_dims[utils.ACTION_ENUM],))
         self.config['algorithm']['init_traj_distr']['dt'] = 0.005
         self.config['algorithm']['init_traj_distr']['T'] = self.config['agent']['T']
 
@@ -106,10 +116,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_include': [utils.STATE_ENUM],
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
+                'n_layers': 3,
+                'dim_hidden': [40, 40, 40]
             },
-            'lr': 1e-2,
+            'lr': 1e-4,
             'network_model': tf_network,
-            'iterations': 250,
+            'iterations': 50000,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -120,8 +132,6 @@ class BaxterPolicySolver(RobotLLSolver):
             self._update_agent(x0s)
             self._update_algorithm(self.config['algorithm']['cost'][-len(x0s):])
         
-        # Bootstrap the algorithm
-        self.optimal_trajs = []
         self.gps.run()
 
     # def center_trajectories_around_demonstrations(self):
@@ -185,8 +195,150 @@ class BaxterPolicySolver(RobotLLSolver):
     #     agent.conditions += len(plans)
     #     agent.plans.extend(plans)
 
+
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
+        if amax is None:
+            amax = len(plan.actions) - 1
+
+        if anum > amax:
+            return True
+
+        a = plan.actions[anum]
+        print "backtracking Solve on {}".format(a.name)
+        active_ts = a.active_timesteps
+        inits = {}
+        if a.name == 'moveto':
+            ## find possible values for the final robot_pose
+            rs_param = a.params[2]
+        elif a.name == 'moveholding_basket':
+            ## find possible values for the final robot_pose
+            rs_param = a.params[2]
+        elif a.name == 'moveholding_cloth':
+            ## find possible values for the final robot_pose
+            rs_param = a.params[2]
+        elif a.name == 'basket_grasp':
+            ## find possible ee_poses for both arms
+            rs_param = a.params[-1]
+        elif a.name == 'basket_putdown':
+            ## find possible ee_poses for both arms
+            rs_param = a.params[-1]
+        elif a.name == 'open_door':
+            ## find possible ee_poses for left arms
+            rs_param = a.params[-3]
+        elif a.name == 'close_door':
+            ## find possible ee_poses for left arms
+            rs_param = a.params[-3]
+        elif a.name == 'cloth_grasp':
+            ## find possible ee_poses for right arms
+            rs_param = a.params[-1]
+        elif a.name == 'cloth_putdown':
+            ## find possible ee_poses for right arms
+            rs_param = a.params[-1]
+        elif a.name =='put_into_washer':
+            rs_param = a.params[-1]
+        elif a.name =='take_out_of_washer':
+            rs_param = a.params[-1]
+        elif a.name == 'put_into_basket':
+            rs_param = a.params[-1]
+        elif a.name == 'push_door':
+            rs_param = a.params[-3]
+        else:
+            raise NotImplemented
+
+        def recursive_solve():
+            ## don't optimize over any params that are already set
+            old_params_free = {}
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p not in a.params: continue
+                    old_params_free[p] = p._free_attrs
+                    p._free_attrs = {}
+                    for attr in old_params_free[p].keys():
+                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                else:
+                    p_attrs = {}
+                    old_params_free[p] = p_attrs
+                    for attr in p._free_attrs:
+                        p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
+                        p._free_attrs[attr][:, active_ts[1]] = 0
+            self.child_solver = BaxterPolicySolver()
+            self.child_solver.gps = self.gps
+            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
+
+            # reset free_attrs
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p not in a.params: continue
+                    p._free_attrs = old_params_free[p]
+                else:
+                    for attr in p._free_attrs:
+                        p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
+            return success
+
+        # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
+        if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
+            ## this parameter is fixed
+            if callback is not None:
+                callback_a = lambda: callback(a)
+            else:
+                callback_a = None
+            self.child_solver = BaxterPolicySolver()
+            self.child_solver.gps = self.gps
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
+                                              active_ts = active_ts, verbose=verbose, force_init=True)
+
+            if not success:
+                ## if planning fails we're done
+                return False
+            ## no other options, so just return here
+            return recursive_solve()
+
+        ## so that this won't be optimized over
+        rs_free = rs_param._free_attrs
+        rs_param._free_attrs = {}
+        for attr in rs_free.keys():
+            rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
+
+        """
+        sampler_begin
+        """
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=10)
+        if not robot_poses:
+            success = False
+            # print "Using Random Poses"
+            # robot_poses = self.random_pose_suggester(plan, anum, resample_size = 5)
+
+        """
+        sampler end
+        """
+
+        if callback is not None:
+            callback_a = lambda: callback(a)
+        else:
+            callback_a = None
+
+        for rp in robot_poses:
+            for attr, val in rp.iteritems():
+                setattr(rs_param, attr, val)
+
+            success = False
+            self.child_solver = BaxterPolicySolver()
+            self.child_solver.gps = self.gps
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
+                                              active_ts = active_ts, verbose=verbose,
+                                              force_init=True)
+            if success:
+                if recursive_solve():
+                    break
+                else:
+                    success = False
+
+        rs_param._free_attrs = rs_free
+        return success
+
+
     def _solve_opt_prob(self, plan, priority, callback=None, init=True, active_ts=None, verbose=False, resample=False, smoothing = False):
-        if not self.gps.agent.initial_samples or priority < 3:
+        if not self.gps.agent.cond_global_pol_sample[self.gps.agent.current_cond]: # or priority < 3:
             return super(BaxterPolicySolver, self)._solve_opt_prob(plan, priority, callback, init, active_ts, verbose, resample, smoothing)
 
         self.plan = plan
@@ -233,11 +385,23 @@ class BaxterPolicySolver(RobotLLSolver):
             tol=1e-3
 
         # Constrain optimization against the global policy
-        pol_sample = self.gps.agent.cond_global_pol_sample[self.gps.agent.current_cond]
+        # pol_sample = self.gps.agent.cond_global_pol_sample[self.gps.agent.current_cond]
+        # traj_state = np.zeros((plan.symbolic_bound, plan.horizon))
+        # for t in range(0,plan.horizon-1):
+        #     traj_state[:, t] = pol_sample.get_X(t*utils.MUJOCO_STEPS_PER_SECOND)
+        # traj_state[:,plan.horizon-1] = pol_sample.get_X((plan.horizon-1)*utils.MUJOCO_STEPS_PER_SECOND-1)
+        # obj_bexprs = self._traj_policy_opt(plan, traj_state)
+        # self._add_obj_bexprs(obj_bexprs)
+
+        idx = self.gps.agent.current_cond
+        pol_sample = self.gps.agent.cond_global_pol_sample[idx]
         traj_state = np.zeros((plan.symbolic_bound, plan.horizon))
-        for t in range(plan.horizon-1):
-            traj_state[:, t] = pol_sample.get_X(t*utils.MUJOCO_STEPS_PER_SECOND)
-        traj_state[:,plan.horizon-1] = pol_sample.get_X((plan.horizon-1)*utils.MUJOCO_STEPS_PER_SECOND-1)
+        for t in range(0, plan.horizon-1):
+            if not t % (pol_sample.T / utils.MUJOCO_STEPS_PER_SECOND):
+                pol_sample = self.gps.agent.cond_global_pol_sample[idx]
+                idx += 1
+            traj_state[:, t] = pol_sample.get_X((t % (pol_sample.T/utils.MUJOCO_STEPS_PER_SECOND))*utils.MUJOCO_STEPS_PER_SECOND)
+        traj_state[:,plan.horizon-1] = pol_sample.get_X((t % (pol_sample.T/utils.MUJOCO_STEPS_PER_SECOND))*utils.MUJOCO_STEPS_PER_SECOND-1)
         obj_bexprs = self._traj_policy_opt(plan, traj_state)
         self._add_obj_bexprs(obj_bexprs)
 
@@ -280,11 +444,9 @@ class BaxterPolicySolver(RobotLLSolver):
             attr_type = param.get_attr_type(attr_name)
             param_ll = self._param_to_ll[param]
             T = param_ll._horizon
-            attr_val = traj_mean[:, plan.action_inds[(param_name, attr_name)]].T
+            attr_val = traj_mean[plan.action_inds[(param_name, attr_name)], :].T
             K = attr_type.dim
 
-            # pose = param.pose
-            if DEBUG: assert (K, T) == attr_val.shape
             KT = K*T
             v = -1 * np.ones((KT - K, 1))
             d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
@@ -299,8 +461,8 @@ class BaxterPolicySolver(RobotLLSolver):
             policy_transfer_coeff = self.policy_transfer_coeff/float(plan.T)
 
             # QuadExpr is 0.5*x^Tx + Ax + b
-            quad_expr = QuadExpr(2*transfer_coeff*Q,
-                                 transfer_coeff*A, transfer_coeff*b)
+            quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
+                                 policy_transfer_coeff*A, policy_transfer_coeff*b)
             ll_attr_val = getattr(param_ll, attr_name)
             param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
             sco_var = self.create_variable(param_ll_grb_vars, cur_val)
@@ -310,4 +472,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(1)
+    PS.train_policy(4)
