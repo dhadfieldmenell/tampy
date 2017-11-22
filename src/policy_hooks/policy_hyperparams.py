@@ -21,12 +21,13 @@ from gps.algorithm.policy.policy_prior import PolicyPrior
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.gui.config import generate_experiment_info
 
+from policy_hooks.algorithm_tamp_gps import AlgorithmTAMPGPS
 import policy_hooks.policy_solver_utils as utils
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 5
+NUM_CONDS = 8
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \
@@ -39,7 +40,7 @@ common = {
 }
 
 algorithm = {
-    'type': AlgorithmPIGPS,
+    'type': AlgorithmTAMPGPS,
     'conditions': common['conditions'],
     'policy_sample_mode': 'replace',
     'sample_on_policy': False,
@@ -50,7 +51,7 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.000004,
+    'init_var': 0.0004,
     'pos_gains': 0.0,
 }
 

@@ -4,6 +4,7 @@ import numpy as np
 
 import gurobipy as grb
 
+from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.prob import Prob
 from sco.solver import Solver
 
@@ -16,6 +17,7 @@ from policy_hooks.cloth_world_policy_utils import *
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 import policy_hooks.policy_solver_utils as utils
 from policy_hooks.tamp_agent import LaundryWorldMujocoAgent
+from policy_hooks.tamp_cloth_agent import LaundryWorldClothAgent
 from policy_hooks.tamp_cost import TAMPCost
 
 
@@ -26,7 +28,7 @@ class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.config = None
         self.gps = None
-        self.policy_transfer_coeff = 5e0 # Coefficient on cost for deviaitng from global policy
+        self.policy_transfer_coeff = 1e-3 # Coefficient on cost for deviaitng from global policy
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
     # TODO: Add hooks for online policy learning
@@ -57,8 +59,10 @@ class BaxterPolicySolver(RobotLLSolver):
                                          u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         
         x0s = []
-        for c in range(self.config['num_conds']):
-            x0s.append(get_randomized_initial_state_move(initial_plan))
+        # for c in range(self.config['num_conds']):
+            # x0s.append(get_randomized_initial_state_move(initial_plan))
+        for c in range(0, self.config['num_conds'], 4):
+            x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/4))
 
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
@@ -70,7 +74,8 @@ class BaxterPolicySolver(RobotLLSolver):
 
         if is_first_run:
             self.config['agent'] = {
-                'type': LaundryWorldMujocoAgent,
+                # 'type': LaundryWorldMujocoAgent,
+                'type': LaundryWorldClothAgent,
                 'x0s': x0s,
                 'x0': map(lambda x: x[0][:initial_plan.symbolic_bound], x0s),
                 'plan': initial_plan,
@@ -116,12 +121,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_include': [utils.STATE_ENUM],
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
-                'n_layers': 3,
-                'dim_hidden': [40, 40, 40]
+                'n_layers': 2,
+                'dim_hidden': [120, 120]
             },
             'lr': 1e-4,
             'network_model': tf_network,
-            'iterations': 50000,
+            'iterations': 100000,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -302,7 +307,7 @@ class BaxterPolicySolver(RobotLLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=10)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=20)
         if not robot_poses:
             success = False
             # print "Using Random Poses"
@@ -317,7 +322,7 @@ class BaxterPolicySolver(RobotLLSolver):
         else:
             callback_a = None
 
-        for rp in robot_poses:
+        for rp in robot_poses[:5]:
             for attr, val in rp.iteritems():
                 setattr(rs_param, attr, val)
 
@@ -456,9 +461,9 @@ class BaxterPolicySolver(RobotLLSolver):
             # P = np.eye(KT)
             Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
             cur_val = attr_val.reshape((KT, 1), order='F')
-            A = -2*cur_val.T.dot(Q)
+            A = -2 * cur_val.T.dot(Q)
             b = cur_val.T.dot(Q.dot(cur_val))
-            policy_transfer_coeff = self.policy_transfer_coeff/float(plan.T)
+            policy_transfer_coeff = self.policy_transfer_coeff / float(plan.horizon)
 
             # QuadExpr is 0.5*x^Tx + Ax + b
             quad_expr = QuadExpr(2*policy_transfer_coeff*Q,

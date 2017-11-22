@@ -5,6 +5,7 @@ from sco.solver import Solver
 from openravepy import matrixFromAxisAngle
 from core.internal_repr.parameter import Object
 from core.util_classes import baxter_predicates, common_predicates, robot_predicates, baxter_sampling, baxter_constants
+import core.util_classes.baxter_solve_enums as solve_enums
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer
@@ -393,7 +394,7 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['value'][:] = 0
                     target._free_attrs['rotation'][:] = 0
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.10])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.75], [0.01, 0.01, 0.15])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
