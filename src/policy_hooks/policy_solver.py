@@ -24,13 +24,12 @@ from policy_hooks.tamp_cost import TAMPCost
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + '/experiments'
 
-NUM_CLOTHS = 4
 
 class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.config = None
         self.gps = None
-        self.policy_transfer_coeff = 1e-3 # Coefficient on cost for deviaitng from global policy
+        self.policy_transfer_coeff = 1e-4 # Coefficient on cost for deviating from global policy
         super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
 
     # TODO: Add hooks for online policy learning
@@ -69,8 +68,8 @@ class BaxterPolicySolver(RobotLLSolver):
         x0s = []
         for c in range(self.config['num_conds']):
             x0s.append(get_randomized_initial_state(initial_plan))
-        # for c in range(0, self.config['num_conds'], NUM_CLOTHS):
-        #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/NUM_CLOTHS))
+        # for c in range(0, self.config['num_conds'], num_cloths):
+        #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/num_cloths))
 
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
@@ -83,7 +82,7 @@ class BaxterPolicySolver(RobotLLSolver):
         if is_first_run:
             self.config['agent'] = {
                 # 'type': LaundryWorldMujocoAgent,
-                'type': LaundryWorldMujocoAgent,
+                'type': LaundryWorldClothAgent,
                 'x0s': x0s,
                 'x0': map(lambda x: x[0][:initial_plan.symbolic_bound], x0s),
                 'plan': initial_plan,
@@ -96,9 +95,10 @@ class BaxterPolicySolver(RobotLLSolver):
                 'demonstrations': 5,
                 'expert_ratio': 0.75,
                 'solver': self,
-                'num_cloths': NUM_CLOTHS,
+                'num_cloths': num_cloths,
                 # 'T': initial_plan.horizon - 1
-                'T': self.T * utils.MUJOCO_STEPS_PER_SECOND
+                'T': self.T * utils.MUJOCO_STEPS_PER_SECOND,
+                'stochastic_conditions': self.config['algorithm']['stochastic_conditions']
             }
             self.config['algorithm']['cost'] = []
 
@@ -132,7 +132,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'n_layers': 2,
                 'dim_hidden': [120, 120]
             },
-            'lr': 1e-4,
+            'lr': 1e-5,
             'network_model': tf_network,
             'iterations': 100000,
             'weights_file_prefix': EXP_DIR + 'policy',

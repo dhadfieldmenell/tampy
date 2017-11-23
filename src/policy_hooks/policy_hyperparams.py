@@ -27,7 +27,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 25
+NUM_CONDS = 1
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \
@@ -46,7 +46,8 @@ algorithm = {
     'sample_on_policy': False,
     'iterations': 5,
     'max_ent_traj': 0.0,
-    'fit_dynamics': False
+    'fit_dynamics': False,
+    'stochastic_conditions': True
 }
 
 algorithm['init_traj_distr'] = {

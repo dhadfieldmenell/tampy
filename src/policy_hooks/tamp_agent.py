@@ -65,6 +65,7 @@ class LaundryWorldMujocoAgent(Agent):
         self.cond_optimal_traj_sample = [Sample(self) for _ in  range(len(self.x0))] # Samples from the initial bootstrap
         self.cond_optimal_traj = [None for _ in range(len(self.x0))]
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
+        self.stochastic_conditions = self._hyperparams['stochastic_conditions']
 
     def _generate_xml(self, plan, motor=True):
         '''
@@ -268,11 +269,15 @@ class LaundryWorldMujocoAgent(Agent):
         x0 = self.init_plan_states[condition]
         sample = Sample(self)
         if on_policy:
+            if self.stochastic_conditions and self.save_global:
+                self.replace_cond(condition)
+
             print 'Starting on-policy sample for condition {0}.'.format(condition)
             if noisy:
                 noise = np.random.uniform(-1, 1, (self.T, self.dU))
             else:
                 noise = np.zeros((self.T, self.dU))
+
             self._set_simulator_state(x0[0], self.plan)
             last_success_X = x0[0]
             for t in range(self.T):
@@ -492,7 +497,13 @@ class LaundryWorldMujocoAgent(Agent):
             success = self.solver._backtrack_solve(self.plan)
 
             while not success and self.initial_samples:
-                self.reset_cond(condition)
+                print "Solve failed."
+                self.replace_cond(m)
+                x0 = self.init_plan_states[m]
+                utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], 0)
+                utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], 0)
+                for param in x0[2]:
+                    self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
                 success = self.solver._backtrack_solve(self.plan)
 
         self._set_simulator_state(x0[0], self.plan)
@@ -631,9 +642,13 @@ class LaundryWorldMujocoAgent(Agent):
         self.initial_samples = False
 
     def replace_cond(self, cond):
-        x0s = get_randomized_initial_state(initial_plan)
+        x0s = get_randomized_initial_state(self.plan)
         self.init_plan_states[cond] = x0s
         self.x0[cond] = x0s[0][:self.plan.symbolic_bound]
+
+    def reset_conditions(self):
+        for m in range(len(self.init_plan_states)):
+            self.replace_cond(m)
 
     # def _sample_ee_trajectory(self, condition, noise):
     #     sample = Sample(self)

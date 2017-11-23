@@ -60,6 +60,8 @@ class LaundryWorldClothAgent(Agent):
         self.cond_optimal_traj = [None for _ in range(len(self.x0))]
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
         self.initial_opt = True
+        self.stochastic_conditions = self._hyperparams['stochastic_conditions']
+
 
     def _generate_xml(self, plan, motor=True):
         '''
@@ -97,6 +99,7 @@ class LaundryWorldClothAgent(Agent):
                 basket_geom = xml.SubElement(basket_body, 'geom', {'name':param.name, 'type':'mesh', 'mesh': "laundry_basket"})
         base_xml.write(ENV_XML)
 
+
     def setup_mujoco_model(self, plan, motor=False, view=False):
         '''
             Create the Mujoco model and intiialize the viewer if desired
@@ -104,7 +107,7 @@ class LaundryWorldClothAgent(Agent):
         self._generate_xml(plan, motor)
         model = mjcore.MjModel(ENV_XML)
         
-        self.l_gripper_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_joint')
+        self.l_gripper_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
         self.cloth_inds = []
         for i in range(self.num_cloths):
             self.cloth_inds.append(mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'cloth_{0}'.format(i)))
@@ -126,6 +129,7 @@ class LaundryWorldClothAgent(Agent):
             self.viewer.cam.elevation = -22.5
             self.viewer.loop_once()
         return model
+
 
     def _set_simulator_state(self, x, plan, motor=False):
         '''
@@ -156,6 +160,7 @@ class LaundryWorldClothAgent(Agent):
 
     def _baxter_to_mujoco(self, x, x_inds):
         return np.r_[0, x[x_inds['baxter', 'rArmPose']], x[x_inds['baxter', 'rGripper']], -x[x_inds['baxter', 'rGripper']], x[x_inds['baxter', 'lArmPose']], x[x_inds['baxter', 'lGripper']], -x[x_inds['baxter', 'lGripper']]]
+
 
     def _get_simulator_state(self, x_inds, dX, motor=False):
         model = self.pos_model if not motor else self.motor_model
@@ -189,10 +194,12 @@ class LaundryWorldClothAgent(Agent):
                 X[x_inds[('baxter', 'lGripper__vel')]] = model.data.qvel[17]
 
         return X
+
     
     def _get_obs(self, cond, t):
         o_t = np.zeros((self.plan.symbolic_bound))
         return o_t
+
 
     def sample(self, policy, condition, on_policy=True, save_global=False, verbose=False, save=True, noisy=True):
         '''
@@ -203,10 +210,14 @@ class LaundryWorldClothAgent(Agent):
         sample = Sample(self)
         if on_policy:
             print 'Starting on-policy sample for condition {0}.'.format(condition)
+            if self.stochastic_conditions and save_global:
+                self.replace_cond(condition)
+
             if noisy:
                 noise = np.random.uniform(-1, 1, (self.T, self.dU)) * 0.0001
             else:
                 noise = np.zeros((self.T, self.dU))
+
             self._set_simulator_state(x0[0], self.plan)
             last_success_X = x0[0]
             for t in range(self.T):
@@ -222,7 +233,6 @@ class LaundryWorldClothAgent(Agent):
                 else:
                     self._set_simulator_state(last_success_X, self.plan)
                 if not t % 100 and self.viewer:
-                    import ipdb; ipdb.set_trace()
                     self.viewer.loop_once()
             if save_global:
                 self.cond_global_pol_sample[condition] = sample
@@ -233,6 +243,7 @@ class LaundryWorldClothAgent(Agent):
         if save:
             self._samples[condition].append(sample)
         return sample
+
 
     def sample_joint_trajectory(self, condition, sample, bootstrap=False):
         # Initialize the plan for the given condition
@@ -270,12 +281,6 @@ class LaundryWorldClothAgent(Agent):
         else:
             success = self.solver._backtrack_solve(self.plan)
 
-            while not success:
-                # TODO
-                import ipdb; ipdb.set_trace()
-                self.reset_condition(condition)
-                success = self.solver._backtrack_solve(self.plan)
-
         self._set_simulator_state(x0[0], self.plan)
         print "Reset Mujoco Sim to Condition {0}".format(condition)
         for ts in range(init_t, final_t):
@@ -287,6 +292,7 @@ class LaundryWorldClothAgent(Agent):
 
         return success
 
+
     def run_traj_step(self, u, u_inds, sample, plan_t=0, timelimit=1.0):
         next_right_pose = u[u_inds[('baxter', 'rArmPose')]]
         next_left_pose = u[u_inds[('baxter', 'lArmPose')]]
@@ -295,12 +301,12 @@ class LaundryWorldClothAgent(Agent):
         if r_grip > const.GRIPPER_CLOSE_VALUE:
             r_grip = const.GRIPPER_OPEN_VALUE
         else:
-            r_grip = 0.0001
+            r_grip = 0
 
         if l_grip > const.GRIPPER_CLOSE_VALUE:
             l_grip = const.GRIPPER_OPEN_VALUE
         else:
-            l_grip = 0.0001
+            l_grip = 0
 
         steps = int(timelimit * utils.MUJOCO_STEPS_PER_SECOND)
 
@@ -312,8 +318,6 @@ class LaundryWorldClothAgent(Agent):
         qpos_0 = self.pos_model.data.qpos.flatten()
 
         for t in range(0, steps):
-            # Avoid crashing from excess collisions
-
             run_forward = False
             for i in range(self.num_cloths):
                 if np.sum((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2) < .0016 and self.pos_model.data.qpos[17] < const.GRIPPER_CLOSE_VALUE:
@@ -349,12 +353,20 @@ class LaundryWorldClothAgent(Agent):
 
         return success
 
+
     def run_policy_step(self, u):
         u_inds = self.plan.action_inds
         r_joints = u[u_inds[('baxter', 'rArmPose')]]
         l_joints = u[u_inds[('baxter', 'lArmPose')]]
         r_grip = u[u_inds[('baxter', 'rGripper')]]
         l_grip = u[u_inds[('baxter', 'lGripper')]]
+
+        if r_grip <= const.GRIPPER_CLOSE_VALUE:
+            r_grip = 0
+
+        if l_grip <= const.GRIPPER_CLOSE_VALUE:
+            l_grip = 0
+
         success = True
 
         if self.pos_model.data.ncon < N_CONTACT_LIMIT:
@@ -365,18 +377,20 @@ class LaundryWorldClothAgent(Agent):
             success = False
         self.pos_model.step()
 
-        xpos = self.pos_model.body_pos.copy()
+        body_pos = self.pos_model.body_pos.copy()
+        xpos = self.pos_model.data.xpos.copy()
         run_forward = False
         for i in range(self.num_cloths):
-            if np.sum((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2) < .0016 and self.pos_model.data.qpos[17] < const.GRIPPER_CLOSE_VALUE:
-                xpos[self.cloth_inds[i]] = xpos[self.l_gripper_ind]
+            if np.all((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2 < [0.0025, 0.0025, 0.0009]) and self.pos_model.data.ctrl[16] < const.GRIPPER_CLOSE_VALUE:
+                body_pos[self.cloth_inds[i]] = xpos[self.l_gripper_ind] + [0.025, 0.025, 0]
                 run_forward = True
                 break
         if run_forward:
-            self.pos_model.body_pos = xpos
+            self.pos_model.body_pos = body_pos
             self.pos_model.forward()
 
         return success
+
 
     def _clip_joint_angles(self, X):
         DOF_limits = self.plan.params['baxter'].openrave_body.env_body.GetDOFLimits()
@@ -394,6 +408,7 @@ class LaundryWorldClothAgent(Agent):
             if rArmPose[i] > right_DOF_limits[1][i]:
                 rArmPose[i] = right_DOF_limits[1][i]
 
+
     def optimize_trajectories(self, alg):
         for m in range(0, alg.M, self.num_cloths):
             x0 = self.init_plan_states[m]
@@ -408,6 +423,11 @@ class LaundryWorldClothAgent(Agent):
             while self.initial_opt and not success:
                 print "Solve failed."
                 self.replace_cond(m, self.num_cloths)
+                x0 = self.init_plan_states[m]
+                utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], 0)
+                utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], 0)
+                for param in x0[2]:
+                    self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
                 success = self.solver._backtrack_solve(self.plan)
 
             # sample = Sample(self)
@@ -433,14 +453,15 @@ class LaundryWorldClothAgent(Agent):
                 for t in range(init_t, final_t):
                     u = np.zeros((self.plan.dU))
                     utils.fill_vector(self.params, self.plan.action_inds, u, t+1)
-                    k[t-init_t] = u
+                    k[(t-init_t)*utils.MUJOCO_STEPS_PER_SECOND:(t-init_t+1)*utils.MUJOCO_STEPS_PER_SECOND] = u
                 traj_distr.k = k
 
         self.initial_opt = False
 
+
     def replace_cond(self, first_cond, num_conds):
         print "Replacing Conditions {0} to {1}.\n".format(first_cond, first_cond+num_conds-1)
-        x0s = get_randomized_initial_state_multi_step(initial_plan, first_cond / self.num_cloths)
+        x0s = get_randomized_initial_state_multi_step(self.plan, first_cond / self.num_cloths)
         for i in range(first_cond, first_cond+num_conds):
             self.init_plan_states[i] = x0s[i-first_cond]
             self.x0[i] = x0s[i-first_cond][0][:self.plan.symbolic_bound]

@@ -413,8 +413,8 @@
         <position kp="100" joint="right_w0"/>
         <position kp="300" joint="right_w1"/>
         <position kp="100" joint="right_w2"/>
-        <position kp="10" joint="right_gripper_l_finger_joint"/>
-        <position kp="10" joint="right_gripper_r_finger_joint"/>
+        <position kp="5" joint="right_gripper_l_finger_joint"/>
+        <position kp="5" joint="right_gripper_r_finger_joint"/>
         
         <position kp="600" gear="1 0 0 0 0 0" joint="left_s0"/>
         <position kp="750" gear="1 0 0 0 0 0" joint="left_s1"/>
@@ -423,7 +423,7 @@
         <position kp="100" joint="left_w0"/>
         <position kp="300" joint="left_w1"/>
         <position kp="100" joint="left_w2"/>
-        <position kp="10" joint="left_gripper_l_finger_joint"/>
-        <position kp="10" joint="left_gripper_r_finger_joint"/>
+        <position kp="5" joint="left_gripper_l_finger_joint"/>
+        <position kp="5" joint="left_gripper_r_finger_joint"/>
     </actuator>
 </mujoco>

@@ -395,14 +395,14 @@ def get_randomized_initial_state_multi_step(plan, plan_num):
         X[:, plan.state_inds[('init_target', 'value')]] = basket.pose[:,0]
         X[:, plan.state_inds[('init_target', 'rotation')]] = [0, 0, np.pi/2]
 
-        possible_locs = np.random.choice(range(0, 35*50, STEP_DELTA**2), num_cloths).tolist()
+        possible_locs = np.random.choice(range(0, 35*35, STEP_DELTA**2), num_cloths).tolist()
         possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA**2), num_cloths).tolist()
 
         success = True
         for c in range(num_cloths-1, -1, -1):
             next_loc = possible_locs.pop()
-            next_x = (next_loc / 50) / 100.0 + CLOTH_INIT_X_RANGE[0]
-            next_y = (next_loc % 50) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+            next_x = (next_loc / 35) / 100.0 + CLOTH_INIT_X_RANGE[0]
+            next_y = (next_loc % 35) / 100.0 + CLOTH_INIT_Y_RANGE[0]
             X[0, plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = [next_x, next_y, TABLE_TOP]
             X[:, plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP]
 
