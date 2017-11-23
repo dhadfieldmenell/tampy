@@ -12,11 +12,11 @@ import unittest, time, main
 # CLOTH_INIT_X_RANGE = [0.5, 0.9]
 # CLOTH_INIT_Y_RANGE = [-0.15, 0.45]
 
-BASKET_POSE = [0.7, 0, 0.875]
+BASKET_POSE = [0.7, 0.2, 0.875]
 BASKET_X_RANGE = [0.7, 0.8]
-BASKET_Y_RANGE = [-0.05, 0.05]
-CLOTH_INIT_X_RANGE = [0.4, 0.75]
-CLOTH_INIT_Y_RANGE = [0.35, 0.85]
+BASKET_Y_RANGE = [0.05, 0.15]
+CLOTH_INIT_X_RANGE = [0.35, 0.7]
+CLOTH_INIT_Y_RANGE = [0.55, 0.9]
 
 STEP_DELTA = 6
 BASKET_STEP_DELTA = 4
@@ -27,6 +27,19 @@ BASKET_HEIGHT_DELTA = 0.035
 
 R_ARM_PUTDOWN_END = [0, -0.25, 0, 0, 0, 0, 0]
 L_ARM_PUTDOWN_END = [-1., -1.11049898, -0.29706795, 1.29338713, 0.13218013, 1.40690655, -0.50397199]
+
+FOUR_CLOTH_LOCATIONS = [
+    [[ 0.68 ,  0.39 ,  0.615], [ 0.68 ,  0.75 ,  0.615], [ 0.74 ,  0.63 ,  0.615], [ 0.58 ,  0.71 ,  0.615]],
+    [[0.4, 0.6, 0.615], [0.5, 0.4, 0.615], [0.53, 0.7, 0.615], [0.62, 0.42, 0.615]],
+    [[0.35, 0.7, 0.615], [0.48, 0.6, 0.615], [0.55, 0.4, 0.615], [0.6, 0.45, 0.615]],
+    [[0.35, 0.55, 0.615], [0.41, 0.8, 0.615], [0.43, 0.67, 0.615], [0.59, 0.47, 0.615]],
+    [[0.36, 0.7, 0.615], [0.4, 0.68, 0.615], [0.47, 0.46, 0.615], [0.8, 0.7, 0.615]],
+    [[0.3, 0.9, 0.615], [0.33, 0.6, 0.615], [0.4, 0.7, 0.615], [0.46, 0.6, 0.615]]
+]
+
+FOUR_CLOTH_BASKET_LOCATIONS = [
+    [[0.05, 0.05], [0.05, -0.05], [-0.05, -0.05], [-0.05, 0.05]]
+]
 
 def generate_cond(num_cloths):
     i = 1
@@ -119,14 +132,14 @@ def generate_cond(num_cloths):
         plan.params['cloth_putdown_begin_{0}'.format(c)].rGripper[:,:] = np.nan
 
         plan.params['cloth_putdown_end_{0}'.format(c)].value[:,:] = np.nan
-        # plan.params['cloth_putdown_end_{0}'.format(c)].lArmPose[:,:] = np.nan
-        # plan.params['cloth_putdown_end_{0}'.format(c)].lGripper[:,:] = np.nan
-        # plan.params['cloth_putdown_end_{0}'.format(c)].rArmPose[:,:] = np.nan
-        # plan.params['cloth_putdown_end_{0}'.format(c)].rGripper[:,:] = np.nan
-        plan.params['cloth_putdown_end_{0}'.format(c)].lArmPose[:,:] = np.array(L_ARM_PUTDOWN_END).reshape((7,1))
-        plan.params['cloth_putdown_end_{0}'.format(c)].lGripper[:,:] = 0.02
-        plan.params['cloth_putdown_end_{0}'.format(c)].rArmPose[:,:] = np.array(R_ARM_PUTDOWN_END).reshape((7,1))
-        plan.params['cloth_putdown_end_{0}'.format(c)].rGripper[:,:] = 0.02
+        plan.params['cloth_putdown_end_{0}'.format(c)].lArmPose[:,:] = np.nan
+        plan.params['cloth_putdown_end_{0}'.format(c)].lGripper[:,:] = np.nan
+        plan.params['cloth_putdown_end_{0}'.format(c)].rArmPose[:,:] = np.nan
+        plan.params['cloth_putdown_end_{0}'.format(c)].rGripper[:,:] = np.nan
+        # plan.params['cloth_putdown_end_{0}'.format(c)].lArmPose[:,:] = np.array(L_ARM_PUTDOWN_END).reshape((7,1))
+        # plan.params['cloth_putdown_end_{0}'.format(c)].lGripper[:,:] = 0.02
+        # plan.params['cloth_putdown_end_{0}'.format(c)].rArmPose[:,:] = np.array(R_ARM_PUTDOWN_END).reshape((7,1))
+        # plan.params['cloth_putdown_end_{0}'.format(c)].rGripper[:,:] = 0.02
 
         plan.params['cloth_target_end_{0}'.format(c)].value[:,:] = np.nan
         plan.params['cloth_target_end_{0}'.format(c)].rotation[:,:] = 0
@@ -266,11 +279,11 @@ def get_randomized_initial_state(plan):
     X[plan.state_inds[('init_target', 'rotation')]] = [0, 0, np.pi/2]
 
     num_on_table = np.random.randint(1, num_cloths+1)
-    possible_locs = np.random.choice(range(0, 40*60, STEP_DELTA**2), num_on_table).tolist()
+    possible_locs = np.random.choice(range(0, 35*35, STEP_DELTA**2), num_on_table).tolist()
     for c in range(num_cloths-1, num_cloths-num_on_table-1, -1):
         next_loc = possible_locs.pop()
-        next_x = (next_loc / 60) / 100.0 + CLOTH_INIT_X_RANGE[0]
-        next_y = (next_loc % 60) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+        next_x = (next_loc / 35) / 100.0 + CLOTH_INIT_X_RANGE[0]
+        next_y = (next_loc % 35) / 100.0 + CLOTH_INIT_Y_RANGE[0]
         X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = [next_x, next_y, TABLE_TOP]
         X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP]
 

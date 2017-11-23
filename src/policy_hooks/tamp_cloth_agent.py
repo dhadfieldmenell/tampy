@@ -21,6 +21,7 @@ import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
 # from policy_hooks.action_utils import action_durations
 from policy_hooks.baxter_controller import BaxterMujocoController
+from policy_hooks.cloth_world_policy_utils import *
 from policy_hooks.policy_solver_utils import STATE_ENUM, OBS_ENUM, ACTION_ENUM, NOISE_ENUM
 import policy_hooks.policy_solver_utils as utils
 
@@ -182,9 +183,9 @@ class LaundryWorldClothAgent(Agent):
                 X[x_inds[('baxter', 'lArmPose')]] = left_arm.flatten()
                 X[x_inds[('baxter', 'lGripper')]] = model.data.qpos[17, 0]
 
-                X[x_inds[('baxter', 'rArmPose__vel')]] = model.data.qvel[1:8]
+                X[x_inds[('baxter', 'rArmPose__vel')]] = model.data.qvel[1:8].flatten()
                 X[x_inds[('baxter', 'rGripper__vel')]] = model.data.qvel[8]
-                X[x_inds[('baxter', 'lArmPose__vel')]] = model.data.qvel[10:17]
+                X[x_inds[('baxter', 'lArmPose__vel')]] = model.data.qvel[10:17].flatten()
                 X[x_inds[('baxter', 'lGripper__vel')]] = model.data.qvel[17]
 
         return X
@@ -221,6 +222,7 @@ class LaundryWorldClothAgent(Agent):
                 else:
                     self._set_simulator_state(last_success_X, self.plan)
                 if not t % 100 and self.viewer:
+                    import ipdb; ipdb.set_trace()
                     self.viewer.loop_once()
             if save_global:
                 self.cond_global_pol_sample[condition] = sample
@@ -363,13 +365,16 @@ class LaundryWorldClothAgent(Agent):
             success = False
         self.pos_model.step()
 
+        xpos = self.pos_model.body_pos.copy()
         run_forward = False
         for i in range(self.num_cloths):
             if np.sum((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2) < .0016 and self.pos_model.data.qpos[17] < const.GRIPPER_CLOSE_VALUE:
                 xpos[self.cloth_inds[i]] = xpos[self.l_gripper_ind]
                 run_forward = True
                 break
-        if run_forward: self.pos_model.forward()
+        if run_forward:
+            self.pos_model.body_pos = xpos
+            self.pos_model.forward()
 
         return success
 
@@ -435,7 +440,7 @@ class LaundryWorldClothAgent(Agent):
 
     def replace_cond(self, first_cond, num_conds):
         print "Replacing Conditions {0} to {1}.\n".format(first_cond, first_cond+num_conds-1)
-        x0s = utils.get_randomized_initial_state_multi_step(initial_plan, first_cond / self.num_cloths)
+        x0s = get_randomized_initial_state_multi_step(initial_plan, first_cond / self.num_cloths)
         for i in range(first_cond, first_cond+num_conds):
             self.init_plan_states[i] = x0s[i-first_cond]
             self.x0[i] = x0s[i-first_cond][0][:self.plan.symbolic_bound]

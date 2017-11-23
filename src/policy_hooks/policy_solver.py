@@ -24,6 +24,8 @@ from policy_hooks.tamp_cost import TAMPCost
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + '/experiments'
 
+NUM_CLOTHS = 4
+
 class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         self.config = None
@@ -51,18 +53,24 @@ class BaxterPolicySolver(RobotLLSolver):
         initial_plan = generate_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
 
+        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
+        # initial_plan.action_inds, initial_plan.symbolic_bound = \
+        # utils.get_plan_to_policy_mapping(initial_plan, 
+        #                                  x_params=['baxter', 'cloth_0', 'cloth_1', 'cloth_2', 'cloth_3', 'basket'], 
+        #                                  x_attrs=['pose'], 
+        #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         initial_plan.action_inds, initial_plan.symbolic_bound = \
         utils.get_plan_to_policy_mapping(initial_plan, 
-                                         x_params=['baxter', 'cloth_0', 'cloth_1', 'cloth_2', 'cloth_3', 'basket'], 
+                                         x_params=['baxter', 'cloth_0', 'basket'], 
                                          x_attrs=['pose'], 
                                          u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         
         x0s = []
-        # for c in range(self.config['num_conds']):
-            # x0s.append(get_randomized_initial_state_move(initial_plan))
-        for c in range(0, self.config['num_conds'], 4):
-            x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/4))
+        for c in range(self.config['num_conds']):
+            x0s.append(get_randomized_initial_state(initial_plan))
+        # for c in range(0, self.config['num_conds'], NUM_CLOTHS):
+        #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/NUM_CLOTHS))
 
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
@@ -75,7 +83,7 @@ class BaxterPolicySolver(RobotLLSolver):
         if is_first_run:
             self.config['agent'] = {
                 # 'type': LaundryWorldMujocoAgent,
-                'type': LaundryWorldClothAgent,
+                'type': LaundryWorldMujocoAgent,
                 'x0s': x0s,
                 'x0': map(lambda x: x[0][:initial_plan.symbolic_bound], x0s),
                 'plan': initial_plan,
@@ -88,7 +96,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'demonstrations': 5,
                 'expert_ratio': 0.75,
                 'solver': self,
-                'num_cloths': 4,
+                'num_cloths': NUM_CLOTHS,
                 # 'T': initial_plan.horizon - 1
                 'T': self.T * utils.MUJOCO_STEPS_PER_SECOND
             }
@@ -289,7 +297,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 callback_a = None
             self.child_solver = BaxterPolicySolver()
             self.child_solver.gps = self.gps
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
                                               active_ts = active_ts, verbose=verbose, force_init=True)
 
             if not success:
@@ -329,7 +337,7 @@ class BaxterPolicySolver(RobotLLSolver):
             success = False
             self.child_solver = BaxterPolicySolver()
             self.child_solver.gps = self.gps
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=10,
                                               active_ts = active_ts, verbose=verbose,
                                               force_init=True)
             if success:
@@ -477,4 +485,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(4)
+    PS.train_policy(1)

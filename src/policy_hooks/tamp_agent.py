@@ -491,10 +491,8 @@ class LaundryWorldMujocoAgent(Agent):
         else:
             success = self.solver._backtrack_solve(self.plan)
 
-            while not success:
-                # TODO
-                import ipdb; ipdb.set_trace()
-                self.reset_condition(condition)
+            while not success and self.initial_samples:
+                self.reset_cond(condition)
                 success = self.solver._backtrack_solve(self.plan)
 
         self._set_simulator_state(x0[0], self.plan)
@@ -629,6 +627,13 @@ class LaundryWorldMujocoAgent(Agent):
             for t in range(traj_distr.T):
                 k[t] = traj_sample.get_U(t)
             traj_distr.k = k
+
+        self.initial_samples = False
+
+    def replace_cond(self, cond):
+        x0s = get_randomized_initial_state(initial_plan)
+        self.init_plan_states[cond] = x0s
+        self.x0[cond] = x0s[0][:self.plan.symbolic_bound]
 
     # def _sample_ee_trajectory(self, condition, noise):
     #     sample = Sample(self)
