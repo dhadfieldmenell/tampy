@@ -61,15 +61,15 @@ class BaxterPolicySolver(RobotLLSolver):
         initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         initial_plan.action_inds, initial_plan.symbolic_bound = \
         utils.get_plan_to_policy_mapping(initial_plan, 
-                                         x_params=['baxter', 'cloth_0', 'basket'], 
+                                         x_params=['baxter', 'cloth_0', 'cloth_1', 'basket'], 
                                          x_attrs=['pose'], 
                                          u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         
         x0s = []
-        for c in range(self.config['num_conds']):
-            x0s.append(get_randomized_initial_state(initial_plan))
-        # for c in range(0, self.config['num_conds'], num_cloths):
-        #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/num_cloths))
+        # for c in range(self.config['num_conds']):
+        #     x0s.append(get_randomized_initial_state(initial_plan))
+        for c in range(0, self.config['num_conds'], num_cloths):
+            x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/num_cloths))
 
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
@@ -89,7 +89,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM],
                 'obs_include': [utils.OBS_ENUM],
-                'conditions': len(x0s),
+                'conditions': self.config['num_conds'],
                 'dX': initial_plan.symbolic_bound,
                 'dU': initial_plan.dU,
                 'demonstrations': 5,
@@ -104,7 +104,7 @@ class BaxterPolicySolver(RobotLLSolver):
 
         else:
             # TODO: Fill in this case
-            self.config['agent']['conditions'] += len(x0s)
+            self.config['agent']['conditions'] += self.config['num_conds']
             self.config['agent']['x0'].extend(x0s)
         
         for cond in range(len(x0s)):
@@ -130,7 +130,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [120, 120]
+                'dim_hidden': [40, 40]
             },
             'lr': 1e-5,
             'network_model': tf_network,
@@ -407,14 +407,15 @@ class BaxterPolicySolver(RobotLLSolver):
         # self._add_obj_bexprs(obj_bexprs)
 
         idx = self.gps.agent.current_cond
+        while plan.actions[self.gps.agent.init_plan_states[idx][1][1]].active_timesteps[1] <= active_ts[0]:
+            idx += 1
+        T = active_ts[1] - active_ts[0] + 1
         pol_sample = self.gps.agent.cond_global_pol_sample[idx]
-        traj_state = np.zeros((plan.symbolic_bound, plan.horizon))
-        for t in range(0, plan.horizon-1):
-            if not t % (pol_sample.T / utils.MUJOCO_STEPS_PER_SECOND):
-                pol_sample = self.gps.agent.cond_global_pol_sample[idx]
-                idx += 1
-            traj_state[:, t] = pol_sample.get_X((t % (pol_sample.T/utils.MUJOCO_STEPS_PER_SECOND))*utils.MUJOCO_STEPS_PER_SECOND)
-        traj_state[:,plan.horizon-1] = pol_sample.get_X((t % (pol_sample.T/utils.MUJOCO_STEPS_PER_SECOND))*utils.MUJOCO_STEPS_PER_SECOND-1)
+        traj_state = np.zeros((plan.symbolic_bound, T))
+        for t in range(active_ts[0], active_ts[1]):
+            pol_sample = self.gps.agent.cond_global_pol_sample[idx]
+            traj_state[:, t - active_ts[0]] = pol_sample.get_X(t * utils.MUJOCO_STEPS_PER_SECOND)
+        traj_state[:, T - 1] = pol_sample.get_X(T * utils.MUJOCO_STEPS_PER_SECOND - 1)
         obj_bexprs = self._traj_policy_opt(plan, traj_state)
         self._add_obj_bexprs(obj_bexprs)
 
@@ -485,4 +486,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(1)
+    PS.train_policy(2)

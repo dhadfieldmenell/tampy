@@ -90,20 +90,20 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
         samples = self.cur[m].sample_list
         N = len(samples)
         pol_info = self.cur[m].pol_info
-        X = samples.get_X()
-        obs = samples.get_obs().copy()
-        pol_mu, pol_sig = self.policy_opt.prob(obs)[:2]
-        pol_info.pol_mu, pol_info.pol_sig = pol_mu, pol_sig
+        # X = samples.get_X()
+        # obs = samples.get_obs().copy()
+        # pol_mu, pol_sig = self.policy_opt.prob(obs)[:2]
+        # pol_info.pol_mu, pol_info.pol_sig = pol_mu, pol_sig
 
-        # Update policy prior.
-        policy_prior = pol_info.policy_prior
-        samples = SampleList(self.cur[m].sample_list)
-        mode = self._hyperparams['policy_sample_mode']
-        policy_prior.update(samples, self.policy_opt, mode)
+        # # Update policy prior.
+        # policy_prior = pol_info.policy_prior
+        # samples = SampleList(self.cur[m].sample_list)
+        # mode = self._hyperparams['policy_sample_mode']
+        # policy_prior.update(samples, self.policy_opt, mode)
 
-        # Fit linearization and store in pol_info.
-        pol_info.pol_K, pol_info.pol_k, pol_info.pol_S = \
-                policy_prior.fit(X, pol_mu, pol_sig)
+        # # Fit linearization and store in pol_info.
+        # pol_info.pol_K, pol_info.pol_k, pol_info.pol_S = \
+        #         policy_prior.fit(X, pol_mu, pol_sig)
         # try:
         #     for t in range(T):
         #         pol_info.chol_pol_S[t, :, :] = \

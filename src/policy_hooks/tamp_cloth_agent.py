@@ -72,6 +72,7 @@ class LaundryWorldClothAgent(Agent):
         worldbody = root.find('worldbody')
         active_ts = (0, plan.horizon)
         params = plan.params.values()
+        contacts = root.find('contact')
 
         for param in params:
             if param.is_symbol(): continue
@@ -83,6 +84,14 @@ class LaundryWorldClothAgent(Agent):
                 # cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'cylinder', 'size':"{} {}".format(radius, height), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
                 cloth_geom = xml.SubElement(cloth_body, 'geom', {'name': param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
                 cloth_intertial = xml.SubElement(cloth_body, 'inertial', {'pos':'0 0 0', 'quat':'0 0 0 1', 'mass':'0.1', 'diaginertia': '0.01 0.01 0.01'})
+                # Exclude collisions between the left hand and the cloth to help prevent exceeding the contact limit
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_wrist'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_hand'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_base'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_l_finger_tip'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_l_finger'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger_tip'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger'})
             # We might want to change this; in Openrave we model tables as hovering box so there's no easy translation to Mujoco
             elif param._type == 'Obstacle': 
                 length = param.geom.dim[0]
@@ -210,8 +219,8 @@ class LaundryWorldClothAgent(Agent):
         sample = Sample(self)
         if on_policy:
             print 'Starting on-policy sample for condition {0}.'.format(condition)
-            if self.stochastic_conditions and save_global:
-                self.replace_cond(condition)
+            if self.stochastic_conditions and save_global and not condition % self.num_cloths:
+                self.replace_cond(condition, self.num_cloths)
 
             if noisy:
                 noise = np.random.uniform(-1, 1, (self.T, self.dU)) * 0.0001
@@ -382,7 +391,7 @@ class LaundryWorldClothAgent(Agent):
         run_forward = False
         for i in range(self.num_cloths):
             if np.all((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2 < [0.0025, 0.0025, 0.0009]) and self.pos_model.data.ctrl[16] < const.GRIPPER_CLOSE_VALUE:
-                body_pos[self.cloth_inds[i]] = xpos[self.l_gripper_ind] + [0.025, 0.025, 0]
+                body_pos[self.cloth_inds[i]] = xpos[self.l_gripper_ind] + [0.015, 0.015, 0]
                 run_forward = True
                 break
         if run_forward:

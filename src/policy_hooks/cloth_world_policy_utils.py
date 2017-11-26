@@ -58,7 +58,7 @@ def generate_cond(num_cloths):
         act_num += 1
         plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_{1} CLOTH_PUTDOWN_BEGIN_{2} CLOTH_{3}'.format(act_num, i, i, i))
         act_num += 1
-        plan_str.append('{0}: CLOTH_PUTDOWN BAXTER CLOTH_{1} CLOTH_TARGET_END_{2} CLOTH_PUTDOWN_BEGIN_{3} CP_EE_{4} CLOTH_PUTDOWN_END_{5}'.format(act_num, i, i, i, i, i))
+        plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH_{1} BASKET CLOTH_TARGET_END_{2} INIT_TARGET CLOTH_PUTDOWN_BEGIN_{3} CP_EE_{4} CLOTH_PUTDOWN_END_{5}'.format(act_num, i, i, i, i, i))
         act_num += 1
         i += 1
 
@@ -399,6 +399,8 @@ def get_randomized_initial_state_multi_step(plan, plan_num):
         possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA**2), num_cloths).tolist()
 
         success = True
+        plan.params['table'].openrave_body.set_pose([10,10,10])
+        plan.params['basket'].openrave_body.set_pose([-10,10,10])
         for c in range(num_cloths-1, -1, -1):
             next_loc = possible_locs.pop()
             next_x = (next_loc / 35) / 100.0 + CLOTH_INIT_X_RANGE[0]
@@ -432,7 +434,6 @@ def get_randomized_initial_state_multi_step(plan, plan_num):
             X[i, plan.state_inds[('baxter', 'rArmPose')]] = R_ARM_PUTDOWN_END
             X[i, plan.state_inds[('baxter', 'rGripper')]] = 0.02
 
-            num_on_table = num_cloths
             for c in range(num_cloths-1, num_cloths-num_on_table-1, -1):
                 X[i, plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = X[i, plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]]
 
