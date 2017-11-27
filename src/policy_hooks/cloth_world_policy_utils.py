@@ -85,14 +85,14 @@ def generate_cond(num_cloths):
     plan.params['table'].pose[:,:] = np.array(TABLE_POSE).reshape(-1,1)
     plan.params['table'].rotation[:,:] = 0
 
-    plan.params['robot_init_pose'].lArmPose[:,0] = [-0.1, -0.65, 0, 0, 0, 0, 0]
+    plan.params['robot_init_pose'].lArmPose[:,0] = L_ARM_PUTDOWN_END # [-0.1, -0.65, 0, 0, 0, 0, 0]
     plan.params['robot_init_pose'].lGripper[:,0] = 0
-    plan.params['robot_init_pose'].rArmPose[:,0] = [0.1, -0.65, 0, 0, 0, 0, 0]
+    plan.params['robot_init_pose'].rArmPose[:,0] = np.zeros((7,)) # [0.1, -0.65, 0, 0, 0, 0, 0]
     plan.params['robot_init_pose'].rGripper[:,0] = 0
 
-    plan.params['robot_end_pose'].lArmPose[:,0] = [1.4, 0.25, 0, 0.25, 0, 0.25, 0]
+    plan.params['robot_end_pose'].lArmPose[:,0] = L_ARM_PUTDOWN_END # [1.4, 0.25, 0, 0.25, 0, 0.25, 0]
     plan.params['robot_end_pose'].lGripper[:,0] = 0
-    plan.params['robot_end_pose'].rArmPose[:,0] = [-1.4, 0.25, 0, 0.25, 0, 0.25, 0]
+    plan.params['robot_end_pose'].rArmPose[:,0] = np.zeros((7,)) # [-1.4, 0.25, 0, 0.25, 0, 0.25, 0]
     plan.params['robot_end_pose'].rGripper[:,0] = 0
 
     possible_locs = np.random.choice(range(0, 35*50, STEP_DELTA**2), num_cloths).tolist()
@@ -374,18 +374,18 @@ def get_randomized_initial_state_multi_step(plan, plan_num):
 
         X[:, plan.state_inds[('robot_end_pose', 'lArmPose')]] = plan.params['robot_end_pose'].lArmPose.flatten()
         X[:, plan.state_inds[('robot_end_pose', 'lGripper')]] = plan.params['robot_end_pose'].lGripper
-        X[:, plan.state_inds[('robot_end_pose', 'rArmPose')]] = plan.params['robot_end_pose'].rArmPose.flatten()
-        X[:, plan.state_inds[('robot_end_pose', 'rGripper')]] = plan.params['robot_end_pose'].rGripper
+        X[:, plan.state_inds[('robot_end_pose', 'rArmPose')]] = np.zeros((7,)) # plan.params['robot_end_pose'].rArmPose.flatten()
+        X[:, plan.state_inds[('robot_end_pose', 'rGripper')]] = 0 # plan.params['robot_end_pose'].rGripper
 
         X[:, plan.state_inds[('robot_init_pose', 'lArmPose')]] = plan.params['robot_init_pose'].lArmPose.flatten()
         X[:, plan.state_inds[('robot_init_pose', 'lGripper')]] = plan.params['robot_init_pose'].lGripper
-        X[:, plan.state_inds[('robot_init_pose', 'rArmPose')]] = plan.params['robot_init_pose'].rArmPose.flatten()
-        X[:, plan.state_inds[('robot_init_pose', 'rGripper')]] = plan.params['robot_init_pose'].rGripper
+        X[:, plan.state_inds[('robot_init_pose', 'rArmPose')]] = np.zeros((7,)) # plan.params['robot_init_pose'].rArmPose.flatten()
+        X[:, plan.state_inds[('robot_init_pose', 'rGripper')]] = 0 # plan.params['robot_init_pose'].rGripper
 
         X[0, plan.state_inds[('baxter', 'lArmPose')]] = plan.params['robot_init_pose'].lArmPose.flatten()
         X[0, plan.state_inds[('baxter', 'lGripper')]] = plan.params['robot_init_pose'].lGripper
-        X[0, plan.state_inds[('baxter', 'rArmPose')]] = plan.params['robot_init_pose'].rArmPose.flatten()
-        X[0, plan.state_inds[('baxter', 'rGripper')]] = plan.params['robot_init_pose'].rGripper
+        X[0, plan.state_inds[('baxter', 'rArmPose')]] = np.zeros((7,)) # plan.params['robot_init_pose'].rArmPose.flatten()
+        X[0, plan.state_inds[('baxter', 'rGripper')]] = 0 # plan.params['robot_init_pose'].rGripper
 
         basket = plan.params['basket']
         basket.pose[:,:] = [[np.random.uniform(BASKET_X_RANGE[0], BASKET_X_RANGE[1])],
@@ -420,8 +420,8 @@ def get_randomized_initial_state_multi_step(plan, plan_num):
 
             X[:, plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'lArmPose')]] = L_ARM_PUTDOWN_END
             X[:, plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'lGripper')]] = 0.02
-            X[:, plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'rArmPose')]] = R_ARM_PUTDOWN_END
-            X[:, plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'rGripper')]] = 0.02
+            X[:, plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'rArmPose')]] = np.zeros((7,)) # R_ARM_PUTDOWN_END
+            X[:, plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'rGripper')]] = 0 # 0.02
 
         stationary_params = ['basket']
         X_0s.append((X[0], [0, 3], stationary_params, plan_num))
@@ -431,8 +431,8 @@ def get_randomized_initial_state_multi_step(plan, plan_num):
 
             X[i, plan.state_inds[('baxter', 'lArmPose')]] = L_ARM_PUTDOWN_END
             X[i, plan.state_inds[('baxter', 'lGripper')]] = 0.02
-            X[i, plan.state_inds[('baxter', 'rArmPose')]] = R_ARM_PUTDOWN_END
-            X[i, plan.state_inds[('baxter', 'rGripper')]] = 0.02
+            X[i, plan.state_inds[('baxter', 'rArmPose')]] = np.zeros((7,)) # R_ARM_PUTDOWN_END
+            X[i, plan.state_inds[('baxter', 'rGripper')]] = 0 # 0.02
 
             for c in range(num_cloths-1, num_cloths-num_on_table-1, -1):
                 X[i, plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = X[i, plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]]

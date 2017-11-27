@@ -2,6 +2,7 @@ import core.util_classes.baxter_constants as const
 from core.util_classes.robot_predicates import CollisionPredicate
 import numpy as np
 
+# Don't change these
 ACTION_ENUM = 0
 STATE_ENUM = 1
 OBS_ENUM = 2
@@ -10,6 +11,16 @@ NOISE_ENUM = 3
 GPS_RATIO = 1e3
 
 MUJOCO_STEPS_PER_SECOND = 80
+
+INCLUDE_PREDS = ['BaxterAt', 'BaxterClothAt', 'BaxterRobotAt', 'BaxterCloseGripperLeft', \
+                 'BaxterCloseGripperRight', 'BaxterOpenGripperLeft', \
+                 'BaxterOpenGripperRight', 'BaxterCloseGrippers', \
+                 'BaxterOpenGrippers', 'BaxterObstructs', \
+                 'BaxterObstructsHolding', 'BaxterObstructsCloth', \
+                 'BaxterObstructsWasher', 'BaxterObstructsHoldingCloth', \
+                 'BaxterCollides', 'BaxterRCollides', 'BaxterRSelfCollides', \
+                 'BaxterCollidesWasher', 'BaxterBasketInGripper', \
+                 'BaxterClothInGripperLeft', 'BaxterClothInGripperRight']
 
 def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_attrs=[]):
     '''
@@ -43,6 +54,7 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
 
     robot = plan.params['baxter'] #TODO: Make this more general
     robot_attr_map = const.ATTR_MAP[robot._type]
+    ee_attrs = ['ee_left_pos', 'ee_left_rot', 'ee_right_pos', 'ee_right_rot']
     for attr in robot_attr_map:
         if len(u_attrs) and attr[0] not in u_attrs: continue
         x_inds = attr[1] + cur_x_ind
@@ -51,11 +63,24 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
         u_inds = attr[1] + cur_u_ind
         cur_u_ind = u_inds[-1] + 1
         params_to_u_inds[(robot.name, attr[0])] = u_inds
+    for attr in ee_attrs:
+        if attr not in u_attrs: continue
+        x_inds = np.array([0, 1, 2]) + cur_x_ind
+        cur_x_ind = x_inds[-1] + 1
+        params_to_x_inds[(robot.name, attr)] = x_inds
+        u_inds = np.array([0, 1, 2]) + cur_u_ind
+        cur_u_ind = u_inds[-1] + 1
+        params_to_u_inds[(robot.name, attr)] = u_inds
     for attr in robot_attr_map:
         if len(u_attrs) and attr[0] not in u_attrs: continue
         x_vel_inds = attr[1] + cur_x_ind
         cur_x_ind = x_vel_inds[-1] + 1
         params_to_x_inds[(robot.name, attr[0]+'__vel')] = x_vel_inds
+    for attr in ee_attrs:
+        if attr not in u_attrs: continue
+        x_vel_inds = np.array([0, 1, 2]) + cur_x_ind
+        cur_x_ind = x_vel_inds[-1] + 1
+        params_to_x_inds[(robot.name, attr+'__vel')] = x_vel_inds
 
     for param in params:
         param_attr_map = const.ATTR_MAP[param._type]
@@ -160,18 +185,18 @@ def get_trajectory_cost(plan, init_t, final_t, time_interval=MUJOCO_STEPS_PER_SE
                 pred_param_attr_inds[p['pred']][param.name][attr_name] = np.array(range(cur_ind, cur_ind+len(inds)))
                 cur_ind += len(inds)
 
-    for t in range(active_ts[0], active_ts[1]+1):
-        active_preds = plan.get_active_preds(t)
+    for t in range(active_ts[0], active_ts[1]):
+        active_preds = plan.get_active_preds(t+1)
         preds_checked = []
         for p in preds:
-            if p['pred'] not in active_preds or p['pred'] in preds_checked: continue
+            if p['pred'] not in active_preds or p['pred'] in preds_checked or p['pred'].name not in INCLUDE_PREDS: continue
             attr_inds = p['pred'].attr_inds
             comp_expr = p['pred'].get_expr(negated=p['negated'])
 
             # Constant terms
             expr = comp_expr.expr if comp_expr else None
             if not expr: continue
-            param_vector = p['pred'].get_param_vector(t)
+            param_vector = p['pred'].get_param_vector(t+1)
             # if isinstance(p['pred'], CollisionPredicate):
             #     import ipdb; ipdb.set_trace()
             cost_vector = expr.eval(param_vector)

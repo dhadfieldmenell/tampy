@@ -21,6 +21,8 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
         config = copy.deepcopy(ALG_PIGPS)
         config.update(hyperparams)
         AlgorithmMDGPS.__init__(self, config)
+        self.policy_transfer_coeff = self._hyperparams['policy_transfer_coeff']
+        self.policy_scale_factor = self._hyperparams['policy_scale_factor']
 
     def iteration(self, sample_lists):
         # Store the samples and evaluate the costs.
@@ -29,11 +31,11 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
             self._eval_cost(m)
 
         # On the first iteration, need to catch policy up to init_traj_distr.
-        if self.iteration_count == 0:
-            self.new_traj_distr = [
-                self.cur[cond].traj_distr for cond in range(self.M)
-            ]
-            self._update_policy()
+        # if self.iteration_count == 0:
+        #     self.new_traj_distr = [
+        #         self.cur[cond].traj_distr for cond in range(self.M)
+        #     ]
+        #     self._update_policy()
 
         # Update policy linearizations.
         for m in range(self.M):
@@ -47,6 +49,8 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
 
         # Prepare for next iteration
         self._advance_iteration_variables()
+
+        self.policy_transfer_coeff *= self.policy_scale_factor
 
     def _update_trajectories(self):
         if not hasattr(self, 'new_traj_distr'):
@@ -115,6 +119,6 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
         pol_info.pol_wt = np.zeros((T, N))
         self._eval_cost(m)
         for t in range(T):
-            exponent = -self.cur[m].cs[:, t]
+            exponent = -np.sum(self.cur[m].cs[:, t])
             exp_cost = np.exp(exponent - np.max(exponent))
             pol_info.pol_wt[t] = exp_cost / np.sum(exp_cost)

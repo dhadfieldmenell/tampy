@@ -645,6 +645,7 @@ class LaundryWorldMujocoAgent(Agent):
         x0s = get_randomized_initial_state(self.plan)
         self.init_plan_states[cond] = x0s
         self.x0[cond] = x0s[0][:self.plan.symbolic_bound]
+        self.cond_global_pol_sample[i] = None
 
     def reset_conditions(self):
         for m in range(len(self.init_plan_states)):

@@ -40,18 +40,33 @@ MUJOCO_MODEL_Z_OFFSET = -0.706
 
 N_CONTACT_LIMIT = 12
 
+GRIPPER_ROT = np.array([0, np.pi/2, 0])
 
-class LaundryWorldClothAgent(Agent):
+
+def closest_arm_pose(arm_poses, cur_arm_pose):
+    min_change = np.inf
+    chosen_arm_pose = None
+    for arm_pose in arm_poses:
+        change = sum((arm_pose - cur_arm_pose)**2)
+        if change < min_change:
+            chosen_arm_pose = arm_pose
+            min_change = change
+    return chosen_arm_pose
+
+
+class LaundryWorldEEAgent(Agent):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
         
         self.plan = self._hyperparams['plan']
+        self.robot = self.plan.params['baxter']
         self.solver = self._hyperparams['solver']
         self.init_plan_states = self._hyperparams['x0s']
         self.num_cloths = self._hyperparams['num_cloths']
         self.x0 = self._hyperparams['x0']
         self.sim = 'mujoco'
         self.viewer = None
+        self.l_gripper_ind = -1
         self.pos_model = self.setup_mujoco_model(self.plan, motor=False, view=True)
 
         self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
@@ -61,7 +76,6 @@ class LaundryWorldClothAgent(Agent):
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
         self.initial_opt = True
         self.stochastic_conditions = self._hyperparams['stochastic_conditions']
-
 
     def _generate_xml(self, plan, motor=True):
         '''
@@ -197,10 +211,14 @@ class LaundryWorldClothAgent(Agent):
                 X[x_inds[('baxter', 'lArmPose')]] = left_arm.flatten()
                 X[x_inds[('baxter', 'lGripper')]] = model.data.qpos[17, 0]
 
-                X[x_inds[('baxter', 'rArmPose__vel')]] = model.data.qvel[1:8].flatten()
-                X[x_inds[('baxter', 'rGripper__vel')]] = model.data.qvel[8]
-                X[x_inds[('baxter', 'lArmPose__vel')]] = model.data.qvel[10:17].flatten()
-                X[x_inds[('baxter', 'lGripper__vel')]] = model.data.qvel[17]
+                param.openrave_body.set_dof({'lArmPose': left_arm.flatten(),
+                                             'lGripper': model.data.qpos[17, 0],
+                                             'rArmPose': right_arm.flatten(),
+                                             'rGripper': model.data.qpos[8, 0]})
+
+                ee_left = param.openrave_body.env_body.GetLink('left_gripper').GetTransform()
+                X[x_inds[('baxter', 'ee_left_pos')]] = ee_left[:3, 3]
+                X[x_inds[('baxter', 'ee_left_pos__vel')]] = model.data.cvel[self.l_gripper_ind, :3]
 
         return X
 
@@ -231,11 +249,11 @@ class LaundryWorldClothAgent(Agent):
             last_success_X = x0[0]
             for t in range(self.T):
                 X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
-                U = policy.act(X, X, t, noise[0])
+                U = policy.act(X, X, t, noise[t])
                 sample.set(STATE_ENUM, X, t)
                 sample.set(OBS_ENUM, X, t)
                 sample.set(ACTION_ENUM, U, t)
-                sample.set(NOISE_ENUM, noise[0], t)
+                sample.set(NOISE_ENUM, noise[t], t)
                 success = self.run_policy_step(U)
                 if success:
                     last_success_X = X
@@ -302,15 +320,11 @@ class LaundryWorldClothAgent(Agent):
         return success
 
 
-    def run_traj_step(self, u, u_inds, sample, plan_t=0, timelimit=1.0):
-        next_right_pose = u[u_inds[('baxter', 'rArmPose')]]
-        next_left_pose = u[u_inds[('baxter', 'lArmPose')]]
-        r_grip = u[u_inds[('baxter', 'rGripper')]]
-        l_grip = u[u_inds[('baxter', 'lGripper')]]
-        if r_grip > const.GRIPPER_CLOSE_VALUE:
-            r_grip = const.GRIPPER_OPEN_VALUE
-        else:
-            r_grip = 0
+    def run_traj_step(self, next_pose, u_inds, sample, plan_t=0, timelimit=1.0):
+        next_left_pose = next_pose[:-1]
+        l_grip = next_pose[-1]
+        self.robot.openrave_body.set_dof({'lArmPose': next_left_pose, 'lGripper': l_grip})
+        next_ee_left = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransform()[:3,3]
 
         if l_grip > const.GRIPPER_CLOSE_VALUE:
             l_grip = const.GRIPPER_OPEN_VALUE
@@ -319,8 +333,7 @@ class LaundryWorldClothAgent(Agent):
 
         steps = int(timelimit * utils.MUJOCO_STEPS_PER_SECOND)
 
-        self.pos_model.data.ctrl = np.r_[next_right_pose, r_grip, -r_grip, next_left_pose, l_grip, -l_grip].reshape((18, 1))
-        self.avg_vels = np.zeros((18,))
+        self.pos_model.data.ctrl = np.r_[np.zeros((7,)), 0, 0, next_left_pose, l_grip, -l_grip].reshape((18, 1))
         success = True
         X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
         last_success_X = X
@@ -350,10 +363,9 @@ class LaundryWorldClothAgent(Agent):
                 qpos = self.pos_model.data.qpos.flatten()
                 qpos_delta = qpos - qpos_0
                 qpos_0 = qpos
+
             U = np.zeros((self.plan.dU,))
-            U[u_inds[('baxter', 'rArmPose')]] = next_right_pose
-            U[u_inds[('baxter', 'rGripper')]] = r_grip
-            U[u_inds[('baxter', 'lArmPose')]] = next_left_pose
+            U[u_inds[('baxter', 'ee_left_pos')]] = next_ee_left
             U[u_inds[('baxter', 'lGripper')]] = l_grip
             sample.set(ACTION_ENUM, U, plan_t*steps+t)
             sample.set(NOISE_ENUM, np.zeros((self.plan.dU,)), plan_t*steps+t)
@@ -365,13 +377,12 @@ class LaundryWorldClothAgent(Agent):
 
     def run_policy_step(self, u):
         u_inds = self.plan.action_inds
-        r_joints = u[u_inds[('baxter', 'rArmPose')]]
-        l_joints = u[u_inds[('baxter', 'lArmPose')]]
-        r_grip = u[u_inds[('baxter', 'rGripper')]]
+        ee_left = u[u_inds[('baxter', 'ee_left_pos')]]
+        l_arm_poses = self.robot.openrave_body.get_ik_from_pose(ee_left, GRIPPER_ROT, "left_arm")
+        if not len(l_arm_poses):
+            import ipdb; ipdb.set_trace()
+        l_joints = closest_arm_pose(l_arm_poses, self.pos_model.data.qpos[10:17])
         l_grip = u[u_inds[('baxter', 'lGripper')]]
-
-        if r_grip <= const.GRIPPER_CLOSE_VALUE:
-            r_grip = 0
 
         if l_grip <= const.GRIPPER_CLOSE_VALUE:
             l_grip = 0
@@ -379,7 +390,7 @@ class LaundryWorldClothAgent(Agent):
         success = True
 
         if self.pos_model.data.ncon < N_CONTACT_LIMIT:
-            self.pos_model.data.ctrl = np.r_[r_joints, r_grip, -r_grip, l_joints, l_grip, -l_grip].reshape((18, 1))
+            self.pos_model.data.ctrl = np.r_[np.zerso((7,)), 0, 0, l_joints, l_grip, -l_grip].reshape((18, 1))
         else:
             print 'Collision Limit Exceeded in Position Model.'
             self.pos_model.data.ctrl = np.zeros((18,1))
@@ -390,7 +401,7 @@ class LaundryWorldClothAgent(Agent):
         xpos = self.pos_model.data.xpos.copy()
         run_forward = False
         for i in range(self.num_cloths):
-            if np.all((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2 < [0.0025, 0.0025, 0.0009]) and self.pos_model.data.ctrl[16] < const.GRIPPER_CLOSE_VALUE:
+            if np.all((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2 < [0.0064, 0.0064, 0.0009]) and self.pos_model.data.ctrl[16] < const.GRIPPER_CLOSE_VALUE:
                 body_pos[self.cloth_inds[i]] = xpos[self.l_gripper_ind]
                 run_forward = True
                 break
@@ -474,4 +485,98 @@ class LaundryWorldClothAgent(Agent):
         for i in range(first_cond, first_cond+num_conds):
             self.init_plan_states[i] = x0s[i-first_cond]
             self.x0[i] = x0s[i-first_cond][0][:self.plan.symbolic_bound]
-            self.cond_global_pol_sample[i] = None
+
+
+    # def run_ee_policy(self, cond, policy, noise):
+    #     '''
+    #         Run the policy (for end effector control) in simulation
+    #     '''
+    #     plan = self.plans[cond]
+    #     baxter = plan.params[p'baxter']
+    #     x0 = self.x0[conds]
+    #     if plan in self._traj_info_cache:
+    #         active_ts, params = self._traj_info_cache[plan]
+    #     else:
+    #         active_ts, params = utils.get_plan_traj_info(plan)
+    #         self._traj_info_cache[plan] = (active_ts, params)
+    #     self._set_simulator_state(x0, plan)
+    #     trajectory_state = np.zeros((plan.dX, plan.T))
+        
+    #     x = x0.copy()
+    #     for ts in range(active_ts[0], active_ts[1]):
+    #         obs = self._get_obs(cond, t)
+    #         u = policy.act(x, obs, noise[:, ts - active_ts[0]], ts - active_ts[0])
+
+    #         right_ee_vec = u[:7]
+    #         left_ee_vec = u[7:]
+
+    #         right_grip = const.GRIPPER_OPEN_VALUE if right_ee_vec[6] > 0.5 else const.GRIPPER_CLOSE_VALUE
+    #         left_grip = const.GRIPPER_OPEN_VALUE if left_ee_vec[6] > 0.5 else const.GRIPPER_CLOSE_VALUE
+
+    #         cur_right_joints = x[plan.state_inds[(param.name, 'rArmPose')]]
+    #         cur_left_joints = x[plan.state_inds[(param.name, 'lArmPose')]]
+
+    #         baxter.set_dof('lArmPose':cur_left_joints, 'rArmPose':cur_right_joints, 'lGripper':left_grip, 'rGripper':right_grip)
+    #         ee_right = robot.openrave_body.env_body.GetLink('right_gripper').GetTransform()
+    #         ee_left = robot.openrave_body.env_body.GetLink('left_gripper').GetTransform()
+
+    #         next_right_poses = baxter.openrave_body.get_ik_from_pose(right_ee_vec[:3], right_ee_vec[3:6], 'right_arm')
+    #         next_left_poses = baxter.openrave_body.get_ik_from_pose(left_ee_vec[:3], left_ee_vec[3:6], 'left_arm')
+
+    #         next_right_pose = utils.closest_arm_pose(next_right_poses, x[plan.state_inds[('baxter', 'rArmPose')]])
+    #         next_left_pose = utils.closest_arm_pose(next_left_poses, x[plan.state_inds[('baxter', 'lArmPose')]])
+
+    #         while(np.any(np.abs(cur_right_joints - next_right_pose) > 0.01) or np.any(np.abs(cur_left_joints - next_left_pose) > 0.01)):
+    #             self.pos_model.data.ctrl = np.r_[next_right_pose, right_grip, -right_grip, next_left_pose, left_grip, -left_grip]
+    #             self.pos_model.step()
+    #             cur_right_joints = self.pos_model.data.qpos[1:8]
+    #             cur_left_joints = self.pos_model.data.qpos[10:17]
+
+    #         x = self._get_simulator_state()
+    #         trajectory_state[:, ts] = x
+    #     return trajectory_state
+
+
+    # def _sample_ee_trajectory(self, condition, noise):
+    #     sample = Sample(self)
+    #     plan = self.plans[condition]
+    #     if plan in self._traj_info_cache:
+    #         active_ts, params = self._traj_info_cache[plan]
+    #     else:
+    #         active_ts, params = utils.get_plan_traj_info(plan)
+    #         self._traj_info_cache[plan] = (active_ts, params)
+
+    #     t0 = active_ts[0]
+    #     baxter = plan.params['baxter']
+    #     actions = filter(plan.actions, lambda a: a.active_timesteps[0] >= t0)
+
+    #     for ts in range(active_ts[0], active_ts[1]):
+    #         baxter.set_dof('lArmPose': baxter.lArmPose[:, ts], 'rArmPose': baxter.rArmPose[:, ts])
+    #         ee_right = robot.openrave_body.env_body.GetLink('right_gripper').GetTransform()
+    #         ee_left = robot.openrave_body.env_body.GetLink('left_gripper').GetTransform()
+
+    #         baxter.set_dof('lArmPose': baxter.lArmPose[:, ts+1], 'rArmPose': baxter.rArmPose[:, ts+1])
+    #         ee_right_next = robot.openrave_body.env_body.GetLink('right_gripper').GetTransform()
+    #         ee_left_next = robot.openrave_body.env_body.GetLink('left_gripper').GetTransform()
+
+    #         right_rot = OpenRAVEBody._ypr_from_rot_matrix(ee_right[:3.:3])
+    #         left_rot = OpenRAVEBody._ypr_from_rot_matrix(ee_left[:3,:3])
+    #         next_right_rot = OpenRAVEBody._ypr_from_rot_matrix(ee_right_next[:3.:3])
+    #         next_left_rot = OpenRAVEBody._ypr_from_rot_matrix(ee_left_next[:3,:3])
+
+    #         right_open = 0 if plan.params['baxter'].lGripper[:, ts+1] < const.GRIPPER_OPEN_VALUE else 1
+    #         left_open = 0 if plan.params['baxter'].rGripper[:, ts+1] < const.GRIPPER_OPEN_VALUE else 1
+
+    #         # right_vec = np.r_[ee_right_next[:3,3] - ee_right[:3,3], next_right_rot - right_rot, right_open]
+    #         # left_vec = np.r_[ee_left_next[:3,3] - ee_left[:3,3], next_left_rot - left_rot, left_open]
+    #         right_vec = np.r_[ee_right_next[:3,3], next_right_rot, right_open]
+    #         left_vec = np.r_[ee_left_next[:3,3], next_left_rot, left_open]
+
+
+    #         sample.set(ACTION_ENUM, np.r_[left_vec, right_vec], ts - active_ts[0])
+    #         X = np.zeros((plan.dX,))
+    #         utils.fill_vector(params, plan.state_inds, X, ts)
+    #         sample.set(STATE_ENUM, X, ts - active_ts[0])
+    #         sample.set(NOISE_ENUM, noise, ts - active_ts[0])
+
+    #     return sample
