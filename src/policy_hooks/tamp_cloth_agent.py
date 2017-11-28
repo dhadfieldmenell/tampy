@@ -1,6 +1,8 @@
 """ This file defines an agent for the MuJoCo simulator environment. """
 import copy
 
+import cPickle as pickle
+
 import numpy as np
 
 import xml.etree.ElementTree as xml
@@ -19,7 +21,7 @@ from gps.sample.sample import Sample
 import core.util_classes.baxter_constants as const
 import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
-# from policy_hooks.action_utils import action_durations
+from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 from policy_hooks.baxter_controller import BaxterMujocoController
 from policy_hooks.cloth_world_policy_utils import *
 from policy_hooks.policy_solver_utils import STATE_ENUM, OBS_ENUM, ACTION_ENUM, NOISE_ENUM
@@ -57,7 +59,6 @@ class LaundryWorldClothAgent(Agent):
         self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
         self.params = filter(lambda p: not p.is_symbol(), self.plan.params.values())
         self.current_cond = 0
-        self.cond_optimal_traj = [None for _ in range(len(self.x0))]
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
         self.initial_opt = True
         self.stochastic_conditions = self._hyperparams['stochastic_conditions']
@@ -223,7 +224,9 @@ class LaundryWorldClothAgent(Agent):
                 self.replace_cond(condition, self.num_cloths)
 
             if noisy:
-                noise = np.random.uniform(-1, 1, (self.T, self.dU)) * 0.0001
+                noise = np.random.uniform(-1, 1, (self.T, self.dU))
+                noise[:, 7] *= 0.01
+                noise[:, 15] *= 0.01
             else:
                 noise = np.zeros((self.T, self.dU))
 
@@ -240,10 +243,11 @@ class LaundryWorldClothAgent(Agent):
                 if success:
                     last_success_X = X
                 else:
+                    break
                     self._set_simulator_state(last_success_X, self.plan)
                 if not t % 100 and self.viewer:
                     self.viewer.loop_once()
-            if save_global:
+            if save_global and success:
                 self.cond_global_pol_sample[condition] = sample
             print 'Finished on-policy sample.\n'.format(condition)
         else:
@@ -418,52 +422,56 @@ class LaundryWorldClothAgent(Agent):
                 rArmPose[i] = right_DOF_limits[1][i]
 
 
-    def optimize_trajectories(self, alg):
-        for m in range(0, alg.M, self.num_cloths):
-            x0 = self.init_plan_states[m]
-            utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], 0)
-            utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], 0)
-            for param in x0[2]:
-                self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
+    def optimize_trajectories(self, alg, reuse=False):
+        ps = PlanSerializer()
+        pd = PlanDeserializer()
 
-            self.current_cond = m
-            success = self.solver._backtrack_solve(self.plan)
-
-            while self.initial_opt and not success:
-                print "Solve failed."
-                self.replace_cond(m, self.num_cloths)
+        if reuse:
+            pass
+        else:
+            for m in range(0, alg.M, self.num_cloths):
                 x0 = self.init_plan_states[m]
                 utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], 0)
                 utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], 0)
                 for param in x0[2]:
                     self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
+
+                self.current_cond = m
                 success = self.solver._backtrack_solve(self.plan)
 
-            # sample = Sample(self)
-            # self._set_simulator_state(x0, self.plan)
-            # for ts in range(0, self.plan.horizon-1):
-            #     U = np.zeros(self.plan.dU)
-            #     utils.fill_vector(self.params, self.plan.action_inds, U, ts+1)
-            #     success = self.run_traj_step(U, self.plan.action_inds, sample, ts)
+                while self.initial_opt and not success:
+                    print "Solve failed."
+                    self.replace_cond(m, self.num_cloths)
+                    x0 = self.init_plan_states[m]
+                    utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], 0)
+                    utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], 0)
+                    for param in x0[2]:
+                        self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
+                    success = self.solver._backtrack_solve(self.plan)
 
-            for i in range(self.num_cloths):
-                x0 = self.init_plan_states[m+i]
-                # self._set_simulator_state(x0, self.plan)
-                if x0[-1] != self.init_plan_states[m][-1]:
-                    import ipdb; ipdb.set_trace()
-                init_act = self.plan.actions[x0[1][0]]
-                final_act = self.plan.actions[x0[1][1]]
-                init_t = init_act.active_timesteps[0]
-                final_t = final_act.active_timesteps[1]
+                # if self.initial_opt:
+                #     'Saving plan...\n'
+                #     ps.write_plan_to_hdf5('plan_{0}_cloths_condition_{1}.hdf5'.format(self.num_cloths, m), self.plan)
+                #     pickle.dump(x0, 'plan_{0}_cloths_condition_{1}_init.npy')
 
-                utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
-                traj_distr = alg.cur[m+i].traj_distr
-                k = np.zeros((traj_distr.T, traj_distr.dU))
-                for t in range(init_t, final_t):
-                    u = np.zeros((self.plan.dU))
-                    utils.fill_vector(self.params, self.plan.action_inds, u, t+1)
-                    k[(t-init_t)*utils.MUJOCO_STEPS_PER_SECOND:(t-init_t+1)*utils.MUJOCO_STEPS_PER_SECOND] = u
-                traj_distr.k = k
+                for i in range(self.num_cloths):
+                    x0 = self.init_plan_states[m+i]
+                    # self._set_simulator_state(x0, self.plan)
+                    if x0[-1] != self.init_plan_states[m][-1]:
+                        import ipdb; ipdb.set_trace()
+                    init_act = self.plan.actions[x0[1][0]]
+                    final_act = self.plan.actions[x0[1][1]]
+                    init_t = init_act.active_timesteps[0]
+                    final_t = final_act.active_timesteps[1]
+
+                    utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
+                    traj_distr = alg.cur[m+i].traj_distr
+                    k = np.zeros((traj_distr.T, traj_distr.dU))
+                    for t in range(init_t, final_t):
+                        u = np.zeros((self.plan.dU))
+                        utils.fill_vector(self.params, self.plan.action_inds, u, t+1)
+                        k[(t-init_t)*utils.MUJOCO_STEPS_PER_SECOND:(t-init_t+1)*utils.MUJOCO_STEPS_PER_SECOND] = u
+                    traj_distr.k = k
 
         self.initial_opt = False
 

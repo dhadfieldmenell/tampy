@@ -406,7 +406,7 @@
     </actuator> -->
 
     <actuator>
-        <position kp="625" gear="1 0 0 0 0 0" joint="right_s0"/>
+        <position kp="615" gear="1 0 0 0 0 0" joint="right_s0"/>
         <position kp="750" gear="1 0 0 0 0 0" joint="right_s1"/>
         <position kp="100" gear="1 0 0 0 0 0" joint="right_e0"/>
         <position kp="500" gear="1 0 0 0 0 0" joint="right_e1"/>
@@ -416,7 +416,7 @@
         <position kp="5" joint="right_gripper_l_finger_joint"/>
         <position kp="5" joint="right_gripper_r_finger_joint"/>
         
-        <position kp="625" gear="1 0 0 0 0 0" joint="left_s0"/>
+        <position kp="615" gear="1 0 0 0 0 0" joint="left_s0"/>
         <position kp="750" gear="1 0 0 0 0 0" joint="left_s1"/>
         <position kp="100" gear="1 0 0 0 0 0" joint="left_e0"/>
         <position kp="500" gear="1 0 0 0 0 0" joint="left_e1"/>

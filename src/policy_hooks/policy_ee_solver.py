@@ -60,7 +60,7 @@ class BaxterPolicyEESolver(RobotLLSolver):
         initial_plan.action_inds, initial_plan.symbolic_bound = \
         utils.get_plan_to_policy_mapping(initial_plan, 
                                          x_params=['baxter', 'cloth_0', 'cloth_1', 'basket'], 
-                                         x_attrs=['pose', 'lArmPose', 'lGripper', 'rArmPose', 'rGripper'], 
+                                         x_attrs=['pose', 'lArmPose', 'rArmPose', 'rGripper'], 
                                          u_attrs=set(['ee_left_pos', 'lGripper']))
         
         x0s = []

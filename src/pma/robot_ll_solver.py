@@ -24,7 +24,7 @@ BASE_MOVE_COEFF = 10
 TRAJOPT_COEFF=1e-1
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = True
+DEBUG = False
 
 # used for pose suggester
 RESAMPLE_FACTOR = baxter_constants.RESAMPLE_FACTOR
@@ -57,6 +57,7 @@ class RobotLLSolver(LLSolver):
         self.grb_init_mapping = {}
         self.var_list = []
         self._grb_to_var_ind = {}
+        self.tol = 1e-3
 
     def _solve_helper(self, plan, callback, active_ts, verbose):
         # certain constraints should be solved first
@@ -877,7 +878,7 @@ class RobotLLSolver(LLSolver):
         for grb_name in self._grb_to_var_ind.keys():
             for var, i in self._grb_to_var_ind[grb_name]:
                 try:
-                    correctness = np.allclose(grb_val_map[grb_name], var._value[i])
+                    correctness = np.allclose(grb_val_map[grb_name], var._value[i], equal_nan=True)
                 except KeyError:
                     grb_val_map[grb_name] = var._value[i]
                 except:

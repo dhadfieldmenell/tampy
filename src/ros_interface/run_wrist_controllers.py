@@ -43,9 +43,8 @@ class WristControllerTest(object):
         if msg.header.stamp.secs > self.last_basket_time + 5 and self.active:
             image = self.bridge.imgmsg_to_cv2(msg, 'passthrough')
             image_array = np.array(image, dtype=np.float32)
-            adjusted_image = cv2.resize(image_array[:,:,:3], (200, 320))
             with self.predictor.graph.as_default():
-                self.error_prediction = self.predictor.predict(adjusted_image)
+                self.error_prediction = self.predictor.predict(image_array)
             self.last_basket_time = msg.header.stamp.secs
 
     def initialize(self):
@@ -59,9 +58,14 @@ class WristControllerTest(object):
                         actual_joint_angles['right_w0'], actual_joint_angles['right_w1'], actual_joint_angles['right_w2']]
         self.baxter.openrave_body.set_dof({'rArmPose': joint_values})
         end_effector_pos = self.baxter.openrave_body.env_body.GetLink('right_gripper').GetTransformPose()[-3:]
-        target_pos = end_effector_pos + np.r_[self.error_prediction[:2], 0]
-        target_rot = [self.error_prediction[2], np.pi/2, 0]
-        self.controller.update_targets(None, None, target_pos, target_rot)
+        error_pred = self.error_prediction.copy()
+        basket_rot = -error_pred[2] + np.pi/2
+        offset = np.array([const.BASKET_OFFSET*np.cos(basket_rot), const.BASKET_OFFSET*np.sin(basket_rot), 0])
+        import ipdb; ipdb.set_trace()
+
+        target_pos = (end_effector_pos + np.r_[error_pred[:2], 0]) - offset
+        target_rot = [-error_pred[2], np.pi/2, 0]
+        self.controller.update_targets([], [], target_pos, target_rot)
         self.controller.move_to_targets(limbs=['right'])
 
 

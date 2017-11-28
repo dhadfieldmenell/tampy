@@ -104,7 +104,7 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
         Given a list of possible arm poses, select the one with the least displacement from current arm pose
     """
     min_change = np.inf
-    chosen_arm_pose = None
+    chosen_arm_pose = arm_poses[0] if len(arm_poses) else None
     for arm_pose in arm_poses:
         change = sum((arm_pose - cur_arm_pose)**2)
         if change < min_change:

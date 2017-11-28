@@ -22,6 +22,17 @@ right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'rig
 joint_velocity_limits = np.array([2.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0])
 error_limits = np.array([.005, .1, .05, .075, .075, .01, .01])
 
+def closest_arm_pose(arm_poses, cur_arm_pose):
+    min_change = np.inf
+    chosen_arm_pose = None
+    cur_arm_pose = np.array(cur_arm_pose).flatten()
+    for arm_pose in arm_poses:
+        change = sum((arm_pose - cur_arm_pose)**2)
+        if change < min_change:
+            chosen_arm_pose = arm_pose
+            min_change = change
+    return chosen_arm_pose
+
 class TrajectoryController(object):
     def __init__(self):
         self.left = baxter_interface.limb.Limb('left')
@@ -179,19 +190,19 @@ class EEController(object):
         self.baxter = ParamSetup.setup_baxter()
         env = ParamSetup.setup_env()
         self.baxter.openrave_body = OpenRAVEBody(env, 'baxter', self.baxter.geom)
-        self.left.set_joint_position_speed(0.05)
-        self.right.set_joint_position_speed(0.05)
+        self.left.set_joint_position_speed(0.1)
+        self.right.set_joint_position_speed(0.1)
 
     def update_targets(self, ee_left_pos, ee_left_rot, ee_right_pos, ee_right_rot):
-        if ee_left_pos != None and ee_left_rot != None:
+        if len(ee_left_pos) and len(ee_left_rot):
             left_targets = self.baxter.openrave_body.get_ik_from_pose(ee_left_pos, ee_left_rot, "left_arm")
             if len(left_targets):
-                self.left_target = left_targets[0]
+                self.left_target = closest_arm_pose(left_targets, self.left.joint_angles().values())
 
-        if ee_right_pos != None and ee_right_rot != None:
+        if len(ee_right_pos) and len(ee_right_rot):
             right_targets = self.baxter.openrave_body.get_ik_from_pose(ee_right_pos, ee_right_rot, "right_arm")
             if len(right_targets):
-                self.right_target = right_targets[0]
+                self.right_target = closest_arm_pose(right_targets, self.right.joint_angles().values())
 
     def move_toward_targets(self, limbs=['left', 'right']):
         use_left = 'left' in limbs
@@ -219,28 +230,33 @@ class EEController(object):
 
         iters = 0
         all_close = False
-        while not all_close:
-            if (iters > max_iters):
-                print 'Maxed out iterations'
-                break
-            iters += 1
-            self.move_toward_targets(limbs)
-            left_angles = self.left.joint_angles()
-            right_angles = self.right.joint_angles()
-            all_close = True
-            if use_left:
-                for key in left_joints:
-                    if np.abs(left_angles[key] - left_target_dict[key]) > 0.1:
-                        all_close = False
-                        break
+        try:
+            while not all_close:
+                if (iters > max_iters):
+                    print 'Maxed out iterations'
+                    break
+                iters += 1
+                self.move_toward_targets(limbs)
+                left_angles = self.left.joint_angles()
+                right_angles = self.right.joint_angles()
+                all_close = True
+                if use_left:
+                    for key in left_joints:
+                        if np.abs(left_angles[key] - left_target_dict[key]) > 0.1:
+                            all_close = False
+                            break
 
-            if use_right:
-                for key in right_joints:
-                    if np.abs(right_angles[key] - right_target_dict[key]) > 0.1:
-                        all_close = False
-                        break
+                if use_right:
+                    for key in right_joints:
+                        if np.abs(right_angles[key] - right_target_dict[key]) > 0.1:
+                            all_close = False
+                            break
 
-            rospy.sleep(0.01)
+                rospy.sleep(0.01)
+                
+        except KeyboardInterrupt:
+            import ipdb; ipdb.set_trace()
+
 
     def close_grippers(self, grippers=['left', 'right']):
         if 'left' in grippers: self.left_grip.close()
