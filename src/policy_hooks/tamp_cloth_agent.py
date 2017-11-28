@@ -464,6 +464,10 @@ class LaundryWorldClothAgent(Agent):
                     init_t = init_act.active_timesteps[0]
                     final_t = final_act.active_timesteps[1]
 
+                    if self.cond_global_pol_sample[m+i]:
+                        self.current_cond = m + i
+                        self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1])
+
                     utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
                     traj_distr = alg.cur[m+i].traj_distr
                     k = np.zeros((traj_distr.T, traj_distr.dU))

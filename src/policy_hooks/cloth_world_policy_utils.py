@@ -64,7 +64,7 @@ def generate_cond(num_cloths):
 
     plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_{1} ROBOT_END_POSE'.format(act_num, i-1))
 
-    domain_fname = '../domains/laundry_domain/laundry.domain'
+    domain_fname = '../domains/laundry_domain/laundry_policy.domain'
     d_c = main.parse_file_to_dict(domain_fname)
     domain = parse_domain_config.ParseDomainConfig.parse(d_c)
     hls = hl_solver.FFSolver(d_c)
