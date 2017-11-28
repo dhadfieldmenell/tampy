@@ -30,9 +30,12 @@ N_RESAMPLES = 5
 
 class BaxterPolicySolver(RobotLLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
+        super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
         self.config = None
         self.gps = None
-        super(BaxterPolicySolver, self).__init__(early_converge, transfer_norm)
+        self.transfer_coeff = 1e0
+        self.rs_coeff = 1e2
+        self.trajopt_coeff = 1e0
 
     # TODO: Add hooks for online policy learning
     def train_policy(self, num_cloths, hyperparams=None):
@@ -151,9 +154,9 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [200, 200]
+                'dim_hidden': [100, 100]
             },
-            'lr': 1e-5,
+            'lr': 1e-6,
             'network_model': tf_network,
             'iterations': 100000,
             'weight_decay': 0.025,
@@ -376,7 +379,7 @@ class BaxterPolicySolver(RobotLLSolver):
         if not self.gps.agent.cond_global_pol_sample[self.gps.agent.current_cond] or priority < 3:
             return super(BaxterPolicySolver, self)._solve_opt_prob(plan, priority, callback, init, active_ts, verbose, resample, smoothing)
 
-        self.tol = 1e-2
+        self.tol = 5e-3
         self.plan = plan
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
@@ -409,7 +412,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 add_nonlin=False, active_ts= active_ts, verbose=verbose)
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
-            initial_trust_region_size = 1e0
+            initial_trust_region_size = 1e3
             # import ipdb; ipdb.set_trace()
         else:
             self._bexpr_to_pred = {}
@@ -431,7 +434,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 except:
                     import ipdb; ipdb.set_trace()
             traj_state[:, T - 1] = pol_sample.get_X(T * utils.MUJOCO_STEPS_PER_SECOND - 1)
-            obj_bexprs = self._traj_policy_opt(plan, traj_state)
+            obj_bexprs = self._traj_policy_opt(plan, traj_state, 1.0)
             self._add_obj_bexprs(obj_bexprs)
 
 
@@ -484,7 +487,7 @@ class BaxterPolicySolver(RobotLLSolver):
             attr_type = param.get_attr_type(attr_name)
             param_ll = self._param_to_ll[param]
             T = param_ll._horizon
-            attr_val = traj_mean[plan.action_inds[(param_name, attr_name)], :].T
+            attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], :].T
             K = attr_type.dim
 
             KT = K*T

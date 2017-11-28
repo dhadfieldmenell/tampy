@@ -242,18 +242,18 @@ class EEController(object):
                 all_close = True
                 if use_left:
                     for key in left_joints:
-                        if np.abs(left_angles[key] - left_target_dict[key]) > 0.1:
+                        if np.abs(left_angles[key] - left_target_dict[key]) > 0.05:
                             all_close = False
                             break
 
                 if use_right:
                     for key in right_joints:
-                        if np.abs(right_angles[key] - right_target_dict[key]) > 0.1:
+                        if np.abs(right_angles[key] - right_target_dict[key]) > 0.05:
                             all_close = False
                             break
 
                 rospy.sleep(0.01)
-                
+
         except KeyboardInterrupt:
             import ipdb; ipdb.set_trace()
 

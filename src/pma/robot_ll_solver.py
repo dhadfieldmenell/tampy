@@ -24,7 +24,7 @@ BASE_MOVE_COEFF = 10
 TRAJOPT_COEFF=1e-1
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = False
+DEBUG = True
 
 # used for pose suggester
 RESAMPLE_FACTOR = baxter_constants.RESAMPLE_FACTOR
@@ -43,7 +43,7 @@ class RobotLLSolver(LLSolver):
         # range of coefficeint within 1e9
         # (largest_coefficient/smallest_coefficient < 1e9)
         self.transfer_coeff = 1e0
-        self.rs_coeff = 2e2
+        self.rs_coeff = 5e1
         self.trajopt_coeff = 1e0
         self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 4e3

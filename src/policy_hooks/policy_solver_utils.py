@@ -10,7 +10,7 @@ NOISE_ENUM = 3
 
 GPS_RATIO = 1e3
 
-MUJOCO_STEPS_PER_SECOND = 80
+MUJOCO_STEPS_PER_SECOND = 100
 
 INCLUDE_PREDS = ['BaxterAt', 'BaxterClothAt', 'BaxterRobotAt', 'BaxterCloseGripperLeft', \
                  'BaxterCloseGripperRight', 'BaxterOpenGripperLeft', \
