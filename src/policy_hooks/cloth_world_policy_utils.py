@@ -141,7 +141,7 @@ def generate_cond(num_cloths):
         # plan.params['cloth_putdown_end_{0}'.format(c)].rArmPose[:,:] = np.array(R_ARM_PUTDOWN_END).reshape((7,1))
         # plan.params['cloth_putdown_end_{0}'.format(c)].rGripper[:,:] = 0.02
 
-        plan.params['cloth_target_end_{0}'.format(c)].value[:,:] = np.nan
+        plan.params['cloth_target_end_{0}'.format(c)].value[:,:] = 0
         plan.params['cloth_target_end_{0}'.format(c)].rotation[:,:] = 0
 
     plan._determine_free_attrs()

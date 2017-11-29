@@ -462,6 +462,9 @@ class BaxterPolicySolver(RobotLLSolver):
         if a_start == a_end:
             raise Exception("This method requires at least two actions.")
 
+        if not self.gps.agent.cond_global_pol_sample[cond]:
+            raise Exception("This method requires a global policy sample for the condition.")
+
         all_active_ts = (plan.actions[a_start].active_timesteps[0],
                          plan.actions[a_end].active_timesteps[1])
 
@@ -471,9 +474,10 @@ class BaxterPolicySolver(RobotLLSolver):
         global_traj_mean = np.zeros((plan.symbolic_bound, T))
         for t in range(all_active_ts[0], all_active_ts[1]):
             global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_X((t-all_active_ts[0])*utils.MUJOCO_STEPS_PER_SECOND)
-        global_traj_mean[:, T-1] = pol_sample.get_X(T*utils.MUJOCO_STEPS_PER_SECOND-1)
+        global_traj_mean[:, T-1] = pol_sample.get_X((T-1)*utils.MUJOCO_STEPS_PER_SECOND-1)
 
         while a_num < a_end:
+            print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
             act_1 = plan.actions[a_num]
             act_2 = plan.actions[a_num+1]
             active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
@@ -532,10 +536,12 @@ class BaxterPolicySolver(RobotLLSolver):
         plan.save_free_attrs()
         model = grb.Model()
         model.params.OutputFlag = 0
-        self._prob = Prob(model, callback=callback)
+        self._prob = Prob(model)
         self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
         model.update()
         initial_trust_region_size = self.initial_trust_region_size
+        tol=1e-3
+
         if resample:
             obj_bexprs = []
             failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
@@ -551,23 +557,19 @@ class BaxterPolicySolver(RobotLLSolver):
         else:
             self._bexpr_to_pred = {}
             obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
-            obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
             self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
                                                active_ts=active_ts)
-            tol=1e-3
 
         solv = Solver()
         solv.initial_trust_region_size = initial_trust_region_size
 
-        if smoothing:
-            solv.initial_penalty_coeff = self.smooth_penalty_coeff
-        else:
-            solv.initial_penalty_coeff = self.init_penalty_coeff
+        solv.initial_penalty_coeff = self.init_penalty_coeff
 
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
-        success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
+        success = solv.solve(self._prob, method='penalty_sqp', tol=tol)
         self._update_ll_params()
 
         if resample:
@@ -609,7 +611,7 @@ class BaxterPolicySolver(RobotLLSolver):
             cur_val = attr_val.reshape((KT, 1), order='F')
             A = -2 * cur_val.T.dot(Q)
             b = cur_val.T.dot(Q.dot(cur_val))
-            policy_transfer_coeff = strength_factor * self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
+            policy_transfer_coeff = self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
 
             # QuadExpr is 0.5*x^Tx + Ax + b
             quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
