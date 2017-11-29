@@ -119,6 +119,6 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
         pol_info.pol_wt = np.zeros((T, N))
         self._eval_cost(m)
         for t in range(T):
-            exponent = -np.sum(self.cur[m].cs[:, t])
+            exponent = -self.cur[m].cs[:, t]
             exp_cost = np.exp(exponent - np.max(exponent))
             pol_info.pol_wt[t] = exp_cost / np.sum(exp_cost)

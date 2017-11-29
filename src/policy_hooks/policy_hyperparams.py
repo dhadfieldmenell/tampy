@@ -48,7 +48,7 @@ algorithm = {
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
-    'policy_transfer_coeff': 1e-2,
+    'policy_transfer_coeff': 5e-2,
     'policy_scale_factor': 1,
 }
 
@@ -131,7 +131,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 4,
+    'num_samples': 7,
     'num_conds': NUM_CONDS,
     'mode': 'position'
 }

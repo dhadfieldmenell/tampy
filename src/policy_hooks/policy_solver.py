@@ -154,12 +154,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [200, 200]
+                'dim_hidden': [150, 80]
             },
-            'lr': 1e-5,
+            'lr': 1e-3,
             'network_model': tf_network,
-            'iterations': 50000,
-            'weight_decay': 0.015,
+            'iterations': 7500,
+            'weight_decay': 0.01,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -557,6 +557,7 @@ class BaxterPolicySolver(RobotLLSolver):
         else:
             self._bexpr_to_pred = {}
             obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
+            obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
             # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
             self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,

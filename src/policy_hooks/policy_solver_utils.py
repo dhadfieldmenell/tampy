@@ -1,5 +1,6 @@
 import core.util_classes.baxter_constants as const
 from core.util_classes.robot_predicates import CollisionPredicate
+from core.util_classes.baxter_predicates import *
 import numpy as np
 
 # Don't change these
@@ -12,15 +13,20 @@ GPS_RATIO = 1e3
 
 MUJOCO_STEPS_PER_SECOND = 100
 
-INCLUDE_PREDS = ['BaxterAt', 'BaxterClothAt', 'BaxterRobotAt', 'BaxterCloseGripperLeft', \
-                 'BaxterCloseGripperRight', 'BaxterOpenGripperLeft', \
-                 'BaxterOpenGripperRight', 'BaxterCloseGrippers', \
-                 'BaxterOpenGrippers', 'BaxterObstructs', \
-                 'BaxterObstructsHolding', 'BaxterObstructsCloth', \
-                 'BaxterObstructsWasher', 'BaxterObstructsHoldingCloth', \
-                 'BaxterCollides', 'BaxterRCollides', 'BaxterRSelfCollides', \
-                 'BaxterCollidesWasher', 'BaxterBasketInGripper', \
-                 'BaxterClothInGripperLeft', 'BaxterClothInGripperRight']
+# INCLUDE_PREDS = ['BaxterAt', 'BaxterClothAt', 'BaxterRobotAt', 'BaxterCloseGripperLeft', \
+#                  'BaxterCloseGripperRight', 'BaxterOpenGripperLeft', \
+#                  'BaxterOpenGripperRight', 'BaxterCloseGrippers', \
+#                  'BaxterOpenGrippers', 'BaxterObstructs', \
+#                  'BaxterObstructsHolding', 'BaxterObstructsCloth', \
+#                  'BaxterObstructsWasher', 'BaxterObstructsHoldingCloth', \
+#                  'BaxterCollides', 'BaxterRCollides', 'BaxterRSelfCollides', \
+#                  'BaxterCollidesWasher', 'BaxterBasketInGripper', \
+#                  'BaxterClothInGripperLeft', 'BaxterClothInGripperRight']
+
+INCLUDE_PREDS = [BaxterCloseGripperLeft, \
+                 BaxterOpenGripperLeft, BaxterRCollides, BaxterCollides, BaxterObstructs, \
+                 BaxterBasketInGripper, BaxterClothInGripperLeft, BaxterRSelfCollides, \
+                 BaxterObstructsHolding]
 
 def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_attrs=[]):
     '''
@@ -185,11 +191,13 @@ def get_trajectory_cost(plan, init_t, final_t, time_interval=MUJOCO_STEPS_PER_SE
                 pred_param_attr_inds[p['pred']][param.name][attr_name] = np.array(range(cur_ind, cur_ind+len(inds)))
                 cur_ind += len(inds)
 
-    for t in range(active_ts[0], active_ts[1]):
+    for t in range(active_ts[0], active_ts[1]-1):
         active_preds = plan.get_active_preds(t+1)
         preds_checked = []
         for p in preds:
-            if p['pred'] not in active_preds or p['pred'] in preds_checked or p['pred'].name not in INCLUDE_PREDS: continue
+            if p['pred'].__class__ not in INCLUDE_PREDS: continue
+            if p['pred'] not in active_preds or p['pred'] in preds_checked: continue
+            if p['pred'].active_range[1] > active_ts[1]: continue
             attr_inds = p['pred'].attr_inds
             comp_expr = p['pred'].get_expr(negated=p['negated'])
 
@@ -197,12 +205,17 @@ def get_trajectory_cost(plan, init_t, final_t, time_interval=MUJOCO_STEPS_PER_SE
             expr = comp_expr.expr if comp_expr else None
             if not expr: continue
             param_vector = p['pred'].get_param_vector(t+1)
-            # if isinstance(p['pred'], CollisionPredicate):
+            param_vector[np.where(np.isnan(param_vector))] = 0
+            # if np.any(np.isnan(param_vector)):
             #     import ipdb; ipdb.set_trace()
+
             cost_vector = expr.eval(param_vector)
             param_attr_inds = pred_param_attr_inds[p['pred']]
             time_ind = (t-active_ts[0])*time_interval
-            timestep_costs[time_ind:time_ind+time_interval] += np.sum(cost_vector)
+            timestep_costs[time_ind:time_ind+time_interval] -= np.sum(cost_vector)
+
+            # if np.any(np.isnan(cost_vector)):
+            #     import ipdb; ipdb.set_trace()
 
             # if hasattr(expr, '_grad') and expr._grad:
             #     # Linear terms
