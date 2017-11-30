@@ -70,18 +70,24 @@ class BaxterPolicySolver(RobotLLSolver):
         #                                  x_params=['baxter', 'cloth_0', 'cloth_1', 'basket'], 
         #                                  x_attrs=['pose'], 
         #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
-        initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
-        initial_plan.action_inds, initial_plan.symbolic_bound = \
-        utils.get_plan_to_policy_mapping(initial_plan, 
-                                         x_params=['baxter', 'cloth_0', 'cloth_1', 'cloth_2', 'basket'], 
-                                         x_attrs=['pose'], 
-                                         u_attrs=set(['lArmPose', 'lGripper']))
+        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
+        # initial_plan.action_inds, initial_plan.symbolic_bound = \
+        # utils.get_plan_to_policy_mapping(initial_plan, 
+        #                                  x_params=['baxter', 'cloth_0', 'basket'], 
+        #                                  x_attrs=['pose'], 
+        #                                  u_attrs=set(['lArmPose', 'lGripper']))
         # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         # initial_plan.action_inds, initial_plan.symbolic_bound = \
         # utils.get_plan_to_policy_mapping(initial_plan, 
         #                                  x_params=['baxter', 'basket'], 
         #                                  x_attrs=['pose'], 
         #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
+        initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
+        initial_plan.action_inds, initial_plan.symbolic_bound = \
+        utils.get_plan_to_policy_mapping(initial_plan, 
+                                         x_params=['baxter', 'cloth_0', 'basket'], 
+                                         x_attrs=['pose'], 
+                                         u_attrs=set(['ee_left_pos', 'ee_left_rot', 'lGripper']))
         
         x0s = []
         # for c in range(self.config['num_conds']):
@@ -121,7 +127,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'solver': self,
                 'num_cloths': num_cloths,
                 # 'T': initial_plan.horizon - 1
-                'T': self.T * utils.MUJOCO_STEPS_PER_SECOND,
+                'T': self.T * utils.POLICY_STEPS_PER_SECOND,
                 'stochastic_conditions': self.config['algorithm']['stochastic_conditions']
             }
             self.config['algorithm']['cost'] = []
@@ -154,11 +160,11 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [150, 80]
+                'dim_hidden': [256, 16]
             },
-            'lr': 1e-3,
+            'lr': 1e-5,
             'network_model': tf_network,
-            'iterations': 7500,
+            'iterations': 25000,
             'weight_decay': 0.01,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
@@ -627,4 +633,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(3)
+    PS.train_policy(1)

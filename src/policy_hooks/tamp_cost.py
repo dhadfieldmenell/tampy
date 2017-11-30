@@ -37,9 +37,9 @@ class TAMPCost(Cost):
 
     def fill_trajectory_from_sample(self, sample):
         for t in range(self.init_t, self.final_t):
-            X = sample.get_X((t-self.init_t)*utils.MUJOCO_STEPS_PER_SECOND)
+            X = sample.get_X((t-self.init_t)*utils.POLICY_STEPS_PER_SECOND)
             utils.set_params_attrs(self.params, self.plan.state_inds, X, t)
-        X = sample.get_X((self.final_t-self.init_t)*utils.MUJOCO_STEPS_PER_SECOND-1)
+        X = sample.get_X((self.final_t-self.init_t)*utils.POLICY_STEPS_PER_SECOND-1)
         utils.set_params_attrs(self.params, self.plan.state_inds, X, self.final_t)
 
     def _clip_joint_angles(self):

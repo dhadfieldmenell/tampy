@@ -12,6 +12,7 @@ NOISE_ENUM = 3
 GPS_RATIO = 1e3
 
 MUJOCO_STEPS_PER_SECOND = 100
+POLICY_STEPS_PER_SECOND = 4
 
 # INCLUDE_PREDS = ['BaxterAt', 'BaxterClothAt', 'BaxterRobotAt', 'BaxterCloseGripperLeft', \
 #                  'BaxterCloseGripperRight', 'BaxterOpenGripperLeft', \
@@ -142,7 +143,7 @@ def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
 
     sample.set(NOISE_ENUM, noise, t-active_ts[0])
 
-def fill_trajectory_from_sample(sample, plan, time_interval=MUJOCO_STEPS_PER_SECOND):
+def fill_trajectory_from_sample(sample, plan, time_interval=POLICY_STEPS_PER_SECOND):
     params = set()
     for action in plan.actions:
         params.update(action.params)
@@ -154,7 +155,7 @@ def fill_trajectory_from_sample(sample, plan, time_interval=MUJOCO_STEPS_PER_SEC
     X = sample.get_X(active_ts[1]*time_interval-1)
     set_params_attrs(params, plan.state_inds, X, active_ts[1])
 
-def get_trajectory_cost(plan, init_t, final_t, time_interval=MUJOCO_STEPS_PER_SECOND):
+def get_trajectory_cost(plan, init_t, final_t, time_interval=POLICY_STEPS_PER_SECOND):
     '''
     Calculates the constraint violations at the provided timestep for the current trajectory, as well as the first and second order approximations.
     This function handles the hierarchies of mappings from parameters to attributes to indices and translates between how the predicates consturct
