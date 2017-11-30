@@ -15,6 +15,7 @@ from gps.algorithm.policy_opt.tf_model_example import tf_network
 from  pma.robot_ll_solver import RobotLLSolver
 from policy_hooks.cloth_world_policy_utils import *
 import policy_hooks.policy_hyperparams as baxter_hyperparams
+from policy_hooks.policy_predicates import BaxterPolicyPredicate
 import policy_hooks.policy_solver_utils as utils
 from policy_hooks.tamp_agent import LaundryWorldMujocoAgent
 from policy_hooks.tamp_cloth_agent import LaundryWorldClothAgent
@@ -36,6 +37,7 @@ class BaxterPolicySolver(RobotLLSolver):
         self.transfer_coeff = 1e0
         self.rs_coeff = 2e2
         self.trajopt_coeff = 1e0
+        self.policy_pred = None
 
     # TODO: Add hooks for online policy learning
     def train_policy(self, num_cloths, hyperparams=None):
@@ -178,289 +180,6 @@ class BaxterPolicySolver(RobotLLSolver):
         
         self.gps.run()
 
-    # def center_trajectories_around_demonstrations(self):
-    #     alg = self.gps.algorithm
-    #     agent = self.gps.agent
-    #     # agent.initial_samples = True
-    #     for m in range(alg.M):
-    #         traj_distr = alg.cur[m].traj_distr
-    #         traj_sample = agent.sample(traj_distr, m, on_policy=False)
-    #         k = np.zeros((traj_distr.T, traj_distr.dU))
-    #         for t in range(traj_distr.T):
-    #             k[t] = traj_sample.get_U(t)
-    #         traj_distr.k = k
-    #     # agent.initial_samples = False
-
-    # def center_trajectory_around_demonstration(self, alg, agent, condition):
-    #     traj_distr = alg.cur[condition].traj_distr
-    #     traj_sample = agent.sample(traj_distr, condition)
-    #     k = np.zeros((traj_distr.T, traj_distr.dU))
-    #     for t in range(traj_distr.T):
-    #         k[t] = traj_sample.get_U(t)
-    #     traj_distr.k = k
-
-    # def _update_algorithm(self, plans, costs):
-    #     if not self.gps: return
-    #     alg = self.gps.algorithm
-    #     alg.M += len(plans)
-    #     alg._cond_idx = range(alg.M)
-    #     alg._hyperparams['train_conditions'] = alg._cond_idx
-    #     alg._hyperparams['test_conditions'] = alg._cond_idx
-
-    #     # IterationData objects for each condition.
-    #     alg.cur.extend([IterationData() for _ in range(len(plans))])
-    #     alg.prev.extend([IterationData() for _ in range(len(plans))])
-
-    #     init_traj_distr = alg._hyperparams['init_traj_distr']
-    #     assert len(self.gps.agent.x0) == alg.M
-    #     init_traj_distr['x0'] = self.gps.agent.x0
-    #     init_traj_distr['dX'] = self.gps.agent.dX
-    #     init_traj_distr['dU'] = self.gps.agent.dU
-
-    #     for m in range(alg.M-len(plans), alg.M):
-    #         alg.cur[m].traj_info = TrajectoryInfo()
-    #         if alg._hyperparams['fit_dynamics']:
-    #             alg.cur[m].traj_info.dynamics = dynamics['type'](dynamics)
-    #         alg = extract_condition(
-    #             alg._hyperparams['init_traj_distr'], alg._cond_idx[m]
-    #         )
-    #         alg.cur[m].traj_distr = init_traj_distr['type'](init_traj_distr)
-
-    #     alg.cost.extend([
-    #         costs[i]['type'](costs[i])
-    #         for i in range(len(plans))
-    #     ])
-
-    # def _update_agent(self, plans, x0):
-    #     if not self.gps: return
-    #     agent = self.gps.agent
-    #     agent._samples.extend([[] for _ in range(self._hyperparams['conditions'])])
-    #     agent.x0.extend(x0)
-    #     agent.conditions += len(plans)
-    #     agent.plans.extend(plans)
-
-
-    # def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
-    #     if amax is None:
-    #         amax = len(plan.actions) - 1
-
-    #     if anum > amax:
-    #         return True
-
-    #     a = plan.actions[anum]
-    #     print "backtracking Solve on {}".format(a.name)
-    #     active_ts = a.active_timesteps
-    #     inits = {}
-    #     if a.name == 'moveto':
-    #         ## find possible values for the final robot_pose
-    #         rs_param = a.params[2]
-    #     elif a.name == 'moveholding_basket':
-    #         ## find possible values for the final robot_pose
-    #         rs_param = a.params[2]
-    #     elif a.name == 'moveholding_cloth':
-    #         ## find possible values for the final robot_pose
-    #         rs_param = a.params[2]
-    #     elif a.name == 'basket_grasp':
-    #         ## find possible ee_poses for both arms
-    #         rs_param = a.params[-1]
-    #     elif a.name == 'basket_putdown':
-    #         ## find possible ee_poses for both arms
-    #         rs_param = a.params[-1]
-    #     elif a.name == 'open_door':
-    #         ## find possible ee_poses for left arms
-    #         rs_param = a.params[-3]
-    #     elif a.name == 'close_door':
-    #         ## find possible ee_poses for left arms
-    #         rs_param = a.params[-3]
-    #     elif a.name == 'cloth_grasp':
-    #         ## find possible ee_poses for right arms
-    #         rs_param = a.params[-1]
-    #     elif a.name == 'cloth_putdown':
-    #         ## find possible ee_poses for right arms
-    #         rs_param = a.params[-1]
-    #     elif a.name =='put_into_washer':
-    #         rs_param = a.params[-1]
-    #     elif a.name =='take_out_of_washer':
-    #         rs_param = a.params[-1]
-    #     elif a.name == 'put_into_basket':
-    #         rs_param = a.params[-1]
-    #     elif a.name == 'push_door':
-    #         rs_param = a.params[-3]
-    #     else:
-    #         raise NotImplemented
-
-    #     def recursive_solve():
-    #         ## don't optimize over any params that are already set
-    #         old_params_free = {}
-    #         for p in plan.params.itervalues():
-    #             if p.is_symbol():
-    #                 if p not in a.params: continue
-    #                 old_params_free[p] = p._free_attrs
-    #                 p._free_attrs = {}
-    #                 for attr in old_params_free[p].keys():
-    #                     p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
-    #             else:
-    #                 p_attrs = {}
-    #                 old_params_free[p] = p_attrs
-    #                 for attr in p._free_attrs:
-    #                     p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
-    #                     p._free_attrs[attr][:, active_ts[1]] = 0
-    #         self.child_solver = BaxterPolicySolver()
-    #         self.child_solver.gps = self.gps
-    #         success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
-
-    #         # reset free_attrs
-    #         for p in plan.params.itervalues():
-    #             if p.is_symbol():
-    #                 if p not in a.params: continue
-    #                 p._free_attrs = old_params_free[p]
-    #             else:
-    #                 for attr in p._free_attrs:
-    #                     p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
-    #         return success
-
-    #     # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
-    #     if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
-    #         ## this parameter is fixed
-    #         if callback is not None:
-    #             callback_a = lambda: callback(a)
-    #         else:
-    #             callback_a = None
-    #         self.child_solver = BaxterPolicySolver()
-    #         self.child_solver.gps = self.gps
-    #         success = self.child_solver.solve(plan, callback=callback_a, n_resamples=N_RESAMPLES,
-    #                                           active_ts = active_ts, verbose=verbose, force_init=True)
-
-    #         if not success:
-    #             ## if planning fails we're done
-    #             return False
-    #         ## no other options, so just return here
-    #         return recursive_solve()
-
-    #     ## so that this won't be optimized over
-    #     rs_free = rs_param._free_attrs
-    #     rs_param._free_attrs = {}
-    #     for attr in rs_free.keys():
-    #         rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
-
-    #     """
-    #     sampler_begin
-    #     """
-    #     robot_poses = self.obj_pose_suggester(plan, anum, resample_size=20)
-    #     if not robot_poses:
-    #         success = False
-    #         # print "Using Random Poses"
-    #         # robot_poses = self.random_pose_suggester(plan, anum, resample_size = 5)
-
-    #     """
-    #     sampler end
-    #     """
-
-    #     if callback is not None:
-    #         callback_a = lambda: callback(a)
-    #     else:
-    #         callback_a = None
-
-    #     for rp in robot_poses[:5]:
-    #         for attr, val in rp.iteritems():
-    #             setattr(rs_param, attr, val)
-
-    #         success = False
-    #         self.child_solver = BaxterPolicySolver()
-    #         self.child_solver.gps = self.gps
-    #         success = self.child_solver.solve(plan, callback=callback_a, n_resamples=N_RESAMPLES,
-    #                                           active_ts = active_ts, verbose=verbose,
-    #                                           force_init=True)
-    #         if success:
-    #             if recursive_solve():
-    #                 break
-    #             else:
-    #                 success = False
-
-    #     rs_param._free_attrs = rs_free
-    #     return success
-
-
-    # def _solve_opt_prob(self, plan, priority, callback=None, init=True, active_ts=None, verbose=False, resample=False, smoothing = False):
-    #     if not self.gps.agent.cond_global_pol_sample[self.gps.agent.current_cond] or priority < 3:
-    #         return super(BaxterPolicySolver, self)._solve_opt_prob(plan, priority, callback, init, active_ts, verbose, resample, smoothing)
-
-    #     # self.tol = 5e-3
-    #     self.plan = plan
-    #     robot = plan.params['baxter']
-    #     body = plan.env.GetRobot("baxter")
-    #     if active_ts==None:
-    #         active_ts = (0, plan.horizon-1)
-    #     plan.save_free_attrs()
-    #     model = grb.Model()
-    #     model.params.OutputFlag = 0
-    #     self._prob = Prob(model, callback=callback)
-    #     self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
-    #     model.update()
-    #     initial_trust_region_size = self.initial_trust_region_size
-    #     if resample:
-    #         """
-    #         When Optimization fails, resample new values for certain timesteps
-    #         of the trajectory and solver as initialization
-    #         """
-    #         obj_bexprs = []
-    #         import ipdb; ipdb.set_trace()
-
-    #         ## this is an objective that places
-    #         ## a high value on matching the resampled values
-    #         failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol=self.tol)
-    #         rs_obj = self._resample(plan, failed_preds, sample_all = True)
-    #         # import ipdb; ipdb.set_trace()
-    #         # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
-    #         # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-    #         obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
-
-    #         self._add_all_timesteps_of_actions(plan, priority=priority,
-    #             add_nonlin=False, active_ts= active_ts, verbose=verbose)
-    #         obj_bexprs.extend(rs_obj)
-    #         self._add_obj_bexprs(obj_bexprs)
-    #         initial_trust_region_size = 1e3
-    #         # import ipdb; ipdb.set_trace()
-    #     else:
-    #         self._bexpr_to_pred = {}
-    #         obj_bexprs = self._get_trajopt_obj(plan, active_ts)
-    #         self._add_obj_bexprs(obj_bexprs)
-    #         self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
-    #                                            active_ts=active_ts, verbose=verbose)
-
-    #     solv = Solver()
-    #     solv.initial_trust_region_size = initial_trust_region_size
-
-    #     if smoothing:
-    #         solv.initial_penalty_coeff = self.smooth_penalty_coeff
-    #     else:
-    #         solv.initial_penalty_coeff = self.init_penalty_coeff
-
-    #     solv.max_merit_coeff_increases = self.max_merit_coeff_increases
-
-    #     success = solv.solve(self._prob, method='penalty_sqp', tol=self.tol, verbose=verbose)
-    #     self._update_ll_params()
-
-    #     if resample:
-    #         # During resampling phases, there must be changes added to sampling_trace
-    #         if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
-    #             reward = 0
-    #             if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
-    #                 reward = len(plan.actions)
-    #             else:
-    #                 failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
-    #                 for i in range(len(plan.actions)):
-    #                     if failed_t > plan.actions[i].active_timesteps[1]:
-    #                         reward += 1
-    #             plan.sampling_trace[-1]['reward'] = reward
-    #     ##Restore free_attrs values
-    #     plan.restore_free_attrs()
-
-    #     self.reset_variable()
-    #     print "priority: {}\n".format(priority)
-    #     # self.tol=1e-3
-    #     return success
-
 
     def optimize_against_global(self, plan, a_start, a_end, cond):
         a_num = a_start
@@ -534,9 +253,120 @@ class BaxterPolicySolver(RobotLLSolver):
         return success
 
 
+    # def _solve_policy_opt_prob(self, plan, global_traj_mean, base_t, active_ts, resample):
+    #     self.plan = plan
+    #     priority = 3
+    #     robot = plan.params['baxter']
+    #     body = plan.env.GetRobot("baxter")
+    #     plan.save_free_attrs()
+    #     model = grb.Model()
+    #     model.params.OutputFlag = 0
+    #     self._prob = Prob(model)
+    #     self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
+    #     model.update()
+    #     initial_trust_region_size = self.initial_trust_region_size
+    #     tol=1e-3
+
+    #     if resample:
+    #         obj_bexprs = []
+    #         failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
+    #         rs_obj = self._resample(plan, failed_preds, sample_all = True)
+    #         obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+    #         obj_bexprs.extend(self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t))
+
+    #         self._add_all_timesteps_of_actions(plan, priority=priority,
+    #             add_nonlin=False, active_ts=active_ts)
+    #         obj_bexprs.extend(rs_obj)
+    #         self._add_obj_bexprs(obj_bexprs)
+    #         initial_trust_region_size = 1e3
+    #     else:
+    #         self._bexpr_to_pred = {}
+    #         obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
+    #         obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+    #         # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+    #         self._add_obj_bexprs(obj_bexprs)
+    #         self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
+    #                                            active_ts=active_ts)
+
+    #     solv = Solver()
+    #     solv.initial_trust_region_size = initial_trust_region_size
+
+    #     solv.initial_penalty_coeff = self.init_penalty_coeff
+
+    #     solv.max_merit_coeff_increases = self.max_merit_coeff_increases
+
+    #     success = solv.solve(self._prob, method='penalty_sqp', tol=tol)
+    #     self._update_ll_params()
+
+    #     if resample:
+    #         if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
+    #             reward = 0
+    #             if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
+    #                 reward = len(plan.actions)
+    #             else:
+    #                 failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
+    #                 for i in range(len(plan.actions)):
+    #                     if failed_t > plan.actions[i].active_timesteps[1]:
+    #                         reward += 1
+    #             plan.sampling_trace[-1]['reward'] = reward
+    #     ##Restore free_attrs values
+    #     plan.restore_free_attrs()
+
+    #     self.reset_variable()
+    #     return success
+
+
+    # def _traj_policy_opt(self, plan, traj_mean, start_t, end_t, base_t):
+    #     transfer_objs = []
+    #     for param_name, attr_name in plan.action_inds.keys():
+    #         param = plan.params[param_name]
+    #         attr_type = param.get_attr_type(attr_name)
+    #         param_ll = self._param_to_ll[param]
+    #         T = end_t - start_t + 1
+    #         attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
+    #         K = attr_type.dim
+
+    #         KT = K*T
+    #         v = -1 * np.ones((KT - K, 1))
+    #         d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+    #         # [:,0] allows numpy to see v and d as one-dimensional so
+    #         # that numpy will create a diagonal matrix with v and d as a diagonal
+    #         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+    #         # P = np.eye(KT)
+    #         Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
+    #         cur_val = attr_val.reshape((KT, 1), order='F')
+    #         A = -2 * cur_val.T.dot(Q)
+    #         b = cur_val.T.dot(Q.dot(cur_val))
+    #         policy_transfer_coeff = self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
+
+    #         # QuadExpr is 0.5*x^Tx + Ax + b
+    #         quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
+    #                              policy_transfer_coeff*A, policy_transfer_coeff*b)
+    #         ll_attr_val = getattr(param_ll, attr_name)
+    #         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+    #         sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+    #         bexpr = BoundExpr(quad_expr, sco_var)
+    #         transfer_objs.append(bexpr)
+    #     return transfer_objs
+
+
+    def _add_policy_constraints_to_plan(self, plan, policy, param_names):
+        params = [plan.params[name] for name in param_names]
+        state_inds = plan.state_inds
+        action_inds = plan.action_inds
+        dX = plan.dX
+        dU = plan.dU
+        policy_func = lambda x: self.gps.algorithm.policy_opt.policy.act(x, x, 0) # The global policy should be time independent
+        pred = BaxterPolicyPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
+        for action in plan.actions:
+            pred_dict = {'hl_info': 'policy', 'pred': pred, 'negated': False, 'active_timesteps': action.active_timesteps}
+            action.preds.append(pred_dict)
+        self.policy_pred = pred
+
+
     def _solve_policy_opt_prob(self, plan, global_traj_mean, base_t, active_ts, resample):
         self.plan = plan
-        priority = 3
+        priority = 4
         robot = plan.params['baxter']
         body = plan.env.GetRobot("baxter")
         plan.save_free_attrs()
@@ -553,21 +383,25 @@ class BaxterPolicySolver(RobotLLSolver):
             failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
-            obj_bexprs.extend(self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t))
+            # obj_bexprs.extend(self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t))
 
             self._add_all_timesteps_of_actions(plan, priority=priority,
                 add_nonlin=False, active_ts=active_ts)
+            self._add_policy_preds(plan)
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
             initial_trust_region_size = 1e3
         else:
-            self._bexpr_to_pred = {}
-            obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
-            obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            # self._bexpr_to_pred = {}
+            # obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
             # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            # self._add_obj_bexprs(obj_bexprs)
+            # self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
+            #                                    active_ts=active_ts)
+
+            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
-                                               active_ts=active_ts)
+            self._add_policy_preds(plan)
 
         solv = Solver()
         solv.initial_trust_region_size = initial_trust_region_size
@@ -597,38 +431,58 @@ class BaxterPolicySolver(RobotLLSolver):
         return success
 
 
-    def _traj_policy_opt(self, plan, traj_mean, start_t, end_t, base_t):
-        transfer_objs = []
-        for param_name, attr_name in plan.action_inds.keys():
-            param = plan.params[param_name]
-            attr_type = param.get_attr_type(attr_name)
-            param_ll = self._param_to_ll[param]
-            T = end_t - start_t + 1
-            attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
-            K = attr_type.dim
+    def _add_policy_preds(self, plan):
+        for action in plan.actions:
+            for pred_dict in action.preds:
+                if pred_dict['hl_info'] == 'policy':
+                    self._add_policy_pred_dict(pred_dict)
 
-            KT = K*T
-            v = -1 * np.ones((KT - K, 1))
-            d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-            # [:,0] allows numpy to see v and d as one-dimensional so
-            # that numpy will create a diagonal matrix with v and d as a diagonal
-            P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-            # P = np.eye(KT)
-            Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-            cur_val = attr_val.reshape((KT, 1), order='F')
-            A = -2 * cur_val.T.dot(Q)
-            b = cur_val.T.dot(Q.dot(cur_val))
-            policy_transfer_coeff = self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
 
-            # QuadExpr is 0.5*x^Tx + Ax + b
-            quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
-                                 policy_transfer_coeff*A, policy_transfer_coeff*b)
-            ll_attr_val = getattr(param_ll, attr_name)
-            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-            sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-            bexpr = BoundExpr(quad_expr, sco_var)
-            transfer_objs.append(bexpr)
-        return transfer_objs
+    def _add_policy_pred_dict(self, pred_dict):
+        """
+            This function creates constraints for the predicate and added to
+            Prob class in sco.
+        """
+        ignore_preds = []
+        start, end = pred_dict['active_timesteps']
+        active_range = range(start, end+1)
+        negated = pred_dict['negated']
+        pred = pred_dict['pred']
+
+        if pred.get_type() in ignore_preds:
+            return
+        expr = pred.get_expr(negated)
+
+        if expr is not None:
+            for t in active_range:
+                var = self._spawn_sco_var_for_policy_pred(pred, t)
+                bexpr = BoundExpr(expr, var)
+
+                self._bexpr_to_pred[bexpr] = (negated, pred, t)
+                groups = ['all']
+                if self.early_converge:
+                    ## this will check for convergence per parameter
+                    ## this is good if e.g., a single trajectory quickly
+                    ## gets stuck
+                    groups.extend([param.name for param in pred.params])
+                self._prob.add_cnt_expr(bexpr, groups)
+
+
+    def _spawn_sco_var_for_policy_pred(self, pred, t):
+        x = np.empty(pred.x_dim , dtype=object)
+        v = np.empty(pred.x_dim)
+        for param in pred.params:
+            for attr in const.ATTR_MAP(param._type):
+                ll_p = self._param_to_ll[param]
+                if param.is_symbol():
+                    x[pred.state_inds[(param.name, attr[0])]] = getattr(ll_p, attr[0])[attr[1], 0]
+                    v[pred.state_inds[(param.name, attr[0])]] = getattr(p, attr[0])[attr[1], 0]
+                else:
+                    x[pred.state_inds[(param.name, attr[0])]] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[pred.state_inds[(param.name, attr[0])]] = getattr(p, attr[0])[attr[1], t]
+        x = x.reshape((pred.dX, 1))
+        v = v.reshape((pred.dX, 1))
+        return Variable(x, v)
 
 
 if __name__ == '__main__':

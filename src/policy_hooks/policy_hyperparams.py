@@ -134,6 +134,7 @@ config = {
     'algorithm': algorithm,
     'num_samples': 15,
     'num_conds': NUM_CONDS,
-    'mode': 'position'
+    'mode': 'position',
+    'policy_coeff': 1e-1
 }
 

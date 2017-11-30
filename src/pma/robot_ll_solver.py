@@ -1029,10 +1029,10 @@ class RobotLLSolver(LLSolver):
             if DEBUG: assert isinstance(pred, common_predicates.ExprPredicate)
             expr = pred.get_expr(negated)
 
-            for t in effective_timesteps:
-                if t in active_range:
-                    if expr is not None:
-                        if add_nonlin or isinstance(expr.expr, AffExpr):
+            if expr is not None:
+                if add_nonlin or isinstance(expr.expr, AffExpr):
+                    for t in effective_timesteps:
+                        if t in active_range:
                             if verbose:
                                 print "expr being added at time ", t
                             var = self._spawn_sco_var_for_pred(pred, t)
