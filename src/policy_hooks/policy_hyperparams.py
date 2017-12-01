@@ -27,7 +27,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 25
+NUM_CONDS = 1
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \
@@ -74,7 +74,7 @@ algorithm['policy_prior'] = {
 #     'type': AlgorithmMDGPS,
 #     'conditions': common['conditions'],
 #     'iterations': 10,
-#     'kl_step': 1.0,
+#     'kl_step': 0.1,
 #     'min_step_mult': 0.5,
 #     'max_step_mult': 3.0,
 #     'policy_sample_mode': 'replace',
@@ -87,10 +87,10 @@ algorithm['policy_prior'] = {
 
 # algorithm['init_traj_distr'] = {
 #     'type': init_lqr,
-#     'init_var': 1.0,
-#     'stiffness': 1.0,
+#     'init_var': 0.001,
+#     'stiffness': 10.0,
 #     'stiffness_vel': 0.5,
-#     'final_weight': 50.0,
+#     'final_weight': 5.0,
 # }
 
 # algorithm = {
@@ -109,13 +109,17 @@ algorithm['policy_prior'] = {
 #     'prior': {
 #         'type': DynamicsPriorGMM,
 #         'max_clusters': 20,
-#         'min_samples_per_cluster': 40,
-#         'max_samples': 20,
+#         'min_samples_per_cluster': 60,
+#         'max_samples': 30,
 #     },
 # }
 
 # algorithm['traj_opt'] = {
 #     'type': TrajOptPILQR,
+# }
+
+# algorithm['traj_opt'] = {
+#     'type': TrajOptLQRPython,
 # }
 
 # algorithm['policy_prior'] = {
@@ -132,9 +136,10 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 15,
+    'num_samples': 10,
     'num_conds': NUM_CONDS,
     'mode': 'position',
+    'stochastic_conditions': False,
     'policy_coeff': 1e-1
 }
 

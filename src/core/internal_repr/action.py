@@ -42,7 +42,7 @@ class Action(object):
                            min(end, active_ts[1])+1):
                 if pred.active_range[1]+t > active_ts[1] or pred.active_range[0] + t < active_ts[0]:
                     continue
-                if not pred.test(t, negated=negated, tol=tol) and pred.priority <= priority:
+                if pred.priority <= priority and not pred.test(t, negated=negated, tol=tol):
                     failed.append((negated, pred, t))
         return failed
 

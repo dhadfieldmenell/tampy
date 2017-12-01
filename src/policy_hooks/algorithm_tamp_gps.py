@@ -38,8 +38,8 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
         #     self._update_policy()
 
         # Update policy linearizations.
-        for m in range(self.M):
-            self._update_policy_fit(m)
+        # for m in range(self.M):
+        #     self._update_policy_fit(m)
 
         # C-step        
         self._update_trajectories()

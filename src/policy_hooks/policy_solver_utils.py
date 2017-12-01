@@ -12,7 +12,7 @@ NOISE_ENUM = 3
 GPS_RATIO = 1e3
 
 MUJOCO_STEPS_PER_SECOND = 100
-POLICY_STEPS_PER_SECOND = 4
+POLICY_STEPS_PER_SECOND = 1
 
 # INCLUDE_PREDS = ['BaxterAt', 'BaxterClothAt', 'BaxterRobotAt', 'BaxterCloseGripperLeft', \
 #                  'BaxterCloseGripperRight', 'BaxterOpenGripperLeft', \
@@ -88,6 +88,12 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
         x_vel_inds = np.array([0, 1, 2]) + cur_x_ind
         cur_x_ind = x_vel_inds[-1] + 1
         params_to_x_inds[(robot.name, attr+'__vel')] = x_vel_inds
+
+    for attr in robot_attr_map:
+        if (robot.name, attr[0]) in params_to_x_inds: continue
+        x_inds = attr[1] + cur_x_ind
+        cur_x_ind = x_inds[-1] + 1
+        params_to_x_inds[(robot.name, attr[0])] = x_inds
 
     for param in params:
         param_attr_map = const.ATTR_MAP[param._type]
