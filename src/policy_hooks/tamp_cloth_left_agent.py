@@ -712,8 +712,8 @@ class LaundryWorldClothLeftAgent(Agent):
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,t+1]
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t+1]
             
-            alg.cost[m].costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
-            alg.cost[m].costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
+            alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
+            alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
 
         self.initial_opt = False
 
