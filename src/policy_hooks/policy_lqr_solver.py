@@ -18,9 +18,9 @@ from gps.algorithm.cost.cost_utils import RAMP_CONSTANT
 
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
-from policy_hooks.base_gps_main import GPSMain
+from policy_hooks.lqr_transfer_gps_main import GPSMain
 from policy_hooks.cloth_world_policy_utils import *
-import policy_hooks.policy_hyperparams as baxter_hyperparams
+import policy_hooks.policy_hyperparams_lqr as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
 import policy_hooks.policy_solver_utils as utils
 from policy_hooks.tamp_agent import LaundryWorldMujocoAgent
@@ -184,11 +184,13 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [1.0, 1.0],
+                                                        'weights': [1e0, 1e0],
                                                     })
 
         self.config['dQ'] = initial_plan.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = initial_plan.dU
+        self.config['algorithm']['init_traj_distr']['init_gains'] = np.ones((sensor_dims[utils.ACTION_ENUM],)) * 10
+        self.config['algorithm']['init_traj_distr']['init_acc'] = np.zeros((sensor_dims[utils.ACTION_ENUM],))
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
         self.config['algorithm']['init_traj_distr']['T'] = self.config['agent']['T']
 
@@ -199,12 +201,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [100, 100]
+                'dim_hidden': [120, 120]
             },
-            'lr': 1e-3,
+            'lr': 5e-4,
             'network_model': tf_network,
-            'iterations': 5000,
-            'weight_decay': 0.01,
+            'iterations': 10000,
+            'weight_decay': 0.0025,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -229,12 +231,6 @@ class BaxterPolicySolver(RobotLLSolver):
                          plan.actions[a_end].active_timesteps[1])
 
         T = all_active_ts[1] - all_active_ts[0] + 1
-
-        # pol_sample = self.gps.agent.cond_global_pol_sample[cond]
-        # global_traj_mean = np.zeros((plan.symbolic_bound, T))
-        # for t in range(all_active_ts[0], all_active_ts[1]):
-        #     global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_X((t-all_active_ts[0])*utils.MUJOCO_STEPS_PER_SECOND)
-        # global_traj_mean[:, T-1] = pol_sample.get_X((T-1)*utils.MUJOCO_STEPS_PER_SECOND-1)
 
         while a_num < a_end:
             print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
@@ -478,11 +474,14 @@ class BaxterPolicySolver(RobotLLSolver):
             This function creates constraints for the predicate and added to
             Prob class in sco.
         """
+        ignore_preds = []
         start, end = pred_dict['active_timesteps']
         active_range = range(start, end+1)
         negated = pred_dict['negated']
         pred = pred_dict['pred']
 
+        if pred.get_type() in ignore_preds:
+            return
         expr = pred.get_expr(negated)
 
         if expr is not None:

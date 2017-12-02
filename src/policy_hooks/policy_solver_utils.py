@@ -125,9 +125,9 @@ def fill_vector(params, params_to_inds, vec, t):
             if (param.name, attr[0]) not in params_to_inds: continue
             inds = params_to_inds[(param.name, attr[0])]
             if param.is_symbol():
-                vec[inds] = getattr(param, attr[0])[:, 0]
+                vec[inds] = getattr(param, attr[0])[:, 0].copy()
             else:
-                vec[inds] = getattr(param, attr[0])[:, t]
+                vec[inds] = getattr(param, attr[0])[:, t].copy()
 
 def set_params_attrs(params, params_to_inds, vec, t):
     for param in params:

@@ -162,10 +162,6 @@ class BaxterPolicyPredicate(ExprPredicate):
     def error_f(self, x):
         r_inds = self.state_inds[(self.robot.name, 'rArmPose')] - self.dU
         r_grip_inds = self.state_inds[(self.robot.name, 'rGripper')] - self.dU
-        self.robot.openrave_body.set_dof({'lArmPose': x[self.state_inds[(self.robot.name, 'lArmPose')]].flatten(),
-                                          'lGripper': x[self.state_inds[(self.robot.name, 'lGripper')]][0],
-                                          'rArmPose': x[r_inds].flatten(),
-                                          'rGripper': x[r_grip_inds[0]]})
         X = np.zeros((self.dX+self.dU))
         param_names = [param.name for param in self.params]
         for (name, attr) in self.state_inds:

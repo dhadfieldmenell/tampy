@@ -16,15 +16,15 @@ import unittest, time, main
 BASKET_POSE = [0.65, 0.1, 0.875]
 BASKET_X_RANGE = [0.6, 0.7]
 BASKET_Y_RANGE = [0.075, 0.175]
-CLOTH_INIT_X_RANGE = [0.35, 0.7]
-CLOTH_INIT_Y_RANGE = [0.55, 0.9]
+CLOTH_INIT_X_RANGE = [0.3, 0.75]
+CLOTH_INIT_Y_RANGE = [0.5, 0.95]
 
 STEP_DELTA = 16
 BASKET_STEP_DELTA = 4
 TABLE_POSE = [1.23/2-0.1, 0, 0.97/2-0.375]
 TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2] # XYZ
 TABLE_TOP = 0.97 - 0.375 + .02
-BASKET_HEIGHT_DELTA = 0.02
+BASKET_HEIGHT_DELTA = 0.03 # 0.02
 
 R_ARM_PUTDOWN_END = [0, -0.25, 0, 0, 0, 0, 0]
 L_ARM_PUTDOWN_END = [-0.6, -1.49792454, -0.35878011, 1.63006026, 0.02577696, 1.44332767, -0.17578484] # [-1., -1.11049898, -0.29706795, 1.29338713, 0.13218013, 1.40690655, -0.50397199]
@@ -96,12 +96,12 @@ def generate_cond(num_cloths):
     plan.params['robot_end_pose'].rArmPose[:,0] = [-1.4, 0.25, 0, 0.25, 0, 0.25, 0]
     plan.params['robot_end_pose'].rGripper[:,0] = 0
 
-    possible_locs = np.random.choice(range(0, 35*35, STEP_DELTA**2), num_cloths).tolist()
+    possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA**2), num_cloths).tolist()
 
     for c in range(num_cloths):
         next_loc = possible_locs.pop()
-        next_x = (next_loc / 35) / 100.0 + CLOTH_INIT_X_RANGE[0]
-        next_y = (next_loc % 35) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+        next_x = (next_loc / 45) / 100.0 + CLOTH_INIT_X_RANGE[0]
+        next_y = (next_loc % 45) / 100.0 + CLOTH_INIT_Y_RANGE[0]
         plan.params['cloth_{0}'.format(c)].pose[:, 0] = [next_x, next_y, TABLE_TOP]
         plan.params['cloth_{0}'.format(c)].rotation[:, :] = 0
         plan.params['cloth_target_begin_{0}'.format(c)].value[:, 0] = [next_x, next_y, TABLE_TOP]
@@ -614,7 +614,7 @@ def get_randomized_initial_state_left(plan):
         X[plan.state_inds[('init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('init_target', 'rotation')]] = [0, 0, np.pi/2]
 
-        possible_locs = np.random.choice(range(0, 35*35, STEP_DELTA), num_cloths).tolist()
+        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA), num_cloths).tolist()
         possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA), num_cloths).tolist()
 
         success = True
@@ -624,8 +624,8 @@ def get_randomized_initial_state_left(plan):
             plan.params['cloth_{0}'.format(c)].openrave_body.set_pose([10,-10,-10])
         for c in range(num_cloths-1, -1, -1):
             next_loc = possible_locs.pop()
-            next_x = (next_loc / 35) / 100.0 + CLOTH_INIT_X_RANGE[0]
-            next_y = (next_loc % 35) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+            next_x = (next_loc / 45) / 100.0 + CLOTH_INIT_X_RANGE[0]
+            next_y = (next_loc % 45) / 100.0 + CLOTH_INIT_Y_RANGE[0]
             X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP]
 
             arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose([next_x, next_y, TABLE_TOP + 0.075], [0, np.pi/2, 0], "left_arm")
