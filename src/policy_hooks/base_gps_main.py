@@ -66,9 +66,9 @@ class GPSMain(object):
             # log_file.close()
             itr_start = self._initialize(itr_load)
 
-            self.agent.optimize_trajectories(self.algorithm)
-
             for itr in range(itr_start, self._hyperparams['iterations']):
+                self.agent.replace_all_conds()
+                self.agent.optimize_trajectories(self.algorithm)
                 for cond in self._train_idx:
                     for i in range(self._hyperparams['num_samples']):
                         self._take_sample(itr, cond, i)
@@ -87,7 +87,7 @@ class GPSMain(object):
                 # log_file.write("{0}\n".format(self.agent.get_policy_avg_cost()))
                 # log_file.close()
                 # self._log_data(itr, traj_sample_lists, pol_sample_lists)
-                self.agent.optimize_trajectories(self.algorithm)
+                # self.agent.optimize_trajectories(self.algorithm)
             import ipdb; ipdb.set_trace()
         except Exception as e:
             traceback.print_exception(*sys.exc_info())
@@ -170,10 +170,8 @@ class GPSMain(object):
         if self.algorithm._hyperparams['sample_on_policy'] \
                 and self.algorithm.iteration_count > 0:
             pol = self.algorithm.policy_opt.policy
-            on_policy = True
         else:
             pol = self.algorithm.cur[cond].traj_distr
-            on_policy = True
         if self.gui:
             self.gui.set_image_overlays(cond)   # Must call for each new cond.
             redo = True
@@ -247,8 +245,7 @@ class GPSMain(object):
         for cond in range(len(self._test_idx)):
             pol_samples[cond][0] = self.agent.sample(
                 self.algorithm.policy_opt.policy, self._test_idx[cond],
-                save_global=True,
-                verbose=verbose, save=False, noisy=False)
+                save_global=True, verbose=verbose, save=False, noisy=False)
         return [SampleList(samples) for samples in pol_samples]
 
     def _log_data(self, itr, traj_sample_lists, pol_sample_lists=None):

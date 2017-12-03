@@ -66,7 +66,7 @@ class GPSMain(object):
             # log_file.close()
             itr_start = self._initialize(itr_load)
 
-            self.agent.init_trajectories(self.algorithm)
+            self.agent.init_trajectories(self.algorithm, use_single_cond=True)
             self.agent.replace_all_conds()
             self.agent.init_cost_trajectories(self.algorithm, center=False)
 

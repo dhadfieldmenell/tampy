@@ -189,7 +189,7 @@ class BaxterPolicySolver(RobotLLSolver):
 
         self.config['dQ'] = initial_plan.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = initial_plan.dU
-        self.config['algorithm']['init_traj_distr']['init_gains'] = np.ones((sensor_dims[utils.ACTION_ENUM],)) * 10
+        self.config['algorithm']['init_traj_distr']['init_gains'] = np.ones((sensor_dims[utils.ACTION_ENUM],)) * 100
         self.config['algorithm']['init_traj_distr']['init_acc'] = np.zeros((sensor_dims[utils.ACTION_ENUM],))
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
         self.config['algorithm']['init_traj_distr']['T'] = self.config['agent']['T']
@@ -201,12 +201,14 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [120, 120]
+                'dim_hidden': [200, 200]
             },
-            'lr': 5e-4,
+            'init_var': 1.0,
+            'ent_reg': 0.01,
+            'lr': 1e-4,
             'network_model': tf_network,
-            'iterations': 10000,
-            'weight_decay': 0.0025,
+            'iterations': 5000,
+            'weight_decay': 0.00075,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -251,9 +253,9 @@ class BaxterPolicySolver(RobotLLSolver):
                     p_attrs = {}
                     old_params_free[p] = p_attrs
                     for attr in p._free_attrs:
-                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0]+1)].copy(), p._free_attrs[attr][:, (active_ts[1]+1):].copy()]
-                        p._free_attrs[attr][:, (active_ts[1]+1):] = 0
-                        p._free_attrs[attr][:, :(active_ts[0]+1)] = 0
+                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1]):].copy()]
+                        p._free_attrs[attr][:, (active_ts[1]):] = 0
+                        p._free_attrs[attr][:, :(active_ts[0])] = 0
             
             success = self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=N_RESAMPLES)
             
@@ -264,8 +266,8 @@ class BaxterPolicySolver(RobotLLSolver):
                     p._free_attrs = old_params_free[p]
                 else:
                     for attr in p._free_attrs:
-                        p._free_attrs[attr][:, :(active_ts[0]+1)] = old_params_free[p][attr][0]
-                        p._free_attrs[attr][:, (active_ts[1]+1):] = old_params_free[p][attr][1]
+                        p._free_attrs[attr][:, :(active_ts[0])] = old_params_free[p][attr][0]
+                        p._free_attrs[attr][:, (active_ts[1]):] = old_params_free[p][attr][1]
 
             # if not success:
             #     return success
@@ -414,8 +416,8 @@ class BaxterPolicySolver(RobotLLSolver):
             failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
-            self._add_all_timesteps_of_actions(plan, priority=3,
-                add_nonlin=False, active_ts=active_ts)
+            # self._add_all_timesteps_of_actions(plan, priority=3,
+            #     add_nonlin=False, active_ts=active_ts)
             self._add_policy_preds(plan, active_ts)
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
@@ -423,12 +425,11 @@ class BaxterPolicySolver(RobotLLSolver):
         else:
             self._bexpr_to_pred = {}
             # obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
+            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
             # self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
-                                               active_ts=active_ts)
-
-            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
+            # self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
+            #                                    active_ts=active_ts)
             self._add_obj_bexprs(obj_bexprs)
             self._add_policy_preds(plan, active_ts)
 

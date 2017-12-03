@@ -29,6 +29,9 @@ BASKET_HEIGHT_DELTA = 0.03 # 0.02
 R_ARM_PUTDOWN_END = [0, -0.25, 0, 0, 0, 0, 0]
 L_ARM_PUTDOWN_END = [-0.6, -1.49792454, -0.35878011, 1.63006026, 0.02577696, 1.44332767, -0.17578484] # [-1., -1.11049898, -0.29706795, 1.29338713, 0.13218013, 1.40690655, -0.50397199]
 
+R_ARM_INIT = [0, -0.25, 0, 0, 0, 0, 0]
+L_ARM_INIT = [-0.6, -1.49792454, -0.35878011, 1.63006026, 0.02577696, 1.44332767, -0.17578484]
+
 FOUR_CLOTH_LOCATIONS = [
     [[ 0.68 ,  0.39 ,  0.615], [ 0.68 ,  0.75 ,  0.615], [ 0.74 ,  0.63 ,  0.615], [ 0.58 ,  0.71 ,  0.615]],
     [[0.4, 0.6, 0.615], [0.5, 0.4, 0.615], [0.53, 0.7, 0.615], [0.62, 0.42, 0.615]],
@@ -86,7 +89,7 @@ def generate_cond(num_cloths):
     plan.params['table'].pose[:,:] = np.array(TABLE_POSE).reshape(-1,1)
     plan.params['table'].rotation[:,:] = 0
 
-    plan.params['robot_init_pose'].lArmPose[:,0] = L_ARM_PUTDOWN_END # [-0.1, -0.65, 0, 0, 0, 0, 0]
+    plan.params['robot_init_pose'].lArmPose[:,0] = L_ARM_INIT # L_ARM_PUTDOWN_END # [-0.1, -0.65, 0, 0, 0, 0, 0]
     plan.params['robot_init_pose'].lGripper[:,0] = 0.02
     plan.params['robot_init_pose'].rArmPose[:,0] = R_ARM_PUTDOWN_END # [0.1, -0.65, 0, 0, 0, 0, 0]
     plan.params['robot_init_pose'].rGripper[:,0] = 0.02

@@ -74,9 +74,9 @@ algorithm = {
     'type': AlgorithmMDGPS,
     'conditions': common['conditions'],
     'iterations': 10,
-    'kl_step': 5.0,
+    'kl_step': 2.5,
     'min_step_mult': 0.5,
-    'max_ent_traj': 0.01,
+    # 'max_ent_traj': 0.005,
     'max_step_mult': 3.0,
     'policy_sample_mode': 'replace',
 }
@@ -88,7 +88,7 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_lqr,
-    'init_var': 01.0,
+    'init_var': 10.0,
     'stiffness': 100.0,
     'stiffness_vel': 0.5,
     'final_weight': 1.0,
@@ -121,6 +121,7 @@ algorithm['dynamics'] = {
 
 algorithm['traj_opt'] = {
     'type': TrajOptLQRPython,
+    'cons_per_step': False
 }
 
 algorithm['policy_prior'] = {
@@ -137,10 +138,10 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 20,
+    'num_samples': 40,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': False,
-    'policy_coeff': 1e2
+    'policy_coeff': 1e1
 }
 

@@ -56,7 +56,7 @@ class BaxterPolicyEEPredicate(ExprPredicate):
 
         robot_trans = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransform()
         pos = robot_trans[:3, 3]
-        policy_ee = self.policy_func(x)
+        policy_ee = self.policy_func(x.copy())
 
         dist_val = (pos - policy_ee[self.action_inds[('baxter', 'ee_left_pos')]]).reshape((3,1))
         
@@ -84,7 +84,7 @@ class BaxterPolicyEEPredicate(ExprPredicate):
                                           'rGripper': x[self.state_inds[(self.robot.name, 'rGripper')]]})
 
         robot_trans = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransform()
-        policy_ee = self.policy_func(x)
+        policy_ee = self.policy_func(x.copy())
 
         robot_pos = robot_trans[:3, 3]
         # policy_pos = policy_ee[self.action_inds[('baxter', 'ee_left_pos')]]
@@ -154,24 +154,24 @@ class BaxterPolicyPredicate(ExprPredicate):
                     if (p.name, attr[0]) in self.action_inds:
                         self._x[self.state_inds[p.name, attr[0]]] = getattr(p, attr[0])[:, t]
                     else:
-                        inds = self.state_inds[p.name, attr[0]] - self.dU
+                        inds = self.state_inds[p.name, attr[0]].flatten() - self.dU
                         self._x[inds] = getattr(p, attr[0])[:, t]
         return self._x.reshape((-1,1))
 
 
     def error_f(self, x):
-        r_inds = self.state_inds[(self.robot.name, 'rArmPose')] - self.dU
-        r_grip_inds = self.state_inds[(self.robot.name, 'rGripper')] - self.dU
-        X = np.zeros((self.dX+self.dU))
+        X = np.zeros((self.dX+self.dU)) # Account for velocities
         param_names = [param.name for param in self.params]
         for (name, attr) in self.state_inds:
-            if name not in param_names: continue
+            if name not in param_names or attr.endswith('__vel'): continue
             if (name, attr) in self.action_inds:
                 X[self.state_inds[(name, attr)]] = x[self.state_inds[(name, attr)]].flatten()
             else:
-                inds = self.state_inds[(name, attr)] - self.dU
+                inds = self.state_inds[(name, attr)].flatten() - self.dU
                 X[self.state_inds[(name, attr)]] = x[inds].flatten()
-        policy_joints = self.policy_func(X)
+        policy_joints = self.policy_func(X.copy())
+        # policy_joints[self.action_inds[self.robot.name, 'lGripper']] = min(policy_joints[self.action_inds[self.robot.name, 'lGripper']], 0.02)
+        # policy_joints[self.action_inds[self.robot.name, 'lGripper']] = max(policy_joints[self.action_inds[self.robot.name, 'lGripper']], 0.0)
 
         dist_val = (x[self.state_inds[(self.robot.name, 'lArmPose')]].flatten() - policy_joints[self.action_inds[('baxter', 'lArmPose')]]).reshape((7,1))
         gripper_val = [x[self.state_inds[(self.robot.name, 'lGripper')]].flatten() - policy_joints[self.action_inds[(self.robot.name, 'lGripper')]]]

@@ -199,12 +199,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [100, 100]
+                'dim_hidden': [350, 350]
             },
-            'lr': 1e-3,
+            'lr': 1e-4,
             'network_model': tf_network,
-            'iterations': 5000,
-            'weight_decay': 0.01,
+            'iterations': 7000,
+            'weight_decay': 0.00075,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -219,8 +219,10 @@ class BaxterPolicySolver(RobotLLSolver):
         self.gps.run()
 
 
-    def optimize_against_global(self, plan, a_start, a_end, cond):
+    def optimize_against_global(self, plan, a_start=0, a_end=-1, cond=0):
         a_num = a_start
+        if a_end == -1:
+            a_end = len(plan.actions) - 1
         success = True
         if a_start == a_end:
             raise Exception("This method requires at least two actions.")
@@ -255,9 +257,9 @@ class BaxterPolicySolver(RobotLLSolver):
                     p_attrs = {}
                     old_params_free[p] = p_attrs
                     for attr in p._free_attrs:
-                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0]+1)].copy(), p._free_attrs[attr][:, (active_ts[1]+1):].copy()]
-                        p._free_attrs[attr][:, (active_ts[1]+1):] = 0
-                        p._free_attrs[attr][:, :(active_ts[0]+1)] = 0
+                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1]):].copy()]
+                        p._free_attrs[attr][:, (active_ts[1]):] = 0
+                        p._free_attrs[attr][:, :(active_ts[0])] = 0
             
             success = self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=N_RESAMPLES)
             
@@ -268,8 +270,8 @@ class BaxterPolicySolver(RobotLLSolver):
                     p._free_attrs = old_params_free[p]
                 else:
                     for attr in p._free_attrs:
-                        p._free_attrs[attr][:, :(active_ts[0]+1)] = old_params_free[p][attr][0]
-                        p._free_attrs[attr][:, (active_ts[1]+1):] = old_params_free[p][attr][1]
+                        p._free_attrs[attr][:, :(active_ts[0])] = old_params_free[p][attr][0]
+                        p._free_attrs[attr][:, (active_ts[1]):] = old_params_free[p][attr][1]
 
             # if not success:
             #     return success
@@ -351,38 +353,38 @@ class BaxterPolicySolver(RobotLLSolver):
     #     return success
 
 
-    # def _traj_policy_opt(self, plan, traj_mean, start_t, end_t, base_t):
-    #     transfer_objs = []
-    #     for param_name, attr_name in plan.action_inds.keys():
-    #         param = plan.params[param_name]
-    #         attr_type = param.get_attr_type(attr_name)
-    #         param_ll = self._param_to_ll[param]
-    #         T = end_t - start_t + 1
-    #         attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
-    #         K = attr_type.dim
+    def _traj_policy_opt(self, plan, traj_mean, start_t, end_t, base_t=0):
+        transfer_objs = []
+        for param_name, attr_name in plan.action_inds.keys():
+            param = plan.params[param_name]
+            attr_type = param.get_attr_type(attr_name)
+            param_ll = self._param_to_ll[param]
+            T = end_t - start_t + 1
+            attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
+            K = attr_type.dim
 
-    #         KT = K*T
-    #         v = -1 * np.ones((KT - K, 1))
-    #         d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-    #         # [:,0] allows numpy to see v and d as one-dimensional so
-    #         # that numpy will create a diagonal matrix with v and d as a diagonal
-    #         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-    #         # P = np.eye(KT)
-    #         Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-    #         cur_val = attr_val.reshape((KT, 1), order='F')
-    #         A = -2 * cur_val.T.dot(Q)
-    #         b = cur_val.T.dot(Q.dot(cur_val))
-    #         policy_transfer_coeff = self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
+            KT = K*T
+            v = -1 * np.ones((KT - K, 1))
+            d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+            # [:,0] allows numpy to see v and d as one-dimensional so
+            # that numpy will create a diagonal matrix with v and d as a diagonal
+            P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+            # P = np.eye(KT)
+            Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
+            cur_val = attr_val.reshape((KT, 1), order='F')
+            A = -2 * cur_val.T.dot(Q)
+            b = cur_val.T.dot(Q.dot(cur_val))
+            policy_transfer_coeff = self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
 
-    #         # QuadExpr is 0.5*x^Tx + Ax + b
-    #         quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
-    #                              policy_transfer_coeff*A, policy_transfer_coeff*b)
-    #         ll_attr_val = getattr(param_ll, attr_name)
-    #         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-    #         sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-    #         bexpr = BoundExpr(quad_expr, sco_var)
-    #         transfer_objs.append(bexpr)
-    #     return transfer_objs
+            # QuadExpr is 0.5*x^Tx + Ax + b
+            quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
+                                 policy_transfer_coeff*A, policy_transfer_coeff*b)
+            ll_attr_val = getattr(param_ll, attr_name)
+            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+            sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+            bexpr = BoundExpr(quad_expr, sco_var)
+            transfer_objs.append(bexpr)
+        return transfer_objs
 
 
     def _add_policy_constraints_to_plan(self, plan, param_names):
@@ -427,12 +429,11 @@ class BaxterPolicySolver(RobotLLSolver):
         else:
             self._bexpr_to_pred = {}
             # obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
-            # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            obj_bexprs = self._get_transfer_obj(plan, self.transfer_norm)
             # self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
-                                               active_ts=active_ts)
+            # self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
+            #                                    active_ts=active_ts)
 
-            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
             self._add_obj_bexprs(obj_bexprs)
             self._add_policy_preds(plan, active_ts)
 
