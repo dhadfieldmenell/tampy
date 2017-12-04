@@ -97,7 +97,7 @@ def generate_cond(num_cloths):
     plan.params['robot_end_pose'].lArmPose[:,0] = [1.4, 0.25, 0, 0.25, 0, 0.25, 0]
     plan.params['robot_end_pose'].lGripper[:,0] = 0
     plan.params['robot_end_pose'].rArmPose[:,0] = [-1.4, 0.25, 0, 0.25, 0, 0.25, 0]
-    plan.params['robot_end_pose'].rGripper[:,0] = 0
+    plan.params['robot_end_pose'].rGripper[:,0] = 0.015
 
     possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA**2), num_cloths).tolist()
 
@@ -123,11 +123,11 @@ def generate_cond(num_cloths):
         plan.params['cloth_grasp_begin_{0}'.format(c)].rArmPose[:,:] = np.nan
         plan.params['cloth_grasp_begin_{0}'.format(c)].rGripper[:,:] = np.nan
 
-        plan.params['cloth_grasp_end_{0}'.format(c)].value[:,:] = np.nan
-        plan.params['cloth_grasp_end_{0}'.format(c)].lArmPose[:,:] = np.nan
-        plan.params['cloth_grasp_end_{0}'.format(c)].lGripper[:,:] = np.nan
-        plan.params['cloth_grasp_end_{0}'.format(c)].rArmPose[:,:] = np.nan
-        plan.params['cloth_grasp_end_{0}'.format(c)].rGripper[:,:] = np.nan
+        plan.params['cloth_grasp_end_{0}'.format(c)].value[:,:] = 0
+        plan.params['cloth_grasp_end_{0}'.format(c)].lArmPose[:,:] = 0
+        plan.params['cloth_grasp_end_{0}'.format(c)].lGripper[:,:] = 0
+        plan.params['cloth_grasp_end_{0}'.format(c)].rArmPose[:,:] = 0
+        plan.params['cloth_grasp_end_{0}'.format(c)].rGripper[:,:] = 0
 
         plan.params['cloth_putdown_begin_{0}'.format(c)].value[:,:] = np.nan
         plan.params['cloth_putdown_begin_{0}'.format(c)].lArmPose[:,:] = np.nan
@@ -659,6 +659,116 @@ def get_randomized_initial_state_left(plan):
 
         plan_idx = num_cloths - num_on_table
         state_config = [X, [plan_idx*4, plan_idx*4+3], stationary_params]
+
+    print "Found initial configuration.\n"
+    return state_config
+
+
+def get_randomized_initial_state_left_pick_place_split(plan):
+    num_cloths = 1
+    # while 'cloth_{0}'.format(num_cloths) in plan.params:
+    #     num_cloths += 1
+
+    X = np.zeros((plan.dX))
+    state_config = []
+
+    success = False
+    while not success:
+        print 'Searching for initial configuration...'
+        mode = 0 if np.random.choice([0,1,1]) else 1
+        X_0s = []
+
+        X[plan.state_inds[('robot_end_pose', 'lArmPose')]] = plan.params['robot_end_pose'].lArmPose.flatten()
+        X[plan.state_inds[('robot_end_pose', 'lGripper')]] = plan.params['robot_end_pose'].lGripper
+        X[plan.state_inds[('robot_end_pose', 'rArmPose')]] = np.zeros((7,))
+        X[plan.state_inds[('robot_end_pose', 'rGripper')]] = 0
+
+        # plan.params['baxter'].openrave_body.set_dof({'lArmPose': plan.params['robot_init_pose'].lArmPose.flatten(),
+        #                                              'lGripper': plan.params['robot_init_pose'].lGripper.flatten()})
+
+        # ee_trans = plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
+        # X[plan.state_inds[('baxter', 'ee_left_pos')]] = ee_trans[:3,3]
+        # X[plan.state_inds[('baxter', 'ee_left_rot')]] = OpenRAVEBody._ypr_from_rot_matrix(ee_trans[:3,:3])
+
+        X[plan.state_inds[('robot_init_pose', 'lArmPose')]] = plan.params['robot_init_pose'].lArmPose.flatten()
+        X[plan.state_inds[('robot_init_pose', 'lGripper')]] = plan.params['robot_init_pose'].lGripper
+        X[plan.state_inds[('robot_init_pose', 'rArmPose')]] = np.zeros((7,))
+        X[plan.state_inds[('robot_init_pose', 'rGripper')]] = 0
+
+        if not mode:
+            X[plan.state_inds[('baxter', 'lArmPose')]] = plan.params['robot_init_pose'].lArmPose.flatten()
+            X[plan.state_inds[('baxter', 'lGripper')]] = plan.params['robot_init_pose'].lGripper
+
+        basket = plan.params['basket']
+        basket.pose[:,:] = [[np.random.uniform(BASKET_X_RANGE[0], BASKET_X_RANGE[1])],
+                            [np.random.uniform(BASKET_Y_RANGE[0], BASKET_Y_RANGE[1])],
+                            [BASKET_POSE[2]]]
+        X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        X[plan.state_inds[('init_target', 'value')]] = basket.pose[:,0]
+        X[plan.state_inds[('init_target', 'rotation')]] = [0, 0, np.pi/2]
+
+        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA), num_cloths).tolist()
+        possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA), num_cloths).tolist()
+
+        success = True
+        plan.params['table'].openrave_body.set_pose([10,10,10])
+        plan.params['basket'].openrave_body.set_pose([-10,10,10])
+        for c in range(num_cloths):
+            plan.params['cloth_{0}'.format(c)].openrave_body.set_pose([10,-10,-10])
+        for c in range(num_cloths-1, -1, -1):
+            next_loc = possible_locs.pop()
+            next_x = (next_loc / 45) / 100.0 + CLOTH_INIT_X_RANGE[0]
+            next_y = (next_loc % 45) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+            X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP]
+
+            arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose([next_x, next_y, TABLE_TOP + 0.075], [0, np.pi/2, 0], "left_arm")
+            if not len(arm_poses): success = False
+
+            next_x = (basket.pose[0,0] - 0.12) + (possible_basket_locs[c] / 24) / 100.0
+            next_y = (basket.pose[1,0] - 0.12) + (possible_basket_locs[c] % 24) / 100.0
+            X[plan.state_inds[('cloth_target_end_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP+BASKET_HEIGHT_DELTA]
+
+            arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose([next_x, next_y, TABLE_TOP + 0.075], [0, np.pi/2, 0], "left_arm")
+            if not len(arm_poses): success = False
+
+            height = np.random.uniform(0.175, 0.25)
+            arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose(X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] + [-0.025, 0.025, height], [0, np.pi/2, 0], "left_arm")
+            if not len(arm_poses):
+                success = False
+                continue
+
+            X[plan.state_inds[('cloth_grasp_end_{0}'.format(c), 'lArmPose')]] = arm_poses[0]
+            X[plan.state_inds[('cloth_grasp_end_{0}'.format(c), 'lGripper')]] = 0.015
+            X[plan.state_inds[('cloth_grasp_end_{0}'.format(c), 'rArmPose')]] = np.zeros((7,))
+            X[plan.state_inds[('cloth_grasp_end_{0}'.format(c), 'rGripper')]] = 0.015
+
+            if mode:
+                X[plan.state_inds[('baxter', 'lArmPose')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(c), 'lArmPose')]]
+                X[plan.state_inds[('baxter', 'lGripper')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(c), 'lGripper')]]
+                X[plan.state_inds[('baxter', 'rGripper')]] = 0.015
+
+            X[plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'lArmPose')]] = L_ARM_PUTDOWN_END
+            X[plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'lGripper')]] = 0.02
+            X[plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'rArmPose')]] = np.zeros((7,))
+            X[plan.state_inds[('cloth_putdown_end_{0}'.format(c), 'rGripper')]] = 0.0
+
+        num_on_table = np.random.randint(1, num_cloths + 1)
+
+        for c in range(num_cloths-1, num_cloths-num_on_table-1, -1):
+            if not mode:
+                X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]]
+            else:
+                X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] + [-0.025, 0.025, height]
+
+        stationary_params = ['basket']
+        for c in range(num_cloths-num_on_table):
+            X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = X[plan.state_inds[('cloth_target_end_{0}'.format(c), 'value')]]
+            X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = X[plan.state_inds[('cloth_target_end_{0}'.format(c), 'value')]]
+            stationary_params.append('cloth_{0}'.format(c))
+
+        plan_idx = num_cloths - num_on_table
+        actions = [0,1] if not mode else [2,3]
+        state_config = [X, actions, stationary_params]
 
     print "Found initial configuration.\n"
     return state_config

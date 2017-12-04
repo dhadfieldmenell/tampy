@@ -124,8 +124,8 @@ class LaundryWorldClothLeftAgent(Agent):
         self._generate_xml(plan, motor)
         model = mjcore.MjModel(ENV_XML)
         
-        self.left_gripper_l_finger = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
-        self.left_gripper_r_finger = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_r_finger_tip')
+        self.left_grip_l_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
+        self.left_grip_r_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_r_finger_tip')
         self.cloth_inds = []
         for i in range(self.num_cloths):
             self.cloth_inds.append(mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'cloth_{0}'.format(i)))
@@ -228,12 +228,13 @@ class LaundryWorldClothLeftAgent(Agent):
 
             if noisy:
                 noise = np.random.uniform(-1, 1, (self.T, self.dU))
-                noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 0.0001
+                noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 0.00001
             else:
                 noise = np.zeros((self.T, self.dU))
 
             self._set_simulator_state(x0[0], self.plan)
-            last_success_X = x0[0]
+            # last_success_X = x0[0]
+            # r = np.random.uniform(0, 1)
             for t in range(self.T):
                 X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
                 U = policy.act(X.copy(), X.copy(), t, noise[t])
@@ -241,13 +242,13 @@ class LaundryWorldClothLeftAgent(Agent):
                 sample.set(OBS_ENUM, X.copy(), t)
                 sample.set(ACTION_ENUM, U.copy(), t)
                 sample.set(NOISE_ENUM, noise[t], t)
-                grip_cloth = True if not save_global and t >= 39 and t <= 77 else False
+                grip_cloth = False # True if (not save_global) and t >= 39 and t <= 77 else False
                 for delta in range(utils.MUJOCO_STEPS_PER_SECOND/utils.POLICY_STEPS_PER_SECOND):
                     success = self.run_policy_step(U, grip_cloth)
-                    if success:
-                        last_success_X = X
-                    else:
-                        self._set_simulator_state(last_success_X, self.plan)
+                    # if success:
+                    #     last_success_X = X
+                    # else:
+                    #     self._set_simulator_state(last_success_X, self.plan)
                 self.viewer.loop_once()
             # if save_global and success:
             #     self.global_pol_samples[condition].append(sample)
@@ -260,7 +261,7 @@ class LaundryWorldClothLeftAgent(Agent):
         return sample
 
 
-    def run_policy_step(self, policy):
+    def run_policy(self, policy):
         '''
             Run one action of the policy on the current state
         '''
@@ -404,7 +405,7 @@ class LaundryWorldClothLeftAgent(Agent):
         else:
             print 'Collision Limit Exceeded in Position Model.'
             self.pos_model.data.ctrl = np.zeros((18,1))
-            success = False
+            return False
         self.pos_model.step()
 
         body_pos = self.pos_model.body_pos.copy()
@@ -466,7 +467,9 @@ class LaundryWorldClothLeftAgent(Agent):
 
                 self.current_cond = m
                 self.plan.params['baxter'].rArmPose[:,:] = 0
-                self.plan.params['baxter'].rGripper[:,:] = 0
+                # self.plan.params['baxter'].rGripper[:,:] = 0
+
+                print '\n\n\n\nReoptimizing at condition {0}.\n'.format(m)
                 success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
 
                 while self.initial_opt and not success:
@@ -777,7 +780,8 @@ class LaundryWorldClothLeftAgent(Agent):
 
     def replace_cond(self, cond):
         print "Replacing Condition {0}.\n".format(cond)
-        x0s = get_randomized_initial_state_left(self.plan)
+        # x0s = get_randomized_initial_state_left(self.plan)
+        x0s = get_randomized_initial_state_left_pick_place_split(self.plan)
         self.init_plan_states[cond] = x0s
         self.x0[cond] = x0s[0][:self.plan.symbolic_bound]
         self.global_pol_samples[cond] = []

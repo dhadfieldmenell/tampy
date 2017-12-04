@@ -21,8 +21,8 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
         config = copy.deepcopy(ALG_PIGPS)
         config.update(hyperparams)
         AlgorithmMDGPS.__init__(self, config)
-        self.policy_transfer_coeff = self._hyperparams['policy_transfer_coeff']
-        self.policy_scale_factor = self._hyperparams['policy_scale_factor']
+        # self.policy_transfer_coeff = self._hyperparams['policy_transfer_coeff']
+        # self.policy_scale_factor = self._hyperparams['policy_scale_factor']
 
     def iteration(self, sample_lists):
         # Store the samples and evaluate the costs.
@@ -50,7 +50,7 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
         # Prepare for next iteration
         self._advance_iteration_variables()
 
-        self.policy_transfer_coeff *= self.policy_scale_factor
+        # self.policy_transfer_coeff *= self.policy_scale_factor
 
     def _update_trajectories(self):
         if not hasattr(self, 'new_traj_distr'):

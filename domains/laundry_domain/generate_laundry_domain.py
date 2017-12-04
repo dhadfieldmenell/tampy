@@ -177,7 +177,7 @@ class Action(object):
 class Move(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 20 # 30
+        self.timesteps = 25 # 30
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
         self.pre = [\
@@ -802,12 +802,12 @@ class CloseDoor(Action):
 class ClothGrasp(Action):
     def __init__(self):
         self.name = 'cloth_grasp'
-        self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
+        self.timesteps = 2 * const.EEREACHABLE_STEPS + 16 # 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?sp - RobotPose ?ee_left - EEPose ?ep - RobotPose)'
         grasp_time = const.EEREACHABLE_STEPS+5
         approach_time = 5
-        retreat_time = end-5
+        retreat_time = end-10#5
         self.pre = [\
             ('(BaxterClothAt ?cloth ?target)', '0:0'),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),

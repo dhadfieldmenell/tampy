@@ -88,6 +88,10 @@ class GPSMain(object):
                 # log_file.close()
                 # self._log_data(itr, traj_sample_lists, pol_sample_lists)
                 # self.agent.optimize_trajectories(self.algorithm)
+                self.data_logger.pickle(
+                    self._data_files_dir + ('algorithm_itr_%02d_%s_%d.pkl' % (itr, datetime.now().isoformat(), self.algorithm.M)),
+                    copy.copy(self.algorithm)
+                )
             import ipdb; ipdb.set_trace()
         except Exception as e:
             traceback.print_exception(*sys.exc_info())

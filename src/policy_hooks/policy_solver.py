@@ -107,7 +107,8 @@ class BaxterPolicySolver(RobotLLSolver):
         # for c in range(0, self.config['num_conds'], num_cloths):
         #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/num_cloths))
         for c in range(0, self.config['num_conds']):
-            x0s.append(get_randomized_initial_state_left(initial_plan))
+            # x0s.append(get_randomized_initial_state_left(initial_plan))
+            x0s.append(get_randomized_initial_state_left_pick_place_split(initial_plan))
         # for c in range(0, self.config['num_conds']):
         #     x0s.append(get_randomized_initial_state_move(initial_plan))
 
@@ -199,12 +200,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [350, 350]
+                'dim_hidden': [275, 275]
             },
-            'lr': 1e-4,
+            'lr': 5e-4,
             'network_model': tf_network,
-            'iterations': 7000,
-            'weight_decay': 0.00075,
+            'iterations': 12500,
+            'weight_decay': 0.0025,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -257,8 +258,8 @@ class BaxterPolicySolver(RobotLLSolver):
                     p_attrs = {}
                     old_params_free[p] = p_attrs
                     for attr in p._free_attrs:
-                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1]):].copy()]
-                        p._free_attrs[attr][:, (active_ts[1]):] = 0
+                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1])+1:].copy()]
+                        p._free_attrs[attr][:, (active_ts[1])+1:] = 0
                         p._free_attrs[attr][:, :(active_ts[0])] = 0
             
             success = self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=N_RESAMPLES)
@@ -271,14 +272,14 @@ class BaxterPolicySolver(RobotLLSolver):
                 else:
                     for attr in p._free_attrs:
                         p._free_attrs[attr][:, :(active_ts[0])] = old_params_free[p][attr][0]
-                        p._free_attrs[attr][:, (active_ts[1]):] = old_params_free[p][attr][1]
+                        p._free_attrs[attr][:, (active_ts[1])+1:] = old_params_free[p][attr][1]
 
             # if not success:
             #     return success
             # print 'Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name)
             a_num += 1
 
-    def _optimize_against_global(self, plan, active_ts, n_resamples=N_RESAMPLES):
+    def _optimize_against_global(self, plan, active_ts, n_resamples=1):
         priority = 3
         for attempt in range(n_resamples):
             # refinement loop
@@ -429,12 +430,14 @@ class BaxterPolicySolver(RobotLLSolver):
         else:
             self._bexpr_to_pred = {}
             # obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
-            obj_bexprs = self._get_transfer_obj(plan, self.transfer_norm)
+            self.transfer_coeff *= 1e1
+            # obj_bexprs = self._get_transfer_obj(plan, self.transfer_norm)
+            self.transfer_coeff *= 1e-1
             # self._add_obj_bexprs(obj_bexprs)
-            # self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
-            #                                    active_ts=active_ts)
+            self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
+                                               active_ts=active_ts)
 
-            self._add_obj_bexprs(obj_bexprs)
+            # self._add_obj_bexprs(obj_bexprs)
             self._add_policy_preds(plan, active_ts)
 
         solv = Solver()
