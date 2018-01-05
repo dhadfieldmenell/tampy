@@ -23,6 +23,7 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                          ("rArmPose", np.array(range(7), dtype=np.int)),
                          ("rGripper", np.array([0], dtype=np.int)),
                          ("value", np.array([0], dtype=np.int))),
+           "Rotation": (("value", np.array([0], dtype=np.int))),
            "Can": (("pose", np.array([0,1,2], dtype=np.int)),
                    ("rotation", np.array([0,1,2], dtype=np.int))),
            "EEPose": (("value", np.array([0,1,2], dtype=np.int)),
@@ -67,6 +68,16 @@ class BaxterRobotAt(robot_predicates.RobotAt):
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_dim = 17
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        super(BaxterRobotAt, self).__init__(name, params, expected_param_types, env)
+
+class BaxterPoseAtRotation(robot_predicates.RobotAt):
+
+    # RobotAt, RobotPose, Rotation
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_dim = 1
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][4:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(BaxterRobotAt, self).__init__(name, params, expected_param_types, env)
 
@@ -212,6 +223,21 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
         self.base_step = const.BASE_MOVE*np.ones((const.BASE_DIM,1))
         self.joint_step = joint_move
         self.lower_limit = active_lb
+        return A, b, val
+
+class BaxterWithinRotLimit(robot_predicates.WithinJointLimit):
+
+    # WithinJointLimit Robot
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.dof_cache = None
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][4:5]))])
+        super(BaxterWithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
+
+    def setup_mov_limit_check(self):
+        val = np.vstack((-const.ROT_LB, const.ROT_UB))
+        A = np.array([[-1], [1]])
+        b = np.zeros((2,1))
         return A, b, val
 
 class BaxterStationary(robot_predicates.Stationary):

@@ -27,7 +27,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 20
+NUM_CONDS = 32
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \
@@ -40,28 +40,29 @@ common = {
 }
 
 algorithm = {
-    'type': AlgorithmTAMPGPS,
-    # 'type': AlgorithmPIGPS,
+    # 'type': AlgorithmTAMPGPS,
+    'type': AlgorithmPIGPS,
     'conditions': common['conditions'],
     'policy_sample_mode': 'replace',
     'sample_on_policy': True,
-    'iterations': 5,
+    'iterations': 20,
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
+    'policy_transfer_coeff': 1e-2,
 }
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.001,
-    'pos_gains': 0.0,
+    'init_var': 0.00025,
+    'pos_gains': 0.001,
 }
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
     'kl_threshold': 1.0,
-    'covariance_damping': 5.0,
-    'min_temperature': 0.0001,
+    'covariance_damping': 10.0,
+    'min_temperature': 0.001,
 }
 
 algorithm['policy_prior'] = {
@@ -134,10 +135,10 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 5,
+    'num_samples': 20,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': True,
-    'policy_coeff': 1e-2
+    'policy_coeff': 1e-1
 }
 

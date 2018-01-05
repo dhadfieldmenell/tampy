@@ -442,3 +442,9 @@ class OpenRAVEBody(object):
         iktype = IkParameterizationType.Transform6D
         solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
         return solutions
+
+    def fwd_kinematics(self, dof, manip_name):
+        self.set_dof(dof)
+        trans = self.env_body.GetLink(manip_name)
+        pos = trans[:3, 3]
+        quat = openravepy.quatFromRotationMatrix(trans[:3, :3])

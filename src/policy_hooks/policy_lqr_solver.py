@@ -18,7 +18,8 @@ from gps.algorithm.cost.cost_utils import RAMP_CONSTANT
 
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
-from policy_hooks.lqr_transfer_gps_main import GPSMain
+# from policy_hooks.lqr_transfer_gps_main import GPSMain
+from policy_hooks.lqr_gps_main import GPSMain
 from policy_hooks.cloth_world_policy_utils import *
 import policy_hooks.policy_hyperparams_lqr as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
@@ -107,7 +108,7 @@ class BaxterPolicySolver(RobotLLSolver):
         # for c in range(0, self.config['num_conds'], num_cloths):
         #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/num_cloths))
         for c in range(0, self.config['num_conds']):
-            x0s.append(get_randomized_initial_state_left(initial_plan))
+            x0s.append(get_randomized_initial_state_left_pick_place_split(initial_plan))
         # for c in range(0, self.config['num_conds']):
         #     x0s.append(get_randomized_initial_state_move(initial_plan))
 
@@ -201,14 +202,14 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [200, 200]
+                'dim_hidden': [175, 175]
             },
-            'init_var': 1.0,
-            'ent_reg': 0.01,
-            'lr': 1e-4,
+            # 'init_var': 1.0,
+            # 'ent_reg': 0.01,
+            'lr':2.5e-4,
             'network_model': tf_network,
-            'iterations': 5000,
-            'weight_decay': 0.00075,
+            'iterations': 10000,
+            'weight_decay': 0.0025,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -223,8 +224,10 @@ class BaxterPolicySolver(RobotLLSolver):
         self.gps.run()
 
 
-    def optimize_against_global(self, plan, a_start, a_end, cond):
+    def optimize_against_global(self, plan, a_start=0, a_end=-1, cond=0):
         a_num = a_start
+        if a_end == -1:
+            a_end = len(plan.actions) - 1
         success = True
         if a_start == a_end:
             raise Exception("This method requires at least two actions.")
@@ -233,6 +236,12 @@ class BaxterPolicySolver(RobotLLSolver):
                          plan.actions[a_end].active_timesteps[1])
 
         T = all_active_ts[1] - all_active_ts[0] + 1
+
+        # pol_sample = self.gps.agent.cond_global_pol_sample[cond]
+        # global_traj_mean = np.zeros((plan.symbolic_bound, T))
+        # for t in range(all_active_ts[0], all_active_ts[1]):
+        #     global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_X((t-all_active_ts[0])*utils.MUJOCO_STEPS_PER_SECOND)
+        # global_traj_mean[:, T-1] = pol_sample.get_X((T-1)*utils.MUJOCO_STEPS_PER_SECOND-1)
 
         while a_num < a_end:
             print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
@@ -253,8 +262,8 @@ class BaxterPolicySolver(RobotLLSolver):
                     p_attrs = {}
                     old_params_free[p] = p_attrs
                     for attr in p._free_attrs:
-                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1]):].copy()]
-                        p._free_attrs[attr][:, (active_ts[1]):] = 0
+                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1])+1:].copy()]
+                        p._free_attrs[attr][:, (active_ts[1])+1:] = 0
                         p._free_attrs[attr][:, :(active_ts[0])] = 0
             
             success = self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=N_RESAMPLES)
@@ -267,14 +276,14 @@ class BaxterPolicySolver(RobotLLSolver):
                 else:
                     for attr in p._free_attrs:
                         p._free_attrs[attr][:, :(active_ts[0])] = old_params_free[p][attr][0]
-                        p._free_attrs[attr][:, (active_ts[1]):] = old_params_free[p][attr][1]
+                        p._free_attrs[attr][:, (active_ts[1])+1:] = old_params_free[p][attr][1]
 
             # if not success:
             #     return success
             # print 'Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name)
             a_num += 1
 
-    def _optimize_against_global(self, plan, active_ts, n_resamples=N_RESAMPLES):
+    def _optimize_against_global(self, plan, active_ts, n_resamples=1):
         priority = 3
         for attempt in range(n_resamples):
             # refinement loop
@@ -349,38 +358,38 @@ class BaxterPolicySolver(RobotLLSolver):
     #     return success
 
 
-    # def _traj_policy_opt(self, plan, traj_mean, start_t, end_t, base_t):
-    #     transfer_objs = []
-    #     for param_name, attr_name in plan.action_inds.keys():
-    #         param = plan.params[param_name]
-    #         attr_type = param.get_attr_type(attr_name)
-    #         param_ll = self._param_to_ll[param]
-    #         T = end_t - start_t + 1
-    #         attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
-    #         K = attr_type.dim
+    def _traj_policy_opt(self, plan, traj_mean, start_t, end_t, base_t=0):
+        transfer_objs = []
+        for param_name, attr_name in plan.action_inds.keys():
+            param = plan.params[param_name]
+            attr_type = param.get_attr_type(attr_name)
+            param_ll = self._param_to_ll[param]
+            T = end_t - start_t + 1
+            attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
+            K = attr_type.dim
 
-    #         KT = K*T
-    #         v = -1 * np.ones((KT - K, 1))
-    #         d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-    #         # [:,0] allows numpy to see v and d as one-dimensional so
-    #         # that numpy will create a diagonal matrix with v and d as a diagonal
-    #         P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-    #         # P = np.eye(KT)
-    #         Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-    #         cur_val = attr_val.reshape((KT, 1), order='F')
-    #         A = -2 * cur_val.T.dot(Q)
-    #         b = cur_val.T.dot(Q.dot(cur_val))
-    #         policy_transfer_coeff = self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
+            KT = K*T
+            v = -1 * np.ones((KT - K, 1))
+            d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+            # [:,0] allows numpy to see v and d as one-dimensional so
+            # that numpy will create a diagonal matrix with v and d as a diagonal
+            P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+            # P = np.eye(KT)
+            Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
+            cur_val = attr_val.reshape((KT, 1), order='F')
+            A = -2 * cur_val.T.dot(Q)
+            b = cur_val.T.dot(Q.dot(cur_val))
+            policy_transfer_coeff = self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
 
-    #         # QuadExpr is 0.5*x^Tx + Ax + b
-    #         quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
-    #                              policy_transfer_coeff*A, policy_transfer_coeff*b)
-    #         ll_attr_val = getattr(param_ll, attr_name)
-    #         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-    #         sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-    #         bexpr = BoundExpr(quad_expr, sco_var)
-    #         transfer_objs.append(bexpr)
-    #     return transfer_objs
+            # QuadExpr is 0.5*x^Tx + Ax + b
+            quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
+                                 policy_transfer_coeff*A, policy_transfer_coeff*b)
+            ll_attr_val = getattr(param_ll, attr_name)
+            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+            sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+            bexpr = BoundExpr(quad_expr, sco_var)
+            transfer_objs.append(bexpr)
+        return transfer_objs
 
 
     def _add_policy_constraints_to_plan(self, plan, param_names):
@@ -416,8 +425,8 @@ class BaxterPolicySolver(RobotLLSolver):
             failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
-            # self._add_all_timesteps_of_actions(plan, priority=3,
-            #     add_nonlin=False, active_ts=active_ts)
+            self._add_all_timesteps_of_actions(plan, priority=3,
+                add_nonlin=False, active_ts=active_ts)
             self._add_policy_preds(plan, active_ts)
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
@@ -425,12 +434,14 @@ class BaxterPolicySolver(RobotLLSolver):
         else:
             self._bexpr_to_pred = {}
             # obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
-            obj_bexprs = self._get_trajopt_obj(plan, active_ts)
-            # obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            self.transfer_coeff *= 1e1
+            # obj_bexprs = self._get_transfer_obj(plan, self.transfer_norm)
+            self.transfer_coeff *= 1e-1
             # self._add_obj_bexprs(obj_bexprs)
-            # self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
-            #                                    active_ts=active_ts)
-            self._add_obj_bexprs(obj_bexprs)
+            self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
+                                               active_ts=active_ts)
+
+            # self._add_obj_bexprs(obj_bexprs)
             self._add_policy_preds(plan, active_ts)
 
         solv = Solver()
@@ -475,14 +486,11 @@ class BaxterPolicySolver(RobotLLSolver):
             This function creates constraints for the predicate and added to
             Prob class in sco.
         """
-        ignore_preds = []
         start, end = pred_dict['active_timesteps']
         active_range = range(start, end+1)
         negated = pred_dict['negated']
         pred = pred_dict['pred']
 
-        if pred.get_type() in ignore_preds:
-            return
         expr = pred.get_expr(negated)
 
         if expr is not None:

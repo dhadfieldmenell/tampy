@@ -313,7 +313,11 @@ class LaundryWorldEELeftAgent(Agent):
             print 'Collision Limit Exceeded in Position Model.'
             self.pos_model.data.ctrl = np.zeros((18,1))
             success = False
-        self.pos_model.step()
+
+        iteration = 0
+        while (np.any(self.pos_model.data.qpos[1:] - self.pos_model.data.ctrl > 0.05) and iteration < 100):
+            self.pos_model.step()
+            iteration += 1
 
         body_pos = self.pos_model.body_pos.copy()
         xpos = self.pos_model.data.xpos.copy()

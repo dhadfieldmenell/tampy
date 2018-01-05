@@ -67,7 +67,6 @@ class GPSMain(object):
             itr_start = self._initialize(itr_load)
 
             for itr in range(itr_start, self._hyperparams['iterations']):
-                self.agent.replace_all_conds()
                 self.agent.optimize_trajectories(self.algorithm)
                 for cond in self._train_idx:
                     for i in range(self._hyperparams['num_samples']):
@@ -82,6 +81,7 @@ class GPSMain(object):
                 self.agent.clear_samples()
 
                 self._take_iteration(itr, traj_sample_lists)
+                self.agent.replace_all_conds()
                 pol_sample_lists = self._take_policy_samples()
                 # log_file = open("avg_cost_log.txt", "a+")
                 # log_file.write("{0}\n".format(self.agent.get_policy_avg_cost()))
@@ -89,7 +89,7 @@ class GPSMain(object):
                 # self._log_data(itr, traj_sample_lists, pol_sample_lists)
                 # self.agent.optimize_trajectories(self.algorithm)
                 self.data_logger.pickle(
-                    self._data_files_dir + ('algorithm_itr_%02d_%s_%d.pkl' % (itr, datetime.now().isoformat(), self.algorithm.M)),
+                    self._data_files_dir + ('%d_algorithm_itr_%02d_%s.pkl' % (self.algorithm.M, itr, datetime.now().isoformat())),
                     copy.copy(self.algorithm)
                 )
             import ipdb; ipdb.set_trace()

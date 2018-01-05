@@ -63,11 +63,11 @@ class TrajectoryController(object):
         right_vel_ratio = min(np.mean((np.abs(cur_right_err) / real_t) / joint_velocity_limits), 1.0)
         # self.right.set_joint_position_speed(right_vel_ratio)
 
-        self.left.set_joint_position_speed(0.05)
-        self.right.set_joint_position_speed(0.05)
+        self.left.set_joint_position_speed(0.025)
+        self.right.set_joint_position_speed(0.025)
 
         attempt = 0.0
-        while (np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits)) and use_right:# and attempt <= int(ROS_RATE * real_t):
+        while (np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits)) and use_right and attempt <= int(ROS_RATE * 10):
             next_left_target = left_target # current_left + (left_target - current_left) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_left_err
             next_right_target = right_target # current_right + (right_target - current_right) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_right_err
             left_target_dict = dict(zip(left_joints, next_left_target))
@@ -169,6 +169,19 @@ class TrajectoryController(object):
 
             cur_t += const.time_delta
 
+    def execute_action(self, plan, act_n):
+        if act_n >= len(plan.actions):
+            raise Exception("Invalid action number (> max) passed to action execution.")
+        cur_action = plan.actions[act_n]
+        active_ts = cur_action.active_timesteps
+
+        cur_ts = active_ts[0]
+        baxter = plan.params['baxter']
+        while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
+            success = self.execute_timestep(baxter, cur_ts, 1, ['left', 'right'])
+            cur_ts += 1
+
+        print 'Execution finished'
 
     def _update_plan(self, plan, type):
         pass
@@ -218,7 +231,7 @@ class EEController(object):
         if 'right' in limbs:
             self.right.set_joint_positions(right_target_dict)
 
-    def move_to_targets(self, limbs=['left', 'right'], max_iters=10000):
+    def move_to_targets(self, limbs=['left', 'right'], max_iters=1000):
         use_left = 'left' in limbs
         use_right = 'right' in limbs
         if (not len(self.left_target) and use_left) or (not len(self.right_target) and use_right):

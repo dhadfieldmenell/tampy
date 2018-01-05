@@ -17,7 +17,7 @@ BASKET_POSE = [0.65, 0.1, 0.875]
 BASKET_X_RANGE = [0.6, 0.7]
 BASKET_Y_RANGE = [0.075, 0.175]
 CLOTH_INIT_X_RANGE = [0.3, 0.75]
-CLOTH_INIT_Y_RANGE = [0.5, 0.95]
+CLOTH_INIT_Y_RANGE = [0.525, 0.975]
 
 STEP_DELTA = 16
 BASKET_STEP_DELTA = 4
@@ -675,7 +675,7 @@ def get_randomized_initial_state_left_pick_place_split(plan):
     success = False
     while not success:
         print 'Searching for initial configuration...'
-        mode = 0 if np.random.choice([0,1,1]) else 1
+        mode = 0 if np.random.choice([0,1]) else 1
         X_0s = []
 
         X[plan.state_inds[('robot_end_pose', 'lArmPose')]] = plan.params['robot_end_pose'].lArmPose.flatten()
@@ -726,10 +726,10 @@ def get_randomized_initial_state_left_pick_place_split(plan):
 
             next_x = (basket.pose[0,0] - 0.12) + (possible_basket_locs[c] / 24) / 100.0
             next_y = (basket.pose[1,0] - 0.12) + (possible_basket_locs[c] % 24) / 100.0
-            X[plan.state_inds[('cloth_target_end_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP+BASKET_HEIGHT_DELTA]
+            X[plan.state_inds[('cloth_target_end_{0}'.format(c), 'value')]] = [basket.pose[0,0], basket.pose[1,0], TABLE_TOP+BASKET_HEIGHT_DELTA]# [next_x, next_y, TABLE_TOP+BASKET_HEIGHT_DELTA]
 
-            arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose([next_x, next_y, TABLE_TOP + 0.075], [0, np.pi/2, 0], "left_arm")
-            if not len(arm_poses): success = False
+            # arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose([next_x, next_y, TABLE_TOP + 0.075], [0, np.pi/2, 0], "left_arm")
+            # if not len(arm_poses): success = False
 
             height = np.random.uniform(0.175, 0.25)
             arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose(X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] + [-0.025, 0.025, height], [0, np.pi/2, 0], "left_arm")

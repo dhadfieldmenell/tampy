@@ -56,6 +56,7 @@ pp.add('EEPose', [('value', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Washer', [('geom', 'Washer'), ('pose', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
 pp.add('WasherPose', [('geom', 'Washer'), ('value', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
 pp.add('Obstacle', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
+pp.add('Rotation', [('value', 'Vector1d')])
 dom_str += pp.get_str() + '\n\n'
 
 class DerivatedPredicates(object):
@@ -138,6 +139,8 @@ dp.add('BaxterPushWasher', ['Robot', 'Washer'])
 dp.add('BaxterClothTargetInWasher', ['ClothTarget', 'WasherPose'])
 dp.add('BaxterClothTargetInBasket', ['ClothTarget', 'BasketTarget'])
 dp.add('BaxterGrippersCenteredOverBasket', ['Robot', 'Basket'])
+dp.add('BaxterPoseAtRotation', ['RobotPose', 'Rotation'])
+dp.add('BaxterWithinRotLimit', ['Robot'])
 
 
 
@@ -177,7 +180,7 @@ class Action(object):
 class Move(Action):
     def __init__(self):
         self.name = 'moveto'
-        self.timesteps = 25 # 30
+        self.timesteps = 30
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
         self.pre = [\
@@ -802,12 +805,12 @@ class CloseDoor(Action):
 class ClothGrasp(Action):
     def __init__(self):
         self.name = 'cloth_grasp'
-        self.timesteps = 2 * const.EEREACHABLE_STEPS + 16 # 11
+        self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?sp - RobotPose ?ee_left - EEPose ?ep - RobotPose)'
         grasp_time = const.EEREACHABLE_STEPS+5
         approach_time = 5
-        retreat_time = end-10#5
+        retreat_time = end-5
         self.pre = [\
             ('(BaxterClothAt ?cloth ?target)', '0:0'),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
@@ -1167,6 +1170,46 @@ class CenterGrippers(Action):
         self.eff = [\
             ('(BaxterGrippersCenteredOverBasket ?robot ?basket)', '{}:{}'.format(end, end)),
         ]
+
+class Rotate(Action):
+    def __init__(self):
+        self.name = 'rotate'
+        self.timesteps = 30
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?init_rot - Rotation ?end_rot - Rotation)'
+        self.pre = [\
+            ('(forall (?obj - Basket)\
+                (not (BaxterBasketInGripper ?robot ?obj))\
+            )', '{}:{}'.format(0, 0)),
+            ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
+            ('(BaxterPoseAtRotation ?start ?init_rot)', '{}:{}'.format(0, 0)),
+            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryArms ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Basket)\
+                (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasher ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasherDoor ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '{}:{}'.format(0, end-1)),
+            ('(forall (?basket - Basket) (BaxterBasketLevel ?basket))', '{}:{}'.format(0, end)),
+            ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
+            ('(BaxterWithinRotLimit ?robot)', '{}:{}'.format(0, end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                ))','{}:{}'.format(0, end)),
+            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+        ]
+        self.eff = [\
+            (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
 
 actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(), 
            OpenDoor(), CloseDoor(), ClothGrasp(), ClothPutdown(), PushDoor(), 

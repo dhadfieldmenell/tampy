@@ -21,7 +21,7 @@ class AlgorithmTAMPGPS(AlgorithmPIGPS):
         config = copy.deepcopy(ALG_PIGPS)
         config.update(hyperparams)
         AlgorithmMDGPS.__init__(self, config)
-        # self.policy_transfer_coeff = self._hyperparams['policy_transfer_coeff']
+        self.policy_transfer_coeff = self._hyperparams['policy_transfer_coeff']
         # self.policy_scale_factor = self._hyperparams['policy_scale_factor']
 
     def iteration(self, sample_lists):

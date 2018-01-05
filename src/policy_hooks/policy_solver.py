@@ -120,6 +120,7 @@ class BaxterPolicySolver(RobotLLSolver):
 
         self.T = initial_plan.actions[x0s[0][1][1]].active_timesteps[1] - initial_plan.actions[x0s[0][1][0]].active_timesteps[0]
 
+        self.policy_transfer_coeff = self.config['algorithm']['policy_transfer_coeff']
         if is_first_run:
             self.config['agent'] = {
                 # 'type': LaundryWorldMujocoAgent,
@@ -200,12 +201,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [275, 275]
+                'dim_hidden': [175, 175]
             },
-            'lr': 5e-4,
+            'lr': 5e-5,
             'network_model': tf_network,
-            'iterations': 12500,
-            'weight_decay': 0.0025,
+            'iterations': 10000,
+            'weight_decay': 0.00075,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -228,16 +229,17 @@ class BaxterPolicySolver(RobotLLSolver):
         if a_start == a_end:
             raise Exception("This method requires at least two actions.")
 
-        all_active_ts = (plan.actions[a_start].active_timesteps[0],
-                         plan.actions[a_end].active_timesteps[1])
+        all_active_ts = (plan.actions[self.gps.agent.init_plan_states[cond][1][0]].active_timesteps[0],
+                         plan.actions[self.gps.agent.init_plan_states[cond][1][1]].active_timesteps[1])
 
         T = all_active_ts[1] - all_active_ts[0] + 1
 
-        # pol_sample = self.gps.agent.cond_global_pol_sample[cond]
-        # global_traj_mean = np.zeros((plan.symbolic_bound, T))
-        # for t in range(all_active_ts[0], all_active_ts[1]):
-        #     global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_X((t-all_active_ts[0])*utils.MUJOCO_STEPS_PER_SECOND)
-        # global_traj_mean[:, T-1] = pol_sample.get_X((T-1)*utils.MUJOCO_STEPS_PER_SECOND-1)
+        pol_sample = self.gps.agent.global_policy_samples[cond]
+        global_traj_mean = np.zeros((plan.symbolic_bound, T))
+        for t in range(all_active_ts[0], all_active_ts[1]):
+            global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_X((t-all_active_ts[0])*utils.POLICY_STEPS_PER_SECOND)
+        global_traj_mean[:, T-1] = pol_sample.get_X((T-1)*utils.POLICY_STEPS_PER_SECOND-1)
+        # global_traj_mean = []
 
         while a_num < a_end:
             print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
@@ -262,7 +264,7 @@ class BaxterPolicySolver(RobotLLSolver):
                         p._free_attrs[attr][:, (active_ts[1])+1:] = 0
                         p._free_attrs[attr][:, :(active_ts[0])] = 0
             
-            success = self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=N_RESAMPLES)
+            success = self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=N_RESAMPLES, global_traj_mean=global_traj_mean)
             
             # reset free_attrs
             for p in plan.params.itervalues():
@@ -279,15 +281,15 @@ class BaxterPolicySolver(RobotLLSolver):
             # print 'Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name)
             a_num += 1
 
-    def _optimize_against_global(self, plan, active_ts, n_resamples=1):
+    def _optimize_against_global(self, plan, active_ts, n_resamples=1, global_traj_mean=[]):
         priority = 3
         for attempt in range(n_resamples):
             # refinement loop
-            success = self._solve_policy_opt_prob(plan, active_ts=active_ts, resample=False)
+            success = self._solve_policy_opt_prob(plan, global_traj_mean, active_ts=active_ts, resample=False)
             if success:
                 break
 
-            success = self._solve_policy_opt_prob(plan, active_ts=active_ts, resample=True)
+            success = self._solve_policy_opt_prob(plan, global_traj_mean, active_ts=active_ts, resample=True)
         return success
 
 
@@ -354,8 +356,9 @@ class BaxterPolicySolver(RobotLLSolver):
     #     return success
 
 
-    def _traj_policy_opt(self, plan, traj_mean, start_t, end_t, base_t=0):
+    def _traj_policy_opt(self, plan, traj_mean, start_t, end_t):
         transfer_objs = []
+        base_t = plan.actions[self.gps.agent.init_plan_states[self.gps.agent.current_cond][1][0]].active_timesteps[0]
         for param_name, attr_name in plan.action_inds.keys():
             param = plan.params[param_name]
             attr_type = param.get_attr_type(attr_name)
@@ -375,7 +378,7 @@ class BaxterPolicySolver(RobotLLSolver):
             cur_val = attr_val.reshape((KT, 1), order='F')
             A = -2 * cur_val.T.dot(Q)
             b = cur_val.T.dot(Q.dot(cur_val))
-            policy_transfer_coeff = self.gps.algorithm.policy_transfer_coeff / float(traj_mean.shape[1])
+            policy_transfer_coeff = self.policy_transfer_coeff / float(traj_mean.shape[1])
 
             # QuadExpr is 0.5*x^Tx + Ax + b
             quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
@@ -402,7 +405,7 @@ class BaxterPolicySolver(RobotLLSolver):
         self.policy_pred = pred
 
 
-    def _solve_policy_opt_prob(self, plan, active_ts, resample):
+    def _solve_policy_opt_prob(self, plan, global_traj_mean, active_ts, resample):
         self.plan = plan
         priority = 4
         robot = plan.params['baxter']
@@ -418,6 +421,8 @@ class BaxterPolicySolver(RobotLLSolver):
 
         if resample:
             obj_bexprs = []
+            if len(global_traj_mean):
+                obj_bexprs.extend(self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1]))
             failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
@@ -429,15 +434,16 @@ class BaxterPolicySolver(RobotLLSolver):
             initial_trust_region_size = 1e3
         else:
             self._bexpr_to_pred = {}
-            # obj_bexprs = self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1], base_t)
-            self.transfer_coeff *= 1e1
+            obj_bexprs = []
+            if len(global_traj_mean):
+                obj_bexprs.extend(self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1]))
+                self._add_obj_bexprs(obj_bexprs)
+            # self.transfer_coeff *= 1e1
             # obj_bexprs = self._get_transfer_obj(plan, self.transfer_norm)
-            self.transfer_coeff *= 1e-1
+            # self.transfer_coeff *= 1e-1
             # self._add_obj_bexprs(obj_bexprs)
             self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
                                                active_ts=active_ts)
-
-            # self._add_obj_bexprs(obj_bexprs)
             self._add_policy_preds(plan, active_ts)
 
         solv = Solver()
