@@ -1070,7 +1070,6 @@ class TakeOutOfWasher(Action):
             ('(not (BaxterCollidesWasher ?robot ?washer))', '{}:{}'.format(0, end))
         ]
         self.eff = [\
-            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end-1)) ,
             ('(not (BaxterClothTargetInWasher ?target ?wp))', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
@@ -1176,13 +1175,12 @@ class Rotate(Action):
         self.name = 'rotate'
         self.timesteps = 30
         end = self.timesteps - 1
-        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?init_rot - Rotation ?end_rot - Rotation)'
+        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?end_rot - Rotation)'
         self.pre = [\
             ('(forall (?obj - Basket)\
                 (not (BaxterBasketInGripper ?robot ?obj))\
             )', '{}:{}'.format(0, 0)),
             ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
-            ('(BaxterPoseAtRotation ?start ?init_rot)', '{}:{}'.format(0, 0)),
             ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
@@ -1214,7 +1212,9 @@ class Rotate(Action):
 actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(), 
            OpenDoor(), CloseDoor(), ClothGrasp(), ClothPutdown(), PushDoor(), 
            PutIntoWasher(), TakeOutOfWasher(), PutIntoBasket(), CenterGrippers(),
-           MoveHoldingBasketWithCloth(), PutdownWithCloths(), GraspWithCloths()]
+           MoveHoldingBasketWithCloth(), PutdownWithCloths(), GraspWithCloths(),
+           Rotate()]
+
 for action in actions:
     dom_str += '\n\n'
     dom_str += action.to_str()
