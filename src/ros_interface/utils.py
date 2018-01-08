@@ -56,3 +56,14 @@ pixels_per_cm = 2.3
 
 cloth_net_mean = [117.8504316, 122.86169381, 84.21057003]
 cloth_net_std = [49.69568644, 58.26177112, 75.96082055]
+
+basket_net_mean = 0.16303136
+basket_net_std = 0.41344904
+
+basket_net_ul = 1.35
+basket_net_ll = 1
+
+# Used to match depth images to simulated images
+basket_net_bounds = []
+
+bakset_im_dims = [144, 256]

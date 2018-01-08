@@ -8,7 +8,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import rospy
 from sensor_msgs.msg import Image
 
-import ros_interface.cloth.grid_utils as utils
+import ros_interface.utils as utils
 
 
 TRAINED_MODEL = 'clothGridEvalJan4.h5'

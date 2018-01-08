@@ -1,21 +1,61 @@
 import numpy as np
 
+import rospy
+
+from ros_interace.basket.basket_predict import BasketPredict
+from ros_interace.cloth.cloth_grid_predict import ClothGridPredict
+
+
+class HLLaundryState(object):
+    # TODO: This class is here for temporary usage but needs generalization
+    #       Ideally integreate with existing HLState class and Env Monitor
+    def __init__(self):
+        self.region_poses = [[], [], [], []]
+        self.basket_pose = [np.nan, np.nan, np.nan]
+
+        self.robot_region = 1
+        self.cloth_in_basket = False
+        self.cloth_in_washer = False
+        self.basket_near_washer = False
+        self.washer_door_open = False
+        self.near_loc_clear = True
+        self.far_loc_clear = True
+
+    def reset_region_poses(self):
+        self.region_poses = [[], [], [], []]
+
+
 class LaundryEnvironmentMonitor(object):
     def __init__(self):
-        self.cloth_poses = []
-        self.basket_pose = [np.nan, np.nan, np.nan]
-        self.basket_rot = [np.nan, np.nan, np.nan]
         self.look_for_cloths = True
+        self.state = HLLaundryState()
+        self.cloth_predictor = ClothGridPredict()
+        self.basket_predictor = BasketPredict()
+
+    def predict_cloth_locations(self):
+        if self.look_for_cloths:
+            self.state.reset_region_poses()
+            locs = self.cloth_predictor.predict()
+            for loc in locs:
+                self.state.region_poses[loc[1]].append(loc[0])
+
+    def predict_basket_location(self):
+        self.state.basket_pose = self.basket_predictor.predict()
+
+    def update_plan(self, plan):
+        plan.params['basket'].pose[:2, 0] = self.state.basket_pose[:2]
+        plan.params['basket'].rotation[2, 0] = self.state.basket_pose[2]
+        cur_cloth_n = 0
+        for region in self.state.region_poses:
+            for pose in region:
+                plan.params['cloth_{0}'.format(cur_cloth_n)].pose[:2] = pose
 
     def hl_to_ll(self, plan_str):
         '''Parses a high level plan into a sequence of low level actions.'''
-        self.switch_cloth_scan(False)
-        re_enable_scan = False
         ll_plan_str = ''
         act_num = 0
         cur_cloth_n = 0
         last_pose = 'ROBOT_INIT_POSE'
-        # TODO: Fill in code for retrieving cloth locations
         # TODO: Fill in eval functions for basket setdown region
 
         for action in plan_str:
@@ -197,11 +237,7 @@ class LaundryEnvironmentMonitor(object):
 
         ll_plan_str.append('{0}: MOVETO BAXTER {1} ROBOT_END_POSE'.format(act_num, last_pose))
 
-        if re_enable_scan:
-            self.switch_cloth_scan(True)
+        return ll_plan_str
 
     def _get_action_type(self, action):
         pass
-
-    def switch_cloth_scan(self, flag):
-        self.look_for_cloths = flag
