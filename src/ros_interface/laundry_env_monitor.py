@@ -27,17 +27,15 @@ class HLLaundryState(object):
 
 class LaundryEnvironmentMonitor(object):
     def __init__(self):
-        self.look_for_cloths = True
         self.state = HLLaundryState()
         self.cloth_predictor = ClothGridPredict()
         self.basket_predictor = BasketPredict()
 
     def predict_cloth_locations(self):
-        if self.look_for_cloths:
-            self.state.reset_region_poses()
-            locs = self.cloth_predictor.predict()
-            for loc in locs:
-                self.state.region_poses[loc[1]].append(loc[0])
+        self.state.reset_region_poses()
+        locs = self.cloth_predictor.predict()
+        for loc in locs:
+            self.state.region_poses[loc[1]].append(loc[0])
 
     def predict_basket_location(self):
         self.state.basket_pose = self.basket_predictor.predict()
@@ -49,6 +47,16 @@ class LaundryEnvironmentMonitor(object):
         for region in self.state.region_poses:
             for pose in region:
                 plan.params['cloth_{0}'.format(cur_cloth_n)].pose[:2] = pose
+
+    def plan_from_str(self, ll_plan_str):
+        '''Convert a plan string (low level) into a plan object.'''
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry.prob'.format(num_cloths))
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        reutrn hls.get_plan(plan_str, domain, problem)
 
     def hl_to_ll(self, plan_str):
         '''Parses a high level plan into a sequence of low level actions.'''

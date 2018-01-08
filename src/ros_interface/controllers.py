@@ -91,37 +91,35 @@ class TrajectoryController(object):
         if mode == 'position':
             self._execute_position_control(plan, active_ts)
         else:
-            self._execute_troque_control(plan, active_ts, controller)
+            self._execute_torque_control(plan, active_ts, controller)
 
     def _execute_position_control(self, plan, active_ts=None):
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
 
         act_index = 0
-        cur_action = plan.actions[0]
-        if active_ts < active_ts[0]:
-            raise Exception("Invalid timestep (< min) passed to plan execution.")
+        # cur_action = plan.actions[0]
+        # if cur_action.active_timesteps[0] > active_ts[0]:
+        #     raise Exception("Invalid timestep (< min) passed to plan execution.")
         
-        while active_ts[0] > cur_action.active_timesteps[1]:
-            act_index += 1
-            if act_index >= len(plan.actions):
-                raise Exception("Invalid timestep (> max) passed to plan execution")
-            cur_action = plan.actions[act_index]
+        # while active_ts[0] > cur_action.active_timesteps[1]:
+        #     act_index += 1
+        #     if act_index >= len(plan.actions):
+        #         raise Exception("Invalid timestep (> max) passed to plan execution")
+        #     cur_action = plan.actions[act_index]
 
         cur_ts = active_ts[0]
         baxter = plan.params['baxter']
-        self._update_plan(plan, cur_action.name)
         while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
             success = self.execute_timestep(baxter, cur_ts, plan.time[:, cur_ts], limbs)
-            if not success:
-                self._adjust_for_failed_execute(plan, cur_ts)
+            # if not success:
+            #     self._adjust_for_failed_execute(plan, cur_ts)
             cur_ts += 1
-            if cur_ts >= cur_action.active_timesteps[1] and cur_ts < active_ts[1]:
-                act_index += 1
-                if act_index >= len(plan.actions):
-                    raise Exception("Invalid timestep (> max) passed to plan execution")
-                cur_action = plan.actions[act_index]
-                self._update_plan(plan, cur_action.name)
+            # if cur_ts >= cur_action.active_timesteps[1] and cur_ts < active_ts[1]:
+            #     act_index += 1
+            #     if act_index >= len(plan.actions):
+            #         raise Exception("Invalid timestep (> max) passed to plan execution")
+            #     cur_action = plan.actions[act_index]
 
         print 'Execution finished'
 
