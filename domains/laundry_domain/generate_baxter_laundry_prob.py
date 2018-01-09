@@ -25,7 +25,8 @@ MONITOR_RIGHT = [-np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 # init basket pose
 BASKET_NEAR_POS = [0.9, 0.4,  0.81]
 BASKET_FAR_POS = [0.8, -0.3,  0.81]
-BASKET_INIT_ROT = [np.pi/2, 0, np.pi/2]
+BASKET_NEAR_ROT = [np.pi/2, 0, np.pi/2]
+BASKET_FAR_ROT = [2*np.pi/3, 0, np.pi/2]
 
 TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
 TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375]
@@ -133,8 +134,8 @@ def main():
 
         s += "Init: "
         s += "(geom basket), "
-        s += "(pose basket {}), ".format(BASKET_INIT_POS)
-        s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
+        s += "(pose basket {}), ".format(BASKET_FAR_POS)
+        s += "(rotation basket {}), ".format(BASKET_FAR_ROT)
 
         for i in range(NUM_CLOTHS):
             s += "(geom cloth_{0}), ".format(i)
@@ -192,11 +193,11 @@ def main():
 
         s += "(geom basket_near_target)"
         s += "(value basket_near_target {}), ".format(BASKET_NEAR_POS)
-        s += "(rotation basket_near_target {}), ".format(BASKET_INIT_ROT)
+        s += "(rotation basket_near_target {}), ".format(BASKET_NEAR_ROT)
 
         s += "(geom basket_far_target)"
         s += "(value basket_far_target {}), ".format(BASKET_FAR_POS)
-        s += "(rotation basket_far_target {}), ".format(BASKET_INIT_ROT)
+        s += "(rotation basket_far_target {}), ".format(BASKET_FAR_ROT)
 
 
         # s += "(BaxterAt basket basket_init_target), "

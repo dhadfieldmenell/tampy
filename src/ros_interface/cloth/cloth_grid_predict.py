@@ -11,7 +11,7 @@ from sensor_msgs.msg import Image
 import ros_interface.utils as utils
 
 
-TRAINED_MODEL = 'clothGridEvalJan4.h5'
+TRAINED_MODEL = 'ros_interface/cloth/clothGridEvalJan4.h5'
 
 class ClothGridPredict:
     def __init__(self):

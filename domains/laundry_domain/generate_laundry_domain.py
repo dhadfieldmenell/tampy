@@ -290,7 +290,7 @@ class MoveHoldingCloth(Action):
 
 class MoveHoldingBasketWithCloth(Action):
     def __init__(self):
-        self.name = 'moveholding_basket_with_cloths'
+        self.name = 'moveholding_basket_with_cloth'
         self.timesteps = 20
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?basket - Basket)'
@@ -396,9 +396,9 @@ class Grasp(Action):
             )', '{}:{}'.format(end, end-1))
         ]
 
-class GraspWithCloths(Action):
+class GraspWithCloth(Action):
     def __init__(self):
-        self.name = 'basket_grasp'
+        self.name = 'basket_grasp_with_cloth'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?basket - Basket ?target - BasketTarget ?sp - RobotPose ?ee_left - EEPose ?ee_right - EEPose ?ep - RobotPose)'
@@ -545,9 +545,9 @@ class Putdown(Action):
             )', '{}:{}'.format(end, end-1))
         ]
 
-class PutdownWithCloths(Action):
+class PutdownWithCloth(Action):
     def __init__(self):
-        self.name = 'basket_putdown_with_cloths'
+        self.name = 'basket_putdown_with_cloth'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?basket - Basket ?target - BasketTarget ?sp - RobotPose ?ee_left - EEPose ?ee_right - EEPose ?ep - RobotPose)'
@@ -1209,11 +1209,50 @@ class Rotate(Action):
             (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
 
+class RotateHoldingBasketWithCloth(Action):
+    def __init__(self):
+        self.name = 'rotate_holding_basket_with_cloth'
+        self.timesteps = 20
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?basket - Basket ?start - RobotPose ?end - RobotPose ?end_rot - Rotation)'
+        self.pre = [\
+            ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
+            ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
+            ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?basket))\
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryArms ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(BaxterBasketLevel ?basket)', '{}:{}'.format(0, end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                )\
+            )', '0:{}'.format(end)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end)),
+            ('(forall (?cloth - Cloth) (BaxterObjRelPoseConstant ?basket ?cloth))', '0:{}'.format(end))
+        ]
+        self.eff = [\
+            ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
+            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
+        ]
+
+
 actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(), 
            OpenDoor(), CloseDoor(), ClothGrasp(), ClothPutdown(), PushDoor(), 
            PutIntoWasher(), TakeOutOfWasher(), PutIntoBasket(), CenterGrippers(),
-           MoveHoldingBasketWithCloth(), PutdownWithCloths(), GraspWithCloths(),
-           Rotate()]
+           MoveHoldingBasketWithCloth(), PutdownWithCloth(), GraspWithCloth(),
+           Rotate(), RotateHoldingBasketWithCloth()]
 
 for action in actions:
     dom_str += '\n\n'

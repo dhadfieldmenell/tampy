@@ -259,7 +259,7 @@ class RobotLLSolver(LLSolver):
 
         robot_body.set_dof({'lArmPose': [0.785, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
         for i in range(resample_size):
-            if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown':
+            if next_act.name == 'basket_grasp' or next_act.name == 'basket_putdown' or next_act.name == 'basket_grasp_with_cloth' or next_act.name == 'basket_putdown_with_cloth':
                 target = next_act.params[2]
                 target_rot = target.rotation[0, 0]
                 handle_dist = baxter_constants.BASKET_OFFSET
@@ -422,13 +422,13 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-            elif act.name == 'basket_grasp' or act.name == 'basket_putdown':
+            elif act.name == 'basket_grasp' or act.name == 'basket_putdown' or act.name == 'basket_grasp_with_cloth' or act.name == 'basket_putdown_with_cloth':
                 target = act.params[2]
 
                 act.params[1].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
 
                 offset = np.array([0, baxter_constants.BASKET_OFFSET, 0])
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], RESAMPLE_FACTOR)
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.25], [0.1, 0.1, 0.1])
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
 

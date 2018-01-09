@@ -8,8 +8,8 @@ class HLSolver(object):
     """
     HLSolver provides an interface to the chosen task planner.
     """
-    def __init__(self, domain_config):
-        self.abs_domain = self._translate_domain(domain_config)
+    def __init__(self, domain_config=None, abs_domain=None):
+        self.abs_domain = abs_domain if abs_domain else self._translate_domain(domain_config)
 
     def _translate_domain(self, domain_config):
         """
