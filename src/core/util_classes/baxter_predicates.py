@@ -23,7 +23,7 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                          ("rArmPose", np.array(range(7), dtype=np.int)),
                          ("rGripper", np.array([0], dtype=np.int)),
                          ("value", np.array([0], dtype=np.int))),
-           "Rotation": (("value", np.array([0], dtype=np.int))),
+           "Rotation": [("value", np.array([0], dtype=np.int))],
            "Can": (("pose", np.array([0,1,2], dtype=np.int)),
                    ("rotation", np.array([0,1,2], dtype=np.int))),
            "EEPose": (("value", np.array([0,1,2], dtype=np.int)),
@@ -79,7 +79,7 @@ class BaxterPoseAtRotation(robot_predicates.RobotAt):
         self.attr_dim = 1
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][4:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        super(BaxterRobotAt, self).__init__(name, params, expected_param_types, env)
+        super(BaxterPoseAtRotation, self).__init__(name, params, expected_param_types, env)
 
 class BaxterWasherAt(robot_predicates.RobotAt):
 
@@ -232,7 +232,7 @@ class BaxterWithinRotLimit(robot_predicates.WithinJointLimit):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][4:5]))])
-        super(BaxterWithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
+        super(BaxterWithinRotLimit, self).__init__(name, params, expected_param_types, env, debug)
 
     def setup_mov_limit_check(self):
         val = np.vstack((-const.ROT_LB, const.ROT_UB))
@@ -1786,7 +1786,7 @@ class BaxterClothTargetInBasket(ExprPredicate):
         A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
         b = np.zeros((6,1))
 
-        val = np.array([[.12], [.12], [-.21], [.12], [.12], [.24]])
+        val = np.array([[.1], [.1], [-.21], [.1], [.1], [.24]])
         pos_expr = AffExpr(A, b)
         e = LEqExpr(pos_expr, val)
         super(BaxterClothTargetInBasket, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)

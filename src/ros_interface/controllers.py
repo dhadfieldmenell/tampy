@@ -39,6 +39,8 @@ class TrajectoryController(object):
         self.right = baxter_interface.limb.Limb('right')
         self.left_grip = baxter_interface.gripper.Gripper('left')
         self.right_grip = baxter_interface.gripper.Gripper('right')
+        self.left_grip.calibrate()
+        self.right_grip.calibrate()
 
     def execute_timestep(self, baxter_parameter, ts, real_t, limbs=['left', 'right']):
         use_left = 'left' in limbs
@@ -58,13 +60,13 @@ class TrajectoryController(object):
         cur_right_err = right_target - current_right
 
         real_t = float(real_t)
-        left_vel_ratio = min(np.mean((np.abs(cur_left_err) / real_t) / joint_velocity_limits), 1.0)
+        # left_vel_ratio = min(np.mean((np.abs(cur_left_err) / real_t) / joint_velocity_limits), 1.0)
         # self.left.set_joint_position_speed(left_vel_ratio)
-        right_vel_ratio = min(np.mean((np.abs(cur_right_err) / real_t) / joint_velocity_limits), 1.0)
+        # right_vel_ratio = min(np.mean((np.abs(cur_right_err) / real_t) / joint_velocity_limits), 1.0)
         # self.right.set_joint_position_speed(right_vel_ratio)
 
-        self.left.set_joint_position_speed(0.025)
-        self.right.set_joint_position_speed(0.025)
+        self.left.set_joint_position_speed(0.05)
+        self.right.set_joint_position_speed(0.05)
 
         attempt = 0.0
         while (np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits)) and use_right and attempt <= int(ROS_RATE * 10):
@@ -89,11 +91,11 @@ class TrajectoryController(object):
     def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right']):
         rospy.Rate(ROS_RATE)
         if mode == 'position':
-            self._execute_position_control(plan, active_ts)
+            self._execute_position_control(plan, active_ts, limbs)
         else:
             self._execute_torque_control(plan, active_ts, controller)
 
-    def _execute_position_control(self, plan, active_ts=None):
+    def _execute_position_control(self, plan, active_ts=None, limbs=['left', 'right']):
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
 

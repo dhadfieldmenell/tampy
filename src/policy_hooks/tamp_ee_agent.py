@@ -3,6 +3,8 @@ import copy
 
 import cPickle as pickle
 
+import ctypes
+
 import numpy as np
 
 import xml.etree.ElementTree as xml
@@ -11,6 +13,7 @@ import openravepy
 from openravepy import RaveCreatePhysicsEngine
 
 from mujoco_py import mjcore, mjconstants, mjviewer
+from mujoco_py.mjtypes import *
 from mujoco_py.mjlib import mjlib
 
 from gps.agent.agent import Agent
@@ -40,13 +43,24 @@ MUJOCO_JOINT_ORDER = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_e2', 'le
 # MUJOCO_MODEL_Z_OFFSET = -0.686
 MUJOCO_MODEL_Z_OFFSET = -0.706
 
-N_CONTACT_LIMIT = 11
+N_CONTACT_LIMIT = 12
 
 left_lb = [-1.70167994, -2.147, -3.05417994, -0.05, -3.059, -1.57079633, -3.059]
 left_ub = [1.70167994, 1.047, 3.05417994, 2.618, 3.059, 2.094, 3.059]
 
 
-class LaundryWorldClothLeftAgent(Agent):
+def closest_arm_pose(arm_poses, cur_arm_pose):
+    min_change = np.inf
+    chosen_arm_pose = None
+    cur_arm_pose = np.array(cur_arm_pose).flatten()
+    for arm_pose in arm_poses:
+        change = sum((arm_pose - cur_arm_pose)**2)
+        if change < min_change:
+            chosen_arm_pose = arm_pose
+            min_change = change
+    return chosen_arm_pose
+
+class LaundryWorldEEAgent(Agent):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
         
@@ -57,17 +71,14 @@ class LaundryWorldClothLeftAgent(Agent):
         self.x0 = self._hyperparams['x0']
         self.sim = 'mujoco'
         self.viewer = None
-        self.left_grip_l_ind = -1
-        self.left_grip_r_ind = -1
-        self.cloth_inds = []
         self.pos_model = self.setup_mujoco_model(self.plan, motor=False, view=True)
+
         self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
         self.params = filter(lambda p: not p.is_symbol(), self.plan.params.values())
         self.current_cond = 0
-        self.global_policy_samples = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
+        self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
         self.initial_opt = True
         self.stochastic_conditions = self._hyperparams['stochastic_conditions']
-        self.saved_trajs = np.zeros((len(self.init_plan_states), self.T, self.plan.symbolic_bound))
 
 
     def _generate_xml(self, plan, motor=True):
@@ -92,6 +103,13 @@ class LaundryWorldClothLeftAgent(Agent):
                 cloth_geom = xml.SubElement(cloth_body, 'geom', {'name': param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
                 cloth_intertial = xml.SubElement(cloth_body, 'inertial', {'pos':'0 0 0', 'quat':'0 0 0 1', 'mass':'0.1', 'diaginertia': '0.01 0.01 0.01'})
                 # Exclude collisions between the left hand and the cloth to help prevent exceeding the contact limit
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_wrist'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_hand'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_base'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_l_finger_tip'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_l_finger'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_r_finger_tip'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_r_finger'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_wrist'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_hand'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_base'})
@@ -100,6 +118,7 @@ class LaundryWorldClothLeftAgent(Agent):
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger_tip'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'basket'})
+            # We might want to change this; in Openrave we model tables as hovering box so there's no easy translation to Mujoco
             elif param._type == 'Obstacle': 
                 length = param.geom.dim[0]
                 width = param.geom.dim[1]
@@ -123,8 +142,7 @@ class LaundryWorldClothLeftAgent(Agent):
         self._generate_xml(plan, motor)
         model = mjcore.MjModel(ENV_XML)
         
-        self.left_grip_l_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
-        self.left_grip_r_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_r_finger_tip')
+        self.l_gripper_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
         self.cloth_inds = []
         for i in range(self.num_cloths):
             self.cloth_inds.append(mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'cloth_{0}'.format(i)))
@@ -148,7 +166,7 @@ class LaundryWorldClothLeftAgent(Agent):
         return model
 
 
-    def _set_simulator_state(self, x, plan, motor=False):
+    def _set_simulator_state(self, x, plan, robot_joints, motor=False):
         '''
             Set the simulator to the state of the specified condition, except for the robot
         '''
@@ -172,11 +190,8 @@ class LaundryWorldClothLeftAgent(Agent):
 
         model.body_pos = xpos
         model.body_quat = xquat
-        model.data.qpos = self._baxter_to_mujoco(x, plan.state_inds).reshape((19,1))
+        model.data.qpos = robot_joints.copy()
         model.forward()
-
-    def _baxter_to_mujoco(self, x, x_inds):
-        return np.r_[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, x[x_inds['baxter', 'lArmPose']], x[x_inds['baxter', 'lGripper']], -x[x_inds['baxter', 'lGripper']]]
 
 
     def _get_simulator_state(self, x_inds, dX, motor=False):
@@ -202,10 +217,21 @@ class LaundryWorldClothLeftAgent(Agent):
                 X[x_inds[('baxter', 'lArmPose')]] = left_arm.flatten()
                 X[x_inds[('baxter', 'lGripper')]] = model.data.qpos[17, 0]
 
-                # X[x_inds[('baxter', 'lArmPose__vel')]] = model.data.qvel[10:17].flatten()
-                # X[x_inds[('baxter', 'lGripper__vel')]] = model.data.qvel[17]
+                right_arm = model.data.qpos[2:9]
+                X[x_inds[('baxter', 'rArmPose')]] = right_arm.flatten()
+                X[x_inds[('baxter', 'rGripper')]] = model.data.qpos[9, 0]
 
-        return X
+                # X[x_inds[('baxter', 'lArmPose__vel')]] = model.data.qvel[10:17].flatten()
+                ee_vels = np.zeros((6,))
+                ee_vels_c = ee_vels.ctypes.data_as(POINTER(c_double))
+                mjlib.mj_objectVelocity(self.pos_model.ptr, self.pos_model.data.ptr, mjconstants.mjOBJ_BODY, self.l_gripper_ind, ee_vels_c, 0)
+                X[x_inds[('baxter', 'ee_left_pos__vel')]] = ee_vels[:3]
+                X[x_inds[('baxter', 'ee_left_rot__vel')]] = ee_vels[3:]
+                X[x_inds[('baxter', 'lGripper__vel')]] = model.data.qvel[17]
+
+        joints = model.data.qpos.copy()
+
+        return X, joints
 
     
     def _get_obs(self, cond, t):
@@ -213,187 +239,95 @@ class LaundryWorldClothLeftAgent(Agent):
         return o_t
 
 
-    def sample(self, policy, condition, on_policy=True, save_global=False, verbose=False, save=True, noisy=True):
+    def sample(self, policy, condition, save_global=False, verbose=False, save=True, noisy=True):
         '''
             Take a sample for a given condition
         '''
+        self.plan.params['table'].openrave_body.set_pose([5, 5, 5])
+        self.plan.params['basket'].openrave_body.set_pose([-5, 5, 5])
         self.current_cond = condition
         x0 = self.init_plan_states[condition]
         sample = Sample(self)
-        if on_policy:
-            print 'Starting on-policy sample for condition {0}.'.format(condition)
-            # if self.stochastic_conditions and save_global:
-            #     self.replace_cond(condition)
+        print 'Starting on-policy sample for condition {0}.'.format(condition)
+        if self.stochastic_conditions and save_global:
+            self.replace_cond(condition)
 
-            if noisy:
-                noise = np.random.uniform(-1, 1, (self.T, self.dU))
-                noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 0.00001
-            else:
-                noise = np.zeros((self.T, self.dU))
-
-            self._set_simulator_state(x0[0], self.plan)
-            # last_success_X = x0[0]
-            # r = np.random.uniform(0, 1)
-            for t in range(self.T):
-                X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
-                U = policy.act(X.copy(), X.copy(), t, noise[t])
-                sample.set(STATE_ENUM, X.copy(), t)
-                sample.set(OBS_ENUM, X.copy(), t)
-                sample.set(ACTION_ENUM, U.copy(), t)
-                sample.set(NOISE_ENUM, noise[t], t)
-                # grip_cloth = False # True if (not save_global) and t >= 39 and t <= 77 else False
-                grip_cloth = True if (x0[1][0] == 2 and t <= 34) or (x0[1][0] == 0 and t >= 39) else False
-                for delta in range(utils.MUJOCO_STEPS_PER_SECOND/utils.POLICY_STEPS_PER_SECOND):
-                    success = self.run_policy_step(U, grip_cloth)
-                    # if success:
-                    #     last_success_X = X
-                    # else:
-                    #     self._set_simulator_state(last_success_X, self.plan)
-                self.viewer.loop_once()
-            if save_global and success:
-                self.global_policy_samples[condition] = sample
-            print 'Finished on-policy sample.\n'.format(condition)
+        if noisy:
+            noise = np.random.uniform(-1, 1, (self.T, self.dU))
+            noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 0
+            noise[:, self.plan.action_inds[('baxter', 'rGripper')]] *= 0
         else:
-            success = self.sample_joint_trajectory(condition, sample)
+            noise = np.zeros((self.T, self.dU))
+
+        self._set_simulator_state(x0[0], self.plan, x[3])
+        last_success_X = (x0[0], x[3])
+        last_left_ctrl = x0[0][self.plan.state_inds[('baxter', 'lArmPose')]]
+        last_right_ctrl = x0[0][self.plan.state_inds[('baxter', 'rArmPose')]]
+        for t in range(self.T):
+            X, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
+            U = policy.act(X.copy(), X.copy(), t, noise[t])
+            sample.set(STATE_ENUM, X.copy(), t)
+            sample.set(OBS_ENUM, X.copy(), t)
+            sample.set(ACTION_ENUM, U.copy(), t)
+            sample.set(NOISE_ENUM, noise[t], t)
+
+            ee_left_pos = U[self.plan.action_inds[('baxter', 'ee_left_pos')]] + noise[t, :3]
+            ee_left_pos = np.maximum(ee_left_pos, [0, -0.2, 0.615])
+            ee_left_pos = np.minimum(ee_left_pos, [1.0, 1.0, 1.5])
+            # ee_rot = np.maximum(ee_pos, [2*np.pi, 2*np.pi, 2*np.pi])
+            # ee_rot = np.minimum(ee_pos, [-2*np.pi, -2*np.pi, -2*np.pi])
+            ee_right_pos = U[self.plan.action_inds[('baxter', 'ee_right_pos')]] + noise[t, 4:7]
+            ee_right_pos = np.maximum(ee_right_pos, [0, -0.2, 0.615])
+            ee_right_pos = np.minimum(ee_right_pos, [1.0, 1.0, 1.5])
+            ee_rot = np.aray([0, np.pi/2, 0])
+            target_left_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_left_pos, ee_rot, "left_arm")
+            target_right_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_right_pos, ee_rot, "right_arm")
+
+            if len(target_left_poses):
+                left_ctrl_signal = closest_arm_pose(target_left_poses, joints[9:16])
+                last_left_ctrl = left_ctrl_signal
+            else:
+                left_ctrl_signal = last_left_ctrl
+
+            if len(target_left_poses):
+                right_ctrl_signal = closest_arm_pose(target_right_poses, joints[1:8])
+                last_right_ctrl = right_ctrl_signal
+            else:
+                right_ctrl_signal = last_right_ctrl
+
+
+            ctrl_signal = np.r_[right_ctrl_signal, \
+                                U[self.plan.action_inds[('baxter', 'rGripper')]], \
+                                left_ctrl_signal, \
+                                U[self.plan.action_inds[('baxter', 'lGripper')]]]
+
+            # for delta in range(utils.MUJOCO_STEPS_PER_SECOND/utils.POLICY_STEPS_PER_SECOND):
+            iteration = 0
+            while (np.any(self.pos_model.data.qpos[1:] - self.pos_model.data.ctrl > 0.05) and iteration < 1000):
+                success = self.run_policy_step(ctrl_signal)
+                if success:
+                    last_success_X = (X, joints)
+                else:
+                    self._set_simulator_state(last_success_X[0], self.plan, last_success_X[1])
+                iteration += 1
+            if not t % utils.POLICY_STEPS_PER_SECOND and self.viewer:
+                self.viewer.loop_once()
+            # import ipdb; ipdb.set_trace()
+        # if save_global and success:
+        #     self.cond_global_pol_sample[condition] = sample
+        print 'Finished on-policy sample.\n'.format(condition)
 
         if save:
             self._samples[condition].append(sample)
         return sample
 
 
-    def run_policy(self, policy):
-        '''
-            Run one action of the policy on the current state
-        '''
-        X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
-        X_copy = X .copy()
-        U = policy.act(X, X_copy, t, 0)
-        for delta in range(utils.MUJOCO_STEPS_PER_SECOND/utils.POLICY_STEPS_PER_SECOND):
-            success = self.run_policy_step(U)
-            if success:
-                last_success_X = X
-            else:
-                self._set_simulator_state(last_success_X, self.plan)
-        self.viewer.loop_once()
-
-
-    def sample_joint_trajectory(self, condition, sample, bootstrap=False):
-        # Initialize the plan for the given condition
-        x0 = self.init_plan_states[condition]
-
-        first_act = self.plan.actions[x0[1][0]]
-        last_act = self.plan.actions[x0[1][1]]
-        init_t = first_act.active_timesteps[0]
-        final_t = last_act.active_timesteps[1]
-
-        utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
-        utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], final_t)
-
-        # Perpetuate stationary objects' locations
-        for param in x0[2]:
-            self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
-            # self.plan.params[param].rotation[:,:] = x0[0][self.plan.state_inds[(param, 'rotation')]].reshape(3,1)
-
-        if bootstrap:
-            # In order to bootstrap the process, start by solving the motion plans from scratch
-            if self.initial_samples:
-                success = self.solver._backtrack_solve(self.plan)
-                traj = np.zeros((self.plan.horizon, self.plan.dX))
-                utils.fill_vector(self.symbols, self.plan.state_inds, traj[0], 0)
-                for t in range(0, self.plan.horizon):
-                    utils.fill_vector(self.params, self.plan.state_inds, traj[t], t)
-                self.cond_optimal_traj[condition] = traj
-            else:
-                # utils.fill_trajectory_from_sample(self.cond_optimal_traj_sample[condition], self.plan)
-                traj = self.cond_optimal_traj[condition]
-                utils.set_params_attrs(self.symbols, self.plan.state_inds, traj[0], 0)
-                for t in range(0, self.plan.horizon):
-                    utils.set_params_attrs(self.params, self.plan.state_inds, traj[t], t)
-                success = self.solver.traj_smoother(self.plan)
-        else:
-            success = self.solver._backtrack_solve(self.plan)
-
-        self._set_simulator_state(x0[0], self.plan)
-        print "Reset Mujoco Sim to Condition {0}".format(condition)
-        for ts in range(init_t, final_t):
-            U = np.zeros(self.plan.dU)
-            utils.fill_vector(self.params, self.plan.action_inds, U, ts+1)
-            success = self.run_traj_step(U, self.plan.action_inds, sample, ts)
-            if not success:
-                print 'Collision Limit Exceeded'
-
-        return success
-
-
-    def run_traj_step(self, u, u_inds, sample, plan_t=0, timelimit=1.0):
-        next_right_pose = np.zeros((7,))
-        next_left_pose = u[u_inds[('baxter', 'lArmPose')]]
-        r_grip = 0
-        l_grip = u[u_inds[('baxter', 'lGripper')]]
-
-        if l_grip > const.GRIPPER_CLOSE_VALUE:
-            l_grip = const.GRIPPER_OPEN_VALUE
-        else:
-            l_grip = 0
-
-        steps = int(timelimit * utils.MUJOCO_STEPS_PER_SECOND)
-
-        self.pos_model.data.ctrl = np.r_[next_right_pose, r_grip, -r_grip, next_left_pose, l_grip, -l_grip].reshape((18, 1))
-        self.avg_vels = np.zeros((18,))
-        success = True
-        X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
-        last_success_X = X
-        qpos_0 = self.pos_model.data.qpos.flatten()
-
-        for t in range(0, steps):
-            body_pos = self.pos_model.body_pos.copy()
-            xpos = self.pos_model.data.xpos.copy()
-            run_forward = False
-            for i in range(self.num_cloths):
-                if grip_cloth or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0049, 0.0049, 0.0016]) and self.pos_model.data.ctrl[16] < const.GRIPPER_CLOSE_VALUE:
-                    body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
-                    run_forward = True
-                    break
-            if run_forward:
-                self.pos_model.body_pos = body_pos
-                self.pos_model.forward()
-
-            X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
-            sample.set(STATE_ENUM, X, plan_t*steps+t)
-            sample.set(OBS_ENUM, X, plan_t*steps+t)
-            self.pos_model.step()
-            if self.pos_model.data.ncon >= N_CONTACT_LIMIT:
-                print 'Collision Limit Exceeded in Position Model.'
-                self._set_simulator_state(last_success_X, self.plan)
-                qpos_delta = np.zeros((19,))
-                success = False
-            else:
-                last_success_X = X
-                qpos = self.pos_model.data.qpos.flatten()
-                qpos_delta = qpos - qpos_0
-                qpos_0 = qpos
-            U = np.zeros((self.plan.dU,))
-            U[u_inds[('baxter', 'lArmPose')]] = next_left_pose
-            U[u_inds[('baxter', 'lGripper')]] = l_grip
-            sample.set(ACTION_ENUM, U, plan_t*steps+t)
-            sample.set(NOISE_ENUM, np.zeros((self.plan.dU,)), plan_t*steps+t)
-        if self.viewer:
-            self.viewer.loop_once()
-
-        return success
-
-
-    def run_policy_step(self, u, grip_cloth=False):
+    def run_policy_step(self, u):
         u_inds = self.plan.action_inds
-        r_joints = [0, 0, 0, 0, 0, 0, 0]
-        l_joints = u[u_inds[('baxter', 'lArmPose')]]
-        l_joints = np.maximum(l_joints, left_lb)
-        l_joints = np.minimum(l_joints, left_ub)
-        r_grip = 0
-        l_grip = u[u_inds[('baxter', 'lGripper')]]
-
-        if r_grip <= const.GRIPPER_CLOSE_VALUE:
-            r_grip = 0
+        r_joints = u[:7]
+        l_joints = u[8:-1]
+        r_grip = u[7]
+        l_grip = u[-1]
 
         if l_grip <= const.GRIPPER_CLOSE_VALUE:
             l_grip = 0
@@ -404,16 +338,17 @@ class LaundryWorldClothLeftAgent(Agent):
             self.pos_model.data.ctrl = np.r_[r_joints, r_grip, -r_grip, l_joints, l_grip, -l_grip].reshape((18, 1))
         else:
             print 'Collision Limit Exceeded in Position Model.'
-            # self.pos_model.data.ctrl = np.zeros((18,1))
-            return False
+            self.pos_model.data.ctrl = np.zeros((18,1))
+            success = False
+
         self.pos_model.step()
 
         body_pos = self.pos_model.body_pos.copy()
         xpos = self.pos_model.data.xpos.copy()
         run_forward = False
         for i in range(self.num_cloths):
-            if grip_cloth or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0049, 0.0049, 0.0016]) and self.pos_model.data.ctrl[16] < const.GRIPPER_CLOSE_VALUE:
-                body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
+            if np.all((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2 < [0.0025, 0.0025, 0.0009]) and self.pos_model.data.ctrl[16] < const.GRIPPER_CLOSE_VALUE:
+                body_pos[self.cloth_inds[i]] = xpos[self.l_gripper_ind]
                 run_forward = True
                 break
         if run_forward:
@@ -423,98 +358,92 @@ class LaundryWorldClothLeftAgent(Agent):
         return success
 
 
-    def _clip_joint_angles(self, X):
-        DOF_limits = self.plan.params['baxter'].openrave_body.env_body.GetDOFLimits()
-        left_DOF_limits = (DOF_limits[0][2:9], DOF_limits[1][2:9])
-        right_DOF_limits = (DOF_limits[0][10:17], DOF_limits[1][10:17])
-        X[self.plan.state_inds[('baxter', 'lArmPose')]] = np.maximum(X[self.plan.state_inds[('baxter', 'lArmPose')]], left_DOF_limits[0])
-        X[self.plan.state_inds[('baxter', 'lArmPose')]] = np.minimum(X[self.plan.state_inds[('baxter', 'lArmPose')]], left_DOF_limits[1])
+    # def optimize_trajectories(self, alg, reuse=False):
+    #     ps = PlanSerializer()
+    #     pd = PlanDeserializer()
+
+    #     if reuse:
+    #         pass
+    #     else:
+    #         for m in range(0, alg.M):
+    #             x0 = self.init_plan_states[m]
+    #             init_act = self.plan.actions[x0[1][0]]
+    #             final_act = self.plan.actions[x0[1][1]]
+    #             init_t = init_act.active_timesteps[0]
+    #             final_t = final_act.active_timesteps[1]
+
+    #             utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
+    #             utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
+    #             for param in x0[2]:
+    #                 self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
+
+    #             old_params_free = {}
+    #             for p in self.params:
+    #                 if p.is_symbol():
+    #                     if p not in init_act.params: continue
+    #                     old_params_free[p] = p._free_attrs
+    #                     p._free_attrs = {}
+    #                     for attr in old_params_free[p].keys():
+    #                         p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+    #                 else:
+    #                     p_attrs = {}
+    #                     old_params_free[p] = p_attrs
+    #                     for attr in p._free_attrs:
+    #                         p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
+    #                         p._free_attrs[attr][:, init_t] = 0
+
+    #             self.current_cond = m
+    #             self.plan.params['baxter'].rArmPose[:,:] = 0
+    #             self.plan.params['baxter'].rGripper[:,:] = 0
+    #             success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
+
+    #             while self.initial_opt and not success:
+    #                 print "Solve failed."
+    #                 self.replace_cond(m, self.num_cloths)
+    #                 x0 = self.init_plan_states[m]
+    #                 utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
+    #                 utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
+    #                 for param in x0[2]:
+    #                     self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
+    #                 success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
+
+    #             for p in self.params:
+    #                 if p.is_symbol():
+    #                     if p not in init_act.params: continue
+    #                     p._free_attrs = old_params_free[p]
+    #                 else:
+    #                     for attr in p._free_attrs:
+    #                         p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
+
+    #             # self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1], m)
+
+    #             # if self.initial_opt:
+    #             #     'Saving plan...\n'
+    #             #     ps.write_plan_to_hdf5('plan_{0}_cloths_condition_{1}.hdf5'.format(self.num_cloths, m), self.plan)
+    #             #     pickle.dump(x0, 'plan_{0}_cloths_condition_{1}_init.npy')
+
+    #             # utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
+    #             traj_distr = alg.cur[m].traj_distr
+    #             k = np.zeros((traj_distr.T, traj_distr.dU))
+    #             u = np.zeros((self.plan.dU))
+    #             for t in range(init_t, final_t):
+    #                 self.plan.params['baxter'].set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:,t+1]})
+    #                 ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
+    #                 ee_pos = ee_trans[:3, 3]
+    #                 ee_rot = OpenRAVEBody._ypr_from_rot_matrix(ee_trans[:3,:3])
+    #                 l_gripper = self.plan.params['baxter'].lGripper[0, t+1]
+
+    #                 u[self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_pos
+    #                 u[self.plan.action_inds[('baxter', 'ee_left_rot')]] = ee_rot
+    #                 u[self.plan.action_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0,t+1]
+
+    #                 k[(t-init_t)*utils.POLICY_STEPS_PER_SECOND:(t-init_t+1)*utils.POLICY_STEPS_PER_SECOND] = u
+    #             traj_distr.k = k
+
+    #     self.initial_opt = False
 
 
-    def optimize_trajectories(self, alg, reuse=False):
-        ps = PlanSerializer()
-        pd = PlanDeserializer()
-
-        if reuse:
-            pass
-        else:
-            for m in range(0, alg.M):
-                x0 = self.init_plan_states[m]
-                init_act = self.plan.actions[x0[1][0]]
-                final_act = self.plan.actions[x0[1][1]]
-                init_t = init_act.active_timesteps[0]
-                final_t = final_act.active_timesteps[1]
-
-                utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
-                utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
-                for param in x0[2]:
-                    self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
-
-                old_params_free = {}
-                for p in self.params:
-                    if p.is_symbol():
-                        if p not in init_act.params: continue
-                        old_params_free[p] = p._free_attrs
-                        p._free_attrs = {}
-                        for attr in old_params_free[p].keys():
-                            p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
-                    else:
-                        p_attrs = {}
-                        old_params_free[p] = p_attrs
-                        for attr in p._free_attrs:
-                            p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
-                            p._free_attrs[attr][:, init_t] = 0
-
-                self.current_cond = m
-                self.plan.params['baxter'].rArmPose[:,:] = 0
-                # self.plan.params['baxter'].rGripper[:,:] = 0
-
-                print '\n\n\n\nReoptimizing at condition {0}.\n'.format(m)
-                success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
-
-                while self.initial_opt and not success:
-                    print "Solve failed."
-                    self.replace_cond(m, self.num_cloths)
-                    x0 = self.init_plan_states[m]
-                    utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
-                    utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
-                    for param in x0[2]:
-                        self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
-                    success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
-
-                if not self.initial_opt:
-                    self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1], m)
-                    # self.solver.optimize_against_global(self.plan, cond=m)
-
-                for p in self.params:
-                    if p.is_symbol():
-                        if p not in init_act.params: continue
-                        p._free_attrs = old_params_free[p]
-                    else:
-                        for attr in p._free_attrs:
-                            p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
-
-                # if self.cond_global_pol_sample[m]:
-                #     self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1], m)
-
-                # if self.initial_opt:
-                #     'Saving plan...\n'
-                #     ps.write_plan_to_hdf5('plan_{0}_cloths_condition_{1}.hdf5'.format(self.num_cloths, m), self.plan)
-                #     pickle.dump(x0, 'plan_{0}_cloths_condition_{1}_init.npy')
-
-                # utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
-                traj_distr = alg.cur[m].traj_distr
-                k = np.zeros((traj_distr.T, traj_distr.dU))
-                for t in range(init_t, final_t):
-                    u = np.zeros((self.plan.dU))
-                    utils.fill_vector(self.params, self.plan.action_inds, u, t+1)
-                    k[(t-init_t)*utils.POLICY_STEPS_PER_SECOND:(t-init_t+1)*utils.POLICY_STEPS_PER_SECOND] = u
-                traj_distr.k = k
-
-        self.initial_opt = False
-
-
-    def init_trajectories(self, alg, use_single_cond=False):
+    def init_cost_trajectories(self, alg):
         for m in range(0, alg.M):
             x0 = self.init_plan_states[m]
             init_act = self.plan.actions[x0[1][0]]
@@ -543,137 +472,8 @@ class LaundryWorldClothLeftAgent(Agent):
                         p._free_attrs[attr][:, init_t] = 0
 
             self.current_cond = m
-            # self.plan.params['baxter'].rArmPose[:,:] = 0
-            # self.plan.params['baxter'].rGripper[:,:] = 0
-            success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
-
-            while self.initial_opt and not success:
-                print "Solve failed."
-                self.replace_cond(m, self.num_cloths)
-                x0 = self.init_plan_states[m]
-                utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
-                utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
-                for param in x0[2]:
-                    self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
-                success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
-
-            for p in self.params:
-                if p.is_symbol():
-                    if p not in init_act.params: continue
-                    p._free_attrs = old_params_free[p]
-                else:
-                    for attr in p._free_attrs:
-                        p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
-
-            if not use_single_cond:
-                traj_distr = alg.cur[m].traj_distr
-                tgt_u = np.zeros((self.T, self.plan.dU))
-                for t in range(init_t, final_t):
-                    utils.fill_vector(self.params, self.plan.state_inds, self.saved_trajs[m, t], t)
-                    tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,t+1].copy()
-                    tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t+1].copy()
-                traj_distr.k = tgt_u
-            else:
-                for c in range(0, alg.M):
-                    traj_distr = alg.cur[c].traj_distr
-                    tgt_u = np.zeros((self.T, self.plan.dU))
-                    for t in range(init_t, final_t):
-                        utils.fill_vector(self.params, self.plan.state_inds, self.saved_trajs[c, t], t)
-                        tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,t+1].copy()
-                        tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t+1].copy()
-                    traj_distr.k = tgt_u
-                break
-
-        self.initial_opt = False
-
-
-    def update_trajectories(self, alg):
-        for m in range(0, alg.M):
-            x0 = self.init_plan_states[m]
-            init_act = self.plan.actions[x0[1][0]]
-            final_act = self.plan.actions[x0[1][1]]
-            init_t = init_act.active_timesteps[0]
-            final_t = final_act.active_timesteps[1]
-
-            utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
-            utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
-            for param in x0[2]:
-                self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
-
-            old_params_free = {}
-            for p in self.params:
-                if p.is_symbol():
-                    if p not in init_act.params: continue
-                    old_params_free[p] = p._free_attrs
-                    p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
-                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
-                else:
-                    p_attrs = {}
-                    old_params_free[p] = p_attrs
-                    for attr in p._free_attrs:
-                        p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
-                        p._free_attrs[attr][:, init_t] = 0
-
-            self.current_cond = m
-            # self.plan.params['baxter'].rArmPose[:,:] = 0
-            # self.plan.params['baxter'].rGripper[:,:] = 0
-
-            tgt_x = self.saved_trajs[m]
-            for t in range(init_t+1, final_t):
-                utils.set_params_attrs(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t)
-
-            self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1], m)
-
-            for p in self.params:
-                if p.is_symbol():
-                    if p not in init_act.params: continue
-                    p._free_attrs = old_params_free[p]
-                else:
-                    for attr in p._free_attrs:
-                        p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
-
-            traj_distr = alg.cur[m].traj_distr
-            tgt_u = np.zeros((self.T, self.plan.dU))
-            for t in range(init_t, final_t):
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,t+1].copy()
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t+1].copy()
-            traj_distr.k = tgt_u
-
-        self.initial_opt = False
-
-
-    def init_cost_trajectories(self, alg, center=False):
-        for m in range(0, alg.M):
-            x0 = self.init_plan_states[m]
-            init_act = self.plan.actions[x0[1][0]]
-            final_act = self.plan.actions[x0[1][1]]
-            init_t = init_act.active_timesteps[0]
-            final_t = final_act.active_timesteps[1]
-
-            utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
-            utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
-            for param in x0[2]:
-                self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
-
-            old_params_free = {}
-            for p in self.params:
-                if p.is_symbol():
-                    if p not in init_act.params: continue
-                    old_params_free[p] = p._free_attrs
-                    p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
-                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
-                else:
-                    p_attrs = {}
-                    old_params_free[p] = p_attrs
-                    for attr in p._free_attrs:
-                        p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
-                        p._free_attrs[attr][:, init_t] = 0
-
-            self.current_cond = m
-            # self.plan.params['baxter'].rArmPose[:,:] = 0
-            # self.plan.params['baxter'].rGripper[:,:] = 0
+            self.plan.params['baxter'].rArmPose[:,:] = 0
+            self.plan.params['baxter'].rGripper[:,:] = 0
             success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
 
             while self.initial_opt and not success:
@@ -696,23 +496,18 @@ class LaundryWorldClothLeftAgent(Agent):
 
             tgt_x = np.zeros((self.T, self.plan.symbolic_bound))
             tgt_u = np.zeros((self.T, self.plan.dU))
-            for t in range(0, final_t-init_t):
-                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
+            for t in range(init_t, final_t):
+                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t)
                 tgt_x[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,init_t+t+1].copy()
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t+1].copy()
+                
+                self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:, t+1], 'lGripper': self.plan.params['baxter'].lGripper[:, t+1]})
+                ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_trans[:3,3]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'ee_left_rot')]] = OpenRAVEBody._ypr_from_rot_matrix(ee_trans[:3,:3])
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t]
             
             alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
             alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
-            self.saved_trajs[m] = tgt_x
-
-            if center:
-                traj_distr = alg.cur[m].traj_distr
-                tgt_u = np.zeros((self.T, self.plan.dU))
-                for t in range(0, final_t-init_t):
-                    tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,init_t+t+1].copy()
-                    tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t+1].copy()
-                traj_distr.k = tgt_u
 
         self.initial_opt = False
 
@@ -746,14 +541,10 @@ class LaundryWorldClothLeftAgent(Agent):
                         p._free_attrs[attr][:, init_t] = 0
 
             self.current_cond = m
-            # self.plan.params['baxter'].rArmPose[:,:] = 0
-            # self.plan.params['baxter'].rGripper[:,:] = 0
+            self.plan.params['baxter'].rArmPose[:,:] = 0
+            self.plan.params['baxter'].rGripper[:,:] = 0
 
-            tgt_x = self.saved_trajs[m]
-            for t in range(init_t+1, final_t):
-                utils.set_params_attrs(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t-init_t)
-
-            # self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1], m)
+            self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1], m)
 
             for p in self.params:
                 if p.is_symbol():
@@ -765,31 +556,148 @@ class LaundryWorldClothLeftAgent(Agent):
 
             tgt_x = np.zeros((self.T, self.plan.symbolic_bound))
             tgt_u = np.zeros((self.T, self.plan.dU))
-            for t in range(0, final_t-init_t):
-                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
+            for t in range(init_t, final_t):
+                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t)
                 tgt_x[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,init_t+t+1].copy()
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t+1].copy()
-            
-            alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
-            alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
-            self.saved_trajs[m] = tgt_x
+                
+                self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:, t+1], 'lGripper': self.plan.params['baxter'].lGripper[:, t+1]})
+                ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_trans[:3,3]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'ee_left_rot')]] = OpenRAVEBody._ypr_from_rot_matrix(ee_trans[:3,:3])
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t]
+
+            alg.cost[m]._hyperparams['data_types'][utils.STATE_ENUM] = tgt_x
+            alg.cost[m]._hyperparams['data_types'][utils.ACTION_ENUM] = tgt_u
 
         self.initial_opt = False
 
 
-    def replace_cond(self, cond, num_cloths=1):
+    def init_trajectories(self, alg):
+        for m in range(0, alg.M):
+            x0 = self.init_plan_states[m]
+            init_act = self.plan.actions[x0[1][0]]
+            final_act = self.plan.actions[x0[1][1]]
+            init_t = init_act.active_timesteps[0]
+            final_t = final_act.active_timesteps[1]
+
+            utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
+            utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
+            for param in x0[2]:
+                self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
+
+            old_params_free = {}
+            for p in self.params:
+                if p.is_symbol():
+                    if p not in init_act.params: continue
+                    old_params_free[p] = p._free_attrs
+                    p._free_attrs = {}
+                    for attr in old_params_free[p].keys():
+                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                else:
+                    p_attrs = {}
+                    old_params_free[p] = p_attrs
+                    for attr in p._free_attrs:
+                        p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
+                        p._free_attrs[attr][:, init_t] = 0
+
+            self.current_cond = m
+            self.plan.params['baxter'].rArmPose[:,:] = 0
+            self.plan.params['baxter'].rGripper[:,:] = 0
+            success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
+
+            while self.initial_opt and not success:
+                print "Solve failed."
+                self.replace_cond(m, self.num_cloths)
+                x0 = self.init_plan_states[m]
+                utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
+                utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
+                for param in x0[2]:
+                    self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
+                success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
+
+            for p in self.params:
+                if p.is_symbol():
+                    if p not in init_act.params: continue
+                    p._free_attrs = old_params_free[p]
+                else:
+                    for attr in p._free_attrs:
+                        p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
+
+            traj_distr = alg.cur[m].traj_distr
+            tgt_u = np.zeros((self.T, self.plan.dU))
+            for t in range(init_t, final_t):
+                self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:, t+1], 'lGripper': self.plan.params['baxter'].lGripper[:, t+1]})
+                ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_trans[:3,3]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'ee_left_rot')]] = OpenRAVEBody._ypr_from_rot_matrix(ee_trans[:3,:3])
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t]
+            traj_distr.k = tgt_u
+
+        self.initial_opt = False
+
+
+    def update_trajectories(self, alg):
+        for m in range(0, alg.M):
+            x0 = self.init_plan_states[m]
+            init_act = self.plan.actions[x0[1][0]]
+            final_act = self.plan.actions[x0[1][1]]
+            init_t = init_act.active_timesteps[0]
+            final_t = final_act.active_timesteps[1]
+
+            utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
+            utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
+            for param in x0[2]:
+                self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
+
+            old_params_free = {}
+            for p in self.params:
+                if p.is_symbol():
+                    if p not in init_act.params: continue
+                    old_params_free[p] = p._free_attrs
+                    p._free_attrs = {}
+                    for attr in old_params_free[p].keys():
+                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                else:
+                    p_attrs = {}
+                    old_params_free[p] = p_attrs
+                    for attr in p._free_attrs:
+                        p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
+                        p._free_attrs[attr][:, init_t] = 0
+
+            self.current_cond = m
+            self.plan.params['baxter'].rArmPose[:,:] = 0
+            self.plan.params['baxter'].rGripper[:,:] = 0
+
+            self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1], m)
+
+            for p in self.params:
+                if p.is_symbol():
+                    if p not in init_act.params: continue
+                    p._free_attrs = old_params_free[p]
+                else:
+                    for attr in p._free_attrs:
+                        p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
+
+            traj_distr = alg.cur[m].traj_distr
+            tgt_u = np.zeros((self.T, self.plan.dU))
+            for t in range(init_t, final_t):
+                self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:, t+1], 'lGripper': self.plan.params['baxter'].lGripper[:, t+1]})
+                ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_trans[:3,3]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'ee_left_rot')]] = OpenRAVEBody._ypr_from_rot_matrix(ee_trans[:3,:3])
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t]
+            traj_distr.k = tgt_u
+
+        self.initial_opt = False
+
+
+
+    def replace_cond(self, cond):
         print "Replacing Condition {0}.\n".format(cond)
-        # x0s = get_randomized_initial_state_left(self.plan)
-        x0s = get_randomized_initial_state_left_pick_place_split(self.plan)
+        x0s = get_randomized_initial_state_left(self.plan)
         self.init_plan_states[cond] = x0s
         self.x0[cond] = x0s[0][:self.plan.symbolic_bound]
-        self.global_policy_samples[cond] = []
-
-
-    def replace_all_conds(self):
-        for cond in range(len(self.x0)):
-            self.replace_cond(cond)
+        self.cond_global_pol_sample[cond] = None
 
 
     def get_policy_avg_cost(self):

@@ -103,7 +103,7 @@ ATTR_MAP = {
                  ("rArmPose", np.array(range(7), dtype=np.int)),
                  ("rGripper", np.array([0], dtype=np.int)),
                  ("value", np.array([0], dtype=np.int))),
-    "RotDegree": (("value", np.array([0], dtype=np.int))),
+    "Rotation": (("value", np.array([0], dtype=np.int))),
     "Can": (("pose", np.array([0,1,2], dtype=np.int)),
            ("rotation", np.array([0,1,2], dtype=np.int))),
     "EEPose": (("value", np.array([0,1,2], dtype=np.int)),
@@ -130,3 +130,6 @@ ATTR_MAP = {
              ("rotation", np.array([0,1,2], dtype=np.int))),
     "EEVel": (("value", np.array([0], dtype=np.int)))
 }
+
+left_joints = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2"]
+right_joints = ["right_s0", "right_s1", "right_e0", "right_e1", "right_w0", "right_w1", "right_w2"]

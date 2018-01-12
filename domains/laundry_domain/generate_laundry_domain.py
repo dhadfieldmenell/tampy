@@ -6,7 +6,7 @@ dom_str = """
 # Configuration file for CAN domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Basket, BasketTarget, RobotPose, Robot, EEPose, Obstacle, Washer, WasherPose, Cloth, ClothTarget
+Types: Basket, BasketTarget, RobotPose, Robot, EEPose, Obstacle, Washer, WasherPose, Cloth, ClothTarget, Rotation
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
@@ -1093,7 +1093,7 @@ class PutIntoBasket(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterAt ?basket ?bt)', '0:{}'.format(end)),
-            # ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(0, putdown_time)),
             ('(BaxterClothGraspValid ?ee_left ?ct)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(putdown_time,  end)),
@@ -1175,6 +1175,7 @@ class Rotate(Action):
         self.name = 'rotate'
         self.timesteps = 30
         end = self.timesteps - 1
+        start_rot_time = 7
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?end_rot - Rotation)'
         self.pre = [\
             ('(forall (?obj - Basket)\
@@ -1187,6 +1188,9 @@ class Rotate(Action):
             ('(forall (?obj - Washer)\
                 (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryArms ?robot)', '{}:{}'.format(0, end-1)),
+            # ('(BaxterStationaryArms ?robot)', '{}:{}'.format(start_rot_time, end-start_rot_time)),
+            # ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, start_rot_time)),
+            # ('(BaxterStationaryBase ?robot)', '{}:{}'.format(end-start_rot_time, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
@@ -1208,6 +1212,80 @@ class Rotate(Action):
         self.eff = [\
             (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
+
+class RotateHoldingBasket(Action):
+    def __init__(self):
+        self.name = 'rotate_holding_basket'
+        self.timesteps = 20
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?basket - Basket ?start - RobotPose ?end - RobotPose ?end_rot - Rotation)'
+        self.pre = [\
+            ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
+            ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
+            ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?basket))\
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryArms ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(BaxterBasketLevel ?basket)', '{}:{}'.format(0, end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                )\
+            )', '0:{}'.format(end)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
+        ]
+        self.eff = [\
+            ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
+            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
+        ]
+
+class RotateHoldingCloth(Action):
+    def __init__(self):
+        self.name = 'rotate_holding_cloth'
+        self.timesteps = 20
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?cloth - Cloth ?start - RobotPose ?end - RobotPose ?end_rot - Rotation)'
+        self.pre = [\
+            ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
+            ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Basket)\
+                (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryArms ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                )\
+            )', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
+        ]
+        self.eff = [\
+            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(end, end)),
+            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
+        ]
 
 class RotateHoldingBasketWithCloth(Action):
     def __init__(self):
@@ -1252,7 +1330,8 @@ actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(),
            OpenDoor(), CloseDoor(), ClothGrasp(), ClothPutdown(), PushDoor(), 
            PutIntoWasher(), TakeOutOfWasher(), PutIntoBasket(), CenterGrippers(),
            MoveHoldingBasketWithCloth(), PutdownWithCloth(), GraspWithCloth(),
-           Rotate(), RotateHoldingBasketWithCloth()]
+           Rotate(), RotateHoldingBasket(), RotateHoldingCloth(),
+           RotateHoldingBasketWithCloth()]
 
 for action in actions:
     dom_str += '\n\n'

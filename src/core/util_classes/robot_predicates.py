@@ -1046,7 +1046,7 @@ class At(ExprPredicate):
         attr_inds = OrderedDict([(self.obj, [("pose", np.array([0,1,2], dtype=np.int)),
                                              ("rotation", np.array([0,1,2], dtype=np.int))]),
                                  (self.target, [("value", np.array([0,1,2], dtype=np.int)),
-                                                  ("rotation", np.array([0,1,2], dtype=np.int))])])
+                                                ("rotation", np.array([0,1,2], dtype=np.int))])])
 
         # A = np.c_[np.eye(6), -np.eye(6)]
         # b, val = np.zeros((6, 1)), np.zeros((6, 1))
@@ -1094,6 +1094,11 @@ class RobotAt(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.robot, self.robot_pose = params
+
+        # A = np.c_[np.r_[np.eye(self.attr_dim), -np.eye(self.attr_dim)], np.r_[-np.eye(self.attr_dim), np.eye(self.attr_dim)]]
+        # b, val = np.zeros((self.attr_dim*2, 1)), np.ones((self.attr_dim*2, 1))*1e-3
+        # aff_e = AffExpr(A, b)
+        # e = LEqExpr(aff_e, val)
 
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
         b ,val = np.zeros((self.attr_dim, 1)), np.zeros((self.attr_dim, 1))
@@ -1885,7 +1890,7 @@ class CloseGripper(ExprPredicate):
         e = LEqExpr(aff_expr, val)
 
         aff_expr = AffExpr(-1*A, b)
-        val = np.array([[-1*self.GRIPPER_OPEN]])
+        val = np.array([[-1*self.GRIPPER_CLOSE]])
         self.neg_expr = LEqExpr(aff_expr, val)
 
         super(CloseGripper, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)

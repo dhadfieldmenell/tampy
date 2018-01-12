@@ -34,11 +34,14 @@ class Predicate(object):
         return None, None
 
     def validate_params(self, expected_param_types):
-        if len(self.params) != len(expected_param_types):
-            raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
-        for i, p in enumerate(self.params):
-            if not p.get_type() == expected_param_types[i]:
+        try:
+            if len(self.params) != len(expected_param_types):
                 raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
+            for i, p in enumerate(self.params):
+                if not p.get_type() == expected_param_types[i]:
+                    raise ParamValidationException("Parameter type validation failed for predicate '%s'."%self)
+        except:
+            import ipdb; ipdb.set_trace()
 
     def check_pred_violation(self, t, negated = False, tol = 1e-3):
         if self.get_expr(negated=negated) is None:

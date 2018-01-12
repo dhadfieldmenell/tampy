@@ -1,5 +1,12 @@
+# import os
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 import numpy as np
 
+import tensorflow as tf
+
+from keras import backend as K
 from keras.models import load_model
 
 import cv2
@@ -12,6 +19,12 @@ import ros_interface.utils as utils
 
 
 TRAINED_MODEL = 'ros_interface/cloth/clothGridEvalJan4.h5'
+
+# def get_session():
+#     with tf.device("/cpu:0"):
+#         return tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
+
+# K.tensorflow_backend.set_session(get_session())
 
 class ClothGridPredict:
     def __init__(self):
@@ -37,9 +50,13 @@ class ClothGridPredict:
                 region = (region - utils.cloth_net_mean) / utils.cloth_net_std
                 prediction = self.net.predict(region)
 
-                if prediction > 0.5:
+                if prediction > 0.75:
                     ref = utils.cloth_grid_ref
                     disp = np.array(ref[0] - loc[0]) / utils.pixels_per_cm
-                    locs.append(ref[1] + disp)
+                    locs.append(((ref[1] + disp) / 100.0, loc[1]))
 
         return locs
+
+    def average_locs(self, locs):
+        '''If adjacent squares are occupied, assume a single cloth is there.'''
+        pass
