@@ -19,8 +19,8 @@ BASKET_Y_RANGE = [0.075, 0.175]
 CLOTH_INIT_X_RANGE = [0.3, 0.75]
 CLOTH_INIT_Y_RANGE = [0.525, 0.975]
 
-STEP_DELTA = 16
-BASKET_STEP_DELTA = 4
+STEP_DELTA = 3
+BASKET_STEP_DELTA = 2
 TABLE_POSE = [1.23/2-0.1, 0, 0.97/2-0.375]
 TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2] # XYZ
 TABLE_TOP = 0.97 - 0.375 + .02
@@ -778,6 +778,145 @@ def get_randomized_initial_state_left_pick_place_split(plan):
 
 # New state gen functions
 
+# What a plan would probably look like:
+# For each cloth: pick (2 actions) then place (2 actions)
+# Then grasp basket (2 actions)
+# Then rotate with basket and putdown basket (2 actions)
+# For each cloth: pick (2 actions) then place (2 actions)
+
+def generate_full_cond(num_cloths):
+    i = 1
+    act_num = 4
+    plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0',
+        '1: CLOTH_GRASP BAXTER CLOTH_0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH_0',
+        '3: PUT_INTO_BASKET BAXTER CLOTH_0 BASKET CLOTH_TARGET_END_0 INIT_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0',
+    ]
+
+    while i < num_cloths:
+        plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_{1} CLOTH_GRASP_BEGIN_{2}'.format(act_num, i-1, i))
+        act_num += 1
+        plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH_{1} CLOTH_TARGET_BEGIN_{2} CLOTH_GRASP_BEGIN_{3} CG_EE_{4} CLOTH_GRASP_END_{5}'.format(act_num, i, i, i, i, i))
+        act_num += 1
+
+        plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_{1} CLOTH_PUTDOWN_BEGIN_{2} CLOTH_{3}'.format(act_num, i, i, i))
+        act_num += 1
+        plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH_{1} BASKET CLOTH_TARGET_END_{2} INIT_TARGET CLOTH_PUTDOWN_BEGIN_{3} CP_EE_{4} CLOTH_PUTDOWN_END_{5}'.format(act_num, i, i, i, i, i))
+        act_num += 1
+        i += 1
+
+    plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_{1} BASKET_GRASP_BEGIN'.format(act_num, i-1))
+    act_num += 1
+    plan_str.append('{0}: BASKET_GRASP_WITH_CLOTH BAXTER BASKET BASKET_INIT_TARGET BASKET_GRASP_BEGIN BG_EE_LEFT BG_EE_RIGHT BASKET_GRASP_END'.format(act_num))
+    act_num += 1
+
+    plan_str.append('{0}: MOVEHOLDING_BASKET_WITH_CLOTH BAXTER BASKET_GRASP_END BASKET_ROTATE_BEGIN BASKET \n'.format(act_num))
+    act_num += 1
+    plan_str.append('{0}: ROTATE_HOLDING_BASKET_WITH_CLOTH BAXTER BASKET BASKET_ROTATE_BEGIN ROTATE_END_POSE REGION1 \n'.format(act_num))
+    act_num += 1
+
+    plan_str.append('{0}: MOVEHOLDING_BASKET_WITH_CLOTH BAXTER ROTATE_END_POSE BASKET_PUTDOWN_BEGIN BASKET \n'.format(act_num))
+    act_num += 1
+    plan_str.append('{0}: BASKET_PUTDOWN_WITH_CLOTH BAXTER BASKET BASKET_END_TARGET BASKET_PUTDOWN_BEGIN BP_EE_LEFT BP_EE_RIGHT BASKET_PUTDOWN_END'.format(act_num))
+                
+
+    domain_fname = '../domains/laundry_domain/laundry_policy.domain'
+    d_c = main.parse_file_to_dict(domain_fname)
+    domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+    hls = hl_solver.FFSolver(d_c)
+    p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/cloth_grasp_policy_{0}.prob'.format(num_cloths))
+    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+    # problem.init_state.params['cloth_target_begin_0'].value[:,0] = random_pose
+    # problem.init_state.params['cloth_0'].pose[:,0] = random_pose
+
+    plan = hls.get_plan(plan_str, domain, problem)
+
+    basket = plan.params['basket']
+    basket_target = plan.params['init_target']
+    basket.pose[:,:] = np.array(BASKET_POSE).reshape(3,1)
+    basket.rotation[:,:] = [[0], [0], [np.pi/2]]
+    basket_target.value[:,:] = np.array(BASKET_POSE).reshape(3,1)
+    basket_target.rotation[:,:] = [[0], [0], [np.pi/2]]
+
+    plan.params['table'].pose[:,:] = np.array(TABLE_POSE).reshape(-1,1)
+    plan.params['table'].rotation[:,:] = 0
+
+    # plan.params['robot_init_pose'].lArmPose[:,0] = L_ARM_INIT # L_ARM_PUTDOWN_END # [-0.1, -0.65, 0, 0, 0, 0, 0]
+    # plan.params['robot_init_pose'].lGripper[:,0] = 0.02
+    # plan.params['robot_init_pose'].rArmPose[:,0] = R_ARM_PUTDOWN_END # [0.1, -0.65, 0, 0, 0, 0, 0]
+    # plan.params['robot_init_pose'].rGripper[:,0] = 0.02
+
+    # plan.params['robot_end_pose'].lArmPose[:,0] = [1.4, 0.25, 0, 0.25, 0, 0.25, 0]
+    # plan.params['robot_end_pose'].lGripper[:,0] = 0
+    # plan.params['robot_end_pose'].rArmPose[:,0] = [-1.4, 0.25, 0, 0.25, 0, 0.25, 0]
+    # plan.params['robot_end_pose'].rGripper[:,0] = 0.015
+
+    possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA**2), num_cloths).tolist()
+
+    for c in range(num_cloths):
+        next_loc = possible_locs.pop()
+        next_x = (next_loc / 45) / 100.0 + CLOTH_INIT_X_RANGE[0]
+        next_y = (next_loc % 45) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+        plan.params['cloth_{0}'.format(c)].pose[:, 0] = [next_x, next_y, TABLE_TOP]
+        plan.params['cloth_{0}'.format(c)].rotation[:, :] = 0
+        plan.params['cloth_target_begin_{0}'.format(c)].value[:, 0] = [next_x, next_y, TABLE_TOP]
+        plan.params['cloth_target_begin_{0}'.format(c)].rotation[:, :] = 0
+
+    # for c in range(num_cloths):
+    #     plan.params['cg_ee_{0}'.format(c)].value[:,:] = np.nan
+    #     plan.params['cg_ee_{0}'.format(c)].rotation[:,:] = np.nan
+        
+    #     plan.params['cp_ee_{0}'.format(c)].value[:,:] = np.nan
+    #     plan.params['cp_ee_{0}'.format(c)].rotation[:,:] = np.nan
+
+    #     plan.params['cloth_grasp_begin_{0}'.format(c)].value[:,:] = np.nan
+    #     plan.params['cloth_grasp_begin_{0}'.format(c)].lArmPose[:,:] = np.nan
+    #     plan.params['cloth_grasp_begin_{0}'.format(c)].lGripper[:,:] = np.nan
+    #     plan.params['cloth_grasp_begin_{0}'.format(c)].rArmPose[:,:] = np.nan
+    #     plan.params['cloth_grasp_begin_{0}'.format(c)].rGripper[:,:] = np.nan
+
+    #     plan.params['cloth_grasp_end_{0}'.format(c)].value[:,:] = 0
+    #     plan.params['cloth_grasp_end_{0}'.format(c)].lArmPose[:,:] = 0
+    #     plan.params['cloth_grasp_end_{0}'.format(c)].lGripper[:,:] = 0
+    #     plan.params['cloth_grasp_end_{0}'.format(c)].rArmPose[:,:] = 0
+    #     plan.params['cloth_grasp_end_{0}'.format(c)].rGripper[:,:] = 0
+
+    #     plan.params['cloth_putdown_begin_{0}'.format(c)].value[:,:] = np.nan
+    #     plan.params['cloth_putdown_begin_{0}'.format(c)].lArmPose[:,:] = np.nan
+    #     plan.params['cloth_putdown_begin_{0}'.format(c)].lGripper[:,:] = np.nan
+    #     plan.params['cloth_putdown_begin_{0}'.format(c)].rArmPose[:,:] = np.nan
+    #     plan.params['cloth_putdown_begin_{0}'.format(c)].rGripper[:,:] = np.nan
+
+    #     plan.params['cloth_putdown_end_{0}'.format(c)].value[:,:] = np.nan
+    #     plan.params['cloth_putdown_end_{0}'.format(c)].lArmPose[:,:] = np.nan
+    #     plan.params['cloth_putdown_end_{0}'.format(c)].lGripper[:,:] = np.nan
+    #     plan.params['cloth_putdown_end_{0}'.format(c)].rArmPose[:,:] = np.nan
+    #     plan.params['cloth_putdown_end_{0}'.format(c)].rGripper[:,:] = np.nan
+    #     # plan.params['cloth_putdown_end_{0}'.format(c)].lArmPose[:,:] = np.array(L_ARM_PUTDOWN_END).reshape((7,1))
+    #     # plan.params['cloth_putdown_end_{0}'.format(c)].lGripper[:,:] = 0.02
+    #     # plan.params['cloth_putdown_end_{0}'.format(c)].rArmPose[:,:] = np.array(R_ARM_PUTDOWN_END).reshape((7,1))
+    #     # plan.params['cloth_putdown_end_{0}'.format(c)].rGripper[:,:] = 0.02
+
+    #     plan.params['cloth_target_end_{0}'.format(c)].value[:,:] = 0
+    #     plan.params['cloth_target_end_{0}'.format(c)].rotation[:,:] = 0
+
+    # plan.params['basket_grasp_end'].value[:,:] = 0
+    # plan.params['basket_grasp_end'].lArmPose[:,:] = 0
+    # plan.params['basket_grasp_end'].lGripper[:,:] = 0
+    # plan.params['basket_grasp_end'].rArmPose[:,:] = 0
+    # plan.params['basket_grasp_end'].rGripper[:,:] = 0
+
+    # plan.params['basket_grasp_begin'].value[:,:] = 0
+    # plan.params['basket_grasp_begin'].lArmPose[:,:] = 0
+    # plan.params['basket_grasp_begin'].lGripper[:,:] = 0
+    # plan.params['basket_grasp_begin'].rArmPose[:,:] = 0
+    # plan.params['basket_grasp_begin'].rGripper[:,:] = 0
+
+    plan._determine_free_attrs()
+
+    return plan
+
 def get_random_initial_cloth_pick_state(plan, num_cloths):
     X = np.zeros((plan.dX))
     state_config = []
@@ -790,6 +929,7 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
     while not success:
         print 'Searching for initial configuration...'
         X_0s = []
+        joint_angles = []
         stationary_params = ['basket']
         basket = plan.params['basket']
         basket.pose[:,:] = [[np.random.uniform(BASKET_X_RANGE[0], BASKET_X_RANGE[1])],
@@ -799,8 +939,8 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
-        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA), num_cloths_on_table).tolist()
-        possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA), num_cloths_in_basket).tolist()
+        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA+STEP_DELTA*45), num_cloths_on_table).tolist()
+        possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket).tolist()
 
         success = True
         plan.params['table'].openrave_body.set_pose([10,10,10])
@@ -837,6 +977,14 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
             ee_trans = plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
             X[plan.state_inds[('baxter', 'ee_left_pos')]] = ee_trans[:3,3]
             X[plan.state_inds[('baxter', 'ee_left_rot')]] = [0, np.pi/2, 0]
+
+            # Joint angles ordered by Mujoco Model joint order
+            joint_angles = np.r_[0, X[plan.state_inds[('robot_init_pose', 'rArmPose')]], \
+                                 X[plan.state_inds[('robot_init_pose', 'rArmPose')]], \
+                                 -X[plan.state_inds[('robot_init_pose', 'rArmPose')]], \
+                                 X[plan.state_inds[('robot_init_pose', 'lArmPose')]], \
+                                 X[plan.state_inds[('robot_init_pose', 'lArmPose')]], \
+                                 -X[plan.state_inds[('robot_init_pose', 'lArmPose')]]]
         else:
             next_x = np.random.uniform(0.3, 0.8)
             next_y = np.random.uniform(-0.05, 0.4)
@@ -847,22 +995,30 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
                 continue
             r_arm_pose = [-1.1, -0.7542201, 0.33281928, 0.81198007, 2.90107491, -1.54208563, 1.49564886]
 
-            X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
-            X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
-            X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
-            X[plan.state_inds[('baxter', 'rGripper')]] = 0
+            # X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
+            # X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
+            # X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
+            # X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
             X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lArmPose')]] = l_arm_poses[0]
             X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lGripper')]] = const.GRIPPER_OPEN_VALUE
             X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rArmPose')]] = r_arm_pose
-            X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rGripper')]] = 0
+            X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
             X[plan.state_inds[('baxter', 'ee_left_pos')]] = [next_x, next_y, TABLE_TOP+height]
             X[plan.state_inds[('baxter', 'ee_left_rot')]] = [0, np.pi/2, 0]
+
+            # Joint angles ordered by Mujoco Model joint order
+            joint_angles = np.r_[0, X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rArmPose')]], \
+                                 X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rArmPose')]], \
+                                 -X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rArmPose')]], \
+                                 X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lArmPose')]], \
+                                 X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lArmPose')]], \
+                                 -X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lArmPose')]]]
 
         X[plan.state_inds[('baxter', 'ee_right_pos')]] = [0, -1.0, 0.9]
         X[plan.state_inds[('baxter', 'ee_right_rot')]] = [0, np.pi/2, 0]
 
         actions = [4*next_cloth, 4*next_cloth+1]
-        state_config = [X, actions, stationary_params]
+        state_config = [X, actions, stationary_params, joint_angles]
 
     print "Found initial configuration.\n"
     return state_config
@@ -871,6 +1027,7 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
 def get_random_initial_cloth_place_state(plan, num_cloths):
     X = np.zeros((plan.dX))
     state_config = []
+    joint_angles = []
 
     success = False
     num_cloths_on_table = np.random.randint(0, num_cloths)
@@ -889,8 +1046,8 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
-        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA), num_cloths_on_table).tolist()
-        possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA), num_cloths_in_basket).tolist()
+        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA+STEP_DELTA*45), num_cloths_on_table).tolist()
+        possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket).tolist()
 
         success = True
         plan.params['table'].openrave_body.set_pose([10,10,10])
@@ -924,14 +1081,14 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
             continue
         r_arm_pose = [-1.1, -0.7542201, 0.33281928, 0.81198007, 2.90107491, -1.54208563, 1.49564886]
 
-        X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
-        X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
-        X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
-        X[plan.state_inds[('baxter', 'rGripper')]] = 0
+        # X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
+        # X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
+        # X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
+        # X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'lArmPose')]] = l_arm_poses[0]
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'lGripper')]] = const.GRIPPER_CLOSE_VALUE
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'rArmPose')]] = r_arm_pose
-        X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'rGripper')]] = 0
+        X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
         X[plan.state_inds[('baxter', 'ee_left_pos')]] = [next_x, next_y, TABLE_TOP+height]
         X[plan.state_inds[('baxter', 'ee_left_rot')]] = [0, np.pi/2, 0]
         X[plan.state_inds[('cloth_{0}'.format(next_cloth), 'pose')]] = [next_x, next_y, TABLE_TOP+height]
@@ -939,8 +1096,85 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
         X[plan.state_inds[('baxter', 'ee_right_pos')]] = [0, -1.0, 0.9]
         X[plan.state_inds[('baxter', 'ee_right_rot')]] = [0, np.pi/2, 0]
 
+        # Joint angles ordered by Mujoco Model joint order
+        joint_angles = np.r_[0, X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'rArmPose')]], \
+                             X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'rArmPose')]], \
+                             -X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'rArmPose')]], \
+                             X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'lArmPose')]], \
+                             X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'lArmPose')]], \
+                             -X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth-1), 'lArmPose')]]]
+
         actions = [4*next_cloth+2, 4*next_cloth+3]
-        state_config = [X, actions, stationary_params]
+        state_config = [X, actions, stationary_params, joint_angles]
+
+    print "Found initial configuration.\n"
+    return state_config
+
+def get_random_initial_basket_grasp_state(plan, num_cloths):
+    X = np.zeros((plan.dX))
+    state_config = []
+    stationary_params = []
+
+    success = False
+
+    while not success:
+        print 'Searching for initial configuration...'
+
+        height = np.random.uniform(0.35, 0.55)
+        basket = plan.params['basket']
+        basket.pose[:,:] = [[np.random.uniform(0.45, 0.65)],
+                            [np.random.uniform(-0.1, 0.1)],
+                            [TABLE_TOP+height]]
+        X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
+        X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
+
+        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA+STEP_DELTA*45), num_cloths_on_table).tolist()
+        possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket).tolist()
+
+        success = True
+        plan.params['table'].openrave_body.set_pose([10,10,10])
+        plan.params['basket'].openrave_body.set_pose(basket.pose[:, 0])
+
+        next_x = np.random.uniform(0.3, 0.8)
+        next_y = np.random.uniform(-0.05, 0.4)
+        height = np.random.uniform(0.1, 0.5)
+        l_arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose([next_x, next_y, TABLE_TOP+height], [0, np.pi/2, 0], "left_arm")
+        if not len(l_arm_poses):
+            success = False
+            continue
+        r_arm_pose = [-1.1, -0.7542201, 0.33281928, 0.81198007, 2.90107491, -1.54208563, 1.49564886]
+
+        # X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
+        # X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
+        # X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
+        # X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
+        X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'lArmPose')]] = l_arm_poses[0]
+        X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'lGripper')]] = const.GRIPPER_OPEN_VALUE
+        X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'rArmPose')]] = r_arm_pose
+        X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
+        X[plan.state_inds[('baxter', 'ee_left_pos')]] = [next_x, next_y, TABLE_TOP+height]
+        X[plan.state_inds[('baxter', 'ee_left_rot')]] = [0, np.pi/2, 0]
+
+        X[plan.state_inds[('baxter', 'ee_right_pos')]] = [0, -1.0, 0.9]
+        X[plan.state_inds[('baxter', 'ee_right_rot')]] = [0, np.pi/2, 0]
+
+        # Joint angles ordered by Mujoco Model joint order
+        joint_angles = np.r_[0, X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'rArmPose')]], \
+                             X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'rArmPose')]], \
+                             -X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'rArmPose')]], \
+                             X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'lArmPose')]], \
+                             X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'lArmPose')]], \
+                             -X[plan.state_inds[('cloth_putdown_end_{0}'.format(num_cloths-1), 'lArmPose')]]]
+
+        for c in range(num_cloths):
+            next_loc = possible_basket_locs.pop()
+            next_x = (basket.pose[0,0] - 0.12) + (next_loc / 24) / 100.0
+            next_y = (basket.pose[1,0] - 0.12) + (next_loc % 24) / 100.0
+            X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = [next_x, next_y, basket.pose[2,0]+BASKET_HEIGHT_DELTA-0.26]
+
+        actions = [4*num_cloths+1, 4*num_cloths+2]
+        state_config = [X, actions, stationary_params, joint_angles]
 
     print "Found initial configuration.\n"
     return state_config
@@ -964,8 +1198,8 @@ def get_random_initial_rotate_with_basket_state(plan, num_cloths):
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
-        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA), num_cloths_on_table).tolist()
-        possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA), num_cloths_in_basket).tolist()
+        possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA+STEP_DELTA*45), num_cloths_on_table).tolist()
+        possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket).tolist()
 
         success = True
         plan.params['table'].openrave_body.set_pose([10,10,10])
@@ -985,10 +1219,10 @@ def get_random_initial_rotate_with_basket_state(plan, num_cloths):
                                                      'rArmPose': r_arm_poses[0],
                                                      'rGripper': const.GRIPPER_CLOSE_VALUE})
 
-        X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
-        X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_CLOSE_VALUE
-        X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_poses[0]
-        X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
+        # X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
+        # X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_CLOSE_VALUE
+        # X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_poses[0]
+        # X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
         X[plan.state_inds[('rotate_begin', 'lArmPose')]] = l_arm_poses[0]
         X[plan.state_inds[('rotate_begin', 'lGripper')]] = const.GRIPPER_CLOSE_VALUE
         X[plan.state_inds[('rotate_begin', 'rArmPose')]] = r_arm_poses[0]
@@ -1000,6 +1234,14 @@ def get_random_initial_rotate_with_basket_state(plan, num_cloths):
         X[plan.state_inds[('baxter', 'ee_right_pos')]] = ee_right
         X[plan.state_inds[('baxter', 'ee_right_rot')]] = [0, np.pi/2, 0]
 
+        # Joint angles ordered by Mujoco Model joint order
+        joint_angles = np.r_[0, X[plan.state_inds[('rotate_begin', 'rArmPose')]], \
+                             X[plan.state_inds[('rotate_begin', 'rArmPose')]], \
+                             -X[plan.state_inds[('rotate_begin', 'rArmPose')]], \
+                             X[plan.state_inds[('rotate_begin', 'lArmPose')]], \
+                             X[plan.state_inds[('rotate_begin', 'lArmPose')]], \
+                             -X[plan.state_inds[('rotate_begin', 'lArmPose')]]]
+
 
         for c in range(num_cloths):
             next_loc = possible_basket_locs.pop()
@@ -1008,7 +1250,13 @@ def get_random_initial_rotate_with_basket_state(plan, num_cloths):
             X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = [next_x, next_y, basket.pose[2,0]+BASKET_HEIGHT_DELTA-0.26]
 
         actions = [4*num_cloths+1, 4*num_cloths+2]
-        state_config = [X, actions, stationary_params]
+        state_config = [X, actions, stationary_params, joint_angles]
 
     print "Found initial configuration.\n"
     return state_config
+
+def get_random_initial_pick_place_state(plan, num_cloths):
+    if np.random.choice([0,1]):
+        return get_random_initial_cloth_pick_state(plan, num_cloths)
+    else:
+        return get_random_initial_cloth_place_state(plan, num_cloths)

@@ -68,6 +68,7 @@ class LaundryWorldClothLeftAgent(Agent):
         self.initial_opt = True
         self.stochastic_conditions = self._hyperparams['stochastic_conditions']
         self.saved_trajs = np.zeros((len(self.init_plan_states), self.T, self.plan.symbolic_bound))
+        import ipdb; ipdb.set_trace()
 
 
     def _generate_xml(self, plan, motor=True):

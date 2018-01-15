@@ -16,7 +16,7 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_clo
 
 
 # init Baxter pose
-BAXTER_INIT_POSE = [0]
+BAXTER_INIT_POSE = [np.pi/4]
 BAXTER_END_POSE = [np.pi/4]
 R_ARM_INIT = [-np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 L_ARM_INIT = [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
@@ -109,7 +109,7 @@ def main():
 
         s += "Robot (name baxter); "
         for i in range(NUM_CLOTH):
-            s += "Cloth (name {}); ".format("cloth_{0}".format(i))
+            s += "Cloth (name {}); ".format("cloth{0}".format(i))
 
         for i in range(NUM_SYMBOLS):
             s += "EEPose (name {}); ".format("cg_ee_{0}".format(i))
@@ -164,9 +164,9 @@ def main():
         s += "(rotation basket {}), ".format(BASKET_FAR_ROT)
 
         for i in range(NUM_CLOTH):
-            s += "(geom cloth_{0}), ".format(i)
-            s += "(pose cloth_{0} {1}), ".format(i, cloth_init_poses[i])
-            s += "(rotation cloth_{0} {1}), ".format(i, CLOTH_ROT)
+            s += "(geom cloth{0}), ".format(i)
+            s += "(pose cloth{0} {1}), ".format(i, cloth_init_poses[i])
+            s += "(rotation cloth{0} {1}), ".format(i, CLOTH_ROT)
 
         for i in range(NUM_SYMBOLS):
             s += get_undefined_symbol('cloth_target_end_{0}'.format(i))
