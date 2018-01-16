@@ -116,7 +116,10 @@ class LLParam(object):
                 free_vars = self.get_free_vars(attr)
                 for index, value in np.ndenumerate(value):
                     if not free_vars[index]:
-                        self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
+                        try:
+                            self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
+                        except:
+                            import ipdb; ipdb.set_trace()
 
     def grb_val_dict(self):
         val_dict = {}

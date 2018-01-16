@@ -64,7 +64,7 @@ class BaxterPolicySolver(RobotLLSolver):
         # initial_plan = generate_move_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
 
-        x_params=['baxter', 'basket']
+        x_params=['basket']
         for c in range(num_cloths):
             x_params.append('cloth_{0}'.format(c))
 

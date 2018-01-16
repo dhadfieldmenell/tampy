@@ -277,6 +277,7 @@ class RobotLLSolver(LLSolver):
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
         robot_body.set_dof({'lArmPose': [0.785, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
+
         for i in range(resample_size):
             if next_act != None and (next_act.name == 'basket_grasp' or next_act.name == 'basket_grasp_with_cloth'):
                 target = next_act.params[2]
@@ -446,7 +447,7 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
                 # TODO once we have the rotor_base we should resample pose
-                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[-0.785,0,0,0,0,0,0]]).T, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[-0.785,0,0,0,0,0,0]]).T, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
 
             elif next_act != None and next_act.name == 'put_into_basket':
                 target = next_act.params[4]

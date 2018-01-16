@@ -27,7 +27,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 32
+NUM_CONDS = 5
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \

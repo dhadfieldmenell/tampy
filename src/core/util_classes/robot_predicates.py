@@ -1864,34 +1864,34 @@ class IsPushing(PosePredicate):
         super(IsPushing, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 1)
         self.spacial_anchor = False
 
-class CloseGripper(ExprPredicate):
-    """
-        Format: InContact Robot
+# class CloseGripper(ExprPredicate):
+#     """
+#         Format: InContact Robot
 
-        Robot related
+#         Robot related
 
-        Requires:
-            attr_inds[OrderedDict]: robot attribute indices
-            attr_dim[Int]: dimension of robot attribute
-            GRIPPER_CLOSE[Float]: Constants, specifying gripper value when gripper is closed
-            GRIPPER_OPEN[Float]: Constants, specifying gripper value when gripper is open
-    """
-    #@profile
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self._env = env
-        self.robot = params
-        attr_inds = self.attr_inds
+#         Requires:
+#             attr_inds[OrderedDict]: robot attribute indices
+#             attr_dim[Int]: dimension of robot attribute
+#             GRIPPER_CLOSE[Float]: Constants, specifying gripper value when gripper is closed
+#             GRIPPER_OPEN[Float]: Constants, specifying gripper value when gripper is open
+#     """
+#     #@profile
+#     def __init__(self, name, params, expected_param_types, env=None, debug=False):
+#         self._env = env
+#         self.robot = params
+#         attr_inds = self.attr_inds
 
-        A = np.eye(1).reshape((1,1))
-        b = np.zeros(1).reshape((1,1))
+#         A = np.eye(1).reshape((1,1))
+#         b = np.zeros(1).reshape((1,1))
 
-        val = np.array([[self.GRIPPER_CLOSE]])
-        aff_expr = AffExpr(A, b)
-        e = LEqExpr(aff_expr, val)
+#         val = np.array([[self.GRIPPER_CLOSE]])
+#         aff_expr = AffExpr(A, b)
+#         e = LEqExpr(aff_expr, val)
 
-        aff_expr = AffExpr(-1*A, b)
-        val = np.array([[-1*self.GRIPPER_CLOSE]])
-        self.neg_expr = LEqExpr(aff_expr, val)
+#         aff_expr = AffExpr(-1*A, b)
+#         val = np.array([[-1*self.GRIPPER_CLOSE]])
+#         self.neg_expr = LEqExpr(aff_expr, val)
 
-        super(CloseGripper, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
-        self.spacial_anchor = True
+#         super(CloseGripper, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+#         self.spacial_anchor = True

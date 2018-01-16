@@ -89,11 +89,11 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
         cur_x_ind = x_vel_inds[-1] + 1
         params_to_x_inds[(robot.name, attr+'__vel')] = x_vel_inds
 
-    for attr in robot_attr_map:
-        if (robot.name, attr[0]) in params_to_x_inds: continue
-        x_inds = attr[1] + cur_x_ind
-        cur_x_ind = x_inds[-1] + 1
-        params_to_x_inds[(robot.name, attr[0])] = x_inds
+    # for attr in robot_attr_map:
+    #     if (robot.name, attr[0]) in params_to_x_inds: continue
+    #     x_inds = attr[1] + cur_x_ind
+    #     cur_x_ind = x_inds[-1] + 1
+    #     params_to_x_inds[(robot.name, attr[0])] = x_inds
 
     for param in params:
         param_attr_map = const.ATTR_MAP[param._type]

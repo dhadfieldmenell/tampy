@@ -465,6 +465,12 @@ class LaundryWorldEEAgent(Agent):
             for param in x0[2]:
                 self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
 
+            self.plan.params['baxter'].pose[:, init_t] = 0
+            self.plan.params['baxter'].lArmPose[:, init_t] = x0[3][10:17]
+            self.plan.params['baxter'].lGripper[:, init_t] = x0[3][17]
+            self.plan.params['baxter'].rArmPose[:, init_t] = x0[3][1:8]
+            self.plan.params['baxter'].rGripper[:, init_t] = x0[3][8]
+
             old_params_free = {}
             for p in self.params:
                 if p.is_symbol():
@@ -484,14 +490,39 @@ class LaundryWorldEEAgent(Agent):
             success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
 
             while self.initial_opt and not success:
+                for p in self.params:
+                    if p.is_symbol():
+                        if p not in init_act.params: continue
+                        p._free_attrs = old_params_free[p]
+                    else:
+                        for attr in p._free_attrs:
+                            p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
                 print "Solve failed."
                 self.replace_cond(m, self.num_cloths)
                 x0 = self.init_plan_states[m]
+                init_act = self.plan.actions[x0[1][0]]
+                final_act = self.plan.actions[x0[1][1]]
+                init_t = init_act.active_timesteps[0]
+                final_t = final_act.active_timesteps[1]
                 utils.set_params_attrs(self.params, self.plan.state_inds, x0[0], init_t)
                 utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
                 for param in x0[2]:
                     self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
                 success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
+                old_params_free = {}
+                for p in self.params:
+                    if p.is_symbol():
+                        if p not in init_act.params: continue
+                        old_params_free[p] = p._free_attrs
+                        p._free_attrs = {}
+                        for attr in old_params_free[p].keys():
+                            p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                    else:
+                        p_attrs = {}
+                        old_params_free[p] = p_attrs
+                        for attr in p._free_attrs:
+                            p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
+                            p._free_attrs[attr][:, init_t] = 0
 
             for p in self.params:
                 if p.is_symbol():
@@ -503,21 +534,21 @@ class LaundryWorldEEAgent(Agent):
 
             tgt_x = np.zeros((self.T, self.plan.symbolic_bound))
             tgt_u = np.zeros((self.T, self.plan.dU))
-            for t in range(init_t, final_t):
-                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t)
+            for t in range(0, final_t-init_t):
+                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
                 tgt_x[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
                 
-                self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:, t+1], \
-                                                                  'lGripper': self.plan.params['baxter'].lGripper[:, t+1], \
-                                                                  'rArmPose': self.plan.params['baxter'].rArmPose[:, t+1], \
-                                                                  'rGripper': self.plan.params['baxter'].rGripper[:, t+1]})
+                self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:, init_t+t+1], \
+                                                                  'lGripper': self.plan.params['baxter'].lGripper[:, init_t+t+1], \
+                                                                  'rArmPose': self.plan.params['baxter'].rArmPose[:, init_t+t+1], \
+                                                                  'rGripper': self.plan.params['baxter'].rGripper[:, init_t+t+1]})
                 ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_trans[:3,3]
                 ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransform()
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_right_pos')]] = ee_trans[:3,3]
 
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, t]
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'rGripper')]] = self.plan.params['baxter'].rGripper[0, t]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'rGripper')]] = self.plan.params['baxter'].rGripper[0, init_t+t]
             
             alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
             alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
@@ -709,9 +740,9 @@ class LaundryWorldEEAgent(Agent):
 
 
 
-    def replace_cond(self, cond):
+    def replace_cond(self, cond, num_cloths):
         print "Replacing Condition {0}.\n".format(cond)
-        x0s = get_randomized_initial_state_left(self.plan)
+        x0s = get_random_initial_pick_place_state(self.plan, num_cloths)
         self.init_plan_states[cond] = x0s
         self.x0[cond] = x0s[0][:self.plan.symbolic_bound]
         self.cond_global_pol_sample[cond] = None
