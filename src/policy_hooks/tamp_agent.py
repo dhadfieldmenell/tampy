@@ -38,7 +38,7 @@ MUJOCO_JOINT_ORDER = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_e2', 'le
                       'right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2', 'right_gripper_l_finger_joint', 'right_gripper_r_finger_joint']
 
 # MUJOCO_MODEL_Z_OFFSET = -0.686
-MUJOCO_MODEL_Z_OFFSET = -0.706
+MUJOCO_MODEL_Z_OFFSET = -0.736
 
 N_CONTACT_LIMIT = 11
 
