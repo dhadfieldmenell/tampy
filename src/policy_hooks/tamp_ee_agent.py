@@ -51,7 +51,7 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
     chosen_arm_pose = None
     cur_arm_pose = np.array(cur_arm_pose).flatten()
     for arm_pose in arm_poses:
-        change = sum((arm_pose - cur_arm_pose)**2)
+        change = np.sum((np.array([1.75, 1.75, 2, 1.5, 2, 1, 1]) * (arm_pose - cur_arm_pose))**2)
         if change < min_change:
             chosen_arm_pose = arm_pose
             min_change = change
@@ -224,12 +224,14 @@ class LaundryWorldEEAgent(Agent):
                 ee_vels_c = ee_vels.ctypes.data_as(POINTER(c_double))
                 mjlib.mj_objectVelocity(self.pos_model.ptr, self.pos_model.data.ptr, mjconstants.mjOBJ_BODY, self.l_gripper_ind, ee_vels_c, 0)
                 X[x_inds[('baxter', 'ee_left_pos__vel')]] = ee_vels[:3]
+                X[x_inds[('baxter', 'ee_left_rot__vel')]] = ee_vels[3:]
                 X[x_inds[('baxter', 'lGripper__vel')]] = model.data.qvel[17]
 
                 ee_vels = np.zeros((6,))
                 ee_vels_c = ee_vels.ctypes.data_as(POINTER(c_double))
                 mjlib.mj_objectVelocity(self.pos_model.ptr, self.pos_model.data.ptr, mjconstants.mjOBJ_BODY, self.r_gripper_ind, ee_vels_c, 0)
                 X[x_inds[('baxter', 'ee_right_pos__vel')]] = ee_vels[:3]
+                X[x_inds[('baxter', 'ee_right_rot__vel')]] = ee_vels[3:]
                 X[x_inds[('baxter', 'rGripper__vel')]] = model.data.qvel[8]
 
                 X[x_inds[('baxter', 'ee_left_pos')]] = self.pos_model.data.xpos[self.l_gripper_ind]
@@ -259,16 +261,16 @@ class LaundryWorldEEAgent(Agent):
             self.replace_cond(condition)
 
         if noisy:
-            noise = np.random.uniform(-1, 1, (self.T, self.dU))
-            noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 0
-            noise[:, self.plan.action_inds[('baxter', 'rGripper')]] *= 0
+            noise = np.random.uniform(-0.01, 0.01, (self.T, self.dU))
+            noise[:, self.plan.action_inds[('baxter', 'lGripper')]] = 0
+            noise[:, self.plan.action_inds[('baxter', 'rGripper')]] = 0
         else:
             noise = np.zeros((self.T, self.dU))
 
-        self._set_simulator_state(x0[0], self.plan, x[3])
-        last_success_X = (x0[0], x[3])
+        self._set_simulator_state(x0[0], self.plan, x0[3])
+        last_success_X = (x0[0], x0[3])
         last_left_ctrl = x0[3][10:17]
-        last_right_ctrl = x0[3][1:9]
+        last_right_ctrl = x0[3][1:8]
         for t in range(self.T):
             X, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
             U = policy.act(X.copy(), X.copy(), t, noise[t])
@@ -277,29 +279,38 @@ class LaundryWorldEEAgent(Agent):
             sample.set(ACTION_ENUM, U.copy(), t)
             sample.set(NOISE_ENUM, noise[t], t)
 
-            ee_left_pos = U[self.plan.action_inds[('baxter', 'ee_left_pos')]] + noise[t, :3]
+            ee_left_pos = U[self.plan.action_inds[('baxter', 'ee_left_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_pos')]]
+            ee_left_rot = U[self.plan.action_inds[('baxter', 'ee_left_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_rot')]]
             # ee_left_pos = np.maximum(ee_left_pos, [0, -0.2, 0.615])
             # ee_left_pos = np.minimum(ee_left_pos, [1.0, 1.0, 1.5])
             # ee_rot = np.maximum(ee_pos, [2*np.pi, 2*np.pi, 2*np.pi])
             # ee_rot = np.minimum(ee_pos, [-2*np.pi, -2*np.pi, -2*np.pi])
-            ee_right_pos = U[self.plan.action_inds[('baxter', 'ee_right_pos')]] + noise[t, 4:7]
+            ee_right_pos = U[self.plan.action_inds[('baxter', 'ee_right_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_right_pos')]]
+            ee_right_rot = U[self.plan.action_inds[('baxter', 'ee_right_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_right_rot')]]
             # ee_right_pos = np.maximum(ee_right_pos, [0, -1.0, 0.615])
             # ee_right_pos = np.minimum(ee_right_pos, [1.0, 0.2, 1.5])
-            ee_rot = np.aray([0, np.pi/2, 0])
-            target_left_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_left_pos, ee_rot, "left_arm")
-            target_right_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_right_pos, ee_rot, "right_arm")
+            ee_rot = np.array([0, np.pi/2, 0])
+            target_left_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_left_pos, ee_left_rot, "left_arm")
+            target_right_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_right_pos, ee_right_rot, "right_arm")
 
             if len(target_left_poses):
                 left_ctrl_signal = closest_arm_pose(target_left_poses, joints[9:16])
                 last_left_ctrl = left_ctrl_signal
             else:
-                left_ctrl_signal = last_left_ctrl
+                target_left_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_left_pos, [0, np.pi/2, 0], "left_arm")
+                if len(target_left_poses):
+                    left_ctrl_signal = closest_arm_pose(target_left_poses, joints[9:16])
+                    last_left_ctrl = left_ctrl_signal
+                else:
+                    left_ctrl_signal = last_left_ctrl
+                    import ipdb; ipdb.set_trace()
 
-            if len(target_left_poses):
-                right_ctrl_signal = closest_arm_pose(target_right_poses, joints[1:8])
-                last_right_ctrl = right_ctrl_signal
-            else:
-                right_ctrl_signal = last_right_ctrl
+            # if len(target_right_poses):
+            #     right_ctrl_signal = closest_arm_pose(target_right_poses, joints[1:8])
+            #     last_right_ctrl = right_ctrl_signal
+            # else:
+            #     right_ctrl_signal = last_right_ctrl
+            right_ctrl_signal = last_right_ctrl
 
 
             ctrl_signal = np.r_[right_ctrl_signal, \
@@ -309,7 +320,7 @@ class LaundryWorldEEAgent(Agent):
 
             # for delta in range(utils.MUJOCO_STEPS_PER_SECOND/utils.POLICY_STEPS_PER_SECOND):
             iteration = 0
-            while (np.any(not iteration or (self.pos_model.data.qpos[1:] - self.pos_model.data.ctrl > 0.05) and iteration < 1000)):
+            while not iteration or (np.sum(self.pos_model.data.qpos[1:] - self.pos_model.data.ctrl) > 0.075 and iteration < 500):
                 success = self.run_policy_step(ctrl_signal)
                 if success:
                     last_success_X = (X, joints)
@@ -338,8 +349,11 @@ class LaundryWorldEEAgent(Agent):
         r_grip = u[7]
         l_grip = u[-1]
 
-        if l_grip <= const.GRIPPER_CLOSE_VALUE:
+        if l_grip <= const.GRIPPER_CLOSE_VALUE + 0.025:
             l_grip = 0
+
+        if r_grip <= const.GRIPPER_CLOSE_VALUE + 0.025:
+            r_grip = 0
 
         success = True
 
@@ -356,7 +370,7 @@ class LaundryWorldEEAgent(Agent):
         xpos = self.pos_model.data.xpos.copy()
         run_forward = False
         for i in range(self.num_cloths):
-            if np.all((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2 < [0.0025, 0.0025, 0.0009]) and self.pos_model.data.ctrl[16] < const.GRIPPER_CLOSE_VALUE:
+            if np.all((xpos[self.cloth_inds[i]] - xpos[self.l_gripper_ind])**2 < [0.01, 0.01, 0.0025]) and l_grip < const.GRIPPER_CLOSE_VALUE:
                 body_pos[self.cloth_inds[i]] = xpos[self.l_gripper_ind]
                 run_forward = True
                 break
@@ -471,6 +485,9 @@ class LaundryWorldEEAgent(Agent):
             self.plan.params['baxter'].rArmPose[:, init_t] = x0[3][1:8]
             self.plan.params['baxter'].rGripper[:, init_t] = x0[3][8]
 
+            # old_symbols = []
+            # if init_act > 0:
+            #     old_symbols = filter(lambda p: p.is_symbol(), self.plan.actions[init_act-1])
             old_params_free = {}
             for p in self.params:
                 if p.is_symbol():
@@ -508,7 +525,12 @@ class LaundryWorldEEAgent(Agent):
                 utils.set_params_attrs(self.symbols, self.plan.state_inds, x0[0], init_t)
                 for param in x0[2]:
                     self.plan.params[param].pose[:,:] = x0[0][self.plan.state_inds[(param, 'pose')]].reshape(3,1)
-                success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
+                self.plan.params['baxter'].pose[:, init_t] = 0
+                self.plan.params['baxter'].lArmPose[:, init_t] = x0[3][10:17]
+                self.plan.params['baxter'].lGripper[:, init_t] = x0[3][17]
+                self.plan.params['baxter'].rArmPose[:, init_t] = x0[3][1:8]
+                self.plan.params['baxter'].rGripper[:, init_t] = x0[3][8]
+
                 old_params_free = {}
                 for p in self.params:
                     if p.is_symbol():
@@ -523,6 +545,7 @@ class LaundryWorldEEAgent(Agent):
                         for attr in p._free_attrs:
                             p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
                             p._free_attrs[attr][:, init_t] = 0
+                success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1])
 
             for p in self.params:
                 if p.is_symbol():
@@ -534,21 +557,27 @@ class LaundryWorldEEAgent(Agent):
 
             tgt_x = np.zeros((self.T, self.plan.symbolic_bound))
             tgt_u = np.zeros((self.T, self.plan.dU))
+            interval = 1
             for t in range(0, final_t-init_t):
                 utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
-                tgt_x[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
+                tgt_x[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
                 
                 self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:, init_t+t+1], \
                                                                   'lGripper': self.plan.params['baxter'].lGripper[:, init_t+t+1], \
                                                                   'rArmPose': self.plan.params['baxter'].rArmPose[:, init_t+t+1], \
                                                                   'rGripper': self.plan.params['baxter'].rGripper[:, init_t+t+1]})
-                ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_trans[:3,3]
-                ee_trans = self.plan.params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransform()
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_right_pos')]] = ee_trans[:3,3]
+                ee_pose = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransformPose()
+                mat = openravepy.matrixFromQuat(ee_pose[:4])
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_pose[4:]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_left_rot')]] = OpenRAVEBody._ypr_from_rot_matrix(mat)
+                
+                ee_pose = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransformPose()
+                mat = openravepy.matrixFromQuat(ee_pose[:4])
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_right_pos')]] = ee_pose[4:]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_right_rot')]] = OpenRAVEBody._ypr_from_rot_matrix(mat)
 
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t]
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'rGripper')]] = self.plan.params['baxter'].rGripper[0, init_t+t]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'rGripper')]] = self.plan.params['baxter'].rGripper[0, init_t+t]
             
             alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
             alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u

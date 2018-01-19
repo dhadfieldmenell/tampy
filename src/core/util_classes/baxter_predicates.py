@@ -771,9 +771,9 @@ class BaxterObstructsWasher(BaxterObstructs):
         self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.325, .325, .325])),
                                                                         OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
                                                                         OpenRAVEBody(self._env, 'obstruct_handle', Can(.02, .15))]
-        self._param_to_body[params[3]][0].set_pose([10,10,10])
-        self._param_to_body[params[3]][1].set_pose([10,10,10])
-        self._param_to_body[params[3]][2].set_pose([10,10,10])
+        self._param_to_body[params[3]][0].set_pose([2,2,2])
+        self._param_to_body[params[3]][1].set_pose([2,2,2])
+        self._param_to_body[params[3]][2].set_pose([2,2,2])
 
     def robot_obj_collision(self, x):
         # Parse the pose value
@@ -812,9 +812,9 @@ class BaxterObstructsWasher(BaxterObstructs):
         self.set_active_dof_inds(robot_body, reset=True)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
-        washer_body.set_pose([10,10,10])
-        washer_door.set_pose([10,10,10])
-        washer_handle.set_pose([10,10,10])
+        washer_body.set_pose([2,2,2])
+        washer_door.set_pose([2,2,2])
+        washer_handle.set_pose([2,2,2])
         return col_val, col_jac
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
@@ -2001,3 +2001,102 @@ class BaxterObjRelPoseConstant(robot_predicates.ObjRelPoseConstant):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
         self.attr_dim = 3
         super(BaxterObjRelPoseConstant, self).__init__(name, params, expected_param_types, env, debug)
+
+class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
+    # BaxterGrippersDownRot Robot
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = 0.1
+        self.opt_coeff = 0.1
+        self.eval_f = lambda x: self.both_arm_rot_check(x)
+        self.eval_grad = lambda x: self.both_arm_rot_jac(x)
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
+        self.eval_dim = 2
+        super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
+
+    #@profile
+    def get_robot_info(self, robot_body, arm = "left"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
+        # Provide functionality of Obtaining Robot information
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
+        return robot_trans, arm_inds
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def both_arm_rot_check(self, x):
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        self.set_robot_poses(x, robot_body)
+
+        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
+        robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
+
+        local_dir = [1, 0, 0]
+        world_dir = robot_left_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        left_rot_val = np.array([[np.abs(np.dot([0,0,-1], world_dir)) - 1]])
+
+        world_dir = robot_right_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        right_rot_val = np.array([[np.abs(np.dot([0,0,-1], world_dir)) - 1]])
+        return np.r_[left_rot_val, right_rot_val]
+
+    def both_arm_rot_jac(self, x):
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        self.set_robot_poses(x, robot_body)
+
+        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
+        robot_right_trans, right_arm_inds = self.get_robot_info(robot_body, "right")
+        left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
+        right_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in right_arm_inds]
+        l_tool_link = robot_body.env_body.GetLink("left_gripper")
+        l_manip_trans = l_tool_link.GetTransform()
+
+        r_tool_link = robot_body.env_body.GetLink("right_gripper")
+        r_manip_trans = r_tool_link.GetTransform()
+
+        local_dir = [1, 0, 0]
+        world_dir = robot_left_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        obj_dir = [0,0,-1]
+        sign = np.sign(np.dot(obj_dir, world_dir))
+
+        left_arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in left_arm_joints]).T.copy()
+        left_arm_jac = left_arm_jac.reshape((1, len(left_arm_joints)))
+
+        local_dir = [1, 0, 0]
+        world_dir = robot_right_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        obj_dir = [0,0,-1]
+        sign = np.sign(np.dot(obj_dir, world_dir))
+
+        right_arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in right_arm_joints]).T.copy()
+        right_arm_jac = right_arm_jac.reshape((1, len(right_arm_joints)))
+
+        jac = np.zeros((2, 17))
+        jac[0,:7] = left_arm_jac
+        jac[1,8:15] = right_arm_jac
+        return jac

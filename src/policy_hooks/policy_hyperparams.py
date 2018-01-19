@@ -27,7 +27,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 5
+NUM_CONDS = 1
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \
@@ -135,7 +135,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 20,
+    'num_samples': 10,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': True,

@@ -73,7 +73,9 @@ class BaxterPolicySolver(RobotLLSolver):
         utils.get_plan_to_policy_mapping(initial_plan, 
                                          x_params=x_params, 
                                          x_attrs=['pose'], 
-                                         u_attrs=set(['ee_left_pos', 'ee_right_pos', 'lGripper', 'rGripper']))
+                                         u_attrs=set(['ee_left_pos', 'ee_left_rot', 
+                                                      'ee_right_pos', 'ee_right_rot',
+                                                      'lGripper', 'rGripper']))
         
         x0s = []
         for c in range(0, self.config['num_conds']):

@@ -39,8 +39,6 @@ class TrajectoryController(object):
         self.right = baxter_interface.limb.Limb('right')
         self.left_grip = baxter_interface.gripper.Gripper('left')
         self.right_grip = baxter_interface.gripper.Gripper('right')
-        self.left_grip.calibrate()
-        self.right_grip.calibrate()
 
     def execute_timestep(self, baxter_parameter, ts, real_t, limbs=['left', 'right']):
         use_left = 'left' in limbs

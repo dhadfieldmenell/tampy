@@ -1794,7 +1794,7 @@ class GrippersLevel(PosePredicate):
         pos_expr, val = Expr(f, grad), np.zeros((self.eval_dim,1))
         e = EqExpr(pos_expr, val)
 
-        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 1)
+        super(GrippersLevel, self).__init__(name, e, attr_inds, params, expected_param_types, priority = 3)
         self.spacial_anchor = False
 
 class EERetiming(PosePredicate):

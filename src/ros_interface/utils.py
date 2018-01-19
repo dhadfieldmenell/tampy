@@ -85,10 +85,10 @@ basket_net_ll = 1
 # Used to match depth images to simulated images
 basket_net_bounds = []
 
-bakset_im_dims = [144, 256]
+basket_im_dims = [144, 256]
 
 basket_near_pos = [0.65, 0.3,  0.875]
-basket_far_pos = [0.55, -0.6,  0.875]
+basket_far_pos = [0.5, -0.6,  0.875]
 basket_near_rot = [2*np.pi/3, 0, np.pi/2]
 basket_far_rot = [np.pi/4, 0, np.pi/2]
 

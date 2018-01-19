@@ -1093,7 +1093,7 @@ class PutIntoBasket(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterAt ?basket ?bt)', '0:{}'.format(end)),
-            ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
+            # ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(0, putdown_time)),
             ('(BaxterClothGraspValid ?ee_left ?ct)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(putdown_time,  end)),
@@ -1182,7 +1182,7 @@ class Rotate(Action):
                 (not (BaxterBasketInGripper ?robot ?obj))\
             )', '{}:{}'.format(0, 0)),
             ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
-            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
+            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(end, end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Washer)\
@@ -1221,7 +1221,7 @@ class RotateHoldingBasket(Action):
         self.args = '(?robot - Robot ?basket - Basket ?start - RobotPose ?end - RobotPose ?end_rot - Rotation)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
-            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
+            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(end, end)),
             ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
             ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
@@ -1258,7 +1258,7 @@ class RotateHoldingCloth(Action):
         self.args = '(?robot - Robot ?cloth - Cloth ?start - RobotPose ?end - RobotPose ?end_rot - Rotation)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
-            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
+            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(end, end)),
             ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
@@ -1295,7 +1295,7 @@ class RotateHoldingBasketWithCloth(Action):
         self.args = '(?robot - Robot ?basket - Basket ?start - RobotPose ?end - RobotPose ?end_rot - Rotation)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
-            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(0, 0)),
+            ('(BaxterPoseAtRotation ?end ?end_rot)', '{}:{}'.format(end, end)),
             ('(BaxterBasketInGripper ?robot ?basket)', '0:{}'.format(end)),
             ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\

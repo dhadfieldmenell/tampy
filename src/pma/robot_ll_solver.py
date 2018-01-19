@@ -438,7 +438,7 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['value'][:] = 0
                     target._free_attrs['rotation'][:] = 0
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.75], [0.01, 0.01, 0.15])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.15])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -455,7 +455,7 @@ class RobotLLSolver(LLSolver):
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.0], [0.3, 0.3, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.0], [0.1, 0.1, 0.1])
                 ee_pos = target_pos + random_dir
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, DOWN_ROT, "left_arm")
                 if not len(ik_arm_poses):
@@ -479,7 +479,6 @@ class RobotLLSolver(LLSolver):
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
-                import ipdb; ipdb.set_trace()
                 if not len(l_arm_pose) or not len(r_arm_pose):
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
@@ -492,7 +491,7 @@ class RobotLLSolver(LLSolver):
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-3.5], [0.01, 0.01, 0.10])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-3.5], [0.01, 0.01, 0.1])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")

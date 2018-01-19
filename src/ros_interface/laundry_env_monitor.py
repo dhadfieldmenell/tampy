@@ -1,4 +1,5 @@
 import copy
+import main
 
 import numpy as np
 
@@ -121,7 +122,7 @@ class LaundryEnvironmentMonitor(object):
                 plan.params['basket'].rotation[:, 0] = last_basket_rot[:]
 
             viewer = OpenRAVEViewer.create_viewer(plan.env)
-            callback = lambda x: viewer
+            callback = lambda x: None # viewer
 
             self.ll_solver.backtrack_solve(plan, callback=callback)
 

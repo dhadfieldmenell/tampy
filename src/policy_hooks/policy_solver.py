@@ -9,7 +9,7 @@ from sco.prob import Prob
 from sco.solver import Solver
 from sco.variable import Variable
 
-# from gps.gps_main import GPSMain
+from gps.gps_main import GPSMain
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.algorithm.cost.cost_state import CostState
@@ -18,13 +18,13 @@ from gps.algorithm.cost.cost_utils import RAMP_CONSTANT
 
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
-from policy_hooks.base_gps_main import GPSMain
+# from policy_hooks.base_gps_main import GPSMain
 from policy_hooks.cloth_world_policy_utils import *
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
 import policy_hooks.policy_solver_utils as utils
-from policy_hooks.tamp_agent import LaundryWorldMujocoAgent
-from policy_hooks.tamp_cloth_agent import LaundryWorldClothAgent
+from policy_hooks.tamp_agent import LaundryWorldClothAgent
+from policy_hooks.tamp_agent import LaundryWorldClothAgent
 from policy_hooks.tamp_cloth_left_agent import LaundryWorldClothLeftAgent
 from policy_hooks.tamp_ee_left_agent import LaundryWorldEELeftAgent
 from policy_hooks.tamp_move_agent import LaundryWorldMoveAgent
@@ -64,11 +64,13 @@ class BaxterPolicySolver(RobotLLSolver):
         if hyperparams and self.config:
             self.config.update(hyperparams)
 
-        initial_plan = generate_cond(num_cloths)
+        initial_plan = generate_full_cond(num_cloths)
         # initial_plan = generate_move_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
 
-        x_params=['baxter', 'cloth_0', 'basket']
+        x_params=['baxter', 'cloth_0', 'cloth_1', 'basket']
+        for c in range(num_cloths):
+            x_params.append('cloth_{0}'.format(c))
 
         # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         # initial_plan.action_inds, initial_plan.symbolic_bound = \
@@ -87,7 +89,7 @@ class BaxterPolicySolver(RobotLLSolver):
         utils.get_plan_to_policy_mapping(initial_plan, 
                                          x_params=x_params, 
                                          x_attrs=['pose'], 
-                                         u_attrs=set(['lArmPose', 'lGripper']))
+                                         u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         # initial_plan.action_inds, initial_plan.symbolic_bound = \
         # utils.get_plan_to_policy_mapping(initial_plan, 
@@ -108,7 +110,7 @@ class BaxterPolicySolver(RobotLLSolver):
         #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/num_cloths))
         for c in range(0, self.config['num_conds']):
             # x0s.append(get_randomized_initial_state_left(initial_plan))
-            x0s.append(get_randomized_initial_state_left_pick_place_split(initial_plan))
+            x0s.append(get_random_initial_pick_place_state(initial_plan, num_cloths))
         # for c in range(0, self.config['num_conds']):
         #     x0s.append(get_randomized_initial_state_move(initial_plan))
 
@@ -126,7 +128,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 # 'type': LaundryWorldMujocoAgent,
                 # 'type': LaundryWorldClothAgent,
                 # 'type': LaundryWorldMoveAgent,
-                'type': LaundryWorldClothLeftAgent,
+                'type': LaundryWorldClothAgent,
                 # 'type': LaundryWorldEELeftAgent,
                 'x0s': x0s,
                 'x0': map(lambda x: x[0][:initial_plan.symbolic_bound], x0s),
@@ -534,4 +536,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(1)
+    PS.train_policy(2)
