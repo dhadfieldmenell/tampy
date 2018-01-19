@@ -61,11 +61,4 @@ class BasketPredict:
             new_im[:,:,:,2] = im
             return self.net.predict(new_im)
         return np.array([np.nan, np.nan, np.nan])
-
-import rospy
-rospy.init_node('new_node')
-
-import keras.backend as K
-K.set_learning_phase(0)
-bp = BasketPredict()
-import ipdb; ipdb.set_trace()
+        
