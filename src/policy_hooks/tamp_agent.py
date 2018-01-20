@@ -80,7 +80,10 @@ class LaundryWorldClothAgent(Agent):
         active_ts = (0, plan.horizon)
         params = plan.params.values()
         contacts = root.find('contact')
+        equality = root.find('equality')
 
+        cur_eq_ind = 0
+        self.equal_active_inds = {}
         for param in params:
             if param.is_symbol(): continue
             if param._type == 'Cloth':
@@ -91,6 +94,9 @@ class LaundryWorldClothAgent(Agent):
                 # cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'cylinder', 'size':"{} {}".format(radius, height), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
                 cloth_geom = xml.SubElement(cloth_body, 'geom', {'name': param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
                 cloth_intertial = xml.SubElement(cloth_body, 'inertial', {'pos':'0 0 0', 'quat':'0 0 0 1', 'mass':'0.1', 'diaginertia': '0.01 0.01 0.01'})
+                xml.SubElement(equality, 'connect', {'body1': param.name, 'body2': 'left_gripper_l_finger_tip', 'anchor': "0 0 0", 'active':'false'})
+                self.equal_active_inds[(param.name, 'left_gripper')] = cur_eq_ind
+                cur_eq_ind += 1
                 # Exclude collisions between the left hand and the cloth to help prevent exceeding the contact limit
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_wrist'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_hand'})
@@ -110,9 +116,33 @@ class LaundryWorldClothAgent(Agent):
             elif param._type == 'Basket':
                 x, y, z = param.pose[:, active_ts[0]]
                 yaw, pitch, roll = param.rotation[:, active_ts[0]]
-                basket_body = xml.SubElement(worldbody, 'body', {'name':param.name, 'pos':"{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET), 'euler':'{} {} {}'.format(roll, pitch, yaw)})
+                basket_body = xml.SubElement(worldbody, 'body', {'name':param.name, 'pos':"{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET), 'euler':'{} {} {}'.format(pitch, roll, yaw)})
                 basket_intertial = xml.SubElement(basket_body, 'inertial', {'pos':"0 0 0", 'mass':"0.1", 'diaginertia':"2 1 1"})
                 basket_geom = xml.SubElement(basket_body, 'geom', {'name':param.name, 'type':'mesh', 'mesh': "laundry_basket"})
+
+                basket_left_handle = xml.SubElement(basket_body, 'body', {'name': 'basket_left_handle', 'pos':"{} {} {}".format(0.317, 0, 0), 'euler':'0 0 0'})
+                basket_geom = xml.SubElement(basket_left_handle, 'geom', {'type':'sphere', 'size': '0.01'})
+                xml.SubElement(contacts, 'exclude', {'body1': 'basket_left_handle', 'body2': 'basket'})
+                xml.SubElement(contacts, 'exclude', {'body1': 'basket_left_handle', 'body2': 'left_gripper_l_finger_tip'})
+                xml.SubElement(contacts, 'exclude', {'body1': 'basket_left_handle', 'body2': 'left_gripper_r_finger_tip'})
+                xml.SubElement(equality, 'connect', {'body1': 'basket_left_handle', 'body2': 'basket', 'anchor': "0 0.317 0", 'active':'true'})
+                xml.SubElement(equality, 'connect', {'body1': 'basket_left_handle', 'body2': 'left_gripper_r_finger_tip', 'anchor': "0 0 0", 'active':'false'})
+                self.equal_active_inds[('basket', 'left_handle')] = cur_eq_ind
+                cur_eq_ind += 1
+                self.equal_active_inds[('left_handle', 'left_gripper')] = cur_eq_ind
+                cur_eq_ind += 1
+
+                basket_right_handle = xml.SubElement(basket_body, 'body', {'name': 'basket_right_handle', 'pos':"{} {} {}".format(-0.317, 0, 0), 'euler':'0 0 0'})
+                basket_geom = xml.SubElement(basket_right_handle, 'geom', {'type':'sphere', 'size': '0.01'})
+                xml.SubElement(contacts, 'exclude', {'body1': 'basket_right_handle', 'body2': 'basket'})
+                xml.SubElement(contacts, 'exclude', {'body1': 'basket_right_handle', 'body2': 'right_gripper_l_finger_tip'})
+                xml.SubElement(contacts, 'exclude', {'body1': 'basket_right_handle', 'body2': 'right_gripper_r_finger_tip'})
+                xml.SubElement(equality, 'connect', {'body1': 'basket_right_handle', 'body2': 'basket', 'anchor': "0 -0.317 0", 'active':'true'})
+                xml.SubElement(equality, 'connect', {'body1': 'basket_right_handle', 'body2': 'right_gripper_l_finger_tip', 'anchor': "0 0 0", 'active':'false'})
+                self.equal_active_inds[('basket', 'right_handle')] = cur_eq_ind
+                cur_eq_ind += 1
+                self.equal_active_inds[('right_handle', 'right_gripper')] = cur_eq_ind
+                cur_eq_ind += 1
         base_xml.write(ENV_XML)
 
 
@@ -125,6 +155,11 @@ class LaundryWorldClothAgent(Agent):
         
         self.left_grip_l_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
         self.left_grip_r_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_r_finger_tip')
+        self.right_grip_l_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'right_gripper_l_finger_tip')
+        self.right_grip_r_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'right_gripper_r_finger_tip')
+        self.basket_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'basket')
+        self.basket_left_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'basket_left_ind')
+        self.basket_right_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'basket_right_ind')
         self.cloth_inds = []
         for i in range(self.num_cloths):
             self.cloth_inds.append(mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'cloth_{0}'.format(i)))
@@ -167,7 +202,7 @@ class LaundryWorldClothAgent(Agent):
                 if (param.name, 'rotation') in plan.state_inds:
                     rot = x[plan.state_inds[(param.name, 'rotation')]]
                     xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(pos, rot)[:3,:3])
-                if param.name == 'basket':
+                if param.name == 'basket' and (param.name, 'rotation') not in plan.state_inds:
                     xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(pos, [0, 0, np.pi/2])[:3,:3])
 
         model.body_pos = xpos
@@ -305,18 +340,63 @@ class LaundryWorldClothAgent(Agent):
             print 'Collision Limit Exceeded in Position Model.'
             # self.pos_model.data.ctrl = np.zeros((18,1))
             return False
+
+        # xpos = self.pos_model.data.xpos.copy()
+        # eq_active = self.pos_model.eq_active.copy()
+        run_forward = False
+        # if (np.all((xpos[self.basket_left_ind] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE) and \
+        #    (np.all((xpos[self.basket_right_ind] - xpos[self.right_grip_r_ind])**2 < [0.0081, 0.0081, 0.0081]) and r_grip < const.GRIPPER_CLOSE_VALUE):
+        #    eq_active[self.equal_active_inds['left_handle', 'left_gripper']] = 1
+        #    eq_active[self.equal_active_inds['right_handle', 'right_gripper']] = 1
+        #    run_forward = True
+        # else:
+        #     eq_active[self.equal_active_inds['left_handle', 'left_gripper']] = 0
+        #     eq_active[self.equal_active_inds['right_handle', 'right_gripper']] = 0
+
+        # gripped_cloth = -1
+        # for i in range(self.num_cloths):
+        #     if not run_forward and (np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE):
+        #         eq_active[self.equal_active_inds['cloth_{0}'.format(i), 'left_gripper']] = 1
+        #         run_forward = True
+        #         gripped_cloth = i
+        #         break
+        #     elif l_grip > const.GRIPPER_CLOSE_VALUE:
+        #         eq_active[self.equal_active_inds['cloth_{0}'.format(i), 'left_gripper']] = 0
+
+        # for i in range(self.num_cloths):
+        #     if i != gripped_cloth:
+        #         eq_active[self.equal_active_inds['cloth_{0}'.format(i), 'left_gripper']] = 0
+
+        # self.pos_model.eq_active = eq_active
+
         self.pos_model.step()
 
         body_pos = self.pos_model.body_pos.copy()
+        body_quat = self.pos_model.body_quat.copy()
         xpos = self.pos_model.data.xpos.copy()
-        run_forward = False
+        xquat = self.pos_model.data.xquat.copy()
+
+        if (param.name, 'rotation') in plan.state_inds:
+            rot = x[plan.state_inds[(param.name, 'rotation')]]
+            xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(pos, rot)[:3,:3])
+
+        if np.all((xpos[self.basket_left_ind] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE \
+           and np.all((xpos[self.basket_right_ind] - xpos[self.right_grip_r_ind])**2 < [0.0081, 0.0081, 0.0081]) and r_grip < const.GRIPPER_CLOSE_VALUE:
+            body_pos[self.basket_ind] = (xpos[self.left_grip_l_ind] + xpos[self.right_grip_r_ind]) / 2.0
+            vec = xpos[self.left_grip_l_ind] - xpos[self.right_grip_r_ind]
+            yaw = np.arccos(vec[0] / np.sqrt(vec[0]**2+vec[1]**2))
+            body_quat[self.basket_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose([0, 0, 0], [yaw, 0, np.pi/2])[:3,:3])
+            run_forward = True
+
         for i in range(self.num_cloths):
-            if grip_cloth or (np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0049, 0.0049, 0.0049]) and l_grip < const.GRIPPER_CLOSE_VALUE):
+            if not run_forward and (np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE):
                 body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
                 run_forward = True
                 break
+
         if run_forward:
             self.pos_model.body_pos = body_pos
+            self.pos_model.body_quat = body_quat
             self.pos_model.forward()
 
         return success

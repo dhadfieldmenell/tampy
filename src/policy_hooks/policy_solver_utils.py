@@ -100,7 +100,8 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
         # Uses all parameters for state unless otherwise specified
 
         for attr in param_attr_map:
-            if (param.name, attr[0]) in params_to_x_inds or param.is_symbol() or attr[0] not in x_attrs: continue
+            # TODO: Remove special case for basket
+            if (param.name, attr[0]) in params_to_x_inds or param.is_symbol() or (attr[0] not in x_attrs and param.name != 'basket'): continue
             inds = attr[1] + cur_x_ind
             cur_x_ind = inds[-1] + 1
             params_to_x_inds[(param.name, attr[0])] = inds

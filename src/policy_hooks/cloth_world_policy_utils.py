@@ -15,10 +15,10 @@ import unittest, time, main
 # CLOTH_INIT_Y_RANGE = [-0.15, 0.45]
 
 BASKET_POSE = [0.65, 0.1, 0.875]
-BASKET_X_RANGE = [0.6, 0.7]
-BASKET_Y_RANGE = [0.075, 0.175]
-CLOTH_INIT_X_RANGE = [0.4, 0.85]
-CLOTH_INIT_Y_RANGE = [0.65, 1.1]
+BASKET_X_RANGE = [0.65, 0.75]
+BASKET_Y_RANGE = [-0.025, 0.075]
+CLOTH_INIT_X_RANGE = [0.45, 0.9]
+CLOTH_INIT_Y_RANGE = [0.7, 1.15]
 
 STEP_DELTA = 5
 BASKET_STEP_DELTA = 2
@@ -298,8 +298,10 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
                             [np.random.uniform(BASKET_Y_RANGE[0], BASKET_Y_RANGE[1])],
                             [BASKET_POSE[2]]]
         X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        if ('basket', 'rotation') in plan.state_inds:
+            X[plan.state_inds[('basket', 'rotation')]] = basket.rotation[:,0]
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
-        X[plan.state_inds[('basket_init_target', 'rotation')]] = [0, 0, np.pi/2]
+        X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
         possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA+STEP_DELTA*45), num_cloths_on_table).tolist()
         possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket).tolist()
@@ -409,8 +411,10 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
                             [np.random.uniform(BASKET_Y_RANGE[0], BASKET_Y_RANGE[1])],
                             [BASKET_POSE[2]]]
         X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        if ('basket', 'rotation') in plan.state_inds:
+            X[plan.state_inds[('basket', 'rotation')]] = basket.rotation[:,0]
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
-        X[plan.state_inds[('basket_init_target', 'rotation')]] = [0, 0, np.pi/2]
+        X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
         possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA+STEP_DELTA*45), num_cloths_on_table).tolist()
         possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket).tolist()
@@ -438,9 +442,9 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
             X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = X[plan.state_inds[('cloth_target_end_{0}'.format(c), 'value')]]
             stationary_params.append('cloth_{0}'.format(c))
         
-        next_x = np.random.uniform(0.2, 0.9)
-        next_y = np.random.uniform(0.45, 1.0)
-        height = np.random.uniform(0.15, 0.5)
+        next_x = np.random.uniform(0.35, 0.9)
+        next_y = np.random.uniform(0.55, 1.2)
+        height = np.random.uniform(0.1, 0.35)
         l_arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose([next_x, next_y, TABLE_TOP+height], [0, np.pi/2, 0], "left_arm")
         if not len(l_arm_poses):
             success = False
@@ -495,8 +499,10 @@ def get_random_initial_basket_grasp_state(plan, num_cloths):
                             [np.random.uniform(-0.1, 0.1)],
                             [TABLE_TOP+height]]
         X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        if ('basket', 'rotation') in plan.state_inds:
+            X[plan.state_inds[('basket', 'rotation')]] = basket.rotation[:,0]
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
-        X[plan.state_inds[('basket_init_target', 'rotation')]] = [0, 0, np.pi/2]
+        X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
         possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA+STEP_DELTA*45), num_cloths_on_table).tolist()
         possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket).tolist()
@@ -566,8 +572,10 @@ def get_random_initial_rotate_with_basket_state(plan, num_cloths):
                             [np.random.uniform(-0.1, 0.1)],
                             [TABLE_TOP+height]]
         X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        if ('basket', 'rotation') in plan.state_inds:
+            X[plan.state_inds[('basket', 'rotation')]] = basket.rotation[:,0]
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
-        X[plan.state_inds[('basket_init_target', 'rotation')]] = [0, 0, np.pi/2]
+        X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
         possible_locs = np.random.choice(range(0, 45*45, STEP_DELTA+STEP_DELTA*45), num_cloths_on_table).tolist()
         possible_basket_locs = np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket).tolist()
@@ -708,10 +716,10 @@ def generate_full_cond(num_cloths):
 
     basket = plan.params['basket']
     basket_target = plan.params['basket_init_target']
-    basket.pose[:,:] = np.array(BASKET_POSE).reshape(3,1)
-    basket.rotation[:,:] = [[0], [0], [np.pi/2]]
+    basket.pose[:,0] = np.array(BASKET_POSE)
+    basket.rotation[:,:1] = [[np.pi/2], [0], [np.pi/2]]
     basket_target.value[:,:] = np.array(BASKET_POSE).reshape(3,1)
-    basket_target.rotation[:,:] = [[0], [0], [np.pi/2]]
+    basket_target.rotation[:,:] = [[np.pi/2], [0], [np.pi/2]]
 
     plan.params['table'].pose[:,:] = np.array(TABLE_POSE).reshape(-1,1)
     plan.params['table'].rotation[:,:] = 0
@@ -836,6 +844,8 @@ def get_random_initial_ee_cloth_pick_state(plan, num_cloths):
                             [np.random.uniform(BASKET_Y_RANGE[0], BASKET_Y_RANGE[1])],
                             [BASKET_POSE[2]]]
         X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        if ('basket', 'rotation') in plan.state_inds:
+            X[plan.state_inds[('basket', 'rotation')]] = basket.rotation[:,0]
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [0, 0, np.pi/2]
 
@@ -948,6 +958,8 @@ def get_random_initial_ee_cloth_place_state(plan, num_cloths):
                             [np.random.uniform(BASKET_Y_RANGE[0], BASKET_Y_RANGE[1])],
                             [BASKET_POSE[2]]]
         X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        if ('basket', 'rotation') in plan.state_inds:
+            X[plan.state_inds[('basket', 'rotation')]] = basket.rotation[:,0]
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [0, 0, np.pi/2]
 
@@ -1036,6 +1048,8 @@ def get_random_initial_ee_basket_grasp_state(plan, num_cloths):
                             [np.random.uniform(-0.1, 0.1)],
                             [TABLE_TOP+height]]
         X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        if ('basket', 'rotation') in plan.state_inds:
+            X[plan.state_inds[('basket', 'rotation')]] = basket.rotation[:,0]
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [0, 0, np.pi/2]
 
@@ -1109,6 +1123,8 @@ def get_random_initial_ee_rotate_with_basket_state(plan, num_cloths):
                             [np.random.uniform(-0.1, 0.1)],
                             [TABLE_TOP+height]]
         X[plan.state_inds[('basket', 'pose')]] = basket.pose[:,0]
+        if ('basket', 'rotation') in plan.state_inds:
+            X[plan.state_inds[('basket', 'rotation')]] = basket.rotation[:,0]
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [0, 0, np.pi/2]
 

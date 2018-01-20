@@ -96,6 +96,9 @@
         <exclude body1="basket" body2="left_gripper_base"/>
         <exclude body1="basket" body2="left_hand"/>
     </contact>
+
+    <equality>
+    </equality>
     
     <worldbody>
         <light directional="false" cutoff="90" exponent="1" diffuse="1 1 1" specular="0 0 0" pos="1 0 1.5" dir="-1 0 -2.5"/>
