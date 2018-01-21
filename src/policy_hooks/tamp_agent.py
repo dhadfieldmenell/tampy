@@ -38,7 +38,7 @@ MUJOCO_JOINT_ORDER = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_e2', 'le
                       'right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2', 'right_gripper_l_finger_joint', 'right_gripper_r_finger_joint']
 
 # MUJOCO_MODEL_Z_OFFSET = -0.686
-MUJOCO_MODEL_Z_OFFSET = -0.736
+MUJOCO_MODEL_Z_OFFSET = -0.761
 
 N_CONTACT_LIMIT = 11
 
@@ -244,7 +244,7 @@ class LaundryWorldClothAgent(Agent):
                 # X[x_inds[('baxter', 'lArmPose__vel')]] = model.data.qvel[10:17].flatten()
                 # X[x_inds[('baxter', 'lGripper__vel')]] = model.data.qvel[17]
 
-        return X
+        return X, np.r_[model.data.xpos[self.left_grip_l_ind], model.data.xpos[self.right_grip_r_ind]]
 
     
     def _get_obs(self, cond, t):
@@ -275,12 +275,13 @@ class LaundryWorldClothAgent(Agent):
             # last_success_X = x0[0]
             # r = np.random.uniform(0, 1)
             for t in range(self.T):
-                X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
+                X, ee_pos = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
                 U = policy.act(X.copy(), X.copy(), t, noise[t])
                 sample.set(STATE_ENUM, X.copy(), t)
                 sample.set(OBS_ENUM, X.copy(), t)
                 sample.set(ACTION_ENUM, U.copy(), t)
                 sample.set(NOISE_ENUM, noise[t], t)
+                sample.set(EE_ENUM, ee_pos, t)
                 # grip_cloth = False # True if (not save_global) and t >= 39 and t <= 77 else False
                 # grip_cloth = True if (x0[1][0] == 2 and t <= 34) or (x0[1][0] == 0 and t >= 39) else False
                 for delta in range(utils.MUJOCO_STEPS_PER_SECOND/utils.POLICY_STEPS_PER_SECOND):
@@ -305,7 +306,7 @@ class LaundryWorldClothAgent(Agent):
         '''
             Run one action of the policy on the current state
         '''
-        X = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
+        X, _ = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
         X_copy = X .copy()
         U = policy.act(X, X_copy, t, 0)
         for delta in range(utils.MUJOCO_STEPS_PER_SECOND/utils.POLICY_STEPS_PER_SECOND):
@@ -376,10 +377,6 @@ class LaundryWorldClothAgent(Agent):
         xpos = self.pos_model.data.xpos.copy()
         xquat = self.pos_model.data.xquat.copy()
 
-        if (param.name, 'rotation') in plan.state_inds:
-            rot = x[plan.state_inds[(param.name, 'rotation')]]
-            xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(pos, rot)[:3,:3])
-
         if np.all((xpos[self.basket_left_ind] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE \
            and np.all((xpos[self.basket_right_ind] - xpos[self.right_grip_r_ind])**2 < [0.0081, 0.0081, 0.0081]) and r_grip < const.GRIPPER_CLOSE_VALUE:
             body_pos[self.basket_ind] = (xpos[self.left_grip_l_ind] + xpos[self.right_grip_r_ind]) / 2.0
@@ -388,11 +385,12 @@ class LaundryWorldClothAgent(Agent):
             body_quat[self.basket_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose([0, 0, 0], [yaw, 0, np.pi/2])[:3,:3])
             run_forward = True
 
-        for i in range(self.num_cloths):
-            if not run_forward and (np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE):
-                body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
-                run_forward = True
-                break
+        if not run_forward:
+            for i in range(self.num_cloths):
+                if np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE:
+                    body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
+                    run_forward = True
+                    break
 
         if run_forward:
             self.pos_model.body_pos = body_pos

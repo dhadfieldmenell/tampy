@@ -5,7 +5,7 @@ from pma import hl_solver, robot_ll_solver
 
 import numpy as np
 
-import unittest, time, main
+import unittest, time, main, random
 
 
 # BASKET_POSE = [0.7, 0.35, 0.875]
@@ -339,9 +339,9 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
                                                          'rArmPose': plan.params['robot_init_pose'].rArmPose.flatten(),
                                                          'rGripper': plan.params['robot_init_pose'].rGripper.flatten()})
             X[plan.state_inds[('baxter', 'lArmPose')]] = plan.params['robot_init_pose'].lArmPose.flatten()
-            X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
+            X[plan.state_inds[('baxter', 'lGripper')]] = plan.params['robot_init_pose'].lGripper
             X[plan.state_inds[('baxter', 'rArmPose')]] = plan.params['robot_init_pose'].rArmPose.flatten()
-            X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_OPEN_VALUE
+            X[plan.state_inds[('baxter', 'rGripper')]] = plan.params['robot_init_pose'].rGripper
 
             # Joint angles ordered by Mujoco Model joint order
             joint_angles = np.r_[0, X[plan.state_inds[('robot_init_pose', 'rArmPose')]], \
@@ -364,12 +364,12 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
             # X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
             # X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
             # X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
-            X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lArmPose')]] = l_arm_poses[0]
+            X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lArmPose')]] = random.choice(l_arm_poses)
             X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lGripper')]] = const.GRIPPER_OPEN_VALUE
             X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rArmPose')]] = r_arm_pose
             X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
-            X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
-            X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
+            X[plan.state_inds[('baxter', 'lArmPose')]] = X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lArmPose')]]
+            X[plan.state_inds[('baxter', 'lGripper')]] = X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lGripper')]]
 
             # Joint angles ordered by Mujoco Model joint order
             joint_angles = np.r_[0, X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rArmPose')]], \
@@ -379,8 +379,8 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
                                  X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lGripper')]], \
                                  -X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lGripper')]]]
 
-            X[plan.state_inds[('baxter', 'rArmPose')]] = [-1.1, -0.7542201, 0.33281928, 0.81198007, 2.90107491, -1.54208563, 1.49564886]
-            X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_OPEN_VALUE
+            X[plan.state_inds[('baxter', 'rArmPose')]] = X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rArmPose')]]
+            X[plan.state_inds[('baxter', 'rGripper')]] = X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rGripper')]]
 
         state_config = [X, actions, stationary_params, joint_angles]
 
@@ -443,7 +443,7 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
             stationary_params.append('cloth_{0}'.format(c))
         
         next_x = np.random.uniform(0.35, 0.9)
-        next_y = np.random.uniform(0.55, 1.2)
+        next_y = np.random.uniform(0.6, 1.2)
         height = np.random.uniform(0.1, 0.35)
         l_arm_poses = plan.params['baxter'].openrave_body.get_ik_from_pose([next_x, next_y, TABLE_TOP+height], [0, np.pi/2, 0], "left_arm")
         if not len(l_arm_poses):
@@ -455,17 +455,17 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
         # X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
         # X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
         # X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
-        X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lArmPose')]] = l_arm_poses[0]
+        X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lArmPose')]] = random.choice(l_arm_poses)
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lGripper')]] = const.GRIPPER_CLOSE_VALUE
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rArmPose')]] = r_arm_pose
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
-        X[plan.state_inds[('baxter', 'lArmPose')]] = l_arm_poses[0]
-        X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_CLOSE_VALUE
+        X[plan.state_inds[('baxter', 'lArmPose')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lArmPose')]]
+        X[plan.state_inds[('baxter', 'lGripper')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lGripper')]]
         X[plan.state_inds[('cloth_{0}'.format(next_cloth), 'pose')]] = [next_x, next_y, TABLE_TOP+height]
         X[plan.state_inds[('cloth_target_begin_{0}'.format(next_cloth), 'value')]] = X[plan.state_inds[('cloth_{0}'.format(next_cloth), 'pose')]]
 
-        X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
-        X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
+        X[plan.state_inds[('baxter', 'rArmPose')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rArmPose')]]
+        X[plan.state_inds[('baxter', 'rGripper')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rGripper')]]
 
         # Joint angles ordered by Mujoco Model joint order
         joint_angles = np.r_[0, X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rArmPose')]], \
@@ -1002,7 +1002,7 @@ def get_random_initial_ee_cloth_place_state(plan, num_cloths):
         # X[plan.state_inds[('baxter', 'lGripper')]] = const.GRIPPER_OPEN_VALUE
         # X[plan.state_inds[('baxter', 'rArmPose')]] = r_arm_pose
         # X[plan.state_inds[('baxter', 'rGripper')]] = const.GRIPPER_CLOSE_VALUE
-        X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lArmPose')]] = l_arm_poses[0]
+        X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lArmPose')]] = random.choice(l_arm_poses)
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lGripper')]] = const.GRIPPER_CLOSE_VALUE
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rArmPose')]] = r_arm_pose
         X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rGripper')]] = const.GRIPPER_CLOSE_VALUE

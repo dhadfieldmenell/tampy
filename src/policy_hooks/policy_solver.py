@@ -117,7 +117,8 @@ class BaxterPolicySolver(RobotLLSolver):
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
             utils.ACTION_ENUM: initial_plan.dU,
-            utils.OBS_ENUM: initial_plan.symbolic_bound
+            utils.OBS_ENUM: initial_plan.symbolic_bound,
+            utils.EE_ENUM: 6,
         }
 
         self.T = initial_plan.actions[x0s[0][1][1]].active_timesteps[1] - initial_plan.actions[x0s[0][1][0]].active_timesteps[0]
