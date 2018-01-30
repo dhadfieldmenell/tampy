@@ -18,7 +18,7 @@
 
 <mujoco model="baxter(v1.31)">
     <compiler coordinate="local" angle="radian" meshdir="../../models/baxter/mujoco/meshes/" strippath="false" />
-    <option timestep="0.005" gravity="0 0 -9.81" iterations="20" integrator="Euler" />
+    <option timestep="0.002" gravity="0 0 -9.81" iterations="20" integrator="Euler" />
     <size njmax="795" nconmax="250" nstack="631875" />
     <!-- <size njmax="10000" nconmax="70000" nstack="500000" /> -->
    
@@ -453,8 +453,8 @@
     </actuator> -->
 
     <actuator>
-        <position kp="675" gear="1 0 0 0 0 0" joint="right_s0"/>
-        <position kp="565" gear="1 0 0 0 0 0" joint="right_s1"/>
+        <position kp="715" gear="1 0 0 0 0 0" joint="right_s0"/>
+        <position kp="630" gear="1 0 0 0 0 0" joint="right_s1"/>
         <position kp="355" gear="1 0 0 0 0 0" joint="right_e0"/>
         <position kp="280" gear="1 0 0 0 0 0" joint="right_e1"/>
         <position kp="250" joint="right_w0"/>
@@ -463,8 +463,8 @@
         <position kp="50" joint="right_gripper_l_finger_joint"/>
         <position kp="50" joint="right_gripper_r_finger_joint"/>
         
-        <position kp="675" gear="1 0 0 0 0 0" joint="left_s0"/>
-        <position kp="565" gear="1 0 0 0 0 0" joint="left_s1"/>
+        <position kp="715" gear="1 0 0 0 0 0" joint="left_s0"/>
+        <position kp="630" gear="1 0 0 0 0 0" joint="left_s1"/>
         <position kp="355" gear="1 0 0 0 0 0" joint="left_e0"/>
         <position kp="280" gear="1 0 0 0 0 0" joint="left_e1"/>
         <position kp="250" joint="left_w0"/>

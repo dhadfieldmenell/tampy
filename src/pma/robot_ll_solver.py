@@ -69,14 +69,14 @@ class RobotLLSolver(LLSolver):
 
         return success
 
-    def backtrack_solve(self, plan, callback=None, verbose=False):
+    def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=5):
         plan.save_free_attrs()
-        success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose)
+        success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose, n_resamples=n_resamples)
         # plan.restore_free_attrs()
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5):
         # if anum == 2:
         #     import ipdb; ipdb.set_trace()
         if amax is None:
@@ -135,6 +135,8 @@ class RobotLLSolver(LLSolver):
             rs_param = a.params[-3]
         elif a.name == 'rotate':
             rs_param = a.params[2]
+        elif a.name == 'rotate_holding_basket':
+            rs_param = a.params[3]
         elif a.name == 'rotate_holding_basket_with_cloth':
             rs_param = a.params[3]
         elif a.name == 'rotate_holding_cloth':
@@ -180,7 +182,7 @@ class RobotLLSolver(LLSolver):
             else:
                 callback_a = None
             self.child_solver = RobotLLSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose, force_init=True)
 
             if not success:
@@ -219,7 +221,7 @@ class RobotLLSolver(LLSolver):
 
             success = False
             self.child_solver = RobotLLSolver()
-            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=5,
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
                                               force_init=True)
             if success:
@@ -292,8 +294,8 @@ class RobotLLSolver(LLSolver):
                 ee_left = target_pos + offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0], [0.1, 0.1, 0.1])
                 ee_right = target_pos - offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0], [0.1, 0.1, 0.1])
 
-                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
-                r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
@@ -315,8 +317,8 @@ class RobotLLSolver(LLSolver):
                 ee_left = target_pos + offset + const_dir
                 ee_right = target_pos - offset + const_dir
 
-                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
-                r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
@@ -447,7 +449,7 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
                 # TODO once we have the rotor_base we should resample pose
-                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.array([[-0.785,0,0,0,0,0,0]]).T, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
 
             elif next_act != None and next_act.name == 'put_into_basket':
                 target = next_act.params[4]
@@ -455,7 +457,7 @@ class RobotLLSolver(LLSolver):
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.0], [0.1, 0.1, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-3.0], [0.1, 0.1, 0.1])
                 ee_pos = target_pos + random_dir
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, DOWN_ROT, "left_arm")
                 if not len(ik_arm_poses):
@@ -473,12 +475,12 @@ class RobotLLSolver(LLSolver):
 
                 act.params[1].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], [0.1, 0.1, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.1, 0.1, 0.1])
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
 
-                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
-                r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
@@ -491,7 +493,7 @@ class RobotLLSolver(LLSolver):
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-3.5], [0.01, 0.01, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,1.0,-3.5], [0.01, 0.01, 0.1])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -592,7 +594,7 @@ class RobotLLSolver(LLSolver):
                 init_pos = act.params[1]
                 robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
 
-            elif act.name == "rotate_holding_basket_with_cloth":
+            elif act.name == "rotate_holding_basket_with_cloth" or act.name == "rotate_holding_basket":
                 target_rot = act.params[4]
                 init_pos = act.params[2]
                 robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
@@ -673,7 +675,7 @@ class RobotLLSolver(LLSolver):
         model.update()
         initial_trust_region_size = self.initial_trust_region_size
         if resample:
-            tol = 1e-3
+            tol = 1e-2
             def  variable_helper():
                 error_bin = []
                 for sco_var in self._prob._vars:

@@ -1781,7 +1781,7 @@ class BaxterClothTargetInBasket(ExprPredicate):
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
         self.attr_dim = 6
         self.cloth_target = params[0]
-        self.washer_pose = params[1]
+        self.basket_target = params[1]
 
         A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
         b = np.zeros((6,1))

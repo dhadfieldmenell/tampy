@@ -1,7 +1,7 @@
 '''
 VGA
 res: 672x376
-Center of table: 414, 205 (row, col) -> 53, 0 (x, y)
+Center of table: 200, 350 (row, col) -> 52, 5 (x, y)
 Pixels per centimeter: 2.3
 Pixel window: 40
 '''
@@ -69,7 +69,7 @@ cloth_grid_coordinates = [
 
 ]
 
-cloth_grid_ref = np.array([[205, 414], [53, 0]])
+cloth_grid_ref = np.array([[200, 350], [52, 5]])
 
 pixels_per_cm = 2.3
 
@@ -88,7 +88,7 @@ basket_net_bounds = []
 basket_im_dims = [144, 256]
 
 basket_near_pos = [0.65, 0.3,  0.875]
-basket_far_pos = [0.5, -0.6,  0.875]
+basket_far_pos = [0.6, -0.6,  0.875]
 basket_near_rot = [2*np.pi/3, 0, np.pi/2]
 basket_far_rot = [np.pi/4, 0, np.pi/2]
 

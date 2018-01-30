@@ -164,12 +164,25 @@ class BaxterPolicySolver(RobotLLSolver):
         #         'x0': x0s[cond]
         #     })
 
+        action_cost_wp = np.ones((self.config['agent']['T'], initial_plan.dU), dtype='float64')
+        action_cost_wp[-1, :] = 0
+        action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][1]] *= 2
+        action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][2]] *= 4
+        action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][3]] *= 3
+        action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][4]] *= 3
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose'][1]] *= 2
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose'][2]] *= 4
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose'][3]] *= 3
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose'][4]] *= 3
+        action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose']] *= 0.5
+        action_cost_wp[30:40, :] *= 4
+        state_cost_wp = np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64')
         for cond in range(len(x0s)):
             traj_cost = {
                             'type': CostState,
                             'data_types': {
                                 utils.STATE_ENUM: {
-                                    'wp': np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64'),
+                                    'wp': state_cost_wp,
                                     'target_state': np.zeros((self.config['agent']['T'], initial_plan.symbolic_bound)),
                                 }
                             },
@@ -189,7 +202,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [1.0, 1.0],
+                                                        'weights': [2.0, 1.0],
                                                     })
 
         self.config['dQ'] = initial_plan.dU
@@ -204,12 +217,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [175, 175]
+                'dim_hidden': [100, 100]
             },
-            'lr': 5e-5,
+            'lr': 1e-4,
             'network_model': tf_network,
             'iterations': 10000,
-            'weight_decay': 0.00075,
+            'weight_decay': 0.001,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -237,12 +250,12 @@ class BaxterPolicySolver(RobotLLSolver):
 
         T = all_active_ts[1] - all_active_ts[0] + 1
 
-        pol_sample = self.gps.agent.global_policy_samples[cond]
-        global_traj_mean = np.zeros((plan.symbolic_bound, T))
-        for t in range(all_active_ts[0], all_active_ts[1]):
-            global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_X((t-all_active_ts[0])*utils.POLICY_STEPS_PER_SECOND)
-        global_traj_mean[:, T-1] = pol_sample.get_X((T-1)*utils.POLICY_STEPS_PER_SECOND-1)
-        # global_traj_mean = []
+        # pol_sample = self.gps.agent.global_policy_samples[cond]
+        # global_traj_mean = np.zeros((plan.dU, T))
+        # for t in range(all_active_ts[0], all_active_ts[1]):
+        #     global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_U((t-all_active_ts[0])*utils.POLICY_STEPS_PER_SECOND)
+        # global_traj_mean[:, T-1] = pol_sample.get_U((T-1)*utils.POLICY_STEPS_PER_SECOND-1)
+        global_traj_mean = []
 
         while a_num < a_end:
             print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
@@ -251,38 +264,40 @@ class BaxterPolicySolver(RobotLLSolver):
             active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
             
             # save free_attrs
-            old_params_free = {}
-            for p in plan.params.itervalues():
-                if p.is_symbol():
-                    if p in act_1.params or p in act_2.params: continue
-                    old_params_free[p] = p._free_attrs
-                    p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
-                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
-                else:
-                    p_attrs = {}
-                    old_params_free[p] = p_attrs
-                    for attr in p._free_attrs:
-                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1])+1:].copy()]
-                        p._free_attrs[attr][:, (active_ts[1])+1:] = 0
-                        p._free_attrs[attr][:, :(active_ts[0])] = 0
+            # old_params_free = {}
+            # for p in plan.params.itervalues():
+            #     if p.is_symbol():
+            #         if p in act_1.params or p in act_2.params: continue
+            #         old_params_free[p] = p._free_attrs
+            #         p._free_attrs = {}
+            #         for attr in old_params_free[p].keys():
+            #             p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+            #     else:
+            #         p_attrs = {}
+            #         old_params_free[p] = p_attrs
+            #         for attr in p._free_attrs:
+            #             p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1])+1:].copy()]
+            #             p._free_attrs[attr][:, (active_ts[1])+1:] = 0
+            #             p._free_attrs[attr][:, :(active_ts[0])] = 0
             
-            success = self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=N_RESAMPLES, global_traj_mean=global_traj_mean)
+            success = success and self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=1, global_traj_mean=global_traj_mean)
             
             # reset free_attrs
-            for p in plan.params.itervalues():
-                if p.is_symbol():
-                    if p in act_1.params or p in act_2.params: continue
-                    p._free_attrs = old_params_free[p]
-                else:
-                    for attr in p._free_attrs:
-                        p._free_attrs[attr][:, :(active_ts[0])] = old_params_free[p][attr][0]
-                        p._free_attrs[attr][:, (active_ts[1])+1:] = old_params_free[p][attr][1]
+            # for p in plan.params.itervalues():
+            #     if p.is_symbol():
+            #         if p in act_1.params or p in act_2.params: continue
+            #         p._free_attrs = old_params_free[p]
+            #     else:
+            #         for attr in p._free_attrs:
+            #             p._free_attrs[attr][:, :(active_ts[0])] = old_params_free[p][attr][0]
+            #             p._free_attrs[attr][:, (active_ts[1])+1:] = old_params_free[p][attr][1]
 
             # if not success:
             #     return success
             # print 'Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name)
             a_num += 1
+
+        return success
 
     def _optimize_against_global(self, plan, active_ts, n_resamples=1, global_traj_mean=[]):
         priority = 3
@@ -367,7 +382,7 @@ class BaxterPolicySolver(RobotLLSolver):
             attr_type = param.get_attr_type(attr_name)
             param_ll = self._param_to_ll[param]
             T = end_t - start_t + 1
-            attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
+            attr_val = traj_mean[plan.action_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
             K = attr_type.dim
 
             KT = K*T
@@ -515,8 +530,8 @@ class BaxterPolicySolver(RobotLLSolver):
 
 
     def _spawn_sco_var_for_policy_pred(self, pred, t):
-        x = np.empty(pred.dX , dtype=object)
-        v = np.empty(pred.dX)
+        x = np.empty(pred.dX+pred.dU, dtype=object)
+        v = np.empty(pred.dX+pred.dU)
         for param in pred.params:
             for attr in const.ATTR_MAP[param._type]:
                 if (param.name, attr[0]) in pred.state_inds:
@@ -525,9 +540,25 @@ class BaxterPolicySolver(RobotLLSolver):
                         x[pred.state_inds[(param.name, attr[0])]] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
                         v[pred.state_inds[(param.name, attr[0])]] = getattr(param, attr[0])[attr[1], t]
                     else:
-                        inds = pred.state_inds[(param.name, attr[0])] - pred.dU
+                        inds = pred.state_inds[(param.name, attr[0])] - pred.act_offset
                         x[inds] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
                         v[inds] = getattr(param, attr[0])[attr[1], t]
+                elif param.name == 'baxter' and attr[0] == 'lArmPose':
+                    ll_p = self._param_to_ll[param]
+                    x[-pred.dU+8:-1] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[-pred.dU+8:-1] = getattr(param, attr[0])[attr[1], t]
+                elif param.name == 'baxter' and attr[0] == 'rArmPose':
+                    ll_p = self._param_to_ll[param]
+                    x[-pred.dU:-pred.dU+7] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[-pred.dU:-pred.dU+7] = getattr(param, attr[0])[attr[1], t]
+                elif param.name == 'baxter' and attr[0] == 'lGripper':
+                    ll_p = self._param_to_ll[param]
+                    x[-1:] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[-1:] = getattr(param, attr[0])[attr[1], t]
+                elif param.name == 'baxter' and attr[0] == 'rGripper':
+                    ll_p = self._param_to_ll[param]
+                    x[-pred.dU+7:-pred.dU+8] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[-pred.dU+7:-pred.dU+8] = getattr(param, attr[0])[attr[1], t]
 
         x = x.reshape((-1,1))
         v = v.reshape((-1,1))

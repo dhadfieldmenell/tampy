@@ -814,7 +814,7 @@ class ClothGrasp(Action):
         self.pre = [\
             ('(BaxterClothAt ?cloth ?target)', '0:0'),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
-            ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
+            # ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(grasp_time, end)),
             ('(BaxterClothGraspValid ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
@@ -1127,7 +1127,7 @@ class PutIntoBasket(Action):
         self.eff = [\
             ('(BaxterClothAt ?cloth ?ct)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
-            ('(BaxterClothTargetInBasket ?ct ?bt)', '{}:{}'.format(end, end)),
+            ('(BaxterClothTargetInBasket ?ct ?bt)', '{}:{}'.format(end-1, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end)),
             ('(forall (?sym1 - RobotPose)\
