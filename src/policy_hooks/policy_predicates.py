@@ -122,7 +122,7 @@ class BaxterPolicyPredicate(ExprPredicate):
         self.action_inds = action_inds
         self.dX = dX # - dU # Remove velocity state
         self.dU = dU
-        self._x = np.zeros((dX+dU,))
+        self._x = np.zeros((dX,))
         self.coeff = coeff
         self.grad_coeff = grad_coeff
         self.act_offset = 0
@@ -149,17 +149,6 @@ class BaxterPolicyPredicate(ExprPredicate):
         self.policy_func = new_func
 
 
-    # def get_param_vector(self, t):
-    #     for p in self.params:
-    #         for attr in const.ATTR_MAP[p._type]:
-    #             if (p.name, attr[0]) in self.state_inds:
-    #                 if (p.name, attr[0]) in self.action_inds:
-    #                     self._x[self.state_inds[p.name, attr[0]]] = getattr(p, attr[0])[:, t]
-    #                 else:
-    #                     inds = self.state_inds[p.name, attr[0]].flatten() - self.dU
-    #                     self._x[inds] = getattr(p, attr[0])[:, t]
-    #     return self._x.reshape((-1,1))
-
     def get_param_vector(self, t):
         for p in self.params:
             for attr in const.ATTR_MAP[p._type]:
@@ -169,9 +158,20 @@ class BaxterPolicyPredicate(ExprPredicate):
                     else:
                         inds = self.state_inds[p.name, attr[0]].flatten() - self.act_offset
                         self._x[inds] = getattr(p, attr[0])[:, t]
-        self._x[-self.dU:] = np.r_[self.robot.rArmPose[:, t], self.robot.rGripper[:, t],
-                                   self.robot.lArmPose[:, t], self.robot.lGripper[:, t]]
-        return self._x.reshape((-1, 1))
+        return self._x.reshape((-1,1))
+
+    # def get_param_vector(self, t):
+    #     for p in self.params:
+    #         for attr in const.ATTR_MAP[p._type]:
+    #             if (p.name, attr[0]) in self.state_inds:
+    #                 if (p.name, attr[0]) in self.action_inds:
+    #                     self._x[self.state_inds[p.name, attr[0]]] = getattr(p, attr[0])[:, t]
+    #                 else:
+    #                     inds = self.state_inds[p.name, attr[0]].flatten() - self.act_offset
+    #                     self._x[inds] = getattr(p, attr[0])[:, t]
+    #     self._x[-self.dU:] = np.r_[self.robot.rArmPose[:, t], self.robot.rGripper[:, t],
+    #                                self.robot.lArmPose[:, t], self.robot.lGripper[:, t]]
+    #     return self._x.reshape((-1, 1))
 
 
     def error_f(self, x):
@@ -186,18 +186,23 @@ class BaxterPolicyPredicate(ExprPredicate):
                 X[self.state_inds[(name, attr)]] = x[inds].flatten()
         policy_joints = self.policy_func(X.copy())
 
-        dist_val_l = (x[-8:-1].flatten() - policy_joints[self.action_inds[('baxter', 'lArmPose')]])
-        gripper_val_l = x[-1:].flatten() - policy_joints[self.action_inds[(self.robot.name, 'lGripper')]]
-        dist_val_r = (x[-16:-9].flatten() - policy_joints[self.action_inds[('baxter', 'rArmPose')]])
-        gripper_val_r = x[-9:-8].flatten() - policy_joints[self.action_inds[(self.robot.name, 'rGripper')]]
+        dist_val_l = (x[self.state_inds['baxter', 'lArmPose']].flatten() - policy_joints[self.action_inds[('baxter', 'lArmPose')]])
+        gripper_val_l = x[self.state_inds['baxter', 'lGripper']].flatten() - policy_joints[self.action_inds[(self.robot.name, 'lGripper')]]
+        dist_val_r = (x[self.state_inds['baxter', 'rArmPose']].flatten() - policy_joints[self.action_inds[('baxter', 'rArmPose')]])
+        gripper_val_r = x[self.state_inds['baxter', 'rGripper']].flatten() - policy_joints[self.action_inds[(self.robot.name, 'rGripper')]]
         return np.r_[dist_val_l, gripper_val_l, dist_val_r, gripper_val_r].reshape((-1, 1))
-
+        # error = np.zeros((self.dX))
+        # error[self.state_inds['baxter', 'lArmPose']] = dist_val_l
+        # error[self.state_inds['baxter', 'rArmPose']] = dist_val_r
+        # error[self.state_inds['baxter', 'lGripper']] = gripper_val_l
+        # error[self.state_inds['baxter', 'rGripper']] = gripper_val_r
+        # return error
 
     def error_grad(self, x):
-        jac = np.zeros((self.dU, self.dX+self.dU))
-        jac[self.action_inds[('baxter', 'lArmPose')], -8:-1] = -1.0
-        jac[self.action_inds[('baxter', 'rArmPose')], -16:-9] = -1.0
-        jac[self.action_inds[(self.robot.name, 'lGripper')], -1] = -1.0
-        jac[self.action_inds[(self.robot.name, 'rGripper')], -9] = -1.0
+        jac = np.zeros((self.dU, self.dX))
+        jac[self.action_inds[('baxter', 'lArmPose')], self.state_inds[('baxter', 'lArmPose')]] = -1.0
+        jac[self.action_inds[('baxter', 'rArmPose')], self.state_inds[('baxter', 'rArmPose')]] = -1.0
+        jac[self.action_inds[(self.robot.name, 'lGripper')], self.state_inds[(self.robot.name, 'lGripper')]] = -1.0
+        jac[self.action_inds[(self.robot.name, 'rGripper')], self.state_inds[(self.robot.name, 'rGripper')]] = -1.0
 
         return jac

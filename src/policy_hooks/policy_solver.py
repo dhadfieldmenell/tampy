@@ -14,7 +14,7 @@ from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.algorithm.cost.cost_state import CostState
 from gps.algorithm.cost.cost_sum import CostSum
-from gps.algorithm.cost.cost_utils import RAMP_CONSTANT
+from gps.algorithm.cost.cost_utils import *
 
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
@@ -145,7 +145,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'solver': self,
                 'num_cloths': num_cloths,
                 # 'T': initial_plan.horizon - 1
-                'T': self.T * utils.POLICY_STEPS_PER_SECOND,
+                'T': int(self.T * utils.POLICY_STEPS_PER_SECOND),
                 'stochastic_conditions': self.config['stochastic_conditions']
             }
             self.config['algorithm']['cost'] = []
@@ -165,18 +165,22 @@ class BaxterPolicySolver(RobotLLSolver):
         #     })
 
         action_cost_wp = np.ones((self.config['agent']['T'], initial_plan.dU), dtype='float64')
-        action_cost_wp[-1, :] = 0
-        action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][1]] *= 2
-        action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][2]] *= 4
-        action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][3]] *= 3
-        action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][4]] *= 3
+        # action_cost_wp[-1, :] = 0
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][1]] *= 2
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][2]] *= 4
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][3]] *= 3
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'lArmPose'][4]] *= 3
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose'][1]] *= 2
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose'][2]] *= 4
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose'][3]] *= 3
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose'][4]] *= 3
-        action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose']] *= 0.5
-        action_cost_wp[30:40, :] *= 4
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose']] *= 0.5
+        # action_cost_wp[30:40, :] *= 4
         state_cost_wp = np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64')
+        state_cost_wp[:, initial_plan.state_inds['baxter', 'rArmPose']] *= 0.125
+        state_cost_wp[33:37, initial_plan.state_inds['baxter', 'lArmPose']] *= 2
+        state_cost_wp[:, initial_plan.state_inds['cloth_0', 'pose']] *= 4
+        state_cost_wp[:, initial_plan.state_inds['cloth_1', 'pose']] *= 4
         for cond in range(len(x0s)):
             traj_cost = {
                             'type': CostState,
@@ -186,7 +190,7 @@ class BaxterPolicySolver(RobotLLSolver):
                                     'target_state': np.zeros((self.config['agent']['T'], initial_plan.symbolic_bound)),
                                 }
                             },
-                            'ramp_option': RAMP_CONSTANT
+                            'ramp_option': RAMP_QUADRATIC
                         }
             action_cost = {
                             'type': CostAction,
@@ -202,7 +206,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [2.0, 1.0],
+                                                        'weights': [1.0, 0.01],
                                                     })
 
         self.config['dQ'] = initial_plan.dU
@@ -217,12 +221,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [100, 100]
+                'dim_hidden': [50, 50]
             },
-            'lr': 1e-4,
+            'lr': 5e-4,
             'network_model': tf_network,
             'iterations': 10000,
-            'weight_decay': 0.001,
+            'weight_decay': 0.00,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -530,8 +534,8 @@ class BaxterPolicySolver(RobotLLSolver):
 
 
     def _spawn_sco_var_for_policy_pred(self, pred, t):
-        x = np.empty(pred.dX+pred.dU, dtype=object)
-        v = np.empty(pred.dX+pred.dU)
+        x = np.empty(pred.dX, dtype=object)
+        v = np.empty(pred.dX)
         for param in pred.params:
             for attr in const.ATTR_MAP[param._type]:
                 if (param.name, attr[0]) in pred.state_inds:
@@ -543,22 +547,22 @@ class BaxterPolicySolver(RobotLLSolver):
                         inds = pred.state_inds[(param.name, attr[0])] - pred.act_offset
                         x[inds] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
                         v[inds] = getattr(param, attr[0])[attr[1], t]
-                elif param.name == 'baxter' and attr[0] == 'lArmPose':
-                    ll_p = self._param_to_ll[param]
-                    x[-pred.dU+8:-1] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
-                    v[-pred.dU+8:-1] = getattr(param, attr[0])[attr[1], t]
-                elif param.name == 'baxter' and attr[0] == 'rArmPose':
-                    ll_p = self._param_to_ll[param]
-                    x[-pred.dU:-pred.dU+7] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
-                    v[-pred.dU:-pred.dU+7] = getattr(param, attr[0])[attr[1], t]
-                elif param.name == 'baxter' and attr[0] == 'lGripper':
-                    ll_p = self._param_to_ll[param]
-                    x[-1:] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
-                    v[-1:] = getattr(param, attr[0])[attr[1], t]
-                elif param.name == 'baxter' and attr[0] == 'rGripper':
-                    ll_p = self._param_to_ll[param]
-                    x[-pred.dU+7:-pred.dU+8] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
-                    v[-pred.dU+7:-pred.dU+8] = getattr(param, attr[0])[attr[1], t]
+                # if param.name == 'baxter' and attr[0] == 'lArmPose':
+                #     ll_p = self._param_to_ll[param]
+                #     x[-pred.dU+8:-1] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                #     v[-pred.dU+8:-1] = getattr(param, attr[0])[attr[1], t]
+                # if param.name == 'baxter' and attr[0] == 'rArmPose':
+                #     ll_p = self._param_to_ll[param]
+                #     x[-pred.dU:-pred.dU+7] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                #     v[-pred.dU:-pred.dU+7] = getattr(param, attr[0])[attr[1], t]
+                # if param.name == 'baxter' and attr[0] == 'lGripper':
+                #     ll_p = self._param_to_ll[param]
+                #     x[-1:] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                #     v[-1:] = getattr(param, attr[0])[attr[1], t]
+                # if param.name == 'baxter' and attr[0] == 'rGripper':
+                #     ll_p = self._param_to_ll[param]
+                #     x[-pred.dU+7:-pred.dU+8] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                #     v[-pred.dU+7:-pred.dU+8] = getattr(param, attr[0])[attr[1], t]
 
         x = x.reshape((-1,1))
         v = v.reshape((-1,1))

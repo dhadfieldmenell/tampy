@@ -13,6 +13,6 @@ class RotateControl:
             ser.write('b')
         elif region == 4:
             ser.write('d')
-        time.sleep(15)
+        time.sleep(20)
         # ser.read()
         # ser.close()
