@@ -206,7 +206,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [1.0, 0.01],
+                                                        'weights': [1.0, 0.1],
                                                     })
 
         self.config['dQ'] = initial_plan.dU

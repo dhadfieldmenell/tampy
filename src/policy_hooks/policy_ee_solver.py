@@ -14,7 +14,7 @@ from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.algorithm.cost.cost_state import CostState
 from gps.algorithm.cost.cost_sum import CostSum
-from gps.algorithm.cost.cost_utils import RAMP_CONSTANT
+from gps.algorithm.cost.cost_utils import *
 
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
@@ -23,6 +23,7 @@ from policy_hooks.cloth_world_policy_utils import *
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
 import policy_hooks.policy_solver_utils as utils
+from policy_hooks.tamp_agent import LaundryWorldClothAgent
 from policy_hooks.tamp_ee_agent import LaundryWorldEEAgent
 from policy_hooks.tamp_cost import TAMPCost
 from policy_hooks.tamp_action_cost import CostAction
@@ -64,27 +65,57 @@ class BaxterPolicySolver(RobotLLSolver):
         # initial_plan = generate_move_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
 
-        x_params=['basket']
+        x_params=['baxter', 'cloth_0', 'cloth_1', 'basket']
         for c in range(num_cloths):
             x_params.append('cloth_{0}'.format(c))
 
+        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
+        # initial_plan.action_inds, initial_plan.symbolic_bound = \
+        # utils.get_plan_to_policy_mapping(initial_plan, 
+        #                                  x_params=['baxter', 'cloth_0', 'cloth_1', 'cloth_2', 'cloth_3', 'basket'], 
+        #                                  x_attrs=['pose'], 
+        #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
+        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
+        # initial_plan.action_inds, initial_plan.symbolic_bound = \
+        # utils.get_plan_to_policy_mapping(initial_plan, 
+        #                                  x_params=['baxter', 'cloth_0', 'cloth_1', 'basket'], 
+        #                                  x_attrs=['pose'], 
+        #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         initial_plan.action_inds, initial_plan.symbolic_bound = \
         utils.get_plan_to_policy_mapping(initial_plan, 
                                          x_params=x_params, 
                                          x_attrs=['pose'], 
-                                         u_attrs=set(['ee_left_pos', 'ee_left_rot', 
-                                                      'ee_right_pos', 'ee_right_rot',
-                                                      'lGripper', 'rGripper']))
+                                         u_attrs=set(['ee_left_pos', 'ee_left_rot', 'lGripper', 'ee_right_pos', 'ee_right_rot', 'rGripper']))
+        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
+        # initial_plan.action_inds, initial_plan.symbolic_bound = \
+        # utils.get_plan_to_policy_mapping(initial_plan, 
+        #                                  x_params=['baxter', 'basket'], 
+        #                                  x_attrs=['pose'], 
+        #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
+        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
+        # initial_plan.action_inds, initial_plan.symbolic_bound = \
+        # utils.get_plan_to_policy_mapping(initial_plan, 
+        #                                  x_params=['baxter', 'cloth_0', 'basket'], 
+        #                                  x_attrs=['pose'], 
+        #                                  u_attrs=set(['ee_left_pos', 'ee_left_rot', 'lGripper']))
         
         x0s = []
+        # for c in range(self.config['num_conds']):
+        #     x0s.append(get_randomized_initial_state(initial_plan))
+        # for c in range(0, self.config['num_conds'], num_cloths):
+        #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/num_cloths))
         for c in range(0, self.config['num_conds']):
+            # x0s.append(get_randomized_initial_state_left(initial_plan))
             x0s.append(get_random_initial_pick_place_state(initial_plan, num_cloths))
+        # for c in range(0, self.config['num_conds']):
+        #     x0s.append(get_randomized_initial_state_move(initial_plan))
 
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
             utils.ACTION_ENUM: initial_plan.dU,
-            utils.OBS_ENUM: initial_plan.symbolic_bound
+            utils.OBS_ENUM: initial_plan.symbolic_bound,
+            utils.EE_ENUM: 6,
         }
 
         self.T = initial_plan.actions[x0s[0][1][1]].active_timesteps[1] - initial_plan.actions[x0s[0][1][0]].active_timesteps[0]
@@ -107,7 +138,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'solver': self,
                 'num_cloths': num_cloths,
                 # 'T': initial_plan.horizon - 1
-                'T': self.T * utils.POLICY_STEPS_PER_SECOND,
+                'T': int(self.T * utils.POLICY_STEPS_PER_SECOND),
                 'stochastic_conditions': self.config['stochastic_conditions']
             }
             self.config['algorithm']['cost'] = []
@@ -116,26 +147,19 @@ class BaxterPolicySolver(RobotLLSolver):
             # TODO: Fill in this case
             self.config['agent']['conditions'] += self.config['num_conds']
             self.config['agent']['x0'].extend(x0s)
-        
-        # for cond in range(len(x0s)):
-        #     self.config['algorithm']['cost'].append({
-        #         'type': TAMPCost,
-        #         'plan': initial_plan,
-        #         'dX': initial_plan.symbolic_bound,
-        #         'dU': initial_plan.dU,
-        #         'x0': x0s[cond]
-        #     })
 
+        action_cost_wp = np.ones((self.config['agent']['T'], initial_plan.dU), dtype='float64')
+        state_cost_wp = np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64')
         for cond in range(len(x0s)):
             traj_cost = {
                             'type': CostState,
                             'data_types': {
                                 utils.STATE_ENUM: {
-                                    'wp': np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64'),
+                                    'wp': state_cost_wp,
                                     'target_state': np.zeros((self.config['agent']['T'], initial_plan.symbolic_bound)),
                                 }
                             },
-                            'ramp_option': RAMP_CONSTANT
+                            'ramp_option': RAMP_QUADRATIC
                         }
             action_cost = {
                             'type': CostAction,
@@ -151,7 +175,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [1.0, 1.0],
+                                                        'weights': [1.0, 0.1],
                                                     })
 
         self.config['dQ'] = initial_plan.dU
@@ -166,12 +190,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [175, 175]
+                'dim_hidden': [50, 50]
             },
-            'lr': 5e-5,
+            'lr': 5e-4,
             'network_model': tf_network,
             'iterations': 10000,
-            'weight_decay': 0.00075,
+            'weight_decay': 0.00,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -199,12 +223,12 @@ class BaxterPolicySolver(RobotLLSolver):
 
         T = all_active_ts[1] - all_active_ts[0] + 1
 
-        pol_sample = self.gps.agent.global_policy_samples[cond]
-        global_traj_mean = np.zeros((plan.symbolic_bound, T))
-        for t in range(all_active_ts[0], all_active_ts[1]):
-            global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_X((t-all_active_ts[0])*utils.POLICY_STEPS_PER_SECOND)
-        global_traj_mean[:, T-1] = pol_sample.get_X((T-1)*utils.POLICY_STEPS_PER_SECOND-1)
-        # global_traj_mean = []
+        # pol_sample = self.gps.agent.global_policy_samples[cond]
+        # global_traj_mean = np.zeros((plan.dU, T))
+        # for t in range(all_active_ts[0], all_active_ts[1]):
+        #     global_traj_mean[:, t-all_active_ts[0]] = pol_sample.get_U((t-all_active_ts[0])*utils.POLICY_STEPS_PER_SECOND)
+        # global_traj_mean[:, T-1] = pol_sample.get_U((T-1)*utils.POLICY_STEPS_PER_SECOND-1)
+        global_traj_mean = []
 
         while a_num < a_end:
             print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
@@ -213,38 +237,40 @@ class BaxterPolicySolver(RobotLLSolver):
             active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
             
             # save free_attrs
-            old_params_free = {}
-            for p in plan.params.itervalues():
-                if p.is_symbol():
-                    if p in act_1.params or p in act_2.params: continue
-                    old_params_free[p] = p._free_attrs
-                    p._free_attrs = {}
-                    for attr in old_params_free[p].keys():
-                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
-                else:
-                    p_attrs = {}
-                    old_params_free[p] = p_attrs
-                    for attr in p._free_attrs:
-                        p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1])+1:].copy()]
-                        p._free_attrs[attr][:, (active_ts[1])+1:] = 0
-                        p._free_attrs[attr][:, :(active_ts[0])] = 0
+            # old_params_free = {}
+            # for p in plan.params.itervalues():
+            #     if p.is_symbol():
+            #         if p in act_1.params or p in act_2.params: continue
+            #         old_params_free[p] = p._free_attrs
+            #         p._free_attrs = {}
+            #         for attr in old_params_free[p].keys():
+            #             p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+            #     else:
+            #         p_attrs = {}
+            #         old_params_free[p] = p_attrs
+            #         for attr in p._free_attrs:
+            #             p_attrs[attr] = [p._free_attrs[attr][:, :(active_ts[0])].copy(), p._free_attrs[attr][:, (active_ts[1])+1:].copy()]
+            #             p._free_attrs[attr][:, (active_ts[1])+1:] = 0
+            #             p._free_attrs[attr][:, :(active_ts[0])] = 0
             
-            success = self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=N_RESAMPLES, global_traj_mean=global_traj_mean)
+            success = success and self._optimize_against_global(plan, (active_ts[0], active_ts[1]), n_resamples=1, global_traj_mean=global_traj_mean)
             
             # reset free_attrs
-            for p in plan.params.itervalues():
-                if p.is_symbol():
-                    if p in act_1.params or p in act_2.params: continue
-                    p._free_attrs = old_params_free[p]
-                else:
-                    for attr in p._free_attrs:
-                        p._free_attrs[attr][:, :(active_ts[0])] = old_params_free[p][attr][0]
-                        p._free_attrs[attr][:, (active_ts[1])+1:] = old_params_free[p][attr][1]
+            # for p in plan.params.itervalues():
+            #     if p.is_symbol():
+            #         if p in act_1.params or p in act_2.params: continue
+            #         p._free_attrs = old_params_free[p]
+            #     else:
+            #         for attr in p._free_attrs:
+            #             p._free_attrs[attr][:, :(active_ts[0])] = old_params_free[p][attr][0]
+            #             p._free_attrs[attr][:, (active_ts[1])+1:] = old_params_free[p][attr][1]
 
             # if not success:
             #     return success
             # print 'Actions: {} and {}'.format(plan.actions[a_num].name, plan.actions[a_num+1].name)
             a_num += 1
+
+        return success
 
     def _optimize_against_global(self, plan, active_ts, n_resamples=1, global_traj_mean=[]):
         priority = 3
@@ -329,7 +355,7 @@ class BaxterPolicySolver(RobotLLSolver):
             attr_type = param.get_attr_type(attr_name)
             param_ll = self._param_to_ll[param]
             T = end_t - start_t + 1
-            attr_val = traj_mean[plan.state_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
+            attr_val = traj_mean[plan.action_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
             K = attr_type.dim
 
             KT = K*T
@@ -477,7 +503,7 @@ class BaxterPolicySolver(RobotLLSolver):
 
 
     def _spawn_sco_var_for_policy_pred(self, pred, t):
-        x = np.empty(pred.dX , dtype=object)
+        x = np.empty(pred.dX, dtype=object)
         v = np.empty(pred.dX)
         for param in pred.params:
             for attr in const.ATTR_MAP[param._type]:
@@ -487,9 +513,25 @@ class BaxterPolicySolver(RobotLLSolver):
                         x[pred.state_inds[(param.name, attr[0])]] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
                         v[pred.state_inds[(param.name, attr[0])]] = getattr(param, attr[0])[attr[1], t]
                     else:
-                        inds = pred.state_inds[(param.name, attr[0])] - pred.dU
+                        inds = pred.state_inds[(param.name, attr[0])] - pred.act_offset
                         x[inds] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
                         v[inds] = getattr(param, attr[0])[attr[1], t]
+                if param.name == 'baxter' and attr[0] == 'lArmPose':
+                    ll_p = self._param_to_ll[param]
+                    x[-16:-9] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[-16:-9] = getattr(param, attr[0])[attr[1], t]
+                if param.name == 'baxter' and attr[0] == 'rArmPose':
+                    ll_p = self._param_to_ll[param]
+                    x[-8:-1] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[-8:-17] = getattr(param, attr[0])[attr[1], t]
+                if param.name == 'baxter' and attr[0] == 'lGripper':
+                    ll_p = self._param_to_ll[param]
+                    x[-9:-8] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[-9:-8] = getattr(param, attr[0])[attr[1], t]
+                if param.name == 'baxter' and attr[0] == 'rGripper':
+                    ll_p = self._param_to_ll[param]
+                    x[-1:] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
+                    v[-1:] = getattr(param, attr[0])[attr[1], t]
 
         x = x.reshape((-1,1))
         v = v.reshape((-1,1))

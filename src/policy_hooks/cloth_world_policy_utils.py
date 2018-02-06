@@ -428,6 +428,12 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
                 X[plan.state_inds['baxter', 'ee_right_pos']] = [0, -1.0, 0.9]
             # X[plan.state_inds[('baxter', 'rGripper')]] = X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'rGripper')]]
 
+        if ('baxter', 'ee_left_rot') in plan.state_inds:
+            X[plan.state_inds['baxter', 'ee_left_rot']] = [0, 0, 1, 0]
+            
+        if ('baxter', 'ee_right_rot') in plan.state_inds:
+            X[plan.state_inds['baxter', 'ee_right_rot']] = [0, 0, 1, 0]
+
         state_config = [X, actions, stationary_params, joint_angles]
 
     print "Found initial configuration.\n"
@@ -514,14 +520,18 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
             X[plan.state_inds[('baxter', 'lArmPose')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lArmPose')]]
         elif ('baxter', 'ee_left_pos') in plan.state_inds:
             X[plan.state_inds['baxter', 'ee_left_pos']] = [next_x, next_y, TABLE_TOP+height]
+        if ('baxter', 'ee_left_rot') in plan.state_inds:
+            X[plan.state_inds['baxter', 'ee_left_rot']] = [0, 0, 1, 0]
         # X[plan.state_inds[('baxter', 'lGripper')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'lGripper')]]
         # X[plan.state_inds[('cloth_{0}'.format(next_cloth), 'pose')]] = [next_x, next_y, TABLE_TOP+height]
         X[plan.state_inds[('cloth_target_begin_{0}'.format(next_cloth), 'value')]] = X[plan.state_inds[('cloth_{0}'.format(next_cloth), 'pose')]]
 
         if ('baxter', 'rArmPose') in plan.state_inds:
             X[plan.state_inds[('baxter', 'rArmPose')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rArmPose')]]
-        elif ('baxter', 'ee_lright_pos') in plan.state_inds:
+        elif ('baxter', 'ee_right_pos') in plan.state_inds:
             X[plan.state_inds['baxter', 'ee_right_pos']] = [0, -1.0, 0.9]
+        if ('baxter', 'ee_right_rot') in plan.state_inds:
+            X[plan.state_inds['baxter', 'ee_right_rot']] = [0, 0, 1, 0]
         # X[plan.state_inds[('baxter', 'rGripper')]] = X[plan.state_inds[('cloth_grasp_end_{0}'.format(next_cloth), 'rGripper')]]
 
         # Joint angles ordered by Mujoco Model joint order

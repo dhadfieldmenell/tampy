@@ -16,7 +16,7 @@ class BaxterPolicyEEPredicate(ExprPredicate):
         self.action_inds = action_inds
         self.dX = dX
         self.dU
-        self.x = np.zeros((self.dX))
+        self.x = np.zeros((self.dX+16))
         self.coeff = coeff
 
         self.robot = None
@@ -45,72 +45,58 @@ class BaxterPolicyEEPredicate(ExprPredicate):
             for attr in const.ATTR_MAP[p._type]:
                 if (p.name, attr[0]) in self.state_inds:
                     self.x[self.state_inds[p.name, atrr[0]]] = getattr(p, attr[0])[:, t]
-        return self.x.reshape((self.dX, 1))
+        self.x[-16:-9] = self.robot.lArmPose[:, t]
+        self.x[-9:-8] = self.robot.lGripper[:, t]
+        self.x[-8:-1] = self.robot.rArmPose[:, t]
+        self.x[-1:] = self.robot.rGripper[:, t]
+        return self.x.reshape((self.dX+16, 1))
 
 
     def error_f(self, x):
-        self.robot.openrave_body.set_dof({'lArmPose': x[self.state_inds[(self.robot.name, 'lArmPose')]],
-                                          'lGripper': x[self.state_inds[(self.robot.name, 'lGripper')]],
-                                          'rArmPose': x[self.state_inds[(self.robot.name, 'rArmPose')]],
-                                          'rGripper': x[self.state_inds[(self.robot.name, 'rGripper')]]})
+        self.robot.openrave_body.set_dof({'lArmPose': x[-16:-9],
+                                          'lGripper': x[-9:-8],
+                                          'rArmPose': x[-8:-1],
+                                          'rGripper': x[-1:]})
 
-        robot_trans = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransform()
-        pos = robot_trans[:3, 3]
+        l_pos = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransformPose()
+        r_pos = self.robot.openrave_body.env_body.GetLink('right_gripper').GetTransformPose()
         policy_ee = self.policy_func(x.copy())
 
-        dist_val = (pos - policy_ee[self.action_inds[('baxter', 'ee_left_pos')]]).reshape((3,1))
-        
-        policy_ee_rot = OpenRAVEBody.transform_from_obj_pose([0, 0, 0], policy_ee[self.action_inds[('baxter', 'left_ee_rot')]])
-        rot_val = []
-        local_dir = np.eye(3)
-        offset = np.eye(3)
-        for i in range(3):
-            obj_dir = np.dot(policy_ee_rot, local_dir[i])
-            world_dir = robot_trans[:3,:3].dot(local_dir[i])
-            rot_val.append([np.dot(obj_dir, world_dir) - offset[i].dot(local_dir[i])])
-        rot_val = np.vstack(rot_vals)
-
-        gripper_val = [x[self.state_inds[(self.robot.name, 'lGripper')]] - policy_ee[self.action_inds[(self.robot.name, 'lGripper')]]]
-        return np.r_[dist_val, rot_val, gripper_val]
+        l_dist_val = (pos[-3:] - policy_ee[self.action_inds[('baxter', 'ee_left_pos')]]).reshape((3,1))
+        r_dist_val = (pos[-3:] - policy_ee[self.action_inds[('baxter', 'ee_right_pos')]]).reshape((3,1))
+        l_rot_val = (pos[:4] - policy_ee[self.action_inds[('baxter', 'ee_left_rot')]]).reshape((4,1))
+        r_rot_val = (pos[:4] - policy_ee[self.action_inds[('baxter', 'ee_right_rot')]]).reshape((4,1))
+        l_gripper_val = [x[self.state_inds[(self.robot.name, 'lGripper')]] - policy_ee[self.action_inds[(self.robot.name, 'lGripper')]]]
+        r_gripper_val = [x[self.state_inds[(self.robot.name, 'rGripper')]] - policy_ee[self.action_inds[(self.robot.name, 'rGripper')]]]
+        return np.r_[l_dist_val, r_dist_val, l_rot_val, r_rot_val, l_gripper_val, r_gripper_val]
 
 
     def error_grad(self, x):
         jac = np.zeros((self.dU, self.dX))
-        arm_inds = range(2,9)
-        arm_joints = [self.robot.openrave_body.env_body.GetJointFromDOFIndex(ind) for ind in arm_inds]
-        self.robot.openrave_body.set_dof({'lArmPose': x[self.state_inds[(self.robot.name, 'lArmPose')]],
-                                          'lGripper': x[self.state_inds[(self.robot.name, 'lGripper')]],
-                                          'rArmPose': x[self.state_inds[(self.robot.name, 'rArmPose')]],
-                                          'rGripper': x[self.state_inds[(self.robot.name, 'rGripper')]]})
+        l_arm_inds = range(2,9)
+        l_arm_joints = [self.robot.openrave_body.env_body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
+        r_arm_inds = range(10,17)
+        r_arm_joints = [self.robot.openrave_body.env_body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
+        self.robot.openrave_body.set_dof({'lArmPose': x[-16:-9],
+                                          'lGripper': x[-9:-8],
+                                          'rArmPose': x[-8:-1],
+                                          'rGripper': x[-1:]})
 
-        robot_trans = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransform()
+        l_pos = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransforPose()
+        r_pos = self.robot.openrave_body.env_body.GetLink('right_gripper').GetTransforPose()
         policy_ee = self.policy_func(x.copy())
 
-        robot_pos = robot_trans[:3, 3]
-        # policy_pos = policy_ee[self.action_inds[('baxter', 'ee_left_pos')]]
-        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        l_dist_jac = np.array([np.cross(joint.GetAxis(), l_pos[-3:] - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
+        r_dist_jac = np.array([np.cross(joint.GetAxis(), r_pos[-3:] - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
 
-        pos_jac = np.zeros((3, self.dX))
-        pos_jac[:, self.state_inds[(self.robot.name, 'lArmPose')]] = arm_jac
-
-        policy_ee_rot = OpenRAVEBody.transform_from_obj_pose([0, 0, 0], policy_ee[self.action_inds[(self.robot.name, 'left_ee_rot')]])
-        rot_jac = []
-        for local_dir in np.eye(3):
-            obj_dir = np.dot(policy_ee_rot, local_dir)
-            world_dir = robot_trans[:3,:3].dot(local_dir)
-            arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), world_dir)) for joint in arm_joints]).T.copy()
-            arm_jac = arm_jac.reshape((1, len(arm_joints)))
-            jac_vec = np.zeros((self.dX))
-            jac_vec[self.state_inds[(self.robot.name, 'lArmPose')]] = arm_jac
-            rot_jac.append(jac_vec)
-        rot_jac = np.vstack(rot_jac)
-
-        gripper_jac = np.zeros((self.dX))
-        gripper_jac[self.state_inds[(self.robot.name, 'lGripper')]] = 1
-
-        jac[self.action_inds[(self.robot.name, 'ee_left_pos')]] = pos_jac
-        jac[self.action_inds[(self.robot.name, 'ee_left_rot')]] = rot_jac
-        jac[self.action_inds[(self.robot.name, 'lGripper')]] = gripper_jac
+        l_rot_jac = body.CalculateRotationJacobian(19, policy_ee[self.action_inds['baxter', 'ee_left_rot']] - l_rot_val)
+        r_rot_jac = body.CalculateRotationJacobian(43, policy_ee[self.action_inds['baxter', 'ee_right_rot']] - r_rot_val)
+        jac[self.action_inds[(self.robot.name, 'ee_left_pos')], -16:-9] = l_dist_jac
+        jac[self.action_inds[(self.robot.name, 'ee_left_rot')], -16:-9] = l_rot_jac
+        jac[self.action_inds[(self.robot.name, 'ee_right_pos')], -8:-1] = r_dist_jac
+        jac[self.action_inds[(self.robot.name, 'ee_right_rot')], -8:-1] = r_rot_jac
+        jac[self.action_inds[(self.robot.name, 'lGripper')], -9:-8] = 1
+        jac[self.action_inds[self.robot.name, 'rGripper'], -1:] = 1
 
         return jac
 

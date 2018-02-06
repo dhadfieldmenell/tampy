@@ -13,7 +13,7 @@ EE_ENUM = 4
 GPS_RATIO = 1e3
 
 MUJOCO_STEPS_PER_SECOND = 200
-POLICY_STEPS_PER_SECOND = 0.5 # 1
+POLICY_STEPS_PER_SECOND = 1
 
 # INCLUDE_PREDS = ['BaxterAt', 'BaxterClothAt', 'BaxterRobotAt', 'BaxterCloseGripperLeft', \
 #                  'BaxterCloseGripperRight', 'BaxterOpenGripperLeft', \
@@ -62,7 +62,8 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
 
     robot = plan.params['baxter'] #TODO: Make this more general
     robot_attr_map = const.ATTR_MAP[robot._type]
-    ee_attrs = ['ee_left_pos', 'ee_left_rot', 'ee_right_pos', 'ee_right_rot']
+    ee_pos_attrs = ['ee_left_pos', 'ee_right_pos']
+    ee_rot_attrs = ['ee_left_rot', 'ee_right_rot']
     for attr in robot_attr_map:
         if len(u_attrs) and attr[0] not in u_attrs: continue
         # if attr[0] != 'lArmPose' and attr[0] != 'rArmPose' and attr[0] != 'lGripper' and attr[0] != 'rGripper':
@@ -72,14 +73,22 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
         u_inds = attr[1] + cur_u_ind
         cur_u_ind = u_inds[-1] + 1
         params_to_u_inds[(robot.name, attr[0])] = u_inds
-    for attr in ee_attrs:
+    for attr in ee_pos_attrs:
         if attr not in u_attrs: continue
         x_inds = np.array([0, 1, 2]) + cur_x_ind
         cur_x_ind = x_inds[-1] + 1
         params_to_x_inds[(robot.name, attr)] = x_inds
-        # u_inds = np.array([0, 1, 2]) + cur_u_ind
-        # cur_u_ind = u_inds[-1] + 1
-        # params_to_u_inds[(robot.name, attr)] = u_inds
+        u_inds = np.array([0, 1, 2]) + cur_u_ind
+        cur_u_ind = u_inds[-1] + 1
+        params_to_u_inds[(robot.name, attr)] = u_inds
+    for attr in ee_rot_attrs:
+        if attr not in u_attrs: continue
+        x_inds = np.array([0, 1, 2, 3]) + cur_x_ind
+        cur_x_ind = x_inds[-1] + 1
+        params_to_x_inds[(robot.name, attr)] = x_inds
+        u_inds = np.array([0, 1, 2, 3]) + cur_u_ind
+        cur_u_ind = u_inds[-1] + 1
+        params_to_u_inds[(robot.name, attr)] = u_inds
     # for attr in robot_attr_map:
     #     if len(u_attrs) and attr[0] not in u_attrs: continue
     #     # if attr[0] != 'lArmPose' and attr[0] != 'rArmPose' and attr[0] != 'lGripper' and attr[0] != 'rGripper':

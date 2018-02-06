@@ -284,7 +284,7 @@ class LaundryWorldClothAgent(Agent):
             #     self.replace_cond(condition)
 
             if noisy:
-                noise = np.random.uniform(-0.75, 0.75, (self.T, self.dU))
+                noise = np.random.uniform(-1.0, 1.0, (self.T, self.dU))
                 total_noise = np.random.uniform(-1.0, 1.0, (self.dU,))
                 noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 0.1
                 noise[:, self.plan.action_inds[('baxter', 'rGripper')]] *= 0.1
