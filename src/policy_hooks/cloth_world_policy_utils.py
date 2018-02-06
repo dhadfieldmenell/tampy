@@ -411,7 +411,7 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
                 X[plan.state_inds[('baxter', 'lArmPose')]] = X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lArmPose')]]
             elif ('baxter', 'ee_left_pos') in plan.state_inds:
                 # X[plan.state_inds[('baxter', 'ee_left_pos')]] = [next_x, next_y, TABLE_TOP+height]
-                X[plan.state_inds[('baxter', 'ee_left_pos')]] = [0.7, 0.3, 0.95]
+                X[plan.state_inds[('baxter', 'ee_left_pos')]] = [next_x, next_y, 0.95]
             # X[plan.state_inds[('baxter', 'lGripper')]] = X[plan.state_inds[('cloth_putdown_end_{0}'.format(next_cloth-1), 'lGripper')]]
 
             # Joint angles ordered by Mujoco Model joint order

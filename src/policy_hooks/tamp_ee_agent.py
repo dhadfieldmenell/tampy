@@ -308,7 +308,7 @@ class LaundryWorldEEAgent(Agent):
             self.replace_cond(condition)
 
         if noisy:
-            noise = np.random.uniform(-0.0, 0.0, (self.T, self.dU))
+            noise = np.random.uniform(-0.075, 0.075, (self.T, self.dU))
             noise[:, self.plan.action_inds[('baxter', 'lGripper')]] = 0
             noise[:, self.plan.action_inds[('baxter', 'rGripper')]] = 0
         else:
@@ -939,14 +939,16 @@ class LaundryWorldEEAgent(Agent):
 
     #     self.initial_opt = False
 
-
-
-    def replace_cond(self, cond, num_cloths):
+    def replace_cond(self, cond, num_cloths=1):
         print "Replacing Condition {0}.\n".format(cond)
         x0s = get_random_initial_pick_place_state(self.plan, num_cloths)
         self.init_plan_states[cond] = x0s
         self.x0[cond] = x0s[0][:self.plan.symbolic_bound]
-        self.cond_global_pol_sample[cond] = None
+
+
+    def replace_all_conds(self, num_cloths=2):
+        for cond in range(len(self.x0)):
+            self.replace_cond(cond, num_cloths)
 
 
     def get_policy_avg_cost(self):

@@ -224,6 +224,320 @@ class LaundryEnvironmentMonitor(object):
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         return hls.get_plan(ll_plan_str, domain, problem)
 
+    def load_basket_from_region_1(self):
+        self.predict_cloth_locations()
+        # self.predict_basket_location()
+
+        failed_constr = []
+        if not len(self.state.region_poses[0]):
+             failed_constr.append(("ClothInRegion1", False))
+
+        # if not (self.state.basket_pose == utils.basket_far_pos):
+        #     failed_constr.append(("BasketNearWasher", True))
+
+        if len(failed_constr):
+            return failed_constr
+
+        act_num = 0
+        ll_plan_str = []
+
+        if (self.state.robot_region != 1):
+            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
+            act_num += 1
+            ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_1_POSE_0 REGION1 \n'.format(act_num, self.state.robot_region))
+            act_num += 1
+
+        while len(self.state.region_poses[0]):
+            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_REGION_1_POSE_0 CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_{2} CLOTH_GRASP_BEGIN_{3} CG_EE_{4} CLOTH_GRASP_END_{5} \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_{2} CLOTH{3} \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH{1} BASKET CLOTH_TARGET_END_{2} BASKET_NEAR_TARGET CLOTH_PUTDOWN_BEGIN_{3} CP_EE_{4} CLOTH_PUTDOWN_END_{5} \n'.format(act_num))
+            act_num += 1
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': 1})
+            self.ll_solver.backtrack_solve(plan, callback=None)
+
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
+
+            act_num = 0
+            ll_plan_str = []
+            self.predict_cloth_locations()
+            # self.predict_basket_location()
+
+
+            if not len(self.state.region_poses[0]):
+                return []
+
+            # if not (self.state.basket_pose == utils.basket_far_pos):
+            #     return [("BasketNearWasher", True)]
+
+
+    def load_basket_from_region_2(self):
+        self.predict_cloth_locations()
+        # self.predict_basket_location()
+
+        failed_constr = []
+        if not len(self.state.region_poses[1]):
+             failed_constr.append(("ClothInRegion2", False))
+
+        # if not (self.state.basket_pose == utils.basket_far_pos):
+        #     failed_constr.append(("BasketNearWasher", True))
+
+        if len(failed_constr):
+            return failed_constr
+
+        act_num = 0
+        ll_plan_str = []
+
+        while len(self.state.region_poses[1]):
+            start_pose = 'ROBOT_INIT_POSE'
+            if (self.state.robot_region != 2):
+                ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
+                act_num += 1
+                ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_2_POSE_0 REGION2 \n'.format(act_num, self.state.robot_region))
+                act_num += 1
+                start_pose = 'ROBOT_REGION_2_POSE_0'
+            ll_plan_str.append('{0}: MOVETO BAXTER {1} CLOTH_GRASP_BEGIN_0 \n'.format(act_num, start_pose))
+            act_num += 1
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 CLOTH_GRASP_END_0 ROBOT_REGION_3_POSE_0 REGION3 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_REGION_3_POSE_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_FAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_numi))
+            act_num += 1
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': 2})
+            self.ll_solver.backtrack_solve(plan, callback=None)
+
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
+
+            act_num = 0
+            ll_plan_str = []
+            self.predict_cloth_locations()
+            # self.predict_basket_location()
+
+
+            if not len(self.state.region_poses[1]):
+                return []
+
+            # if not (self.state.basket_pose == utils.basket_far_pos):
+            #     return [("BasketNearWasher", True)]
+
+    def load_basket_from_region_3(self):
+        self.predict_cloth_locations()
+        # self.predict_basket_location()
+
+        failed_constr = []
+        if not len(self.state.region_poses[2]):
+             failed_constr.append(("ClothInRegion3", False))
+
+        # if not (self.state.basket_pose == utils.basket_far_pos):
+        #     failed_constr.append(("BasketNearWasher", True))
+
+        if len(failed_constr):
+            return failed_constr
+
+        act_num = 0
+        ll_plan_str = []
+
+        if (self.state.robot_region != 3):
+            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
+            act_num += 1
+            ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_3_POSE_0 REGION3 \n'.format(act_num, self.state.robot_region))
+            act_num += 1
+
+        while len(self.state.region_poses[1]):
+            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_REGION_3_POSE_0 CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0} CLOTH_GRASP_END_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_FAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0} CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+            act_num += 1
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': 3})
+            self.ll_solver.backtrack_solve(plan, callback=None)
+
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
+
+            act_num = 0
+            ll_plan_str = []
+            self.predict_cloth_locations()
+            # self.predict_basket_location()
+
+
+            if not len(self.state.region_poses[2]):
+                return []
+
+            # if not (self.state.basket_pose == utils.basket_far_pos):
+            #     return [("BasketNearWasher", True)]
+
+    def load_basket_from_region_4(self):
+        self.predict_cloth_locations()
+        # self.predict_basket_location()
+
+        failed_constr = []
+        if not len(self.state.region_poses[3]):
+             failed_constr.append(("ClothInRegion4", False))
+
+        # if not (self.state.basket_pose == utils.basket_far_pos):
+        #     failed_constr.append(("BasketNearWasher", True))
+
+        if len(failed_constr):
+            return failed_constr
+
+        act_num = 0
+        ll_plan_str = []
+
+        while len(self.state.region_poses[1]):
+            start_pose = 'ROBOT_INIT_POSE'
+            if (self.state.robot_region != 4):
+                ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
+                act_num += 1
+                ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_4_POSE_0 REGION4 \n'.format(act_num, self.state.robot_region))
+                act_num += 1
+                start_pose = 'ROBOT_REGION_4_POSE_0'
+            ll_plan_str.append('{0}: MOVETO BAXTER {1} CLOTH_GRASP_BEGIN_0 \n'.format(act_num, start_pose))
+            act_num += 1
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 CLOTH_GRASP_END_0 ROBOT_REGION_3_POSE_0 REGION3 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_REGION_3_POSE_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_FAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_numi))
+            act_num += 1
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': 4})
+            self.ll_solver.backtrack_solve(plan, callback=None)
+
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
+
+            act_num = 0
+            ll_plan_str = []
+            self.predict_cloth_locations()
+            # self.predict_basket_location()
+
+
+            if not len(self.state.region_poses[3]):
+                return []
+
+            # if not (self.state.basket_pose == utils.basket_far_pos):
+            #     return [("BasketNearWasher", True)]
+
+    def move_basket_to_washer(self):
+        self.predict_cloth_locations()
+        # self.predict_basket_location()
+
+        failed_constr = []
+        if not len(self.state.region_poses[4]):
+             failed_constr.append(("BasketNearLocClear", False))
+
+        # if not (self.state.basket_pose == utils.basket_far_pos):
+        #     failed_constr.append(("BasketNearWasher", True))
+
+        if len(failed_constr):
+            return failed_constr
+
+        act_num = 0
+        ll_plan_str = []
+
+        last_pose = 'ROBOT_INIT_POSE'
+        if (self.state.robot_region != 3):
+            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
+            act_num += 1
+            ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_3_POSE_0 REGION3 \n'.format(act_num, self.state.robot_region))
+            act_num += 1
+            last_pose = 'ROBOT_REGION_3_POSE_0'
+
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_REGION_3_POSE_0 BASKET_GRASP_BEGIN_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_FAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: ROTATE_HOLDING_BASKET BAXTER BASKET BASKET_GRASP_END_0 ROBOT_REGION_1_POSE_0 REGION1 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVEHOLDING_BASKET BAXTER ROBOT_REGION_1_POSE_0 BASKET_PUTDOWN_BEGIN_0 BASKET \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BASKET_PUTDOWN BAXTER BASKET BASKET_NEAR_TARGET BASKET_PUTDOWN_BEGIN_0 BP_EE_LEFT_0 BP_EE_RIGHT_0 BASKET_PUTDOWN_END_0 \n'.format(act_num))
+
+        plan = self.plan_from_str(ll_plan_str)
+        self.update_plan(plan, {})
+        self.ll_solver.backtrack_solve(plan, callback=None)
+
+        for action in plan.actions:
+            self.execute_plan(plan, action.active_timesteps)
+
+        act_num = 0
+        ll_plan_str = []
+        # self.predict_basket_location()
+
+        # if not (self.state.basket_pose == utils.basket_far_pos):
+        #     return [("BasketNearWasher", True)]
+
+    def move_basket_from_washer(self):
+        self.predict_cloth_locations()
+        # self.predict_basket_location()
+
+        failed_constr = []
+        if not len(self.state.region_poses[5]):
+             failed_constr.append(("BasketFarLocClear", False))
+
+        # if not (self.state.basket_pose == utils.basket_far_pos):
+        #     failed_constr.append(("BasketNearWasher", True))
+
+        if len(failed_constr):
+            return failed_constr
+
+        act_num = 0
+        ll_plan_str = []
+
+        last_pose = 'ROBOT_INIT_POSE'
+        if (self.state.robot_region != 3):
+            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
+            act_num += 1
+            ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_1_POSE_0 REGION1 \n'.format(act_num, self.state.robot_region))
+            act_num += 1
+            last_pose = 'ROBOT_REGION_1_POSE_0'
+
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_REGION_1_POSE_0 BASKET_GRASP_BEGIN_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_FAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: ROTATE_HOLDING_BASKET BAXTER BASKET BASKET_GRASP_END_0 ROBOT_REGION_3_POSE_0 REGION3 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVEHOLDING_BASKET BAXTER ROBOT_REGION_3_POSE_0 BASKET_PUTDOWN_BEGIN_0 BASKET \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BASKET_PUTDOWN BAXTER BASKET BASKET_NEAR_TARGET BASKET_PUTDOWN_BEGIN_0 BP_EE_LEFT_0 BP_EE_RIGHT_0 BASKET_PUTDOWN_END_0 \n'.format(act_num))
+
+        plan = self.plan_from_str(ll_plan_str)
+        self.update_plan(plan, {})
+        self.ll_solver.backtrack_solve(plan, callback=None)
+
+        for action in plan.actions:
+            self.execute_plan(plan, action.active_timesteps)
+
+        act_num = 0
+        ll_plan_str = []
+        # self.predict_basket_location()
+
+        # if not (self.state.basket_pose == utils.basket_near_pos):
+        #     return [("BasketNearWasher", True)]
+
+
     def hl_to_ll(self, hl_plan):
         '''Parses a high level plan into a sequence of low level actions.'''
         ll_plan_str = []
