@@ -389,7 +389,7 @@ class BaxterPolicySolver(RobotLLSolver):
         dX = plan.symbolic_bound
         dU = plan.dU
         policy_func = lambda x: self.gps.algorithm.policy_opt.policy.act(x, x, 0, 0) # The global policy should be time independent
-        pred = BaxterPolicyPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
+        pred = BaxterPolicyEEPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
         for action in plan.actions:
             pred_dict = {'hl_info': 'policy', 'pred': pred, 'negated': False, 'active_timesteps': action.active_timesteps}
             action.preds.append(pred_dict)
@@ -523,7 +523,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 if param.name == 'baxter' and attr[0] == 'rArmPose':
                     ll_p = self._param_to_ll[param]
                     x[-8:-1] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
-                    v[-8:-17] = getattr(param, attr[0])[attr[1], t]
+                    v[-8:-1] = getattr(param, attr[0])[attr[1], t]
                 if param.name == 'baxter' and attr[0] == 'lGripper':
                     ll_p = self._param_to_ll[param]
                     x[-9:-8] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]

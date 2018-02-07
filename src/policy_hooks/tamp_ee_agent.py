@@ -308,9 +308,11 @@ class LaundryWorldEEAgent(Agent):
             self.replace_cond(condition)
 
         if noisy:
-            noise = np.random.uniform(-0.075, 0.075, (self.T, self.dU))
+            noise = np.random.uniform(-0.01, 0.01, (self.T, self.dU))
             noise[:, self.plan.action_inds[('baxter', 'lGripper')]] = 0
             noise[:, self.plan.action_inds[('baxter', 'rGripper')]] = 0
+            # noise[:, self.plan.action_inds[('baxter', 'ee_left_rot')]] *= 0.5
+            # noise[:, self.plan.action_inds[('baxter', 'ee_right_rot')]] *= 0.5
         else:
             noise = np.zeros((self.T, self.dU))
 
@@ -337,6 +339,9 @@ class LaundryWorldEEAgent(Agent):
             ee_right_rot = U[self.plan.action_inds[('baxter', 'ee_right_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_right_rot')]]
             # ee_right_pos = np.maximum(ee_right_pos, [0, -1.0, 0.615])
             # ee_right_pos = np.minimum(ee_right_pos, [1.0, 0.2, 1.5])
+
+            ee_left_rot = ee_left_rot / np.linalg.norm(ee_left_rot)
+            ee_right_rot = ee_right_rot / np.linalg.norm(ee_right_rot)
 
             ee_left_rot_euler = OpenRAVEBody._ypr_from_rot_matrix(openravepy.rotationMatrixFromQuat(ee_left_rot))
             ee_right_rot_euler = OpenRAVEBody._ypr_from_rot_matrix(openravepy.rotationMatrixFromQuat(ee_right_rot))
@@ -377,6 +382,7 @@ class LaundryWorldEEAgent(Agent):
             # ctrl_signal = np.r_[right_ctrl_signal, r_grip, -r_grip, left_ctrl_signal, l_grip, -l_grip]
 
             left_vec = ee_left_pos - ee_pos[:3]
+            left_vec[1] += 0.05
             right_vec = ee_right_pos - ee_pos[3:6]
             left_rot_vec = ee_left_rot - ee_pos[6:10]
             right_rot_vec = ee_right_rot - ee_pos[10:14]
@@ -397,7 +403,7 @@ class LaundryWorldEEAgent(Agent):
             #     right_rot_vec = ee_right_rot - xquat[self.right_grip_r_ind]
 
             iteration = 0
-            while ((np.any(np.abs(np.r_[left_vec, right_vec/2]) > 0.05) or np.any(np.abs(np.r_[left_rot_vec, right_rot_vec]) > 0.1)) and iteration < 200):
+            while ((np.any(np.abs(np.r_[left_vec, right_vec/2]) > 0.05) or np.any(np.abs(np.r_[left_rot_vec, right_rot_vec]) > 0.1)) and iteration < 100):
                 joints[10:17, 0] = np.maximum(np.minimum(joints[10:17, 0], left_ub), left_lb)
                 joints[1:8, 0] = np.maximum(np.minimum(joints[1:8, 0], right_ub), right_lb)
                 self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': joints[10:17].flatten(), 'rArmPose': joints[1:8].flatten()})
@@ -418,6 +424,7 @@ class LaundryWorldEEAgent(Agent):
                 jac[self.plan.action_inds['baxter', 'ee_left_rot'], 9:16] = left_rot_jac * 2
                 jac[self.plan.action_inds['baxter', 'ee_right_rot'], 0:7] = right_rot_jac * 2
 
+
                 jac[:, 0] *= 1.1
                 jac[:, 1] *= 0.85
                 jac[:, 2] *= 1.5
@@ -437,7 +444,9 @@ class LaundryWorldEEAgent(Agent):
                 # jac[:, 16] *= 0.2
                 # jac[:, 17] *= 0.2
 
-                jac[self.plan.action_inds['baxter', 'ee_left_pos'][2], :] *= 1.5
+                jac[self.plan.action_inds['baxter', 'ee_left_pos'][2], :] *= 2
+
+                jac = jac / np.linalg.norm(jac)
 
                 u_vec = np.zeros((self.dU,))
                 u_vec[self.plan.action_inds['baxter', 'ee_left_pos']] = left_vec
@@ -445,7 +454,7 @@ class LaundryWorldEEAgent(Agent):
                 u_vec[self.plan.action_inds['baxter', 'ee_left_rot']] = left_rot_vec
                 u_vec[self.plan.action_inds['baxter', 'ee_right_rot']] = right_rot_vec
 
-                ctrl_signal = self.pos_model.data.qpos[1:].flatten() + np.dot(jac.T, u_vec).flatten() * 0.5
+                ctrl_signal = self.pos_model.data.qpos[1:].flatten() + np.dot(jac.T, u_vec).flatten() * 2.5
                 ctrl_signal[7] = U[self.plan.action_inds['baxter', 'rGripper']]
                 ctrl_signal[16] = U[self.plan.action_inds['baxter', 'lGripper']]
 

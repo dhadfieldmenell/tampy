@@ -9,15 +9,16 @@ from collections import OrderedDict
 
 
 class BaxterPolicyEEPredicate(ExprPredicate):
-    def __init__(self, name, params, state_inds, action_inds, policy_func, dX, dU, coeff):
+    def __init__(self, name, params, state_inds, action_inds, policy_func, dX, dU, coeff, grad_coeff=1.0):
         self.handle = []
         self.policy_func = policy_func
         self.state_inds = state_inds
         self.action_inds = action_inds
         self.dX = dX
-        self.dU
+        self.dU = dU
         self.x = np.zeros((self.dX+16))
         self.coeff = coeff
+        self.act_offset = 0
 
         self.robot = None
         for param in params:

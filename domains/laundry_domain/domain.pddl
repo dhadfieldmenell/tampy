@@ -86,7 +86,7 @@
 	)
 
 
-	(:action load_washer
+	(:action load_washer_from_basket
 		:parameters (?cloth ?basket ?washer)
 		:precondition (and (not (ClothInWasher ?cloth ?washer))
 					 	   (ClothInBasket ?cloth ?basket)
@@ -96,17 +96,22 @@
 					 	   (not (ClothInRegion4 ?cloth))
 					 	   (BasketNearWasher ?basket ?washer))
 		:effect (and (ClothInWasher ?cloth ?washer)
-					 (not (WasherDoorOpen ?washer))
 					 (not (ClothInBasket ?cloth ?basket)))
 	)
 
-	(:action unload_washer
+	(:action load_washer_from_region1
+		:parameters (?cloth ?basket ?washer)
+		:precondition (and (ClothInRegion1 ?cloth)
+					 	   (WasherDoorOpen ?washer))
+		:effect (ClothInWasher ?cloth ?washer)
+	)
+
+	(:action unload_washer_into_basket
 		:parameters (?cloth ?basket ?washer)
 		:precondition (and (ClothInWasher ?cloth ?washer)
 						   (WasherDoorOpen ?washer)
 					 	   (BasketNearWasher ?basket ?washer))
 		:effect (and (not (ClothInWasher ?cloth ?washer))
-					 (not (WasherDoorOpen ?washer))
 					 (ClothInBasket ?cloth ?basket))
 	)
 )
