@@ -27,6 +27,7 @@ class HLLaundryState(object):
     def __init__(self):
         self.region_poses = [[], [], [], []]
         self.basket_pose = [utils.basket_far_pos[0], utils.basket_far_pos[1], utils.basket_far_rot[0]]
+        self.washer_cloth_poses = []
 
         self.robot_region = 1
         self.cloth_in_basket = False
@@ -464,7 +465,21 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             last_pose = 'ROBOT_REGION_3_POSE_0'
 
-        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_REGION_3_POSE_0 BASKET_GRASP_BEGIN_0 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVETO BAXTER {1} ROBOT_REGION_3_SCAN_POSE \n'.format(act_num, last_pose))
+
+        plan = self.plan_from_str(ll_plan_str)
+        self.update_plan(plan, {})
+        self.ll_solver.backtrack_solve(plan, callback=None)
+
+        for action in plan.actions:
+            self.execute_plan(plan, action.active_timesteps)
+
+        self.predict_basket_location_from_wrist()
+
+        act_num = 0
+        ll_plan_str = []
+
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE BASKET_GRASP_BEGIN_0 \n'.format(act_num))
         act_num += 1
         ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_FAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
         act_num += 1
@@ -506,14 +521,28 @@ class LaundryEnvironmentMonitor(object):
         ll_plan_str = []
 
         last_pose = 'ROBOT_INIT_POSE'
-        if (self.state.robot_region != 1):
+        if (self.state.robot_region != 3):
             ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
             act_num += 1
             ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_1_POSE_0 REGION1 \n'.format(act_num, self.state.robot_region))
             act_num += 1
             last_pose = 'ROBOT_REGION_1_POSE_0'
 
-        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_REGION_1_POSE_0 BASKET_GRASP_BEGIN_0 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVETO BAXTER {1} ROBOT_REGION_1_SCAN_POSE \n'.format(act_num, last_pose))
+
+        plan = self.plan_from_str(ll_plan_str)
+        self.update_plan(plan, {})
+        self.ll_solver.backtrack_solve(plan, callback=None)
+
+        for action in plan.actions:
+            self.execute_plan(plan, action.active_timesteps)
+
+        self.predict_basket_location_from_wrist()
+        
+        act_num = 0
+        ll_plan_str = []
+
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE BASKET_GRASP_BEGIN_0 \n'.format(act_num))
         act_num += 1
         ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_FAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
         act_num += 1
@@ -539,24 +568,38 @@ class LaundryEnvironmentMonitor(object):
 
     def open_washer(self):
         failed_constr = []
-        if self.state.washer_door < -np.pi/6:
-             failed_constr.append(("WasherDoorOpen", True))
-
-        if len(failed_constr):
-            return failed_constr
 
         act_num = 0
         ll_plan_str = []
 
         last_pose = 'ROBOT_INIT_POSE'
-        if (self.state.robot_region != 1):
+        if (self.state.robot_region != 3):
             ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
             act_num += 1
             ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_1_POSE_0 REGION1 \n'.format(act_num, self.state.robot_region))
             act_num += 1
             last_pose = 'ROBOT_REGION_1_POSE_0'
 
-        ll_plan_str.append('{0}: MOVETO BAXTER {1} OPEN_DOOR_BEGIN_0 \n'.format(act_num, last_pose))
+        ll_plan_str.append('{0}: MOVETO BAXTER {1} ROBOT_OPEN_DOOR_SCAN_POSE \n'.format(act_num, last_pose))
+
+        plan = self.plan_from_str(ll_plan_str)
+        self.update_plan(plan, {})
+        self.ll_solver.backtrack_solve(plan, callback=None)
+
+        for action in plan.actions:
+            self.execute_plan(plan, action.active_timesteps)
+
+        self.predict_open_door()
+        if self.state.washer_door < -np.pi/6:
+             failed_constr.append(("WasherDoorOpen", True))
+
+        if len(failed_constr):
+            return failed_constr
+        
+        act_num = 0
+        ll_plan_str = []
+
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE OPEN_DOOR_BEGIN_0 \n'.format(act_num))
         act_num += 1
         ll_plan_str.append('{0}: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN_0 OPEN_DOOR_EE_APPROACH_0 OPEN_DOOR_EE_RETREAT_0 OPEN_DOOR_END_0 WASHER_CLOSE_POSE_0 WASHER_OPEN_POSE_0 \n'.format(act_num))
         act_num += 1
@@ -579,12 +622,31 @@ class LaundryEnvironmentMonitor(object):
         ll_plan_str = []
 
         last_pose = 'ROBOT_INIT_POSE'
-        if (self.state.robot_region != 1):
+        if (self.state.robot_region != 3):
             ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
             act_num += 1
             ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_1_POSE_0 REGION1 \n'.format(act_num, self.state.robot_region))
             act_num += 1
             last_pose = 'ROBOT_REGION_1_POSE_0'
+
+        ll_plan_str.append('{0}: MOVETO BAXTER {1} ROBOT_CLOSE_DOOR_SCAN_POSE \n'.format(act_num, last_pose))
+
+        plan = self.plan_from_str(ll_plan_str)
+        self.update_plan(plan, {})
+        self.ll_solver.backtrack_solve(plan, callback=None)
+
+        for action in plan.actions:
+            self.execute_plan(plan, action.active_timesteps)
+
+        self.predict_open_door()
+        if self.state.washer_door > -np.pi/6:
+             failed_constr.append(("WasherDoorOpen", FALSE))
+
+        if len(failed_constr):
+            return failed_constr
+        
+        act_num = 0
+        ll_plan_str = []
 
         ll_plan_str.append('{0}: MOVETO BAXTER {1} CLOSE_DOOR_BEGIN_0 \n'.format(act_num, last_pose))
         act_num += 1
@@ -733,7 +795,7 @@ class LaundryEnvironmentMonitor(object):
             self.execute_plan(plan, action.active_timesteps)
         self.predict_cloth_washer_locations()
 
-        while len(self.state.washer_poses):
+        while len(self.state.washer_cloth_poses):
             ll_plan_str.append('{0}: MOVETO BAXTER WASHER_SCAN_POSE CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: TAKE_OUT_OF_WASHER BAXTER WASHER WASHER_POSE_0 CLOTH0 CLOTH_TARGET_END_0 CLOTH_GRASP_BEGIN_0 CP_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))

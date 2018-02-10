@@ -332,10 +332,12 @@ class RobotLLSolver(LLSolver):
                 target_body = next_act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
+                target_rot = target.rotation[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [3.5, 0.75, 0.25], [0.2, 0.1, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([0, 0, 0])
+                ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
+
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
@@ -349,10 +351,12 @@ class RobotLLSolver(LLSolver):
                 target_body = next_act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
+                target_rot = target.rotation[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [3.5, 0.5, 0.5], [0.2, 0.01, 0.01])
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([0, 0, 0])
+                ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
+
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
@@ -379,15 +383,16 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-            elif act.name == 'take_out_of_Washer':
+            elif act.name == 'take_out_of_washer':
                 target = act.params[2]
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
+                target_rot = target.rotation[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [3.5, 0.5, 0.5], [0.2, 0.01, 0.01])
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([0, 0, 0])
+                ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
@@ -400,10 +405,11 @@ class RobotLLSolver(LLSolver):
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
+                target_rot = target.rotation[:,0]
 
-                random_dir = np.multiply(np.random.sample(3) - [3.5, 0.5, 0.5], [0.2, 0.01, 0.01])
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([0, 0, 0])
+                ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue

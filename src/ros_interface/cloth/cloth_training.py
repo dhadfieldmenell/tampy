@@ -24,8 +24,8 @@ path = './'
 images_file = 'data/shuffledClothGridImages.npy'
 labels_file = 'data/shuffledClothGridLabels.npy'
 
-im_height = 10
-im_width = 10
+im_height = 15
+im_width = 15
 
 input_images = np.load(path+images_file)
 labels = np.load(path+labels_file)
@@ -83,7 +83,7 @@ validation_labels = labels[:50]
 #             labels = labels[new_order]
 
 # preprocessing_fn = lambda x: x - [103.939, 116.779, 123.68]  # lambda x: 2*((x / 255.0) - 0.5)
-augment_gen = image.ImageDataGenerator(featurewise_center=False, featurewise_std_normalization=False, rotation_range=180, shear_range=np.pi/16, zoom_range=0.0, channel_shift_range=0.1)
+augment_gen = image.ImageDataGenerator(featurewise_center=False, featurewise_std_normalization=False, rotation_range=30, shear_range=np.pi/32, zoom_range=0.01, channel_shift_range=0.025)
 # augment_gen.fit(training_set[:10])
 
 def get_session(gpu_fraction=0.5, allow_growth=True):
@@ -127,9 +127,9 @@ model = Model(inputs=inputs, outputs=predictions)
 # compile the model (should be done *after* setting layers to non-trainable)
 # model.compile(optimizer=Adam(lr=1e-5, decay=0.995), loss='mean_absolute_error')
 # model.compile(optimizer=RMSprop(5e-8), loss='mean_squared_error')
-model.compile(optimizer=Adam(1e-2), loss='mean_absolute_error')
+model.compile(optimizer=Adam(1e-3), loss='mean_absolute_error')
 # model.compile(optimizer=Nadam(1e-5), loss='mean_absolute_error')
-batch_size = 50
+batch_size = 10
 epoch = 1000
 
 
@@ -139,9 +139,9 @@ epoch = 1000
 for i in range(5):
     model.fit_generator(augment_gen.flow(training_set, training_labels, batch_size), 
                         steps_per_epoch=epoch/batch_size,
-                        epochs=250,
-                        validation_data=augment_gen.flow(validation_set, validation_labels, batch_size),
-                        validation_steps=len(validation_set)/batch_size,
+                        epochs=500,
+                        validation_data=augment_gen.flow(validation_set, validation_labels, 50),
+                        validation_steps=len(validation_set)/50,
                         max_queue_size=50)
     import ipdb; ipdb.set_trace()
 

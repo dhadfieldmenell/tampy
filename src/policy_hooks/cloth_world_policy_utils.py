@@ -17,8 +17,8 @@ import unittest, time, main, random
 BASKET_POSE = [0.65, 0.1, 0.875]
 BASKET_X_RANGE = [0.65, 0.75]
 BASKET_Y_RANGE = [-0.025, 0.075]
-CLOTH_INIT_X_RANGE = [0.4, 0.95]
-CLOTH_INIT_Y_RANGE = [0.55, 1.1]
+CLOTH_INIT_X_RANGE = [0.3, 0.85]
+CLOTH_INIT_Y_RANGE = [0.5, 1.05]
 
 STEP_DELTA = 3
 BASKET_STEP_DELTA = 2
@@ -430,7 +430,7 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
 
         if ('baxter', 'ee_left_rot') in plan.state_inds:
             X[plan.state_inds['baxter', 'ee_left_rot']] = [0, 0, 1, 0]
-            
+
         if ('baxter', 'ee_right_rot') in plan.state_inds:
             X[plan.state_inds['baxter', 'ee_right_rot']] = [0, 0, 1, 0]
 

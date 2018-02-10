@@ -1770,7 +1770,7 @@ class BaxterClothTargetInWasher(ExprPredicate):
         self.washer_pose = params[1]
         A = np.c_[np.eye(self.attr_dim/2), -np.eye(self.attr_dim/2)]
         b = np.zeros((self.attr_dim/2,1))
-        val = np.array([[const.WASHER_DEPTH_OFFSET], [0], [-.17]])
+        val = np.array([[const.WASHER_DEPTH_OFFSET/2], [np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2], [-.17]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(BaxterClothTargetInWasher, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)

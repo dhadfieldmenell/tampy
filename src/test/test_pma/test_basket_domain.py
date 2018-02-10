@@ -1192,6 +1192,55 @@ class TestBasketDomain(unittest.TestCase):
         self.assertTrue(result)
         import ipdb; ipdb.set_trace()
 
+    def test_washer_manipulation_2(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_1.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        ll_plan_str = []
+        act_num = 0
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE OPEN_DOOR_BEGIN_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN_0 OPEN_DOOR_EE_APPROACH_0 OPEN_DOOR_EE_RETREAT_0 OPEN_DOOR_END_0 WASHER_CLOSE_POSE_0 WASHER_OPEN_POSE_0 \n'.format(act_num))
+        act_num += 1
+        plan = hls.get_plan(ll_plan_str, domain, problem)
+        plan.params['washer'].door[0, 0] = 0
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        viewer.draw_plan_ts(plan, 0)
+        serializer = PlanSerializer()
+        def callback(a): return viewer
+        velocites = np.ones((plan.horizon, ))*1
+
+        # robot, washer = plan.params['baxter'], plan.params['washer']
+        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # washer_body.set_dof({'door':-np.pi/2})
+        # rot_mat = matrixFromAxisAngle([0, 0, 0])
+        # trans = washer_body.env_body.GetTransform().dot(rot_mat)
+        # ik_arm_poses_left = robot_body.get_ik_solutions("left_arm", trans)
+        # import ipdb; ipdb.set_trace()
+        # robot_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+
+
+        solver = robot_ll_solver.RobotLLSolver()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        result = solver.traj_smoother(plan, callback = None)
+        end = time.time()
+
+        print "Planning finished within {}s.".format(end - start)
+        print "Planning succeeded: {}".format(result)
+        ee_time = traj_retiming(plan, velocites)
+        plan.time = ee_time.reshape((1, ee_time.shape[0]))
+
+        print "Saving current plan to file washer_manipulation_plan.hdf5..."
+        serializer.write_plan_to_hdf5("washer_manipulation_plan.hdf5", plan)
+        self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
+
 
     def put_into_washer(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
@@ -1215,6 +1264,54 @@ class TestBasketDomain(unittest.TestCase):
         ]
 
         plan = hls.get_plan(plan_str, domain, problem)
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        serializer = PlanSerializer()
+        def callback(a): return viewer
+        velocites = np.ones((plan.horizon, ))*1
+
+        viewer.draw_plan_ts(plan, 0)
+        # import ipdb; ipdb.set_trace()
+
+        solver = robot_ll_solver.RobotLLSolver()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        if result:
+            result = solver.traj_smoother(plan, callback = None)
+        else: 
+            import ipdb; ipdb.set_trace()
+        end = time.time()
+        # pd = PlanDeserializer()
+        # plan = pd.read_from_hdf5('prototype_plan.hdf5')
+        # import ipdb; ipdb.set_trace()
+        print "Planning finished within {}s.".format(end - start)
+        ee_time = traj_retiming(plan, velocites)
+        plan.time = ee_time.reshape((1, ee_time.shape[0]))
+
+        print "Saving current plan to file put_into_washer.hdf5..."
+        serializer.write_plan_to_hdf5("put_into_washer.hdf5", plan)
+        self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
+
+    def put_into_washer_2(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_1.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0',
+        '1: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH0',
+        '3: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0',
+        ]
+
+        plan = hls.get_plan(plan_str, domain, problem)
+        plan.params['cloth0'].pose[:,:30] = [[0.6], [0.4], [0.65]]
+        plan.params['cloth_target_begin_0'].value[:,:] = [[0.6], [0.4], [0.65]]
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()

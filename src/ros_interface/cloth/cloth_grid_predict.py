@@ -18,7 +18,8 @@ from sensor_msgs.msg import Image
 import ros_interface.utils as utils
 
 
-TRAINED_MODEL = 'ros_interface/cloth/clothGridEvalJan4.h5'
+# TRAINED_MODEL = 'ros_interface/cloth/clothGridEvalJan4.h5'
+TRAINED_MODEL = 'ros_interface/cloth/feb7TrainedClothGrid.h5'
 
 # def get_session():
 #     with tf.device("/cpu:0"):
@@ -68,7 +69,7 @@ class ClothGridPredict:
     def predict_washer(self):
         locs = []
         if self.cur_grip_im: 
-            im = self.bridge.imgmsg_to_cv2(self.cur_im, 'passthrough')
+            im = self.bridge.imgmsg_to_cv2(self.cur_grip_im, 'passthrough')
             im = np.array(im, dtype=np.float32)
             for loc in utils.washer_im_locs:
                 region = im[loc[0][0]-utils.cloth_grid_window:loc[0][0]+utils.cloth_grid_window, loc[0][1]-utils.cloth_grid_window:loc[0][1]+utils.cloth_grid_window]
@@ -77,9 +78,8 @@ class ClothGridPredict:
                 prediction = self.net.predict(region)
 
                 if prediction > 0.75:
-                    ref = utils.cloth_grid_ref
-                    disp = np.array(ref[0] - loc[0]) / utils.pixels_per_cm
-                    locs.append(((ref[1] + disp) / 100.0, loc[1]))
+                    locs.append(loc[1])
+                    break
 
         return locs
 

@@ -2,3 +2,4 @@
 *#
 *.soln
 *.pyc
+*.hdf5

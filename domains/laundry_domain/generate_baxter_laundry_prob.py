@@ -43,8 +43,8 @@ ROBOT_DIST_FROM_TABLE = 0.05
 WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.97, 1.0, 0.97-0.375+0.65/2]
 # WASHER_INIT_ROT = [np.pi/2,0,0]
-WASHER_INIT_POS = [0.85, 1.25, 0.97-0.375+0.65/2]
-WASHER_INIT_ROT = [3*np.pi/4,0,0]
+WASHER_INIT_POS = [0.2, 1.3, 0.97-0.375+0.65/2]
+WASHER_INIT_ROT = [5*np.pi/6,0,0]
 
 WASHER_OPEN_DOOR = [-np.pi/2]
 WASHER_CLOSE_DOOR = [0.0]
@@ -170,7 +170,9 @@ def main():
 
         for i in range(NUM_SYMBOLS):
             s += get_undefined_symbol('cloth_target_end_{0}'.format(i))
-            s += get_undefined_symbol('cloth_target_begin_{0}'.format(i))
+            # s += get_undefined_symbol('cloth_target_begin_{0}'.format(i))
+            s += "(value cloth_target_begin_{0} {1})".format(i, cloth_init_poses[i % NUM_CLOTH])
+            s += "(rotation cloth_target_begin_{0} {1})".format(i, [0, 0, 0])
 
             s += get_undefined_symbol("cg_ee_{0}".format(i))
             s += get_undefined_symbol("cp_ee_{0}".format(i))

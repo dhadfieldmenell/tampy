@@ -150,6 +150,14 @@ class BaxterPolicySolver(RobotLLSolver):
 
         action_cost_wp = np.ones((self.config['agent']['T'], initial_plan.dU), dtype='float64')
         state_cost_wp = np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64')
+        # state_cost_wp[:, initial_plan.state_inds['baxter', 'ee_right_pos']] *= 0.2
+        # state_cost_wp[:, initial_plan.state_inds['baxter', 'ee_right_rot']] *= 0.2
+        # state_cost_wp[:, initial_plan.state_inds['baxter', 'lGripper']] *= 10
+        # state_cost_wp[:, initial_plan.state_inds['baxter', 'rGripper']] *= 10
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'ee_right_pos']] *= 0.75
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'ee_right_rot']] *= 0.75
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'lGripper']] *= 10
+        # action_cost_wp[:, initial_plan.action_inds['baxter', 'rGripper']] *= 10
         for cond in range(len(x0s)):
             traj_cost = {
                             'type': CostState,
@@ -159,7 +167,7 @@ class BaxterPolicySolver(RobotLLSolver):
                                     'target_state': np.zeros((self.config['agent']['T'], initial_plan.symbolic_bound)),
                                 }
                             },
-                            'ramp_option': RAMP_QUADRATIC
+                            'ramp_option': RAMP_LINEAR
                         }
             action_cost = {
                             'type': CostAction,
@@ -175,7 +183,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [1.0, 0.1],
+                                                        'weights': [1.0, 1.0],
                                                     })
 
         self.config['dQ'] = initial_plan.dU
@@ -190,12 +198,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [50, 50]
+                'dim_hidden': [220, 140]
             },
             'lr': 5e-4,
             'network_model': tf_network,
-            'iterations': 10000,
-            'weight_decay': 0.00,
+            'iterations': 50000,
+            'weight_decay': 0.00005,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -507,7 +515,7 @@ class BaxterPolicySolver(RobotLLSolver):
         v = np.empty(pred.dX)
         for param in pred.params:
             for attr in const.ATTR_MAP[param._type]:
-                if (param.name, attr[0]) in pred.state_inds:
+                if (param.name, attr[0]) in pred.state_inds and (param.name != 'baxter' or attr[0] == 'pose'):
                     ll_p = self._param_to_ll[param]
                     if (param.name, attr[0]) in pred.action_inds:
                         x[pred.state_inds[(param.name, attr[0])]] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]

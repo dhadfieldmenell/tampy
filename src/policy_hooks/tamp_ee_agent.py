@@ -304,13 +304,13 @@ class LaundryWorldEEAgent(Agent):
         x0 = self.init_plan_states[condition]
         sample = Sample(self)
         print 'Starting on-policy sample for condition {0}.'.format(condition)
-        if self.stochastic_conditions and save_global:
-            self.replace_cond(condition)
+        # if self.stochastic_conditions and save_global:
+        #     self.replace_cond(condition)
 
         if noisy:
-            noise = np.random.uniform(-0.01, 0.01, (self.T, self.dU))
-            noise[:, self.plan.action_inds[('baxter', 'lGripper')]] = 0
-            noise[:, self.plan.action_inds[('baxter', 'rGripper')]] = 0
+            noise = np.random.normal(0, 0.012, (self.T, self.dU))
+            noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 22
+            noise[:, self.plan.action_inds[('baxter', 'rGripper')]] *= 22
             # noise[:, self.plan.action_inds[('baxter', 'ee_left_rot')]] *= 0.5
             # noise[:, self.plan.action_inds[('baxter', 'ee_right_rot')]] *= 0.5
         else:
@@ -444,7 +444,7 @@ class LaundryWorldEEAgent(Agent):
                 # jac[:, 16] *= 0.2
                 # jac[:, 17] *= 0.2
 
-                jac[self.plan.action_inds['baxter', 'ee_left_pos'][2], :] *= 2
+                jac[self.plan.action_inds['baxter', 'ee_left_pos'][2], :] *= 1.8
 
                 jac = jac / np.linalg.norm(jac)
 
@@ -455,8 +455,8 @@ class LaundryWorldEEAgent(Agent):
                 u_vec[self.plan.action_inds['baxter', 'ee_right_rot']] = right_rot_vec
 
                 ctrl_signal = self.pos_model.data.qpos[1:].flatten() + np.dot(jac.T, u_vec).flatten() * 2.5
-                ctrl_signal[7] = U[self.plan.action_inds['baxter', 'rGripper']]
-                ctrl_signal[16] = U[self.plan.action_inds['baxter', 'lGripper']]
+                ctrl_signal[7] = 0 if U[self.plan.action_inds['baxter', 'rGripper']] <= 0.5 else const.GRIPPER_OPEN_VALUE
+                ctrl_signal[16] = 0 if U[self.plan.action_inds['baxter', 'lGripper']] <= 0.5 else const.GRIPPER_OPEN_VALUE
 
                 # import ipdb; ipdb.set_trace()
                 self.run_policy_step(ctrl_signal)
@@ -488,12 +488,6 @@ class LaundryWorldEEAgent(Agent):
         l_joints = u[9:16]
         r_grip = u[7]
         l_grip = u[16]
-
-        if r_grip <= const.GRIPPER_CLOSE_VALUE:
-            r_grip = 0
-
-        if l_grip <= const.GRIPPER_CLOSE_VALUE:
-            l_grip = 0
 
         success = True
 
@@ -694,7 +688,7 @@ class LaundryWorldEEAgent(Agent):
                     else:
                         for attr in p._free_attrs:
                             p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
-                self.replace_cond(m, self.num_cloths)
+                self.replace_cond(m)
                 x0 = self.init_plan_states[m]
                 init_act = self.plan.actions[x0[1][0]]
                 final_act = self.plan.actions[x0[1][1]]
@@ -757,8 +751,8 @@ class LaundryWorldEEAgent(Agent):
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_right_pos')]] = ee_pose[4:]
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'ee_right_rot')]] = ee_pose[:4]
 
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t]
-                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'rGripper')]] = self.plan.params['baxter'].rGripper[0, init_t+t]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = 0 if self.plan.params['baxter'].lGripper[0, init_t+t] <= const.GRIPPER_CLOSE_VALUE else 1
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'rGripper')]] = 0 if self.plan.params['baxter'].rGripper[0, init_t+t] <= const.GRIPPER_CLOSE_VALUE else 1
             
             alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
             alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
@@ -948,16 +942,16 @@ class LaundryWorldEEAgent(Agent):
 
     #     self.initial_opt = False
 
-    def replace_cond(self, cond, num_cloths=1):
+    def replace_cond(self, cond):
         print "Replacing Condition {0}.\n".format(cond)
-        x0s = get_random_initial_pick_place_state(self.plan, num_cloths)
+        x0s = get_random_initial_pick_place_state(self.plan, self.num_cloths)
         self.init_plan_states[cond] = x0s
         self.x0[cond] = x0s[0][:self.plan.symbolic_bound]
 
 
-    def replace_all_conds(self, num_cloths=2):
+    def replace_all_conds(self):
         for cond in range(len(self.x0)):
-            self.replace_cond(cond, num_cloths)
+            self.replace_cond(cond)
 
 
     def get_policy_avg_cost(self):
