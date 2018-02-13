@@ -44,7 +44,7 @@ algorithm = {
     # 'type': AlgorithmTAMPGPS,
     'type': AlgorithmPIGPS,
     'conditions': common['conditions'],
-    'policy_sample_mode': 'replace',
+    'policy_sample_mode': 'add',
     'sample_on_policy': True,
     'iterations': 20,
     'max_ent_traj': 0.0,

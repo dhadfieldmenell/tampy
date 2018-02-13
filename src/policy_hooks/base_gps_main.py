@@ -71,7 +71,7 @@ class GPSMain(object):
             # self.agent.replace_all_conds()
             on_policy = self.algorithm._hyperparams['sample_on_policy']
             traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
-            replace_conds = self.algorithm._hyperparams['policy_sample_mode']
+            replace_conds = self.algorithm._hyperparams['policy_sample_mode'] == 'replace'
             self.agent.init_cost_trajectories(self.algorithm, center=on_policy)
 
             for itr in range(itr_start, self._hyperparams['iterations']):

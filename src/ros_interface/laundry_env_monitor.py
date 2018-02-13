@@ -12,7 +12,8 @@ import core.util_classes.baxter_constants as const
 from core.util_classes.viewer import OpenRAVEViewer
 from pma.hl_solver import FFSolver
 from pma.robot_ll_solver import RobotLLSolver
-# from ros_interface.basket.basket_predict import BasketPredict
+from ros_interface.basket.basket_predict import BasketPredict
+from ros_interface.basket_wrist.basket_wrist_predict import BasketWristPredict
 from ros_interface.cloth.cloth_grid_predict import ClothGridPredict
 from ros_interface.controllers import EEController, TrajectoryController
 from ros_interface.rotate_control import RotateControl
@@ -90,7 +91,8 @@ class LaundryEnvironmentMonitor(object):
         self.hl_solver = FFSolver(abs_domain=self.abs_domain)
         self.ll_solver = RobotLLSolver()
         self.cloth_predictor = ClothGridPredict()
-        # self.basket_predictor = BasketPredict()
+        self.basket_predictor = BasketPredict()
+        self.basket_wrist_predictor = BasketWristPredict()
         # self.ee_control = EEController()
         self.traj_control = TrajectoryController()
         self.rotate_control = RotateControl()
@@ -100,6 +102,9 @@ class LaundryEnvironmentMonitor(object):
         self.right_arm = baxter_interface.limb.Limb("right")
         self.right_grip = baxter_interface.gripper.Gripper("right")
         self.right_grip.calibrate()
+        self.l_camera = baxter_interface.camera.CameraController("left_hand_camera")
+        self.l_camera.open()
+        self.l_camera.resolution = (320, 200)
 
     def run_baxter(self):
         self.predict_cloth_locations()
@@ -183,12 +188,12 @@ class LaundryEnvironmentMonitor(object):
         self.state.washer_door = self.door_predictor.predict()
 
     def predict_basket_location_from_wrist:
-        self.state.basket_pose = self.wrist_predict.predict_basket()
+        self.state.basket_pose = self.basket_wrist_predictor.predict_basket()
 
     def predict_cloth_washer_locations:
         self.state.washer_cloth_poses = self.cloth_predictor.predict_washer()
 
-    def update_plan(self, plan, cloth_to_region):
+    def update_plan(self, plan, cloth_to_region, in_washer):
         plan.params['basket'].pose[:2, 0] = self.state.basket_pose[:2]
         plan.params['basket'].rotation[0, 0] = self.state.basket_pose[2]
 
@@ -208,8 +213,7 @@ class LaundryEnvironmentMonitor(object):
         plan.params['robot_init_pose'].rArmPose[:, 0] = right_joints
         plan.params['robot_init_pose'].rGripper[:, 0] = right_grip
 
-        if not plan.params['washer'].door[0, 0]:
-            self.state.washer_door_open = False
+        plan.params['washer'].door[:,0] = self.state.washer_door
 
         self.state.cloth_in_basket = True
         self.state.cloth_in_washer = True
@@ -222,6 +226,11 @@ class LaundryEnvironmentMonitor(object):
             self.state.cloth_in_washer = False
             if np.any(np.abs(next_pose - self.state.basket_pose[:2] > 0.15)):
                 self.state.cloth_in_basket = False
+
+        if len(self.state.washer_cloth_poses) and in_washer:
+            plan.params['cloth0'].pose[:, 0] = self.state.washer_cloth_poses[0]
+            plan.params['cloth_target_begin_0'].value[:, 0] = plan.params['cloth0'].pose[:, 0]
+            self.state.cloth_in_washer = True
 
     def plan_from_str(self, ll_plan_str):
         '''Convert a plan string (low level) into a plan object.'''
@@ -619,6 +628,8 @@ class LaundryEnvironmentMonitor(object):
         for action in plan.actions:
             self.execute_plan(plan, action.active_timesteps)
 
+        self.state.washer_door = -np.pi/2
+
     def close_washer(self):
         failed_constr = []
         if self.state.washer_door > -np.pi/6:
@@ -668,12 +679,7 @@ class LaundryEnvironmentMonitor(object):
         for action in plan.actions:
             self.execute_plan(plan, action.active_timesteps)
 
-        act_num = 0
-        ll_plan_str = []
-        # self.predict_basket_location()
-
-        # if not (self.state.basket_pose == utils.basket_near_pos):
-        #     return [("BasketNearWasher", True)]
+        self.state.washer_door = 0
 
     def load_washer_from_basket(self):
         self.predict_cloth_locations()

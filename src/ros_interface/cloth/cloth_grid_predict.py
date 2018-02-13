@@ -33,7 +33,7 @@ class ClothGridPredict:
         self.cur_im = None
         self.cur_grip_im = None
         self.image_sub = rospy.Subscriber("/zed/rgb/image_rect_color", Image, self.callback)
-        self.grip_im_sub = rospy.Subscriber("camera/left_hand_camera/rgb", Image, self.grip_callback)
+        self.grip_im_sub = rospy.Subscriber("/cameras/left_hand_camera/image", Image, self.grip_callback)
         self.net = load_model(TRAINED_MODEL)
 
     def callback(self, data):
@@ -59,7 +59,7 @@ class ClothGridPredict:
                 region = (region - utils.cloth_net_mean) / utils.cloth_net_std
                 prediction = self.net.predict(region)
 
-                if prediction > 0.75:
+                if prediction > 0.85:
                     ref = utils.cloth_grid_ref
                     disp = np.array(ref[0] - loc[0]) / utils.pixels_per_cm
                     locs.append(((ref[1] + disp) / 100.0, loc[1]))
@@ -70,14 +70,15 @@ class ClothGridPredict:
         locs = []
         if self.cur_grip_im: 
             im = self.bridge.imgmsg_to_cv2(self.cur_grip_im, 'passthrough')
-            im = np.array(im, dtype=np.float32)
+            im = np.array(im[:,:,:3], dtype=np.float32)
             for loc in utils.washer_im_locs:
                 region = im[loc[0][0]-utils.cloth_grid_window:loc[0][0]+utils.cloth_grid_window, loc[0][1]-utils.cloth_grid_window:loc[0][1]+utils.cloth_grid_window]
+                print [loc[0][0]-utils.cloth_grid_window, loc[0][0]+utils.cloth_grid_window, loc[0][1]-utils.cloth_grid_window, loc[0][1]+utils.cloth_grid_window]
                 region = np.expand_dims(cv2.resize(region, ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
                 region = (region - utils.cloth_net_mean) / utils.cloth_net_std
                 prediction = self.net.predict(region)
 
-                if prediction > 0.75:
+                if prediction > 0.85:
                     locs.append(loc[1])
                     break
 
