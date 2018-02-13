@@ -179,6 +179,15 @@ class LaundryEnvironmentMonitor(object):
     def predict_basket_location(self):
         self.state.basket_pose = self.basket_predictor.predict()
 
+    def predict_open_door:
+        self.state.washer_door = self.door_predictor.predict()
+
+    def predict_basket_location_from_wrist:
+        self.state.basket_pose = self.wrist_predict.predict_basket()
+
+    def predict_cloth_washer_locations:
+        self.state.washer_cloth_poses = self.cloth_predictor.predict_washer()
+
     def update_plan(self, plan, cloth_to_region):
         plan.params['basket'].pose[:2, 0] = self.state.basket_pose[:2]
         plan.params['basket'].rotation[0, 0] = self.state.basket_pose[2]

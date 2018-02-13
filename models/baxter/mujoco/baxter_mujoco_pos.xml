@@ -477,7 +477,7 @@
     <actuator>
         <position kp="715" gear="1 0 0 0 0 0" joint="right_s0"/>
         <position kp="730" gear="1 0 0 0 0 0" joint="right_s1"/>
-        <position kp="355" gear="1 0 0 0 0 0" joint="right_e0"/>
+        <position kp="455" gear="2 0 0 0 0 0" joint="right_e0"/>
         <position kp="280" gear="1 0 0 0 0 0" joint="right_e1"/>
         <position kp="250" joint="right_w0"/>
         <position kp="175" joint="right_w1"/>
@@ -487,7 +487,7 @@
         
         <position kp="715" gear="1 0 0 0 0 0" joint="left_s0"/>
         <position kp="730" gear="1 0 0 0 0 0" joint="left_s1"/>
-        <position kp="355" gear="1 0 0 0 0 0" joint="left_e0"/>
+        <position kp="455" gear="1 0 0 0 0 0" joint="left_e0"/>
         <position kp="280" gear="1 0 0 0 0 0" joint="left_e1"/>
         <position kp="250" joint="left_w0"/>
         <position kp="175" joint="left_w1"/>

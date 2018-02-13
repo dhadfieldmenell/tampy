@@ -31,12 +31,12 @@ cloth_grid_coordinates = [
     ((250, 100), 5),
 ]
 
-washer_im_locs = [((360, 290)), # -> CENTER FRONT
-                  ((230, 300)), # -> LEFT FRONT
-                  ((550, 300)), # -> RIGHT FRONT
-                  ((320, 370)), # -> CENTER REAR
-                  ((275, 275)), # -> LEFT REAR
-                  ((275, 475))] # -> RIGHT REAR
+washer_im_locs = [((360, 290), (0.14, 1.19, 0.71)), # -> CENTER FRONT
+                  ((230, 300), (0.14, 1.19, 0.71)), # -> LEFT FRONT
+                  ((550, 300), (0.14, 1.19, 0.71)), # -> RIGHT FRONT
+                  ((320, 370), (0.14, 1.19, 0.71)), # -> CENTER REAR
+                  ((275, 275), (0.14, 1.19, 0.71)), # -> LEFT REAR
+                  ((275, 475), (0.14, 1.19, 0.71))] # -> RIGHT REAR
 
 cloth_grid_ref = np.array([[200, 350], [55, 5]])
 

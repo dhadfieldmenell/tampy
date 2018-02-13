@@ -1237,7 +1237,7 @@ class TestBasketDomain(unittest.TestCase):
         plan.time = ee_time.reshape((1, ee_time.shape[0]))
 
         print "Saving current plan to file washer_manipulation_plan.hdf5..."
-        serializer.write_plan_to_hdf5("washer_manipulation_plan.hdf5", plan)
+        # serializer.write_plan_to_hdf5("washer_manipulation_plan.hdf5", plan)
         self.assertTrue(result)
         import ipdb; ipdb.set_trace()
 

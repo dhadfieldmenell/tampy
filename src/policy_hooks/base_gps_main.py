@@ -18,6 +18,7 @@ import traceback
 # Add gps/python to path so that imports work.
 sys.path.append('/'.join(str.split(__file__, '/')[:-2]))
 from gps.gui.gps_training_gui import GPSTrainingGUI
+from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
 
@@ -66,8 +67,14 @@ class GPSMain(object):
             # log_file.close()
             itr_start = self._initialize(itr_load)
 
+            # self.agent.optimize_trajectories(self.algorithm)
+            # self.agent.replace_all_conds()
+            on_policy = self.algorithm._hyperparams['sample_on_policy']
+            traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
+            replace_conds = self.algorithm._hyperparams['policy_sample_mode']
+            self.agent.init_cost_trajectories(self.algorithm, center=on_policy)
+
             for itr in range(itr_start, self._hyperparams['iterations']):
-                self.agent.optimize_trajectories(self.algorithm)
                 for cond in self._train_idx:
                     for i in range(self._hyperparams['num_samples']):
                         self._take_sample(itr, cond, i)
@@ -81,17 +88,21 @@ class GPSMain(object):
                 self.agent.clear_samples()
 
                 self._take_iteration(itr, traj_sample_lists)
-                self.agent.replace_all_conds()
+                if itr > 0:
+                    import ipdb; ipdb.set_trace()
+                self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, traj_opt, itr, datetime.now().isoformat())), copy.copy(self.algorithm))
+                if replace_conds:
+                    self.agent.replace_all_conds()
+                    self.agent.init_cost_trajectories(self.algorithm, center=False)
+                else:
+                    self.agent.init_cost_trajectories(self.algorithm, center=False, full_solve=False)
                 pol_sample_lists = self._take_policy_samples()
                 # log_file = open("avg_cost_log.txt", "a+")
                 # log_file.write("{0}\n".format(self.agent.get_policy_avg_cost()))
                 # log_file.close()
                 # self._log_data(itr, traj_sample_lists, pol_sample_lists)
-                # self.agent.optimize_trajectories(self.algorithm)
-                self.data_logger.pickle(
-                    self._data_files_dir + ('%d_algorithm_itr_%02d_%s.pkl' % (self.algorithm.M, itr, datetime.now().isoformat())),
-                    copy.copy(self.algorithm)
-                )
+                # self.agent.optimize_trajectories(self.algorithm)                
+                # self.agent.update_cost_trajectories(self.algorithm)
             import ipdb; ipdb.set_trace()
         except Exception as e:
             traceback.print_exception(*sys.exc_info())
@@ -174,8 +185,10 @@ class GPSMain(object):
         if self.algorithm._hyperparams['sample_on_policy'] \
                 and self.algorithm.iteration_count > 0:
             pol = self.algorithm.policy_opt.policy
+            on_policy = True
         else:
             pol = self.algorithm.cur[cond].traj_distr
+            on_policy = True
         if self.gui:
             self.gui.set_image_overlays(cond)   # Must call for each new cond.
             redo = True

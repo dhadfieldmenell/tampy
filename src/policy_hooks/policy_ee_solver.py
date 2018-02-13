@@ -150,6 +150,10 @@ class BaxterPolicySolver(RobotLLSolver):
 
         action_cost_wp = np.ones((self.config['agent']['T'], initial_plan.dU), dtype='float64')
         state_cost_wp = np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64')
+        for (param_name, attr) in initial_plan.state_inds:
+            if not initial_plan.params[param_name].is_symbol() and param_name.startswith('cloth'):
+                state_cost_wp[:, initial_plan.state_inds[param_name, attr]] *= 4
+
         # state_cost_wp[:, initial_plan.state_inds['baxter', 'ee_right_pos']] *= 0.2
         # state_cost_wp[:, initial_plan.state_inds['baxter', 'ee_right_rot']] *= 0.2
         # state_cost_wp[:, initial_plan.state_inds['baxter', 'lGripper']] *= 10
@@ -158,6 +162,8 @@ class BaxterPolicySolver(RobotLLSolver):
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'ee_right_rot']] *= 0.75
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'lGripper']] *= 10
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'rGripper']] *= 10
+        state_cost_wp[-1, :] = 0
+        action_cost_wp[-1, :] = 0
         for cond in range(len(x0s)):
             traj_cost = {
                             'type': CostState,
@@ -198,12 +204,13 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [220, 140]
+                'dim_hidden': [320, 270]
             },
-            'lr': 5e-4,
+            'lr': 1e-4,
             'network_model': tf_network,
-            'iterations': 50000,
-            'weight_decay': 0.00005,
+            'iterations': 100000,
+            'batch_size': 100,
+            'weight_decay': 0.005,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
