@@ -281,7 +281,17 @@ class RobotLLSolver(LLSolver):
         robot_body.set_dof({'lArmPose': [0.785, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
 
         for i in range(resample_size):
-            if next_act != None and (next_act.name == 'basket_grasp' or next_act.name == 'basket_grasp_with_cloth'):
+            if act.name == "rotate_holding_basket_with_cloth" or act.name == "rotate_holding_basket":
+                target_rot = act.params[4]
+                init_pos = act.params[2]
+                robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
+
+            elif act.name == "rotate_holding_cloth":
+                target_rot = act.params[4]
+                init_pos = act.params[2]
+                robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
+
+            elif next_act != None and (next_act.name == 'basket_grasp' or next_act.name == 'basket_grasp_with_cloth'):
                 target = next_act.params[2]
                 target_rot = target.rotation[0, 0]
                 handle_dist = baxter_constants.BASKET_OFFSET
@@ -612,16 +622,6 @@ class RobotLLSolver(LLSolver):
                 if not len(l_arm_poses) or not len(r_arm_poses):
                     continue
                 robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': init_pos.value.copy()})
-
-            elif act.name == "rotate_holding_basket_with_cloth" or act.name == "rotate_holding_basket":
-                target_rot = act.params[4]
-                init_pos = act.params[2]
-                robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
-
-            elif act.name == "rotate_holding_cloth":
-                target_rot = act.params[4]
-                init_pos = act.params[2]
-                robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
 
             else:
                 raise NotImplementedError

@@ -9,7 +9,7 @@ from sco.prob import Prob
 from sco.solver import Solver
 from sco.variable import Variable
 
-from gps.gps_main import GPSMain
+# from gps.gps_main import GPSMain
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.algorithm.cost.cost_state import CostState
@@ -18,16 +18,16 @@ from gps.algorithm.cost.cost_utils import *
 
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
-# from policy_hooks.base_gps_main import GPSMain
+from policy_hooks.base_gps_main import GPSMain
 from policy_hooks.cloth_world_policy_utils import *
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
 import policy_hooks.policy_solver_utils as utils
 from policy_hooks.tamp_agent import LaundryWorldClothAgent
-from policy_hooks.tamp_agent import LaundryWorldClothAgent
-from policy_hooks.tamp_cloth_left_agent import LaundryWorldClothLeftAgent
-from policy_hooks.tamp_ee_left_agent import LaundryWorldEELeftAgent
-from policy_hooks.tamp_move_agent import LaundryWorldMoveAgent
+# from policy_hooks.tamp_agent import LaundryWorldClothAgent
+# from policy_hooks.tamp_cloth_left_agent import LaundryWorldClothLeftAgent
+# from policy_hooks.tamp_ee_left_agent import LaundryWorldEELeftAgent
+# from policy_hooks.tamp_move_agent import LaundryWorldMoveAgent
 from policy_hooks.tamp_cost import TAMPCost
 from policy_hooks.tamp_action_cost import CostAction
 
@@ -221,7 +221,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [50, 50]
+                'dim_hidden': [400, 400]
             },
             'lr': 5e-4,
             'network_model': tf_network,

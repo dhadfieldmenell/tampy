@@ -88,14 +88,14 @@ class GPSMain(object):
                 self.agent.clear_samples()
 
                 self._take_iteration(itr, traj_sample_lists)
-                if itr > 0:
-                    import ipdb; ipdb.set_trace()
                 self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, traj_opt, itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 if replace_conds:
                     self.agent.replace_all_conds()
                     self.agent.init_cost_trajectories(self.algorithm, center=False)
                 else:
                     self.agent.init_cost_trajectories(self.algorithm, center=False, full_solve=False)
+                if itr > -1:
+                    import ipdb; ipdb.set_trace()
                 pol_sample_lists = self._take_policy_samples()
                 # log_file = open("avg_cost_log.txt", "a+")
                 # log_file.write("{0}\n".format(self.agent.get_policy_avg_cost()))

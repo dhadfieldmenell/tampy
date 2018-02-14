@@ -27,7 +27,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 12
+NUM_CONDS = 1
 
 
 common = {
@@ -46,7 +46,7 @@ algorithm = {
     'conditions': common['conditions'],
     'policy_sample_mode': 'add',
     'sample_on_policy': True,
-    'iterations': 20,
+    'iterations': 10,
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
@@ -55,8 +55,8 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.0025,
-    'pos_gains': 0.0001,
+    'init_var': 0.0036,
+    'pos_gains': 0.001,
 }
 
 algorithm['traj_opt'] = {

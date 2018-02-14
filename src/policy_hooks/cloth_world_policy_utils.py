@@ -17,8 +17,9 @@ import unittest, time, main, random
 BASKET_POSE = [0.65, 0.1, 0.875]
 BASKET_X_RANGE = [0.65, 0.75]
 BASKET_Y_RANGE = [-0.025, 0.075]
-CLOTH_INIT_X_RANGE = [0.3, 0.85]
-CLOTH_INIT_Y_RANGE = [0.5, 1.05]
+CLOTH_INIT_X_RANGE = [0.3, 0.7]
+CLOTH_INIT_Y_RANGE = [0.5, 0.9]
+CLOTH_XY = 40
 
 STEP_DELTA = 3
 BASKET_STEP_DELTA = 2
@@ -326,7 +327,7 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
-        possible_locs = np.sort(np.random.choice(range(0, 55*55, STEP_DELTA), num_cloths_on_table, False)).tolist()
+        possible_locs = np.sort(np.random.choice(range(0, CLOTH_XY**2, STEP_DELTA), num_cloths_on_table, False)).tolist()
         possible_basket_locs = np.sort(np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket, False)).tolist()
 
         success = True
@@ -338,8 +339,8 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
 
         for c in range(num_cloths_in_basket, num_cloths):
             next_loc = possible_locs.pop(0)
-            next_x = (next_loc / 55) / 100.0 + CLOTH_INIT_X_RANGE[0]
-            next_y = (next_loc % 55) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+            next_x = (next_loc / CLOTH_XY) / 100.0 + CLOTH_INIT_X_RANGE[0]
+            next_y = (next_loc % CLOTH_XY) / 100.0 + CLOTH_INIT_Y_RANGE[0]
             X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP]
             X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]]
 
@@ -477,7 +478,7 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
         X[plan.state_inds[('basket_init_target', 'value')]] = basket.pose[:,0]
         X[plan.state_inds[('basket_init_target', 'rotation')]] = [np.pi/2, 0, np.pi/2]
 
-        possible_locs = np.sort(np.random.choice(range(0, 55*55, STEP_DELTA), num_cloths_on_table, False)).tolist()
+        possible_locs = np.sort(np.random.choice(range(0, CLOTH_XY**2, STEP_DELTA), num_cloths_on_table, False)).tolist()
         possible_basket_locs = np.sort(np.random.choice(range(0, 144, BASKET_STEP_DELTA+BASKET_STEP_DELTA*12), num_cloths_in_basket, False)).tolist()
 
         success = True
@@ -489,8 +490,8 @@ def get_random_initial_cloth_place_state(plan, num_cloths):
 
         for c in range(num_cloths_in_basket+1, num_cloths):
             next_loc = possible_locs.pop(0)
-            next_x = (next_loc / 55) / 100.0 + CLOTH_INIT_X_RANGE[0]
-            next_y = (next_loc % 55) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+            next_x = (next_loc / CLOTH_XY) / 100.0 + CLOTH_INIT_X_RANGE[0]
+            next_y = (next_loc % CLOTH_XY) / 100.0 + CLOTH_INIT_Y_RANGE[0]
             X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP]
             X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]]
 

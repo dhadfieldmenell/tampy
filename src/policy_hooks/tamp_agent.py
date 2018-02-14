@@ -284,16 +284,16 @@ class LaundryWorldClothAgent(Agent):
             #     self.replace_cond(condition)
 
             if noisy:
-                noise = np.random.uniform(-1.0, 1.0, (self.T, self.dU))
-                total_noise = np.random.uniform(-1.0, 1.0, (self.dU,))
+                noise = np.random.normal(0, 0.4, (self.T, self.dU))
+                total_noise = np.random.normal(0, 0.2, (self.dU,))
                 noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 0.1
                 noise[:, self.plan.action_inds[('baxter', 'rGripper')]] *= 0.1
                 total_noise[self.plan.action_inds[('baxter', 'lGripper')]] *= 0
                 total_noise[self.plan.action_inds[('baxter', 'rGripper')]] *= 0
-                noise[:, self.plan.action_inds[('baxter', 'lArmPose')]][1] *= 1.25
-                total_noise[self.plan.action_inds[('baxter', 'lArmPose')]][1] *= 2
-                noise[:, self.plan.action_inds[('baxter', 'lArmPose')]][3] *= 1.25
-                total_noise[self.plan.action_inds[('baxter', 'lArmPose')]][3] *= 2
+                # noise[:, self.plan.action_inds[('baxter', 'lArmPose')]][1] *= 1.25
+                # total_noise[self.plan.action_inds[('baxter', 'lArmPose')]][1] *= 2
+                # noise[:, self.plan.action_inds[('baxter', 'lArmPose')]][3] *= 1.25
+                # total_noise[self.plan.action_inds[('baxter', 'lArmPose')]][3] *= 2
             else:
                 noise = np.zeros((self.T, self.dU))
                 total_noise = np.zeros((self.dU, ))
@@ -312,10 +312,12 @@ class LaundryWorldClothAgent(Agent):
                 sample.set(EE_ENUM, ee_pos, t)
                 # grip_cloth = False # True if (not save_global) and t >= 39 and t <= 77 else False
                 # grip_cloth = True if (x0[1][0] == 2 and t <= 34) or (x0[1][0] == 0 and t >= 39) else False
-                to_grip = grip_cloth if t >= grip_ts[0] and t <= grip_ts[1] else -1
+                to_grip = False # grip_cloth if t >= grip_ts[0] and t <= grip_ts[1] else -1
                 iteration = 0
                 while iteration < 500: # and np.any(np.abs(self.pos_model.data.qpos[1:]-self.pos_model.data.ctrl) > 0.05):
                 # for delta in range(utils.MUJOCO_STEPS_PER_SECOND/utils.POLICY_STEPS_PER_SECOND):
+                    U[self.plan.action_inds[('baxter', 'rGripper')]] = 0 if U[self.plan.action_inds['baxter', 'rGripper']] <= 0.5 else const.GRIPPER_OPEN_VALUE
+                    U[self.plan.action_inds[('baxter', 'lGripper')]] = 0 if U[self.plan.action_inds['baxter', 'lGripper']] <= 0.5 else const.GRIPPER_OPEN_VALUE
                     success = self.run_policy_step(U, to_grip)
                     # if success:
                     #     last_success_X = X
@@ -358,12 +360,6 @@ class LaundryWorldClothAgent(Agent):
         l_joints = np.minimum(l_joints, left_ub)
         r_grip = u[u_inds[('baxter', 'rGripper')]]
         l_grip = u[u_inds[('baxter', 'lGripper')]]
-
-        if r_grip <= const.GRIPPER_CLOSE_VALUE:
-            r_grip = 0
-
-        if l_grip <= const.GRIPPER_CLOSE_VALUE:
-            l_grip = 0
 
         success = True
 
@@ -420,7 +416,7 @@ class LaundryWorldClothAgent(Agent):
         grip_cloth = -1
         if not run_forward:
             for i in range(self.num_cloths):
-                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0036, 0.0036, 0.0036]) and l_grip < const.GRIPPER_CLOSE_VALUE:
+                if np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0036, 0.0036, 0.0036]) and l_grip < const.GRIPPER_CLOSE_VALUE:
                     body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
                     run_forward = True
                     break
@@ -653,7 +649,7 @@ class LaundryWorldClothAgent(Agent):
     #     self.initial_opt = False
 
 
-    def init_cost_trajectories(self, alg, center=False):
+    def init_cost_trajectories(self, alg, center=False, full_solve=True):
         for m in range(0, alg.M):
             x0 = self.init_plan_states[m]
             init_act = self.plan.actions[x0[1][0]]
@@ -688,7 +684,11 @@ class LaundryWorldClothAgent(Agent):
                         p._free_attrs[attr][:, init_t] = 0
 
             self.current_cond = m
-            success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1], n_resamples=3)
+            if full_solve:
+                success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1], n_resamples=3)
+            else:
+                success = True
+                self.set_plan_from_cost_trajs(alg, init_t, final_t, m)
 
             while not success:
                 print "Solve failed."
@@ -744,48 +744,50 @@ class LaundryWorldClothAgent(Agent):
                     for attr in p._free_attrs:
                         p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
 
-            tgt_x = np.zeros((self.T, self.plan.symbolic_bound))
-            tgt_u = np.zeros((self.T, self.plan.dU))
-
-            if utils.POLICY_STEPS_PER_SECOND < 1:
-                for t in range(0, final_t-init_t, int(1.0 / utils.POLICY_STEPS_PER_SECOND)):
-                    utils.fill_vector(self.params, self.plan.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
-                    tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,init_t+t+1].copy()
-                    tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.action_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t+1].copy()
-                    tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.action_inds[('baxter', 'rArmPose')]] = self.plan.params['baxter'].rArmPose[:,init_t+t+1].copy()
-                    tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.action_inds[('baxter', 'rGripper')]] = self.plan.params['baxter'].rGripper[0, init_t+t+1].copy()
-                
-                alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
-                alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
-                self.saved_trajs[m] = tgt_x
-
-                if center:
-                    traj_distr = alg.cur[m].traj_distr
-                    traj_distr.k = tgt_u.copy()
-            else:
-                for t in range(0, final_t-init_t):
-                    utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
-                    tgt_x[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
-                    tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,init_t+t+1].copy()
-                    tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t+1].copy()
-                    tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'rArmPose')]] = self.plan.params['baxter'].rArmPose[:,init_t+t+1].copy()
-                    tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'rGripper')]] = self.plan.params['baxter'].rGripper[0, init_t+t+1].copy()
-                
-                alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
-                alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
-                self.saved_trajs[m] = tgt_x
-
-                if center:
-                    traj_distr = alg.cur[m].traj_distr
-                    tgt_u = np.zeros((self.T, self.plan.dU))
-                    for t in range(0, final_t-init_t):
-                        tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,init_t+t+1].copy()
-                        tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lGripper')]] = self.plan.params['baxter'].lGripper[0, init_t+t+1].copy()
-                        tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'rArmPose')]] = self.plan.params['baxter'].rArmPose[:,init_t+t+1].copy()
-                        tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'rGripper')]] = self.plan.params['baxter'].rGripper[0, init_t+t+1].copy()
-                    traj_distr.k = tgt_u
+            self.set_cost_trajectories(alg, init_t, final_t, m, center=center)
 
         self.initial_opt = False
+
+    def set_plan_from_cost_trajs(self, alg, init_t, final_t, m):
+        tgt_x = alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state']
+        if utils.POLICY_STEPS_PER_SECOND < 1:
+            for t in range(0, final_t-init_t, (1/utils.POLICY_STEPS_PER_SECOND)):
+                utils.set_params_attrs(self.params, self.plan.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
+        else:
+            for t in range(0, final_t-init_t):
+                utils.set_params_attrs(self.params, self.plan.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
+
+    def set_cost_trajectories(self, alg, init_t, final_t, m, center=False):
+        tgt_x = np.zeros((self.T, self.plan.symbolic_bound))
+        tgt_u = np.zeros((self.T, self.plan.dU))
+
+        if utils.POLICY_STEPS_PER_SECOND < 1:
+            for t in range(0, final_t-init_t, int(1.0 / utils.POLICY_STEPS_PER_SECOND)):
+                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
+                tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,init_t+t+1].copy()
+                tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.action_inds[('baxter', 'rArmPose')]] = self.plan.params['baxter'].rArmPose[:,init_t+t+1].copy()
+
+                tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.state_inds[('baxter', 'lGripper')]] = 0 if self.plan.params['baxter'].lGripper[0, init_t+t+1] <= const.GRIPPER_CLOSE_VALUE else 1
+                tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.state_inds[('baxter', 'rGripper')]] = 0 if self.plan.params['baxter'].rGripper[0, init_t+t+1] <= const.GRIPPER_CLOSE_VALUE else 1
+    
+        else:
+            for t in range(0, final_t-init_t):
+                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
+                tgt_x[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'lArmPose')]] = self.plan.params['baxter'].lArmPose[:,init_t+t+1].copy()
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:t*utils.POLICY_STEPS_PER_SECOND+utils.POLICY_STEPS_PER_SECOND, self.plan.action_inds[('baxter', 'rArmPose')]] = self.plan.params['baxter'].rArmPose[:,init_t+t+1].copy()
+
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'lGripper')]] = 0 if self.plan.params['baxter'].lGripper[0, init_t+t+1] <= const.GRIPPER_CLOSE_VALUE else 1
+                tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.plan.state_inds[('baxter', 'rGripper')]] = 0 if self.plan.params['baxter'].rGripper[0, init_t+t+1] <= const.GRIPPER_CLOSE_VALUE else 1
+                        
+        alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x
+        alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u
+        import ipdb; ipdb.set_trace()
+        self.saved_trajs[m] = tgt_x
+
+        if center:
+            traj_distr = alg.cur[m].traj_distr
+            traj_distr.k = tgt_u.copy()
 
 
     # def update_cost_trajectories(self, alg):

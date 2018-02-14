@@ -690,7 +690,7 @@ class LaundryWorldEEAgent(Agent):
                 success = self.solver._backtrack_solve(self.plan, anum=x0[1][0], amax=x0[1][1], n_resamples=3)
             else:
                 success = True
-                self.set_plan_from_cost_trajs(self, alg, init_t, final_t)
+                self.set_plan_from_cost_trajs(alg, init_t, final_t, m)
 
             while not success:
                 print "Solve failed."
@@ -757,7 +757,7 @@ class LaundryWorldEEAgent(Agent):
             for t in range(0, final_t-init_t, (1/utils.POLICY_STEPS_PER_SECOND)):
                 utils.set_params_attrs(self.params, self.plan.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
         else:
-            for t in range(init_t, final_t+1):
+            for t in range(0, final_t-init_t):
                 utils.set_params_attrs(self.params, self.plan.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
 
 
@@ -767,13 +767,12 @@ class LaundryWorldEEAgent(Agent):
 
         if utils.POLICY_STEPS_PER_SECOND < 1:
             for t in range(0, final_t-init_t, int(1/utils.POLICY_STEPS_PER_SECOND)):
-                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
-                tgt_x[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
-                
+                utils.fill_vector(self.params, self.plan.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)                
                 self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': self.plan.params['baxter'].lArmPose[:, init_t+t+1], \
                                                                   'lGripper': self.plan.params['baxter'].lGripper[:, init_t+t+1], \
                                                                   'rArmPose': self.plan.params['baxter'].rArmPose[:, init_t+t+1], \
                                                                   'rGripper': self.plan.params['baxter'].rGripper[:, init_t+t+1]})
+                self.plan.params['baxter'].openrave_body.set_pose({'pose': self.plan.params['baxter'].pose[:, init_t+t+1]})
                 ee_pose = self.plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransformPose()
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.action_inds[('baxter', 'ee_left_pos')]] = ee_pose[4:]
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.action_inds[('baxter', 'ee_left_rot')]] = ee_pose[:4]
@@ -784,6 +783,8 @@ class LaundryWorldEEAgent(Agent):
 
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.state_inds[('baxter', 'lGripper')]] = 0 if self.plan.params['baxter'].lGripper[0, init_t+t] <= const.GRIPPER_CLOSE_VALUE else 1
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.state_inds[('baxter', 'rGripper')]] = 0 if self.plan.params['baxter'].rGripper[0, init_t+t] <= const.GRIPPER_CLOSE_VALUE else 1
+
+                tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.plan.state_inds[('baxter', 'pose')]] = self.plan.params['baxter'].pose[:, init_t+t+1]
         else:
             for t in range(0, final_t-init_t):
                 utils.fill_vector(self.params, self.plan.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
