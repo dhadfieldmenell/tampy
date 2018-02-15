@@ -57,6 +57,7 @@ pp.add('Washer', [('geom', 'Washer'), ('pose', 'Vector3d'), ('rotation', 'Vector
 pp.add('WasherPose', [('geom', 'Washer'), ('value', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
 pp.add('Obstacle', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Rotation', [('value', 'Vector1d')])
+pp.add('Fabric', [('gripleft', 'Vector3d'), ('gripright', 'Vector3d')])
 dom_str += pp.get_str() + '\n\n'
 
 class DerivatedPredicates(object):

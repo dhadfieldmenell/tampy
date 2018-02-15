@@ -65,7 +65,7 @@ class BaxterPolicySolver(RobotLLSolver):
         # initial_plan = generate_move_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
 
-        x_params=['baxter', 'cloth_0', 'cloth_1', 'basket']
+        x_params=['baxter', 'cloth_0', 'cloth_1', 'cloth_2', 'cloth_3', 'basket']
         for c in range(num_cloths):
             x_params.append('cloth_{0}'.format(c))
 
@@ -171,6 +171,7 @@ class BaxterPolicySolver(RobotLLSolver):
                                 utils.STATE_ENUM: {
                                     'wp': state_cost_wp,
                                     'target_state': np.zeros((self.config['agent']['T'], initial_plan.symbolic_bound)),
+                                    'wp_final_multiplier': 10.0,
                                 }
                             },
                             'ramp_option': RAMP_LINEAR
@@ -189,7 +190,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [1.0, 1.0],
+                                                        'weights': [10.0, 1.0],
                                                     })
 
         self.config['dQ'] = initial_plan.dU
@@ -204,12 +205,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
-                'dim_hidden': [500, 500]
+                'dim_hidden': [700, 700]
             },
             'lr': 1e-4,
             'network_model': tf_network,
-            'iterations': 100000,
-            'batch_size': 40,
+            'iterations': 20000,
+            'batch_size': 60,
             'weight_decay': 0.005,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
@@ -556,4 +557,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(2)
+    PS.train_policy(4)

@@ -23,6 +23,7 @@ from policy_hooks.cloth_world_policy_utils import *
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
 import policy_hooks.policy_solver_utils as utils
+from policy_hooks.obj_pose_suggester import obj_pose_suggester
 from policy_hooks.tamp_agent import LaundryWorldClothAgent
 # from policy_hooks.tamp_agent import LaundryWorldClothAgent
 # from policy_hooks.tamp_cloth_left_agent import LaundryWorldClothLeftAgent
@@ -33,7 +34,7 @@ from policy_hooks.tamp_action_cost import CostAction
 
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
-EXP_DIR = BASE_DIR + '/experiments'
+EXP_DIR = BASE_DIR + 'experiments/'
 
 N_RESAMPLES = 5
 
@@ -177,10 +178,10 @@ class BaxterPolicySolver(RobotLLSolver):
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'rArmPose']] *= 0.5
         # action_cost_wp[30:40, :] *= 4
         state_cost_wp = np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64')
-        state_cost_wp[:, initial_plan.state_inds['baxter', 'rArmPose']] *= 0.125
-        state_cost_wp[33:37, initial_plan.state_inds['baxter', 'lArmPose']] *= 2
-        state_cost_wp[:, initial_plan.state_inds['cloth_0', 'pose']] *= 4
-        state_cost_wp[:, initial_plan.state_inds['cloth_1', 'pose']] *= 4
+        # state_cost_wp[:, initial_plan.state_inds['baxter', 'rArmPose']] *= 0.125
+        # state_cost_wp[33:37, initial_plan.state_inds['baxter', 'lArmPose']] *= 2
+        # state_cost_wp[:, initial_plan.state_inds['cloth_0', 'pose']] *= 4
+        # state_cost_wp[:, initial_plan.state_inds['cloth_1', 'pose']] *= 4
         for cond in range(len(x0s)):
             traj_cost = {
                             'type': CostState,
@@ -190,7 +191,7 @@ class BaxterPolicySolver(RobotLLSolver):
                                     'target_state': np.zeros((self.config['agent']['T'], initial_plan.symbolic_bound)),
                                 }
                             },
-                            'ramp_option': RAMP_QUADRATIC
+                            'ramp_option': RAMP_CONSTANT
                         }
             action_cost = {
                             'type': CostAction,
@@ -206,7 +207,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [1.0, 0.1],
+                                                        'weights': [1.0, 1.0],
                                                     })
 
         self.config['dQ'] = initial_plan.dU
@@ -220,13 +221,13 @@ class BaxterPolicySolver(RobotLLSolver):
                 'obs_include': [utils.STATE_ENUM],
                 'obs_vector_data': [utils.STATE_ENUM],
                 'sensor_dims': sensor_dims,
-                'n_layers': 2,
-                'dim_hidden': [400, 400]
+                'n_layers': 3,
+                'dim_hidden': [500, 500, 100]
             },
             'lr': 5e-4,
             'network_model': tf_network,
-            'iterations': 10000,
-            'weight_decay': 0.00,
+            'iterations': 24000,
+            'weight_decay': 0.005,
             'weights_file_prefix': EXP_DIR + 'policy',
         }
 
@@ -239,6 +240,10 @@ class BaxterPolicySolver(RobotLLSolver):
             self._update_algorithm(self.config['algorithm']['cost'][-len(x0s):])
         
         self.gps.run()
+
+
+    def obj_pose_suggester(self, plan, anum, resample_size=20):
+        return obj_pose_suggester(plan, anum, resample_size)
 
 
     def optimize_against_global(self, plan, a_start=0, a_end=-1, cond=0):

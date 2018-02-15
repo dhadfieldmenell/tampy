@@ -308,11 +308,11 @@ class LaundryWorldEEAgent(Agent):
         #     self.replace_cond(condition)
 
         if noisy:
-            noise = np.random.normal(0, 0.014, (self.T, self.dU))
+            noise = np.random.normal(0, 0.022, (self.T, self.dU))
             noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 22
             noise[:, self.plan.action_inds[('baxter', 'rGripper')]] *= 22
-            # noise[:, self.plan.action_inds[('baxter', 'ee_left_rot')]] *= 0.5
-            # noise[:, self.plan.action_inds[('baxter', 'ee_right_rot')]] *= 0.5
+            noise[:, self.plan.action_inds[('baxter', 'ee_left_rot')]] *= 0.5
+            noise[:, self.plan.action_inds[('baxter', 'ee_right_rot')]] *= 0.5
         else:
             noise = np.zeros((self.T, self.dU))
 
@@ -322,14 +322,17 @@ class LaundryWorldEEAgent(Agent):
         last_left_ctrl = x0[3][10:17]
         last_right_ctrl = x0[3][1:8]
         jac = np.zeros((self.dU, 18))
-        for t in range(self.T):
+        delta = 1
+        for t in range(0, self.T, delta):
             X, ee_pos, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
             U = policy.act(X.copy(), X.copy(), t, noise[t])
-            sample.set(STATE_ENUM, X.copy(), t)
-            sample.set(OBS_ENUM, X.copy(), t)
-            sample.set(ACTION_ENUM, U.copy(), t)
-            sample.set(NOISE_ENUM, noise[t], t)
-            sample.set(EE_ENUM, ee_pos[:6], t)
+            steps = min(delta, self.T-t)
+            for i in range(steps):
+                sample.set(STATE_ENUM, X.copy(), t+i)
+                sample.set(OBS_ENUM, X.copy(), t+i)
+                sample.set(ACTION_ENUM, U.copy(), t+i)
+                sample.set(NOISE_ENUM, noise[t], t+i)
+                sample.set(EE_ENUM, ee_pos[:6], t+i)
 
             ee_left_pos = U[self.plan.action_inds[('baxter', 'ee_left_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_pos')]]
             ee_left_rot = U[self.plan.action_inds[('baxter', 'ee_left_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_rot')]]
@@ -402,7 +405,7 @@ class LaundryWorldEEAgent(Agent):
             #     right_rot_vec = ee_right_rot - xquat[self.right_grip_r_ind]
 
             iteration = 0
-            while ((np.any(np.abs(np.r_[left_vec, right_vec/2]) > 0.05) or np.any(np.abs(np.r_[left_rot_vec, right_rot_vec]) > 0.1)) and iteration < 120):
+            while ((np.any(np.abs(np.r_[left_vec, right_vec/2]) > 0.025) or np.any(np.abs(np.r_[left_rot_vec, right_rot_vec]) > 0.05)) and iteration < 120*delta):
                 joints[10:17, 0] = np.maximum(np.minimum(joints[10:17, 0], left_ub), left_lb)
                 joints[1:8, 0] = np.maximum(np.minimum(joints[1:8, 0], right_ub), right_lb)
                 self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': joints[10:17].flatten(), 'rArmPose': joints[1:8].flatten()})
@@ -544,7 +547,7 @@ class LaundryWorldEEAgent(Agent):
         grip_cloth = -1
         if not run_forward:
             for i in range(self.num_cloths):
-                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0049]) and l_grip < const.GRIPPER_CLOSE_VALUE:
+                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0036, 0.0036, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE and xpos[self.left_grip_l_ind][2] > 0.615:
                     body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
                     run_forward = True
                     break
@@ -553,7 +556,7 @@ class LaundryWorldEEAgent(Agent):
                     pos = xpos[self.cloth_inds[i]].copy()
                     pos[0] += 0.03
                     pos[1] -= 0.04
-                    pos[2] = 0.645 + MUJOCO_MODEL_Z_OFFSET
+                    pos[2] = 0.67 + MUJOCO_MODEL_Z_OFFSET
                     body_pos[self.cloth_inds[i]] = pos
                     run_forward = True
                     break
