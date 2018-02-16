@@ -1319,7 +1319,7 @@ class TestBasketDomain(unittest.TestCase):
         velocites = np.ones((plan.horizon, ))*1
 
         viewer.draw_plan_ts(plan, 0)
-        # import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
 
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()

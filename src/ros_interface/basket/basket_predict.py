@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras import backend as K
 from keras.models import load_model
 
 import cv2
@@ -11,21 +12,39 @@ from sensor_msgs.msg import Image
 import ros_interface.utils as utils
 
 
-TRAINED_MODEL = 'Feb6TrainedBasket.h5'
+TRAINED_MODEL = 'ros_interface/basket/Feb6TrainedBasket.h5'
 
 class BasketPredict:
     def __init__(self):
         self.bridge = CvBridge()
         self.cur_im = None
-        self.image_sub = rospy.Subscriber("/zed/depth/depth_registered", Image, self.callback)
+        self.last_inter = 0
         # TODO: Add catch in case of stream failure
         self.net = load_model(TRAINED_MODEL)
+        self.inter_func = K.function([self.net.layers[0].input], [self.net.layers[3].output, self.net.layers[20].output])
+        self.inter_inds = [2, 1]
+        self.pub1 = rospy.Publisher("net1", Image, queue_size=1)
+        self.pub2 = rospy.Publisher("net2", Image, queue_size=1)
+        self.image_sub = rospy.Subscriber("/zed/depth/depth_registered", Image, self.callback)
+        self.inter_image_sub = rospy.Subscriber("/zed/depth/depth_registered", Image, self.intermediary_callback)
 
     def callback(self, data):
-      try:
-        self.cur_im = data
-      except CvBridgeError, e:
-          print e
+        if data.header.stamp.secs > self.last_inter + 0.2:
+            try:
+                self.cur_im = data
+            except CvBridgeError, e:
+                print e
+
+    def intermediary_callback(self, data):
+        if data.header.stamp.secs > self.last_inter + 0.5:
+            try:
+                im = self.get_im()
+                inter_preds = self.inter_func([im])
+                self.pub1.publish(self.bridge.cv2_to_imgmsg(inter_preds[0][0,:,:,self.inter_inds[0]], "passthrough"))
+                self.pub2.publish(self.bridge.cv2_to_imgmsg(inter_preds[1][0,:,:,self.inter_inds[1]]*10, "passthrough"))
+                self.last_inter = data.header.stamp.secs
+            except CvBridgeError, e:
+                print e
 
     def get_im(self):
         im = self.bridge.imgmsg_to_cv2(self.cur_im, 'passthrough')
@@ -42,7 +61,7 @@ class BasketPredict:
         new_im[:,:,:,1] = im
         new_im[:,:,:,2] = im
 
-        return im
+        return new_im
 
     def predict(self):
         if self.cur_im:

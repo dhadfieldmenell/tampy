@@ -200,7 +200,7 @@ def obj_pose_suggester(self, plan, anum, resample_size=20):
                 target._free_attrs['value'][:] = 0
                 target._free_attrs['rotation'][:] = 0
 
-            random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.15])
+            random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.0], [0.01, 0.01, 0.15])
             ee_left = target_pos + random_dir
 
             l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")

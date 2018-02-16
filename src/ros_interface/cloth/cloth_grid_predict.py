@@ -73,7 +73,6 @@ class ClothGridPredict:
             im = np.array(im[:,:,:3], dtype=np.float32)
             for loc in utils.washer_im_locs:
                 region = im[loc[0][0]-utils.cloth_grid_window:loc[0][0]+utils.cloth_grid_window, loc[0][1]-utils.cloth_grid_window:loc[0][1]+utils.cloth_grid_window]
-                print [loc[0][0]-utils.cloth_grid_window, loc[0][0]+utils.cloth_grid_window, loc[0][1]-utils.cloth_grid_window, loc[0][1]+utils.cloth_grid_window]
                 region = np.expand_dims(cv2.resize(region, ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
                 region = (region - utils.cloth_net_mean) / utils.cloth_net_std
                 prediction = self.net.predict(region)

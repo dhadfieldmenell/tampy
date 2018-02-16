@@ -6,8 +6,8 @@ import random
 import ros_interface.utils as utils
 
 
-NUM_CLOTH = 1
-NUM_SYMBOLS = 20
+NUM_CLOTH = 10
+NUM_SYMBOLS = 10
 
 # SEED = 1234
 NUM_PROBS = 1

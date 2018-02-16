@@ -844,7 +844,7 @@ def resample_basket_moveholding_all(pred, negated, t, plan):
     act_name = action.name
     ind1, ind2 = act_name.find(': ')+2, act_name.find(' (')
     act_name = act_name[ind1:ind2]
-    print act_name
+    # print act_name
 
     if act_name == "moveholding":
         start_ts, end_ts = action.active_timesteps
@@ -1066,7 +1066,8 @@ def resample_washer_in_gripper2(pred, negated, t, plan):
 
     act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
     ts_range = action.active_timesteps
-    print "resample at {}".format(action.name)
+    if not const.PRODUCTION:
+        print "resample at {}".format(action.name)
     if action.name.find("open_door") >= 0:
         resample_start, resample_end = ts_range[0], ts_range[1]
         door_pose = lin_interp_traj(washer.door[:, ts_range[0]], washer.door[:, ts_range[1]], ts_range[1]-ts_range[0])
@@ -1288,8 +1289,8 @@ def resample_basket_obstructs(pred, negated, t, plan):
         add_to_attr_inds_and_res(t, attr_inds, res, robot, [('{}ArmPose'.format(arm[0]), arm_pose)])
         rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
 
-
-    print "resampling at {} action".format(action.name)
+    if not const.PRODUCTION:
+        print "resampling at {} action".format(action.name)
     act_start, act_end = action.active_timesteps
     if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
         timesteps_1 = t - act_start
@@ -1385,8 +1386,8 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
     """
     Resample Trajectory
     """
-
-    print "resampling at {} action".format(action.name)
+    if not const.PRODUCTION:
+        print "resampling at {} action".format(action.name)
     act_start, act_end = action.active_timesteps
     if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
         timesteps_1 = t - act_start
@@ -1499,7 +1500,8 @@ def resample_washer_obstructs(pred, negated, t, plan):
         add_to_attr_inds_and_res(t, attr_inds, res, robot, [('{}ArmPose'.format(arm[0]), arm_pose)])
         rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
 
-    print "resampling at {} action".format(action.name)
+    if not const.PRODUCTION:
+        print "resampling at {} action".format(action.name)
     act_start, act_end = action.active_timesteps
     if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
         timesteps_1 = t - act_start
@@ -1578,7 +1580,8 @@ def resample_washer_rcollides(pred, negated, t, plan):
         add_to_attr_inds_and_res(t, attr_inds, res, robot, [('{}ArmPose'.format(arm[0]), arm_pose)])
         rave_body.set_dof({'{}ArmPose'.format(arm[0]): arm_pose})
 
-    print "resampling at {} action".format(action.name)
+    if not const.PRODUCTION:
+        print "resampling at {} action".format(action.name)
     act_start, act_end = action.active_timesteps
     if action.name.find("moveto") >=0  or action.name.find("moveholding_basket") >= 0 or action.name.find("moveholding_cloth") >= 0:
         timesteps_1 = t - act_start

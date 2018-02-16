@@ -26,7 +26,7 @@ class HLLaundryState(object):
     # TODO: This class is here for temporary usage but needs generalization
     #       Ideally integreate with existing HLState class and Env Monitor
     def __init__(self):
-        self.region_poses = [[], [], [], []]
+        self.region_poses = [[], [], [], [], [], []]
         self.basket_pose = [utils.basket_far_pos[0], utils.basket_far_pos[1], utils.basket_far_rot[0]]
         self.washer_cloth_poses = []
 
@@ -90,9 +90,9 @@ class LaundryEnvironmentMonitor(object):
             self.abs_domain = f.read()
         self.hl_solver = FFSolver(abs_domain=self.abs_domain)
         self.ll_solver = RobotLLSolver()
-        self.cloth_predictor = ClothGridPredict()
+        # self.cloth_predictor = ClothGridPredict()
         self.basket_predictor = BasketPredict()
-        self.basket_wrist_predictor = BasketWristPredict()
+        # self.basket_wrist_predictor = BasketWristPredict()
         # self.ee_control = EEController()
         self.traj_control = TrajectoryController()
         self.rotate_control = RotateControl()
@@ -184,16 +184,16 @@ class LaundryEnvironmentMonitor(object):
     def predict_basket_location(self):
         self.state.basket_pose = self.basket_predictor.predict()
 
-    def predict_open_door:
+    def predict_open_door(self):
         self.state.washer_door = self.door_predictor.predict()
 
-    def predict_basket_location_from_wrist:
+    def predict_basket_location_from_wrist(self):
         self.state.basket_pose = self.basket_wrist_predictor.predict_basket()
 
-    def predict_cloth_washer_locations:
+    def predict_cloth_washer_locations(self):
         self.state.washer_cloth_poses = self.cloth_predictor.predict_washer()
 
-    def update_plan(self, plan, cloth_to_region, in_washer):
+    def update_plan(self, plan, cloth_to_region={}, in_washer=False):
         plan.params['basket'].pose[:2, 0] = self.state.basket_pose[:2]
         plan.params['basket'].rotation[0, 0] = self.state.basket_pose[2]
 
@@ -207,11 +207,13 @@ class LaundryEnvironmentMonitor(object):
         plan.params['baxter'].lGripper[:, 0] = left_grip
         plan.params['baxter'].rArmPose[:, 0] = right_joints
         plan.params['baxter'].rGripper[:, 0] = right_grip
+        plan.params['baxter'].pose[:,0] = (self.state.robot_region - 2) * -np.pi/4
 
         plan.params['robot_init_pose'].lArmPose[:, 0] = left_joints
         plan.params['robot_init_pose'].lGripper[:, 0] = left_grip
         plan.params['robot_init_pose'].rArmPose[:, 0] = right_joints
         plan.params['robot_init_pose'].rGripper[:, 0] = right_grip
+        plan.params['robot_init_pose'].value[:,0] = (self.state.robot_region - 2) * -np.pi/4
 
         plan.params['washer'].door[:,0] = self.state.washer_door
 
@@ -460,14 +462,14 @@ class LaundryEnvironmentMonitor(object):
 
     def move_basket_to_washer(self):
         self.predict_cloth_locations()
-        # self.predict_basket_location()
+        self.predict_basket_location()
 
         failed_constr = []
         if len(self.state.region_poses[4]):
              failed_constr.append(("BasketNearLocClear", False))
 
-        # if not (self.state.basket_pose == utils.basket_far_pos):
-        #     failed_constr.append(("BasketNearWasher", True))
+        if not (self.state.basket_pose == utils.basket_far_pos):
+            failed_constr.append(("BasketNearWasher", True))
 
         if len(failed_constr):
             return failed_constr
@@ -497,7 +499,7 @@ class LaundryEnvironmentMonitor(object):
         act_num = 0
         ll_plan_str = []
 
-        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE BASKET_GRASP_BEGIN_0 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_REGION_3_SCAN_POSE BASKET_GRASP_BEGIN_0 \n'.format(act_num))
         act_num += 1
         ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_FAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
         act_num += 1
@@ -516,10 +518,12 @@ class LaundryEnvironmentMonitor(object):
 
         act_num = 0
         ll_plan_str = []
-        # self.predict_basket_location()
+        self.predict_basket_location()
 
-        # if not (self.state.basket_pose == utils.basket_far_pos):
-        #     return [("BasketNearWasher", True)]
+        import ipdb; ipdb.set_trace()
+
+        if not (self.state.basket_pose == utils.basket_far_pos):
+            return [("BasketNearWasher", True)]
 
     def move_basket_from_washer(self):
         self.predict_cloth_locations()

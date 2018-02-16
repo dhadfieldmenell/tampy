@@ -43,7 +43,7 @@ MUJOCO_JOINT_ORDER = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_e2', 'le
 # MUJOCO_MODEL_Z_OFFSET = -0.686
 MUJOCO_MODEL_Z_OFFSET = -0.736
 
-N_CONTACT_LIMIT = 12
+N_CONTACT_LIMIT = 14
 
 left_lb = [-1.701, -2.146, -3.054, -0.049, -3.058, -1.570, -3.058]
 left_ub = [1.701, 1.046, 3.054, 2.617, 3.058, 2.093, 3.058]
@@ -307,7 +307,7 @@ class LaundryWorldEEAgent(Agent):
         # if self.stochastic_conditions and save_global:
         #     self.replace_cond(condition)
 
-        if noisy:
+        if noisy and np.random.uniform(0, 1) < 0.6:
             noise = np.random.normal(0, 0.022, (self.T, self.dU))
             noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 22
             noise[:, self.plan.action_inds[('baxter', 'rGripper')]] *= 22
@@ -316,176 +316,126 @@ class LaundryWorldEEAgent(Agent):
         else:
             noise = np.zeros((self.T, self.dU))
 
-        joints = x0[3] if len(x0) > 3 else []
-        self._set_simulator_state(x0[0], self.plan, joints=joints)
-        last_success_X = (x0[0], x0[3])
-        last_left_ctrl = x0[3][10:17]
-        last_right_ctrl = x0[3][1:8]
-        jac = np.zeros((self.dU, 18))
-        delta = 1
-        for t in range(0, self.T, delta):
-            X, ee_pos, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
-            U = policy.act(X.copy(), X.copy(), t, noise[t])
-            steps = min(delta, self.T-t)
-            for i in range(steps):
-                sample.set(STATE_ENUM, X.copy(), t+i)
-                sample.set(OBS_ENUM, X.copy(), t+i)
-                sample.set(ACTION_ENUM, U.copy(), t+i)
-                sample.set(NOISE_ENUM, noise[t], t+i)
-                sample.set(EE_ENUM, ee_pos[:6], t+i)
+        attempts = 0
+        success = False
+        while not success and attempts < 3:
+            joints = x0[3] if len(x0) > 3 else []
+            self._set_simulator_state(x0[0], self.plan, joints=joints)
+            last_successful_pos = self.pos_model.data.qpos.copy()
+            last_success_X = (x0[0], x0[3])
+            last_left_ctrl = x0[3][10:17]
+            last_right_ctrl = x0[3][1:8]
+            jac = np.zeros((self.dU, 18))
+            delta = 1
+            for t in range(0, self.T, delta):
+                X, ee_pos, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
+                U = policy.act(X.copy(), X.copy(), t, noise[t])
+                steps = min(delta, self.T-t)
+                for i in range(steps):
+                    sample.set(STATE_ENUM, X.copy(), t+i)
+                    sample.set(OBS_ENUM, X.copy(), t+i)
+                    sample.set(ACTION_ENUM, U.copy(), t+i)
+                    sample.set(NOISE_ENUM, noise[t], t+i)
+                    sample.set(EE_ENUM, ee_pos[:6], t+i)
 
-            ee_left_pos = U[self.plan.action_inds[('baxter', 'ee_left_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_pos')]]
-            ee_left_rot = U[self.plan.action_inds[('baxter', 'ee_left_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_rot')]]
-            # ee_left_pos = np.maximum(ee_left_pos, [0, -0.2, 0.615])
-            # ee_left_pos = np.minimum(ee_left_pos, [1.0, 1.0, 1.5])
-            ee_right_pos = U[self.plan.action_inds[('baxter', 'ee_right_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_right_pos')]]
-            ee_right_rot = U[self.plan.action_inds[('baxter', 'ee_right_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_right_rot')]]
-            # ee_right_pos = np.maximum(ee_right_pos, [0, -1.0, 0.615])
-            # ee_right_pos = np.minimum(ee_right_pos, [1.0, 0.2, 1.5])
+                ee_left_pos = U[self.plan.action_inds[('baxter', 'ee_left_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_pos')]]
+                ee_left_rot = U[self.plan.action_inds[('baxter', 'ee_left_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_rot')]]
+                ee_right_pos = U[self.plan.action_inds[('baxter', 'ee_right_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_right_pos')]]
+                ee_right_rot = U[self.plan.action_inds[('baxter', 'ee_right_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_right_rot')]]
+                
+                ee_left_rot = ee_left_rot / np.linalg.norm(ee_left_rot)
+                ee_right_rot = ee_right_rot / np.linalg.norm(ee_right_rot)
 
-            ee_left_rot = ee_left_rot / np.linalg.norm(ee_left_rot)
-            ee_right_rot = ee_right_rot / np.linalg.norm(ee_right_rot)
+                left_vec = ee_left_pos - ee_pos[:3]
+                right_vec = ee_right_pos - ee_pos[3:6]
+                left_rot_vec = ee_left_rot - ee_pos[6:10]
+                right_rot_vec = ee_right_rot - ee_pos[10:14]
 
-            # ee_left_rot_euler = OpenRAVEBody._ypr_from_rot_matrix(openravepy.rotationMatrixFromQuat(ee_left_rot))
-            # ee_right_rot_euler = OpenRAVEBody._ypr_from_rot_matrix(openravepy.rotationMatrixFromQuat(ee_right_rot))
-            # target_left_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_left_pos, ee_left_rot_euler, "left_arm")
-            # target_right_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_right_pos, ee_right_rot_euler, "right_arm")
+                iteration = 0
+                while ((np.any(np.abs(np.r_[left_vec, right_vec/2]) > 0.025) or np.any(np.abs(np.r_[left_rot_vec, right_rot_vec]) > 0.05)) and iteration < 120*delta):
+                    joints[10:17, 0] = np.maximum(np.minimum(joints[10:17, 0], left_ub), left_lb)
+                    joints[1:8, 0] = np.maximum(np.minimum(joints[1:8, 0], right_ub), right_lb)
+                    self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': joints[10:17].flatten(), 'rArmPose': joints[1:8].flatten()})
+                    body = self.plan.params['baxter'].openrave_body.env_body
+                    l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in range(2,9)]
+                    left_jac = np.array([np.cross(joint.GetAxis(), ee_pos[:3] - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
+                    r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in range(10,17)]
+                    right_jac = np.array([np.cross(joint.GetAxis(), ee_pos[3:6] - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
+                    jac[self.plan.action_inds['baxter', 'ee_left_pos'], 9:16] = left_jac
+                    jac[self.plan.action_inds['baxter', 'ee_right_pos'], 0:7] = right_jac * 0.75
+                    # jac[self.plan.action_inds['baxter', 'ee_left_pos'], 10] *= 0.5
+                    # jac[self.plan.action_inds['baxter', 'ee_right_pos'], 1] *= 0.5
 
-            # if len(target_left_poses):
-            #     left_ctrl_signal = closest_arm_pose(target_left_poses, joints[9:16])
-            #     last_left_ctrl = left_ctrl_signal
-            # else:
-            #     target_left_poses = self.plan.params['baxter'].openrave_body.get_ik_from_pose(ee_left_pos, [0, np.pi/2, 0], "left_arm")
-            #     if len(target_left_poses):
-            #         left_ctrl_signal = closest_arm_pose(target_left_poses, joints[9:16])
-            #         last_left_ctrl = left_ctrl_signal
-            #     else:
-            #         left_ctrl_signal = last_left_ctrl
-
-            # if len(target_right_poses):
-            #     right_ctrl_signal = closest_arm_pose(target_right_poses, joints[1:8])
-            #     last_right_ctrl = right_ctrl_signal
-            # else:
-            #     right_ctrl_signal = last_right_ctrl
-            # right_ctrl_signal = last_right_ctrl
-
-            # trans = np.zeros((4,4))
-            # trans[:3,:3] = openravepy.rotationMatrixFromQuat(ee_left_rot)
-            # trans[:3,3] = ee_left_pos
-            # left_ctrl_signal = self.plan.params['baxter'].openrave_body.env_body.GetManipulator("left_arm").FindIKSolution(trans)
-
-            # trans = np.zeros((4,4))
-            # trans[:3,:3] = openravepy.rotationMatrixFromQuat(ee_right_rot)
-            # trans[:3,3] = ee_right_pos
-            # right_ctrl_signal = self.plan.params['baxter'].openrave_body.env_body.GetManipulator("right_arm").FindIKSolution(trans)
-
-            # r_grip = U[self.plan.action_inds['baxter', 'rGripper']]
-            # l_grip = U[self.plan.action_inds['baxter', 'lGripper']]
-
-            # ctrl_signal = np.r_[right_ctrl_signal, r_grip, -r_grip, left_ctrl_signal, l_grip, -l_grip]
-
-            left_vec = ee_left_pos - ee_pos[:3]
-            right_vec = ee_right_pos - ee_pos[3:6]
-            left_rot_vec = ee_left_rot - ee_pos[6:10]
-            right_rot_vec = ee_right_rot - ee_pos[10:14]
-
-            # iteration = 0
-            # while ((np.any(np.abs(np.r_[left_vec, right_vec/2]) > 0.05) or np.any(np.abs(np.r_[left_rot_vec, right_rot_vec]) > 0.1)) and iteration < 300):
-            #     self.run_policy_step(self.pos_model.data.qpos[1:].flatten() + (ctrl_signal - self.pos_model.data.qpos[1:].flatten())*105)
-            #     if not iteration:
-            #         self.viewer.loop_once()
-            #     iteration += 1
-            #     xpos = self.pos_model.data.xpos
-            #     xquat = self.pos_model.data.xquat
-            #     left_vec = ee_left_pos - xpos[self.left_grip_l_ind]
-            #     left_vec[2] += MUJOCO_MODEL_Z_OFFSET
-            #     right_vec = ee_right_pos - xpos[self.right_grip_r_ind]
-            #     right_vec[2] += MUJOCO_MODEL_Z_OFFSET
-            #     left_rot_vec = ee_left_rot - xquat[self.left_grip_l_ind]
-            #     right_rot_vec = ee_right_rot - xquat[self.right_grip_r_ind]
-
-            iteration = 0
-            while ((np.any(np.abs(np.r_[left_vec, right_vec/2]) > 0.025) or np.any(np.abs(np.r_[left_rot_vec, right_rot_vec]) > 0.05)) and iteration < 120*delta):
-                joints[10:17, 0] = np.maximum(np.minimum(joints[10:17, 0], left_ub), left_lb)
-                joints[1:8, 0] = np.maximum(np.minimum(joints[1:8, 0], right_ub), right_lb)
-                self.plan.params['baxter'].openrave_body.set_dof({'lArmPose': joints[10:17].flatten(), 'rArmPose': joints[1:8].flatten()})
-                body = self.plan.params['baxter'].openrave_body.env_body
-                l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in range(2,9)]
-                left_jac = np.array([np.cross(joint.GetAxis(), ee_pos[:3] - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
-                r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in range(10,17)]
-                right_jac = np.array([np.cross(joint.GetAxis(), ee_pos[3:6] - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
-                jac[self.plan.action_inds['baxter', 'ee_left_pos'], 9:16] = left_jac
-                jac[self.plan.action_inds['baxter', 'ee_right_pos'], 0:7] = right_jac * 0.75
-                # jac[self.plan.action_inds['baxter', 'ee_left_pos'], 10] *= 0.5
-                # jac[self.plan.action_inds['baxter', 'ee_right_pos'], 1] *= 0.5
-
-                # left_rot_jac = body.CalculateRotationJacobian(19, left_rot_vec)[:, 2:9]
-                # right_rot_jac = body.CalculateRotationJacobian(43, right_rot_vec)[:, 10:17]
-                left_rot_jac = body.GetManipulator("left_arm").CalculateRotationJacobian()
-                right_rot_jac = body.GetManipulator("right_arm").CalculateRotationJacobian()
-                jac[self.plan.action_inds['baxter', 'ee_left_rot'], 9:16] = left_rot_jac * 2.1
-                jac[self.plan.action_inds['baxter', 'ee_right_rot'], 0:7] = right_rot_jac * 2.1
+                    # left_rot_jac = body.CalculateRotationJacobian(19, left_rot_vec)[:, 2:9]
+                    # right_rot_jac = body.CalculateRotationJacobian(43, right_rot_vec)[:, 10:17]
+                    left_rot_jac = body.GetManipulator("left_arm").CalculateRotationJacobian()
+                    right_rot_jac = body.GetManipulator("right_arm").CalculateRotationJacobian()
+                    jac[self.plan.action_inds['baxter', 'ee_left_rot'], 9:16] = left_rot_jac * 2.1
+                    jac[self.plan.action_inds['baxter', 'ee_right_rot'], 0:7] = right_rot_jac * 2.1
 
 
-                jac[:, 0] *= 1.1
-                jac[:, 1] *= 0.84
-                jac[:, 2] *= 1.5
-                jac[:, 3] *= 1.1
-                jac[:, 4] *= 1.7
-                jac[:, 5] *= 1.2
-                # jac[:, 6] *= 0.2
-                # jac[:, 7] *= 0.2
-                # jac[:, 8] *= 0.2
-                jac[:, 9] *= 1.1
-                jac[:, 10] *= 0.84
-                jac[:, 11] *= 1.5
-                jac[:, 12] *= 1.1
-                jac[:, 13] *= 1.7
-                jac[:, 14] *= 1.2
-                # jac[:, 15] *= 0.2
-                # jac[:, 16] *= 0.2
-                # jac[:, 17] *= 0.2
+                    jac[:, 0] *= 1.1
+                    jac[:, 1] *= 0.84
+                    jac[:, 2] *= 1.5
+                    jac[:, 3] *= 1.1
+                    jac[:, 4] *= 1.7
+                    jac[:, 5] *= 1.2
+                    # jac[:, 6] *= 0.2
+                    # jac[:, 7] *= 0.2
+                    # jac[:, 8] *= 0.2
+                    jac[:, 9] *= 1.1
+                    jac[:, 10] *= 0.84
+                    jac[:, 11] *= 1.5
+                    jac[:, 12] *= 1.1
+                    jac[:, 13] *= 1.7
+                    jac[:, 14] *= 1.2
+                    # jac[:, 15] *= 0.2
+                    # jac[:, 16] *= 0.2
+                    # jac[:, 17] *= 0.2
 
-                jac[self.plan.action_inds['baxter', 'ee_left_pos'][2], :] *= 2.4
+                    jac[self.plan.action_inds['baxter', 'ee_left_pos'][2], :] *= 2.4
 
-                jac = jac / np.linalg.norm(jac)
+                    jac = jac / np.linalg.norm(jac)
 
-                u_vec = np.zeros((self.dU,))
-                u_vec[self.plan.action_inds['baxter', 'ee_left_pos']] = left_vec
-                u_vec[self.plan.action_inds['baxter', 'ee_right_pos']] = right_vec
-                u_vec[self.plan.action_inds['baxter', 'ee_left_rot']] = left_rot_vec
-                u_vec[self.plan.action_inds['baxter', 'ee_right_rot']] = right_rot_vec
+                    u_vec = np.zeros((self.dU,))
+                    u_vec[self.plan.action_inds['baxter', 'ee_left_pos']] = left_vec
+                    u_vec[self.plan.action_inds['baxter', 'ee_right_pos']] = right_vec
+                    u_vec[self.plan.action_inds['baxter', 'ee_left_rot']] = left_rot_vec
+                    u_vec[self.plan.action_inds['baxter', 'ee_right_rot']] = right_rot_vec
 
-                ctrl_signal = self.pos_model.data.qpos[1:].flatten() + np.dot(jac.T, u_vec).flatten() * 2.4
-                ctrl_signal[7] = 0 if U[self.plan.action_inds['baxter', 'rGripper']] <= 0.5 else const.GRIPPER_OPEN_VALUE
-                ctrl_signal[16] = 0 if U[self.plan.action_inds['baxter', 'lGripper']] <= 0.5 else const.GRIPPER_OPEN_VALUE
+                    ctrl_signal = self.pos_model.data.qpos[1:].flatten() + np.dot(jac.T, u_vec).flatten() * 2.4
+                    ctrl_signal[7] = 0 if U[self.plan.action_inds['baxter', 'rGripper']] <= 0.5 else const.GRIPPER_OPEN_VALUE
+                    ctrl_signal[16] = 0 if U[self.plan.action_inds['baxter', 'lGripper']] <= 0.5 else const.GRIPPER_OPEN_VALUE
 
-                # import ipdb; ipdb.set_trace()
-                self.run_policy_step(ctrl_signal)
-                    
-                xpos = self.pos_model.data.xpos
-                xquat = self.pos_model.data.xquat
-                left_vec = ee_left_pos - xpos[self.left_grip_l_ind]
-                left_vec[1] += 0.02
-                left_vec[2] += (MUJOCO_MODEL_Z_OFFSET)
-                right_vec = ee_right_pos - xpos[self.right_grip_r_ind]
-                right_vec[2] += (MUJOCO_MODEL_Z_OFFSET)
-                left_rot_vec = ee_left_rot - xquat[self.left_grip_l_ind]
-                right_rot_vec = ee_right_rot - xquat[self.right_grip_r_ind]
-                iteration += 1
+                    # import ipdb; ipdb.set_trace()
+                    success = self.run_policy_step(ctrl_signal, last_successful_pos)
+                    last_successful_pos[:] = self.pos_model.data.qpos.copy()[:]
+                        
+                    xpos = self.pos_model.data.xpos
+                    xquat = self.pos_model.data.xquat
+                    left_vec = ee_left_pos - xpos[self.left_grip_l_ind]
+                    left_vec[1] += 0.02
+                    left_vec[2] += (MUJOCO_MODEL_Z_OFFSET)
+                    right_vec = ee_right_pos - xpos[self.right_grip_r_ind]
+                    right_vec[2] += (MUJOCO_MODEL_Z_OFFSET)
+                    left_rot_vec = ee_left_rot - xquat[self.left_grip_l_ind]
+                    right_rot_vec = ee_right_rot - xquat[self.right_grip_r_ind]
+                    iteration += 1
 
-                if not iteration % 50:
-                    self.viewer.loop_once()
-        # if save_global and success:
-        #     self.cond_global_pol_sample[condition] = sample
-        print 'Finished on-policy sample.\n'.format(condition)
+                    if not iteration % 50:
+                        self.viewer.loop_once()
+
+                if not success:
+                    attempts += 1
+                    break
+            print 'Finished on-policy sample.\n'.format(condition)
 
         if save:
             self._samples[condition].append(sample)
         return sample
 
 
-    def run_policy_step(self, u, grip_cloth=-1, grip_basket=False):
+    def run_policy_step(self, u, last_success, grip_cloth=-1, grip_basket=False):
         u_inds = self.plan.action_inds
         r_joints = u[0:7]
         l_joints = u[9:16]
@@ -499,7 +449,9 @@ class LaundryWorldEEAgent(Agent):
         else:
             # print 'Collision Limit Exceeded in Position Model.'
             # self.pos_model.data.ctrl = np.zeros((18,1))
-            return False
+            self.pos_model.data.qpos = last_success
+            self.pos_model.forward()
+            return True
 
         # xpos = self.pos_model.data.xpos.copy()
         # eq_active = self.pos_model.eq_active.copy()
@@ -547,8 +499,9 @@ class LaundryWorldEEAgent(Agent):
         grip_cloth = -1
         if not run_forward:
             for i in range(self.num_cloths):
-                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0036, 0.0036, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE and xpos[self.left_grip_l_ind][2] > 0.615:
+                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0036, 0.0036, 0.0049]) and l_grip < const.GRIPPER_CLOSE_VALUE:
                     body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
+                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.615 + MUJOCO_MODEL_Z_OFFSET)
                     run_forward = True
                     break
             for i in range(self.num_cloths-1, -1, -1):
@@ -566,7 +519,7 @@ class LaundryWorldEEAgent(Agent):
             self.pos_model.body_quat = body_quat
             self.pos_model.forward()
 
-        return success
+        return True
 
 
     # def optimize_trajectories(self, alg, reuse=False):

@@ -70,6 +70,8 @@ class RobotLLSolver(LLSolver):
         return success
 
     def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=5):
+        if baxter_constants.PRODUCTION:
+            print "Okay, here I go!\n"
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose, n_resamples=n_resamples)
         # plan.restore_free_attrs()
@@ -86,7 +88,10 @@ class RobotLLSolver(LLSolver):
             return True
 
         a = plan.actions[anum]
-        print "backtracking Solve on {}".format(a.name)
+        if baxter_constants.PRODUCTION:
+            print "Here's the action I'm trying to do now: {0}\n".format(a.name)
+        else:
+            print "backtracking Solve on {}".format(a.name)
         active_ts = a.active_timesteps
         inits = {}
         if a.name == 'moveto':
@@ -187,6 +192,8 @@ class RobotLLSolver(LLSolver):
 
             if not success:
                 ## if planning fails we're done
+                if baxter_constants.PRODUCTION:
+                    print "Well, I think it's safe to say I'm on the wrong track. I need to rethink what I'm doing.\n"
                 return False
             ## no other options, so just return here
             return recursive_solve()
@@ -228,6 +235,8 @@ class RobotLLSolver(LLSolver):
                 if recursive_solve():
                     break
                 else:
+                    if baxter_constants.PRODUCTION:
+                        print "I think I need to back up and think about that other action again.\n"
                     success = False
 
         rs_param._free_attrs = rs_free
@@ -279,6 +288,7 @@ class RobotLLSolver(LLSolver):
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
         robot_body.set_dof({'lArmPose': [0.785, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
+        robot_body.set_pose([0, 0, old_pose[0,0]])
 
         for i in range(resample_size):
             if act.name == "rotate_holding_basket_with_cloth" or act.name == "rotate_holding_basket":
@@ -307,6 +317,7 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
+                    import ipdb; ipdb.set_trace()
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
@@ -626,7 +637,8 @@ class RobotLLSolver(LLSolver):
             else:
                 raise NotImplementedError
         if not robot_pose:
-            print "Unable to find IK"
+            if not baxter_constants.PRODUCTION:
+                print "Unable to find IK"
             # import ipdb; ipdb.set_trace()
 
         return robot_pose
@@ -792,7 +804,39 @@ class RobotLLSolver(LLSolver):
         plan.restore_free_attrs()
 
         self.reset_variable()
-        print "priority: {}\n".format(priority)
+        if baxter_constants.PRODUCTION:
+            if priority == -2:
+                if success:
+                    print "So far I've worked out where I need everything to be.\n"
+                else:
+                    print "There's something wrong with what I'm trying to do.\n"
+            elif priority == 0:
+                if success:
+                    print "Now I've figured out some spots where I'm going need to be.\n"
+                else:
+                    print "Huh. I can't figure out where I need to be.\n"
+            elif priority == 1:
+                if success:
+                    print "I've worked out how to approach the places I need to be.\n"
+                else:
+                    print "Huh. I can't grab what I need to.\n"
+            elif priority == 2:
+                if success:
+                    print "Now I know how to get to where I need to be.\n"
+                else:
+                    print "Huh. I can't get where I need to be.\n"
+            elif priority == 3:
+                if success:
+                    print "I've made sure I'm not going to hit anything.\n"
+                else:
+                    print "This is hard. Everything I want to do would hit something.\n"
+            else:
+                if success:
+                    print "Now I know how to get to where I need to be.\n"
+                else:
+                    print "Huh. I can't get where I need to be.\n"
+        else:
+            print "priority: {}\n".format(priority)
         return success
 
     #@profile
