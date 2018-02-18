@@ -114,7 +114,7 @@ class BaxterPolicySolver(RobotLLSolver):
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
             utils.ACTION_ENUM: initial_plan.dU,
-            utils.OBS_ENUM: initial_plan.symbolic_bound,
+            utils.OBS_ENUM: utils.IM_H*utils.IM_W*utils.IM_C,
             utils.EE_ENUM: 6,
         }
 
@@ -129,7 +129,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'plan': initial_plan,
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM],
-                'obs_include': [utils.OBS_ENUM],
+                'obs_include': [utils.STATE_ENUM],
                 'conditions': self.config['num_conds'],
                 'dX': initial_plan.symbolic_bound,
                 'dU': initial_plan.dU,
@@ -139,7 +139,10 @@ class BaxterPolicySolver(RobotLLSolver):
                 'num_cloths': num_cloths,
                 # 'T': initial_plan.horizon - 1
                 'T': int(self.T * utils.POLICY_STEPS_PER_SECOND),
-                'stochastic_conditions': self.config['stochastic_conditions']
+                'stochastic_conditions': self.config['stochastic_conditions'],
+                'image_width': utils.IM_W,
+                'image_height': utils.IM_H,
+                'image_channels': utils.IM_C,
             }
             self.config['algorithm']['cost'] = []
 
@@ -213,6 +216,9 @@ class BaxterPolicySolver(RobotLLSolver):
             'batch_size': 60,
             'weight_decay': 0.005,
             'weights_file_prefix': EXP_DIR + 'policy',
+            'image_width': utils.IM_W,
+            'image_height': utils.IM_H,
+            'image_channels': utils.IM_C,
         }
 
         if not self.gps:

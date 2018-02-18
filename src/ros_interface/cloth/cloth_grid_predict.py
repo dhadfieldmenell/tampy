@@ -34,7 +34,8 @@ class ClothGridPredict:
         self.cur_grip_im = None
         self.image_sub = rospy.Subscriber("/zed/rgb/image_rect_color", Image, self.callback)
         self.grip_im_sub = rospy.Subscriber("/cameras/left_hand_camera/image", Image, self.grip_callback)
-        self.net = load_model(TRAINED_MODEL)
+        with tf.device("/cpu:0"):
+            self.net = load_model(TRAINED_MODEL)
 
     def callback(self, data):
       try:

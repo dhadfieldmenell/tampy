@@ -35,6 +35,9 @@ CLOSE_DOOR_SCAN_RARM = [-np.pi/4, -0.8436, -0.09, 0.91, 0.043, 1.5, -0.05]
 OPEN_DOOR_SCAN_LARM = [-1., -1.18189329, 2.71308993, 2.25489801, -1.93466169, 1.04191726, 1.94737484]
 OPEN_DOOR_SCAN_RARM = [-np.pi/4, -0.8436, -0.09, 0.91, 0.043, 1.5, -0.05]
 
+BASKET_SCAN_LARM = [0.75, 0, 0, 0, 0, 0, 0]
+BASKET_SCAN_RARM = [-0.75, 0, 0, 0, 0, 0, 0]
+
 # init basket pose
 BASKET_NEAR_POS = utils.basket_near_pos
 BASKET_FAR_POS = utils.basket_far_pos
@@ -161,6 +164,7 @@ def main():
         s += "RobotPose (name {}); ".format("washer_scan_pose")
         s += "RobotPose (name {}); ".format("close_door_scan_pose")
         s += "RobotPose (name {}); ".format("open_door_scan_pose")
+        s += "RobotPose (name {}); ".format("basket_scan_pose")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
         s += "BasketTarget (name {}); ".format("basket_near_target")
@@ -233,6 +237,7 @@ def main():
         s += get_robot_pose_str('washer_scan_pose', WASHER_SCAN_LARM, WASHER_SCAN_RARM, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('close_door_scan_pose', CLOSE_DOOR_SCAN_LARM, CLOSE_DOOR_SCAN_RARM, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('open_door_scan_pose', OPEN_DOOR_SCAN_LARM, OPEN_DOOR_SCAN_RARM, INT_GRIPPER, REGION1)
+        s += get_robot_pose_str('basket_scan_pose', BASKET_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION2)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)

@@ -27,7 +27,7 @@ import policy_hooks.policy_solver_utils as utils
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 8
+NUM_CONDS = 1
 
 
 common = {
@@ -44,7 +44,7 @@ algorithm = {
     # 'type': AlgorithmTAMPGPS,
     'type': AlgorithmPIGPS,
     'conditions': common['conditions'],
-    'policy_sample_mode': 'add',
+    'policy_sample_mode': 'replace',
     'sample_on_policy': True,
     'iterations': 10,
     'max_ent_traj': 0.0,
@@ -136,7 +136,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 24,
+    'num_samples': 8,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': True,

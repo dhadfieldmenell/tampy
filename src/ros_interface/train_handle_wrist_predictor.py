@@ -92,10 +92,8 @@ class image_converter:
         self.saved_labs.append(label)
 
     def collect_images(self):
-        # handle_closed_loc = [0.95, .8, 1.33-const.ROTOR_BASE_HEIGHT]
-        # handle_open_loc = [0.625, 1.125, 1.33-const.ROTOR_BASE_HEIGHT]
-        handle_closed_loc = [0.55, 0.95, 1.55-const.ROTOR_BASE_HEIGHT]
-        handle_open_loc = [0.7, 0.8, 1.55-const.ROTOR_BASE_HEIGHT]
+        handle_closed_loc = [0.8, 0.75, 1.55-const.ROTOR_BASE_HEIGHT]
+        handle_open_loc = [0.50, 0.80, 1.55-const.ROTOR_BASE_HEIGHT]
         terminate = 1
 
         raw_input('Close door and hit enter ')
@@ -153,10 +151,10 @@ class image_converter:
                         else:
                             print 'Skipped image'
 
-            for k in range(10):
-                y_coord = handle_closed_loc[1] - 0.2 - k*.03
-                for j in range(2*k+1):
-                    x_coord = handle_closed_loc[0] + (j - k)*.01
+            for k in range(5):
+                y_coord = handle_closed_loc[1] - 0.15 - k*.03
+                for j in range(11):
+                    x_coord = handle_closed_loc[0] + (j - k)*.015
                     print 'New coordinate: ({}, {}, {})'.format(x_coord, y_coord, height)
                     arm_pose = self.robot.openrave_body.get_ik_from_pose([x_coord, y_coord, height], [np.pi/2, 0, 0], "left_arm")
                     if len(arm_pose):
@@ -187,63 +185,63 @@ class image_converter:
             terminate = input('Continue with door open? (y/n): ')
             if terminate:
                 return
-        except (KeyboardInterrupt):
-            import ipdb; ipdb.set_trace()
+        # except (KeyboardInterrupt):
+        #     import ipdb; ipdb.set_trace()
 
 
-        raw_input('Open door and hit enter ')
-        arm_pose = self.robot.openrave_body.get_ik_from_pose([handle_open_loc[0], handle_open_loc[1]-.05, handle_open_loc[2]], [np.pi/2, 0, 0], "left_arm")
-        if len(arm_pose):
-            current_angles = arm_pose[0]
-            joint_angles = get_joint_positions('left', current_angles.reshape((7,1)), 0)
-            self.left_grip.open()
-            self.left.move_to_joint_positions(joint_angles)
-            rospy.sleep(1)
-            joints_are_close = True
-            actual_joint_angles = self.left.joint_angles()
-            for k in joint_angles.keys():
-                if np.abs(joint_angles[k]-actual_joint_angles[k]) > .1:
-                    joints_are_close = False
-            if joints_are_close:
-                print 'Joints are close to target angles.'
-            terminate = input("Is this position good? (y/n): ")
-        else:
-            print "Cannot place grippers over desired targets, please move Handle."
-        if terminate:
-            return
+        # raw_input('Open door and hit enter ')
+        # arm_pose = self.robot.openrave_body.get_ik_from_pose([handle_open_loc[0], handle_open_loc[1]-.15, handle_open_loc[2]], [np.pi/2, 0, 0], "left_arm")
+        # if len(arm_pose):
+        #     current_angles = arm_pose[0]
+        #     joint_angles = get_joint_positions('left', current_angles.reshape((7,1)), 0)
+        #     self.left_grip.open()
+        #     self.left.move_to_joint_positions(joint_angles)
+        #     rospy.sleep(1)
+        #     joints_are_close = True
+        #     actual_joint_angles = self.left.joint_angles()
+        #     for k in joint_angles.keys():
+        #         if np.abs(joint_angles[k]-actual_joint_angles[k]) > .1:
+        #             joints_are_close = False
+        #     if joints_are_close:
+        #         print 'Joints are close to target angles.'
+        #     terminate = input("Is this position good? (y/n): ")
+        # else:
+        #     print "Cannot place grippers over desired targets, please move Handle."
+        # if terminate:
+        #     return
 
-        try:
-            height = handle_open_loc[2]
-            for k in range(10):
-                y_coord = handle_open_loc[1] - 0.2 - k*.03
-                for j in range(2*k+1):
-                    x_coord = handle_open_loc[0] + (j - k)*.01
-                    print 'New coordinate: ({}, {}, {})'.format(x_coord, y_coord, height)
-                    arm_pose = self.robot.openrave_body.get_ik_from_pose([x_coord, y_coord-.1, height], [np.pi/2, 0, 0], "left_arm")
-                    if len(arm_pose):
-                        current_angles = closest_arm_pose(arm_pose, current_angles)
-                        joint_angles = get_joint_positions('left', current_angles.reshape((7,1)), 0)
-                        self.left.move_to_joint_positions(joint_angles, timeout=5.0)
-                        rospy.sleep(5)
-                        image = self.bridge.imgmsg_to_cv2(self.cur_im, 'passthrough')
-                        image_array = np.array(image, dtype=np.float32)
-                        joints_are_close = True
-                        actual_joint_angles = self.left.joint_angles()
-                        joint_values = [actual_joint_angles['left_s0'], actual_joint_angles['left_s1'], \
-                                                    actual_joint_angles['left_e0'], actual_joint_angles['left_e1'], \
-                                                    actual_joint_angles['left_w0'], actual_joint_angles['left_w1'], actual_joint_angles['left_w2']]
-                        self.robot.openrave_body.set_dof({'lArmPose': joint_values})
+        # try:
+        #     height = handle_open_loc[2]
+        #     for k in range(5):
+        #         y_coord = handle_open_loc[1] - 0.1 - k*.02
+        #         for j in range(11):
+        #             x_coord = handle_open_loc[0] + (j - 6)*.015
+        #             print 'New coordinate: ({}, {}, {})'.format(x_coord, y_coord, height)
+        #             arm_pose = self.robot.openrave_body.get_ik_from_pose([x_coord, y_coord-.1, height], [np.pi/2, 0, 0], "left_arm")
+        #             if len(arm_pose):
+        #                 current_angles = closest_arm_pose(arm_pose, current_angles)
+        #                 joint_angles = get_joint_positions('left', current_angles.reshape((7,1)), 0)
+        #                 self.left.move_to_joint_positions(joint_angles, timeout=5.0)
+        #                 rospy.sleep(1)
+        #                 image = self.bridge.imgmsg_to_cv2(self.cur_im, 'passthrough')
+        #                 image_array = np.array(image, dtype=np.float32)
+        #                 joints_are_close = True
+        #                 actual_joint_angles = self.left.joint_angles()
+        #                 joint_values = [actual_joint_angles['left_s0'], actual_joint_angles['left_s1'], \
+        #                                             actual_joint_angles['left_e0'], actual_joint_angles['left_e1'], \
+        #                                             actual_joint_angles['left_w0'], actual_joint_angles['left_w1'], actual_joint_angles['left_w2']]
+        #                 self.robot.openrave_body.set_dof({'lArmPose': joint_values})
 
-                        end_effector_pos = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransformPose()[-3:]
-                        for l in joint_angles.keys():
-                            if np.abs(joint_angles[l]-actual_joint_angles[l]) > .1:
-                                joints_are_close = False
-                        if joints_are_close:
-                            self.saved_ims.append(image_array)
-                            self.saved_labs.append(np.r_[handle_open_loc, end_effector_pos])
-                            print 'Saved Image'
-                        else:
-                            print 'Skipped image'
+        #                 end_effector_pos = self.robot.openrave_body.env_body.GetLink('left_gripper').GetTransformPose()[-3:]
+        #                 for l in joint_angles.keys():
+        #                     if np.abs(joint_angles[l]-actual_joint_angles[l]) > .1:
+        #                         joints_are_close = False
+        #                 if joints_are_close:
+        #                     self.saved_ims.append(image_array)
+        #                     self.saved_labs.append(np.r_[handle_open_loc, end_effector_pos])
+        #                     print 'Saved Image'
+        #                 else:
+        #                     print 'Skipped image'
         except (KeyboardInterrupt):
             import ipdb; ipdb.set_trace()
 

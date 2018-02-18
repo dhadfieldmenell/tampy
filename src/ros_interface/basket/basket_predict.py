@@ -26,7 +26,7 @@ class BasketPredict:
         self.pub1 = rospy.Publisher("net1", Image, queue_size=1)
         self.pub2 = rospy.Publisher("net2", Image, queue_size=1)
         self.image_sub = rospy.Subscriber("/zed/depth/depth_registered", Image, self.callback)
-        self.inter_image_sub = rospy.Subscriber("/zed/depth/depth_registered", Image, self.intermediary_callback)
+        # self.inter_image_sub = rospy.Subscriber("/zed/depth/depth_registered", Image, self.intermediary_callback)
 
     def callback(self, data):
         if data.header.stamp.secs > self.last_inter + 0.2:
@@ -78,6 +78,15 @@ class BasketPredict:
             new_im[:,:,:,0] = im
             new_im[:,:,:,1] = im
             new_im[:,:,:,2] = im
-            return self.net.predict(new_im)
+            pred = self.net.predict(new_im)
+
+            # The net's zero reference doesn't align exactly with the ground truth
+            # The predictions however are accurate in its frame reference
+            zero_x = utils.basket_net_zero_pos[0]
+            zero_y = utils.basket_net_zero_pos[1]
+            zero_theta = utils.basket_net_zero_pos[2] # Theta predictions are in correct reference frame
+            pred[1] *= -1 # The net flips along the y-axis
+            pred[0] += zero_x
+            pred[1] += zero_y
         return np.array([np.nan, np.nan, np.nan])
         

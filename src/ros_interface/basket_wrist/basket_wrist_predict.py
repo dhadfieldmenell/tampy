@@ -28,16 +28,29 @@ class BasketWristPredict:
     def __init__(self):
         # K.tensorflow_backend.set_session(get_session())
         # self.graph = tf.get_default_graph()
-        self.model = load_model(TRAINED_MODEL)
+        with tf.device("/cpu:0"):
+            self.model = load_model(TRAINED_MODEL)
         # self.model.compile(optimizer="RMSprop", loss="mean_squared_error", metrics=['mae'])
         # self.model._make_predict_function()
         # f = open("ros_interface/basket_wrist/nov11arch.json", "r")
         # self.model = model_from_json(f.read())
         # f.close()
         # self.model.load_weights("ros_interface/basket_wrist/nov11weights.h5")
+        self.cur_im = None
+        self.image_sub = rospy.Subscriber("/cameras/left_hand_camera/image", Image, self.callback)
 
-    def predict(self, image):
-        processed_input = preprocess_input(image, mode='tf')
+    def callback(self, data):
+        self.cur_im = data
+
+    def predict(self, ee_pos):
+        im = self.bridge.imgmsg_to_cv2(self.cur_im, 'passthrough')
+        im = np.array(im, dtype=np.float32)
+        processed_input = preprocess_input(im, mode='tf')
         processed_input = cv2.resize(processed_input, (144, 144))
         processed_input = processed_input.reshape((1, 144, 144, 3))
-        return self.model.predict(processed_input).flatten()
+        preds = self.model.predict(processed_input).flatten()
+        x_pos = ee_pos[0] + preds[0]
+        y_pos = ee_pos[1] + preds[1]
+        theta = preds[2]
+        return np.array([x_pos, y_pos, theta])
+        

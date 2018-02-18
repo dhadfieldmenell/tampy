@@ -64,4 +64,9 @@ basket_far_pos = [0.6, -0.6,  0.875]
 basket_near_rot = [2*np.pi/3, 0, np.pi/2]
 basket_far_rot = [np.pi/4, 0, np.pi/2]
 
+basket_net_zero_pos = [0.53, 0.08, np.pi/2]
+
 # cloth_grid_spacing = 0.15 # From center to center is 0.2 + 0.15 + 0.2
+
+left_joints = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2']
+right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2']
