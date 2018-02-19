@@ -101,7 +101,7 @@ class LaundryWorldEEAgent(Agent):
             if param.is_symbol(): continue
             if param._type == 'Cloth':
                 height = param.geom.height
-                radius = param.geom.radius * 2
+                radius = param.geom.radius * 2.5
                 x, y, z = param.pose[:, active_ts[0]]
                 cloth_body = xml.SubElement(worldbody, 'body', {'name': param.name, 'pos': "{} {} {}".format(x,y,z+MUJOCO_MODEL_Z_OFFSET), 'euler': "0 0 0"})
                 # cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'cylinder', 'size':"{} {}".format(radius, height), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
@@ -336,12 +336,14 @@ class LaundryWorldEEAgent(Agent):
             delta = 1
             for t in range(0, self.T, delta):
                 X, ee_pos, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
-                U = policy.act(X.copy(), X.copy(), t, noise[t])
+                im = self.get_obs()
+                obs = np.r_[im, ee_pos]
+                U = policy.act(X.copy(), obs, t, noise[t])
                 steps = min(delta, self.T-t)
                 for i in range(steps):
                     sample.set(STATE_ENUM, X.copy(), t+i)
                     if OBS_ENUM in self._hyperparams['obs_include']:
-                        sample.set(OBS_ENUM, self.get_obs(), t+i)
+                        sample.set(OBS_ENUM, im.copy(), t+i)
                     sample.set(ACTION_ENUM, U.copy(), t+i)
                     sample.set(NOISE_ENUM, noise[t], t+i)
                     sample.set(EE_ENUM, ee_pos, t+i)

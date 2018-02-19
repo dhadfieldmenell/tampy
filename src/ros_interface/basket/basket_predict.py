@@ -74,19 +74,24 @@ class BasketPredict:
             # TODO: Cut im to bounds
             im = cv2.resize(im, (utils.basket_im_dims[1], utils.basket_im_dims[0]))
             im = im.reshape((1, utils.basket_im_dims[0], utils.basket_im_dims[1]))
+
             new_im = np.zeros((1, utils.basket_im_dims[0], utils.basket_im_dims[1], 3))
-            new_im[:,:,:,0] = im
-            new_im[:,:,:,1] = im
-            new_im[:,:,:,2] = im
+            new_im[0,:,:,0] = im
+            new_im[0,:,:,1] = im
+            new_im[0,:,:,2] = im
             pred = self.net.predict(new_im)
 
             # The net's zero reference doesn't align exactly with the ground truth
-            # The predictions however are accurate in its frame reference
+            # The predictions however are accurate in its frame of reference
             zero_x = utils.basket_net_zero_pos[0]
             zero_y = utils.basket_net_zero_pos[1]
-            zero_theta = utils.basket_net_zero_pos[2] # Theta predictions are in correct reference frame
-            pred[1] *= -1 # The net flips along the y-axis
-            pred[0] += zero_x
-            pred[1] += zero_y
+            zero_theta = utils.basket_net_zero_pos[2]
+            pred[0, 1] *= -1 # The net flips along the y-axis
+            pred[0, 0] += zero_x
+            pred[0, 1] += zero_y
+            pred[0, 2] *= -1
+            pred[0, 2] += np.pi
+
+            return pred.flatten()
         return np.array([np.nan, np.nan, np.nan])
         

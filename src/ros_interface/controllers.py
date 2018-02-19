@@ -67,6 +67,8 @@ class TrajectoryController(object):
         self.right.set_joint_position_speed(0.05)
 
         attempt = 0.0
+        if np.any(np.isnan(left_target)) or np.any(np.isnan(right_target)):
+            print "Experienced NaN in controller."
         while (np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits)) and use_right and attempt <= int(ROS_RATE * 10):
             next_left_target = left_target # current_left + (left_target - current_left) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_left_err
             next_right_target = right_target # current_right + (right_target - current_right) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_right_err
@@ -121,7 +123,7 @@ class TrajectoryController(object):
             #         raise Exception("Invalid timestep (> max) passed to plan execution")
             #     cur_action = plan.actions[act_index]
 
-        print 'Execution finished'
+        # print 'Execution finished'
 
     def _execute_torque_control(self, plan, active_ts, controller):
         if active_ts is None:

@@ -288,7 +288,7 @@ class RobotLLSolver(LLSolver):
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
         robot_body.set_dof({'lArmPose': [0.785, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
-        robot_body.set_pose([0, 0, old_pose[0,0]])
+        robot_body.set_pose([0, 0, old_pose[0, 0]])
 
         for i in range(resample_size):
             if act.name == "rotate_holding_basket_with_cloth" or act.name == "rotate_holding_basket":
@@ -307,6 +307,9 @@ class RobotLLSolver(LLSolver):
                 handle_dist = baxter_constants.BASKET_OFFSET
                 offset = np.array([handle_dist*np.cos(target_rot), handle_dist*np.sin(target_rot), 0])
                 target_pos = target.value[:, 0]
+
+                # old_pose = next_act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
 
                 next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])
 
@@ -332,6 +335,9 @@ class RobotLLSolver(LLSolver):
                 offset = np.array([handle_dist*np.cos(target_rot), handle_dist*np.sin(target_rot), 0])
                 target_pos = target.value[:, 0]
 
+                # old_pose = next_act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
                 next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])
 
                 const_dir = [0, 0, .125]
@@ -355,6 +361,9 @@ class RobotLLSolver(LLSolver):
                 target_pos = target.value[:,0]
                 target_rot = target.rotation[:,0]
 
+                # old_pose = next_act.params[5].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+                
                 random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
@@ -374,6 +383,9 @@ class RobotLLSolver(LLSolver):
                 target_pos = target.value[:,0]
                 target_rot = target.rotation[:,0]
 
+                # old_pose = next_act.params[5].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+                
                 random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
@@ -393,6 +405,9 @@ class RobotLLSolver(LLSolver):
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink('washer_door').GetTransform()[:3,3]
 
+                # old_pose = next_act.params[2].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
                 random_dir = np.multiply(np.random.sample(3) - [0.5, 1, -4.0], [0.01, 0.05, 0.1])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([np.pi/2, 0, 0])
@@ -411,6 +426,9 @@ class RobotLLSolver(LLSolver):
                 target_pos = target.value[:,0]
                 target_rot = target.rotation[:,0]
 
+                # old_pose = act.params[5].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
                 random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
@@ -428,6 +446,9 @@ class RobotLLSolver(LLSolver):
                 target_pos = target.value[:,0]
                 target_rot = target.rotation[:,0]
 
+                # old_pose = act.params[5].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
                 random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
@@ -444,6 +465,9 @@ class RobotLLSolver(LLSolver):
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink('washer_door').GetTransform()[:3,3]
+
+                # old_pose = act.params[2].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5, 1, -4.0], [0.01, 0.05, 0.1])
                 ee_pos = target_pos + random_dir
@@ -467,6 +491,9 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['value'][:] = 0
                     target._free_attrs['rotation'][:] = 0
 
+                # old_pose = next_act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.15])
                 ee_left = target_pos + random_dir
 
@@ -483,6 +510,9 @@ class RobotLLSolver(LLSolver):
                 target_body = next_act.params[2].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
+
+                # old_pose = next_act.params[5].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.0], [0.05, 0.05, 0.1])
                 ee_pos = target_pos + random_dir
@@ -501,6 +531,9 @@ class RobotLLSolver(LLSolver):
                 offset = np.array([handle_dist*np.cos(target_rot), handle_dist*np.sin(target_rot), 0])
 
                 act.params[1].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+
+                # old_pose = act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.1, 0.1, 0.1])
                 ee_left = target.value[:, 0] + offset + random_dir
@@ -523,6 +556,9 @@ class RobotLLSolver(LLSolver):
                 random_dir = np.multiply(np.random.sample(3) - [0.5,1.0,-2.5], [0.01, 0.01, 0.1])
                 ee_left = target_pos + random_dir
 
+                # old_pose = act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
                     continue
@@ -535,6 +571,9 @@ class RobotLLSolver(LLSolver):
                 target_body = act.params[2].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
+
+                # old_pose = act.params[5].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.0,-2.5], [0.3,0.2,0.1])
                 ee_pos = target_pos + random_dir
@@ -552,6 +591,9 @@ class RobotLLSolver(LLSolver):
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
+
+                # old_pose = next_act.params[2].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
 
                 random_dir = np.multiply(np.random.sample(3) - [.5, 1, 0], [.005, .2, .1])
                 ee_pos = target_pos + random_dir
@@ -571,6 +613,9 @@ class RobotLLSolver(LLSolver):
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
 
+                # old_pose = next_act.params[2].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
                 random_dir = np.multiply(np.random.sample(3) - [.5, 3, 0.5], [.025, .1, .2])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([np.pi/2, 0, 0])
@@ -589,6 +634,9 @@ class RobotLLSolver(LLSolver):
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
 
+                # old_pose = act.params[2].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
                 random_dir = np.multiply(np.random.sample(3) - [.5, 3, 0.5], [.025, .1, .2])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([np.pi/2, 0, 0])
@@ -605,6 +653,9 @@ class RobotLLSolver(LLSolver):
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_body.set_dof({'door': target.door[:, 0]})
                 target_pos = target_body.env_body.GetLink("washer_handle").GetTransform()[:3,3]
+
+                # old_pose = act.params[2].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
 
                 random_dir = np.multiply(np.random.sample(3) - [.5, 1, 0], [.005, .2, .1])
                 ee_pos = target_pos + random_dir
@@ -623,15 +674,21 @@ class RobotLLSolver(LLSolver):
             
             elif next_act != None and next_act.name == "rotate":
                 init_pos = act.params[1]
-                robot_body.set_dof({'lArmPose': init_pos.lArmPose[:, 0], 'rArmPose': init_pos.rArmPose[:, 0]})
-                l_random_dir = np.multiply(np.random.sample(3) - [0.5, 0.5, 0], [0.2, 0.2, 0.2])
-                l_ee_pos = robot_body.env_body.GetLink('left_gripper').GetTransform()[:3, 3] + l_random_dir
-                l_arm_poses = robot_body.get_ik_from_pose(l_ee_pos, [0, np.pi/2, 0], "left_arm")
-                r_random_dir = np.multiply(np.random.sample(3) - [0.5, 0.5, 0], [0.2, 0.2, 0.2])
-                r_ee_pos = robot_body.env_body.GetLink('right_gripper').GetTransform()[:3, 3] + r_random_dir
-                r_arm_poses = robot_body.get_ik_from_pose(r_ee_pos, [0, np.pi/2, 0], "right_arm")
-                if not len(l_arm_poses) or not len(r_arm_poses):
-                    continue
+
+                # old_pose = init_pos.value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
+                # robot_body.set_dof({'lArmPose': init_pos.lArmPose[:, 0], 'rArmPose': init_pos.rArmPose[:, 0]})
+                # l_random_dir = np.multiply(np.random.sample(3) - [0.5, 0.5, 0], [0.2, 0.2, 0.2])
+                # l_ee_pos = robot_body.env_body.GetLink('left_gripper').GetTransform()[:3, 3] + l_random_dir
+                # l_arm_poses = robot_body.get_ik_from_pose(l_ee_pos, [0, 0, 0], "left_arm")
+                # r_random_dir = np.multiply(np.random.sample(3) - [0.5, 0.5, 0], [0.2, 0.2, 0.2])
+                # r_ee_pos = robot_body.env_body.GetLink('right_gripper').GetTransform()[:3, 3] + r_random_dir
+                # r_arm_poses = robot_body.get_ik_from_pose(r_ee_pos, [0, 0, 0], "right_arm")
+                # if not len(l_arm_poses) or not len(r_arm_poses):
+                #     continue
+                l_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
+                r_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
                 robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': init_pos.value.copy()})
 
             else:
