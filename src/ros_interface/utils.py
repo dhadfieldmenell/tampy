@@ -38,7 +38,8 @@ washer_im_locs = [((185, 185), (0.14, 1.19, 0.71)), # -> CENTER FRONT
                   # ((), (0.14, 1.19, 0.71)), # -> LEFT REAR
                   # ((), (0.14, 1.19, 0.71))] # -> RIGHT REAR
 
-cloth_grid_ref = np.array([[200, 350], [55, 5]])
+# cloth_grid_ref = np.array([[200, 350], [55, 5]])
+cloth_grid_ref = np.array([[200, 350], [36, 5]])
 
 pixels_per_cm = 2.3
 
@@ -64,7 +65,8 @@ basket_far_pos = [0.6, -0.6,  0.875]
 basket_near_rot = [2*np.pi/3, 0, np.pi/2]
 basket_far_rot = [np.pi/4, 0, np.pi/2]
 
-basket_net_zero_pos = [0.53, 0.08, np.pi/2]
+# basket_net_zero_pos = [0.53, 0.08, np.pi/2]
+basket_net_zero_pos = [0.34, 0.03, np.pi/2]
 
 # cloth_grid_spacing = 0.15 # From center to center is 0.2 + 0.15 + 0.2
 
