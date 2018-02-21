@@ -103,7 +103,7 @@
     </equality>
     
     <worldbody>
-        <light directional="false" cutoff="90" exponent="1" diffuse="1 1 1" specular="0 0 0" pos="1 0 1.5" dir="-1 0 -2.5"/>
+        <!-- <light directional="false" cutoff="90" exponent="1" diffuse="1 1 1" specular="0 0 0" pos="1 0 1.5" dir="-1 0 -2.5"/> -->
         <geom name="ground" type="plane" pos="0 0 -0.925" size="4 4 .05" rgba="0.7 0.6 0.5 1"/>
 
         <camera name="robot_cam" pos="1.0 0.0 0.686" quat="1 0 0 0" />

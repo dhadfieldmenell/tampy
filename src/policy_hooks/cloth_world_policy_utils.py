@@ -312,6 +312,8 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
     actions = [4*next_cloth, 4*next_cloth+3]
     start_t = plan.actions[actions[0]].active_timesteps[0]
 
+    regions = [[[0.3, 0.5], [0.65, 0.85]], [[0.65, 0.85], [0.45, 0.7]], [[0.25, 0.45], [0.9, 1.1]], [[0.5, 0.65], [0.75, 0.95]]]
+
     while not success:
         print 'Searching for initial configuration...'
         X_0s = []
@@ -339,9 +341,8 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
             plan.params['cloth_{0}'.format(c)].openrave_body.set_pose([10,-10,-10])
 
         for c in range(num_cloths_in_basket, num_cloths):
-            next_loc = possible_locs.pop(0)
-            next_x = (next_loc / CLOTH_XY) / 100.0 + CLOTH_INIT_X_RANGE[0]
-            next_y = (next_loc % CLOTH_XY) / 100.0 + CLOTH_INIT_Y_RANGE[0]
+            next_x = np.random.uniform(regions[c % 4][0][0], regions[c % 4][0][1])
+            next_y = np.random.uniform(regions[c % 4][1][0], regions[c % 4][1][1])
             X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]] = [next_x, next_y, TABLE_TOP]
             X[plan.state_inds[('cloth_{0}'.format(c), 'pose')]] = X[plan.state_inds[('cloth_target_begin_{0}'.format(c), 'value')]]
 
@@ -1283,7 +1284,8 @@ def get_random_initial_pick_place_state(plan, num_cloths):
     #     return get_random_initial_cloth_pick_state(plan, num_cloths)
     # else:
     #     return get_random_initial_cloth_place_state(plan, num_cloths)
-    return get_random_4_cloth_pick_state(plan)
+    # return get_random_4_cloth_pick_state(plan)
+    return get_random_initial_cloth_pick_state(plan, num_cloths)
 
 def state_vector_value(vec, plan, param_name, attr):
     return vec[plan.state_inds[param_name, attr]]

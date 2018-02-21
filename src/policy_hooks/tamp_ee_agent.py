@@ -293,7 +293,7 @@ class LaundryWorldEEAgent(Agent):
 
         joints = model.data.qpos.copy()
 
-        return X, np.r_[X[x_inds[('baxter', 'ee_left_pos')]], X[x_inds[('baxter', 'ee_right_pos')]], X[x_inds[('baxter', 'ee_left_rot')]], X[x_inds[('baxter', 'ee_right_rot')]]], joints
+        return X, np.r_[X[x_inds[('baxter', 'ee_left_pos')]], X[x_inds[('baxter', 'ee_right_pos')]], X[x_inds[('baxter', 'ee_left_rot')]], X[x_inds[('baxter', 'ee_right_rot')]]], np.r_[X[x_inds[('baxter', 'lGripper')]], X[x_inds[('baxter', 'rGripper')]]], joints
 
     
     def _get_obs(self, cond, t):
@@ -335,7 +335,7 @@ class LaundryWorldEEAgent(Agent):
             jac = np.zeros((self.dU, 18))
             delta = 1
             for t in range(0, self.T, delta):
-                X, ee_pos, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
+                X, ee_pos, grippers, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
                 im = self.get_obs()
                 obs = np.r_[im, ee_pos]
                 U = policy.act(X.copy(), obs, t, noise[t])
@@ -347,6 +347,7 @@ class LaundryWorldEEAgent(Agent):
                     sample.set(ACTION_ENUM, U.copy(), t+i)
                     sample.set(NOISE_ENUM, noise[t], t+i)
                     sample.set(EE_ENUM, ee_pos, t+i)
+                    sample.set(GRIPPER_ENUM, grippers, t+i)
 
                 ee_left_pos = U[self.plan.action_inds[('baxter', 'ee_left_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_pos')]]
                 ee_left_rot = U[self.plan.action_inds[('baxter', 'ee_left_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_rot')]]
