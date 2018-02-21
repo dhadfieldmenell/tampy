@@ -27,7 +27,7 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 from policy_hooks.baxter_controller import BaxterMujocoController
 from policy_hooks.cloth_world_policy_utils import *
-from policy_hooks.policy_solver_utils import STATE_ENUM, OBS_ENUM, ACTION_ENUM, NOISE_ENUM, EE_ENUM
+from policy_hooks.policy_solver_utils import STATE_ENUM, OBS_ENUM, ACTION_ENUM, NOISE_ENUM, EE_ENUM, GRIPPER_ENUM
 import policy_hooks.policy_solver_utils as utils
 
 '''
@@ -293,7 +293,8 @@ class LaundryWorldEEAgent(Agent):
 
         joints = model.data.qpos.copy()
 
-        return X, np.r_[X[x_inds[('baxter', 'ee_left_pos')]], X[x_inds[('baxter', 'ee_right_pos')]], X[x_inds[('baxter', 'ee_left_rot')]], X[x_inds[('baxter', 'ee_right_rot')]]], np.r_[X[x_inds[('baxter', 'lGripper')]], X[x_inds[('baxter', 'rGripper')]]], joints
+        return X, np.r_[X[x_inds[('baxter', 'ee_left_pos')]], X[x_inds[('baxter', 'ee_right_pos')]], X[x_inds[('baxter', 'ee_left_rot')]], X[x_inds[('baxter', 'ee_right_rot')]]], \
+               np.r_[X[x_inds[('baxter', 'lGripper')]], X[x_inds[('baxter', 'rGripper')]]], joints
 
     
     def _get_obs(self, cond, t):
@@ -337,7 +338,7 @@ class LaundryWorldEEAgent(Agent):
             for t in range(0, self.T, delta):
                 X, ee_pos, grippers, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
                 im = self.get_obs()
-                obs = np.r_[im, ee_pos]
+                obs = np.r_[im, grippers]
                 U = policy.act(X.copy(), obs, t, noise[t])
                 steps = min(delta, self.T-t)
                 for i in range(steps):

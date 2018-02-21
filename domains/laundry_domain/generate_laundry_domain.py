@@ -57,7 +57,7 @@ pp.add('Washer', [('geom', 'Washer'), ('pose', 'Vector3d'), ('rotation', 'Vector
 pp.add('WasherPose', [('geom', 'Washer'), ('value', 'Vector3d'), ('rotation', 'Vector3d'), ('door', 'Vector1d')])
 pp.add('Obstacle', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Rotation', [('value', 'Vector1d')])
-pp.add('Fabric', [('gripleft', 'Vector3d'), ('gripright', 'Vector3d')])
+# pp.add('Fabric', [('gripleft', 'Vector3d'), ('gripright', 'Vector3d')])
 dom_str += pp.get_str() + '\n\n'
 
 class DerivatedPredicates(object):
@@ -982,7 +982,7 @@ class PutIntoWasher(Action):
         retreat_time = end-5
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
-            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(0, putdown_time)),
+            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterClothGraspValid ?ee_left ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(putdown_time,  end)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(0,  putdown_time-1)),

@@ -801,9 +801,12 @@ class BaxterObstructsWasher(BaxterObstructs):
         washer_door_pos = washer_pos.flatten()
         washer_door_pos[0] += -.425 + np.sin(x[-1])*.325
         washer_door_pos[1] += .325 - np.cos(x[-1])*.325
-        washer_body.set_pose(washer_pos-[[0.1],[0],[0]], washer_rot)
-        washer_door.set_pose(washer_door_pos, [x[-1], np.pi/2, 0])
-        washer_handle.set_pose(washer_door_pos+[0,0,0.4])
+        rot = washer_rot[0]
+        x_offset = np.sin(rot)*0.1
+        y_offset = -np.cos(rot)*0.1
+        washer_body.set_pose(washer_pos-[[x_offset],[y_offset],[0]], washer_rot)
+        # washer_door.set_pose(washer_door_pos, [x[-1], np.pi/2, 0])
+        # washer_handle.set_pose(washer_door_pos+[0,0,0.4])
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == washer_body.env_body.GetEnv()

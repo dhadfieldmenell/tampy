@@ -136,7 +136,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 12,
+    'num_samples': 6,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': True,

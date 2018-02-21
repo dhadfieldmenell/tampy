@@ -312,7 +312,7 @@ def get_random_initial_cloth_pick_state(plan, num_cloths):
     actions = [4*next_cloth, 4*next_cloth+3]
     start_t = plan.actions[actions[0]].active_timesteps[0]
 
-    regions = [[[0.3, 0.5], [0.65, 0.85]], [[0.65, 0.85], [0.45, 0.7]], [[0.25, 0.45], [0.9, 1.1]], [[0.5, 0.65], [0.75, 0.95]]]
+    regions = [[[0.3, 0.5], [0.65, 0.85]], [[0.65, 0.85], [0.45, 0.7]], [[0.25, 0.45], [0.9, 1.0]], [[0.5, 0.65], [0.75, 0.95]]]
 
     while not success:
         print 'Searching for initial configuration...'

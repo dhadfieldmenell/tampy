@@ -1206,6 +1206,10 @@ class TestBasketDomain(unittest.TestCase):
         act_num += 1
         ll_plan_str.append('{0}: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN_0 OPEN_DOOR_EE_APPROACH_0 OPEN_DOOR_EE_RETREAT_0 OPEN_DOOR_END_0 WASHER_CLOSE_POSE_0 WASHER_OPEN_POSE_0 \n'.format(act_num))
         act_num += 1
+        ll_plan_str.append('{0}: MOVETO BAXTER OPEN_DOOR_END_0 CLOSE_DOOR_BEGIN_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN_0 CLOSE_DOOR_EE_APPROACH_0 CLOSE_DOOR_EE_RETREAT_0 CLOSE_DOOR_END_0 WASHER_OPEN_POSE_0 WASHER_CLOSE_POSE_0 \n'.format(act_num))
+        act_num += 1
         plan = hls.get_plan(ll_plan_str, domain, problem)
         plan.params['washer'].door[0, 0] = 0
         print "solving basket domain problem..."
@@ -1324,6 +1328,7 @@ class TestBasketDomain(unittest.TestCase):
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        import ipdb; ipdb.set_trace()
         if result:
             result = solver.traj_smoother(plan, callback = None)
         else: 
