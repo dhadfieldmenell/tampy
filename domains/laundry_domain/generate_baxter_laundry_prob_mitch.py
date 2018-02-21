@@ -63,6 +63,7 @@ REGION4 = [-np.pi/2]
 cloth_init_poses = np.repeat(np.array([[0.615, 0, 0.615]]), NUM_CLOTH, axis = 0) #hardcoded
 cloth_init_poses = cloth_init_poses.tolist()
 
+
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
     s += "(geom {})".format(name)
@@ -115,6 +116,7 @@ def main():
         s += "Robot (name baxter); "
         for i in range(NUM_CLOTH):
             s += "Cloth (name {}); ".format("cloth{0}".format(i))
+            s += "ClothTarget (name {}); ".format("cloth_init_target_{0}".format(i))
 
         for i in range(NUM_SYMBOLS):
             s += "EEPose (name {}); ".format("cg_ee_{0}".format(i))
@@ -172,6 +174,11 @@ def main():
             s += "(geom cloth{0}), ".format(i)
             s += "(pose cloth{0} {1}), ".format(i, cloth_init_poses[i])
             s += "(rotation cloth{0} {1}), ".format(i, CLOTH_ROT)
+            s += "(value cloth_init_target_{0} {1}), ".format(i, cloth_init_poses[i])
+            s += "(rotation cloth_init_target_{0} {1}), ".format(i, CLOTH_ROT)
+
+            # s += "(value cloth_init_target {}), ".format(CLOTH_INIT_POS_1)
+            # s += "(rotation cloth_init_target {}), ".format(CLOTH_INIT_ROT_1)
 
         for i in range(NUM_SYMBOLS):
             s += get_undefined_symbol('cloth_target_end_{0}'.format(i))
