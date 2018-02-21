@@ -149,7 +149,7 @@ class TestBasketDomain(unittest.TestCase):
         '5: ROTATE BAXTER CLOTH_PUTDOWN_END_0 ROBOT_REGION_3_POSE_0 REGION3',
         '6: MOVETO BAXTER ROBOT_REGION_3_POSE_0 ROBOT_INIT_POSE',
         ]
-
+        
         plan = hls.get_plan(plan_str, domain, problem)
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
@@ -166,7 +166,7 @@ class TestBasketDomain(unittest.TestCase):
 
         print "Saving current plan to file cloth_pickup_putdown.hdf5..."
 
-        # serializer.write_plan_to_hdf5("cloth_pickup_putdown.hdf5", plan)
+        serializer.write_plan_to_hdf5("cloth_pickup_putdown.hdf5", plan)
         self.assertTrue(result)
 
     def test_cloth_in_out_washer_plan(self):
@@ -202,7 +202,7 @@ class TestBasketDomain(unittest.TestCase):
         end = time.time()
         print "Planning finished within {}s, displaying failed predicates...".format(end - start)
 
-        print "Saving current plan to file cloth_pickup_putdown.hdf5..."
+        print "Saving current plan to file cloth_in_out_washer.hdf5..."
 
-        # serializer.write_plan_to_hdf5("cloth_pickup_putdown.hdf5", plan)
+        serializer.write_plan_to_hdf5("cloth_in_out_washer.hdf5", plan)
         self.assertTrue(result)
