@@ -9,7 +9,7 @@ from core.util_classes.plan_hdf5_serialization import PlanDeserializer
 rospy.init_node('cloth_pickup_putdown_plan')
 
 pd = PlanDeserializer()
-plan = pd.read_from_hdf5('cloth_in_out_washer.hdf5')
+plan = pd.read_from_hdf5('cloth_pickup_putdown.hdf5')
 
 rotate_control = RotateControl()
 trajectory_control = TrajectoryController()

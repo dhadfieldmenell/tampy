@@ -1284,8 +1284,8 @@ def get_random_initial_pick_place_state(plan, num_cloths):
     #     return get_random_initial_cloth_pick_state(plan, num_cloths)
     # else:
     #     return get_random_initial_cloth_place_state(plan, num_cloths)
-    # return get_random_4_cloth_pick_state(plan)
-    return get_random_initial_cloth_pick_state(plan, num_cloths)
+    return get_random_4_cloth_pick_state(plan)
+    # return get_random_initial_cloth_pick_state(plan, num_cloths)
 
 def state_vector_value(vec, plan, param_name, attr):
     return vec[plan.state_inds[param_name, attr]]

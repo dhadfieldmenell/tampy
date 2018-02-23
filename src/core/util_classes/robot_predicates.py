@@ -870,11 +870,15 @@ class PosePredicate(ExprPredicate):
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
         r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
         rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
+        # rel_pt = np.array([0, 2*const.BASKET_NARROW_OFFSET,0])
         l_pos_val = self.rel_pos_error_f(r_ee_trans, l_ee_trans, rel_pt)
         rel_pt = np.array([0,-2*const.BASKET_OFFSET,0])
+        # rel_pt = np.array([0, -2*const.BASKET_NARROW_OFFSET,0])
         r_pos_val = self.rel_pos_error_f(l_ee_trans, r_ee_trans, rel_pt)
         rel_pt = np.array([const.BASKET_OFFSET,0,0])
+        # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
         obj_pos_val = self.rel_pos_error_f(obj_trans, l_ee_trans, rel_pt)
+        # import ipdb; ipdb.set_trace()
         return np.vstack([l_pos_val, r_pos_val, obj_pos_val])
 
     #@profile
@@ -899,6 +903,7 @@ class PosePredicate(ExprPredicate):
         r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
         # left_arm_focused
         rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
+        # rel_pt = np.array([0,2*const.BASKET_NARROW_OFFSET,0])
         robot_pos = l_ee_trans[:3, 3]
         obj_pos = np.dot(r_ee_trans, np.r_[rel_pt, 1])[:3]
         l_arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in l_arm_joints]).T.copy()
@@ -907,6 +912,7 @@ class PosePredicate(ExprPredicate):
         l_pos_jac = np.hstack([l_arm_jac, np.zeros((3,1)), r_arm_jac, np.zeros((3, 8))])
         # right_arm_focused
         rel_pt = np.array([0,-2*const.BASKET_OFFSET,0])
+        # rel_pt = np.array([0,-2*const.BASKET_NARROW_OFFSET,0])
         robot_pos = r_ee_trans[:3, 3]
         obj_pos = np.dot(l_ee_trans, np.r_[rel_pt, 1])[:3]
         r_arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in r_arm_joints]).T.copy()
@@ -919,6 +925,7 @@ class PosePredicate(ExprPredicate):
         obj_body.set_pose(x[-6: -3], x[-3:])
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
         rel_pt = np.array([const.BASKET_OFFSET,0,0])
+        # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
         obj_pos_jac = self.rel_pos_error_jac(obj_trans, l_ee_trans, axises, arm_joints, rel_pt)
 
         return np.vstack([l_pos_jac, r_pos_jac, obj_pos_jac])
@@ -932,6 +939,7 @@ class PosePredicate(ExprPredicate):
             Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
         """
         offset = np.array([[0, 0, -1], [0, 0, -1], [0, 0, -1]])
+        # offset = np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         self.arm = "left"
