@@ -73,13 +73,15 @@ pixels_per_cm = 2.3
 cloth_net_mean = [124.45687032, 129.73329028, 101.46781862]
 cloth_net_std = [68.81949858, 72.06266253, 80.67131097]
 
-basket_net_mean = 0.16303136
-basket_net_std = 0.41344904
-# basket_net_mean = 0.22616168401559661
-# basket_net_std = 0.45632206432219746
+# basket_net_mean = 0.16303136
+# basket_net_std = 0.41344904
+basket_net_mean = 0.311865
+basket_net_std = 0.5426525
 
-basket_net_ul = 1.35
-basket_net_ll = 1
+# basket_net_ul = 1.35
+# basket_net_ll = 1
+basket_net_ul = 1.45
+basket_net_ll = 1.05
 
 # Used to match depth images to simulated images
 basket_net_bounds = []
@@ -95,7 +97,7 @@ basket_far_rot = [np.pi/4, 0, np.pi/2]
 # basket_far_rot = [np.pi/4, 0, np.pi/2]
 
 # basket_net_zero_pos = [0.53, 0.08, np.pi/2]
-basket_net_zero_pos = [0.38, 0.03, np.pi/2]
+basket_net_zero_pos = [0.535, 0.11, np.pi/2]
 
 # cloth_grid_spacing = 0.15 # From center to center is 0.2 + 0.15 + 0.2
 

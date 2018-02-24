@@ -12,7 +12,7 @@ from sensor_msgs.msg import Image
 import ros_interface.utils as utils
 
 
-TRAINED_MODEL = 'ros_interface/basket/Feb6TrainedBasket.h5'
+TRAINED_MODEL = 'ros_interface/basket/Feb22TrainedBasketSim.h5'
 
 class BasketPredict:
     def __init__(self):

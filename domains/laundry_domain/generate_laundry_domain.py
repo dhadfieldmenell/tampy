@@ -205,6 +205,7 @@ class Move(Action):
             ('(forall (?basket - Basket) (BaxterBasketLevel ?basket))', '{}:{}'.format(0, end)),
             ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterWithinJointLimit ?robot)', '{}:{}'.format(0, end)),
+            ('(BaxterOpenGrippers ?robot)', '{}:{}'.format(1, end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\

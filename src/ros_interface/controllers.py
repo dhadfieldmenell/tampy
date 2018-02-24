@@ -47,6 +47,9 @@ class TrajectoryController(object):
         right_target = baxter_parameter.rArmPose[:, ts]
         left_gripper_open = baxter_parameter.lGripper[:, ts] > const.GRIPPER_CLOSE_VALUE
         right_gripper_open = baxter_parameter.rGripper[:, ts] > const.GRIPPER_CLOSE_VALUE
+        if np.any(np.isnan(left_target)) or np.any(np.isnan(right_target)):
+            print "Experienced NaN in controller."
+            return False
 
         self.left_grip.open()  if left_gripper_open else self.left_grip.close()
         self.right_grip.open() if right_gripper_open else self.right_grip.close()
@@ -67,8 +70,6 @@ class TrajectoryController(object):
         self.right.set_joint_position_speed(0.05)
 
         attempt = 0.0
-        if np.any(np.isnan(left_target)) or np.any(np.isnan(right_target)):
-            print "Experienced NaN in controller."
         while (np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits)) and use_right and attempt <= int(ROS_RATE * 10):
             next_left_target = left_target # current_left + (left_target - current_left) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_left_err
             next_right_target = right_target # current_right + (right_target - current_right) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_right_err
