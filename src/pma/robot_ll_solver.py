@@ -320,7 +320,7 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
-                    import ipdb; ipdb.set_trace()
+                    # import ipdb; ipdb.set_trace()
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
@@ -364,7 +364,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
                 
-                random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 3.0, 0.5], [0.15, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
 
@@ -449,7 +449,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 3.0, 0.0], [0.15, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
@@ -494,11 +494,12 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[3].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.15])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], [0.01, 0.01, 0.3])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
+                    # import ipdb; ipdb.set_trace()
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
@@ -578,7 +579,7 @@ class RobotLLSolver(LLSolver):
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
-                random_dir = np.multiply(np.random.sample(3) - [0.5,1.0,-2.5], [0.01, 0.01, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-3.5], [0.1, 0.1, 0.1])
                 ee_left = target_pos + random_dir
 
                 # old_pose = act.params[3].value[:,0]
@@ -866,6 +867,8 @@ class RobotLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
+        if priority == MAX_PRIORITY:
+            success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
         self._update_ll_params()
 
         if DEBUG: assert not plan.has_nan(active_ts)

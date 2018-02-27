@@ -1309,13 +1309,17 @@ class TestBasketDomain(unittest.TestCase):
         plan_str = [
         '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0',
         '1: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0',
-        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH0',
-        '3: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0',
+        '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0',
+        '3: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE CLOTH_PUTDOWN_BEGIN_0 CLOTH0',
+        '4: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0',
         ]
 
         plan = hls.get_plan(plan_str, domain, problem)
-        plan.params['cloth0'].pose[:,:30] = [[0.6], [0.4], [0.65]]
-        plan.params['cloth_target_begin_0'].value[:,:] = [[0.6], [0.4], [0.65]]
+        plan.params['cloth0'].pose[:,:30] = [[0.55], [0.3], [0.65]]
+        plan.params['cloth_target_begin_0'].value[:,:] = [[0.55], [0.3], [0.65]]
+        plan.params['basket'].pose[:,:] = plan.params['basket_near_target'].value[:,:]
+        plan.params['basket'].rotation[:,:] = plan.params['basket_near_target'].rotation[:,:]
+
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()

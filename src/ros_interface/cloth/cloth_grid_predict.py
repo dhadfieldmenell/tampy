@@ -19,7 +19,8 @@ import ros_interface.utils as utils
 
 
 # TRAINED_MODEL = 'ros_interface/cloth/clothGridEvalJan4.h5'
-TRAINED_MODEL = 'ros_interface/cloth/feb7TrainedClothGrid.h5'
+# TRAINED_MODEL = 'ros_interface/cloth/feb7TrainedClothGrid.h5'
+TRAINED_MODEL = 'ros_interface/cloth/Feb24TrainedClothGrid.h5'
 
 # def get_session():
 #     with tf.device("/cpu:0"):
@@ -60,7 +61,7 @@ class ClothGridPredict:
                 region = (region - utils.cloth_net_mean) / utils.cloth_net_std
                 prediction = self.net.predict(region)
 
-                if prediction > 0.85:
+                if prediction > 0.9:
                     ref = utils.cloth_grid_ref
                     disp = np.array(ref[0] - loc[0]) / utils.pixels_per_cm
                     locs.append(((ref[1] + disp) / 100.0, loc[1]))

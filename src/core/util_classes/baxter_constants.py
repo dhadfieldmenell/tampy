@@ -55,7 +55,7 @@ GRIPPER_CLOSE_VALUE = 0.015
 BASKET_OFFSET = 0.317
 
 # How far to go into the washer
-WASHER_DEPTH_OFFSET = -0.15
+WASHER_DEPTH_OFFSET = -0.2
 
 # Added height from rotor base
 ROTOR_BASE_HEIGHT = 0.12

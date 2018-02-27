@@ -24,8 +24,8 @@ path = './'
 images_file = 'data/shuffledClothGridImages.npy'
 labels_file = 'data/shuffledClothGridLabels.npy'
 
-im_height = 15
-im_width = 15
+im_height = 20
+im_width = 20
 
 input_images = np.load(path+images_file)
 labels = np.load(path+labels_file)
@@ -105,14 +105,15 @@ inputs = Input(shape=(im_height, im_width, 3))
 # base_model = InceptionV3(input_tensor=x, weights='imagenet', include_top=False)
 # base_model = InceptionV3(input_tensor=x, weights=None, include_top=False)
 # x = base_model.output
-# x = GlobalAveragePooling2D()(inputs)
-x = Flatten()(inputs)
+x = Conv2D(2, 3, activation='relu')(inputs)
+x = GlobalAveragePooling2D()(x)
+# x = Flatten()(inputs)
 # x = GaussianNoise(0.001)(x)
 # let's add a fully-connected layer
 # x = Dense(1024, activation='relu', kernel_regularizer=l2(1e-4))(x)
-x = Dense(32, activation='relu')(x)
+# x = Dense(64, activation='relu')(x)
 # x = Dense(1000, activation='relu')(x)
-# x = Dense(500, activation='relu')(x)
+# x = Dense(32, activation='relu')(x)
 x = Dense(32, activation='relu')(x)
 predictions = Dense(1, activation=None)(x)
 
@@ -129,7 +130,7 @@ model = Model(inputs=inputs, outputs=predictions)
 # model.compile(optimizer=RMSprop(5e-8), loss='mean_squared_error')
 model.compile(optimizer=Adam(1e-3), loss='mean_absolute_error')
 # model.compile(optimizer=Nadam(1e-5), loss='mean_absolute_error')
-batch_size = 10
+batch_size = 50
 epoch = 1000
 
 

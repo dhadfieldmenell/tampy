@@ -40,14 +40,23 @@ OPEN_DOOR_SCAN_RARM = [-np.pi/4, -0.8436, -0.09, 0.91, 0.043, 1.5, -0.05]
 OPEN_DOOR_SCAN_LARM = [-0.9, -1.40654414, 2.34422276, 2.1106438, 1.41479777, -1.50970774, -1.14848834]
 # OPEN_DOOR_SCAN_LARM = [1.7=,  0.50188187, -2.66683967, 2.37502706, -1.3456904, -1.2051367,  2.8246885]
 
+# LOAD_WASHER_INTERMEDIATE_LARM = [0.8, 0.62943625, -1.44191234,  2.34674592, -1.2537245, -0.35386465, -2.92138512]
+# LOAD_WASHER_INTERMEDIATE_LARM = [0.4, -0.706814, -0.92032024, 2.43696462, -1.8888946, 0.92580404, -3.01834089]
+LOAD_WASHER_INTERMEDIATE_LARM = [ 1.2, -1.08151176, -1.77326592,  2.35781058,  1.49005473,       -0.82626846, -0.70849067]
+# LOAD_WASHER_INTERMEDIATE_LARM = [ 1., -0.27609405, -1.85094945,  2.37489925, -0.46382826,        0.15948452,  1.64496354]
+# LOAD_WASHER_INTERMEDIATE_LARM = [-1.3, -1.87505533,  1.26395478,  2.40366208, -1.38750247,        1.3399258 ,  2.29505724]
+# LOAD_WASHER_INTERMEDIATE_LARM = [ 1., -1.89881202, -1.24804102,  2.40897135, -1.9547075 ,        1.59862157,  2.25969824]
+
+PUT_INTO_WASHER_LARM =  [1.3, -0.49416386, -0.73767691,  2.44375669,  1.22131026, -1.01131956,  0.39567399]
+
 BASKET_SCAN_LARM = [0.75, -0.75, 0, 0, 0, 0, 0]
 BASKET_SCAN_RARM = [-0.75, -0.75, 0, 0, 0, 0, 0]
 
 # init basket pose
-BASKET_NEAR_POS = utils.basket_near_pos
-BASKET_FAR_POS = utils.basket_far_pos
-BASKET_NEAR_ROT = utils.basket_near_rot
-BASKET_FAR_ROT = utils.basket_far_rot
+BASKET_NEAR_POS = utils.basket_near_pos.tolist()
+BASKET_FAR_POS = utils.basket_far_pos.tolist()
+BASKET_NEAR_ROT = utils.basket_near_rot.tolist()
+BASKET_FAR_ROT = utils.basket_far_rot.tolist()
 
 CLOTH_ROT = [0, 0, 0]
 
@@ -60,16 +69,21 @@ ROBOT_DIST_FROM_TABLE = 0.05
 WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.97, 1.0, 0.97-0.375+0.65/2]
 # WASHER_INIT_ROT = [np.pi/2,0,0]
-WASHER_INIT_POS = [0.2, 1.42, 0.97-0.375+0.65/2]
+WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
 WASHER_INIT_ROT = [5*np.pi/6,0,0]
 
 WASHER_OPEN_DOOR = [-np.pi/2]
 WASHER_CLOSE_DOOR = [0.0]
 WASHER_PUSH_DOOR = [-np.pi/6]
 
+# REGION1 = [np.pi/4]
+# REGION2 = [0]
+# REGION3 = [-np.pi/4]
+# REGION4 = [-np.pi/2]
+
 REGION1 = [np.pi/4]
 REGION2 = [0]
-REGION3 = [-np.pi/4]
+REGION3 = [-(np.pi*40)/180.0]
 REGION4 = [-np.pi/2]
 
 cloth_init_poses = np.ones((NUM_CLOTH, 3)) * 0.615
@@ -173,6 +187,8 @@ def main():
         s += "RobotPose (name {}); ".format("basket_scan_pose_2")
         s += "RobotPose (name {}); ".format("basket_scan_pose_3")
         s += "RobotPose (name {}); ".format("basket_scan_pose_4")
+        s += "RobotPose (name {}); ".format("load_washer_intermediate_pose")
+        s += "RobotPose (name {}); ".format("put_into_washer_begin")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
         s += "BasketTarget (name {}); ".format("basket_near_target")
@@ -249,6 +265,8 @@ def main():
         s += get_robot_pose_str('basket_scan_pose_2', BASKET_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION2)
         s += get_robot_pose_str('basket_scan_pose_3', BASKET_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION3)
         s += get_robot_pose_str('basket_scan_pose_4', BASKET_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION4)
+        s += get_robot_pose_str('load_washer_intermediate_pose', LOAD_WASHER_INTERMEDIATE_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('put_into_washer_begin', PUT_INTO_WASHER_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)

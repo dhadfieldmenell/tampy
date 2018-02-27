@@ -782,9 +782,9 @@ class BaxterObstructsWasher(BaxterObstructs):
         self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.325, .325, .325])),
                                                                         OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
                                                                         OpenRAVEBody(self._env, 'obstruct_handle', Can(.02, .15))]
-        self._param_to_body[params[3]][0].set_pose([2,2,2])
-        self._param_to_body[params[3]][1].set_pose([2,2,2])
-        self._param_to_body[params[3]][2].set_pose([2,2,2])
+        self._param_to_body[params[3]][0].set_pose([0,0,0])
+        self._param_to_body[params[3]][1].set_pose([0,0,0])
+        self._param_to_body[params[3]][2].set_pose([0,0,0])
 
     def robot_obj_collision(self, x):
         # Parse the pose value
@@ -1172,6 +1172,7 @@ class BaxterCollidesWasher(BaxterRCollides):
 
     def resample(self, negated, t, plan):
         # return None, None
+        import ipdb; ipdb.set_trace()
         if const.PRODUCTION:
             print "I need to make sure I don't hit the washer."
         else:
@@ -1459,17 +1460,29 @@ class BaxterInGripper(robot_predicates.InGripper):
     def stacked_grad(self, x):
         return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
 
-class BaxterInGripperLeft(BaxterInGripper):
+class BaxterGripperAtLeft(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "left"
-        self.eval_dim = 4
+        self.eval_dim = 6
         super(BaxterInGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
 
-class BaxterInGripperRight(BaxterInGripper):
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_lock_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_lock_jac(x)])
+
+class BaxterGripperAtRight(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "right"
-        self.eval_dim = 4
+        self.eval_dim = 6
         super(BaxterInGripperRight, self).__init__(name, params, expected_param_types, env, debug)
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_lock_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_lock_jac(x)])
 
 class BaxterBasketInGripper(BaxterInGripper):
 
@@ -1823,7 +1836,7 @@ class BaxterClothTargetInWasher(ExprPredicate):
         self.washer_pose = params[1]
         A = np.c_[np.eye(self.attr_dim/2), -np.eye(self.attr_dim/2)]
         b = np.zeros((self.attr_dim/2,1))
-        val = np.array([[const.WASHER_DEPTH_OFFSET/2], [np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2], [-.17]])
+        val = np.array([[const.WASHER_DEPTH_OFFSET/2], [np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2], [-.16]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(BaxterClothTargetInWasher, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)

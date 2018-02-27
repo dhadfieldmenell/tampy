@@ -31,9 +31,8 @@ cloth_grid_input_dim = 15
 #     ((250, 100), 5),
 # ]
 cloth_grid_coordinates = [
-    ((80, 180), 2),
-    ((120, 130), 2),
-    ((135, 145), 2),
+    ((130, 150), 2),
+    ((110, 140), 2),
     ((190, 200), 2),
     ((60, 270), 2),
     ((60, 360), 2),
@@ -43,16 +42,11 @@ cloth_grid_coordinates = [
     ((120, 380), 3),
     ((250, 595), 4),
     ((285, 595), 4),
-    ((135, 255), 5),
-    ((175, 270), 5),
-    ((135, 310), 5),
-    ((100, 350), 5),
-    ((140, 360), 5),
-    ((170, 500), 6),
-    ((125, 475), 6),
-    ((190, 540), 6),
-    ((140, 440), 6),
-    ((220, 510), 6),
+    ((140, 250), 5),
+    ((135, 280), 5),
+    ((180, 520), 6),
+    ((150, 470), 6),
+    ((210, 560), 6),
 ]
 
 washer_im_locs = [((185, 185), (0.14, 1.19, 0.71)), # -> CENTER FRONT
@@ -75,12 +69,16 @@ cloth_net_std = [68.81949858, 72.06266253, 80.67131097]
 
 # basket_net_mean = 0.16303136
 # basket_net_std = 0.41344904
-basket_net_mean = 0.311865
-basket_net_std = 0.5426525
+# basket_net_mean = 0.311865
+# basket_net_std = 0.5426525
+basket_net_mean = 0.1102060987658177
+basket_net_std = 0.33788160444680088
 
 # basket_net_ul = 1.35
-# basket_net_ll = 1
-basket_net_ul = 1.45
+# # basket_net_ll = 1
+# basket_net_ul = 1.4
+# basket_net_ll = 1.05
+basket_net_ul = 1.25
 basket_net_ll = 1.05
 
 # Used to match depth images to simulated images
@@ -88,16 +86,17 @@ basket_net_bounds = []
 
 basket_im_dims = [144, 256]
 
-basket_near_pos = [0.65, 0.3,  0.875]
-# basket_near_pos = [0.6, 0.5,  0.875]
-basket_far_pos = [0.5, -0.5,  0.875]
-basket_near_rot = [2*np.pi/3, 0, np.pi/2]
-basket_far_rot = [np.pi/4, 0, np.pi/2]
+# basket_near_pos = np.array([0.65, 0.35,  0.875])
+basket_near_pos = np.array([0.6, 0.2,  0.875])
+basket_far_pos = np.array([0.5, -0.5,  0.875])
+basket_near_rot = np.array([2*np.pi/3, 0, np.pi/2])
+# basket_near_rot = np.array([np.pi/2, 0, np.pi/2])
+basket_far_rot = np.array([np.pi/4, 0, np.pi/2])
 # basket_near_rot = [-np.pi/4, 0, np.pi/2]
 # basket_far_rot = [np.pi/4, 0, np.pi/2]
 
 # basket_net_zero_pos = [0.53, 0.08, np.pi/2]
-basket_net_zero_pos = [0.535, 0.11, np.pi/2]
+basket_net_zero_pos = [0.425, 0.08, np.pi/2]
 
 # cloth_grid_spacing = 0.15 # From center to center is 0.2 + 0.15 + 0.2
 

@@ -1372,7 +1372,7 @@ def resample_basket_obstructs_holding(pred, negated, t, plan):
 
     while attempt < 50 and (len(pred._cc.BodyVsBody(body, obs)) > 0 or len(pred._cc.BodyVsBody(held_env_body, obs)) > 0 ):
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5,-0.5,0.25], const.RESAMPLE_FACTOR)
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5,-0.5,0.5], [0.02, 0.02, 0.25])
         ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/2, 0], "{}_arm".format(arm))
         arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, "{}ArmPose".format(arm[0]))[:, action.active_timesteps[0]])
         if arm_pose is None:
@@ -1489,9 +1489,9 @@ def resample_washer_obstructs(pred, negated, t, plan):
     pos_rot = OpenRAVEBody.obj_pose_from_transform(robot_trans)
     ee_pos, ee_rot = pos_rot[:3], pos_rot[3:]
     attempt, step = 0, 1
-    while attempt < 50 and len(pred._cc.BodyVsBody(body, obs)) > 0:
+    while attempt < 5 and len(pred._cc.BodyVsBody(body, obs)) > 0:
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-2, -1, -0.25], [0.05, 0.01, 0.01])
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-2, -1, 0.25], [0.05, 0.03, 0.02])
         ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/4, 0], "{}_arm".format(arm))
         arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, "{}ArmPose".format(arm[0]))[:, action.active_timesteps[0]])
         if arm_pose is None:
@@ -1569,7 +1569,7 @@ def resample_washer_rcollides(pred, negated, t, plan):
     pos_rot = OpenRAVEBody.obj_pose_from_transform(robot_trans)
     ee_pos, ee_rot = pos_rot[:3], pos_rot[3:]
     attempt, step = 0, 1
-    while attempt < 50 and len(pred._cc.BodyVsBody(body, obs)) > 0:
+    while attempt < 5 and len(pred._cc.BodyVsBody(body, obs)) > 0:
         attempt += 1
         target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-1, -0.5, -0.5], [0.05, 0.025, 0.025])
         ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/4, 0], "{}_arm".format(arm))
