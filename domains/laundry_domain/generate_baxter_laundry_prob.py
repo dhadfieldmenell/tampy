@@ -86,6 +86,15 @@ REGION2 = [0]
 REGION3 = [-(np.pi*40)/180.0]
 REGION4 = [-np.pi/2]
 
+EEPOSE_PUT_INTO_WASHER_POS_1 = [0.05, 1.0, 0.75]
+EEPOSE_PUT_INTO_WASHER_ROT_1 = [np.pi/3, np.pi/12, 0]
+
+EEPOSE_PUT_INTO_WASHER_POS_2 = [0.12, 1.2, 0.9]
+EEPOSE_PUT_INTO_WASHER_ROT_2 = [np.pi/3, np.pi/12, 0]
+
+EEPOSE_PUT_INTO_WASHER_POS_3 = [0.15, 1.3, 0.8]
+EEPOSE_PUT_INTO_WASHER_ROT_3 = [np.pi/3, np.pi/12, 0]
+
 cloth_init_poses = np.ones((NUM_CLOTH, 3)) * 0.615
 cloth_init_poses = cloth_init_poses.tolist()
 
@@ -193,6 +202,9 @@ def main():
         s += "Obstacle (name {}); ".format("table")
         s += "BasketTarget (name {}); ".format("basket_near_target")
         s += "BasketTarget (name {}); ".format("basket_far_target")
+        s += "EEPose (name {}); ".format("put_into_washer_ee_1")
+        s += "EEPose (name {}); ".format("put_into_washer_ee_2")
+        s += "EEPose (name {}); ".format("put_into_washer_ee_3")
         s += "Rotation (name {}); ".format("region1")
         s += "Rotation (name {}); ".format("region2")
         s += "Rotation (name {}); ".format("region3")
@@ -272,6 +284,13 @@ def main():
         s += "(value region2 {}), ".format(REGION2)
         s += "(value region3 {}), ".format(REGION3)
         s += "(value region4 {}), ".format(REGION4)
+
+        s += "(value put_into_washer_ee_1 {}), ".format(EEPOSE_PUT_INTO_WASHER_POS_1)
+        s += "(rotation put_into_washer_ee_1 {}), ".format(EEPOSE_PUT_INTO_WASHER_ROT_1)
+        s += "(value put_into_washer_ee_2 {}), ".format(EEPOSE_PUT_INTO_WASHER_POS_2)
+        s += "(rotation put_into_washer_ee_2 {}), ".format(EEPOSE_PUT_INTO_WASHER_ROT_2)
+        s += "(value put_into_washer_ee_3 {}), ".format(EEPOSE_PUT_INTO_WASHER_POS_3)
+        s += "(rotation put_into_washer_ee_3 {}), ".format(EEPOSE_PUT_INTO_WASHER_ROT_3)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_INIT_POS)

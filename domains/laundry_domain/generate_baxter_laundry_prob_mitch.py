@@ -27,11 +27,10 @@ MONITOR_LEFT = [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 MONITOR_RIGHT = [-np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 
 # init basket pose
-BASKET_NEAR_POS = utils.basket_near_pos
-BASKET_FAR_POS = utils.basket_far_pos
-# BASKET_FAR_POS = [2,2,2]
-BASKET_NEAR_ROT = utils.basket_near_rot
-BASKET_FAR_ROT = utils.basket_far_rot
+BASKET_NEAR_POS = utils.basket_near_pos.tolist()
+BASKET_FAR_POS = utils.basket_far_pos.tolist()
+BASKET_NEAR_ROT = utils.basket_near_rot.tolist()
+BASKET_FAR_ROT = utils.basket_far_rot.tolist()
 
 CLOTH_ROT = [0, 0, 0]
 

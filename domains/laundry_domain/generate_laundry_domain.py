@@ -1041,7 +1041,7 @@ class PutIntoWasher(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterWasherAt ?washer ?wp)', '{}:{}'.format(0, end)),
-            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(putdown_time, putdown_time)),
+            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(0, putdown_time)),
             # ('(BaxterClothGraspValid ?ee_left ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(putdown_time,  end)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(0,  putdown_time-1)),
@@ -1396,8 +1396,8 @@ class GrabCornerLeft(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             ('(BaxterGripperAtLeft ?robot ?grasp_point)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
-            ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  end)),
+            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0, grasp_time-1)),
+            ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time, end)),
             ('(forall (?obj - Washer)\
                 (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
@@ -1425,8 +1425,8 @@ class GrabCornerRight(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             ('(BaxterGripperAtRight ?robot ?grasp_point)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterOpenGripperRight ?robot)', '{}:{}'.format(0,  grasp_time-1)),
-            ('(BaxterCloseGripperRight ?robot)', '{}:{}'.format(grasp_time,  end)),
+            ('(BaxterOpenGripperRight ?robot)', '{}:{}'.format(0, grasp_time-1)),
+            ('(BaxterCloseGripperRight ?robot)', '{}:{}'.format(grasp_time, end)),
             ('(forall (?obj - Washer)\
                 (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
@@ -1581,7 +1581,7 @@ class MoveToEEPos(Action):
             ('(forall (?basket - Basket) (BaxterBasketLevel ?basket))', '{}:{}'.format(0, end)),
             ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterWithinJointLimit ?robot)', '{}:{}'.format(0, end)),
-            ('(BaxterOpenGrippers ?robot)', '{}:{}'.format(1, end)),
+            ('(BaxterCloseGrippers ?robot)', '{}:{}'.format(0, end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\
@@ -1590,9 +1590,49 @@ class MoveToEEPos(Action):
             # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
         ]
         self.eff = [\
-            ('(BaxterGripperAtRight ?robot ?ee_left)', '{}:{}'.format(end, end)),
-            ('(BaxterGripperAtLeft ?robot ?ee_right)', '{}:{}'.format(end, end)),
+            ('(BaxterGripperAtRight ?robot ?ee_right)', '{}:{}'.format(end, end)),
+            ('(BaxterGripperAtLeft ?robot ?ee_left)', '{}:{}'.format(end, end)),
             (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
+
+class MoveToEEPosLeft(Action):
+    def __init__(self):
+        self.name = 'moveto_ee_pos_left'
+        self.timesteps = 30
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?ee_left - EEPose ?start - RobotPose ?end - RobotPose)'
+        self.pre = [\
+            ('(forall (?obj - Basket)\
+                (not (BaxterBasketInGripper ?robot ?obj))\
+            )', '{}:{}'.format(0, 0)),
+            ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Basket)\
+                (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasher ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasherDoor ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '{}:{}'.format(0, end-1)),
+            ('(forall (?basket - Basket) (BaxterBasketLevel ?basket))', '{}:{}'.format(0, end)),
+            ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '{}:{}'.format(0, end)),
+            ('(BaxterCloseGrippers ?robot)', '{}:{}'.format(0, end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                ))','{}:{}'.format(0, end)),
+            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
+            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+        ]
+        self.eff = [\
+            ('(BaxterGripperAtLeft ?robot ?ee_left)', '{}:{}'.format(end, end)),
+            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
 
 actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(), 
@@ -1601,7 +1641,8 @@ actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(),
            MoveHoldingBasketWithCloth(), PutdownWithCloth(), GraspWithCloth(),
            Rotate(), RotateHoldingBasket(), RotateHoldingCloth(),
            RotateHoldingBasketWithCloth(), GrabCornerLeft(), GrabCornerRight(), 
-           DragClothLeft(), DragClothBoth(), FoldInHalf(), MoveToEEPos()]
+           DragClothLeft(), DragClothBoth(), FoldInHalf(), MoveToEEPos(),
+           MoveToEEPosLeft()]
 
 for action in actions:
     dom_str += '\n\n'

@@ -702,7 +702,7 @@ class PosePredicate(ExprPredicate):
         return dist_jac
 
     #@profile
-    def ee_rot_check_f(self, x, offset):
+    def ee_rot_check_f(self, x, offset=np.eye(3)):
         """
             This function is used to check whether End Effective pose's rotational axis is parallel to that of robot gripper
 
@@ -1376,6 +1376,22 @@ class InGripper(PosePredicate):
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
+        self.spacial_anchor = True
+
+class GripperAt(PosePredicate):
+    """
+        Format: GripperAt, Robot, EEPose
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        assert len(params) == 2
+        self._env = env
+        self.robot, self.pose = params
+
+        self._param_to_body = {self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom)}
+
+        e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
+        super(GripperAt, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = True
 
 class EEGraspValid(PosePredicate):

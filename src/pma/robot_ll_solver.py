@@ -146,6 +146,20 @@ class RobotLLSolver(LLSolver):
             rs_param = a.params[3]
         elif a.name == 'rotate_holding_cloth':
             rs_param = a.params[3]
+        elif a.name == 'grab_corner_left':
+            rs_param = a.params[-1]
+        elif a.name == 'grab_corner_right':
+            rs_param = a.params[-1]
+        elif a.name == 'drag_cloth_left':
+            rs_param = a.params[-1]
+        elif a.name == 'drag_cloth_both':
+            rs_param = a.params[-1]
+        elif a.name == 'fold_in_half':
+            rs_param = a.params[-1]
+        elif a.name == 'moveto_ee_pos':
+            rs_param = a.params[-1]
+        elif a.name == 'moveto_ee_pos_left':
+            rs_param = a.params[-1]
         else:
             raise NotImplemented
 
@@ -449,7 +463,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [2.0, 3.0, 0.0], [0.15, 0.2, 0.01])
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 3.0, 1.0], [0.15, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
@@ -494,7 +508,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[3].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], [0.01, 0.01, 0.3])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0.1])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
@@ -717,6 +731,257 @@ class RobotLLSolver(LLSolver):
                 r_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
                 robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': init_pos.value.copy()})
 
+            elif next_act != None and next_act.name == 'grab_corner_left':
+                target = next_act.params[1]
+                target_pos = target.value[:, 0]
+                target_rot = target.rotation[:, 0]
+                # if target pose is not initialized, all entry should be 0
+                if np.allclose(target_pos, 0):
+                    target_pos = next_act.params[1].pose[:, start_ts]
+                    target.value = target_pos.reshape((3,1))
+                    target.rotation = next_act.params[1].rotation[:, start_ts].reshape((3,1))
+                    target._free_attrs['value'][:] = 0
+                    target._free_attrs['rotation'][:] = 0
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot, "left_arm")
+                if not len(l_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
+            
+            elif next_act != None and next_act.name == 'grab_corner_right':
+                target = next_act.params[1]
+                target_pos = target.value[:, 0]
+                target_rot = target.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos + random_dir
+
+                r_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot, "right_arm")
+                if not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': old_l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
+            
+            elif next_act != None and next_act.name == 'drag_cloth_left':
+                target = next_act.params[1]
+                target_pos = target.value[:, 0]
+                target_rot = target.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot, "left_arm")
+                if not len(l_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+            
+            elif next_act != None and next_act.name == 'drag_cloth_both':
+                target_left = next_act.params[1]
+                target_pos_left = target_left.value[:, 0]
+                target_rot_left = target_left.rotation[:, 0]
+                target_right = next_act.params[4]
+                target_pos_right = target_right.value[:, 0]
+                target_rot_right = target_right.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos_left + random_dir
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_right = target_pos_right + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot_left, "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, target_rot_right, "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+            
+            elif next_act != None and next_act.name == 'fold_in_half':
+                target_left = next_act.params[1]
+                target_pos_left = target_left.value[:, 0]
+                target_rot_left = target_left.rotation[:, 0]
+                target_right = next_act.params[5]
+                target_pos_right = target_right.value[:, 0]
+                target_rot_right = target_right.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos_left + random_dir
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_right = target_pos_right + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot_left, "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, target_rot_right, "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+            
+            elif act.name == 'grab_corner_left':
+                target = act.params[2]
+                target_pos = target.value[:, 0]
+                target_rot = target.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot, "left_arm")
+                if not len(l_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+            
+            elif act.name == 'grab_corner_right':
+                target = act.params[2]
+                target_pos = target.value[:, 0]
+                target_rot = target.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos + random_dir
+
+                r_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot, "right_arm")
+                if not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': old_l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+            
+            elif act.name == 'drag_cloth_left':
+                target = act.params[3]
+                target_pos = target.value[:, 0]
+                target_rot = target.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot, "left_arm")
+                if not len(l_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
+            
+            elif act.name == 'drag_cloth_both':
+                target_left = act.params[3]
+                target_pos_left = target_left.value[:, 0]
+                target_rot_left = target_left.rotation[:, 0]
+                target_right = act.params[6]
+                target_pos_right = target_right.value[:, 0]
+                target_rot_right = target_right.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos_left + random_dir
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_right = target_pos_right + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot_left, "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, target_rot_right, "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
+            
+            elif act.name == 'fold_in_half':
+                target_left = act.params[4]
+                target_pos_left = target_left.value[:, 0]
+                target_rot_left = target_left.rotation[:, 0]
+                target_right = act.params[8]
+                target_pos_right = target_right.value[:, 0]
+                target_rot_right = target_right.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos_left + random_dir
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_right = target_pos_right + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot_left, "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, target_rot_right, "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
+            
+            elif act.name == 'moveto_ee_pos':
+                target_left = act.params[1]
+                target_pos_left = target_left.value[:, 0]
+                target_rot_left = target_left.rotation[:, 0]
+                target_right = act.params[2]
+                target_pos_right = target_right.value[:, 0]
+                target_rot_right = target_right.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos_left + random_dir
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_right = target_pos_right + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot_left, "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, target_rot_right, "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+            
+            elif act.name == 'moveto_ee_pos_left':
+                target = act.params[1]
+                target_pos = target.value[:, 0]
+                target_rot = target.rotation[:, 0]
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.005, 0.005, 0.05])
+                ee_left = target_pos + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot, "left_arm")
+                if not len(l_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+            
             else:
                 raise NotImplementedError
         if not robot_pose:

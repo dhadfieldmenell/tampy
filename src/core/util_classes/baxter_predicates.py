@@ -779,9 +779,10 @@ class BaxterObstructsWasher(BaxterObstructs):
         # self._cc = ctrajoptpy.GetCollisionChecker(self.test_env)
         # self._param_to_body = {}
         # self._param_to_body[params[0]] = OpenRAVEBody(self._env, 'baxter_obstruct', params[0].geom)
+        self.true_washer_body = self._param_to_body[params[3]]
         self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.325, .325, .325])),
-                                                                        OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
-                                                                        OpenRAVEBody(self._env, 'obstruct_handle', Can(.02, .15))]
+                                          OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
+                                          OpenRAVEBody(self._env, 'obstruct_handle', Can(.02, .15))]
         self._param_to_body[params[3]][0].set_pose([0,0,0])
         self._param_to_body[params[3]][1].set_pose([0,0,0])
         self._param_to_body[params[3]][2].set_pose([0,0,0])
@@ -803,16 +804,18 @@ class BaxterObstructsWasher(BaxterObstructs):
         washer_body = self._param_to_body[washer][0]
         washer_door = self._param_to_body[washer][1]
         washer_handle = self._param_to_body[washer][2]
+
         washer_pos, washer_rot = x[-7:-4], x[-4:-1]
-        washer_door_pos = washer_pos.flatten()
-        washer_door_pos[0] += -.425 + np.sin(x[-1])*.325
-        washer_door_pos[1] += .325 - np.cos(x[-1])*.325
+        self.true_washer_body.set_pose(washer_pos, washer_rot)
+        self.true_washer_body.set_dof({'door': x[-1]})
         rot = washer_rot[0]
         x_offset = np.sin(rot)*0.1
         y_offset = -np.cos(rot)*0.1
         washer_body.set_pose(washer_pos-[[x_offset],[y_offset],[0]], washer_rot)
-        # washer_door.set_pose(washer_door_pos, [x[-1], np.pi/2, 0])
-        # washer_handle.set_pose(washer_door_pos+[0,0,0.4])
+        door_trans = self.true_washer_body.env_body.GetLink('washer_door').GetTransform()
+        washer_door_pos = door_trans[:3,3]
+        washer_door.set_pose(washer_door_pos, [washer_rot[0], np.pi/2, 0])
+        washer_handle.set_pose(washer_door_pos+[0,0,0.4])
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == washer_body.env_body.GetEnv()
@@ -826,9 +829,9 @@ class BaxterObstructsWasher(BaxterObstructs):
         self.set_active_dof_inds(robot_body, reset=True)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
-        washer_body.set_pose([2,2,2])
-        washer_door.set_pose([2,2,2])
-        washer_handle.set_pose([2,2,2])
+        washer_body.set_pose([0,0,0])
+        washer_door.set_pose([0,0,0])
+        washer_handle.set_pose([0,0,0])
         return col_val, col_jac
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
@@ -1110,7 +1113,7 @@ class BaxterCollidesWasher(BaxterRCollides):
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
-                                 (params[1], list(ATTRMAP[params[1]._type][:-1]))])
+                                 (params[1], list(ATTRMAP[params[1]._type]))])
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = 5e-2 # const.RCOLLIDES_DSAFE
 
@@ -1129,8 +1132,9 @@ class BaxterCollidesWasher(BaxterRCollides):
 
         obj = self.params[self.ind1]
         obj_body = self._param_to_body[obj]
-        washer_pos, washer_rot = x[-6:-3], x[-3:]
+        washer_pos, washer_rot = x[-7:-4], x[-4:-1]
         obj_body.set_pose(washer_pos, washer_rot)
+        obj_body.set_dof({'door': x[-1]})
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == obj_body.env_body.GetEnv()
@@ -1145,6 +1149,82 @@ class BaxterCollidesWasher(BaxterRCollides):
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
         # print "col_val", np.max(col_val)
         return col_val, col_jac
+
+    def _calc_grad_and_val(self, robot_body, obj_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        obj = self.params[self.ind1]
+        col_links = robot.geom.col_links
+        obj_links = obj.geom.col_links
+        obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+        rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot, linkObj = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtA(), c.GetPtB()
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == robot_body.name and linkAParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtB(), c.GetPtA()
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
+            else:
+                continue
+
+            if linkRobot not in col_links or linkObj not in obj_links:
+                continue
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
+
+            grad = np.zeros((1, self.attr_dim+7))
+            grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
+            col_vec =  -sign*normal
+            # Calculate object pose jacobian
+            grad[:, self.attr_dim:self.attr_dim+3] = col_vec
+            torque = ptObj - obj_pos[:3]
+            # Calculate object rotation jacobian
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
+            # obj_jac = np.c_[obj_jac, rot_vec]
+            grad[:, self.attr_dim+3:self.attr_dim+6] = rot_vec
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot), robot.GetLink(linkObj)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot, ptObj, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim+7)), None, None])
+            vals.append(col_infos[0])
+            if len(col_infos[1][0]) == 6:
+                col_infos[1] = np.c_[col_infos[1], [[0]]]
+                import ipdb; ipdb.set_trace()
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim+7))
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -1460,30 +1540,6 @@ class BaxterInGripper(robot_predicates.InGripper):
     def stacked_grad(self, x):
         return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
 
-class BaxterGripperAtLeft(BaxterInGripper):
-    def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.arm = "left"
-        self.eval_dim = 6
-        super(BaxterInGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
-
-    def stacked_f(self, x):
-        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_lock_f(x)])
-
-    def stacked_grad(self, x):
-        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_lock_jac(x)])
-
-class BaxterGripperAtRight(BaxterInGripper):
-    def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.arm = "right"
-        self.eval_dim = 6
-        super(BaxterInGripperRight, self).__init__(name, params, expected_param_types, env, debug)
-
-    def stacked_f(self, x):
-        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_lock_f(x)])
-
-    def stacked_grad(self, x):
-        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_lock_jac(x)])
-
 class BaxterBasketInGripper(BaxterInGripper):
 
     # BaxterBasketInGripper Robot, Basket
@@ -1671,6 +1727,80 @@ class BaxterClothInGripperLeft(BaxterInGripper):
     def stacked_grad(self, x):
         return self.coeff * self.pos_check_jac(x)
 
+class BaxterGripperAt(robot_predicates.GripperAt):
+
+    # InGripper, Robot, EEPose
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        self.coeff = const.IN_GRIPPER_COEFF
+        self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        super(BaxterGripperAt, self).__init__(name, params, expected_param_types, env, debug)
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def get_robot_info(self, robot_body, arm):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
+        # Provide functionality of Obtaining Robot information
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
+        return robot_trans, arm_inds
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_check_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
+
+class BaxterGripperAtLeft(BaxterGripperAt):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.arm = "left"
+        self.eval_dim = 6
+        super(BaxterGripperAtLeft, self).__init__(name, params, expected_param_types, env, debug)
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.ee_rot_check_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.ee_rot_check_jac(x)])
+
+class BaxterGripperAtRight(BaxterGripperAt):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.arm = "right"
+        self.eval_dim = 6
+        super(BaxterGripperAtRight, self).__init__(name, params, expected_param_types, env, debug)
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.ee_rot_check_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.ee_rot_check_jac(x)])
+
 class BaxterPushWasher(robot_predicates.IsPushing):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
@@ -1836,7 +1966,7 @@ class BaxterClothTargetInWasher(ExprPredicate):
         self.washer_pose = params[1]
         A = np.c_[np.eye(self.attr_dim/2), -np.eye(self.attr_dim/2)]
         b = np.zeros((self.attr_dim/2,1))
-        val = np.array([[const.WASHER_DEPTH_OFFSET/2], [np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2], [-.16]])
+        val = np.array([[const.WASHER_DEPTH_OFFSET/2], [np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2], [-.15]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(BaxterClothTargetInWasher, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
