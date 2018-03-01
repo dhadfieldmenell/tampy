@@ -1252,7 +1252,6 @@ class BaxterCollidesWasher(BaxterRCollides):
 
     def resample(self, negated, t, plan):
         # return None, None
-        import ipdb; ipdb.set_trace()
         if const.PRODUCTION:
             print "I need to make sure I don't hit the washer."
         else:
@@ -1711,6 +1710,20 @@ class BaxterClothInGripperRight(BaxterInGripper):
     def stacked_grad(self, x):
         return self.coeff * self.pos_check_jac(x)
 
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+        self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
+
 class BaxterClothInGripperLeft(BaxterInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "left"
@@ -1727,6 +1740,20 @@ class BaxterClothInGripperLeft(BaxterInGripper):
     def stacked_grad(self, x):
         return self.coeff * self.pos_check_jac(x)
 
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+        self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
+
 class BaxterGripperAt(robot_predicates.GripperAt):
 
     # InGripper, Robot, EEPose
@@ -1734,8 +1761,8 @@ class BaxterGripperAt(robot_predicates.GripperAt):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        self.coeff = const.IN_GRIPPER_COEFF
-        self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
+        self.coeff = const.GRIPPER_AT_COEFF
+        self.rot_coeff = const.GRIPPER_AT_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         super(BaxterGripperAt, self).__init__(name, params, expected_param_types, env, debug)
@@ -1771,35 +1798,47 @@ class BaxterGripperAt(robot_predicates.GripperAt):
             arm_inds = list(range(2,9))
         return robot_trans, arm_inds
 
+    def robot_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        # Setting the poses for forward kinematics to work
+        self.set_robot_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        ee_pos, ee_rot = x[-6:-3], x[-3:]
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return obj_trans, robot_trans, axises, arm_joints
+
     def stacked_f(self, x):
-        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.rot_check_f(x)])
+        return np.vstack([self.coeff * self.pos_check_f(x)])
 
     def stacked_grad(self, x):
-        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.rot_check_jac(x)])
+        return np.vstack([self.coeff * self.pos_check_jac(x)])
+
+    def resample(self, negated, t, plan):
+        return baxter_sampling.resample_gripper_at(self, negated, t, plan)
 
 class BaxterGripperAtLeft(BaxterGripperAt):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "left"
-        self.eval_dim = 6
+        self.eval_dim = 3
         super(BaxterGripperAtLeft, self).__init__(name, params, expected_param_types, env, debug)
-
-    def stacked_f(self, x):
-        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.ee_rot_check_f(x)])
-
-    def stacked_grad(self, x):
-        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.ee_rot_check_jac(x)])
 
 class BaxterGripperAtRight(BaxterGripperAt):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "right"
-        self.eval_dim = 6
+        self.eval_dim = 3
         super(BaxterGripperAtRight, self).__init__(name, params, expected_param_types, env, debug)
-
-    def stacked_f(self, x):
-        return np.vstack([self.coeff * self.pos_check_f(x), self.rot_coeff * self.ee_rot_check_f(x)])
-
-    def stacked_grad(self, x):
-        return np.vstack([self.coeff * self.pos_check_jac(x), self.rot_coeff * self.ee_rot_check_jac(x)])
 
 class BaxterPushWasher(robot_predicates.IsPushing):
 

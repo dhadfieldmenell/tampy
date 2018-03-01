@@ -87,13 +87,13 @@ REGION3 = [-(np.pi*40)/180.0]
 REGION4 = [-np.pi/2]
 
 EEPOSE_PUT_INTO_WASHER_POS_1 = [0.05, 1.0, 0.75]
-EEPOSE_PUT_INTO_WASHER_ROT_1 = [np.pi/3, np.pi/12, 0]
+EEPOSE_PUT_INTO_WASHER_ROT_1 = [np.pi/3, np.pi/20, 0]
 
-EEPOSE_PUT_INTO_WASHER_POS_2 = [0.12, 1.2, 0.9]
-EEPOSE_PUT_INTO_WASHER_ROT_2 = [np.pi/3, np.pi/12, 0]
+EEPOSE_PUT_INTO_WASHER_POS_2 = [0.12, 1.2, 0.85]
+EEPOSE_PUT_INTO_WASHER_ROT_2 = [np.pi/3, 0, 0]
 
 EEPOSE_PUT_INTO_WASHER_POS_3 = [0.15, 1.3, 0.8]
-EEPOSE_PUT_INTO_WASHER_ROT_3 = [np.pi/3, np.pi/12, 0]
+EEPOSE_PUT_INTO_WASHER_ROT_3 = [np.pi/3, np.pi/20, 0]
 
 cloth_init_poses = np.ones((NUM_CLOTH, 3)) * 0.615
 cloth_init_poses = cloth_init_poses.tolist()

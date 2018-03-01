@@ -1098,6 +1098,22 @@ def resample_washer_in_gripper2(pred, negated, t, plan):
     return res, attr_inds
 
 
+def resample_gripper_at(pred, negated, t, plan):
+    attr_inds, res = OrderedDict(), OrderedDict()
+
+    robot, pose = pred.robot, pred.pose
+    rave_body, arm = robot.openrave_body, pred.arm
+    arm_poses = robot.openrave_body.get_ik_from_pose(pose.value[:,0], pose.rotation[:,0], "{}_arm".format(arm))
+    if not len(arm_poses):
+        return attr_inds, res
+
+    arm_pose = closest_arm_pose(arm_poses, robot.lArmPose[:,t-1])
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', arm_pose)])
+
+    if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
+    return res, attr_inds
+
+
 #@profile 
 def get_is_mp_arm_pose(robot_body, arm_poses, last_pose, arm):
     robot = robot_body.env_body
@@ -1571,7 +1587,7 @@ def resample_washer_rcollides(pred, negated, t, plan):
     attempt, step = 0, 1
     while attempt < 5 and len(pred._cc.BodyVsBody(body, obs)) > 0:
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-1, -0.5, -0.5], [0.05, 0.025, 0.025])
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5, -0.5, -0.5], [0.025, 0.025, 0.04])
         ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/4, 0], "{}_arm".format(arm))
         arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, "{}ArmPose".format(arm[0]))[:, action.active_timesteps[0]])
         if arm_pose is None:

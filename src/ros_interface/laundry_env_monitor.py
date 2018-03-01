@@ -603,8 +603,6 @@ class LaundryEnvironmentMonitor(object):
         self.predict_basket_location()
         self.predict_cloth_locations()
 
-        import ipdb; ipdb.set_trace()
-
         failed_constr = []
         if len(self.state.region_poses[4]):
              failed_constr.append(("BasketNearLocClear", False))
