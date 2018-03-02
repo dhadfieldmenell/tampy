@@ -91,14 +91,14 @@ class TrajectoryController(object):
 
         return (np.all(np.abs(left_target - current_left) < error_limits) or not use_left) and (np.all(np.abs(right_target - current_right) < error_limits) or not use_right)
 
-    def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right']):
+    def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right'], stop_on_fail=False):
         rospy.Rate(ROS_RATE)
         if mode == 'position':
-            self._execute_position_control(plan, active_ts, limbs)
+            return self._execute_position_control(plan, active_ts, limbs, stop_on_fail)
         else:
-            self._execute_torque_control(plan, active_ts, controller)
+            return self._execute_torque_control(plan, active_ts, controller)
 
-    def _execute_position_control(self, plan, active_ts=None, limbs=['left', 'right']):
+    def _execute_position_control(self, plan, active_ts=None, limbs=['left', 'right'], stop_on_fail=False):
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
 
@@ -119,6 +119,8 @@ class TrajectoryController(object):
             success = self.execute_timestep(baxter, cur_ts, 1, limbs=limbs)
             if not success:
                 print 'Failed timestep {}'.format(cur_ts)
+                if stop_on_fail:
+                    return False
             #     self._adjust_for_failed_execute(plan, cur_ts)
             cur_ts += 1
             # if cur_ts >= cur_action.active_timesteps[1] and cur_ts < active_ts[1]:
@@ -126,8 +128,8 @@ class TrajectoryController(object):
             #     if act_index >= len(plan.actions):
             #         raise Exception("Invalid timestep (> max) passed to plan execution")
             #     cur_action = plan.actions[act_index]
-
         # print 'Execution finished'
+        return True
 
     def _execute_torque_control(self, plan, active_ts, controller):
         if active_ts is None:

@@ -260,7 +260,8 @@ class LaundryEnvironmentMonitor(object):
                 if self.state.robot_region != old_region:
                     self.rotate_control.rotate_to_region(self.state.robot_region)
             else:
-                self.traj_control.execute_plan(plan, active_ts=cur_action.active_timesteps)
+                stop_on_fail = cur_action.name in ["basket_grasp"]
+                self.traj_control.execute_plan(plan, active_ts=cur_action.active_timesteps, stop_on_fail=stop_on_fail)
             current_ts = cur_action.active_timesteps[1]
 
     def predict_cloth_locations(self):
@@ -598,10 +599,7 @@ class LaundryEnvironmentMonitor(object):
 
     def move_basket_to_washer(self):
         self.predict_basket_location()
-        import ipdb; ipdb.set_trace()
         self.predict_cloth_locations()
-
-        import ipdb; ipdb.set_trace()
 
         failed_constr = []
         if len(self.state.region_poses[4]):
