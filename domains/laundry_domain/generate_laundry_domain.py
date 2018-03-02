@@ -212,7 +212,7 @@ class Move(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 ))','{}:{}'.format(0, end)),
             ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
-            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
         ]
         self.eff = [\
             (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
@@ -340,8 +340,8 @@ class Grasp(Action):
         self.pre = [\
             ('(BaxterAt ?basket ?target)', '0:{}'.format(grasp_time)),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
-            # ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
-            # ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGrippers ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGrippers ?robot)', '{}:{}'.format(grasp_time,  end)),
             # ('(BaxterBasketGraspLeftPos ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),

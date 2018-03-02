@@ -331,10 +331,7 @@ class LaundryEnvironmentMonitor(object):
         plan.params['baxter'].lGripper[:, 0] = left_grip
         plan.params['baxter'].rArmPose[:, 0] = right_joints
         plan.params['baxter'].rGripper[:, 0] = right_grip
-        if self.state.robot_region == 3:
-            plan.params['baxter'].pose[:,0] = -np.pi*40.0/180.0
-        else:
-            plan.params['baxter'].pose[:,0] = (self.state.robot_region - 2) * -np.pi/4
+        plan.params['baxter'].pose[:,0] = (self.state.robot_region - 2) * -np.pi/4
 
         plan.params['robot_init_pose'].lArmPose[:, 0] = left_joints
         plan.params['robot_init_pose'].lGripper[:, 0] = left_grip
@@ -601,7 +598,10 @@ class LaundryEnvironmentMonitor(object):
 
     def move_basket_to_washer(self):
         self.predict_basket_location()
+        import ipdb; ipdb.set_trace()
         self.predict_cloth_locations()
+
+        import ipdb; ipdb.set_trace()
 
         failed_constr = []
         if len(self.state.region_poses[4]):

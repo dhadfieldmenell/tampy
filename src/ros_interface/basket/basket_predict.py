@@ -12,7 +12,7 @@ from sensor_msgs.msg import Image
 import ros_interface.utils as utils
 
 
-TRAINED_MODEL = 'ros_interface/basket/Feb25TrainedBasketSim.h5'
+TRAINED_MODEL = 'ros_interface/basket/March1TrainedBasketSim.h5'
 
 class BasketPredict:
     def __init__(self):
@@ -91,6 +91,9 @@ class BasketPredict:
             pred[0, 1] += zero_y
             pred[0, 2] *= -1
             pred[0, 2] += np.pi
+
+            pred[0, 1] *= 17.0/16.0
+            pred[0, 2] *= 17.0/16.0
 
             return pred.flatten()
         return np.array([np.nan, np.nan, np.nan])

@@ -83,7 +83,7 @@ WASHER_PUSH_DOOR = [-np.pi/6]
 
 REGION1 = [np.pi/4]
 REGION2 = [0]
-REGION3 = [-(np.pi*40)/180.0]
+REGION3 = [-np.pi/4]
 REGION4 = [-np.pi/2]
 
 EEPOSE_PUT_INTO_WASHER_POS_1 = [0.05, 1.0, 0.75]

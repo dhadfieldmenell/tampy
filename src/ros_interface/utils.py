@@ -70,16 +70,20 @@ cloth_net_std = [68.81949858, 72.06266253, 80.67131097]
 # basket_net_mean = 0.16303136
 # basket_net_std = 0.41344904
 # basket_net_mean = 0.311865
-# basket_net_std = 0.5426525
-basket_net_mean = 0.1102060987658177
-basket_net_std = 0.33788160444680088
+# # basket_net_std = 0.5426525
+# basket_net_mean = 0.1102060987658177
+# basket_net_std = 0.33788160444680088
+basket_net_mean = 0.1012
+basket_net_std = 0.3319
 
 # basket_net_ul = 1.35
 # # basket_net_ll = 1
 # basket_net_ul = 1.4
+# # basket_net_ll = 1.05
+# basket_net_ul = 1.25
 # basket_net_ll = 1.05
-basket_net_ul = 1.25
-basket_net_ll = 1.05
+basket_net_ul = 1.3
+basket_net_ll = 1.1
 
 # Used to match depth images to simulated images
 basket_net_bounds = []

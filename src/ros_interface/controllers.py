@@ -40,7 +40,7 @@ class TrajectoryController(object):
         self.left_grip = baxter_interface.gripper.Gripper('left')
         self.right_grip = baxter_interface.gripper.Gripper('right')
 
-    def execute_timestep(self, baxter_parameter, ts, real_t, limbs=['left', 'right']):
+    def execute_timestep(self, baxter_parameter, ts, real_t=1, limbs=['left', 'right']):
         use_left = 'left' in limbs
         use_right = 'right' in limbs
         left_target = baxter_parameter.lArmPose[:, ts]
@@ -72,7 +72,7 @@ class TrajectoryController(object):
         self.right_grip.set_holding_force(75)
 
         attempt = 0.0
-        while (np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits)) and use_right and attempt <= int(ROS_RATE * 10):
+        while np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits) and use_right and attempt <= int(ROS_RATE * real_t):
             next_left_target = left_target # current_left + (left_target - current_left) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_left_err
             next_right_target = right_target # current_right + (right_target - current_right) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_right_err
             left_target_dict = dict(zip(left_joints, next_left_target))
@@ -89,7 +89,7 @@ class TrajectoryController(object):
             cur_right_err = right_target - current_right
             attempt += 1.0
 
-        return  True #if attempt < ROS_RATE * real_t else False
+        return (np.all(np.abs(left_target - current_left) < error_limits) or not use_left) and (np.all(np.abs(right_target - current_right) < error_limits) or not use_right)
 
     def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right']):
         rospy.Rate(ROS_RATE)
@@ -116,8 +116,9 @@ class TrajectoryController(object):
         cur_ts = active_ts[0]
         baxter = plan.params['baxter']
         while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
-            success = self.execute_timestep(baxter, cur_ts, plan.time[:, cur_ts], limbs)
-            # if not success:
+            success = self.execute_timestep(baxter, cur_ts, 1, limbs=limbs)
+            if not success:
+                print 'Failed timestep {}'.format(cur_ts)
             #     self._adjust_for_failed_execute(plan, cur_ts)
             cur_ts += 1
             # if cur_ts >= cur_action.active_timesteps[1] and cur_ts < active_ts[1]:
