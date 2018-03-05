@@ -1577,7 +1577,12 @@ class ObstructsHolding(CollisionPredicate):
                                self.obstacle: self.lazy_spawn_or_body(self.obstacle, self.obstacle.name, self.obstacle.geom),
                                self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
 
-        self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.obstacle.geom.col_links)]
+        # self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.obstacle.geom.col_links)]
+        def exclude_f(c):
+            c = list(c)
+            return (('left_gripper_r_finger_tip' in c or 'left_gripper_r_finger' in c) and 'short_1' in c) \
+                   or (('right_gripper_l_finger_tip' in c or 'right_gripper_l_finger' in c) and 'short_2' in c)
+        self.col_link_pairs = [x for x in itertools.product(self.robot.geom.col_links, self.obstacle.geom.col_links) if not exclude_f(x)]
         self.col_link_pairs = sorted(self.col_link_pairs)
 
         self.obj_obj_link_pairs = [x for x in itertools.product(self.obj.geom.col_links, self.obstacle.geom.col_links)]
