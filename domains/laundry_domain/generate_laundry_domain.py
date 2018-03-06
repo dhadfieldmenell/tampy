@@ -245,7 +245,7 @@ class MoveHoldingBasket(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end)),
-            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
         ]
         self.eff = [\
@@ -372,6 +372,7 @@ class Grasp(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -520,6 +521,7 @@ class Putdown(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -841,7 +843,7 @@ class ClothGrasp(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -952,7 +954,7 @@ class ClothPutdown(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -1171,7 +1173,7 @@ class PutIntoBasket(Action):
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
-            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\
@@ -1611,7 +1613,7 @@ class MoveToEEPos(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 ))','{}:{}'.format(0, end)),
             ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
-            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
         ]
         self.eff = [\
             ('(BaxterGripperAtRight ?robot ?ee_right)', '{}:{}'.format(end, end)),
@@ -1651,7 +1653,7 @@ class MoveToEEPosLeft(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 ))','{}:{}'.format(0, end)),
             ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
-            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
         ]
         self.eff = [\
             ('(BaxterGripperAtLeft ?robot ?ee_left)', '{}:{}'.format(end, end)),

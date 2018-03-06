@@ -8,6 +8,8 @@ from pma.robot_ll_solver import RobotLLSolver
 
 import rospy
 
+import std_msgs.msg
+
 import baxter_interface
 from baxter_interface import CHECK_VERSION
 
@@ -39,8 +41,10 @@ class TrajectoryController(object):
         self.right = baxter_interface.limb.Limb('right')
         self.left_grip = baxter_interface.gripper.Gripper('left')
         self.right_grip = baxter_interface.gripper.Gripper('right')
+        self.left_col_pub = rospy.Publisher("/robot/limb/left/suppress_collision_avoidance", std_msgs.msg.Empty, queue_size=1)
+        self.right_col_pub = rospy.Publisher("/robot/limb/right/suppress_collision_avoidance", std_msgs.msg.Empty, queue_size=1)
 
-    def execute_timestep(self, baxter_parameter, ts, real_t=1, limbs=['left', 'right']):
+    def execute_timestep(self, baxter_parameter, ts, real_t=1, limbs=['left', 'right'], check_collision=True):
         use_left = 'left' in limbs
         use_right = 'right' in limbs
         left_target = baxter_parameter.lArmPose[:, ts]
@@ -78,6 +82,10 @@ class TrajectoryController(object):
             left_target_dict = dict(zip(left_joints, next_left_target))
             right_target_dict = dict(zip(right_joints, next_right_target))
 
+            if not check_collision:
+                self.left_col_pub.publish(std_msgs.msg.Empty())
+                self.right_col_pub.publish(std_msgs.msg.Empty())
+            
             if 'left' in limbs:
                 self.left.set_joint_positions(left_target_dict)
             if 'right' in limbs:
@@ -91,14 +99,14 @@ class TrajectoryController(object):
 
         return (np.all(np.abs(left_target - current_left) < error_limits) or not use_left) and (np.all(np.abs(right_target - current_right) < error_limits) or not use_right)
 
-    def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right'], stop_on_fail=False):
+    def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right'], stop_on_fail=False, check_collision=True):
         rospy.Rate(ROS_RATE)
         if mode == 'position':
-            return self._execute_position_control(plan, active_ts, limbs, stop_on_fail)
+            return self._execute_position_control(plan, active_ts, limbs, stop_on_fail, check_collision)
         else:
             return self._execute_torque_control(plan, active_ts, controller)
 
-    def _execute_position_control(self, plan, active_ts=None, limbs=['left', 'right'], stop_on_fail=False):
+    def _execute_position_control(self, plan, active_ts=None, limbs=['left', 'right'], stop_on_fail=False, check_collision=True):
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
 
@@ -116,7 +124,7 @@ class TrajectoryController(object):
         cur_ts = active_ts[0]
         baxter = plan.params['baxter']
         while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
-            success = self.execute_timestep(baxter, cur_ts, 1, limbs=limbs)
+            success = self.execute_timestep(baxter, cur_ts, 1, limbs=limbs, check_collision=check_collision)
             if not success:
                 print 'Failed timestep {}'.format(cur_ts)
                 if stop_on_fail:
