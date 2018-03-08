@@ -31,7 +31,7 @@ class HLLaundryState(object):
         self.washer_cloth_poses = []
 
         self.robot_region = 1
-        self.washer_door = 0
+        self.washer_door = -np.pi/2
 
         # For constructing high level plans
         self.prob_domain = "(:domain laundry_domain)\n"
@@ -260,24 +260,24 @@ class LaundryEnvironmentMonitor(object):
                 if self.state.robot_region != old_region:
                     self.rotate_control.rotate_to_region(self.state.robot_region)
             else:
-                stop_on_fail = cur_action.name in ["basket_grasp"]
-                self.traj_control.execute_plan(plan, active_ts=cur_action.active_timesteps, stop_on_fail=stop_on_fail)
+                stop_on_fail = False # cur_action.name in ["basket_grasp"]
+                self.traj_control.execute_plan(plan, active_ts=cur_action.active_timesteps, stop_on_fail=stop_on_fail, check_collision=False)
             current_ts = cur_action.active_timesteps[1]
 
     def predict_cloth_locations(self):
-        act_num = 0
-        ll_plan_str = []
-        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE BASKET_SCAN_POSE_{1} \n'.format(act_num, self.state.robot_region))
-        act_num += 1
-        ll_plan_str.append('{0}: ROTATE BAXTER BASKET_SCAN_POSE_{1} BASKET_SCAN_POSE_2 REGION2 \n'.format(act_num, self.state.robot_region))
-        act_num += 1
+        # act_num = 0
+        # ll_plan_str = []
+        # ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE BASKET_SCAN_POSE_{1} \n'.format(act_num, self.state.robot_region))
+        # act_num += 1
+        # ll_plan_str.append('{0}: ROTATE BAXTER BASKET_SCAN_POSE_{1} BASKET_SCAN_POSE_2 REGION2 \n'.format(act_num, self.state.robot_region))
+        # act_num += 1
 
-        plan = self.plan_from_str(ll_plan_str)
-        self.update_plan(plan, {})
-        self.ll_solver._backtrack_solve(plan, callback=None)
+        # plan = self.plan_from_str(ll_plan_str)
+        # self.update_plan(plan, {})
+        # self.ll_solver._backtrack_solve(plan, callback=None)
 
-        for action in plan.actions:
-            self.execute_plan(plan, action.active_timesteps)
+        # for action in plan.actions:
+        #     self.execute_plan(plan, action.active_timesteps)
 
         locs = self.cloth_predictor.predict()
         self.state.store_cloth_regions(locs)
@@ -356,7 +356,7 @@ class LaundryEnvironmentMonitor(object):
         for cloth in cloth_to_region:
             next_ind = np.random.choice(range(len(poses[cloth_to_region[cloth]-1])))
             next_pose = poses[cloth_to_region[cloth]-1].pop(next_ind)
-            plan.params['{0}'.format(cloth)].pose[:2, 0] = next_pose + np.random.uniform(0, 2, (2,))
+            plan.params['{0}'.format(cloth)].pose[:2, 0] = next_pose + np.random.uniform(0, 0.02, (2,))
             if cloth_to_region[cloth] == 5 and self.state.hl_preds['BasketInNearLoc']:
                 plan.params['{0}'.format(cloth)].pose[2, 0] = 0.645
             elif cloth_to_region[cloth] == 6 and self.state.hl_preds['BasketInFarLoc']:
@@ -817,6 +817,8 @@ class LaundryEnvironmentMonitor(object):
         self.predict_basket_location()
         self.predict_cloth_locations()
 
+        import ipdb; ipdb.set_trace()
+
         failed_constr = []
         if not len(self.state.region_poses[4]):
              failed_constr.append(("ClothInBasket", False))
@@ -848,15 +850,17 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE PUT_INTO_WASHER_BEGIN CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+            ll_plan_str.append('{0}: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 PUT_INTO_WASHER_BEGIN CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: GRAB_CORNER_LEFT BAXTER PUT_INTO_WASHER_EE_1 PUT_INTO_WASHER_EE_2 CLOTH_PUTDOWN_END_0 CLOTH_PUTDOWN_BEGIN_1 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: MOVETO_EE_POS_LEFT BAXTER PUT_INTO_WASHER_EE_3 CLOTH_PUTDOWN_BEGIN_1 CLOTH_PUTDOWN_END_1 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_1 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_1 PUT_INTO_WASHER_BEGIN \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
             act_num += 1
             plan = self.plan_from_str(ll_plan_str)
             self.update_plan(plan, {'cloth0': 5})

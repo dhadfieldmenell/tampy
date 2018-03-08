@@ -1314,11 +1314,15 @@ class TestBasketDomain(unittest.TestCase):
         '4: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0',
         ]
 
-        act_num = 5
-        plan_str.append('{0}: GRAB_CORNER_LEFT BAXTER PUT_INTO_WASHER_EE_1 PUT_INTO_WASHER_EE_2 CLOTH_PUTDOWN_END_0 CLOTH_PUTDOWN_BEGIN_1 \n'.format(act_num))
-        act_num += 1
-        plan_str.append('{0}: MOVETO_EE_POS_LEFT BAXTER PUT_INTO_WASHER_EE_3 CLOTH_PUTDOWN_BEGIN_1 CLOTH_PUTDOWN_END_1 \n'.format(act_num))
-        act_num += 1
+        # act_num = 5
+        # plan_str.append('{0}: GRAB_CORNER_LEFT BAXTER PUT_INTO_WASHER_EE_1 PUT_INTO_WASHER_EE_2 CLOTH_PUTDOWN_END_0 CLOTH_PUTDOWN_BEGIN_1 \n'.format(act_num))
+        # act_num += 1
+        # plan_str.append('{0}: MOVETO_EE_POS_LEFT BAXTER PUT_INTO_WASHER_EE_3 CLOTH_PUTDOWN_BEGIN_1 CLOTH_PUTDOWN_END_1 \n'.format(act_num))
+        # act_num += 1
+        # plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_1 PUT_INTO_WASHER_BEGIN \n'.format(act_num))
+        # act_num += 1
+        # plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
+        # act_num += 1
 
         plan = hls.get_plan(plan_str, domain, problem)
         plan.params['cloth0'].pose[:,:30] = [[0.55], [0.3], [0.65]]

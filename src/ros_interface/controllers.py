@@ -12,6 +12,7 @@ import std_msgs.msg
 
 import baxter_interface
 from baxter_interface import CHECK_VERSION
+from baxter_core_msgs.msg import CollisionAvoidanceState
 
 import numpy as np
 
@@ -22,7 +23,8 @@ left_joints = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1',
 right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2']
 
 joint_velocity_limits = np.array([2.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0])
-error_limits = np.array([.005, .1, .05, .075, .075, .01, .01])
+error_limits = np.array([.01, .075, .05, .075, .075, .01, .01])
+stop_error_limits = np.array([.05, .1, .1, .5, .5, .1, .1])
 
 def closest_arm_pose(arm_poses, cur_arm_pose):
     min_change = np.inf
@@ -43,6 +45,14 @@ class TrajectoryController(object):
         self.right_grip = baxter_interface.gripper.Gripper('right')
         self.left_col_pub = rospy.Publisher("/robot/limb/left/suppress_collision_avoidance", std_msgs.msg.Empty, queue_size=1)
         self.right_col_pub = rospy.Publisher("/robot/limb/right/suppress_collision_avoidance", std_msgs.msg.Empty, queue_size=1)
+        self.left_col_sub = rospy.Subscriber("/robot/limb/left/collision_avoidance_state", CollisionAvoidanceState, self.left_col_callback)
+        self.right_col_sub = rospy.Subscriber("/robot/limb/right/collision_avoidance_state", CollisionAvoidanceState, self.right_col_callback)
+
+    def left_col_callback(self, msg):
+        self.left_col_pub.publish(std_msgs.msg.Empty())
+
+    def right_col_callback(self, msg):
+        self.right_col_pub.publish(std_msgs.msg.Empty())
 
     def execute_timestep(self, baxter_parameter, ts, real_t=1, limbs=['left', 'right'], check_collision=True):
         use_left = 'left' in limbs
@@ -54,9 +64,6 @@ class TrajectoryController(object):
         if np.any(np.isnan(left_target)) or np.any(np.isnan(right_target)):
             print "Experienced NaN in controller."
             return False
-
-        self.left_grip.open()  if left_gripper_open else self.left_grip.close()
-        self.right_grip.open() if right_gripper_open else self.right_grip.close()
 
         current_left = map(lambda j: self.left.joint_angles()[j], left_joints)
         current_right = map(lambda j: self.right.joint_angles()[j], right_joints)
@@ -97,7 +104,10 @@ class TrajectoryController(object):
             cur_right_err = right_target - current_right
             attempt += 1.0
 
-        return (np.all(np.abs(left_target - current_left) < error_limits) or not use_left) and (np.all(np.abs(right_target - current_right) < error_limits) or not use_right)
+        self.left_grip.open()  if left_gripper_open else self.left_grip.close()
+        self.right_grip.open() if right_gripper_open else self.right_grip.close()
+
+        return (np.all(np.abs(left_target - current_left) < stop_error_limits) or not use_left) and (np.all(np.abs(right_target - current_right) < stop_error_limits) or not use_right)
 
     def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right'], stop_on_fail=False, check_collision=True):
         rospy.Rate(ROS_RATE)

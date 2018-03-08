@@ -193,7 +193,7 @@ class Move(Action):
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Washer)\
-                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+                (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
@@ -206,7 +206,7 @@ class Move(Action):
             ('(forall (?basket - Basket) (BaxterBasketLevel ?basket))', '{}:{}'.format(0, end)),
             ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterWithinJointLimit ?robot)', '{}:{}'.format(0, end)),
-            ('(BaxterOpenGrippers ?robot)', '{}:{}'.format(1, end)),
+            ('(BaxterOpenGrippers ?robot)', '{}:{}'.format(1, end-1)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\
@@ -1398,8 +1398,8 @@ class GrabCornerLeft(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             ('(BaxterGripperAtLeft ?robot ?grasp_point)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0, grasp_time-1)),
-            ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time, end)),
+            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0, grasp_time)),
+            ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time+1, end)),
             ('(forall (?obj - Washer)\
                 (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),

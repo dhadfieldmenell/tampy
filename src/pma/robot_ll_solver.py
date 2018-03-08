@@ -463,7 +463,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [1.75, 2.5, 1.0], [0.15, 0.2, 0.01])
+                random_dir = np.multiply(np.random.sample(3) - [1.75, 2.5, 1.0], [0.15, 0.2, 0.03])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
@@ -513,7 +513,7 @@ class RobotLLSolver(LLSolver):
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
-                    # import ipdb; ipdb.set_trace()
+                    import ipdb; ipdb.set_trace()
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
@@ -970,7 +970,7 @@ class RobotLLSolver(LLSolver):
                 target_pos = target.value[:, 0]
                 target_rot = target.rotation[:, 0]
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5, 0.0], [0.005, 0.005, 0.05])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5, 0.5], [0.005, 0.005, 0.005])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, target_rot, "left_arm")

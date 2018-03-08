@@ -47,7 +47,16 @@ LOAD_WASHER_INTERMEDIATE_LARM = [ 1.2, -1.08151176, -1.77326592,  2.35781058,  1
 # LOAD_WASHER_INTERMEDIATE_LARM = [-1.3, -1.87505533,  1.26395478,  2.40366208, -1.38750247,        1.3399258 ,  2.29505724]
 # LOAD_WASHER_INTERMEDIATE_LARM = [ 1., -1.89881202, -1.24804102,  2.40897135, -1.9547075 ,        1.59862157,  2.25969824]
 
-PUT_INTO_WASHER_LARM =  [1.3, -0.49416386, -0.73767691,  2.44375669,  1.22131026, -1.01131956,  0.39567399]
+# PUT_INTO_WASHER_LARM =  [1.3, -0.49416386, -0.73767691,  2.44375669,  1.22131026, -1.01131956,  0.39567399]
+# PUT_INTO_WASHER_LARM = [1.2, -0.52079592, -0.76534048, 2.39096019, 1.11967046, -1.01651007, 0.37709747]
+PUT_INTO_WASHER_LARM = [1.7, 0.26427428, -1.07809409, 2.41433644, 0.89524332, -0.30717996, 1.20404544]
+
+# IN_WASHER_ADJUST_LARM = [1.2, -0.17790634, -0.40813924, 0.89651487, 1.44038777, -0.68723026, -0.71224485]
+IN_WASHER_ADJUST_LARM = [0.6, 0.04701457, 0.97023635, 0.83690173, 0.32133845, -1.07615757, -1.12301152]
+
+## Use PUT_INTO_WASHER_BEGIN; pretty much the same gripper position
+# DOOR_SCAN_IR_LARM = [1.6, -0.72647354, 0.185418, 2.02671195, -1.71400472, 1.67279272, 2.84759038]
+# DOOR_SCAN_IR_LARM = [1.7, -0.73574863, 0.01571105, 2.02178752, 1.45038389, -1.54767978, -0.28413698]
 
 BASKET_SCAN_LARM = [0.75, -0.75, 0, 0, 0, 0, 0]
 BASKET_SCAN_RARM = [-0.75, -0.75, 0, 0, 0, 0, 0]
@@ -69,7 +78,8 @@ ROBOT_DIST_FROM_TABLE = 0.05
 WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.97, 1.0, 0.97-0.375+0.65/2]
 # WASHER_INIT_ROT = [np.pi/2,0,0]
-WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
+# WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
+WASHER_INIT_POS = [0.19, 1.34, 0.97-0.375+0.65/2]
 WASHER_INIT_ROT = [5*np.pi/6,0,0]
 # Center of barrel is at (0.1, 1.12)
 
@@ -87,13 +97,16 @@ REGION2 = [0]
 REGION3 = [-np.pi/4]
 REGION4 = [-np.pi/2]
 
-EEPOSE_PUT_INTO_WASHER_POS_1 = [0.05, 1.0, 0.75]
-EEPOSE_PUT_INTO_WASHER_ROT_1 = [np.pi/3, np.pi/20, 0]
+# EEPOSE_PUT_INTO_WASHER_POS_1 = [0.05, 1.0, 0.75]
+EEPOSE_PUT_INTO_WASHER_POS_1 = [0.03, 1.12, 0.72]
+EEPOSE_PUT_INTO_WASHER_ROT_1 = [np.pi/3, np.pi/14, 0]
 
-EEPOSE_PUT_INTO_WASHER_POS_2 = [0.12, 1.2, 0.85]
+# EEPOSE_PUT_INTO_WASHER_POS_2 = [0.12, 1.2, 0.85]
+EEPOSE_PUT_INTO_WASHER_POS_2 = [0.11, 1.15, 0.85]
 EEPOSE_PUT_INTO_WASHER_ROT_2 = [np.pi/3, 0, 0]
 
-EEPOSE_PUT_INTO_WASHER_POS_3 = [0.15, 1.3, 0.8]
+# EEPOSE_PUT_INTO_WASHER_POS_3 = [0.15, 1.3, 0.8]
+EEPOSE_PUT_INTO_WASHER_POS_3 = [0.11, 1.25, 0.8]
 EEPOSE_PUT_INTO_WASHER_ROT_3 = [np.pi/3, np.pi/20, 0]
 
 cloth_init_poses = np.ones((NUM_CLOTH, 3)) * 0.615
@@ -199,6 +212,7 @@ def main():
         s += "RobotPose (name {}); ".format("basket_scan_pose_4")
         s += "RobotPose (name {}); ".format("load_washer_intermediate_pose")
         s += "RobotPose (name {}); ".format("put_into_washer_begin")
+        s += "RobotPose (name {}); ".format("in_washer_adjust")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
         s += "BasketTarget (name {}); ".format("basket_near_target")
@@ -280,6 +294,7 @@ def main():
         s += get_robot_pose_str('basket_scan_pose_4', BASKET_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION4)
         s += get_robot_pose_str('load_washer_intermediate_pose', LOAD_WASHER_INTERMEDIATE_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('put_into_washer_begin', PUT_INTO_WASHER_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('in_washer_adjust', IN_WASHER_ADJUST_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)
