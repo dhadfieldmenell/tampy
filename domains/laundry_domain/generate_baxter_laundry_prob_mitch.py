@@ -32,6 +32,9 @@ BASKET_FAR_POS = utils.basket_far_pos.tolist()
 BASKET_NEAR_ROT = utils.basket_near_rot.tolist()
 BASKET_FAR_ROT = utils.basket_far_rot.tolist()
 
+BASKET_SCAN_LARM = [0.75, -0.75, 0, 0, 0, 0, 0]
+BASKET_SCAN_RARM = [-0.75, -0.75, 0, 0, 0, 0, 0]
+
 CLOTH_ROT = [0, 0, 0]
 
 TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
@@ -42,7 +45,7 @@ ROBOT_DIST_FROM_TABLE = 0.05
 
 WASHER_CONFIG = [True, True]
 
-WASHER_INIT_POS = [0.2, 1.42, 0.97-0.375+0.65/2]
+WASHER_INIT_POS = [0.19, 1.34, 0.97-0.375+0.65/2+0.015]
 WASHER_INIT_ROT = [5*np.pi/6,0,0]
 
 WASHER_OPEN_DOOR = [-np.pi/2]
@@ -54,6 +57,7 @@ REGION2 = [0]
 REGION3 = [-np.pi/4]
 REGION4 = [-np.pi/2]
 
+LOAD_WASHER_INTERMEDIATE_LARM = [ 1.2, -1.08151176, -1.77326592,  2.35781058,  1.49005473,       -0.82626846, -0.70849067]
 # cloth_init_poses = np.ones((NUM_CLOTH, 3)) * 0.615
 cloth_init_poses = np.repeat(np.array([[0.615, 0, 0.615]]), NUM_CLOTH, axis = 0) #hardcoded
 cloth_init_poses = cloth_init_poses.tolist()
@@ -153,6 +157,7 @@ def main():
         s += "RobotPose (name {}); ".format("robot_end_pose")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
+        s += "RobotPose (name {}); ".format("load_washer_intermediate_pose")
         s += "BasketTarget (name {}); ".format("basket_near_target")
         s += "BasketTarget (name {}); ".format("basket_far_target")
         s += "Rotation (name {}); ".format("region1")
@@ -223,6 +228,7 @@ def main():
         s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_END_POSE)
+        s += get_robot_pose_str('load_washer_intermediate_pose', LOAD_WASHER_INTERMEDIATE_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)
