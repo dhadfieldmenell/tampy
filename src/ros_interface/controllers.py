@@ -23,7 +23,8 @@ left_joints = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1',
 right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2']
 
 joint_velocity_limits = np.array([2.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0])
-error_limits = np.array([.01, .075, .05, .075, .075, .01, .01])
+# error_limits = np.array([.01, .075, .05, .075, .075, .01, .01])
+error_limits = np.array([.01, .05, .05, .05, .05, .01, .01])
 stop_error_limits = np.array([.05, .1, .1, .5, .5, .1, .1])
 
 def closest_arm_pose(arm_poses, cur_arm_pose):

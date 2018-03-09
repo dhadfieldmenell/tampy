@@ -358,9 +358,9 @@ class LaundryEnvironmentMonitor(object):
             next_pose = poses[cloth_to_region[cloth]-1].pop(next_ind)
             plan.params['{0}'.format(cloth)].pose[:2, 0] = next_pose + np.random.uniform(0, 0.02, (2,))
             if cloth_to_region[cloth] == 5 and self.state.hl_preds['BasketInNearLoc']:
-                plan.params['{0}'.format(cloth)].pose[2, 0] = 0.645
+                plan.params['{0}'.format(cloth)].pose[2, 0] = 0.67
             elif cloth_to_region[cloth] == 6 and self.state.hl_preds['BasketInFarLoc']:
-                plan.params['{0}'.format(cloth)].pose[2, 0] = 0.645
+                plan.params['{0}'.format(cloth)].pose[2, 0] = 0.67
             else:
                 plan.params['{0}'.format(cloth)].pose[2, 0] = 0.615
 
@@ -854,7 +854,7 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 PUT_INTO_WASHER_BEGIN CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: GRAB_CORNER_LEFT BAXTER PUT_INTO_WASHER_EE_1 PUT_INTO_WASHER_EE_2 CLOTH_PUTDOWN_END_0 CLOTH_PUTDOWN_BEGIN_1 \n'.format(act_num))
+            ll_plan_str.append('{0}: GRAB_CORNER_LEFT BAXTER PUT_INTO_WASHER_EE_1 PUT_INTO_WASHER_EE_2 CLOTH_PUTDOWN_END_0 GRAB_EE_1 CLOTH_PUTDOWN_BEGIN_1 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: MOVETO_EE_POS_LEFT BAXTER PUT_INTO_WASHER_EE_3 CLOTH_PUTDOWN_BEGIN_1 CLOTH_PUTDOWN_END_1 \n'.format(act_num))
             act_num += 1

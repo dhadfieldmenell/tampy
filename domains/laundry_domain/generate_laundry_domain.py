@@ -1394,12 +1394,13 @@ class GrabCornerLeft(Action):
         self.timesteps = 20
         grasp_time = 10
         end = self.timesteps - 1
-        self.args = '(?robot - Robot ?grasp_point - EEPose ?end_point - EEPose ?start - RobotPose ?end - RobotPose)'
+        self.args = '(?robot - Robot ?grasp_point - EEPose ?end_point - EEPose ?start - RobotPose ?mid - RobotPose ?end - RobotPose)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterRobotAt ?robot ?mid)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterGripperAtLeft ?robot ?grasp_point)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0, grasp_time)),
-            ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time+1, end)),
+            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0, grasp_time-1)),
+            ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time, end)),
             ('(forall (?obj - Washer)\
                 (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),

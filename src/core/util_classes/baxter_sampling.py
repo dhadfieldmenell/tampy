@@ -1587,7 +1587,7 @@ def resample_washer_rcollides(pred, negated, t, plan):
     attempt, step = 0, 1
     while attempt < 5 and len(pred._cc.BodyVsBody(body, obs)) > 0:
         attempt += 1
-        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5, -0.5, -0.5], [0.025, 0.025, 0.04])
+        target_ee = ee_pos + step * np.multiply(np.random.sample(3)+[-0.5, -0.5, -0.5], [0.025, 0.025, 0.025])
         ik_arm_poses = rave_body.get_ik_from_pose(target_ee, [0, np.pi/4, 0], "{}_arm".format(arm))
         arm_pose = closest_arm_pose(ik_arm_poses, getattr(robot, "{}ArmPose".format(arm[0]))[:, action.active_timesteps[0]])
         if arm_pose is None:

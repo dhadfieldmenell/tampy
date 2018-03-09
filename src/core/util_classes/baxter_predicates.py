@@ -1813,7 +1813,7 @@ class BaxterGripperAt(robot_predicates.GripperAt):
         arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
 
         ee_pos, ee_rot = x[-6:-3], x[-3:]
-        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos)
         Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
         axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
         # Obtain the pos and rot val and jac from 2 function calls
@@ -1823,7 +1823,7 @@ class BaxterGripperAt(robot_predicates.GripperAt):
         return np.vstack([self.coeff * self.pos_check_f(x)])
 
     def stacked_grad(self, x):
-        return np.vstack([self.coeff * self.pos_check_jac(x)])
+        return np.vstack([10*self.coeff * self.pos_check_jac(x)])
 
     def resample(self, negated, t, plan):
         return baxter_sampling.resample_gripper_at(self, negated, t, plan)
