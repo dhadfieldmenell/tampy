@@ -81,7 +81,7 @@ WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.97, 1.0, 0.97-0.375+0.65/2]
 # WASHER_INIT_ROT = [np.pi/2,0,0]
 # WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
-WASHER_INIT_POS = [0.19, 1.34, 0.97-0.375+0.65/2+0.015]
+WASHER_INIT_POS = [0.19, 1.37, 0.97-0.375+0.65/2+0.015]
 WASHER_INIT_ROT = [5*np.pi/6,0,0]
 # Center of barrel is at (0.1, 1.12)
 

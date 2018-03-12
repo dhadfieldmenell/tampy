@@ -32,7 +32,7 @@ class HLLaundryState(object):
         self.washer_cloth_poses = []
 
         self.robot_region = 1
-        self.washer_door = -np.pi/2
+        self.washer_door = 0 # -np.pi/2
 
         self.left_hand_range = 65
 
@@ -866,8 +866,6 @@ class LaundryEnvironmentMonitor(object):
             elif cloth_range < 0.35:
                 cloth_z = 0.68
 
-            import ipdb; ipdb.set_trace()
-
             ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 ROBOT_INIT_POSE CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
@@ -930,9 +928,19 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE PUT_INTO_WASHER_BEGIN CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 PUT_INTO_WASHER_BEGIN CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: GRAB_CORNER_LEFT BAXTER PUT_INTO_WASHER_EE_1 PUT_INTO_WASHER_EE_2 CLOTH_PUTDOWN_END_0 GRAB_EE_1 CLOTH_PUTDOWN_BEGIN_1 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVETO_EE_POS_LEFT BAXTER PUT_INTO_WASHER_EE_3 CLOTH_PUTDOWN_BEGIN_1 CLOTH_PUTDOWN_END_1 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_1 PUT_INTO_WASHER_BEGIN \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
             act_num += 1
             plan = self.plan_from_str(ll_plan_str)
             self.update_plan(plan, {'cloth0': 1})
