@@ -107,6 +107,8 @@ dp.add('BaxterObjRelPoseConstant', ['Basket', 'Cloth'])
 dp.add('BaxterBasketGraspValidPos', ['EEPose', 'EEPose', 'BasketTarget'])
 dp.add('BaxterBasketGraspValidRot', ['EEPose', 'EEPose', 'BasketTarget'])
 dp.add('BaxterEEGraspValid', ['EEPose', 'Washer'])
+dp.add('BaxterEEOpenedDoorGraspValid', ['EEPose', 'Washer'])
+dp.add('BaxterEEClosedDoorGraspValid', ['EEPose', 'Washer'])
 dp.add('BaxterEEGraspValidSide', ['EEPose', 'Washer'])
 
 dp.add('BaxterClothGraspValid', ['EEPose', 'ClothTarget'])
@@ -131,6 +133,10 @@ dp.add('BaxterEEApproachLeft', ['Robot', 'RobotPose', 'EEPose'])
 dp.add('BaxterEEApproachRight', ['Robot', 'RobotPose', 'EEPose'])
 dp.add('BaxterEERetreatLeft', ['Robot', 'RobotPose', 'EEPose'])
 dp.add('BaxterEERetreatRight', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEEApproachOpenDoorLeft', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEEApproachCloseDoorLeft', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEERetreatOpenDoorLeft', ['Robot', 'RobotPose', 'EEPose'])
+dp.add('BaxterEERetreatCloseDoorLeft', ['Robot', 'RobotPose', 'EEPose'])
 dp.add('BaxterBasketInGripper', ['Robot', 'Basket'])
 dp.add('BaxterWasherInGripper', ['Robot', 'Washer'])
 dp.add('BaxterClothInGripperLeft', ['Robot', 'Cloth'])
@@ -638,13 +644,13 @@ class OpenDoor(Action):
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterWasherAt ?washer ?wsp)', '0:{}'.format(grasp_time)),
             ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(retreat_time, end)),
-            ('(BaxterEEApproachLeft ?robot ?sp ?ee_approach)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEGraspValid ?ee_approach ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEGraspValid ?ee_retreat ?washer)', '{}:{}'.format(retreat_time, retreat_time)),
+            ('(BaxterEEApproachOpenDoorLeft ?robot ?sp ?ee_approach)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEClosedDoorGraspValid ?ee_approach ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEOpenedDoorGraspValid ?ee_retreat ?washer)', '{}:{}'.format(retreat_time, retreat_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  retreat_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(retreat_time+1,  end)),
-            ('(BaxterEERetreatLeft ?robot ?ep ?ee_retreat)', '{}:{}'.format(retreat_time, retreat_time)),
+            ('(BaxterEERetreatOpenDoorLeft ?robot ?ep ?ee_retreat)', '{}:{}'.format(retreat_time, retreat_time)),
             ('(BaxterWasherInGripper ?robot ?washer)', '{}:{}'.format(grasp_time, retreat_time)),
             ('(BaxterStationaryWasher ?washer)', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
@@ -757,13 +763,13 @@ class CloseDoor(Action):
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterWasherAt ?washer ?wsp)', '0:{}'.format(grasp_time)),
             ('(BaxterWasherAt ?washer ?wep)', '{}:{}'.format(retreat_time, end)),
-            ('(BaxterEEApproachLeft ?robot ?sp ?ee_approach)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEGraspValid ?ee_approach ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterEEGraspValid ?ee_retreat ?washer)', '{}:{}'.format(retreat_time, retreat_time)),
+            ('(BaxterEEApproachCloseDoorLeft ?robot ?sp ?ee_approach)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEOpenedDoorGraspValid ?ee_approach ?washer)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterEEClosedDoorGraspValid ?ee_retreat ?washer)', '{}:{}'.format(retreat_time, retreat_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  retreat_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(retreat_time+1,  end)),
-            ('(BaxterEERetreatLeft ?robot ?ep ?ee_retreat)', '{}:{}'.format(retreat_time, retreat_time)),
+            ('(BaxterEERetreatCloseDoorLeft ?robot ?ep ?ee_retreat)', '{}:{}'.format(retreat_time, retreat_time)),
             ('(BaxterWasherInGripper ?robot ?washer)', '{}:{}'.format(grasp_time, retreat_time)),
             ('(BaxterStationaryWasher ?washer)', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \

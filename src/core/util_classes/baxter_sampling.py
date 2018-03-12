@@ -1135,9 +1135,11 @@ def get_is_mp_arm_pose(robot_body, arm_poses, last_pose, arm):
 
 
 #@profile 
-def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
+def resample_washer_ee_approach(pred, negated, t, plan, approach = True, rel_pt=None):
     attr_inds, res = OrderedDict(), OrderedDict()
     # Preparing the variables
+    if not rel_pt:
+        rel_pt = np.array([0,-const.APPROACH_DIST,0]) if approach else np.array([0,-const.RETREAT_DIST,0])
     robot, rave_body = pred.robot, pred.robot.openrave_body
     body = rave_body.env_body
     actions = plan.actions
@@ -1187,13 +1189,13 @@ def resample_washer_ee_approach(pred, negated, t, plan, approach = True):
 
     for i in range(step):
         if approach:
-            targ_app_pos = targ_pos + np.array([0,-const.APPROACH_DIST,0]) * (step-i)
+            targ_app_pos = targ_pos + rel_pt * (step-i)
             approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
             if approach_arm_pose is None:
                 return None, None
             add_to_attr_inds_and_res(t-step+i, attr_inds, res, robot, [(resample_attr_name, approach_arm_pose), ('pose', robot_base_pose)])
         else:
-            targ_app_pos = targ_pos + np.array([0,-const.RETREAT_DIST,0]) * (i+1)
+            targ_app_pos = targ_pos + rel_pt * (i+1)
             approach_arm_pose = get_ik_from_pose(targ_app_pos, targ_rot, body, '{}_arm'.format(arm))
             if approach_arm_pose is None:
                 return None, None

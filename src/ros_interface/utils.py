@@ -84,6 +84,8 @@ basket_net_std = 0.3319
 # basket_net_ll = 1.05
 basket_net_ul = 1.3
 basket_net_ll = 1.1
+# basket_net_ul = 1.2
+# basket_net_ll = 1.05
 
 # Used to match depth images to simulated images
 basket_net_bounds = []

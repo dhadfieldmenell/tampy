@@ -508,8 +508,9 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[3].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0])
                 ee_left = target_pos + random_dir
+                ee_left[2] += 0.28
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):

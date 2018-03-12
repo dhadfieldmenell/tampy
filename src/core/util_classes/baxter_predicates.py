@@ -648,6 +648,200 @@ class BaxterEEGraspValid(robot_predicates.EEGraspValid):
         return np.vstack([self.coeff * self.washer_ee_check_jac(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_jac(x, self.rot_dir)])
 
 
+class BaxterEEOpenedDoorGraspValid(robot_predicates.EEGraspValid):
+
+    # BaxterEEGraspValid EEPose Washer
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
+                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        self.coeff = const.EEGRASP_VALID_COEFF
+        self.rot_coeff = const.EEGRASP_VALID_COEFF
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        self.eval_dim = 6
+        # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
+        # self.rel_pt = np.array([-0.04,0.07,-0.1])
+        self.rel_pt = np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rot_dir = np.array([0,0,1])
+        super(BaxterEEOpenedDoorGraspValid, self).__init__(name, params, expected_param_types, env, debug)
+
+    # def resample(self, negated, t, plan):
+    #     return baxter_sampling.resample_ee_grasp_valid(self, negated, t, plan)
+
+    def set_washer_poses(self, x, washer_body):
+        pose, rotation = x[-7:-4], x[-4:-1]
+        door = x[-1]
+        washer_body.set_pose(pose, rotation)
+        washer_body.set_dof({"door": door})
+
+    def get_washer_info(self, washer_body):
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        washer_trans = tool_link.GetTransform()
+        washer_inds = [0]
+        return washer_trans, washer_inds
+
+    #@profile
+    def washer_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        # Setting the poses for forward kinematics to work
+        self.set_washer_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_washer_info(robot_body)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(x[-7:-4], x[-4:-1])
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        ee_pos, ee_rot = x[:3], x[3:6]
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        obj_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return robot_trans, obj_trans, axises, obj_axises, arm_joints
+
+    #@profile
+    def washer_ee_check_f(self, x, rel_pt):
+        washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
+        obj_pos = obj_trans[:3, 3]
+        dist_val = (robot_pos - obj_pos).reshape((3,1))
+        return dist_val
+
+    #@profile
+    def washer_ee_check_jac(self, x, rel_pt):
+        washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+
+        robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
+        obj_pos = obj_trans[:3, 3]
+
+        joint_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        washer_jac = np.array([np.cross(axis, robot_pos - x[-7:-4, 0]) for axis in axises]).T
+
+        obj_jac = -1 * np.array([np.cross(axis, obj_pos - obj_trans[:3,3]) for axis in axises]).T
+        dist_jac = np.hstack([-np.eye(3), obj_jac, np.eye(3), washer_jac, 1*joint_jac])
+        return dist_jac
+
+    def washer_ee_rot_check_f(self, x, rot_dir):
+        # robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        # return self.rot_error_f(obj_trans, robot_trans, self.rot_dir)
+        return x[3:6] - np.array(const.RESAMPLE_OPENED_DOOR_ROT).reshape((3,1))
+
+
+    #@profile
+    def washer_ee_rot_check_jac(self, x, rel_rot):
+        # robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        # return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints, self.rot_dir)
+        return np.hstack([np.zeros((3,3)), np.eye(3), np.zeros((3, 7))])
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.washer_ee_check_f(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, self.rot_dir)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.washer_ee_check_jac(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_jac(x, self.rot_dir)])
+
+
+class BaxterEEClosedDoorGraspValid(robot_predicates.EEGraspValid):
+
+    # BaxterEEGraspValid EEPose Washer
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
+                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        self.coeff = const.EEGRASP_VALID_COEFF
+        self.rot_coeff = const.EEGRASP_VALID_COEFF
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        self.eval_dim = 6
+        # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
+        # self.rel_pt = np.array([-0.04,0.07,-0.1])
+        self.rel_pt = np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rot_dir = np.array([0,0,1])
+        super(BaxterEEClosedDoorGraspValid, self).__init__(name, params, expected_param_types, env, debug)
+
+    # def resample(self, negated, t, plan):
+    #     return baxter_sampling.resample_ee_grasp_valid(self, negated, t, plan)
+
+    def set_washer_poses(self, x, washer_body):
+        pose, rotation = x[-7:-4], x[-4:-1]
+        door = x[-1]
+        washer_body.set_pose(pose, rotation)
+        washer_body.set_dof({"door": door})
+
+    def get_washer_info(self, washer_body):
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        washer_trans = tool_link.GetTransform()
+        washer_inds = [0]
+        return washer_trans, washer_inds
+
+    #@profile
+    def washer_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        # Setting the poses for forward kinematics to work
+        self.set_washer_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_washer_info(robot_body)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(x[-7:-4], x[-4:-1])
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))]
+
+        ee_pos, ee_rot = x[:3], x[3:6]
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos, ee_rot)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        obj_axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return robot_trans, obj_trans, axises, obj_axises, arm_joints
+
+    #@profile
+    def washer_ee_check_f(self, x, rel_pt):
+        washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
+        obj_pos = obj_trans[:3, 3]
+        dist_val = (robot_pos - obj_pos).reshape((3,1))
+        return dist_val
+
+    #@profile
+    def washer_ee_check_jac(self, x, rel_pt):
+        washer_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+
+        robot_pos = washer_trans.dot(np.r_[rel_pt, 1])[:3]
+        obj_pos = obj_trans[:3, 3]
+
+        joint_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        washer_jac = np.array([np.cross(axis, robot_pos - x[-7:-4, 0]) for axis in axises]).T
+
+        obj_jac = -1 * np.array([np.cross(axis, obj_pos - obj_trans[:3,3]) for axis in axises]).T
+        dist_jac = np.hstack([-np.eye(3), obj_jac, np.eye(3), washer_jac, 1*joint_jac])
+        return dist_jac
+
+    def washer_ee_rot_check_f(self, x, rot_dir):
+        # robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        # return self.rot_error_f(obj_trans, robot_trans, self.rot_dir)
+        return x[3:6] - np.array(const.RESAMPLE_CLOSED_DOOR_ROT).reshape((3,1))
+
+
+    #@profile
+    def washer_ee_rot_check_jac(self, x, rel_rot):
+        # robot_trans, obj_trans, axises, obj_axises, arm_joints = self.washer_obj_kinematics(x)
+        # return self.rot_error_jac(obj_trans, robot_trans, axises, arm_joints, self.rot_dir)
+        return np.hstack([np.zeros((3,3)), np.eye(3), np.zeros((3, 7))])
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.washer_ee_check_f(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_f(x, self.rot_dir)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.washer_ee_check_jac(x, self.rel_pt), self.rot_coeff * self.washer_ee_rot_check_jac(x, self.rot_dir)])
+
+
 class BaxterEEGraspValidSide(BaxterEEGraspValid):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(BaxterEEGraspValidSide, self).__init__(name, params, expected_param_types, env, debug)
@@ -1425,6 +1619,47 @@ class BaxterEEApproachLeft(BaxterEEReachable):
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
 
+class BaxterEEApproachOpenDoorLeft(BaxterEEReachable):
+
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "left"
+        super(BaxterEEApproachOpenDoorLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+
+    #@profile
+    def resample(self, negated, t, plan):
+        if const.PRODUCTION:
+            print "Let me try a new approach."
+        else:
+            print "resample {}".format(self.get_type())
+        rel_pt = np.array([-const.APPROACH_DIST/2, -const.APPROACH_DIST*np.sqrt(3)/2, 0])
+        return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach=True, rel_pt=rel_pt)
+
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([const.APPROACH_DIST/2, const.APPROACH_DIST*np.sqrt(3)/2, 0])
+        else:
+            return rel_step*np.array([-const.RETREAT_DIST/2, -const.RETREAT_DIST*np.sqrt(3)/2, 0])
+
+class BaxterEEApproachCloseDoorLeft(BaxterEEReachable):
+
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "left"
+        super(BaxterEEApproachCloseDoorLeft, self).__init__(name, params, expected_param_types, (-steps, 0), env, debug)
+
+    #@profile
+    def resample(self, negated, t, plan):
+        if const.PRODUCTION:
+            print "Let me try a new approach."
+        else:
+            print "resample {}".format(self.get_type())
+        return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = True)
+
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([const.APPROACH_DIST, 0,  0])
+        else:
+            return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
+
 class BaxterEEApproachRight(BaxterEEReachable):
 
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
@@ -1464,6 +1699,47 @@ class BaxterEERetreatLeft(BaxterEEReachable):
         else:
             print "resample {}".format(self.get_type())
         return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = False)
+
+class BaxterEERetreatOpenDoorLeft(BaxterEEReachable):
+
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "left"
+        super(BaxterEERetreatOpenDoorLeft, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([const.APPROACH_DIST,0,  0])
+        else:
+            return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
+
+    #@profile
+    def resample(self, negated, t, plan):
+        if const.PRODUCTION:
+            print "Let me try a new approach."
+        else:
+            print "resample {}".format(self.get_type())
+        return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach = False)
+
+class BaxterEERetreatCloseDoorLeft(BaxterEEReachable):
+
+    def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
+        self.arm = "left"
+        super(BaxterEERetreatCloseDoorLeft, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([const.APPROACH_DIST/2, const.APPROACH_DIST*np.sqrt(3)/2, 0])
+        else:
+            return rel_step*np.array([-const.RETREAT_DIST/2, -const.RETREAT_DIST*np.sqrt(3)/2, 0])
+
+    #@profile
+    def resample(self, negated, t, plan):
+        if const.PRODUCTION:
+            print "Let me try a new approach."
+        else:
+            print "resample {}".format(self.get_type())
+        rel_pt = np.array([-const.APPROACH_DIST/2, -const.APPROACH_DIST*np.sqrt(3)/2, 0])
+        return baxter_sampling.resample_washer_ee_approach(self, negated, t, plan, approach=False, rel_pt=rel_pt)
 
 class BaxterEERetreatRight(BaxterEEReachable):
 

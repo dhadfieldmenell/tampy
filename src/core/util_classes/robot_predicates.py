@@ -358,12 +358,13 @@ class CollisionPredicate(ExprPredicate):
             else:
                 continue
 
-            if not (linkRobot1.startswith('right') or linkRobot1.startswith('left')) or \
-                        linkRobot1 == linkRobot2 or linkRobot2 == 'torso' or \
-                        linkRobot2.startswith('right') or linkRobot2.startswith('left'):
+            if linkRobot1 not in col_links or linkRobot2 not in col_links:
                 continue
 
-            if linkRobot1 not in col_links or linkRobot2 not in col_links:
+            if not (linkRobot1.startswith('right') or linkRobot1.startswith('left')) or \
+                        linkRobot1 == linkRobot2 or \
+                        linkRobot1.endswith('upper_shoulder') or linkRobot1.endswith('lower_shoulder') or\
+                        linkRobot2.startswith('right') or linkRobot2.startswith('left'):
                 continue
 
             # Obtain distance between two collision points, and their normal collision vector

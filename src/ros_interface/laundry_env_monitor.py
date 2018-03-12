@@ -4,6 +4,7 @@ import main
 import numpy as np
 
 import rospy
+from sensor_msgs.msg import Range
 
 import baxter_interface
 
@@ -32,6 +33,8 @@ class HLLaundryState(object):
 
         self.robot_region = 1
         self.washer_door = -np.pi/2
+
+        self.left_hand_range = 65
 
         # For constructing high level plans
         self.prob_domain = "(:domain laundry_domain)\n"
@@ -190,6 +193,10 @@ class LaundryEnvironmentMonitor(object):
         self.l_camera = baxter_interface.camera.CameraController("left_hand_camera")
         self.l_camera.open()
         self.l_camera.resolution = (320, 200)
+        self.range_subscriber = rospy.Subscriber("/robot/range/left_hand_range/state", Range, self._range_callback, queue_size=1)
+
+    def _range_callback(self, data):
+        self.state.left_hand_range = data.range
 
     def run_baxter(self):
         success = False
@@ -318,7 +325,7 @@ class LaundryEnvironmentMonitor(object):
         washer_cloth_poses = self.cloth_predictor.predict_washer()
         self.state.store_washer_poses(washer_cloth_poses)
 
-    def update_plan(self, plan, cloth_to_region={}, in_washer=False, reset_to_region=-1):
+    def update_plan(self, plan, cloth_to_region={}, in_washer=False, reset_to_region=-1, cloth_z=0.615):
         plan.params['basket'].pose[:2, 0] = self.state.basket_pose[:2]
         plan.params['basket'].rotation[0, 0] = self.state.basket_pose[2]
 
@@ -357,12 +364,7 @@ class LaundryEnvironmentMonitor(object):
             next_ind = np.random.choice(range(len(poses[cloth_to_region[cloth]-1])))
             next_pose = poses[cloth_to_region[cloth]-1].pop(next_ind)
             plan.params['{0}'.format(cloth)].pose[:2, 0] = next_pose + np.random.uniform(0, 0.02, (2,))
-            if cloth_to_region[cloth] == 5 and self.state.hl_preds['BasketInNearLoc']:
-                plan.params['{0}'.format(cloth)].pose[2, 0] = 0.67
-            elif cloth_to_region[cloth] == 6 and self.state.hl_preds['BasketInFarLoc']:
-                plan.params['{0}'.format(cloth)].pose[2, 0] = 0.67
-            else:
-                plan.params['{0}'.format(cloth)].pose[2, 0] = 0.615
+            plan.params['{0}'.format(cloth)].pose[2, 0] = cloth_z
 
             plan.params['cloth_target_begin_{0}'.format(cloth[-1])].value[:, 0] = plan.params['{0}'.format(cloth)].pose[:, 0]
 
@@ -847,6 +849,26 @@ class LaundryEnvironmentMonitor(object):
             ll_plan_str.append('{0}: MOVETO BAXTER {1} CLOTH_GRASP_BEGIN_0 \n'.format(act_num, last_pose))
             act_num += 1
             ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': 5})
+            self.ll_solver._backtrack_solve(plan, callback=None, amax=act_num-1)
+            for action in plan.actions[:-1]:
+                self.execute_plan(plan, action.active_timesteps)
+
+            act_num = 0
+            ll_plan_str = []
+
+            cloth_range = self.state.left_hand_range
+            cloth_z = 0.66
+            if cloth_range < 0.2:
+                cloth_z = 0.72
+            elif cloth_range < 0.35:
+                cloth_z = 0.68
+
+            import ipdb; ipdb.set_trace()
+
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 ROBOT_INIT_POSE CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
             act_num += 1
@@ -863,7 +885,7 @@ class LaundryEnvironmentMonitor(object):
             ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
             act_num += 1
             plan = self.plan_from_str(ll_plan_str)
-            self.update_plan(plan, {'cloth0': 5})
+            self.update_plan(plan, {'cloth0': 5}, cloth_z=cloth_z)
             self.ll_solver.backtrack_solve(plan, callback=None)
 
             for action in plan.actions:
