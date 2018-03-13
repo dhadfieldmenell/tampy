@@ -1359,6 +1359,62 @@ class TestBasketDomain(unittest.TestCase):
         serializer.write_plan_to_hdf5("put_into_washer.hdf5", plan)
         self.assertTrue(result)
         import ipdb; ipdb.set_trace()
+
+    def take_out_of_washer(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_1.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        ll_plan_str = []
+        act_num = 0
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVETO BAXTER LOAD_WASHER_INTERMEDIATE_POSE PUT_INTO_WASHER_BEGIN \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN UNLOAD_WASHER_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER UNLOAD_WASHER_0 PUT_INTO_WASHER_BEGIN CLOTH0'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE CLOTH0'.format(act_num))
+
+        plan = hls.get_plan(ll_plan_str, domain, problem)
+        plan.params['washer'].door[0, 0] = -np.pi/2
+        plan.params['baxter'].pose[:,:] = (2*np.pi/9)
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        viewer.draw_plan_ts(plan, 0)
+        serializer = PlanSerializer()
+        def callback(a): return viewer
+        velocites = np.ones((plan.horizon, ))*1
+
+        # robot, washer = plan.params['baxter'], plan.params['washer']
+        # robot_body, washer_body = robot.openrave_body, washer.openrave_body
+        # washer_body.set_dof({'door':-np.pi/2})
+        # rot_mat = matrixFromAxisAngle([0, 0, 0])
+        # trans = washer_body.env_body.GetTransform().dot(rot_mat)
+        # ik_arm_poses_left = robot_body.get_ik_solutions("left_arm", trans)
+        # import ipdb; ipdb.set_trace()
+        # robot_body.set_dof({'lArmPose': ik_arm_poses_left[0]})
+
+
+        solver = robot_ll_solver.RobotLLSolver()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        result = solver.traj_smoother(plan, callback = None)
+        end = time.time()
+
+        print "Planning finished within {}s.".format(end - start)
+        print "Planning succeeded: {}".format(result)
+        ee_time = traj_retiming(plan, velocites)
+        plan.time = ee_time.reshape((1, ee_time.shape[0]))
+
+        print "Saving current plan to file washer_manipulation_plan.hdf5..."
+        # serializer.write_plan_to_hdf5("washer_manipulation_plan.hdf5", plan)
+        self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
     
     def move_basket(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'

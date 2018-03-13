@@ -390,27 +390,25 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-            elif next_act != None and next_act.name == 'take_out_washer':
+            elif next_act != None and next_act.name == 'take_out_of_washer':
                 target = next_act.params[2]
                 target_body = next_act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:,0]
                 target_rot = target.rotation[:,0]
 
-                # old_pose = next_act.params[5].value[:,0]
+                # old_pose = act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
-                
-                random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
+
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 3.0, 0.5], [0.15, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
-
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
                 arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
-
                 # TODO once we have the rotor_base we should resample pose
-                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': gripper_val, 'value': old_pose})
 
             elif next_act != None and next_act.name == 'push_door':
                 target = next_act.params[4]
@@ -443,7 +441,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [2.0, 2.5, 0.5], [0.2, 0.2, 0.01])
+                random_dir = np.multiply(np.random.sample(3) - [2.0, 3.0, 0.5], [0.15, 0.2, 0.01])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
@@ -451,7 +449,7 @@ class RobotLLSolver(LLSolver):
                     continue
                 arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
                 # TODO once we have the rotor_base we should resample pose
-                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+                robot_pose.append({'lArmPose': arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
 
             elif act.name == 'put_into_washer':
                 target = act.params[2]
@@ -535,11 +533,12 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[3].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.15])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.05])
                 ee_left = target_pos + random_dir
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
+                    import ipdb; ipdb.set_trace()
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
