@@ -78,12 +78,13 @@ class TrajectoryController(object):
         # right_vel_ratio = min(np.mean((np.abs(cur_right_err) / real_t) / joint_velocity_limits), 1.0)
         # self.right.set_joint_position_speed(right_vel_ratio)
 
-        self.left.set_joint_position_speed(0.075)
-        self.right.set_joint_position_speed(0.075)
+        self.left.set_joint_position_speed(0.05)
+        self.right.set_joint_position_speed(0.05)
         self.left_grip.set_holding_force(75)
         self.right_grip.set_holding_force(75)
 
         attempt = 0.0
+        r = rospy.Rate(ROS_RATE)
         while np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits) and use_right and attempt <= int(ROS_RATE * real_t):
             next_left_target = left_target # current_left + (left_target - current_left) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_left_err
             next_right_target = right_target # current_right + (right_target - current_right) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_right_err
@@ -95,15 +96,16 @@ class TrajectoryController(object):
                 self.right_col_pub.publish(std_msgs.msg.Empty())
             
             if 'left' in limbs:
-                self.left.set_joint_positions(left_target_dict)
+                self.left.set_joint_positions(left_target_dict, raw=True)
             if 'right' in limbs:
-                self.right.set_joint_positions(right_target_dict)
+                self.right.set_joint_positions(right_target_dict, raw=True)
 
             current_left = map(lambda j: self.left.joint_angles()[j], left_joints)
             current_right = map(lambda j: self.right.joint_angles()[j], right_joints)
             cur_left_err = left_target - current_left
             cur_right_err = right_target - current_right
             attempt += 1.0
+            r.sleep()
 
         self.left_grip.open()  if left_gripper_open else self.left_grip.close()
         self.right_grip.open() if right_gripper_open else self.right_grip.close()

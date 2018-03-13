@@ -7,7 +7,7 @@ import ros_interface.utils as utils
 
 
 NUM_CLOTH = 1
-NUM_SYMBOLS = 10
+NUM_SYMBOLS = 5
 
 # SEED = 1234
 NUM_PROBS = 1
@@ -26,7 +26,9 @@ CLOSE_GRIPPER = [0.015]
 MONITOR_LEFT = [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 MONITOR_RIGHT = [-np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
 
-WASHER_SCAN_LARM = [1.7, -0.40261638, 0.05377066, 1.83155908, -1.68825323, 1.60365558, 2.99452377]
+# WASHER_SCAN_LARM = [1.7, -0.40261638, 0.05377066, 1.83155908, -1.68825323, 1.60365558, 2.99452377]
+WASHER_SCAN_LARM = [1.6, -0.23329773, -0.94132533, 2.44132915, 1.21860071, -0.70738072,  0.57346915]
+# WASHER_SCAN_LARM = [1., -0.86217968, -0.55454339, 2.50171728, 0.97046582, -1.27317176, 0.18678969]
 WASHER_SCAN_RARM = [-np.pi/4, -0.8436, -0.09, 0.91, 0.043, 1.5, -0.05]
 
 # CLOSE_DOOR_SCAN_LARM = [-0.5, -1.14183058, 2.30465956, 2.18895412, -2.53979033, 0.48512255, 2.2696758]
@@ -42,7 +44,7 @@ OPEN_DOOR_SCAN_LARM = [-0.9, -1.40654414, 2.34422276, 2.1106438, 1.41479777, -1.
 
 # LOAD_WASHER_INTERMEDIATE_LARM = [0.8, 0.62943625, -1.44191234,  2.34674592, -1.2537245, -0.35386465, -2.92138512]
 # LOAD_WASHER_INTERMEDIATE_LARM = [0.4, -0.706814, -0.92032024, 2.43696462, -1.8888946, 0.92580404, -3.01834089]
-LOAD_WASHER_INTERMEDIATE_LARM = [ 1.2, -1.08151176, -1.77326592,  2.35781058,  1.49005473,       -0.82626846, -0.70849067]
+LOAD_WASHER_INTERMEDIATE_LARM = [1.2, -1.08151176, -1.77326592, 2.35781058, 1.49005473, -0.82626846, -0.70849067]
 # LOAD_WASHER_INTERMEDIATE_LARM = [ 1., -0.27609405, -1.85094945,  2.37489925, -0.46382826,        0.15948452,  1.64496354]
 # LOAD_WASHER_INTERMEDIATE_LARM = [-1.3, -1.87505533,  1.26395478,  2.40366208, -1.38750247,        1.3399258 ,  2.29505724]
 # LOAD_WASHER_INTERMEDIATE_LARM = [ 1., -1.89881202, -1.24804102,  2.40897135, -1.9547075 ,        1.59862157,  2.25969824]
@@ -52,9 +54,17 @@ LOAD_WASHER_INTERMEDIATE_LARM = [ 1.2, -1.08151176, -1.77326592,  2.35781058,  1
 PUT_INTO_WASHER_LARM = [1.7, 0.26427428, -1.07809409, 2.41433644, 0.89524332, -0.30717996, 1.20404544]
 
 # IN_WASHER_ADJUST_LARM = [0.3, -0.22460627, -0.2449543, 1.85941311, -2.39364561, 1.44774053, 2.961685]
-IN_WASHER_ADJUST_LARM = [1.1, 0.54529813, -1.0642083, 1.731427, 1.36273194, -0.49012445, 0.4115331]
+# IN_WASHER_ADJUST_LARM = [1.1, 0.54529813, -1.0642083, 1.731427, 1.36273194, -0.49012445, 0.4115331]
+IN_WASHER_ADJUST_LARM = [1.2, 0.28760191, -0.89001922, 1.97487363, -1.96009447, 0.72513493, -2.69577026]
 
 GRASP_EE_1_LARM = [1., 0.22291691, -0.90607442, 1.94649067, 1.08593605, -0.78341323, 0.4329876]
+
+UNLOAD_WASHER_0_LARM = [0., -0.37067681, 0.00334665, 0.93011956, 1.8754418, -0.36962104, -1.63029407]
+UNLOAD_WASHER_1_LARM = [0.3, -0.50636126, -0.33647714, 1.00977222, -0.36120271, 0.47043466, 1.56690279]
+UNLOAD_WASHER_2_LARM = [-0.5, -0.69907449, 0.64630227, 1.58033184, -1.73427023, 0.60789478, 1.03357583]
+UNLOAD_WASHER_3_LARM = [0., 0.06180852, -0.05918108, 0.21925722, -1.36508716, 0.40547471, 1.55224061]
+UNLOAD_WASHER_4_LARM = [0.1, -0.04923454, -0.06040849, 0.37378552, 1.86542172, -0.48461707, -0.98989422]
+UNLOAD_WASHER_5_LARM = [-0.2, -0.17400108, 0.23694677, 0.52691205, -1.23359682, 0.37644819, 0.51082788]
 
 ## Use PUT_INTO_WASHER_BEGIN; pretty much the same gripper position
 # DOOR_SCAN_IR_LARM = [1.6, -0.72647354, 0.185418, 2.02671195, -1.71400472, 1.67279272, 2.84759038]
@@ -94,10 +104,10 @@ WASHER_PUSH_DOOR = [-np.pi/6]
 # REGION3 = [-np.pi/4]
 # REGION4 = [-np.pi/2]
 
-REGION1 = [np.pi/4]
-REGION2 = [0]
-REGION3 = [-np.pi/4]
-REGION4 = [-np.pi/2]
+REGION1 = utils.regions[0]
+REGION2 = utils.regions[1]
+REGION3 = utils.regions[2]
+REGION4 = utils.regions[3]
 
 # # EEPOSE_PUT_INTO_WASHER_POS_1 = [0.05, 1.0, 0.75]
 # EEPOSE_PUT_INTO_WASHER_POS_1 = [0.02, 1.14, 0.73]
@@ -221,6 +231,12 @@ def main():
         s += "RobotPose (name {}); ".format("put_into_washer_begin")
         s += "RobotPose (name {}); ".format("in_washer_adjust")
         s += "RobotPose (name {}); ".format("grab_ee_1")
+        s += "RobotPose (name {}); ".format("unload_washer_0")
+        s += "RobotPose (name {}); ".format("unload_washer_1")
+        s += "RobotPose (name {}); ".format("unload_washer_2")
+        s += "RobotPose (name {}); ".format("unload_washer_3")
+        s += "RobotPose (name {}); ".format("unload_washer_4")
+        s += "RobotPose (name {}); ".format("unload_washer_5")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
         s += "BasketTarget (name {}); ".format("basket_near_target")
@@ -290,10 +306,10 @@ def main():
             s += "(rotation washer_close_pose_{0} {1}), ".format(i, WASHER_INIT_ROT)
             s += "(door washer_close_pose_{0} {1}), ".format(i, WASHER_CLOSE_DOOR)
 
-        s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
-        s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+        s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION1)
+        s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_END_POSE)
-        s += get_robot_pose_str('washer_scan_pose', WASHER_SCAN_LARM, WASHER_SCAN_RARM, INT_GRIPPER, REGION1)
+        s += get_robot_pose_str('washer_scan_pose', WASHER_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('close_door_scan_pose', CLOSE_DOOR_SCAN_LARM, CLOSE_DOOR_SCAN_RARM, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('open_door_scan_pose', OPEN_DOOR_SCAN_LARM, OPEN_DOOR_SCAN_RARM, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('basket_scan_pose_1', BASKET_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION1)
@@ -304,6 +320,12 @@ def main():
         s += get_robot_pose_str('put_into_washer_begin', PUT_INTO_WASHER_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('in_washer_adjust', IN_WASHER_ADJUST_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('grab_ee_1', GRASP_EE_1_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('unload_washer_0', UNLOAD_WASHER_0_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('unload_washer_1', UNLOAD_WASHER_1_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('unload_washer_2', UNLOAD_WASHER_2_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('unload_washer_3', UNLOAD_WASHER_3_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('unload_washer_4', UNLOAD_WASHER_4_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('unload_washer_5', UNLOAD_WASHER_5_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)

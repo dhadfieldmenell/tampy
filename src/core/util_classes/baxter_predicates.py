@@ -1309,7 +1309,7 @@ class BaxterCollidesWasher(BaxterRCollides):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 5e-2 # const.RCOLLIDES_DSAFE
+        self.dsafe = 1e-2 # const.RCOLLIDES_DSAFE
 
     def robot_obj_collision(self, x):
         # Parse the pose value
