@@ -2,7 +2,7 @@ import serial
 import time
 
 class RotateControl:
-    def rotate_to_region(self, region):
+    def rotate_to_region(self, region, timeout=20):
         ser = serial.Serial('/dev/ttyACM1', 9600)
         # serin = ser.read()
         if region == 1:
@@ -13,6 +13,6 @@ class RotateControl:
             ser.write('b')
         elif region == 4:
             ser.write('d')
-        time.sleep(20)
+        time.sleep(timeout)
         # ser.read()
         # ser.close()

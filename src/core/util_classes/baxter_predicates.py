@@ -661,7 +661,7 @@ class BaxterEEOpenedDoorGraspValid(robot_predicates.EEGraspValid):
         self.eval_dim = 6
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.array([-0.03, 0.0, 0.02]) # np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rel_pt = np.array([-0.07, 0.0, 0.01]) # np.array([0, 0.06, 0]) # np.zeros((3,))
         self.rot_dir = np.array([0,0,1])
         super(BaxterEEOpenedDoorGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -758,7 +758,7 @@ class BaxterEEClosedDoorGraspValid(robot_predicates.EEGraspValid):
         self.eval_dim = 6
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.array([-0.03, 0.0, 0.02]) # np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rel_pt = np.array([-0.07, 0.0, 0.01]) # np.array([0, 0.06, 0]) # np.zeros((3,))
         self.rot_dir = np.array([0,0,1])
         super(BaxterEEClosedDoorGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -974,7 +974,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         # self._param_to_body = {}
         # self._param_to_body[params[0]] = OpenRAVEBody(self._env, 'baxter_obstruct', params[0].geom)
         self.true_washer_body = self._param_to_body[params[3]]
-        self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.325, .325, .325])),
+        self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .325])),
                                           OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
                                           OpenRAVEBody(self._env, 'obstruct_handle', Can(.02, .15))]
         self._param_to_body[params[3]][0].set_pose([0,0,0])
@@ -1839,7 +1839,7 @@ class BaxterWasherInGripper(BaxterInGripper):
         self.eval_dim = 4
         self.arm = 'left'
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.array([-0.03, 0.0, 0.02]) # np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rel_pt = np.array([-0.07, 0.0, 0.01]) # np.array([0, 0.06, 0]) # np.zeros((3,))
         super(BaxterWasherInGripper, self).__init__(name, params, expected_param_types, env, debug)
         self.rot_coeff = 1e-2 #const.WASHER_IN_GRIPPER_ROT_COEFF
 
@@ -2257,7 +2257,38 @@ class BaxterPushHandle(BaxterPushWasher):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(BaxterPushHandle, self).__init__(name, params, expected_param_types, env, debug)
-        self.rel_pt = np.array([-.4,-0.07,0])
+        self.rel_pt = np.array([-0.06, 0.0, 0.04])
+
+    def get_washer_info(self, washer_body):
+        tool_link = washer_body.env_body.GetLink("washer_handle")
+        washer_trans = tool_link.GetTransform()
+        washer_inds = [0]
+
+        return washer_trans, washer_inds
+
+    def ee_rot_check_f(self, x, local_dir=[1,0,0]):
+        robot_trans, obj_trans, arm_joints, obj_joints, axises = self.robot_robot_kinematics(x)
+        world_dir = robot_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        rot_val = np.array([[np.abs(np.dot([0,0,-1], world_dir)) - 1]])
+        return rot_val
+
+    def ee_rot_check_jac(self, x, local_dir=[1,0,0]):
+        robot_trans, obj_trans, arm_joints, obj_joints, axises = self.robot_robot_kinematics(x)
+        world_dir = robot_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        obj_dir = [0,0,-1]
+        sign = np.sign(np.dot(obj_dir, world_dir))
+        # computing robot's jacobian
+        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in arm_joints]).T.copy()
+        arm_jac = arm_jac.reshape((1, len(arm_joints)))
+        base_jac = sign*np.array(np.dot(obj_dir, np.cross([0,0,1], world_dir))).reshape((1,1))
+        # computing object's jacobian
+        obj_jac = np.array([np.dot(world_dir, np.cross(axis, obj_dir)) for axis in axises])
+        obj_jac = sign*np.r_[[0,0,0], obj_jac].reshape((1, 6))
+        # Create final 1x23 jacobian matrix
+        rot_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
+        return rot_jac
 
 
 """

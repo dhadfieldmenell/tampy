@@ -15,7 +15,7 @@ from core.util_classes.viewer import OpenRAVEViewer
 from pma.hl_solver import FFSolver
 from pma.robot_ll_solver import RobotLLSolver
 from ros_interface.basket.basket_predict import BasketPredict
-from ros_interface.basket_wrist.basket_wrist_predict import BasketWristPredict
+# from ros_interface.basket_wrist.basket_wrist_predict import BasketWristPredict
 from ros_interface.cloth.cloth_grid_predict import ClothGridPredict
 from ros_interface.controllers import EEController, TrajectoryController
 from ros_interface.rotate_control import RotateControl
@@ -33,14 +33,14 @@ class HLLaundryState(object):
         self.washer_cloth_poses = []
 
         self.robot_region = 1
-        self.washer_door = -np.pi/2
+        self.washer_door = 0
 
         self.left_hand_range = 65
 
         # For constructing high level plans
         self.prob_domain = "(:domain laundry_domain)\n"
         self.objects = "(:objects cloth washer basket)\n"
-        self.goal = "(:goal (and (ClothInWasher cloth washer) (not (WasherDoorOpen washer)))\n"
+        self.goal = "(:goal (and (ClothInWasher cloth washer) (not (WasherDoorOpen washer))))\n"
 
         self.hl_preds = {
             "ClothInBasket": False,
@@ -53,7 +53,7 @@ class HLLaundryState(object):
             "BasketInFarLoc": True,
             "BasketNearLocClear": True,
             "BasketFarLocClear": True,
-            "WasherDoorOpen": True,
+            "WasherDoorOpen": False,
         }
 
     def get_abs_prob(self):
@@ -208,6 +208,7 @@ class LaundryEnvironmentMonitor(object):
             hl_plan = self.solve_hl_prob()
             if hl_plan == "Impossible":
                 print "Impossible Plan"
+                return
             import ipdb; ipdb.set_trace()
             for action in hl_plan:
                 failed = []
@@ -259,14 +260,17 @@ class LaundryEnvironmentMonitor(object):
             elif cur_action.name == "close_door":
                 self.state.washer_door = 0
 
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
 
             if cur_action.name.startswith("rotate"):
                 old_region = self.state.robot_region
                 regions = np.array([np.pi/4, 0, -np.pi/4, -np.pi/2])
                 self.state.robot_region = np.abs(regions - cur_action.params[-1].value[0,0]).argmin() + 1 # TODO: Make this more generalized
                 if self.state.robot_region != old_region:
-                    self.rotate_control.rotate_to_region(self.state.robot_region)
+                    if np.abs(self.state.robot_region - old_region) < 2:
+                        self.rotate_control.rotate_to_region(self.state.robot_region, timeout=12)
+                    else:
+                        self.rotate_control.rotate_to_region(self.state.robot_region, timeout=24)
             else:
                 stop_on_fail = False # cur_action.name in ["basket_grasp"]
                 self.traj_control.execute_plan(plan, active_ts=cur_action.active_timesteps, stop_on_fail=stop_on_fail, check_collision=False)
@@ -741,21 +745,21 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             last_pose = 'ROBOT_REGION_1_POSE_0'
 
-        ll_plan_str.append('{0}: MOVETO BAXTER {1} CLOSE_DOOR_SCAN_POSE \n'.format(act_num, last_pose))
+        # ll_plan_str.append('{0}: MOVETO BAXTER {1} CLOSE_DOOR_SCAN_POSE \n'.format(act_num, last_pose))
 
-        plan = self.plan_from_str(ll_plan_str)
-        self.update_plan(plan, {})
-        self.ll_solver.backtrack_solve(plan, callback=None)
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {})
+            self.ll_solver.backtrack_solve(plan, callback=None)
 
-        for action in plan.actions:
-            self.execute_plan(plan, action.active_timesteps)
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
 
-        # self.predict_open_door()
-        if self.state.washer_door < -np.pi/6:
-             failed_constr.append(("WasherDoorOpen", True))
+            # self.predict_open_door()
+            if self.state.washer_door < -np.pi/6:
+                 failed_constr.append(("WasherDoorOpen", True))
 
-        if len(failed_constr):
-            return failed_constr
+            if len(failed_constr):
+                return failed_constr
         
         act_num = 0
         ll_plan_str = []

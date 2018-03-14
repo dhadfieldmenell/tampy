@@ -24,7 +24,7 @@ right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'rig
 
 joint_velocity_limits = np.array([2.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0])
 # error_limits = np.array([.01, .075, .05, .075, .075, .01, .01])
-error_limits = np.array([.01, .05, .05, .05, .05, .01, .01])
+error_limits = np.array([.01, .05, .025, .025, .025, .01, .01])
 stop_error_limits = np.array([.05, .1, .1, .5, .5, .1, .1])
 
 def closest_arm_pose(arm_poses, cur_arm_pose):
@@ -78,10 +78,10 @@ class TrajectoryController(object):
         # right_vel_ratio = min(np.mean((np.abs(cur_right_err) / real_t) / joint_velocity_limits), 1.0)
         # self.right.set_joint_position_speed(right_vel_ratio)
 
-        self.left.set_joint_position_speed(0.1)
-        self.right.set_joint_position_speed(0.1)
-        self.left_grip.set_holding_force(75)
-        self.right_grip.set_holding_force(75)
+        self.left.set_joint_position_speed(0.075)
+        self.right.set_joint_position_speed(0.075)
+        self.left_grip.set_holding_force(95)
+        self.right_grip.set_holding_force(95)
 
         attempt = 0.0
         # r = rospy.Rate(ROS_RATE)
@@ -138,7 +138,7 @@ class TrajectoryController(object):
         cur_ts = active_ts[0]
         baxter = plan.params['baxter']
         while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
-            success = self.execute_timestep(baxter, cur_ts, 1, limbs=limbs, check_collision=check_collision)
+            success = self.execute_timestep(baxter, cur_ts, 2, limbs=limbs, check_collision=check_collision)
             if not success:
                 print 'Failed timestep {}'.format(cur_ts)
                 if stop_on_fail:

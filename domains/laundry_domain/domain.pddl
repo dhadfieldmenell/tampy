@@ -51,7 +51,7 @@
 
 
 	(:action clear_basket_far_loc
-		:parameters (?basket ?cloth)
+		:parameters (?basket ?cloth ?washer)
 		:precondition (and (not (BasketFarLocClear ?basket ?cloth))
 						   (WasherDoorOpen ?washer)
 						   (BasketInNearLoc ?basket))

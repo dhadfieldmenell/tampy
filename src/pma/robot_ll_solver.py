@@ -328,8 +328,8 @@ class RobotLLSolver(LLSolver):
                 next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])
 
                 const_dir = [0, 0, .125]
-                ee_left = target_pos + offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0], [0.15, 0.15, 0.1])
-                ee_right = target_pos - offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0], [0.15, 0.15, 0.1])
+                ee_left = target_pos + offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0.05], [0.15, 0.15, 0.1])
+                ee_right = target_pos - offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0.05], [0.15, 0.15, 0.1])
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")

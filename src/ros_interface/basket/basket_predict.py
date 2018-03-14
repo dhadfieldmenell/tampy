@@ -2,8 +2,9 @@ import numpy as np
 
 import tensorflow as tf
 
-from keras import backend as K
-from keras.models import load_model
+with tf.device("/cpu:0"):
+    from keras import backend as K
+    from keras.models import load_model
 
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
