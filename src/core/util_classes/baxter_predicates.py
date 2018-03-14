@@ -372,8 +372,8 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
 
             x -> left_ee_pos, left_ee_rot, right_ee_pos, right_ee_rot, basket_pos, basket_rot
         """
-        left_rel_pt = [const.BASKET_OFFSET, 0, 0]
-        right_rel_pt = [-const.BASKET_OFFSET, 0, 0]
+        left_rel_pt = [const.BASKET_OFFSET, 0.03, 0]
+        right_rel_pt = [-const.BASKET_OFFSET, 0.03, 0]
         # left_rel_pt = [0, 0, -const.BASKET_NARROW_OFFSET]
         # right_rel_pt = [0, 0, const.BASKET_NARROW_OFFSET]
         left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.pose_basket_kinematics(x)
@@ -389,8 +389,8 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
         return np.vstack([left_dist_val, right_dist_val])
 
     def both_arm_ee_check_jac(self, x):
-        left_rel_pt = [const.BASKET_OFFSET, 0, 0]
-        right_rel_pt = [-const.BASKET_OFFSET, 0, 0]
+        left_rel_pt = [const.BASKET_OFFSET, 0.03, 0]
+        right_rel_pt = [-const.BASKET_OFFSET, 0.03, 0]
         # left_rel_pt = [0, 0, -const.BASKET_NARROW_OFFSET]
         # right_rel_pt = [0, 0, const.BASKET_NARROW_OFFSET]
         left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.pose_basket_kinematics(x)
@@ -494,7 +494,7 @@ class BaxterBasketGraspLeftPos(BaxterGraspValidPos):
         # A = np.c_[orient_mat, -orient_mat]
 
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
-        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [const.BASKET_OFFSET], [0]])
+        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [const.BASKET_OFFSET], [0.03]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -530,7 +530,7 @@ class BaxterBasketGraspRightPos(BaxterGraspValidPos):
 
         # A = np.c_[orient_mat, -orient_mat]
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
-        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [-const.BASKET_OFFSET], [0]])
+        b, val = np.zeros((self.attr_dim,1)), np.array([[0], [-const.BASKET_OFFSET], [0.03]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(robot_predicates.GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -1172,7 +1172,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         rel_pt = np.zeros((3,))
         manip = robot_body.env_body.GetManipulator("right_arm")
         if self.obj.name == "basket":
-            rel_pt = np.array([0,-const.BASKET_OFFSET,0])
+            rel_pt = np.array([0,-const.BASKET_OFFSET,-0.03])
             manip = robot_body.env_body.GetManipulator("left_arm")
 
         robot_trans = manip.GetTransform()

@@ -642,6 +642,10 @@ class LaundryEnvironmentMonitor(object):
 
         # self.predict_basket_location_from_wrist(plan)
 
+        current_left = np.array(map(lambda j: self.traj_control.left.joint_angles()[j], utils.left_joints))
+        print np.abs(current_left - plan.params['baxter'].lArmPose[:,plan.actions[-2].active_timesteps[-1]])
+        
+
         act_num = 0
         ll_plan_str = []
 

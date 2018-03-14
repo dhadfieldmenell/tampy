@@ -1,5 +1,7 @@
 import numpy as np
 
+import tensorflow as tf
+
 from keras import backend as K
 from keras.models import load_model
 
@@ -20,8 +22,9 @@ class BasketPredict:
         self.cur_im = None
         self.last_inter = 0
         # TODO: Add catch in case of stream failure
-        self.net = load_model(TRAINED_MODEL)
-        self.inter_func = K.function([self.net.layers[0].input], [self.net.layers[3].output, self.net.layers[20].output])
+        with tf.device("/cpu:0"):
+            self.net = load_model(TRAINED_MODEL)
+            self.inter_func = K.function([self.net.layers[0].input], [self.net.layers[3].output, self.net.layers[20].output])
         self.inter_inds = [2, 1]
         self.pub1 = rospy.Publisher("net1", Image, queue_size=1)
         self.pub2 = rospy.Publisher("net2", Image, queue_size=1)
