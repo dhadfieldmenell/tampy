@@ -975,7 +975,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         # self._param_to_body[params[0]] = OpenRAVEBody(self._env, 'baxter_obstruct', params[0].geom)
         self.true_washer_body = self._param_to_body[params[3]]
         self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .325])),
-                                          OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
+                                          OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .03)),
                                           OpenRAVEBody(self._env, 'obstruct_handle', Can(.02, .15))]
         self._param_to_body[params[3]][0].set_pose([0,0,0])
         self._param_to_body[params[3]][1].set_pose([0,0,0])
@@ -999,7 +999,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         washer_door = self._param_to_body[washer][1]
         washer_handle = self._param_to_body[washer][2]
 
-        washer_pos, washer_rot = x[-7:-4], x[-4:-1]
+        washer_pos, washer_rot, door_val = x[-7:-4], x[-4:-1], x[-1]
         self.true_washer_body.set_pose(washer_pos, washer_rot)
         self.true_washer_body.set_dof({'door': x[-1]})
         rot = washer_rot[0]
@@ -1007,8 +1007,8 @@ class BaxterObstructsWasher(BaxterObstructs):
         y_offset = -np.cos(rot)*0.1
         washer_body.set_pose(washer_pos-[[x_offset],[y_offset],[0]], washer_rot)
         door_trans = self.true_washer_body.env_body.GetLink('washer_door').GetTransform()
-        washer_door_pos = door_trans[:3,3]
-        washer_door.set_pose(washer_door_pos, [washer_rot[0], np.pi/2, 0])
+        washer_door_pos = door_trans.dot([0, 0.025, 0, 1])[:3]
+        washer_door.set_pose(washer_door_pos, [washer_rot[0]+[np.pi/2+x[-1]], np.pi/2, 0])
         washer_handle.set_pose(washer_door_pos+[0,0,0.4])
 
         # Make sure two body is in the same environment
@@ -2123,8 +2123,8 @@ class BaxterPushWasher(robot_predicates.IsPushing):
         self.arm = 'left'
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
-        self.coeff = 1e0#const.IN_GRIPPER_COEFF
-        self.rot_coeff = 1e0#const.IN_GRIPPER_ROT_COEFF
+        self.coeff = 1#const.IN_GRIPPER_COEFF
+        self.rot_coeff = 1#const.IN_GRIPPER_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.rel_pt = np.array([-.2,-0.07,0])
@@ -2252,6 +2252,21 @@ class BaxterPushWasher(robot_predicates.IsPushing):
     def stacked_grad(self, x):
         rel_pt = self.rel_pt
         return np.vstack([self.coeff * self.ee_contact_check_jac(x, rel_pt), self.rot_coeff * np.c_[self.ee_rot_check_jac(x), np.zeros((1,))]])
+
+class BaxterPushInsideWasher(BaxterPushWasher):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterPushInsideWasher, self).__init__(name, params, expected_param_types, env, debug)
+        self.rel_pt = np.array([-.1,-0.075,0])
+
+class BaxterPushOutsideWasher(BaxterPushWasher):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterPushOutsideWasher, self).__init__(name, params, expected_param_types, env, debug)
+        self.rel_pt = np.array([-0.2,0.12,0])
+
+class BaxterPushOutsideCloseWasher(BaxterPushWasher):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterPushOutsideCloseWasher, self).__init__(name, params, expected_param_types, env, debug)
+        self.rel_pt = np.array([-0.05,0.145,0])
 
 class BaxterPushHandle(BaxterPushWasher):
 

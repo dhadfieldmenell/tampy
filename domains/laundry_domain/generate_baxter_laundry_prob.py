@@ -98,7 +98,7 @@ WASHER_INIT_ROT = [5*np.pi/6,0,0]
 
 WASHER_OPEN_DOOR = [-np.pi/2]
 WASHER_CLOSE_DOOR = [0.0]
-WASHER_PUSH_DOOR = [-np.pi/6]
+WASHER_PUSH_DOOR = [-np.pi/4]
 
 # REGION1 = [np.pi/4]
 # REGION2 = [0]
@@ -218,6 +218,7 @@ def main():
             s += "ClothTarget (name {}); ".format("cloth_target_end_{0}".format(i))
             s += "WasherPose (name {}); ".format("washer_open_pose_{0}".format(i))
             s += "WasherPose (name {}); ".format("washer_close_pose_{0}".format(i))
+            s += "WasherPose (name {}); ".format("washer_push_pose_{0}".format(i))
 
         s += "RobotPose (name {}); ".format("robot_init_pose")
         s += "RobotPose (name {}); ".format("robot_end_pose")
@@ -306,6 +307,11 @@ def main():
             s += "(value washer_close_pose_{0} {1}), ".format(i, WASHER_INIT_POS)
             s += "(rotation washer_close_pose_{0} {1}), ".format(i, WASHER_INIT_ROT)
             s += "(door washer_close_pose_{0} {1}), ".format(i, WASHER_CLOSE_DOOR)
+
+            s += "(geom washer_push_pose_{0} {1}), ".format(i, WASHER_CONFIG)
+            s += "(value washer_push_pose_{0} {1}), ".format(i, WASHER_INIT_POS)
+            s += "(rotation washer_push_pose_{0} {1}), ".format(i, WASHER_INIT_ROT)
+            s += "(door washer_push_pose_{0} {1}), ".format(i, WASHER_PUSH_DOOR)
 
         s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION1)

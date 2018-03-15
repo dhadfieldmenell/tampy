@@ -31,7 +31,7 @@ EEREACHABLE_STEPS = 5
 
 # Collision Constants
 DIST_SAFE = 1e-3
-RCOLLIDES_DSAFE = 1e-3
+RCOLLIDES_DSAFE = 5e-3
 COLLIDES_DSAFE = 1e-3
 
 # Plan Coefficient
