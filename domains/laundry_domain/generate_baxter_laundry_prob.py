@@ -85,7 +85,8 @@ BASKET_FAR_ROT = utils.basket_far_rot.tolist()
 CLOTH_ROT = [0, 0, 0]
 
 TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
-TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375]
+# TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375]
+TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375+0.025]
 TABLE_ROT = [0,0,0]
 
 ROBOT_DIST_FROM_TABLE = 0.05

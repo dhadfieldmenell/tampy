@@ -117,7 +117,9 @@ class Washer(Robot):
             self.good_rot = np.array([np.pi/2, 0, 0])
         self.dof_map = {"door": [0]}
 
-        self.col_links = set(["external_1", "external_2", "external_3", "external_4", "back", "washer_door",
+        self.col_links = set(["external_1", "external_2", "external_3", "external_4", "back", 
+                              "corner_1", "corner_2", "corner_3", "corner_4",
+                              "strip_1", "strip_2", "strip_3", "strip_4", "washer_door",
                               "washer_handle", "barrel_1", "barrel_2",
                               "barrel_3", "barrel_4", "barrel_5",
                               "barrel_6", "barrel_7", "barrel_8",

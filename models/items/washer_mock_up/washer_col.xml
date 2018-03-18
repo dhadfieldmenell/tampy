@@ -53,6 +53,70 @@
      </Geom>
    </Body>
 
+   <Body name="corner_1">
+     <Translation>0.215 0.38 -0.215</Translation>
+     <Geom type="box">
+       <Extents>0.06 0.025 0.06</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="corner_2">
+     <Translation>0.215 0.38 0.215</Translation>
+     <Geom type="box">
+       <Extents>0.06 0.025 0.06</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="corner_3">
+     <Translation>-0.215 0.38 -0.215</Translation>
+     <Geom type="box">
+       <Extents>0.06 0.025 0.06</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="corner_4">
+     <Translation>-0.215 0.38 0.215</Translation>
+     <Geom type="box">
+       <Extents>0.06 0.025 0.06</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="strip_1">
+     <Translation>0 0.38 0.245</Translation>
+     <Geom type="box">
+       <Extents>0.275 0.025 0.0325</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="strip_2">
+     <Translation>-0.245 0.38 0</Translation>
+     <Geom type="box">
+       <Extents>0.03 0.025 0.275</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="strip_3">
+     <Translation>0 0.38 -0.25</Translation>
+     <Geom type="box">
+       <Extents>0.275 0.025 0.025</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="strip_4">
+     <Translation>0.245 0.38 0</Translation>
+     <Geom type="box">
+       <Extents>0.03 0.025 0.275</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
    <!-- <Body name="washer_handle">
      <Translation>-0.175 0.45 0.1</Translation>
      <RotationAxis>0 0 0 0</RotationAxis>
@@ -364,6 +428,54 @@
    <Joint name="back_joint" type="hinge" enable="false">
      <Body>base</Body>
      <Body>back</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="corner_joint_1" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>corner_1</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="corner_joint_2" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>corner_2</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="corner_joint_3" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>corner_3</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="corner_joint_4" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>corner_4</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="strip_joint_1" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>strip_1</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="strip_joint_2" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>strip_2</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="strip_joint_3" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>strip_3</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="strip_joint_4" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>strip_4</Body>
      <limits>0.0 0.0</limits>
    </Joint>
 

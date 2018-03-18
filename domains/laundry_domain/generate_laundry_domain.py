@@ -1165,10 +1165,12 @@ class TakeOutOfWasher(Action):
         retreat_time = end-5
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
+            ('(BaxterClothAt ?cloth ?target)', '0:0'),
             ('(BaxterWasherAt ?washer ?wp)', '{}:{}'.format(0, end)),
             ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(grasp_time, end)),
             ('(BaxterClothGraspValid ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
-            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
+            ('(BaxterClothTargetInWasher ?target ?wp)', '{}:{}'.format(grasp_time, grasp_time)),
+            ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(1,  grasp_time-1)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  end)),
             ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(0, grasp_time)),
             ('(forall (?obj - Basket) \
@@ -1199,10 +1201,8 @@ class TakeOutOfWasher(Action):
             ('(not (BaxterCollidesWasher ?robot ?washer))', '{}:{}'.format(0, end))
         ]
         self.eff = [\
-            ('(not (BaxterClothTargetInWasher ?target ?wp))', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
-            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(end, end)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (BaxterObstructsCloth ?robot ?sym1 ?sym2 ?cloth))\

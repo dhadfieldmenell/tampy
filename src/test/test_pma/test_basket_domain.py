@@ -1385,8 +1385,8 @@ class TestBasketDomain(unittest.TestCase):
         act_num += 1
 
         plan = hls.get_plan(plan_str, domain, problem)
-        plan.params['cloth0'].pose[:,:30] = [[0.55], [0.3], [0.65]]
-        plan.params['cloth_target_begin_0'].value[:,:] = [[0.55], [0.3], [0.65]]
+        plan.params['cloth0'].pose[:,:30] = [[0.55], [0.3], [0.68]]
+        plan.params['cloth_target_begin_0'].value[:,:] = [[0.55], [0.3], [0.68]]
         plan.params['basket'].pose[:,:] = plan.params['basket_near_target'].value[:,:]
         plan.params['basket'].rotation[:,:] = plan.params['basket_near_target'].rotation[:,:]
 
