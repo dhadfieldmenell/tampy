@@ -870,10 +870,10 @@ class PosePredicate(ExprPredicate):
         l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
         r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
-        rel_pt = np.array([0,2*const.BASKET_OFFSET,0.03])
+        rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
         # rel_pt = np.array([0, 2*const.BASKET_NARROW_OFFSET,0])
         l_pos_val = self.rel_pos_error_f(r_ee_trans, l_ee_trans, rel_pt)
-        rel_pt = np.array([0,-2*const.BASKET_OFFSET,0.03])
+        rel_pt = np.array([0,-2*const.BASKET_OFFSET,0])
         # rel_pt = np.array([0, -2*const.BASKET_NARROW_OFFSET,0])
         r_pos_val = self.rel_pos_error_f(l_ee_trans, r_ee_trans, rel_pt)
         rel_pt = np.array([const.BASKET_OFFSET,0.03,0])
@@ -903,7 +903,7 @@ class PosePredicate(ExprPredicate):
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
         r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
         # left_arm_focused
-        rel_pt = np.array([0,2*const.BASKET_OFFSET,0.03])
+        rel_pt = np.array([0,2*const.BASKET_OFFSET,0])
         # rel_pt = np.array([0,2*const.BASKET_NARROW_OFFSET,0])
         robot_pos = l_ee_trans[:3, 3]
         obj_pos = np.dot(r_ee_trans, np.r_[rel_pt, 1])[:3]
@@ -912,7 +912,7 @@ class PosePredicate(ExprPredicate):
 
         l_pos_jac = np.hstack([l_arm_jac, np.zeros((3,1)), r_arm_jac, np.zeros((3, 8))])
         # right_arm_focused
-        rel_pt = np.array([0,-2*const.BASKET_OFFSET,0.03])
+        rel_pt = np.array([0,-2*const.BASKET_OFFSET,0])
         # rel_pt = np.array([0,-2*const.BASKET_NARROW_OFFSET,0])
         robot_pos = r_ee_trans[:3, 3]
         obj_pos = np.dot(l_ee_trans, np.r_[rel_pt, 1])[:3]

@@ -57,6 +57,9 @@ PUT_INTO_WASHER_LARM = [1.7, 0.26427428, -1.07809409, 2.41433644, 0.89524332, -0
 # IN_WASHER_ADJUST_LARM = [1.1, 0.54529813, -1.0642083, 1.731427, 1.36273194, -0.49012445, 0.4115331]
 IN_WASHER_ADJUST_LARM = [1.2, 0.28760191, -0.89001922, 1.97487363, -1.96009447, 0.72513493, -2.69577026]
 
+LOAD_BASKET_FAR_LARM = [-0.4, -1.03370072, -0.50974778, 0.40054644, -1.34636192, 1.6954402, 0.89965769]
+LOAD_BASKET_NEAR_LARM = [0., -0.96128652, -1.96981899, 1.13576933, -0.25629043, 0.83559803, 0.74095247]
+
 GRASP_EE_1_LARM = [1., 0.22291691, -0.90607442, 1.94649067, 1.08593605, -0.78341323, 0.4329876]
 
 UNLOAD_WASHER_0_LARM = [0., -0.37067681, 0.00334665, 0.93011956, 1.8754418, -0.36962104, -1.63029407]
@@ -91,7 +94,8 @@ WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.97, 1.0, 0.97-0.375+0.65/2]
 # WASHER_INIT_ROT = [np.pi/2,0,0]
 # WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
-WASHER_INIT_POS = [0.19, 1.37, 0.97-0.375+0.65/2+0.015]
+# WASHER_INIT_POS = [0.19, 1.37, 0.97-0.375+0.65/2+0.015]
+WASHER_INIT_POS = [0.2, 1.37, 0.97-0.375+0.65/2+0.015]
 # WASHER_INIT_POS = [0.24, 1.4, 0.97-0.375+0.65/2+0.015]
 WASHER_INIT_ROT = [5*np.pi/6,0,0]
 # Center of barrel is at (0.1, 1.12)
@@ -127,7 +131,7 @@ EEPOSE_PUT_INTO_WASHER_ROT_2 = [np.pi/3, 0, 0]
 EEPOSE_PUT_INTO_WASHER_POS_3 = [0.11, 1.25, 0.85]
 EEPOSE_PUT_INTO_WASHER_ROT_3 = [np.pi/3, np.pi/20, 0]
 
-cloth_init_poses = np.ones((NUM_CLOTH, 3)) * 0.615
+cloth_init_poses = np.ones((NUM_CLOTH, 3)) * 0.625
 cloth_init_poses = cloth_init_poses.tolist()
 
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
@@ -233,6 +237,8 @@ def main():
         s += "RobotPose (name {}); ".format("put_into_washer_begin")
         s += "RobotPose (name {}); ".format("in_washer_adjust")
         s += "RobotPose (name {}); ".format("grab_ee_1")
+        s += "RobotPose (name {}); ".format("load_basket_far")
+        s += "RobotPose (name {}); ".format("load_basket_near")
         s += "RobotPose (name {}); ".format("unload_washer_0")
         s += "RobotPose (name {}); ".format("unload_washer_1")
         s += "RobotPose (name {}); ".format("unload_washer_2")
@@ -327,6 +333,8 @@ def main():
         s += get_robot_pose_str('put_into_washer_begin', PUT_INTO_WASHER_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('in_washer_adjust', IN_WASHER_ADJUST_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('grab_ee_1', GRASP_EE_1_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('load_basket_far', LOAD_BASKET_FAR_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION3)
+        s += get_robot_pose_str('load_basket_near', LOAD_BASKET_NEAR_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('unload_washer_0', UNLOAD_WASHER_0_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('unload_washer_1', UNLOAD_WASHER_1_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('unload_washer_2', UNLOAD_WASHER_2_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)

@@ -1212,6 +1212,8 @@ class TestBasketDomain(unittest.TestCase):
         act_num += 1
         plan = hls.get_plan(ll_plan_str, domain, problem)
         plan.params['washer'].door[0, 0] = 0
+        plan.params['baxter'].pose[0,0] = 0
+        plan.params['robot_init_pose'].value[0,0] = 0
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         viewer.draw_plan_ts(plan, 0)

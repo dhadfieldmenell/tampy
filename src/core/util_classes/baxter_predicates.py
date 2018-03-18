@@ -661,7 +661,7 @@ class BaxterEEOpenedDoorGraspValid(robot_predicates.EEGraspValid):
         self.eval_dim = 6
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.array([-0.07, 0.0, 0.01]) # np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rel_pt = np.array([-0.07, 0.0, 0.0]) # np.array([0, 0.06, 0]) # np.zeros((3,))
         self.rot_dir = np.array([0,0,1])
         super(BaxterEEOpenedDoorGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -758,7 +758,7 @@ class BaxterEEClosedDoorGraspValid(robot_predicates.EEGraspValid):
         self.eval_dim = 6
         # rel_pt = np.array([-0.04, 0.07, -0.115]) # np.array([-0.035,0.055,-0.1])
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.array([-0.07, 0.0, 0.01]) # np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rel_pt = np.array([-0.07, 0.0, 0.0]) # np.array([0, 0.06, 0]) # np.zeros((3,))
         self.rot_dir = np.array([0,0,1])
         super(BaxterEEClosedDoorGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -1839,7 +1839,7 @@ class BaxterWasherInGripper(BaxterInGripper):
         self.eval_dim = 4
         self.arm = 'left'
         # self.rel_pt = np.array([-0.04,0.07,-0.1])
-        self.rel_pt = np.array([-0.07, 0.0, 0.01]) # np.array([0, 0.06, 0]) # np.zeros((3,))
+        self.rel_pt = np.array([-0.07, 0.0, 0.0]) # np.array([0, 0.06, 0]) # np.zeros((3,))
         super(BaxterWasherInGripper, self).__init__(name, params, expected_param_types, env, debug)
         self.rot_coeff = 1e-2 #const.WASHER_IN_GRIPPER_ROT_COEFF
 

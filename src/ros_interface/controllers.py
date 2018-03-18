@@ -17,7 +17,7 @@ from baxter_core_msgs.msg import CollisionAvoidanceState
 import numpy as np
 
 
-ROS_RATE = 500
+ROS_RATE = 1000
 
 left_joints = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2']
 right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2']
@@ -82,6 +82,8 @@ class TrajectoryController(object):
         self.right.set_joint_position_speed(0.075)
         self.left_grip.set_holding_force(95)
         self.right_grip.set_holding_force(95)
+        self.left_grip.set_moving_force(95)
+        self.right_grip.set_moving_force(95)
 
         attempt = 0.0
         # r = rospy.Rate(ROS_RATE)

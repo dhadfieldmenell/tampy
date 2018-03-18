@@ -70,14 +70,16 @@
 		:parameters (?basket ?cloth)
 		:precondition (and (not (BasketInNearLoc ?basket))
 						   (BasketNearLocClear ?basket ?cloth))
-		:effect (BasketInNearLoc ?basket)
+		:effect (and (BasketInNearLoc ?basket)
+		             (not (BasketInFarLoc ?basket)))
 	)
 
 	(:action move_basket_from_washer
 		:parameters (?basket ?cloth)
 		:precondition (and (not (BasketInFarLoc ?basket))
 						   (BasketFarLocClear ?basket ?cloth))
-		:effect (BasketInFarLoc ?basket)
+		:effect (and (BasketInFarLoc ?basket)
+		             (not (BasketInNearLoc ?basket)))
 	)
 
 
@@ -96,8 +98,7 @@
 
 	(:action load_washer_from_basket
 		:parameters (?cloth ?basket ?washer)
-		:precondition (and (not (ClothInWasher ?cloth ?washer))
-					 	   (ClothInBasket ?cloth ?basket)
+		:precondition (and (ClothInBasket ?cloth ?basket)
 					 	   (WasherDoorOpen ?washer)
 					 	   (not (ClothInRegion2 ?cloth))
 					 	   (not (ClothInRegion3 ?cloth))
