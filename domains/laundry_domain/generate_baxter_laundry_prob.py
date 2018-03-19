@@ -65,9 +65,13 @@ GRASP_EE_1_LARM = [1., 0.22291691, -0.90607442, 1.94649067, 1.08593605, -0.78341
 UNLOAD_WASHER_0_LARM = [0., -0.37067681, 0.00334665, 0.93011956, 1.8754418, -0.36962104, -1.63029407]
 UNLOAD_WASHER_1_LARM = [0.3, -0.50636126, -0.33647714, 1.00977222, -0.36120271, 0.47043466, 1.56690279]
 UNLOAD_WASHER_2_LARM = [-0.5, -0.69907449, 0.64630227, 1.58033184, -1.73427023, 0.60789478, 1.03357583]
-UNLOAD_WASHER_3_LARM = [0., 0.06180852, -0.05918108, 0.21925722, -1.36508716, 0.40547471, 1.55224061]
+# UNLOAD_WASHER_3_LARM = [0.2, 0.00430631, -0.91698346, 0.39204878, 0.04554458, 0.36574977, 1.01936829]
+# UNLOAD_WASHER_3_LARM = [0., 0.05451098, -0.80474549, 0.2519506, -0.09869922, 0.29024519, 0.48322255]
+UNLOAD_WASHER_3_LARM = [0.1, -0.26380738, -0.41376808, 0.81277683, -1.24936207, 0.18221274, 1.26918756]
 UNLOAD_WASHER_4_LARM = [0.1, -0.04923454, -0.06040849, 0.37378552, 1.86542172, -0.48461707, -0.98989422]
 UNLOAD_WASHER_5_LARM = [-0.2, -0.17400108, 0.23694677, 0.52691205, -1.23359682, 0.37644819, 0.51082788]
+
+INTERMEDIATE_UNLOAD_LARM = [1.1, -0.86459062, -0.97227641, 2.23663424, 0.69570417, -0.47837221, -0.33542266]
 
 ## Use PUT_INTO_WASHER_BEGIN; pretty much the same gripper position
 # DOOR_SCAN_IR_LARM = [1.6, -0.72647354, 0.185418, 2.02671195, -1.71400472, 1.67279272, 2.84759038]
@@ -89,6 +93,10 @@ TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
 TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375+0.025]
 TABLE_ROT = [0,0,0]
 
+WALL_GEOM = [0.03, 0.25, 0.5]
+WALL_POS = [-0.6, 0.75, 0.5]
+WALL_ROT = [0,0,0]
+
 ROBOT_DIST_FROM_TABLE = 0.05
 
 WASHER_CONFIG = [True, True]
@@ -96,7 +104,7 @@ WASHER_CONFIG = [True, True]
 # WASHER_INIT_ROT = [np.pi/2,0,0]
 # WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
 # WASHER_INIT_POS = [0.19, 1.37, 0.97-0.375+0.65/2+0.015]
-WASHER_INIT_POS = [0.2, 1.37, 0.97-0.375+0.65/2+0.015]
+WASHER_INIT_POS = [0.2, 1.37, 0.97-0.375+0.65/2+0.03] # 2cm below true height
 # WASHER_INIT_POS = [0.24, 1.4, 0.97-0.375+0.65/2+0.015]
 WASHER_INIT_ROT = [5*np.pi/6,0,0]
 # Center of barrel is at (0.1, 1.12)
@@ -125,11 +133,11 @@ EEPOSE_PUT_INTO_WASHER_ROT_1 = [np.pi/3, 0, -np.pi/8]
 
 # EEPOSE_PUT_INTO_WASHER_POS_2 = [0.12, 1.2, 0.85]
 # EEPOSE_PUT_INTO_WASHER_POS_2 = [0.11, 1.15, 0.85]
-EEPOSE_PUT_INTO_WASHER_POS_2 = [-0.03, 0.92, 0.9]
+EEPOSE_PUT_INTO_WASHER_POS_2 = [-0.03, 0.92, 0.95]
 EEPOSE_PUT_INTO_WASHER_ROT_2 = [np.pi/3, 0, 0]
 
 # EEPOSE_PUT_INTO_WASHER_POS_3 = [0.15, 1.3, 0.8]
-EEPOSE_PUT_INTO_WASHER_POS_3 = [0.11, 1.25, 0.85]
+EEPOSE_PUT_INTO_WASHER_POS_3 = [0.11, 1.25, 0.9]
 EEPOSE_PUT_INTO_WASHER_ROT_3 = [np.pi/3, np.pi/20, 0]
 
 cloth_init_poses = np.ones((NUM_CLOTH, 3)) * 0.625
@@ -246,8 +254,10 @@ def main():
         s += "RobotPose (name {}); ".format("unload_washer_3")
         s += "RobotPose (name {}); ".format("unload_washer_4")
         s += "RobotPose (name {}); ".format("unload_washer_5")
+        s += "RobotPose (name {}); ".format("intermediate_unload")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
+        s += "Obstacle (name {}); ".format("wall")
         s += "BasketTarget (name {}); ".format("basket_near_target")
         s += "BasketTarget (name {}); ".format("basket_far_target")
         s += "EEPose (name {}); ".format("put_into_washer_ee_1")
@@ -342,6 +352,7 @@ def main():
         s += get_robot_pose_str('unload_washer_3', UNLOAD_WASHER_3_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('unload_washer_4', UNLOAD_WASHER_4_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('unload_washer_5', UNLOAD_WASHER_5_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('intermediate_unload', INTERMEDIATE_UNLOAD_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)
@@ -363,6 +374,10 @@ def main():
         s += "(geom table {}), ".format(TABLE_GEOM)
         s += "(pose table {}), ".format(TABLE_POS)
         s += "(rotation table {}), ".format(TABLE_ROT)
+
+        s += "(geom wall {}), ".format(WALL_GEOM)
+        s += "(pose wall {}), ".format(WALL_POS)
+        s += "(rotation wall {}), ".format(WALL_ROT)
 
         s += "(geom basket_near_target), "
         s += "(value basket_near_target {}), ".format(BASKET_NEAR_POS)

@@ -390,7 +390,7 @@ class LaundryEnvironmentMonitor(object):
                 print plan.params['{0}'.format(cloth)].pose[:, 0]
 
         if len(self.state.washer_cloth_poses) and in_washer:
-            plan.params['cloth0'].pose[:, 0] = plan.params['washer'].pose[:,0] + np.array([const.WASHER_DEPTH_OFFSET/2, np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2, -.10]) # self.state.washer_cloth_poses[0]
+            plan.params['cloth0'].pose[:, 0] = plan.params['washer'].pose[:,0] + np.array([const.WASHER_DEPTH_OFFSET/2, np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2, -.14]) # self.state.washer_cloth_poses[0]
             plan.params['cloth_target_begin_0'].value[:, 0] = plan.params['cloth0'].pose[:, 0]
 
         if reset_to_region > 0:
@@ -1182,28 +1182,32 @@ class LaundryEnvironmentMonitor(object):
             pose_ind = np.argmin(np.sum(np.abs(np.array([loc[1] for loc in utils.washer_im_locs])-next_pose), axis=1))
             ll_plan_str = []
             act_num = 0
-            # ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE PUT_INTO_WASHER_BEGIN \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE INTERMEDIATE_UNLOAD \n'.format(act_num))
             # act_num += 1
             # ll_plan_str.append('{0}: MOVETO BAXTER LOAD_WASHER_INTERMEDIATE_POSE PUT_INTO_WASHER_BEGIN \n'.format(act_num))
             # act_num += 1
-            # ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE UNLOAD_WASHER_{1} \n'.format(act_num, pose_ind))
+            # ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN INTERMEDIATE_UNLOAD \n'.format(act_num))
             # act_num += 1
-            # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER UNLOAD_WASHER_{1} PUT_INTO_WASHER_BEGIN CLOTH0'.format(act_num, pose_ind))
-            # act_num += 1
-            # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE CLOTH0'.format(act_num))
-            # act_num += 1
-            # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE LOAD_BASKET_NEAR CLOTH0 \n'.format(act_num))
-            # act_num += 1
-            # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_BASKET_NEAR CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
-            # act_num += 1
-            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVETO BAXTER INTERMEDIATE_UNLOAD UNLOAD_WASHER_3 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: TAKE_OUT_OF_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CP_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER UNLOAD_WASHER_3 INTERMEDIATE_UNLOAD CLOTH0'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER INTERMEDIATE_UNLOAD LOAD_WASHER_INTERMEDIATE_POSE CLOTH0'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE LOAD_BASKET_NEAR CLOTH0 \n'.format(act_num))
             act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_BASKET_NEAR CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            act_num += 1
+            # ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE PUT_INTO_WASHER_BEGIN \n'.format(act_num))
+            # act_num += 1
+            # ll_plan_str.append('{0}: MOVETO BAXTER LOAD_WASHER_INTERMEDIATE_POSE CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
+            # act_num += 1
+            # ll_plan_str.append('{0}: TAKE_OUT_OF_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_BEGIN_0 PUT_INTO_WASHER_BEGIN CP_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+            # act_num += 1
+            # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
+            # act_num += 1
+            # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            # act_num += 1
             ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_NEAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_1 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_0 LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))

@@ -1434,15 +1434,40 @@ class TestBasketDomain(unittest.TestCase):
         act_num += 1
         ll_plan_str.append('{0}: MOVETO BAXTER LOAD_WASHER_INTERMEDIATE_POSE PUT_INTO_WASHER_BEGIN \n'.format(act_num))
         act_num += 1
-        ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN UNLOAD_WASHER_0 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN INTERMEDIATE_UNLOAD \n'.format(act_num))
         act_num += 1
-        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER UNLOAD_WASHER_0 PUT_INTO_WASHER_BEGIN CLOTH0'.format(act_num))
+        ll_plan_str.append('{0}: MOVETO BAXTER INTERMEDIATE_UNLOAD UNLOAD_WASHER_3 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER UNLOAD_WASHER_3 INTERMEDIATE_UNLOAD CLOTH0'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER INTERMEDIATE_UNLOAD PUT_INTO_WASHER_BEGIN CLOTH0'.format(act_num))
         act_num += 1
         ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE CLOTH0'.format(act_num))
+
+        # ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: MOVETO BAXTER LOAD_WASHER_INTERMEDIATE_POSE PUT_INTO_WASHER_BEGIN \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: TAKE_OUT_OF_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_BEGIN_0 PUT_INTO_WASHER_BEGIN CP_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_NEAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_1 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_0 LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: MOVETO BAXTER LOAD_WASHER_INTERMEDIATE_POSE WASHER_SCAN_POSE \n'.format(act_num))
+        # act_num += 1
 
         plan = hls.get_plan(ll_plan_str, domain, problem)
         plan.params['washer'].door[0, 0] = -np.pi/2
         plan.params['baxter'].pose[:,:] = (2*np.pi/9)
+        plan.params['basket'].pose[:,0] = plan.params['basket_near_target'].value[:,0]
+        plan.params['basket'].rotation[:,0] = plan.params['basket_near_target'].rotation[:,0]
+        plan.params['cloth0'].pose[:, 0] = plan.params['washer'].pose[:,0] + np.array([const.WASHER_DEPTH_OFFSET/2, np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2, -.14]) # self.state.washer_cloth_poses[0]
+        plan.params['cloth_target_begin_0'].value[:,0] = plan.params['cloth0'].pose[:,0]
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         viewer.draw_plan_ts(plan, 0)
