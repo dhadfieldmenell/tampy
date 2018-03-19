@@ -259,3 +259,46 @@ class TestBasketDomain(unittest.TestCase):
 
         serializer.write_plan_to_hdf5("rotate_basket_stress_plan.hdf5", plan)
         self.assertTrue(result)
+
+    def test_cloth_pickup_putdown_in_basket_plan(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_mitch_1.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+        plan_str = [
+        '0: ROTATE BAXTER ROBOT_INIT_POSE ROBOT_REGION_1_POSE_0 REGION2',
+        '1: MOVETO BAXTER ROBOT_REGION_1_POSE_0 CLOTH_GRASP_BEGIN_0',
+        '2: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0',
+        '3: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 CLOTH_GRASP_END_0 ROBOT_REGION_2_POSE_0 REGION3',
+        '4: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_FAR_TARGET ROBOT_REGION_2_POSE_0 CP_EE_0 CLOTH_PUTDOWN_END_0',
+        '5: MOVETO BAXTER CLOTH_PUTDOWN_END_0 CLOTH_GRASP_BEGIN_1',
+        '6: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_1 CLOTH_GRASP_BEGIN_1 CG_EE_1 CLOTH_GRASP_END_1',
+        '7: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 CLOTH_GRASP_END_1 ROBOT_REGION_2_POSE_1 REGION2',
+        '8: MOVEHOLDING_CLOTH BAXTER ROBOT_REGION_2_POSE_1 CLOTH_PUTDOWN_BEGIN_1 CLOTH0',
+        '8: CLOTH_PUTDOWN BAXTER CLOTH0 CLOTH_TARGET_BEGIN_1 ROBOT_REGION_2_POSE_1 CP_EE_1 CLOTH_PUTDOWN_END_1',
+        '9: ROTATE BAXTER CLOTH_PUTDOWN_END_1 ROBOT_REGION_3_POSE_0 REGION3',
+        '10: MOVETO BAXTER ROBOT_REGION_3_POSE_0 ROBOT_INIT_POSE',
+        ]
+        
+        plan = hls.get_plan(plan_str, domain, problem)
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        serializer = PlanSerializer()
+        def callback(a): return viewer
+
+        solver = robot_ll_solver.RobotLLSolver()    
+        viewer.draw_plan_ts(plan, 0)
+        # import ipdb; ipdb.set_trace()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        end = time.time()
+        print "Planning finished within {}s, displaying failed predicates...".format(end - start)
+
+        print "Saving current plan to file cloth_pickup_putdown_in_basket.hdf5..."
+
+        serializer.write_plan_to_hdf5("cloth_pickup_putdown_in_basket.hdf5", plan)
+        self.assertTrue(result)
