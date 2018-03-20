@@ -794,7 +794,7 @@ class RobotLLSolver(LLSolver):
                 #     continue
                 l_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
                 r_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
-                robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': init_pos.rGripper.copy(), 'value': init_pos.value.copy()})
+                robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': init_pos.value.copy()})
 
             elif next_act != None and next_act.name == 'grab_corner_left':
                 target = next_act.params[1]

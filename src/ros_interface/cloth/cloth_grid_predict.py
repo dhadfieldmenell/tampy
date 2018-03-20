@@ -83,7 +83,7 @@ class ClothGridPredict:
                 region = (region - utils.cloth_net_mean) / utils.cloth_net_std
                 prediction = self.net.predict(region)
 
-                if prediction > 0.9:
+                if prediction > 0.95:
                     locs.append(loc)
 
         return locs
