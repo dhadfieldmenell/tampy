@@ -777,6 +777,25 @@ class RobotLLSolver(LLSolver):
                 r_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
                 robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': init_pos.value.copy()})
 
+            elif next_act != None and next_act.name == "rotate_holding_cloth":
+                init_pos = act.params[1]
+
+                # old_pose = init_pos.value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
+                # robot_body.set_dof({'lArmPose': init_pos.lArmPose[:, 0], 'rArmPose': init_pos.rArmPose[:, 0]})
+                # l_random_dir = np.multiply(np.random.sample(3) - [0.5, 0.5, 0], [0.2, 0.2, 0.2])
+                # l_ee_pos = robot_body.env_body.GetLink('left_gripper').GetTransform()[:3, 3] + l_random_dir
+                # l_arm_poses = robot_body.get_ik_from_pose(l_ee_pos, [0, 0, 0], "left_arm")
+                # r_random_dir = np.multiply(np.random.sample(3) - [0.5, 0.5, 0], [0.2, 0.2, 0.2])
+                # r_ee_pos = robot_body.env_body.GetLink('right_gripper').GetTransform()[:3, 3] + r_random_dir
+                # r_arm_poses = robot_body.get_ik_from_pose(r_ee_pos, [0, 0, 0], "right_arm")
+                # if not len(l_arm_poses) or not len(r_arm_poses):
+                #     continue
+                l_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
+                r_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
+                robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': init_pos.rGripper.copy(), 'value': init_pos.value.copy()})
+
             elif next_act != None and next_act.name == 'grab_corner_left':
                 target = next_act.params[1]
                 target_pos = target.value[:, 0]
