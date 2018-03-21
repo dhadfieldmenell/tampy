@@ -372,8 +372,8 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
 
             x -> left_ee_pos, left_ee_rot, right_ee_pos, right_ee_rot, basket_pos, basket_rot
         """
-        left_rel_pt = [const.BASKET_OFFSET, 0.03, 0]
-        right_rel_pt = [-const.BASKET_OFFSET, 0.03, 0]
+        left_rel_pt = [const.BASKET_OFFSET, const.BASKET_GRIP_OFFSET, 0]
+        right_rel_pt = [-const.BASKET_OFFSET, const.BASKET_GRIP_OFFSET, 0]
         # left_rel_pt = [0, 0, -const.BASKET_NARROW_OFFSET]
         # right_rel_pt = [0, 0, const.BASKET_NARROW_OFFSET]
         left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.pose_basket_kinematics(x)
@@ -389,8 +389,8 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
         return np.vstack([left_dist_val, right_dist_val])
 
     def both_arm_ee_check_jac(self, x):
-        left_rel_pt = [const.BASKET_OFFSET, 0.03, 0]
-        right_rel_pt = [-const.BASKET_OFFSET, 0.03, 0]
+        left_rel_pt = [const.BASKET_OFFSET, const.BASKET_GRIP_OFFSET, 0]
+        right_rel_pt = [-const.BASKET_OFFSET, const.BASKET_GRIP_OFFSET, 0]
         # left_rel_pt = [0, 0, -const.BASKET_NARROW_OFFSET]
         # right_rel_pt = [0, 0, const.BASKET_NARROW_OFFSET]
         left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.pose_basket_kinematics(x)

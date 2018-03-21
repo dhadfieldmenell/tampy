@@ -17,7 +17,7 @@ from baxter_core_msgs.msg import CollisionAvoidanceState
 import numpy as np
 
 
-ROS_RATE = 1000
+ROS_RATE = 500
 
 left_joints = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2']
 right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2']
@@ -87,7 +87,7 @@ class TrajectoryController(object):
 
         attempt = 0.0
         # r = rospy.Rate(ROS_RATE)
-        while np.any(np.abs(left_target - current_left) > error_limits) and use_left or np.any(np.abs(right_target - current_right) > error_limits) and use_right and attempt <= int(ROS_RATE * real_t):
+        while attempt <= int(ROS_RATE * real_t) and ((np.any(np.abs(left_target - current_left) > error_limits) and use_left) or (np.any(np.abs(right_target - current_right) > error_limits) and use_right)):
             next_left_target = left_target # current_left + (left_target - current_left) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_left_err
             next_right_target = right_target # current_right + (right_target - current_right) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_right_err
             left_target_dict = dict(zip(left_joints, next_left_target))
@@ -116,7 +116,7 @@ class TrajectoryController(object):
         return (np.all(np.abs(left_target - current_left) < stop_error_limits) or not use_left) and (np.all(np.abs(right_target - current_right) < stop_error_limits) or not use_right)
 
     def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right'], stop_on_fail=False, check_collision=True):
-        rospy.Rate(ROS_RATE)
+        # rospy.Rate(ROS_RATE)
         if mode == 'position':
             return self._execute_position_control(plan, active_ts, limbs, stop_on_fail, check_collision)
         else:

@@ -876,7 +876,7 @@ class PosePredicate(ExprPredicate):
         rel_pt = np.array([0,-2*const.BASKET_OFFSET,0])
         # rel_pt = np.array([0, -2*const.BASKET_NARROW_OFFSET,0])
         r_pos_val = self.rel_pos_error_f(l_ee_trans, r_ee_trans, rel_pt)
-        rel_pt = np.array([const.BASKET_OFFSET,0.03,0])
+        rel_pt = np.array([const.BASKET_OFFSET,const.BASKET_GRIP_OFFSET,0])
         # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
         obj_pos_val = self.rel_pos_error_f(obj_trans, l_ee_trans, rel_pt)
         # import ipdb; ipdb.set_trace()
@@ -925,7 +925,7 @@ class PosePredicate(ExprPredicate):
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([const.BASKET_OFFSET,0.03,0])
+        rel_pt = np.array([const.BASKET_OFFSET,const.BASKET_GRIP_OFFSET,0])
         # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
         obj_pos_jac = self.rel_pos_error_jac(obj_trans, l_ee_trans, axises, arm_joints, rel_pt)
 
