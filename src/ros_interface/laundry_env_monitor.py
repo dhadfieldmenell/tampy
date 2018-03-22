@@ -663,24 +663,43 @@ class LaundryEnvironmentMonitor(object):
 
         ll_plan_str.append('{0}: MOVETO BAXTER {1} BASKET_GRASP_BEGIN_0 \n'.format(act_num, last_pose))
         act_num += 1
-        # ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_FAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
-        # act_num += 1
+        ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_FAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
+        act_num += 1
 
-        # plan = self.plan_from_str(ll_plan_str)
-        # self.update_plan(plan, {})
-        # self.ll_solver._backtrack_solve(plan, callback=None, amax=len(plan.actions)-2)
+        plan = self.plan_from_str(ll_plan_str)
+        self.update_plan(plan, {})
+        self.ll_solver._backtrack_solve(plan, callback=None, amax=len(plan.actions)-2)
 
-        # for action in plan.actions[:-1]:
-        #     self.execute_plan(plan, action.active_timesteps)
+        for action in plan.actions[:-1]:
+            self.execute_plan(plan, action.active_timesteps)
 
-        # # self.predict_basket_location_from_wrist(plan)
+        # self.predict_basket_location_from_wrist(plan)
+        cloth_on_handle = self.cloth_predictor.predict_wrist_center()
+        if cloth_on_handle:                
+            act_num = 0
+            ll_plan_str = []
 
-        # current_left = np.array(map(lambda j: self.traj_control.left.joint_angles()[j], utils.left_joints))
-        # print np.abs(current_left - plan.params['baxter'].lArmPose[:,plan.actions[-2].active_timesteps[-1]])
-        
+            ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: CLOTH_GRASP_FROM_HANDLE BAXTER CLOTH0 BASKET BASKET_FAR_TARGET CLOTH_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_BASKET_FAR CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_BASKET_FAR CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_FAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_0 ROBOT_INIT_POSE \n'.format(act_num))
 
-        # act_num = 0
-        # ll_plan_str = []
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {})
+            self.ll_solver.backtrack_solve(plan, callback=None)
+
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
+
+        act_num = 0
+        ll_plan_str = []
 
         ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_FAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
         act_num += 1

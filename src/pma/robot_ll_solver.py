@@ -162,6 +162,8 @@ class RobotLLSolver(LLSolver):
             rs_param = a.params[-1]
         elif a.name == 'moveto_ee_pos_left':
             rs_param = a.params[-1]
+        elif a.name == 'cloth_grasp_from_handle':
+            rs_param = a.params[-1]
         else:
             raise NotImplemented
 
@@ -363,6 +365,33 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif next_act != None and next_act.name == 'cloth_grasp_from_handle':
+                target = next_act.params[3]
+                target_rot = target.rotation[0, 0]
+                handle_dist = baxter_constants.BASKET_OFFSET
+                offset = np.array([handle_dist*np.cos(target_rot), handle_dist*np.sin(target_rot), 0])
+                target_pos = target.value[:, 0]
+
+                # old_pose = next_act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
+                next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])
+
+                const_dir = [0, 0, .125]
+                ee_left = target_pos + offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0.05], [0.01, 0.01, 0.1])
+                ee_right = target_pos - offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0.05], [0.01, 0.01, 0.1])
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
@@ -611,6 +640,30 @@ class RobotLLSolver(LLSolver):
 
             elif act.name == 'basket_grasp' or act.name == 'basket_putdown' or act.name == 'basket_grasp_with_cloth' or act.name == 'basket_putdown_with_cloth':
                 target = act.params[2]
+                target_rot = target.rotation[0, 0]
+                handle_dist = baxter_constants.BASKET_OFFSET
+                offset = np.array([handle_dist*np.cos(target_rot), handle_dist*np.sin(target_rot), 0])
+
+                act.params[1].openrave_body.set_pose(target.value[:, 0], target.rotation[:, 0])
+
+                # old_pose = act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.1, 0.1, 0.1])
+                ee_left = target.value[:, 0] + offset + random_dir
+                ee_right = target.value[:, 0] - offset + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'cloth_grasp_from_handle':
+                target = act.params[3]
                 target_rot = target.rotation[0, 0]
                 handle_dist = baxter_constants.BASKET_OFFSET
                 offset = np.array([handle_dist*np.cos(target_rot), handle_dist*np.sin(target_rot), 0])

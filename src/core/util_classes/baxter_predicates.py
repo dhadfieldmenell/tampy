@@ -63,6 +63,9 @@ class BaxterAt(robot_predicates.At):
 class BaxterClothAt(robot_predicates.At):
     pass
 
+class BaxterClothAtPose(robot_predicates.AtPose):
+    pass
+
 class BaxterRobotAt(robot_predicates.RobotAt):
 
     # RobotAt, Robot, RobotPose
@@ -92,6 +95,24 @@ class BaxterWasherAt(robot_predicates.RobotAt):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(BaxterWasherAt, self).__init__(name, params, expected_param_types, env)
+
+class BaxterClothAtHandle(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.cloth, self.target = params
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+
+        self.attr_dim = 3
+        target_rot = self.target.rotation[0, 0]
+        handle_dist = const.BASKET_OFFSET
+        offset = np.array([[handle_dist*np.cos(target_rot)], [handle_dist*np.sin(target_rot)], [const.BASKET_SHALLOW_GRIP_OFFSET]])
+        target_pos = offset
+
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = target_pos, np.zeros((self.attr_dim,1))
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(BaxterClothAtHandle, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
 
 class BaxterPosePair(robot_predicates.HLAnchor):
 
@@ -338,6 +359,7 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
         self.rot_coeff = const.GRASP_VALID_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
+        self.grip_offset = const.BASKET_GRIP_OFFSET
 
         e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
         super(BaxterBasketGraspValidPos, self).__init__(name, e, self.attr_inds, params, expected_param_types, debug=debug, priority=1)
@@ -372,8 +394,8 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
 
             x -> left_ee_pos, left_ee_rot, right_ee_pos, right_ee_rot, basket_pos, basket_rot
         """
-        left_rel_pt = [const.BASKET_OFFSET, const.BASKET_GRIP_OFFSET, 0]
-        right_rel_pt = [-const.BASKET_OFFSET, const.BASKET_GRIP_OFFSET, 0]
+        left_rel_pt = [const.BASKET_OFFSET, self.grip_offset, 0]
+        right_rel_pt = [-const.BASKET_OFFSET, self.grip_offset, 0]
         # left_rel_pt = [0, 0, -const.BASKET_NARROW_OFFSET]
         # right_rel_pt = [0, 0, const.BASKET_NARROW_OFFSET]
         left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.pose_basket_kinematics(x)
@@ -389,8 +411,8 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
         return np.vstack([left_dist_val, right_dist_val])
 
     def both_arm_ee_check_jac(self, x):
-        left_rel_pt = [const.BASKET_OFFSET, const.BASKET_GRIP_OFFSET, 0]
-        right_rel_pt = [-const.BASKET_OFFSET, const.BASKET_GRIP_OFFSET, 0]
+        left_rel_pt = [const.BASKET_OFFSET, self.grip_offset, 0]
+        right_rel_pt = [-const.BASKET_OFFSET, self.grip_offset, 0]
         # left_rel_pt = [0, 0, -const.BASKET_NARROW_OFFSET]
         # right_rel_pt = [0, 0, const.BASKET_NARROW_OFFSET]
         left_trans, right_trans, basket_trans, left_axises, right_axises, basket_axises = self.pose_basket_kinematics(x)
@@ -416,6 +438,14 @@ class BaxterBasketGraspValidPos(robot_predicates.PosePredicate):
 
     def stacked_grad(self, x):
         return self.coeff*self.both_arm_ee_check_jac(x)
+
+class BaxterBasketGraspValidShallowPos(BaxterBasketGraspValidPos):
+
+    # BaxterBasketGraspValid EEPose, EEPose, BasketTarget
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterBasketGraspValidShallowPos, self).__init__(name, params, expected_param_types, env, debug)
+        self.grip_offset = const.BASKET_SHALLOW_GRIP_OFFSET
 
 class BaxterBasketGraspValidRot(robot_predicates.PosePredicate):
 
@@ -1821,6 +1851,7 @@ class BaxterBasketInGripper(BaxterInGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.eval_dim = 15
+        self.grip_offset = const.BASKET_GRIP_OFFSET
         super(BaxterBasketInGripper, self).__init__(name, params, expected_param_types, env, debug)
 
     # def resample(self, negated, t, plan):
@@ -1832,6 +1863,14 @@ class BaxterBasketInGripper(BaxterInGripper):
 
     def stacked_grad(self, x):
         return np.vstack([self.coeff * self.both_arm_pos_check_jac(x), self.rot_coeff * self.both_arm_rot_check_jac(x)])
+
+class BaxterBasketInGripperShallow(BaxterBasketInGripper):
+
+    # BaxterBasketInGripper Robot, Basket
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterBasketInGripperShallow, self).__init__(name, params, expected_param_types, env, debug)
+        self.grip_offset = const.BASKET_SHALLOW_GRIP_OFFSET
 
 class BaxterWasherInGripper(BaxterInGripper):
 
@@ -2365,6 +2404,7 @@ class BaxterGrippersLevel(robot_predicates.GrippersLevel):
         self.eval_grad = lambda x: self.both_arm_pos_check(x)[1]
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type]))])
         self.eval_dim = 6
+        self.grip_offset = const.BASKET_GRIP_OFFSET
         super(BaxterGrippersLevel, self).__init__(name, params, expected_param_types, env, debug)
 
     #@profile

@@ -105,6 +105,13 @@ class ClothGridPredict:
 
         return locs
 
-    def average_locs(self, locs):
-        '''If adjacent squares are occupied, assume a single cloth is there.'''
-        pass
+    def predict_wrist_center(self):
+        prediction = False
+        if self.cur_grip_im: 
+            im = self.bridge.imgmsg_to_cv2(self.cur_grip_im, 'passthrough')
+            im = np.array(im[:,:,:3], dtype=np.float32)
+            region = np.expand_dims(cv2.resize(im[90:110, 160:180, :3], ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
+            prediction = self.net.predict(region) > 0.9
+
+        return prediction
+        
