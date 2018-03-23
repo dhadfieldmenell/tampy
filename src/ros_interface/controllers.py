@@ -24,7 +24,7 @@ right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'rig
 
 joint_velocity_limits = np.array([2.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0])
 # error_limits = np.array([.01, .075, .05, .075, .075, .01, .01])
-error_limits = np.array([.01, .05, .025, .025, .025, .01, .01])
+error_limits = np.array([.01, .025, .025, .01, .01, .01, .01])
 stop_error_limits = np.array([.05, .1, .1, .5, .5, .1, .1])
 
 def closest_arm_pose(arm_poses, cur_arm_pose):
@@ -78,15 +78,15 @@ class TrajectoryController(object):
         # right_vel_ratio = min(np.mean((np.abs(cur_right_err) / real_t) / joint_velocity_limits), 1.0)
         # self.right.set_joint_position_speed(right_vel_ratio)
 
-        self.left.set_joint_position_speed(0.075)
-        self.right.set_joint_position_speed(0.075)
+        self.left.set_joint_position_speed(0.05)
+        self.right.set_joint_position_speed(0.05)
         self.left_grip.set_holding_force(95)
         self.right_grip.set_holding_force(95)
         self.left_grip.set_moving_force(95)
         self.right_grip.set_moving_force(95)
 
         attempt = 0.0
-        # r = rospy.Rate(ROS_RATE)
+        r = rospy.Rate(ROS_RATE)
         while attempt <= int(ROS_RATE * real_t) and ((np.any(np.abs(left_target - current_left) > error_limits) and use_left) or (np.any(np.abs(right_target - current_right) > error_limits) and use_right)):
             next_left_target = left_target # current_left + (left_target - current_left) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_left_err
             next_right_target = right_target # current_right + (right_target - current_right) / 3.5 # (attempt / int(ROS_RATE * real_t)) * cur_right_err
@@ -107,8 +107,8 @@ class TrajectoryController(object):
             cur_left_err = left_target - current_left
             cur_right_err = right_target - current_right
             attempt += 1.0
+            rospy.sleep(0.005)
             # r.sleep()
-            # rospy.sleep(0.001)
 
         self.left_grip.open()  if left_gripper_open else self.left_grip.close()
         self.right_grip.open() if right_gripper_open else self.right_grip.close()
@@ -139,14 +139,23 @@ class TrajectoryController(object):
 
         cur_ts = active_ts[0]
         baxter = plan.params['baxter']
+        act_index = 0
         while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
+            cur_action = plan.actions[act_index]
             success = self.execute_timestep(baxter, cur_ts, 2, limbs=limbs, check_collision=check_collision)
             if not success:
                 print 'Failed timestep {}'.format(cur_ts)
                 if stop_on_fail:
                     return False
             #     self._adjust_for_failed_execute(plan, cur_ts)
+            if cur_action.name == 'basket_grasp' and cur_ts > cur_action.active_timesteps[0] + 12:
+                if self.left_grip.position() < 20 or self.right_grip.position < 20:
+                    self.left_grip.open()
+                    self.right_Grip.open()
+                    return False
             cur_ts += 1
+            if cur_ts > cur_action.active_timesteps[1]:
+                act_index += 1
             # if cur_ts >= cur_action.active_timesteps[1] and cur_ts < active_ts[1]:
             #     act_index += 1
             #     if act_index >= len(plan.actions):

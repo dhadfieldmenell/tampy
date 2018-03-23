@@ -826,8 +826,8 @@ class RobotLLSolver(LLSolver):
                 # r_arm_poses = robot_body.get_ik_from_pose(r_ee_pos, [0, 0, 0], "right_arm")
                 # if not len(l_arm_poses) or not len(r_arm_poses):
                 #     continue
-                l_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
-                r_arm_poses = np.array([[[0], [-0.75], [0], [0], [0], [0], [0]]])
+                l_arm_poses = np.array([[[0.75], [-0.75], [0], [0], [0], [0], [0]]])
+                r_arm_poses = np.array([[[-0.75], [-0.75], [0], [0], [0], [0], [0]]])
                 robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': init_pos.value.copy()})
 
             elif next_act != None and next_act.name == "rotate_holding_cloth":
