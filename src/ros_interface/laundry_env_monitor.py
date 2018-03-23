@@ -33,7 +33,7 @@ class HLLaundryState(object):
         self.washer_cloth_poses = []
 
         self.robot_region = 1
-        self.washer_door = 0 # -np.pi/2 # 0
+        self.washer_door = -np.pi/2 # 0
 
         self.left_hand_range = 65
 
@@ -53,7 +53,7 @@ class HLLaundryState(object):
             "BasketInFarLoc": False,
             "BasketNearLocClear": True,
             "BasketFarLocClear": True,
-            "WasherDoorOpen": False,
+            "WasherDoorOpen": True,
         }
 
     def get_abs_prob(self):
@@ -339,7 +339,7 @@ class LaundryEnvironmentMonitor(object):
         washer_cloth_poses = self.cloth_predictor.predict_washer()
         self.state.store_washer_poses(washer_cloth_poses)
 
-    def update_plan(self, plan, cloth_to_region={}, in_washer=False, reset_to_region=-1, cloth_z=0.64):
+    def update_plan(self, plan, cloth_to_region={}, in_washer=False, reset_to_region=-1, cloth_z=0.63):
         plan.params['basket'].pose[:2, 0] = self.state.basket_pose[:2]
         plan.params['basket'].rotation[0, 0] = self.state.basket_pose[2]
 
@@ -866,21 +866,21 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             last_pose = 'ROBOT_REGION_1_POSE_0'
 
-        ll_plan_str.append('{0}: MOVETO BAXTER {1} OPEN_DOOR_SCAN_POSE \n'.format(act_num, last_pose))
+        # ll_plan_str.append('{0}: MOVETO BAXTER {1} CLOSE_DOOR_SCAN_POSE \n'.format(act_num, last_pose))
 
-        plan = self.plan_from_str(ll_plan_str)
-        self.update_plan(plan, {})
-        self.ll_solver.backtrack_solve(plan, callback=None)
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {})
+            self.ll_solver.backtrack_solve(plan, callback=None)
 
-        for action in plan.actions:
-            self.execute_plan(plan, action.active_timesteps)
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
 
-        # self.predict_open_door()
-        if self.state.washer_door < -np.pi/6:
-             failed_constr.append(("WasherDoorOpen", True))
+            # self.predict_open_door()
+            if self.state.washer_door < -np.pi/6:
+                 failed_constr.append(("WasherDoorOpen", True))
 
-        if len(failed_constr):
-            return failed_constr
+            if len(failed_constr):
+                return failed_constr
         
         act_num = 0
         ll_plan_str = []
@@ -935,7 +935,9 @@ class LaundryEnvironmentMonitor(object):
                 act_num += 1
                 last_pose = 'ROBOT_REGION_1_POSE_0'
 
-            ll_plan_str.append('{0}: MOVETO BAXTER {1} CLOTH_GRASP_BEGIN_0 \n'.format(act_num, last_pose))
+            ll_plan_str.append('{0}: MOVETO BAXTER {1} LOAD_BASKET_NEAR \n'.format(act_num, last_pose))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVETO BAXTER LOAD_BASKET_NEAR CLOTH_GRASP_BEGIN_0 \n'.format(act_num, last_pose))
             act_num += 1
             ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
 
@@ -949,11 +951,11 @@ class LaundryEnvironmentMonitor(object):
             ll_plan_str = []
 
             cloth_range = self.state.left_hand_range
-            cloth_z = 0.67
-            if cloth_range < 0.2:
-                cloth_z = 0.73
-            elif cloth_range < 0.35:
-                cloth_z = 0.69
+            cloth_z = 0.645
+            if cloth_range < 0.1:
+                cloth_z = 0.71
+            elif cloth_range < 0.25:
+                cloth_z = 0.67
 
             ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 ROBOT_INIT_POSE CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
             act_num += 1
@@ -983,10 +985,11 @@ class LaundryEnvironmentMonitor(object):
             # act_num += 1
             plan = self.plan_from_str(ll_plan_str)
             self.update_plan(plan, {'cloth0': 5}, cloth_z=cloth_z)
-            self.ll_solver.backtrack_solve(plan, callback=None)
+            success = self.ll_solver.backtrack_solve(plan, callback=None)
 
-            for action in plan.actions:
-                self.execute_plan(plan, action.active_timesteps)
+            if success:
+                for action in plan.actions:
+                    self.execute_plan(plan, action.active_timesteps)
 
             act_num = 0
             ll_plan_str = []

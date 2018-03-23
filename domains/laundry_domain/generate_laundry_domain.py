@@ -220,10 +220,6 @@ class Move(Action):
             ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterWithinJointLimit ?robot)', '{}:{}'.format(0, end)),
             ('(BaxterOpenGrippers ?robot)', '{}:{}'.format(1, end-1)),
-            ('(forall (?obs - Obstacle)\
-                (forall (?obj - Basket)\
-                    (not (BaxterCollides ?obj ?obs))\
-                ))','{}:{}'.format(0, end)),
             ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
             ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
         ]
@@ -1391,10 +1387,6 @@ class Rotate(Action):
             ('(forall (?basket - Basket) (BaxterBasketLevel ?basket))', '{}:{}'.format(0, end)),
             ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterWithinRotLimit ?robot)', '{}:{}'.format(0, end)),
-            ('(forall (?obs - Obstacle)\
-                (forall (?obj - Basket)\
-                    (not (BaxterCollides ?obj ?obs))\
-                ))','{}:{}'.format(0, end)),
             ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
             # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
         ]

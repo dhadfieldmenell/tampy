@@ -53,10 +53,10 @@ cloth_grid_coordinates = [
     ((0.68, 0.85), 2),
     ((0.5, 0.9), 2),
     ((0.82, 0.62), 2),
-    ((0.5, 0.4), 5),
-    ((0.57, 0.47), 5),
     ((0.67, 0.25), 5),
     ((0.62, 0.17), 5),
+    ((0.52, 0.37), 5),
+    ((0.57, 0.47), 5),
     ((0.6, 0.3), 5),
     ((0.86, -0.15), 3),
     ((0.99, 0.42), 3),
@@ -70,11 +70,11 @@ cloth_grid_coordinates = [
     ((0.6, 0.6), 6),
 ]
 
-washer_im_locs = [((180, 210), (0.14, 1.3, 0.73)), # -> CENTER FRONT
-                  ((185, 105), (0, 1.15, 0.77)), # -> LEFT FRONT
+washer_im_locs = [((180, 240), (0.14, 1.3, 0.73)), # -> CENTER FRONT
+                  ((155, 145), (0, 1.15, 0.77)), # -> LEFT FRONT
                   ((180, 300), (0.2, 1., 0.82)), # -> RIGHT FRONT
                   ((160, 215), (0.2, 1.38, 0.77)), # -> CENTER REAR
-                  ((140, 110), (0.1, 1.38, 0.77)), # -> LEFT REAR
+                  ((130, 110), (0.1, 1.38, 0.77)), # -> LEFT REAR
                   ((130, 290), (0.27, 1.34, 0.76))] # -> RIGHT REAR
 
 # cloth_grid_ref = np.array([[200, 350], [55, 5]])
@@ -117,8 +117,8 @@ basket_net_bounds = []
 basket_im_dims = [144, 256]
 
 # basket_near_pos = np.array([0.65, 0.35,  0.875])
-basket_near_pos = np.array([0.64, 0.22,  0.905])
-basket_far_pos = np.array([0.5, -0.5,  0.905])
+basket_near_pos = np.array([0.64, 0.22,  0.87])
+basket_far_pos = np.array([0.5, -0.5,  0.87])
 basket_near_rot = np.array([2*np.pi/3, 0, np.pi/2])
 # basket_near_rot = np.array([np.pi/2, 0, np.pi/2])
 basket_far_rot = np.array([np.pi/4, 0, np.pi/2])
