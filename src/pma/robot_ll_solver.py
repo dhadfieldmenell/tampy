@@ -581,12 +581,18 @@ class RobotLLSolver(LLSolver):
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0])
                 ee_left = target_pos + random_dir
-                ee_left[2] += 0.24
+                ee_left[2] += 0.3
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
-                    import ipdb; ipdb.set_trace()
-                    continue
+                    random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], [0.01, 0.01, 0])
+                    ee_left = target_pos + random_dir
+                    ee_left[2] += 0.1
+
+                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                    if not len(l_arm_pose):
+                        import ipdb; ipdb.set_trace()
+                        continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
                 # TODO once we have the rotor_base we should resample pose
@@ -627,7 +633,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-.05], [0.05, 0.05, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-.05], [0.1, 0.1, 0.1])
                 ee_pos = target_pos + random_dir
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, DOWN_ROT, "left_arm")
                 if not len(ik_arm_poses):
@@ -699,7 +705,11 @@ class RobotLLSolver(LLSolver):
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
-                    continue
+                    random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.1, 0.1, 0.1])
+                    ee_left = target_pos + random_dir
+                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                    if not len(l_arm_pose):
+                        continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})

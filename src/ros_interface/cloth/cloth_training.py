@@ -24,8 +24,8 @@ path = './'
 images_file = 'data/shuffledClothGridImages.npy'
 labels_file = 'data/shuffledClothGridLabels.npy'
 
-im_height = 20
-im_width = 20
+im_height = 15
+im_width = 15
 
 input_images = np.load(path+images_file)
 labels = np.load(path+labels_file)
@@ -60,16 +60,16 @@ labels = np.load(path+labels_file)
 
 # test_labels[:,1] -= 0.325
 
-training_set = input_images[50:]
-training_labels = labels[50:]
+training_set = input_images[:-75]
+training_labels = labels[:-75]
 
 mean = np.mean(training_set, axis=(0,1,2))
 std = np.std(training_set, axis=(0,1,2))
 
 training_set = (training_set - mean) / std
 
-validation_set = (input_images[:50] - mean) / std
-validation_labels = labels[:50]
+validation_set = (input_images[-75:] - mean) / std
+validation_labels = labels[-75:]
 
 # def input_generator(images, labels, batch_size, steps):
 #     i = 0
@@ -83,7 +83,7 @@ validation_labels = labels[:50]
 #             labels = labels[new_order]
 
 # preprocessing_fn = lambda x: x - [103.939, 116.779, 123.68]  # lambda x: 2*((x / 255.0) - 0.5)
-augment_gen = image.ImageDataGenerator(featurewise_center=False, featurewise_std_normalization=False, rotation_range=30, shear_range=np.pi/32, zoom_range=0.01, channel_shift_range=0.025)
+augment_gen = image.ImageDataGenerator(featurewise_center=False, featurewise_std_normalization=False, rotation_range=5, shear_range=np.pi/32, zoom_range=0.02, channel_shift_range=0.03)
 # augment_gen.fit(training_set[:10])
 
 def get_session(gpu_fraction=0.5, allow_growth=True):
@@ -105,16 +105,15 @@ inputs = Input(shape=(im_height, im_width, 3))
 # base_model = InceptionV3(input_tensor=x, weights='imagenet', include_top=False)
 # base_model = InceptionV3(input_tensor=x, weights=None, include_top=False)
 # x = base_model.output
-x = Conv2D(2, 3, activation='relu')(inputs)
-x = GlobalAveragePooling2D()(x)
-# x = Flatten()(inputs)
+# x = Conv2D(2, 5, activation='relu')(inputs)
+# x = GlobalAveragePooling2D()(x)
+x = Flatten()(inputs)
 # x = GaussianNoise(0.001)(x)
 # let's add a fully-connected layer
 # x = Dense(1024, activation='relu', kernel_regularizer=l2(1e-4))(x)
 # x = Dense(64, activation='relu')(x)
-# x = Dense(1000, activation='relu')(x)
-# x = Dense(32, activation='relu')(x)
-x = Dense(32, activation='relu')(x)
+x = Dense(200, activation='relu')(x)
+x = Dense(200, activation='relu')(x)
 predictions = Dense(1, activation=None)(x)
 
 # this is the model we will train
@@ -130,7 +129,7 @@ model = Model(inputs=inputs, outputs=predictions)
 # model.compile(optimizer=RMSprop(5e-8), loss='mean_squared_error')
 model.compile(optimizer=Adam(1e-3), loss='mean_absolute_error')
 # model.compile(optimizer=Nadam(1e-5), loss='mean_absolute_error')
-batch_size = 50
+batch_size = 5
 epoch = 1000
 
 

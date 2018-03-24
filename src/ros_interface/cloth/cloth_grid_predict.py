@@ -19,9 +19,7 @@ from sensor_msgs.msg import Image
 import ros_interface.utils as utils
 
 
-# TRAINED_MODEL = 'ros_interface/cloth/clothGridEvalJan4.h5'
-# TRAINED_MODEL = 'ros_interface/cloth/feb7TrainedClothGrid.h5'
-TRAINED_MODEL = 'ros_interface/cloth/Feb24TrainedClothGrid.h5'
+TRAINED_MODEL = 'ros_interface/cloth/March23TrainedClothGrid.h5'
 
 # def get_session():
 #     with tf.device("/cpu:0"):
@@ -105,13 +103,15 @@ class ClothGridPredict:
 
         return locs
 
-    def predict_wrist_center(self):
+    def predict_wrist_center(self, offset=[0,0]):
         prediction = False
         if self.cur_grip_im: 
             im = self.bridge.imgmsg_to_cv2(self.cur_grip_im, 'passthrough')
             im = np.array(im[:,:,:3], dtype=np.float32)
-            region = np.expand_dims(cv2.resize(im[90:110, 160:180, :3], ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
-            prediction = self.net.predict(region) > 0.9
+            x1, x2 = offset[0]+90, offset[0]+110
+            y1, y2 = offset[1]+150, offset[1]+170
+            region = np.expand_dims(cv2.resize(im[x1:x2, y1:y2, :3], ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
+            prediction = self.net.predict(region) >= 0.9
 
         return prediction
         
