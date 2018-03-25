@@ -61,7 +61,7 @@ BASKET_GRIP_OFFSET = 0.03
 BASKET_SHALLOW_GRIP_OFFSET = 0.05
 
 # How far to go into the washer
-WASHER_DEPTH_OFFSET = 0.025
+WASHER_DEPTH_OFFSET = 0
 
 # Added height from rotor base
 ROTOR_BASE_HEIGHT = 0.12

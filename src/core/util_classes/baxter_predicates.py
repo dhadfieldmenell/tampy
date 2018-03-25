@@ -1156,12 +1156,12 @@ class BaxterObstructsWasher(BaxterObstructs):
                          "rGripper": r_gripper}
         robot_body.set_dof(dof_value_map)
 
-    def resample(self, negated, t, plan):
-        if const.PRODUCTION:
-            print "I need to think about how I'm not going to hit the washer."
-        else:
-            print "resample {}".format(self.get_type())
-        return baxter_sampling.resample_washer_obstructs(self, negated, t, plan)
+    # def resample(self, negated, t, plan):
+    #     if const.PRODUCTION:
+    #         print "I need to think about how I'm not going to hit the washer."
+    #     else:
+    #         print "resample {}".format(self.get_type())
+    #     return baxter_sampling.resample_washer_obstructs(self, negated, t, plan)
 
 class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
 
@@ -2366,7 +2366,7 @@ class BaxterClothTargetInWasher(ExprPredicate):
         self.washer_pose = params[1]
         A = np.c_[np.eye(self.attr_dim/2), -np.eye(self.attr_dim/2)]
         b = np.zeros((self.attr_dim/2,1))
-        val = np.array([[const.WASHER_DEPTH_OFFSET/2], [np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2], [-.14]])
+        val = np.array([[const.WASHER_DEPTH_OFFSET/2], [np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2], [0]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(BaxterClothTargetInWasher, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
@@ -2382,7 +2382,7 @@ class BaxterClothTargetInBasket(ExprPredicate):
         A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
         b = np.zeros((6,1))
 
-        val = np.array([[.09], [.09], [-.21], [.09], [.09], [.24]])
+        val = np.array([[.09], [.09], [-.04], [.09], [.09], [.04]])
         pos_expr = AffExpr(A, b)
         e = LEqExpr(pos_expr, val)
         super(BaxterClothTargetInBasket, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
