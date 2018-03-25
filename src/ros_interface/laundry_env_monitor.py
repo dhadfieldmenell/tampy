@@ -512,17 +512,16 @@ class LaundryEnvironmentMonitor(object):
             for action in plan.actions[:-1]:
                 self.execute_plan(plan, action.active_timesteps)
 
-            final_offset = ([0,0], [0,0])
+            final_offset = np.array([0,0])
             for offset in utils.wrist_im_offsets:
                 cloth_present = self.cloth_predictor.predict_wrist_center(offset[0])
                 if cloth_present:
                     plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
-                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.7]+np.r_[offset[1], 0], [0, np.pi/2, 0], "left_arm")) > 0
+                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.725]+np.r_[offset[1], 0]+np.r_[final_offset, 0], [0, np.pi/2, 0], "left_arm")) > 0
                     if accept:
-                        final_offset = offset
-                        break
+                        final_offset += np.array(offset[1])
 
-            cloth_pos[:2] += np.array(final_offset[1])
+            cloth_pos[:2] += final_offset
 
             act_num = 0
             ll_plan_str = []
@@ -594,18 +593,16 @@ class LaundryEnvironmentMonitor(object):
             for action in plan.actions[:-1]:
                 self.execute_plan(plan, action.active_timesteps)
 
-            final_offset = ([0,0], [0,0])
+            final_offset = np.array([0,0])
             for offset in utils.wrist_im_offsets:
                 cloth_present = self.cloth_predictor.predict_wrist_center(offset[0])
                 if cloth_present:
                     plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[2][0]])
-                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.7]+np.r_[offset[1], 0], [0, np.pi/2, 0], "left_arm")) > 0
+                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.725]+np.r_[offset[1], 0]+np.r_[final_offset, 0], [0, np.pi/2, 0], "left_arm")) > 0
                     if accept:
-                        final_offset = offset
-                        break
+                        final_offset += np.array(offset[1])
 
-            cloth_pos[:2] += np.array(final_offset[1])
-
+            cloth_pos[:2] += final_offset
 
             act_num = 0
             ll_plan_str = []
@@ -679,17 +676,16 @@ class LaundryEnvironmentMonitor(object):
             for action in plan.actions[:-1]:
                 self.execute_plan(plan, action.active_timesteps)
 
-            final_offset = ([0,0], [0,0])
+            final_offset = np.array([0,0])
             for offset in utils.wrist_im_offsets:
-                cloth_present = self.cloth_predictor.predict_wrist_center(offset[3])
+                cloth_present = self.cloth_predictor.predict_wrist_center(offset[0])
                 if cloth_present:
                     plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[3][0]])
-                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.7]+np.r_[offset[1], 0], [0, np.pi/2, 0], "left_arm")) > 0
+                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.725]+np.r_[offset[1], 0]+np.r_[final_offset, 0], [0, np.pi/2, 0], "left_arm")) > 0
                     if accept:
-                        final_offset = offset
-                        break
+                        final_offset += np.array(offset[1])
 
-            cloth_pos[:2] += np.array(final_offset[1])
+            cloth_pos[:2] += final_offset
 
             act_num = 0
             ll_plan_str = []
@@ -827,7 +823,7 @@ class LaundryEnvironmentMonitor(object):
         self.predict_cloth_locations()
 
         failed_constr = []
-        if len(self.state.region_poses[5]):
+        if len(self.state.region_poses[6]):
              failed_constr.append(("BasketFarLocClear", False))
 
         if len(failed_constr):
@@ -844,7 +840,9 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             last_pose = 'ROBOT_REGION_1_POSE_0'
 
-        ll_plan_str.append('{0}: MOVETO BAXTER {1} BASKET_GRASP_BEGIN_0 \n'.format(act_num, last_pose))
+        ll_plan_str.append('{0}: MOVETO BAXTER {1} ARMS_FORWARD_1 \n'.format(act_num, last_pose))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVETO BAXTER ARMS_FORWARD_1 BASKET_GRASP_BEGIN_0 \n'.format(act_num))
         act_num += 1
         # ll_plan_str.append('{0}: BASKET_GRASP BAXTER BASKET BASKET_NEAR_TARGET BASKET_GRASP_BEGIN_0 BG_EE_LEFT_0 BG_EE_RIGHT_0 BASKET_GRASP_END_0 \n'.format(act_num))
         # act_num += 1
@@ -931,8 +929,12 @@ class LaundryEnvironmentMonitor(object):
         return []
 
     def close_washer(self):
-        return []
+        self.predict_cloth()
         failed_constr = []
+        if len(self.state.region_poses[0]):
+            failed_constr.append(("ClothInRegion1", True))
+        return failed_constr
+
         if self.state.washer_door > -np.pi/6:
              failed_constr.append(("WasherDoorOpen", False))
 
@@ -1034,17 +1036,16 @@ class LaundryEnvironmentMonitor(object):
             for action in plan.actions[:-1]:
                 self.execute_plan(plan, action.active_timesteps)
 
-            final_offset = ([0,0], [0,0])
+            final_offset = np.array([0,0])
             for offset in utils.wrist_im_offsets:
-                cloth_present = self.cloth_predictor.predict_wrist_center(offset[1])
+                cloth_present = self.cloth_predictor.predict_wrist_center(offset[0])
                 if cloth_present:
                     plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[0][0]])
-                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.7]+np.r_[offset[1], 0], [0, np.pi/2, 0], "left_arm")) > 0
+                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.725]+np.r_[offset[1], 0]+np.r_[final_offset, 0], [0, np.pi/2, 0], "left_arm")) > 0
                     if accept:
-                        final_offset = offset
-                        break
+                        final_offset += np.array(offset[1])
 
-            cloth_pos[:2] += np.array(final_offset[1])
+            cloth_pos[:2] += final_offset
 
             act_num = 0
             ll_plan_str = []
@@ -1125,7 +1126,36 @@ class LaundryEnvironmentMonitor(object):
                 act_num += 1
                 last_pose = 'ROBOT_REGION_1_POSE_0'
 
-            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 {1} CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num, last_pose))
+            ll_plan_str.append('{0}: MOVETO BAXTER {1} LOAD_BASKET_NEAR \n'.format(act_num, last_pose))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVETO BAXTER LOAD_BASKET_NEAR CLOTH_GRASP_BEGIN_0 \n'.format(act_num, last_pose))
+            act_num += 1
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+
+
+            plan = self.plan_from_str(ll_plan_str)
+            cloth_pos = self.get_next_cloth_pos(1)
+            self.update_plan(plan, {'cloth0': cloth_pos})
+            self.ll_solver._backtrack_solve(plan, callback=None, amax=len(plan.actions)-2)
+
+            for action in plan.actions[:-1]:
+                self.execute_plan(plan, action.active_timesteps)
+
+            final_offset = np.array([0,0])
+            for offset in utils.wrist_im_offsets:
+                cloth_present = self.cloth_predictor.predict_wrist_center(offset[0])
+                if cloth_present:
+                    plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[0][0]])
+                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.725]+np.r_[offset[1], 0]+np.r_[final_offset, 0], [0, np.pi/2, 0], "left_arm")) > 0
+                    if accept:
+                        final_offset += np.array(offset[1])
+
+            cloth_pos[:2] += final_offset
+
+            act_num = 0
+            ll_plan_str = []
+
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 ROBOT_INIT_POSE CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
             act_num += 1
@@ -1143,18 +1173,25 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: MOVETO BAXTER INTERMEDIATE_UNLOAD LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
             act_num += 1
+            # ll_plan_str.append('{0}: GRAB_CORNER_LEFT BAXTER PUT_INTO_WASHER_EE_1 PUT_INTO_WASHER_EE_2 CLOTH_PUTDOWN_END_0 GRAB_EE_1 CLOTH_PUTDOWN_BEGIN_1 \n'.format(act_num))
+            # act_num += 1
+            # ll_plan_str.append('{0}: MOVETO_EE_POS_LEFT BAXTER PUT_INTO_WASHER_EE_3 CLOTH_PUTDOWN_BEGIN_1 CLOTH_PUTDOWN_END_1 \n'.format(act_num))
+            # act_num += 1
+            # ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_1 PUT_INTO_WASHER_BEGIN \n'.format(act_num))
+            # act_num += 1
+            # ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
+            # act_num += 1
             plan = self.plan_from_str(ll_plan_str)
-            cloth_pos = self.get_next_cloth_pos(1)
             self.update_plan(plan, {'cloth0': cloth_pos})
-            self.ll_solver.backtrack_solve(plan, callback=None)
+            success = self.ll_solver.backtrack_solve(plan, callback=None)
 
-            for action in plan.actions:
-                self.execute_plan(plan, action.active_timesteps)
+            if success:
+                for action in plan.actions:
+                    self.execute_plan(plan, action.active_timesteps)
 
             act_num = 0
             ll_plan_str = []
             self.predict_cloth_locations()
-
         return []
 
     def clear_basket_near_loc(self):
@@ -1204,17 +1241,16 @@ class LaundryEnvironmentMonitor(object):
             for action in plan.actions[:-1]:
                 self.execute_plan(plan, action.active_timesteps)
 
-            final_offset = ([0,0], [0,0])
+            final_offset = np.array([0,0])
             for offset in utils.wrist_im_offsets:
                 cloth_present = self.cloth_predictor.predict_wrist_center(offset[0])
                 if cloth_present:
                     plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[0][0]])
-                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.7]+np.r_[offset[1], 0], [0, np.pi/2, 0], "left_arm")) > 0
+                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.725]+np.r_[offset[1], 0]+np.r_[final_offset, 0], [0, np.pi/2, 0], "left_arm")) > 0
                     if accept:
-                        final_offset = offset
-                        break
+                        final_offset += np.array(offset[1])
 
-            cloth_pos[:2] += np.array(final_offset[1])
+            cloth_pos[:2] += final_offset
 
             act_num = 0
             ll_plan_str = []
@@ -1280,17 +1316,17 @@ class LaundryEnvironmentMonitor(object):
             for action in plan.actions[:-1]:
                 self.execute_plan(plan, action.active_timesteps)
 
-            final_offset = ([0,0], [0,0])
+            final_offset = np.array([0,0])
             for offset in utils.wrist_im_offsets:
                 cloth_present = self.cloth_predictor.predict_wrist_center(offset[0])
                 if cloth_present:
                     plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
-                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.7]+np.r_[offset[1], 0], [0, np.pi/2, 0], "left_arm")) > 0
+                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.725]+np.r_[offset[1], 0]+np.r_[final_offset, 0], [0, np.pi/2, 0], "left_arm")) > 0
                     if accept:
-                        final_offset = offset
+                        final_offset += np.array(offset[1])
                         break
 
-            cloth_pos[:2] += np.array(final_offset[1])
+            cloth_pos[:2] += final_offset
 
             act_num = 0
             ll_plan_str = []
