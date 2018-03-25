@@ -1,0 +1,662 @@
+<KinBody name = "basket_col">
+   <Body name="base">
+   </Body>
+
+   <Body name="external_1">
+     <Translation>-0.3 0.1 0</Translation>
+     <Geom type="box">
+       <Extents>0.025 0.30 0.28</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="external_2">
+     <Translation>0.3 0.1 0</Translation>
+     <Geom type="box">
+       <Extents>0.025 0.30 0.28</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="external_3">
+     <Translation>0 0.1 -0.3</Translation>
+     <Geom type="box">
+       <Extents>0.28 0.30 0.025</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="external_4">
+     <Translation>0 0.1 0.3</Translation>
+     <Geom type="box">
+       <Extents>0.28 0.30 0.025</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="back">
+     <Translation>0 -0.20 0</Translation>
+     <Geom type="box">
+       <Extents>0.3 0.025 0.30</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="washer_door">
+     <!-- 0.15 is the radius -->
+     <Translation>0 0.4 0</Translation>
+     <RotationAxis>0 0 0 0</RotationAxis>
+     <Geom type="trimesh">
+       <Render>washer_mock_up_door.dae 19.8</Render>
+       <collision>washer_mock_up_door.dae 19.8</collision>
+       <diffuseColor>0 0.7 1</diffuseColor>
+     </Geom>
+   </Body>
+
+   <Body name="corner_1">
+     <Translation>0.215 0.38 -0.215</Translation>
+     <Geom type="box">
+       <Extents>0.06 0.025 0.06</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="corner_2">
+     <Translation>0.215 0.38 0.215</Translation>
+     <Geom type="box">
+       <Extents>0.06 0.025 0.06</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="corner_3">
+     <Translation>-0.215 0.38 -0.215</Translation>
+     <Geom type="box">
+       <Extents>0.06 0.025 0.06</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="corner_4">
+     <Translation>-0.215 0.38 0.215</Translation>
+     <Geom type="box">
+       <Extents>0.06 0.025 0.06</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="strip_1">
+     <Translation>0 0.38 0.245</Translation>
+     <Geom type="box">
+       <Extents>0.275 0.025 0.0325</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="strip_2">
+     <Translation>-0.245 0.38 0</Translation>
+     <Geom type="box">
+       <Extents>0.03 0.025 0.275</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="strip_3">
+     <Translation>0 0.38 -0.25</Translation>
+     <Geom type="box">
+       <Extents>0.275 0.025 0.025</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <Body name="strip_4">
+     <Translation>0.245 0.38 0</Translation>
+     <Geom type="box">
+       <Extents>0.03 0.025 0.275</Extents>
+       <diffusecolor>1 0.55 0.31</diffusecolor>
+     </Geom>
+   </Body>
+
+   <!-- <Body name="washer_handle">
+     <Translation>-0.175 0.45 0.1</Translation>
+     <RotationAxis>0 0 0 0</RotationAxis>
+     <Geom type="trimesh">
+       <Render>washer_handle.dae 0.002</Render>
+       <collision>washer_handle.dae 0.002</collision>
+       <diffuseColor>0.4 1 0</diffuseColor>
+     </Geom>
+   </Body> -->
+
+   <Body name="washer_handle">
+     <Translation>-0.06 0.425 0.375</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="cylinder">
+       <radius>0.01</radius>
+       <height>0.225</height>
+       <diffuseColor>0.4 1 0</diffuseColor>
+     </Geom>
+   </Body>
+
+   <Body name="barrel_1">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_1.dae 0.0214</Render>
+       <collision>barrel_components/barrel_1.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_2">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_2.dae 0.0214</Render>
+       <collision>barrel_components/barrel_2.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_3">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_3.dae 0.0214</Render>
+       <collision>barrel_components/barrel_3.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_4">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_4.dae 0.0214</Render>
+       <collision>barrel_components/barrel_4.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_5">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_5.dae 0.0214</Render>
+       <collision>barrel_components/barrel_5.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_6">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_6.dae 0.0214</Render>
+       <collision>barrel_components/barrel_6.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_7">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_7.dae 0.0214</Render>
+       <collision>barrel_components/barrel_7.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_8">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_8.dae 0.0214</Render>
+       <collision>barrel_components/barrel_8.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_9">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_9.dae 0.0214</Render>
+       <collision>barrel_components/barrel_9.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_10">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_10.dae 0.0214</Render>
+       <collision>barrel_components/barrel_10.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_11">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_11.dae 0.0214</Render>
+       <collision>barrel_components/barrel_11.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_12">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_12.dae 0.0214</Render>
+       <collision>barrel_components/barrel_12.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_13">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_13.dae 0.0214</Render>
+       <collision>barrel_components/barrel_13.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_14">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_14.dae 0.0214</Render>
+       <collision>barrel_components/barrel_14.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_15">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_15.dae 0.0214</Render>
+       <collision>barrel_components/barrel_15.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_16">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_16.dae 0.0214</Render>
+       <collision>barrel_components/barrel_16.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_17">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_17.dae 0.0214</Render>
+       <collision>barrel_components/barrel_17.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_18">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_18.dae 0.0214</Render>
+       <collision>barrel_components/barrel_18.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_19">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_19.dae 0.0214</Render>
+       <collision>barrel_components/barrel_19.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_20">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_20.dae 0.0214</Render>
+       <collision>barrel_components/barrel_20.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_21">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_21.dae 0.0214</Render>
+       <collision>barrel_components/barrel_21.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_22">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_22.dae 0.0214</Render>
+       <collision>barrel_components/barrel_22.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_23">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_23.dae 0.0214</Render>
+       <collision>barrel_components/barrel_23.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_24">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_24.dae 0.0214</Render>
+       <collision>barrel_components/barrel_24.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_25">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_25.dae 0.0214</Render>
+       <collision>barrel_components/barrel_25.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_26">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_26.dae 0.0214</Render>
+       <collision>barrel_components/barrel_26.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_27">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_27.dae 0.0214</Render>
+       <collision>barrel_components/barrel_27.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_28">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_28.dae 0.0214</Render>
+       <collision>barrel_components/barrel_28.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_29">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_29.dae 0.0214</Render>
+       <collision>barrel_components/barrel_29.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_30">
+     <Translation>-0.29 -0.2 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_30.dae 0.0214</Render>
+       <collision>barrel_components/barrel_30.dae 0.0214</collision>
+     </Geom>
+   </Body>
+   <Body name="barrel_back">
+     <Translation>-0.29 -0.67 -0.47</Translation>
+     <RotationAxis>1 0 0 90</RotationAxis>
+     <Geom type="trimesh">
+       <Render>barrel_components/barrel_back.dae 0.0214</Render>
+       <collision>barrel_components/barrel_back.dae 0.0214</collision>
+     </Geom>
+   </Body>
+
+
+   <Joint name="hinge" type="hinge">
+     <body>base</body>
+     <body>washer_door</body>
+     <limits>-1.570796326794897 0.0</limits>
+     <anchor>0.28 0.4 0.1</anchor>
+     <axis>0 0 1</axis>
+   </Joint>
+   <Joint name="door_handle" type="hinge" enable="false">
+     <body>washer_door</body>
+     <body>washer_handle</body>
+     <limits>0.0 0.0</limits>
+     <axis>0 0 1</axis>
+   </Joint>
+
+   <Joint name="external_joint_1" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>external_1</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="external_joint_2" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>external_2</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="external_joint_3" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>external_3</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="external_joint_4" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>external_4</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="back_joint" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>back</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="corner_joint_1" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>corner_1</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="corner_joint_2" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>corner_2</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="corner_joint_3" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>corner_3</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="corner_joint_4" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>corner_4</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="strip_joint_1" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>strip_1</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="strip_joint_2" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>strip_2</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="strip_joint_3" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>strip_3</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="strip_joint_4" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>strip_4</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_1" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_1</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+   <Joint name="barrel_joint_2" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_2</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+   <Joint name="barrel_joint_3" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_3</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+   <Joint name="barrel_joint_4" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_4</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+   <Joint name="barrel_joint_5" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_5</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+   <Joint name="barrel_joint_6" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_6</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_7" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_7</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_8" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_8</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_9" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_9</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_10" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_10</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_11" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_11</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_12" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_12</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_13" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_13</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_14" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_14</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_15" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_15</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_16" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_16</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_17" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_17</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_18" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_18</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_19" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_19</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_20" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_20</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_21" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_21</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_22" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_22</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_23" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_23</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_24" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_24</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_25" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_25</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_26" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_26</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_27" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_27</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_28" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_28</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+   <Joint name="barrel_joint_29" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_29</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+   <Joint name="barrel_joint_30" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_30</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+   <Joint name="barrel_back_joint" type="hinge" enable="false">
+     <Body>base</Body>
+     <Body>barrel_back</Body>
+     <limits>0.0 0.0</limits>
+   </Joint>
+
+
+ </KinBody>
