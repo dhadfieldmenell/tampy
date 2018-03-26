@@ -103,16 +103,16 @@ class ClothGridPredict:
 
         return locs
 
-    def predict_wrist_center(self, offset=[0,0]):
+    def predict_wrist_center(self, offset=[0,0], threshold=0.7):
         prediction = False
         if self.cur_grip_im: 
             im = self.bridge.imgmsg_to_cv2(self.cur_grip_im, 'passthrough')
             im = np.array(im[:,:,:3], dtype=np.float32)
-            x1, x2 = offset[0]+90, offset[0]+110
-            y1, y2 = offset[1]+200, offset[1]+220
+            x1, x2 = offset[0]+85, offset[0]+115
+            y1, y2 = offset[1]+185, offset[1]+215
             region = np.expand_dims(cv2.resize(im[x1:x2, y1:y2, :3], ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
             region = (region - utils.cloth_net_mean) / utils.cloth_net_std
-            prediction = self.net.predict(region) >= 0.7
+            prediction = self.net.predict(region) >= threshold
 
         return prediction
         

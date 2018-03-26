@@ -91,7 +91,10 @@ UNLOAD_WASHER_2_LARM = [-0.5, -0.69907449, 0.64630227, 1.58033184, -1.73427023, 
 # UNLOAD_WASHER_3_LARM = [0.2, -0.25126872, -0.47213494, 0.89539967, 1.47760549, -0.23967536, -0.84200852]
 # UNLOAD_WASHER_3_LARM = [0.4, -0.19232621, -0.83302898,  1.02334477,  1.37054977, -0.09780143, -0.39119112]
 # UNLOAD_WASHER_3_LARM = [0.3, -0.16528917, -0.8997124, 0.87071525, 0.76285755, 0.15585718, 0.23112184]
-UNLOAD_WASHER_3_LARM = [-0.1, 0.06280933, 0.11816894, 0.12925587, -1.10577863, 0.39185929, 1.08838455]
+# UNLOAD_WASHER_3_LARM = [-0.1, 0.06280933, 0.11816894, 0.12925587, -1.10577863, 0.39185929, 1.08838455]
+UNLOAD_WASHER_3_LARM = [0.3, 0.0549754, -1.28082124, 0.67874805, 1.1711163, 0.30692752, 0.232318]
+# UNLOAD_WASHER_#_LARM = [ 0.3       ,  0.01516635, -1.23125549,  0.69629862,  1.12102826, 0.30277768,  0.21948926]
+# UNLOAD_WASHER_3_LARM = [0.3, -0.17482291, -0.8992441, 0.92653075, 1.05108976, 0.12819128, -0.06616722]
 UNLOAD_WASHER_4_LARM = [0.1, -0.04923454, -0.06040849, 0.37378552, 1.86542172, -0.48461707, -0.98989422]
 UNLOAD_WASHER_5_LARM = [-0.2, -0.17400108, 0.23694677, 0.52691205, -1.23359682, 0.37644819, 0.51082788]
 
@@ -107,6 +110,8 @@ BASKET_SCAN_RARM = [-0.75, -0.75, 0, 0, 0, 0, 0]
 
 LARM_FORWARD = [0, -0.75, 0, 0, 0, 0, 0]
 RARM_FORWARD = [0, -0.75, 0, 0, 0, 0, 0]
+
+LARM_BACKWARD = [1.5, -0.75, 0, 0, 0, 0, 0]
 
 
 CLOTH_FOLD_LARM_AFTER_GRASP = [-0.9, -0.77762397, -0.92555498, 0.74297724, 0.62432817, 1.79957612, -0.7377965]
@@ -149,6 +154,7 @@ WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.19, 1.37, 0.97-0.375+0.65/2+0.015]
 # WASHER_INIT_POS = [0.2, 1.37, 0.97-0.375+0.65/2+0.05] # true height
 WASHER_INIT_POS = [0.25, 1.37, 0.97-0.375+0.65/2+0.05] # true height
+# WASHER_INIT_POS = [0.27, 1.37, 0.97-0.375+0.65/2+0.05] # true height
 # WASHER_INIT_POS = [0.24, 1.4, 0.97-0.375+0.65/2+0.015]
 WASHER_INIT_ROT = [5*np.pi/6,0,0]
 # Center of barrel is at (0.1, 1.12)
@@ -290,6 +296,10 @@ def main():
         s += "RobotPose (name {}); ".format("arms_forward_2")
         s += "RobotPose (name {}); ".format("arms_forward_3")
         s += "RobotPose (name {}); ".format("arms_forward_4")
+        s += "RobotPose (name {}); ".format("arm_back_1")
+        s += "RobotPose (name {}); ".format("arm_back_2")
+        s += "RobotPose (name {}); ".format("arm_back_3")
+        s += "RobotPose (name {}); ".format("arm_back_4")
         s += "RobotPose (name {}); ".format("load_washer_intermediate_pose")
         s += "RobotPose (name {}); ".format("put_into_washer_begin")
         s += "RobotPose (name {}); ".format("in_washer_adjust")
@@ -396,6 +406,10 @@ def main():
         s += get_robot_pose_str('arms_forward_2', LARM_FORWARD, RARM_FORWARD, INT_GRIPPER, REGION2)
         s += get_robot_pose_str('arms_forward_3', LARM_FORWARD, RARM_FORWARD, INT_GRIPPER, REGION3)
         s += get_robot_pose_str('arms_forward_4', LARM_FORWARD, RARM_FORWARD, INT_GRIPPER, REGION4)
+        s += get_robot_pose_str('arm_back_1', LARM_BACKWARD, BASKET_SCAN_RARM, INT_GRIPPER, REGION1)
+        s += get_robot_pose_str('arm_back_2', LARM_BACKWARD, BASKET_SCAN_RARM, INT_GRIPPER, REGION2)
+        s += get_robot_pose_str('arm_back_3', LARM_BACKWARD, BASKET_SCAN_RARM, INT_GRIPPER, REGION3)
+        s += get_robot_pose_str('arm_back_4', LARM_BACKWARD, BASKET_SCAN_RARM, INT_GRIPPER, REGION4)
         s += get_robot_pose_str('load_washer_intermediate_pose', LOAD_WASHER_INTERMEDIATE_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('put_into_washer_begin', PUT_INTO_WASHER_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('in_washer_adjust', IN_WASHER_ADJUST_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)

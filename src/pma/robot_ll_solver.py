@@ -654,8 +654,8 @@ class RobotLLSolver(LLSolver):
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.1, 0.1, 0.1])
-                ee_left = target.value[:, 0] + offset + random_dir # - offset/3
-                ee_right = target.value[:, 0] - offset + random_dir # - offset/3
+                ee_left = target.value[:, 0] + offset + random_dir - offset/3
+                ee_right = target.value[:, 0] - offset + random_dir - offset/3
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
@@ -695,7 +695,7 @@ class RobotLLSolver(LLSolver):
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-3.5], [0.1, 0.1, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.5], [0.1, 0.1, 0.1])
                 ee_left = target_pos + random_dir
 
                 # old_pose = act.params[3].value[:,0]
