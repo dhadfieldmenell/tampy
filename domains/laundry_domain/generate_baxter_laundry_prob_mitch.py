@@ -35,6 +35,8 @@ BASKET_FAR_ROT = utils.basket_far_rot.tolist()
 BASKET_SCAN_LARM = [0.75, -0.75, 0, 0, 0, 0, 0]
 BASKET_SCAN_RARM = [-0.75, -0.75, 0, 0, 0, 0, 0]
 
+LOAD_BASKET_FAR_LARM = [-0.4, -1.03370072, -0.50974778, 0.40054644, -1.34636192, 1.6954402, 0.89965769]
+
 CLOTH_ROT = [0, 0, 0]
 
 TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
@@ -155,6 +157,7 @@ def main():
 
         s += "RobotPose (name {}); ".format("robot_init_pose")
         s += "RobotPose (name {}); ".format("robot_end_pose")
+        s += "RobotPose (name {}); ".format("load_basket_far")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
         s += "RobotPose (name {}); ".format("load_washer_intermediate_pose")
@@ -229,6 +232,7 @@ def main():
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_END_POSE)
         s += get_robot_pose_str('load_washer_intermediate_pose', LOAD_WASHER_INTERMEDIATE_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('load_basket_far', LOAD_BASKET_FAR_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION3)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)
