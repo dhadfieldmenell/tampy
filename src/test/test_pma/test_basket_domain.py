@@ -1202,17 +1202,23 @@ class TestBasketDomain(unittest.TestCase):
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
         ll_plan_str = []
         act_num = 0
-        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE OPEN_DOOR_BEGIN_0 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ROBOT_INIT_POSE OPEN_DOOR_BEGIN_0 \n'.format(act_num))
         act_num += 1
         ll_plan_str.append('{0}: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN_0 OPEN_DOOR_EE_APPROACH_0 OPEN_DOOR_EE_RETREAT_0 OPEN_DOOR_END_0 WASHER_CLOSE_POSE_0 WASHER_OPEN_POSE_0 \n'.format(act_num))
         act_num += 1
-        ll_plan_str.append('{0}: MOVETO BAXTER OPEN_DOOR_END_0 CLOSE_DOOR_BEGIN_0 \n'.format(act_num))
+        # ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER OPEN_DOOR_END_0 ROBOT_INIT_POSE \n'.format(act_num))
+        # act_num += 1
+        ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER OPEN_DOOR_END_0 ARM_BACK_2 \n'.format(act_num))
         act_num += 1
-        ll_plan_str.append('{0}: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN_0 CLOSE_DOOR_EE_APPROACH_0 CLOSE_DOOR_EE_RETREAT_0 CLOSE_DOOR_END_0 WASHER_OPEN_POSE_0 WASHER_CLOSE_POSE_0 \n'.format(act_num))
-        act_num += 1
+        ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ARM_BACK_2 ROBOT_INIT_POSE \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ROBOT_INIT_POSE CLOSE_DOOR_BEGIN_0 \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN_0 CLOSE_DOOR_EE_APPROACH_0 CLOSE_DOOR_EE_RETREAT_0 CLOSE_DOOR_END_0 WASHER_OPEN_POSE_0 WASHER_CLOSE_POSE_0 \n'.format(act_num))
+        # act_num += 1
         plan = hls.get_plan(ll_plan_str, domain, problem)
         plan.params['washer'].door[0, 0] = 0
-        plan.params['baxter'].pose[0,0] = 2*np.pi/9
+        plan.params['baxter'].pose[0,0] = -2*np.pi/180
         plan.params['robot_init_pose'].value[0,0] = plan.params['baxter'].pose[0,0]
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
@@ -1234,7 +1240,7 @@ class TestBasketDomain(unittest.TestCase):
         solver = robot_ll_solver.RobotLLSolver()
         start = time.time()
         result = solver.backtrack_solve(plan, callback = callback, verbose=False)
-        result = solver.traj_smoother(plan, callback = None)
+        # result = solver.traj_smoother(plan, callback = None)
         end = time.time()
 
         print "Planning finished within {}s.".format(end - start)

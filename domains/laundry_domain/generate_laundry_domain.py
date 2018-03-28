@@ -706,7 +706,7 @@ class OpenDoor(Action):
             # ('(BaxterWasherIsMP ?washer)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
             ('(BaxterWasherWithinJointLimit ?washer)', '0:{}'.format(end)),
-            ('(not (BaxterObstructsWasher ?robot ?sp ?ep ?washer))', '0:{}'.format(end)),
+            ('(not (BaxterCollidesWasher ?robot ?washer))', '{}:{}'.format(0, end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
                     (not (BaxterCollides ?obj ?obs))\
@@ -893,7 +893,8 @@ class CloseDoor(Action):
             )', '0:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
-            )', '0:{}'.format(grasp_time-1))
+            )', '0:{}'.format(grasp_time-1)),
+            ('(not (BaxterCollidesWasher ?robot ?washer))', '{}:{}'.format(0, end))
         ]
         self.eff = [\
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),

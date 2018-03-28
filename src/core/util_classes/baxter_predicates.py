@@ -1024,6 +1024,23 @@ class BaxterObstructsWasher(BaxterObstructs):
         self._param_to_body[params[3]][1].set_pose([0,0,0])
         self._param_to_body[params[3]][2].set_pose([0,0,0])
 
+        f = lambda x: self.coeff*self.robot_obj_collision(x)[0]
+        grad = lambda x: self.coeff*self.robot_obj_collision(x)[1]
+
+        ## so we have an expr for the negated predicate
+        f_neg = lambda x: self.neg_coeff*self.robot_obj_collision(x)[0]
+        grad_neg = lambda x: self.neg_coeff*self.robot_obj_collision(x)[1]
+
+        col_expr = Expr(f, grad)
+        links = len(self.robot.geom.col_links)
+
+        val = np.zeros((3*len(self.col_link_pairs),1))
+        # e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, val)
+
+
     def robot_obj_collision(self, x):
         # Parse the pose value
         self._plot_handles = []
@@ -1052,7 +1069,8 @@ class BaxterObstructsWasher(BaxterObstructs):
         door_trans = self.true_washer_body.env_body.GetLink('washer_door').GetTransform()
         washer_door_pos = door_trans.dot([0, 0.025, 0, 1])[:3]
         washer_door.set_pose(washer_door_pos, [washer_rot[0]+[np.pi/2+x[-1]], np.pi/2, 0])
-        washer_handle.set_pose(washer_door_pos+[0,0,0.4])
+        handle_trans = self.true_washer_body.env_body.GetLink('washer_handle').GetTransform()
+        washer_handle.set_pose(handle_trans[:3,3])
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == washer_body.env_body.GetEnv()
@@ -1062,6 +1080,12 @@ class BaxterObstructsWasher(BaxterObstructs):
         collisions = self._cc.BodyVsBody(robot_body.env_body, washer_body.env_body)
         # Calculate value and jacobian
         col_val, col_jac = self._calc_grad_and_val(robot_body, washer_body, collisions)
+
+        collisions = self._cc.BodyVsBody(robot_body.env_body, washer_door.env_body)
+        door_col_val, door_col_jac = self._calc_grad_and_val(robot_body, washer_door, collisions)
+
+        collisions = self._cc.BodyVsBody(robot_body.env_body, washer_handle.env_body)
+        handle_col_val, handle_col_jac = self._calc_grad_and_val(robot_body, washer_handle, collisions)
         # set active dof value back to its original state (For successive function call)
         self.set_active_dof_inds(robot_body, reset=True)
         # self._cache[flattened] = (col_val.copy(), col_jac.copy())
@@ -1069,7 +1093,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         washer_body.set_pose([0,0,0])
         washer_door.set_pose([0,0,0])
         washer_handle.set_pose([0,0,0])
-        return col_val, col_jac
+        return np.vstack([col_val, door_col_val, handle_col_val]), np.vstack([col_jac, door_col_jac, handle_col_jac])
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
         """

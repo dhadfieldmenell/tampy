@@ -33,7 +33,7 @@ class HLLaundryState(object):
         self.washer_cloth_poses = []
 
         self.robot_region = 1
-        self.washer_door = -np.pi/2 # 0
+        self.washer_door = 0
 
         self.left_hand_range = 65
 
@@ -53,7 +53,7 @@ class HLLaundryState(object):
             "BasketInFarLoc": False,
             "BasketNearLocClear": True,
             "BasketFarLocClear": True,
-            "WasherDoorOpen": True,
+            "WasherDoorOpen": False,
         }
 
     def get_abs_prob(self):
@@ -166,9 +166,8 @@ class HLLaundryState(object):
             self.hl_preds["BasketInFarLoc"] = True
             self.hl_preds["ClothInBasket"] = len(self.region_poses[5]) > 0
 
-    def update_door(self, open):
-        self.hl_preds["WasherDoorOpen"] = open
-
+    def update_door(self, opened):
+        self.hl_preds["WasherDoorOpen"] = opened
 
     def update(self, pred_map):
         for pred, value in pred_map:
@@ -269,8 +268,10 @@ class LaundryEnvironmentMonitor(object):
             cur_action = filter(lambda a: a.active_timesteps[0] == current_ts, plan.actions)[0]
             if cur_action.name == "open_door":
                 self.state.washer_door = -np.pi/2
+                self.state.update_door(True)
             elif cur_action.name == "close_door":
                 self.state.washer_door = 0
+                self.state.update_door(False)
 
             if cur_action.name.startswith("rotate"):
                 old_region = self.state.robot_region

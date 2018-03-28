@@ -142,7 +142,7 @@ class TrajectoryController(object):
         act_index = 0
         while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
             cur_action = plan.actions[act_index]
-            success = self.execute_timestep(baxter, cur_ts, 1, limbs=limbs, check_collision=check_collision)
+            success = self.execute_timestep(baxter, cur_ts, 5, limbs=limbs, check_collision=check_collision)
             if not success:
                 print 'Failed timestep {}'.format(cur_ts)
                 if stop_on_fail:
