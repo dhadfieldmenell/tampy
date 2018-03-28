@@ -108,6 +108,13 @@ class OpenRAVEBody(object):
         self.env_body.SetName(self.name)
         self._env.Add(self.env_body)
 
+    def _add_sphere(self, geom):
+        infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Sphere, [geom.radius], [0, 0, 1])
+        self.env_body = RaveCreateKinBody(self._env,'')
+        self.env_body.InitFromGeometries([infobox])
+        self.env_body.SetName(self.name)
+        self._env.Add(self.env_body)
+
     def _add_wall(self, geom):
         self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
         self.env_body.SetName(self.name)
@@ -195,6 +202,15 @@ class OpenRAVEBody(object):
         box.SetName(name)
         box.SetTransform(transform)
         return box
+
+    @staticmethod
+    def create_sphere(env, name, transform, dims, color=[0,0,1]):
+        infobox = OpenRAVEBody.create_body_info(GeometryType.Sphere, dims, color)
+        sphere = RaveCreateKinBody(env,'')
+        sphere.InitFromGeometries([infobox])
+        sphere.SetName(name)
+        sphere.SetTransform(transform)
+        return sphere
 
     @staticmethod
     def create_body_info(body_type, dims, color, transparency = 0.8, visible = True):

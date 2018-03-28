@@ -17,7 +17,7 @@ from baxter_core_msgs.msg import CollisionAvoidanceState
 import numpy as np
 
 
-ROS_RATE = 500
+ROS_RATE = 50
 
 left_joints = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2']
 right_joints = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2']
@@ -142,17 +142,17 @@ class TrajectoryController(object):
         act_index = 0
         while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
             cur_action = plan.actions[act_index]
-            success = self.execute_timestep(baxter, cur_ts, 2, limbs=limbs, check_collision=check_collision)
+            success = self.execute_timestep(baxter, cur_ts, 1, limbs=limbs, check_collision=check_collision)
             if not success:
                 print 'Failed timestep {}'.format(cur_ts)
                 if stop_on_fail:
                     return False
             #     self._adjust_for_failed_execute(plan, cur_ts)
-            if cur_action.name == 'basket_grasp' and cur_ts > cur_action.active_timesteps[0] + 12:
-                if self.left_grip.position() < 20 or self.right_grip.position < 20:
-                    self.left_grip.open()
-                    self.right_Grip.open()
-                    return False
+            # if cur_action.name == 'basket_grasp' and cur_ts > cur_action.active_timesteps[0] + 12:
+            #     if self.left_grip.position() < 20 or self.right_grip.position < 20:
+            #         self.left_grip.open()
+            #         self.right_Grip.open()
+            #         return False
             cur_ts += 1
             if cur_ts > cur_action.active_timesteps[1]:
                 act_index += 1

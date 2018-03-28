@@ -80,6 +80,13 @@ class Cloth(Can):
         self.color = "blue"
         self._type = "can"
 
+class Sphere(Item):
+    def __init__(self, radius):
+        self.color = "blue"
+        self._type = "sphere"
+        self.radius = radius
+        self.col_links = set(['base'])
+
 class Obstacle(Item):
     """
     Defines geometry used for testing move with obstructs in the NAMO domain.

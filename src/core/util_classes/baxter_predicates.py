@@ -9,7 +9,7 @@ from collections import OrderedDict
 from openravepy import DOFAffine, Environment, quatRotateDirection, matrixFromQuat
 import numpy as np
 import core.util_classes.baxter_constants as const
-from core.util_classes.items import Box, Can
+from core.util_classes.items import Box, Can, Sphere
 from core.util_classes.param_setup import ParamSetup
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
@@ -1019,7 +1019,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         self.true_washer_body = self._param_to_body[params[3]]
         self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .325])),
                                           OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
-                                          OpenRAVEBody(self._env, 'obstruct_handle', Can(.02, .15))]
+                                          OpenRAVEBody(self._env, 'obstruct_handle', Sphere(.125,))]
         self._param_to_body[params[3]][0].set_pose([0,0,0])
         self._param_to_body[params[3]][1].set_pose([0,0,0])
         self._param_to_body[params[3]][2].set_pose([0,0,0])
@@ -1884,6 +1884,87 @@ class BaxterBasketInGripperShallow(BaxterBasketInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(BaxterBasketInGripperShallow, self).__init__(name, params, expected_param_types, env, debug)
         self.grip_offset = const.BASKET_SHALLOW_GRIP_OFFSET
+
+class BaxterBothEndsGripper(BaxterInGripper):
+
+    # BaxterBothEndsGripper Robot, Cylinder
+
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.eval_dim = 15
+        self.grip_offset = const.BASKET_GRIP_OFFSET
+        super(BaxterBothEndsGripper, self).__init__(name, params, expected_param_types, env, debug)
+
+    #@profile
+    def both_arm_pos_check_f(self, x):
+        """
+            This function is used to check whether:
+                basket is at both robot gripper's center
+
+            x: 26 dimensional list aligned in following order,
+            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->canPose->canRot
+
+            Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
+        """
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        self.arm = "left"
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
+
+        l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
+        l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
+        r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
+        r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
+        rel_pt = np.array([0,0,self.obj.height])
+        # rel_pt = np.array([0, 2*const.BASKET_NARROW_OFFSET,0])
+        l_pos_val = self.rel_pos_error_f(obj_trans, l_ee_trans, rel_pt)
+        rel_pt = np.array([0,0,-self.obj.height])
+        # rel_pt = np.array([0, -2*const.BASKET_NARROW_OFFSET,0])
+        r_pos_val = self.rel_pos_error_f(obj_trans, r_ee_trans, rel_pt)
+        return np.vstack([l_pos_val, r_pos_val])
+
+    #@profile
+    def both_arm_pos_check_jac(self, x):
+        """
+            This function is used to check whether:
+                basket is at both robot gripper's center
+
+            x: 26 dimensional list aligned in following order,
+            BasePose->BackHeight->LeftArmPose->LeftGripper->RightArmPose->RightGripper->canPose->canRot
+
+            Note: Child class that uses this function needs to provide set_robot_poses and get_robot_info functions
+        """
+
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        self.set_robot_poses(x, robot_body)
+
+        l_ee_trans, l_arm_inds = self.get_robot_info(robot_body, 'left')
+        r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
+
+        self.arm = "right"
+        obj_body = self.obj.openrave_body
+        obj_body.set_pose(x[-6: -3], x[-3:])
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
+        rel_pt = np.array([0,0,-self.obj.height])
+        # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
+        l_obj_pos_jac = self.rel_pos_error_jac(obj_trans, r_ee_trans, axises, arm_joints, rel_pt)
+
+        self.arm = "left"
+        obj_body = self.obj.openrave_body
+        obj_body.set_pose(x[-6: -3], x[-3:])
+        obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
+        rel_pt = np.array([0,0,self.obj.height])
+        # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
+        l_obj_pos_jac = self.rel_pos_error_jac(obj_trans, l_ee_trans, axises, arm_joints, rel_pt)
+
+        return np.vstack([l_obj_pos_jac, r_obj_pos_jac])
+
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.both_arm_pos_check_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([self.coeff * self.both_arm_pos_check_jac(x)])
 
 class BaxterWasherInGripper(BaxterInGripper):
 

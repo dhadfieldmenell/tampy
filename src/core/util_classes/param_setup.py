@@ -76,6 +76,13 @@ class ParamSetup(object):
         return can_obj
 
     @staticmethod
+    def setup_sphere(name = "sphere", geom = (0.25,)):
+        attrs = {"name": [name], "geom": geom, "pose": [(0, 0, 0)], "rotation": [(0, 0, 0)], "_type": ["Sphere"]}
+        attr_types = {"name": str, "geom": items.Sphere, "pose": matrix.Vector3d, "rotation": matrix.Vector3d, "_type": str}
+        sphere_obj = parameter.Object(attrs, attr_types)
+        return sphere_obj
+
+    @staticmethod
     def setup_target(name = "target"):
         # This is the target parameter
         attrs = {"name": [name], "value": ["undefined"], "rotation": [(0,0,0)], "_type": ["Target"]}

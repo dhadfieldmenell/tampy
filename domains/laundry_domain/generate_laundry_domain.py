@@ -227,6 +227,41 @@ class Move(Action):
             (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
 
+class MoveAroundWasher(Action):
+    def __init__(self):
+        self.name = 'move_around_washer'
+        self.timesteps = 30
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
+        self.pre = [\
+            ('(forall (?obj - Basket)\
+                (not (BaxterBasketInGripper ?robot ?obj))\
+            )', '{}:{}'.format(0, 0)),
+            ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Basket)\
+                (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasher ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasherDoor ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '{}:{}'.format(0, end-1)),
+            ('(forall (?basket - Basket) (BaxterBasketLevel ?basket))', '{}:{}'.format(0, end)),
+            ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '{}:{}'.format(0, end)),
+            ('(BaxterOpenGrippers ?robot)', '{}:{}'.format(1, end-1)),
+            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
+            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+        ]
+        self.eff = [\
+            (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
+
 class MoveHoldingBasket(Action):
     def __init__(self):
         self.name = 'moveholding_basket'
@@ -1786,7 +1821,8 @@ actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(),
            Rotate(), RotateHoldingBasket(), RotateHoldingCloth(),
            RotateHoldingBasketWithCloth(), GrabCornerLeft(), GrabCornerRight(), 
            DragClothLeft(), DragClothBoth(), FoldInHalf(), MoveToEEPos(),
-           MoveToEEPosLeft(), PushDoorClose(), ClothGraspFromHandle()]
+           MoveToEEPosLeft(), PushDoorClose(), ClothGraspFromHandle(),
+           MoveAroundWasher()]
 
 for action in actions:
     dom_str += '\n\n'

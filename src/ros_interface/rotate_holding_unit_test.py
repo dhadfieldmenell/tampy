@@ -36,4 +36,5 @@ for iter in range(repetitions):
 
 	    if debug:
                 raw_input("Press enter for next action....")
+	    import ipdb; ipdb.set_trace()
 	print("Iteration " + str(iter) + " ended!")
