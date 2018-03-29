@@ -33,7 +33,7 @@ class HLLaundryState(object):
         self.washer_cloth_poses = []
 
         self.robot_region = 1
-        self.washer_door = 0
+        self.washer_door = -np.pi/2 #  0
 
         self.left_hand_range = 65
 
@@ -53,7 +53,7 @@ class HLLaundryState(object):
             "BasketInFarLoc": False,
             "BasketNearLocClear": True,
             "BasketFarLocClear": True,
-            "WasherDoorOpen": False,
+            "WasherDoorOpen": True,
         }
 
     def get_abs_prob(self):
@@ -552,7 +552,28 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_BASKET_INTER_2 CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 LOAD_BASKET_INTER_2 ROBOT_REGION_3_POSE_1 REGION3 \n'.format(act_num))
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': cloth_pos})
+            success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+            dropped_cloth = False
+            if success:
+                for action in plan.actions:
+                    self.execute_plan(plan, action.active_timesteps)
+            else:
+                continue
+
+            if self.state.left_hand_range > 1:
+                self.left_grip.open()
+                dropped_cloth = True
+                continue
+
+
+            act_num = 0
+            ll_plan_str = []
+
+            ll_plan_str.append('{0}: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 ROBOT_INIT_POSE ROBOT_REGION_3_POSE_1 REGION3 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_REGION_3_POSE_1 CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
             act_num += 1
@@ -567,7 +588,7 @@ class LaundryEnvironmentMonitor(object):
             if success:
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
-                    if action in plan.actions[1:3] and self.state.left_hand_range > 1:
+                    if action in plan.actions[:1] and self.state.left_hand_range > 1:
                         self.left_grip.open()
                         dropped_cloth = True
                         break
@@ -724,13 +745,32 @@ class LaundryEnvironmentMonitor(object):
 
             ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 ROBOT_INIT_POSE CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_GRASP_END_1 CLOTH0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_BASKET_INTER_4 CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 CLOTH_GRASP_END_1 ROBOT_REGION_3_POSE_1 REGION3 \n'.format(act_num))
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': cloth_pos})
+            success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+            dropped_cloth = False
+            if success:
+                for action in plan.actions:
+                    self.execute_plan(plan, action.active_timesteps)
+            else:
+                continue
+
+            if self.state.left_hand_range > 1:
+                self.left_grip.open()
+                dropped_cloth = True
+                continue
+
+
+            act_num = 0
+            ll_plan_str = []
+
+            ll_plan_str.append('{0}: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 ROBOT_INIT_POSE ROBOT_REGION_3_POSE_1 REGION3 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_REGION_3_POSE_1 LOAD_BASKET_FAR CLOTH0 \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_BASKET_FAR CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_REGION_3_POSE_1 CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_FAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
             act_num += 1
@@ -743,7 +783,7 @@ class LaundryEnvironmentMonitor(object):
             if success:
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
-                    if action in plan.actions[1:3] and self.state.left_hand_range > 1:
+                    if action in plan.actions[:1] and self.state.left_hand_range > 1:
                         self.left_grip.open()
                         dropped_cloth = True
                         break
@@ -1138,7 +1178,7 @@ class LaundryEnvironmentMonitor(object):
             ll_plan_str = []
 
             cloth_range = self.state.left_hand_range
-            cloth_z = 0.655
+            cloth_z = 0.65
             # if cloth_range < 0.15:
             #     cloth_z = 0.7
             # elif cloth_range < 0.25:
@@ -1150,28 +1190,7 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_BASKET_NEAR LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE PUT_INTO_WASHER_BEGIN CLOTH0 \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 PUT_INTO_WASHER_BEGIN CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_0 INTERMEDIATE_UNLOAD \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: MOVETO BAXTER INTERMEDIATE_UNLOAD IN_WASHER_ADJUST \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER IN_WASHER_ADJUST IN_WASHER_ADJUST_2 CLOTH0 \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: MOVETO BAXTER IN_WASHER_ADJUST_2 INTERMEDIATE_UNLOAD \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: MOVETO BAXTER INTERMEDIATE_UNLOAD LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
-            act_num += 1
-            # ll_plan_str.append('{0}: GRAB_CORNER_LEFT BAXTER PUT_INTO_WASHER_EE_1 PUT_INTO_WASHER_EE_2 CLOTH_PUTDOWN_END_0 GRAB_EE_1 CLOTH_PUTDOWN_BEGIN_1 \n'.format(act_num))
-            # act_num += 1
-            # ll_plan_str.append('{0}: MOVETO_EE_POS_LEFT BAXTER PUT_INTO_WASHER_EE_3 CLOTH_PUTDOWN_BEGIN_1 CLOTH_PUTDOWN_END_1 \n'.format(act_num))
-            # act_num += 1
-            # ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_1 PUT_INTO_WASHER_BEGIN \n'.format(act_num))
-            # act_num += 1
-            # ll_plan_str.append('{0}: MOVETO BAXTER PUT_INTO_WASHER_BEGIN LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
-            # act_num += 1
+
             plan = self.plan_from_str(ll_plan_str)
             self.update_plan(plan, {'cloth0': cloth_pos}, cloth_z=cloth_z)
             success = self.ll_solver.backtrack_solve(plan, callback=None)
@@ -1180,13 +1199,47 @@ class LaundryEnvironmentMonitor(object):
             if success:
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
-                    if action in plan.actions[1:2] and self.state.left_hand_range > 1:
-                        self.left_grip.open()
-                        dropped_cloth = True
-                        break
+            else:
+                continue
+            
+            if self.state.left_hand_range > 1:
+                self.left_grip.open()
+                dropped_cloth = True
 
-            act_num = 0
-            ll_plan_str = []
+            while not dropped_cloth:
+                act_num = 0
+                ll_plan_str = []
+
+                ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_INIT_POSE PUT_INTO_WASHER_BEGIN CLOTH0 \n'.format(act_num))
+                act_num += 1
+                ll_plan_str.append('{0}: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 PUT_INTO_WASHER_BEGIN CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+                act_num += 1
+                ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_0 INTERMEDIATE_UNLOAD \n'.format(act_num))
+                act_num += 1
+                ll_plan_str.append('{0}: MOVETO BAXTER INTERMEDIATE_UNLOAD IN_WASHER_ADJUST \n'.format(act_num))
+                act_num += 1
+                ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER IN_WASHER_ADJUST IN_WASHER_ADJUST_2 CLOTH0 \n'.format(act_num))
+                act_num += 1
+                ll_plan_str.append('{0}: MOVETO BAXTER IN_WASHER_ADJUST_2 INTERMEDIATE_UNLOAD \n'.format(act_num))
+                act_num += 1
+                ll_plan_str.append('{0}: MOVETO BAXTER INTERMEDIATE_UNLOAD LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
+                act_num += 1
+
+                plan = self.plan_from_str(ll_plan_str)
+                self.update_plan(plan, {'cloth0': cloth_pos}, cloth_z=cloth_z)
+                success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+                dropped_cloth = True
+                if success:
+                    for action in plan.actions:
+                        self.execute_plan(plan, action.active_timesteps)
+
+                if self.state.left_hand_range < 1:
+                    self.left_grip.open()
+                    dropped_cloth = False
+
+                act_num = 0
+                ll_plan_str = []
             self.predict_cloth_locations()
 
         return []
@@ -1346,7 +1399,26 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE PUT_INTO_WASHER_BEGIN CLOTH0 \n'.format(act_num))
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': cloth_pos})
+            success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+            dropped_cloth = False
+            if success:
+                for action in plan.actions:
+                    self.execute_plan(plan, action.active_timesteps)
+            else:
+                continue
+
+            if self.state.left_hand_range > 1:
+                self.left_grip.open()
+                dropped_cloth = True
+                continue
+
+            act_num = 0
+            ll_plan_str = []
+
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_INIT_POSE PUT_INTO_WASHER_BEGIN CLOTH0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: PUT_INTO_WASHER BAXTER WASHER WASHER_OPEN_POSE_0 CLOTH0 CLOTH_TARGET_END_0 PUT_INTO_WASHER_BEGIN CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
             act_num += 1
@@ -1364,14 +1436,9 @@ class LaundryEnvironmentMonitor(object):
             self.update_plan(plan, {'cloth0': cloth_pos})
             success = self.ll_solver.backtrack_solve(plan, callback=None)
 
-            dropped_cloth = False
             if success:
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
-                    if action in plan.actions[1:2] and self.state.left_hand_range > 1:
-                        self.left_grip.open()
-                        dropped_cloth = True
-                        break
 
             act_num = 0
             ll_plan_str = []
@@ -1381,7 +1448,7 @@ class LaundryEnvironmentMonitor(object):
             last_pose = 'ROBOT_INIT_POSE'
 
             if (self.state.robot_region != 2):
-                ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ARMS_FORWARD_{1} \n'.format(act_num, self.state.robot_region))
+                ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ROBOT_INIT_POSE ARMS_FORWARD_{1} \n'.format(act_num, self.state.robot_region))
                 act_num += 1
                 ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ARMS_FORWARD_{1} ROBOT_REGION_{2}_POSE_0 \n'.format(act_num, self.state.robot_region, self.state.robot_region))
                 act_num += 1
@@ -1422,14 +1489,7 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_BASKET_INTER_2 CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 LOAD_BASKET_INTER_2 ROBOT_REGION_3_POSE_0 REGION3 \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_REGION_3_POSE_0 LOAD_BASKET_FAR CLOTH0 \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_BASKET_FAR CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
-            act_num += 1
-            ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_FAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
-            act_num += 1
+
             plan = self.plan_from_str(ll_plan_str)
             self.update_plan(plan, {'cloth0': cloth_pos})
             success = self.ll_solver.backtrack_solve(plan, callback=None)
@@ -1438,7 +1498,34 @@ class LaundryEnvironmentMonitor(object):
             if success:
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
-                    if action in plan.actions[1:4] and self.state.left_hand_range > 1:
+            else:
+                continue
+
+            if self.state.left_hand_range > 1:
+                self.left_grip.open()
+                dropped_cloth = True
+                continue
+
+            act_num = 0
+            ll_plan_str = []
+
+            ll_plan_str.append('{0}: ROTATE_HOLDING_CLOTH BAXTER CLOTH0 ROBOT_INIT_POSE ROBOT_REGION_3_POSE_0 REGION3 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_REGION_3_POSE_0 LOAD_BASKET_FAR CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_BASKET_FAR CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_FAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+            act_num += 1
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan)
+            success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+            dropped_cloth = False
+            if success:
+                for action in plan.actions:
+                    self.execute_plan(plan, action.active_timesteps)
+                    if action in plan.actions[:1] and self.state.left_hand_range > 1:
                         self.left_grip.open()
                         dropped_cloth = True
                         break

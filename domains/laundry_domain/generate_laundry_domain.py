@@ -761,7 +761,7 @@ class PushDoorOpen(Action):
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             # ('(BaxterWasherIsMP ?washer)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
-            ('(not (BaxterObstructsWasher ?robot ?sp ?ep ?washer))', '0:{}'.format(end)),
+            ('(not (BaxterCollidesWasher ?robot ?washer))', '{}:{}'.format(0, end)),
             ('(BaxterWasherWithinJointLimit ?washer)', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
@@ -818,7 +818,7 @@ class PushDoorClose(Action):
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             # ('(BaxterWasherIsMP ?washer)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
-            ('(not (BaxterObstructsWasher ?robot ?sp ?ep ?washer))', '0:{}'.format(end)),
+            ('(not (BaxterCollidesWasher ?robot ?washer))', '{}:{}'.format(0, end)),
             ('(BaxterWasherWithinJointLimit ?washer)', '0:{}'.format(end)),
             ('(forall (?obs - Obstacle)\
                 (forall (?obj - Basket)\
@@ -1407,7 +1407,7 @@ class Rotate(Action):
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Washer)\
-                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+                (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryArms ?robot)', '{}:{}'.format(0, end-1)),
             # ('(BaxterStationaryArms ?robot)', '{}:{}'.format(start_rot_time, end-start_rot_time)),
             # ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, start_rot_time)),
@@ -1445,7 +1445,7 @@ class RotateHoldingBasket(Action):
                 (not (BaxterObstructsHolding ?robot ?start ?end ?obj ?basket))\
             )', '0:{}'.format(end)),
             ('(forall (?obj - Washer)\
-                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+                (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryArms ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
@@ -1481,7 +1481,7 @@ class RotateHoldingCloth(Action):
                 (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
             )', '0:{}'.format(end)),
             ('(forall (?obj - Washer)\
-                (not (BaxterObstructsWasher ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
+                (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
             ('(BaxterStationaryArms ?robot)', '{}:{}'.format(0, end-1)),

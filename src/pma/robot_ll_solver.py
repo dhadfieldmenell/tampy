@@ -475,7 +475,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[2].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [1, 0, -1], [0.01, 0.01, 0.3])
+                random_dir = np.multiply(np.random.sample(3) - [2, 0, -1], [0.1, 0.01, 0.3])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([np.pi/3, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
@@ -557,7 +557,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[2].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [1, 1, 0], [0.1, 0.05, 0.05])
+                random_dir = np.multiply(np.random.sample(3) - [2, 1, 0], [0.1, 0.1, 0.05])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([0, np.pi/2, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")

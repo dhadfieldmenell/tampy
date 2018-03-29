@@ -78,8 +78,8 @@ class TrajectoryController(object):
         # right_vel_ratio = min(np.mean((np.abs(cur_right_err) / real_t) / joint_velocity_limits), 1.0)
         # self.right.set_joint_position_speed(right_vel_ratio)
 
-        self.left.set_joint_position_speed(0.05)
-        self.right.set_joint_position_speed(0.05)
+        self.left.set_joint_position_speed(0.1)
+        self.right.set_joint_position_speed(0.1)
         self.left_grip.set_holding_force(95)
         self.right_grip.set_holding_force(95)
         self.left_grip.set_moving_force(95)
