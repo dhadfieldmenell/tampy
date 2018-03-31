@@ -81,8 +81,9 @@
 	)
 
 	(:action close_washer
-		:parameters (?washer)
-		:precondition (WasherDoorOpen ?washer)
+		:parameters (?washer ?cloth)
+		:precondition (and (WasherDoorOpen ?washer)
+					 	   (not (ClothInRegion1 ?cloth)))
 		:effect (not (WasherDoorOpen ?washer))
 	)
 

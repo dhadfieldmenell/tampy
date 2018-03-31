@@ -1019,7 +1019,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         self.true_washer_body = self._param_to_body[params[3]]
         self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .325])),
                                           OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
-                                          OpenRAVEBody(self._env, 'obstruct_handle', Sphere(.125,))]
+                                          OpenRAVEBody(self._env, 'obstruct_handle', Sphere(.1,))]
         self._param_to_body[params[3]][0].set_pose([0,0,0])
         self._param_to_body[params[3]][1].set_pose([0,0,0])
         self._param_to_body[params[3]][2].set_pose([0,0,0])
@@ -1703,9 +1703,9 @@ class BaxterEEApproachOpenDoorLeft(BaxterEEReachable):
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
-            return rel_step*np.array([const.APPROACH_DIST/2, const.APPROACH_DIST*np.sqrt(3)/2, 0])
+            return rel_step*np.array([const.APPROACH_DIST*np.sqrt(3)/2, const.APPROACH_DIST/2, 0])
         else:
-            return rel_step*np.array([-const.RETREAT_DIST/2, -const.RETREAT_DIST*np.sqrt(3)/2, 0])
+            return rel_step*np.array([-const.RETREAT_DIST*np.sqrt(3)/2, -const.RETREAT_DIST/2, 0])
 
 class BaxterEEApproachCloseDoorLeft(BaxterEEReachable):
 
@@ -1723,7 +1723,7 @@ class BaxterEEApproachCloseDoorLeft(BaxterEEReachable):
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
-            return rel_step*np.array([const.APPROACH_DIST, 0,  0])
+            return rel_step*np.array([const.APPROACH_DIST, 0, 0])
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
 
@@ -1755,7 +1755,7 @@ class BaxterEERetreatLeft(BaxterEEReachable):
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
-            return rel_step*np.array([const.APPROACH_DIST,0,  0])
+            return rel_step*np.array([const.APPROACH_DIST, 0, 0])
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
 
@@ -1775,7 +1775,7 @@ class BaxterEERetreatOpenDoorLeft(BaxterEEReachable):
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
-            return rel_step*np.array([const.APPROACH_DIST,0,  0])
+            return rel_step*np.array([const.APPROACH_DIST, 0,  0])
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
 
@@ -1792,6 +1792,12 @@ class BaxterEERetreatCloseDoorLeft(BaxterEEReachable):
     def __init__(self, name, params, expected_param_types, steps=const.EEREACHABLE_STEPS, env=None, debug=False):
         self.arm = "left"
         super(BaxterEERetreatCloseDoorLeft, self).__init__(name, params, expected_param_types, (0, steps), env, debug)
+
+    # def get_rel_pt(self, rel_step):
+    #     if rel_step <= 0:
+    #         return rel_step*np.array([const.APPROACH_DIST/2, const.APPROACH_DIST*np.sqrt(3)/2, 0])
+    #     else:
+    #         return rel_step*np.array([-const.RETREAT_DIST/2, -const.RETREAT_DIST*np.sqrt(3)/2, 0])
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
@@ -2418,12 +2424,12 @@ class BaxterPushInsideWasher(BaxterPushWasher):
 class BaxterPushOutsideWasher(BaxterPushWasher):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(BaxterPushOutsideWasher, self).__init__(name, params, expected_param_types, env, debug)
-        self.rel_pt = np.array([-0.2,0.12,0])
+        self.rel_pt = np.array([-0.2,0.12,0.2])
 
 class BaxterPushOutsideCloseWasher(BaxterPushWasher):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(BaxterPushOutsideCloseWasher, self).__init__(name, params, expected_param_types, env, debug)
-        self.rel_pt = np.array([-0.05,0.145,0])
+        self.rel_pt = np.array([-0.2,0.145,0.0])
 
 class BaxterPushHandle(BaxterPushWasher):
 

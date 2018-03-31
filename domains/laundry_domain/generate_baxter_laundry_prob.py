@@ -159,7 +159,7 @@ WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
 # WASHER_INIT_POS = [0.19, 1.37, 0.97-0.375+0.65/2+0.015]
 # WASHER_INIT_POS = [0.2, 1.37, 0.97-0.375+0.65/2+0.05] # true height
-WASHER_INIT_POS = [0.28, 1.37, 0.97-0.375+0.65/2+0.03]
+WASHER_INIT_POS = [0.29, 1.37, 0.97-0.375+0.65/2+0.03]
 # WASHER_INIT_POS = [0.27, 1.37, 0.97-0.375+0.65/2+0.05] # true height
 # WASHER_INIT_POS = [0.24, 1.4, 0.97-0.375+0.65/2+0.015]
 WASHER_INIT_ROT = [5*np.pi/6,0,0]
@@ -313,6 +313,7 @@ def main():
         s += "RobotPose (name {}); ".format("grab_ee_1")
         s += "RobotPose (name {}); ".format("load_basket_far")
         s += "RobotPose (name {}); ".format("load_basket_near")
+        s += "RobotPose (name {}); ".format("load_basket_inter_1")
         s += "RobotPose (name {}); ".format("load_basket_inter_2")
         s += "RobotPose (name {}); ".format("load_basket_inter_4")
         s += "RobotPose (name {}); ".format("unload_washer_0")
@@ -428,6 +429,7 @@ def main():
         s += get_robot_pose_str('grab_ee_1', GRASP_EE_1_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('load_basket_far', LOAD_BASKET_FAR_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION3)
         s += get_robot_pose_str('load_basket_near', LOAD_BASKET_NEAR_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
+        s += get_robot_pose_str('load_basket_inter_1', LOAD_BASKET_NEAR_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)
         s += get_robot_pose_str('load_basket_inter_2', LOAD_BASKET_FAR_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION2)
         s += get_robot_pose_str('load_basket_inter_4', LOAD_BASKET_FAR_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION4)
         s += get_robot_pose_str('unload_washer_0', UNLOAD_WASHER_0_LARM, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION1)

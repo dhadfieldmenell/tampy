@@ -107,7 +107,7 @@ class TrajectoryController(object):
             cur_left_err = left_target - current_left
             cur_right_err = right_target - current_right
             attempt += 1.0
-            rospy.sleep(0.005)
+            rospy.sleep(0.01)
             # r.sleep()
 
         self.left_grip.open()  if left_gripper_open else self.left_grip.close()
