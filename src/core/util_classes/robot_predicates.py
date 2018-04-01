@@ -363,7 +363,7 @@ class CollisionPredicate(ExprPredicate):
 
             if not (linkRobot1.startswith('right') or linkRobot1.startswith('left')) or \
                         linkRobot1 == linkRobot2 or \
-                        linkRobot1.endswith('upper_shoulder') or linkRobot1.endswith('lower_shoulder') or\
+                        linkRobot1.endswith('upper_shoulder') or linkRobot1.endswith('lower_shoulder') or \
                         linkRobot2.startswith('right') or linkRobot2.startswith('left'):
                 continue
 

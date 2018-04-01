@@ -104,7 +104,8 @@
 		:parameters (?cloth ?basket ?washer)
 		:precondition (and (ClothInRegion1 ?cloth)
 					 	   (WasherDoorOpen ?washer))
-		:effect (not (ClothInRegion1 ?cloth))
+		:effect (and (not (ClothInRegion1 ?cloth))
+				 	 (ClothInWasher ?cloth ?washer))
 	)
 
 	(:action unload_washer_into_basket

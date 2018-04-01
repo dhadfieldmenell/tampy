@@ -228,7 +228,7 @@ class RobotLLSolver(LLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=10)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=3)
         if not robot_poses:
             success = False
             # print "Using Random Poses"
@@ -308,7 +308,7 @@ class RobotLLSolver(LLSolver):
         else:
             gripper_val = np.array([[baxter_constants.GRIPPER_OPEN_VALUE]])
 
-        robot_body.set_dof({'lArmPose': [0.785, -0.785, 0, 0, 0, 0, 0], 'rArmPose':[-0.785, -0.785, 0, 0, 0, 0, 0], 'lGripper': [0.02], 'rGripper': [0.02]})
+        robot_body.set_dof({'lArmPose': old_l_arm_pose.flatten(), 'rArmPose': old_r_arm_pose.flatten(), 'lGripper': [0.02], 'rGripper': [0.02]})
         robot_body.set_pose([0, 0, old_pose[0, 0]])
 
         for i in range(resample_size):
@@ -516,7 +516,7 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[5].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [1.75, 2.5, 1.0], [0.15, 0.2, 0.03])
+                random_dir = np.multiply(np.random.sample(3) - [1.75, 3, 1.0], [0.2, 0.2, 0.03])
                 ee_pos = target_pos + random_dir
                 ee_rot = np.array([target_rot[0] - np.pi/2, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
@@ -631,8 +631,6 @@ class RobotLLSolver(LLSolver):
 
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
-                import ipdb; ipdb.set_trace()
-
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
 
@@ -708,7 +706,7 @@ class RobotLLSolver(LLSolver):
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], [0.2, 0.2, 0.1])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-0.5], [0.01, 0.01, 0.1])
                 ee_left = target_pos + random_dir
 
                 # old_pose = act.params[3].value[:,0]
