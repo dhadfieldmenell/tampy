@@ -1,5 +1,3 @@
-from IPython import embed as shell
-
 class State(object):
     """
     A state is parametrized by parameters, a 0-indexed timestep, and predicates (see Predicate class). It maintains the

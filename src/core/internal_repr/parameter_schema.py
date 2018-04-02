@@ -1,5 +1,3 @@
-from IPython import embed as shell
-
 class ParameterSchema(object):
     """
     A parameter schema holds the following information.

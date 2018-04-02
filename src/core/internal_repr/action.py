@@ -1,4 +1,3 @@
-from IPython import embed as shell
 MAX_PRIORITY = 3
 class Action(object):
     """

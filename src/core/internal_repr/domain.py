@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from parameter_schema import ParameterSchema
 from predicate_schema import PredicateSchema
 from action_schema import ActionSchema

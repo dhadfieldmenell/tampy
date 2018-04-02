@@ -1,4 +1,3 @@
-from IPython import embed as shell
 import importlib
 from core.internal_repr import parameter
 from core.util_classes import common_predicates, namo_predicates

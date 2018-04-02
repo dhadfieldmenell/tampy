@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from action import Action
 import numpy as np
 

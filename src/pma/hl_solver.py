@@ -1,4 +1,3 @@
-from IPython import embed as shell
 import subprocess
 from core.internal_repr.action import Action
 from core.internal_repr.plan import Plan
@@ -281,7 +280,10 @@ class FFSolver(HLSolver):
                         arg_valuations = [val + [(name, p_type)] for name in arg_names_of_type for val in arg_valuations]
                 for val in arg_valuations:
                     val, types = zip(*val)
-                    assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
+                    try:
+                        assert list(types) == pred_schema.expected_params, "Expected params from schema don't match types! Bad task planner output."
+                    except:
+                        import ipdb; ipdb.set_trace()
                     # if list(types) != pred_schema.expected_params:
                     #     import pdb; pdb.set_trace()
                     pred = pred_schema.pred_class("placeholder", [params[v] for v in val], pred_schema.expected_params, env=env)

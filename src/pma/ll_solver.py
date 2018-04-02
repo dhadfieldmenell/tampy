@@ -9,7 +9,6 @@ from core.util_classes.matrix import Vector, Vector2d
 import gurobipy as grb
 import numpy as np
 GRB = grb.GRB
-from IPython import embed as shell
 import itertools, random
 
 MAX_PRIORITY=5
@@ -116,10 +115,7 @@ class LLParam(object):
                 free_vars = self.get_free_vars(attr)
                 for index, value in np.ndenumerate(value):
                     if not free_vars[index]:
-                        try:
-                            self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
-                        except:
-                            import ipdb; ipdb.set_trace()
+                        self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
 
     def grb_val_dict(self):
         val_dict = {}

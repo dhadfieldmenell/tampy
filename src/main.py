@@ -1,4 +1,3 @@
-from IPython import embed as shell
 import argparse, traceback
 from errors_exceptions import TampyException
 from pma import pr_graph

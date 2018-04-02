@@ -1,5 +1,3 @@
-from IPython import embed as shell
-
 class PredicateSchema(object):
     """
     A predicate schema holds the following information.

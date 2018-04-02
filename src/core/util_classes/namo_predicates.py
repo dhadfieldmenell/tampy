@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
 from core.internal_repr.plan import Plan
 from core.util_classes.common_predicates import ExprPredicate

@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object

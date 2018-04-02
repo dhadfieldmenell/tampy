@@ -1,5 +1,3 @@
-from IPython import embed as shell
-
 class ActionSchema(object):
     """
     An action schema holds the following information.

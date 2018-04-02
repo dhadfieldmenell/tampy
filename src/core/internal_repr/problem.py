@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from errors_exceptions import ProblemConfigException
 
 class Problem(object):

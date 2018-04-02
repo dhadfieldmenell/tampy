@@ -14,7 +14,6 @@ import itertools, random
 import gurobipy as grb
 import numpy as np
 GRB = grb.GRB
-from IPython import embed as shell
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import baxter_sampling
 
@@ -166,6 +165,10 @@ class RobotLLSolver(LLSolver):
         elif a.name == 'moveto_ee_pos_left':
             rs_param = a.params[-1]
         elif a.name == 'cloth_grasp_from_handle':
+            rs_param = a.params[-1]
+        elif a.name == 'both_end_cloth_grasp':
+            rs_param = a.params[-1]
+        elif a.name == 'both_move_cloth_to':
             rs_param = a.params[-1]
         else:
             raise NotImplemented
@@ -342,6 +345,33 @@ class RobotLLSolver(LLSolver):
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
                     # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif next_act != None and next_act.name == 'both_end_cloth_grasp':
+                target = next_act.params[2]
+                target_rot = target.rotation[0, 0]
+                dist = next_act.params[1].geom.height / 2.0
+                offset = np.array([-dist*np.sin(target_rot), dist*np.cos(target_rot), 0])
+                target_pos = target.value[:, 0]
+
+                # old_pose = next_act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
+                next_act.params[1].openrave_body.set_pose(target_pos, target.rotation[:, 0])
+
+                const_dir = [0, 0, .05]
+                ee_left = target_pos + offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0.05], [0.01, 0.01, 0])
+                ee_right = target_pos - offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0.05], [0.01, 0.01, 0])
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [-np.pi/2, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    import ipdb; ipdb.set_trace()
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
@@ -586,13 +616,13 @@ class RobotLLSolver(LLSolver):
                 ee_left = target_pos + random_dir
                 ee_left[2] += 0.3
 
-                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [np.pi/2, np.pi/2, 0], "left_arm")
                 if not len(l_arm_pose):
                     random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,0], [0.01, 0.01, 0])
                     ee_left = target_pos + random_dir
                     ee_left[2] += 0.1
 
-                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, [np.pi/2, np.pi/2, 0], "left_arm")
                     if not len(l_arm_pose):
                         continue
 
@@ -677,6 +707,51 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
+            elif act.name == 'both_end_cloth_grasp':
+                target = act.params[2]
+                target_rot = target.rotation[0, 0]
+                dist = act.params[1].geom.height / 2.0 + 0.1
+                offset = np.array([-dist*np.sin(target_rot), dist*np.cos(target_rot), 0])
+                target_pos = target.value[:, 0]
+
+                # old_pose = next_act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.1, 0.1, 0.1])
+                ee_left = target.value[:, 0] + offset + random_dir
+                ee_right = target.value[:, 0] - offset + random_dir
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+
+            elif act.name == 'both_move_cloth_to':
+                target = act.params[2]
+                target_rot = target.rotation[0, 0]
+                dist = act.params[1].geom.height / 2.0 + 0.1
+                offset = np.array([-dist*np.sin(target_rot), dist*np.cos(target_rot), 0])
+                target_pos = target.value[:, 0]
+
+                # old_pose = next_act.params[3].value[:,0]
+                # robot_body.set_pose([0, 0, old_pose[0]])
+
+                ee_left = target.value[:, 0] + offset
+                ee_right = target.value[:, 0] - offset
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
+
             elif act.name == 'cloth_grasp_from_handle':
                 target = act.params[3]
                 target_rot = target.rotation[0, 0]
@@ -712,11 +787,11 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[3].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [np.pi/2, np.pi/2, 0], "left_arm")
                 if not len(l_arm_pose):
                     random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.1, 0.1, 0.1])
                     ee_left = target_pos + random_dir
-                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
+                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, [np.pi/2, np.pi/2, 0], "left_arm")
                     if not len(l_arm_pose):
                         continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))

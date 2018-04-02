@@ -11,6 +11,7 @@ from sensor_msgs.msg import Range
 
 import baxter_interface
 
+from core.internal_repr.plan import Plan
 from core.parsing import parse_domain_config, parse_problem_config
 import core.util_classes.baxter_constants as const
 from core.util_classes.viewer import OpenRAVEViewer
@@ -184,6 +185,9 @@ class LaundryEnvironmentMonitor(object):
             self.abs_domain = f.read()
         self.hl_solver = FFSolver(abs_domain=self.abs_domain)
         self.ll_solver = RobotLLSolver()
+        self.env = None
+        self.openrave_bodies = {}
+        self.has_saved_free_attrs = False
         self.cloth_predictor = ClothGridPredict()
         self.basket_predictor = BasketPredict()
         self.corner_predictor = FoldingPredict()
@@ -202,13 +206,14 @@ class LaundryEnvironmentMonitor(object):
         self.r_camera.open()
         self.r_camera.resolution = (320, 200)
         self.range_subscriber = rospy.Subscriber("/robot/range/left_hand_range/state", Range, self._range_callback, queue_size=1)
+        self.stopped = False
 
     def _range_callback(self, data):
         self.state.left_hand_range = data.range
 
     def run_baxter(self):
         success = False
-        while(True):
+        while not self.stopped:
             while not success:
                 success = True
                 self.predict_basket_location()
@@ -257,8 +262,6 @@ class LaundryEnvironmentMonitor(object):
 
             self.reset_laundry()
 
-        import ipdb; ipdb.set_trace()
-
     def solve_hl_prob(self):
         abs_prob = self.state.get_abs_prob()
         return self.hl_solver._run_planner(self.abs_domain, abs_prob)
@@ -266,6 +269,7 @@ class LaundryEnvironmentMonitor(object):
     def execute_plan(self, plan, active_ts, limbs=['left', 'right']):
         current_ts = active_ts[0]
         success = True
+        self.save_env_bodies(plan.params)
         while (current_ts < active_ts[1] and current_ts < plan.horizon):
             cur_action = filter(lambda a: a.active_timesteps[0] == current_ts, plan.actions)[0]
             if cur_action.name == "open_door":
@@ -437,16 +441,31 @@ class LaundryEnvironmentMonitor(object):
                 plan.params['cloth_target_end_0'].value[2, :] = cloth_z
                 print true_pose
 
+    def save_env_bodies(self, params):
+        for param_name in params:
+            param = params[param_name]
+            if not param.is_symbol() and param.openrave_body is not None:
+                self.openrave_bodies[param_name] = param.openrave_body
+
+    def restore_env_bodies(self, params):
+        for param_name in params:
+            param = params[param_name]
+            if param_name in self.openrave_bodies:
+                param.openrave_body = self.openrave_bodies[param_name]
+
     def plan_from_str(self, ll_plan_str):
         '''Convert a plan string (low level) into a plan object.'''
-        num_cloth = 1 # sum([len(poses) for poses in self.state.region_poses])
+        num_cloth = 1
         domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
         hls = FFSolver(d_c)
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_{0}.prob'.format(num_cloth))
-        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-        return hls.get_plan(ll_plan_str, domain, problem)
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, self.env, self.openrave_bodies)
+        self.env = problem.env
+        plan = hls.get_plan(ll_plan_str, domain, problem)
+        self.restore_env_bodies(plan.params)
+        return plan
 
     # def load_basket_from_region_1(self):
     #     self.predict_basket_location()
@@ -497,6 +516,111 @@ class LaundryEnvironmentMonitor(object):
     #         #     return [("BasketNearWasher", True)]
 
     #     return []
+
+    def load_basket_in_region_1(self):
+        self.predict_cloth_locations()
+
+        failed_constr = []
+        if not len(self.state.region_poses[0]):
+             failed_constr.append(("ClothInRegion1", False))
+
+        if np.any(np.abs(self.state.basket_pose - utils.basket_near_pos)[:2] > 0.15):
+            failed_constr.append(("BasketInNearLoc", False))
+
+        if len(failed_constr):
+            return failed_constr
+
+        act_num = 0
+        ll_plan_str = []
+
+        while len(self.state.region_poses[2]):
+            act_num = 0
+            ll_plan_str = []
+
+            last_pose = 'ROBOT_INIT_POSE'
+            if (self.state.robot_region != 1):
+                ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ROBOT_INIT_POSE ROBOT_REGION_{1}_POSE_0 \n'.format(act_num, self.state.robot_region))
+                act_num += 1
+                ll_plan_str.append('{0}: ROTATE BAXTER ROBOT_REGION_{1}_POSE_0 ROBOT_REGION_1_POSE_0 REGION1 \n'.format(act_num, self.state.robot_region))
+                act_num += 1
+                last_pose = 'ROBOT_REGION_1_POSE_0'
+            ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER {1} CLOTH_GRASP_BEGIN_0 \n'.format(act_num, last_pose))
+            act_num += 1
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+            act_num += 1
+
+
+            plan = self.plan_from_str(ll_plan_str)
+            cloth_pos = self.get_next_cloth_pos(1)
+            self.update_plan(plan, {'cloth0': cloth_pos})
+            self.ll_solver._backtrack_solve(plan, callback=None, amax=len(plan.actions)-2)
+
+            for action in plan.actions[:-1]:
+                self.execute_plan(plan, action.active_timesteps)
+
+            final_offset = np.array([0.0,0.0])
+            for offset in utils.wrist_im_offsets:
+                cloth_present = self.cloth_predictor.predict_wrist_center(offset[0])
+                if cloth_present:
+                    plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[2][0]])
+                    accept = len(plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos[:2], 0.725]+np.r_[offset[1], 0]+np.r_[final_offset, 0], [0, np.pi/2, 0], "left_arm")) > 0
+                    if accept:
+                        final_offset += np.array(offset[1])
+
+            cloth_pos[:2] += final_offset
+
+            act_num = 0
+            ll_plan_str = []
+
+            ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 ROBOT_INIT_POSE CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE LOAD_BASKET_NEAR CLOTH0 \n'.format(act_num))
+            act_num += 1
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan, {'cloth0': cloth_pos})
+            success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+            dropped_cloth = False
+            if success:
+                for action in plan.actions:
+                    self.execute_plan(plan, action.active_timesteps)
+            else:
+                continue
+
+            if self.state.left_hand_range > 1:
+                self.left_grip.open()
+                dropped_cloth = True
+                continue
+
+
+            act_num = 0
+            ll_plan_str = []
+
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER ROBOT_INIT_POSE CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_NEAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_0 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+            act_num += 1
+            ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER CLOTH_PUTDOWN_END_0 LOAD_BASKET_NEAR \n'.format(act_num))
+            act_num += 1
+
+            plan = self.plan_from_str(ll_plan_str)
+            self.update_plan(plan)
+            success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+            dropped_cloth = False
+            if success:
+                for action in plan.actions:
+                    self.execute_plan(plan, action.active_timesteps)
+
+            act_num = 0
+            ll_plan_str = []
+            self.predict_cloth_locations()
+
+        return []
+
 
 
     def load_basket_from_region_2(self):
@@ -708,18 +832,10 @@ class LaundryEnvironmentMonitor(object):
             if success:
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
-                    if action in plan.actions[1:2] and self.state.left_hand_range > 1:
-                        self.left_grip.open()
-                        dropped_cloth = True
-                        break
 
             act_num = 0
             ll_plan_str = []
-            # self.predict_basket_location()
             self.predict_cloth_locations()
-
-            # if np.any(np.abs(self.state.basket_pose - utils.basket_far_pos) > 0.05):
-            #     failed_constr.append(("BasketNearWasher", True))
 
         return []
 
@@ -826,7 +942,7 @@ class LaundryEnvironmentMonitor(object):
 
             act_num = 0
             ll_plan_str = []
-            self.predict_basket_location()
+            # self.predict_basket_location()
             self.predict_cloth_locations()
 
             # if np.any(np.abs(self.state.basket_pose - utils.basket_far_pos) > 0.05):
@@ -1729,7 +1845,7 @@ class LaundryEnvironmentMonitor(object):
         for action in plan.actions:
             self.execute_plan(plan, action.active_timesteps)
 
-        while self.cloth_predictor.predict_wrist_center(offset=[85, -30]):
+        while self.cloth_predictor.predict_wrist_center(offset=[75, -30]):
             ll_plan_str = []
             act_num = 0
             ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE INTERMEDIATE_UNLOAD \n'.format(act_num))
@@ -1874,17 +1990,18 @@ class LaundryEnvironmentMonitor(object):
         '''
         Used to have Baxter reset its environment to a good initial configuration.
         '''
-        valid_regions = [5]
-        # self.predict_basket_location()
+        valid_regions = [1, 2, 3, 5]
+        self.predict_basket_location()
 
-        # if self.state.washer_door > -np.pi/6:
-        #     self.open_washer()
+        if self.state.washer_door > -np.pi/6:
+            self.open_washer()
 
-        # if np.any(np.abs(self.state.basket_pose[:2] - utils.basket_near_pos[:2]) > 0.2):
-        #     self.move_basket_to_washer()
+        if np.any(np.abs(self.state.basket_pose[:2] - utils.basket_near_pos[:2]) > 0.2):
+            self.move_basket_to_washer()
 
-        # self.unload_washer_into_basket()
-        # self.move_basket_from_washer()
+        self.unload_washer_into_basket()
+        self.load_basket_in_region_1()
+        self.move_basket_from_washer()
 
         self.predict_basket_location()
         self.predict_cloth_locations()
@@ -1923,7 +2040,7 @@ class LaundryEnvironmentMonitor(object):
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
 
-            if self.left_hand_range > 1:
+            if self.state.left_hand_range > 1:
                 self.left_grip.open()
                 continue
             
@@ -1964,7 +2081,6 @@ class LaundryEnvironmentMonitor(object):
         return []
 
     def fold_cloth(self):
-        # self.predict_basket_location()
         self.predict_cloth_locations()
 
         failed_constr = []
@@ -2038,15 +2154,7 @@ class LaundryEnvironmentMonitor(object):
             if success:
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
-                # self.left_grip.open()
-
-            # left_joint_dict = self.left_arm.joint_angles()
-            # left_joints = map(lambda j: left_joint_dict[j], const.left_joints) # [left_joint_dict[joint] for joint in const.left_joints]
-            # plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
-            # plan.params['baxter'].openrave_body.set_dof({'lArmPose': left_joints})
-            # ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("left_gripper").GetTransform()[:3,3]
-
-            cloth_pos[:2] = plan.params['cloth0'].pose[:2,-1] + np.array([0.15, -0.25])
+            cloth_pos[:2] = plan.params['cloth0'].pose[:2,-1] + np.array([0.0, -0.1])
 
 
         for i in range(1):
@@ -2057,23 +2165,14 @@ class LaundryEnvironmentMonitor(object):
             act_num += 1
             ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 FOLD_AFTER_GRASP CLOTH0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 FOLD_AFTER_GRASP_2 CLOTH0 \n'.format(act_num))
             act_num += 1
-            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER FOLD_AFTER_GRASP FOLD_AFTER_DRAG CLOTH0 \n'.format(act_num))
+            ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER FOLD_AFTER_GRASP_2 FOLD_AFTER_DRAG CLOTH0 \n'.format(act_num))
             act_num += 1
             ll_plan_str.append('{0}: MOVETO BAXTER FOLD_AFTER_DRAG FOLD_SCAN_CORNER_1 \n'.format(act_num))
             act_num += 1
 
             plan = self.plan_from_str(ll_plan_str)
-            if i > 0:
-                cloth_offset = self.corner_predictor.predict("left")
-                left_joint_dict = self.left_arm.joint_angles()
-                left_joints = map(lambda j: left_joint_dict[j], const.left_joints) # [left_joint_dict[joint] for joint in const.left_joints]
-                plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
-                plan.params['baxter'].openrave_body.set_dof({'lArmPose': left_joints})
-                ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("left_gripper").GetTransform()[:3,3]
-
-                cloth_pos[:2] = ee_pos[:2] + cloth_offset
 
             self.update_plan(plan, {'cloth0': cloth_pos})
             success = self.ll_solver.backtrack_solve(plan, callback=None)
@@ -2082,25 +2181,68 @@ class LaundryEnvironmentMonitor(object):
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
 
-            # cloth_offset = self.corner_predictor.predict("left")
-            # left_joint_dict = self.left_arm.joint_angles()
-            # left_joints = map(lambda j: left_joint_dict[j], const.left_joints) # [left_joint_dict[joint] for joint in const.left_joints]
-            # plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
-            # plan.params['baxter'].openrave_body.set_dof({'lArmPose': left_joints})
-            # ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("left_gripper").GetTransform()[:3,3]
+            cloth_offset = self.corner_predictor.predict("left")
+            left_joint_dict = self.left_arm.joint_angles()
+            left_joints = map(lambda j: left_joint_dict[j], const.left_joints)
+            plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
+            plan.params['baxter'].openrave_body.set_dof({'lArmPose': left_joints})
+            ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("left_gripper").GetTransform()[:3,3]
 
-            # cloth_pos[:2] = ee_pos[:2] + cloth_offset
+            cloth_pos[:2] = ee_pos[:2] + cloth_offset
+
+        for i in range(5):
+            cloth_offset = self.corner_predictor.predict("left")
+            if np.any(np.abs(cloth_offset) > 0.02):
+                left_joint_dict = self.left_arm.joint_angles()
+                left_joints = map(lambda j: left_joint_dict[j], const.left_joints)
+                plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
+                plan.params['baxter'].openrave_body.set_dof({'lArmPose': left_joints})
+                ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("left_gripper").GetTransform()[:3,3]
+
+                cloth_pos[:2] = ee_pos[:2] + cloth_offset + [0.02, 0.04]
+
+                lposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos, 1.05], [0, np.pi/2, 0], "left_arm")
+                if not len(lposes):
+                    cloth_pos[:2] = ee_pos[:2] + cloth_offset / 2.0
+                    lposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos, 1.05], [0, np.pi/2, 0], "left_arm")
+                    if not len(lposes):
+                        break
+
+                pose_ind = np.argmin(np.sum(np.abs(lposes - left_joints), axis=1))
+                pose = lposes[pose_ind]
+
+                act_num = 0
+                ll_plan_str = []
+
+                ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE FOLD_SCAN_CORNER_1 \n'.format(act_num))
+                act_num += 1
+
+                plan = self.plan_from_str(ll_plan_str)
+                plan.params['fold_scan_corner_1'].lArmPose[:,0] = pose
+
+                self.update_plan(plan)
+                success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+                if success:
+                    for action in plan.actions:
+                        self.execute_plan(plan, action.active_timesteps)
+            else:
+                break
+
+        left_corner = cloth_pos[:2].copy()
 
         act_num = 0
         ll_plan_str = []
 
-        ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 ROBOT_INIT_POSE CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
         act_num += 1
-        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 FOLD_AFTER_GRASP CLOTH0 \n'.format(act_num))
+        ll_plan_str.append('{0}: CLOTH_GRASP BAXTER CLOTH0 CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CLOTH_GRASP_END_0 \n'.format(act_num))
         act_num += 1
-        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER FOLD_AFTER_GRASP FOLD_AFTER_DRAG CLOTH0 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 FOLD_AFTER_GRASP_2 CLOTH0 \n'.format(act_num))
         act_num += 1
-        ll_plan_str.append('{0}: MOVETO BAXTER FOLD_AFTER_DRAG FOLD_SCAN_CORNER_2 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER FOLD_AFTER_GRASP_2 FOLD_AFTER_DRAG_2 CLOTH0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: MOVETO BAXTER FOLD_AFTER_DRAG_2 FOLD_SCAN_CORNER_2 \n'.format(act_num))
         act_num += 1
 
         plan = self.plan_from_str(ll_plan_str)
@@ -2112,14 +2254,80 @@ class LaundryEnvironmentMonitor(object):
             for action in plan.actions:
                 self.execute_plan(plan, action.active_timesteps)
 
-        cloth_offset = self.corner_predictor.predict("right")
-        right_joint_dict = self.right_arm.joint_angles()
-        right_joints = map(lambda j: right_joint_dict[j], const.right_joints) # [right_joint_dict[joint] for joint in const.right_joints]
-        plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
-        plan.params['baxter'].openrave_body.set_dof({'rArmPose': right_joints})
-        ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("right_gripper").GetTransform()[:3,3]
+        for i in range(5):
+            cloth_offset = self.corner_predictor.predict("right")
+            if np.any(np.abs(cloth_offset) > 0.02):
+                right_joint_dict = self.right_arm.joint_angles()
+                right_joints = map(lambda j: right_joint_dict[j], const.right_joints)
+                left_joint_dict = self.left_arm.joint_angles()
+                left_joints = map(lambda j: left_joint_dict[j], const.left_joints)
+                plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
+                plan.params['baxter'].openrave_body.set_dof({'rArmPose': right_joints})
+                ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("right_gripper").GetTransform()[:3,3]
 
-        cloth_pos[:2] = ee_pos[:2] + cloth_offset
+                cloth_pos[:2] = ee_pos[:2] + cloth_offset + [0.0, 0.02]
+
+                rposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos+[0, 0.03], 1.05], [0, np.pi/2, 0], "right_arm")
+                if not len(rposes):
+                    cloth_pos[:2] = ee_pos[:2] + cloth_offset / 2.0 + [0.0, 0.02]
+                    rposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos, 1.05], [0, np.pi/2, 0], "right_arm")
+                    if not len(rposes):
+                        break
+
+                pose_ind = np.argmin(np.sum(np.abs(rposes - right_joints), axis=1))
+                pose = rposes[pose_ind]
+
+                act_num = 0
+                ll_plan_str = []
+
+                ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE FOLD_SCAN_CORNER_2 \n'.format(act_num))
+                act_num += 1
+
+                plan = self.plan_from_str(ll_plan_str)
+                plan.params['fold_scan_corner_2'].rArmPose[:,0] = pose
+                plan.params['fold_scan_corner_2'].lArmPose[:,0] = left_joints
+
+                self.update_plan(plan)
+                success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+                if success:
+                    for action in plan.actions:
+                        self.execute_plan(plan, action.active_timesteps)
+            else:
+                break
+
+        right_corner = (ee_pos[:2] + cloth_offset + [0, 0.02]).flatten()
+
+        center = (left_corner + right_corner) / 2
+        rotation = (right_corner[1] - left_corner[1]) / np.arcsin(np.sqrt(np.sum((left_corner - right_corner)**2)))
+
+        act_num = 0
+        ll_plan_str = []
+
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_END_CLOTH_GRASP BAXTER CLOTH_LONG_EDGE CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CG_EE_1 CLOTH_GRASP_END_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_MOVE_CLOTH_TO BAXTER CLOTH_LONG_EDGE CLOTH_FOLD_AIR_TARGET_1 CLOTH_GRASP_END_0 CLOTH_GRASP_END_1 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_MOVE_CLOTH_TO BAXTER CLOTH_LONG_EDGE CLOTH_FOLD_TABLE_TARGET_1 CLOTH_GRASP_END_1 CLOTH_GRASP_END_2 \n'.format(act_num))
+        act_num += 1
+
+        plan = self.plan_from_str(ll_plan_str)
+        plan.params['cloth_long_edge'].pose[:,0] = np.r_[center, 0.655]
+        plan.params['cloth_long_edge'].rotation[:,0] = [rotation, 0, -np.pi/2]
+        plan.params['cloth_target_begin_0'].value[:,0] = np.r_[center, 0.655]
+        plan.params['cloth_target_begin_0'].rotation = np.array([[rotation], [0], [-np.pi/2]])
+        plan.params['cloth_target_begin_0']._free_attrs['value'][:] = 0
+        plan.params['cloth_target_begin_0']._free_attrs['rotation'][:] = 0
+
+        self.update_plan(plan)
+        success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+        if success:
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
+
 
         return []
 

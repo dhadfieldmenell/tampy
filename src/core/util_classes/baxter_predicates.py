@@ -63,6 +63,9 @@ class BaxterAt(robot_predicates.At):
 class BaxterClothAt(robot_predicates.At):
     pass
 
+class BaxterEdgeAt(robot_predicates.At):
+    pass
+
 class BaxterClothAtPose(robot_predicates.AtPose):
     pass
 
@@ -269,6 +272,9 @@ class BaxterStationary(robot_predicates.Stationary):
 class BaxterStationaryCloth(robot_predicates.Stationary):
     pass
 
+class BaxterStationaryEdge(robot_predicates.Stationary):
+    pass
+
 class BaxterStationaryWasher(robot_predicates.StationaryBase):
 
     # BaxterStationaryWasher, Washer (Only pose, rotation)
@@ -342,6 +348,36 @@ class BaxterClothGraspValid(ExprPredicate):
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(BaxterClothGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+class BaxterClothBothGraspValidLeft(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.ee_pose, self.target, self.edge = params
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0], ('rotation', np.array([0,1]))]), (params[1], [ATTRMAP[params[1]._type][0], ('rotation', np.array([0,1]))])])
+
+        self.attr_dim = 5
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        rot = self.target.rotation[0, 0]
+        dist = self.edge.geom.height / 2 + 0.1
+        b, val = np.array([[np.sin(rot)*dist, -np.cos(rot)*dist, 0, -np.pi/2,-np.pi/2]]).T, np.zeros((self.attr_dim,1))
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(BaxterClothBothGraspValidLeft, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+class BaxterClothBothGraspValidRight(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.ee_pose, self.target, self.edge = params
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0], ('rotation', np.array([0,1]))]), (params[1], [ATTRMAP[params[1]._type][0], ('rotation', np.array([0,1]))])])
+
+        self.attr_dim = 5
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        rot = self.target.rotation[0, 0]
+        dist = self.edge.geom.height / 2 + 0.1
+        b, val = np.array([[-np.sin(rot)*dist, np.cos(rot)*dist, 0, np.pi/2,-np.pi/2]]).T, np.zeros((self.attr_dim,1))
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(BaxterClothBothGraspValidRight, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
 class BaxterGraspValidPos(BaxterGraspValid):
@@ -1017,9 +1053,9 @@ class BaxterObstructsWasher(BaxterObstructs):
         # self._param_to_body = {}
         # self._param_to_body[params[0]] = OpenRAVEBody(self._env, 'baxter_obstruct', params[0].geom)
         self.true_washer_body = self._param_to_body[params[3]]
-        self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .325])),
+        self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .35])),
                                           OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
-                                          OpenRAVEBody(self._env, 'obstruct_handle', Sphere(.1,))]
+                                          OpenRAVEBody(self._env, 'obstruct_handle', Sphere(.08,))]
         self._param_to_body[params[3]][0].set_pose([0,0,0])
         self._param_to_body[params[3]][1].set_pose([0,0,0])
         self._param_to_body[params[3]][2].set_pose([0,0,0])
@@ -1034,7 +1070,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         col_expr = Expr(f, grad)
         links = len(self.robot.geom.col_links)
 
-        val = np.zeros((3*len(self.col_link_pairs),1))
+        val = np.zeros((len(self.col_link_pairs),1))
         # e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -1070,7 +1106,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         washer_door_pos = door_trans.dot([0, 0.025, 0, 1])[:3]
         washer_door.set_pose(washer_door_pos, [washer_rot[0]+[np.pi/2+x[-1]], np.pi/2, 0])
         handle_trans = self.true_washer_body.env_body.GetLink('washer_handle').GetTransform()
-        washer_handle.set_pose(handle_trans[:3,3])
+        washer_handle.set_pose(handle_trans[:3,3]+[0,0,0.02])
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == washer_body.env_body.GetEnv()
@@ -1093,7 +1129,8 @@ class BaxterObstructsWasher(BaxterObstructs):
         washer_body.set_pose([0,0,0])
         washer_door.set_pose([0,0,0])
         washer_handle.set_pose([0,0,0])
-        return np.vstack([col_val, door_col_val, handle_col_val]), np.vstack([col_jac, door_col_jac, handle_col_jac])
+        return col_val+door_col_val+handle_col_val, col_jac+door_col_jac+handle_col_jac
+        # return np.vstack([col_val, door_col_val, handle_col_val]), np.vstack([col_jac, door_col_jac, handle_col_jac])
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
         """
@@ -1915,14 +1952,13 @@ class BaxterBasketInGripperShallow(BaxterBasketInGripper):
         super(BaxterBasketInGripperShallow, self).__init__(name, params, expected_param_types, env, debug)
         self.grip_offset = const.BASKET_SHALLOW_GRIP_OFFSET
 
-class BaxterBothEndsGripper(BaxterInGripper):
+class BaxterBothEndsInGripper(BaxterInGripper):
 
-    # BaxterBothEndsGripper Robot, Cylinder
+    # BaxterBothEndsInGripper Robot, Cylinder
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.eval_dim = 15
-        self.grip_offset = const.BASKET_GRIP_OFFSET
-        super(BaxterBothEndsGripper, self).__init__(name, params, expected_param_types, env, debug)
+        self.eval_dim = 6
+        super(BaxterBothEndsInGripper, self).__init__(name, params, expected_param_types, env, debug)
 
     #@profile
     def both_arm_pos_check_f(self, x):
@@ -1944,10 +1980,10 @@ class BaxterBothEndsGripper(BaxterInGripper):
         l_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in l_arm_inds]
         r_ee_trans, r_arm_inds = self.get_robot_info(robot_body, 'right')
         r_arm_joints = [body.GetJointFromDOFIndex(ind) for ind in r_arm_inds]
-        rel_pt = np.array([0,0,self.obj.height])
+        rel_pt = np.array([0,0,self.obj.geom.height/2.0+0.1])
         # rel_pt = np.array([0, 2*const.BASKET_NARROW_OFFSET,0])
         l_pos_val = self.rel_pos_error_f(obj_trans, l_ee_trans, rel_pt)
-        rel_pt = np.array([0,0,-self.obj.height])
+        rel_pt = np.array([0,0,-self.obj.geom.height/2.0-0.1])
         # rel_pt = np.array([0, -2*const.BASKET_NARROW_OFFSET,0])
         r_pos_val = self.rel_pos_error_f(obj_trans, r_ee_trans, rel_pt)
         return np.vstack([l_pos_val, r_pos_val])
@@ -1975,15 +2011,15 @@ class BaxterBothEndsGripper(BaxterInGripper):
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([0,0,-self.obj.height])
+        rel_pt = np.array([0,0,-self.obj.geom.height/2.0-0.1])
         # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
-        l_obj_pos_jac = self.rel_pos_error_jac(obj_trans, r_ee_trans, axises, arm_joints, rel_pt)
+        r_obj_pos_jac = self.rel_pos_error_jac(obj_trans, r_ee_trans, axises, arm_joints, rel_pt)
 
         self.arm = "left"
         obj_body = self.obj.openrave_body
         obj_body.set_pose(x[-6: -3], x[-3:])
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.array([0,0,self.obj.height])
+        rel_pt = np.array([0,0,self.obj.geom.height/2.0+0.1])
         # rel_pt = np.array([0, 0, -const.BASKET_NARROW_OFFSET])
         l_obj_pos_jac = self.rel_pos_error_jac(obj_trans, l_ee_trans, axises, arm_joints, rel_pt)
 
@@ -2938,4 +2974,162 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
         jac = np.zeros((2, 17))
         jac[0,:7] = left_arm_jac
         jac[1,8:15] = right_arm_jac
+        return jac
+
+class BaxterLeftGripperDownRot(robot_predicates.GrippersLevel):
+    # BaxterLeftGripperDownRot Robot
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = 0.1
+        self.opt_coeff = 0.1
+        self.eval_f = lambda x: self.left_arm_rot_check(x)
+        self.eval_grad = lambda x: self.left_arm_rot_jac(x)
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
+        self.eval_dim = 2
+        super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
+
+    #@profile
+    def get_robot_info(self, robot_body, arm = "left"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
+        # Provide functionality of Obtaining Robot information
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
+        return robot_trans, arm_inds
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def left_arm_rot_check(self, x):
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        self.set_robot_poses(x, robot_body)
+
+        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
+        local_dir = [1, 0, 0]
+        world_dir = robot_left_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        left_rot_val = np.array([[np.abs(np.dot([0,0,-1], world_dir)) - 1]])
+
+        return left_rot_val
+
+    def left_arm_rot_jac(self, x):
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        self.set_robot_poses(x, robot_body)
+
+        robot_left_trans, left_arm_inds = self.get_robot_info(robot_body, "left")
+        left_arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in left_arm_inds]
+        l_tool_link = robot_body.env_body.GetLink("left_gripper")
+        l_manip_trans = l_tool_link.GetTransform()
+
+        local_dir = [1, 0, 0]
+        world_dir = robot_left_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        obj_dir = [0,0,-1]
+        sign = np.sign(np.dot(obj_dir, world_dir))
+
+        left_arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in left_arm_joints]).T.copy()
+        left_arm_jac = left_arm_jac.reshape((1, len(left_arm_joints)))
+
+        jac = np.zeros((1, 17))
+        jac[0,:7] = left_arm_jac
+        return jac
+
+class BaxterRightGripperDownRot(robot_predicates.GrippersLevel):
+    # BaxterRightGripperDownRot Robot
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.coeff = 0.1
+        self.opt_coeff = 0.1
+        self.eval_f = lambda x: self.left_arm_rot_check(x)
+        self.eval_grad = lambda x: self.left_arm_rot_jac(x)
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
+        self.eval_dim = 2
+        super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
+
+    #@profile
+    def get_robot_info(self, robot_body, arm = "left"):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
+        # Provide functionality of Obtaining Robot information
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
+        return robot_trans, arm_inds
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def right_arm_rot_check(self, x):
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        self.set_robot_poses(x, robot_body)
+
+        robot_trans, arm_inds = self.get_robot_info(robot_body, "right")
+        local_dir = [1, 0, 0]
+        world_dir = robot_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        rot_val = np.array([[np.abs(np.dot([0,0,-1], world_dir)) - 1]])
+
+        return rot_val
+
+    def left_arm_rot_jac(self, x):
+        robot_body = self._param_to_body[self.params[self.ind0]]
+        robot = robot_body.env_body
+        self.set_robot_poses(x, robot_body)
+
+        robot_trans, arm_inds = self.get_robot_info(robot_body, "right")
+        arm_joints = [robot.GetJointFromDOFIndex(ind) for ind in arm_inds]
+        tool_link = robot_body.env_body.GetLink("right_gripper")
+        manip_trans = tool_link.GetTransform()
+
+        local_dir = [1, 0, 0]
+        world_dir = robot_trans[:3,:3].dot(local_dir)
+        world_dir = world_dir/np.linalg.norm(world_dir)
+        obj_dir = [0,0,-1]
+        sign = np.sign(np.dot(obj_dir, world_dir))
+
+        arm_jac = np.array([np.dot(obj_dir, np.cross(joint.GetAxis(), sign * world_dir)) for joint in arm_joints]).T.copy()
+        arm_jac = arm_jac.reshape((1, len(arm_joints)))
+
+        jac = np.zeros((1, 17))
+        jac[8:15] = arm_jac
         return jac

@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from core.internal_repr.predicate import Predicate
 from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody

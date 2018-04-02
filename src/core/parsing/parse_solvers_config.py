@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from errors_exceptions import HLException, LLException, SolversConfigException
 from pma import hl_solver
 from pma import ll_solver

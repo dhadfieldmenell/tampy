@@ -1,6 +1,5 @@
 import h5py
 import os.path as path
-from IPython import embed as shell
 import numpy as np
 import scipy.stats
 import math, random

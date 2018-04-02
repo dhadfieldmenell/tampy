@@ -1,4 +1,3 @@
-from IPython import embed as shell
 import numpy as np
 
 class Matrix(np.ndarray):

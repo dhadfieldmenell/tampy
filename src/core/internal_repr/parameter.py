@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from errors_exceptions import DomainConfigException
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody

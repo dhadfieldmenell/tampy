@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from core.internal_repr import state
 from core.internal_repr import problem
 from errors_exceptions import ProblemConfigException
@@ -11,10 +10,12 @@ class ParseProblemConfig(object):
     Validation is performed against the schemas stored in the Domain object self.domain.
     """
     @staticmethod
-    def parse(problem_config, domain):
+    def parse(problem_config, domain, env=None, openrave_bodies={}):
         # create parameter objects
         params = {}
-        env = Environment()
+        if env is None:
+            env = Environment()
+            
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")
         for t in problem_config["Objects"].split(";"):
@@ -56,6 +57,9 @@ class ParseProblemConfig(object):
                 try:
                     params[obj_name] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
                                                                                 attr_types=domain.param_schemas[o_type].attr_dict)
+                    if obj_name in openrave_bodies:
+                        params[obj_name].openrave_body = openrave_bodies[obj_name]
+                        params[obj_name].geom = params[obj_name].openrave_body._geom
                 except KeyError:
                     raise ProblemConfigException("Parameter '%s' not defined in domain file."%name)
                 except ValueError:
@@ -81,7 +85,6 @@ class ParseProblemConfig(object):
                                                                           env=env))
                 except TypeError:
                     print("type error for {}".format(pred))
-                    import ipdb; ipdb.set_trace()
 
         # use params and initial preds to create an initial State object
         initial_state = state.State("initstate", params, init_preds, timestep=0)
