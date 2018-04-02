@@ -389,11 +389,20 @@ class LaundryEnvironmentMonitor(object):
         plan.params['basket'].rotation[0, 0] = self.state.basket_pose[2]
 
         left_joint_dict = self.left_arm.joint_angles()
-        left_joints = map(lambda j: left_joint_dict[j], const.left_joints) # [left_joint_dict[joint] for joint in const.left_joints]
+        left_joints = map(lambda j: left_joint_dict[j], const.left_joints)
         left_grip = const.GRIPPER_OPEN_VALUE if self.left_grip.position() > 50 else const.GRIPPER_CLOSE_VALUE
         right_joint_dict = self.right_arm.joint_angles()
-        right_joints = map(lambda j: right_joint_dict[j], const.right_joints) # [right_joint_dict[joint] for joint in const.right_joints]
+        right_joints = map(lambda j: right_joint_dict[j], const.right_joints)
         right_grip = const.GRIPPER_OPEN_VALUE if self.right_grip.position() > 50 else const.GRIPPER_CLOSE_VALUE
+
+        DOF_limits = plan.params['baxter'].openrave_body.env_body.GetDOFLimits()
+        left_DOF_limits = (DOF_limits[0][2:9], DOF_limits[1][2:9])
+        right_DOF_limits = (DOF_limits[0][10:17], DOF_limits[1][10:17])
+
+        left_joints = np.maximum(left_DOF_limits[0], left_joints)
+        left_joints = np.minimum(left_DOF_limits[1], left_joints)
+        right_joints = np.maximum(right_DOF_limits[0], right_joints)
+        right_joints = np.minimum(right_DOF_limits[1], right_joints)
         plan.params['baxter'].lArmPose[:, 0] = left_joints
         plan.params['baxter'].lGripper[:, 0] = left_grip
         plan.params['baxter'].rArmPose[:, 0] = right_joints
@@ -462,7 +471,9 @@ class LaundryEnvironmentMonitor(object):
         hls = FFSolver(d_c)
         p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_{0}.prob'.format(num_cloth))
         problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, self.env, self.openrave_bodies)
-        self.env = problem.env
+        if self.env is None:
+            self.env = problem.env
+            self.env.SetViewer('qtcoin')
         plan = hls.get_plan(ll_plan_str, domain, problem)
         self.restore_env_bodies(plan.params)
         return plan
@@ -2154,7 +2165,7 @@ class LaundryEnvironmentMonitor(object):
             if success:
                 for action in plan.actions:
                     self.execute_plan(plan, action.active_timesteps)
-            cloth_pos[:2] = plan.params['cloth0'].pose[:2,-1] + np.array([0.0, -0.1])
+            cloth_pos[:2] = plan.params['cloth0'].pose[:2,-1] + np.array([0.05, -0.2])
 
 
         for i in range(1):
@@ -2199,7 +2210,7 @@ class LaundryEnvironmentMonitor(object):
                 plan.params['baxter'].openrave_body.set_dof({'lArmPose': left_joints})
                 ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("left_gripper").GetTransform()[:3,3]
 
-                cloth_pos[:2] = ee_pos[:2] + cloth_offset + [0.02, 0.04]
+                cloth_pos[:2] = ee_pos[:2] + cloth_offset + [0.04, 0.04]
 
                 lposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos, 1.05], [0, np.pi/2, 0], "left_arm")
                 if not len(lposes):
@@ -2228,8 +2239,6 @@ class LaundryEnvironmentMonitor(object):
                         self.execute_plan(plan, action.active_timesteps)
             else:
                 break
-
-        left_corner = cloth_pos[:2].copy()
 
         act_num = 0
         ll_plan_str = []
@@ -2265,12 +2274,12 @@ class LaundryEnvironmentMonitor(object):
                 plan.params['baxter'].openrave_body.set_dof({'rArmPose': right_joints})
                 ee_pos = plan.params['baxter'].openrave_body.env_body.GetLink("right_gripper").GetTransform()[:3,3]
 
-                cloth_pos[:2] = ee_pos[:2] + cloth_offset + [0.0, 0.02]
+                cloth_pos[:2] = ee_pos[:2] + cloth_offset + [0.04, 0.02]
 
-                rposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos+[0, 0.03], 1.05], [0, np.pi/2, 0], "right_arm")
+                rposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos+[0, 0.03], 1.05], [0, 31*np.pi/64, 0], "right_arm")
                 if not len(rposes):
-                    cloth_pos[:2] = ee_pos[:2] + cloth_offset / 2.0 + [0.0, 0.02]
-                    rposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos, 1.05], [0, np.pi/2, 0], "right_arm")
+                    cloth_pos[:2] = ee_pos[:2] + cloth_offset / 2.0 + [0.04, 0.02]
+                    rposes = plan.params['baxter'].openrave_body.get_ik_from_pose(np.r_[cloth_pos, 1.05], [0, 31*np.pi/64, 0], "right_arm")
                     if not len(rposes):
                         break
 
@@ -2296,10 +2305,17 @@ class LaundryEnvironmentMonitor(object):
             else:
                 break
 
+        right_joint_dict = self.right_arm.joint_angles()
+        right_joints = map(lambda j: right_joint_dict[j], const.right_joints)
+        left_joint_dict = self.left_arm.joint_angles()
+        left_joints = map(lambda j: left_joint_dict[j], const.left_joints)
+        plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
+        plan.params['baxter'].openrave_body.set_dof({'rArmPose': right_joints, 'lArmPose': left_joints})
+        left_corner = plan.params['baxter'].openrave_body.env_body.GetLink("left_gripper").GetTransform()[:2,3]
         right_corner = (ee_pos[:2] + cloth_offset + [0, 0.02]).flatten()
 
         center = (left_corner + right_corner) / 2
-        rotation = (right_corner[1] - left_corner[1]) / np.arcsin(np.sqrt(np.sum((left_corner - right_corner)**2)))
+        rotation = (right_corner[0] - left_corner[0]) / np.arcsin(np.sqrt(np.sum((left_corner - right_corner)**2)))
 
         act_num = 0
         ll_plan_str = []
@@ -2314,9 +2330,9 @@ class LaundryEnvironmentMonitor(object):
         act_num += 1
 
         plan = self.plan_from_str(ll_plan_str)
-        plan.params['cloth_long_edge'].pose[:,0] = np.r_[center, 0.655]
+        plan.params['cloth_long_edge'].pose[:,0] = np.r_[center, 0.64]
         plan.params['cloth_long_edge'].rotation[:,0] = [rotation, 0, -np.pi/2]
-        plan.params['cloth_target_begin_0'].value[:,0] = np.r_[center, 0.655]
+        plan.params['cloth_target_begin_0'].value[:,0] = np.r_[center, 0.64]
         plan.params['cloth_target_begin_0'].rotation = np.array([[rotation], [0], [-np.pi/2]])
         plan.params['cloth_target_begin_0']._free_attrs['value'][:] = 0
         plan.params['cloth_target_begin_0']._free_attrs['rotation'][:] = 0
@@ -2328,6 +2344,71 @@ class LaundryEnvironmentMonitor(object):
             for action in plan.actions:
                 self.execute_plan(plan, action.active_timesteps)
 
+        right_joint_dict = self.right_arm.joint_angles()
+        right_joints = map(lambda j: right_joint_dict[j], const.right_joints)
+        left_joint_dict = self.left_arm.joint_angles()
+        left_joints = map(lambda j: left_joint_dict[j], const.left_joints)
+        plan.params['baxter'].openrave_body.set_pose([0,0,utils.regions[1][0]])
+        plan.params['baxter'].openrave_body.set_dof({'rArmPose': right_joints, 'lArmPose': left_joints})
+        left_corner = [0.5, 0.35, 0.625]
+        right_corner = [0.5, -0.35, 0.625]
+
+        act_num = 0
+        ll_plan_str = []
+
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE FOLD_SCAN_TWO_CORNER \n'.format(act_num))
+        act_num += 1
+
+        plan = self.plan_from_str(ll_plan_str)
+        plan.params['fold_scan_two_corner'].rArmPose[:,0] = right_joints
+
+        self.update_plan(plan)
+        plan.params['cloth0'].openrave_body.set_pose([1,1,1])
+        success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+        if success:
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
+
+        act_num = 0
+        ll_plan_str = []
+
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_END_CLOTH_GRASP BAXTER CLOTH_SHORT_EDGE CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CG_EE_1 CLOTH_GRASP_END_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_MOVE_CLOTH_TO BAXTER CLOTH_SHORT_EDGE CLOTH_FOLD_AIR_TARGET_2 CLOTH_GRASP_END_0 CLOTH_GRASP_END_1 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_MOVE_CLOTH_TO BAXTER CLOTH_SHORT_EDGE CLOTH_FOLD_TABLE_TARGET_2 CLOTH_GRASP_END_1 CLOTH_GRASP_END_2 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_MOVE_CLOTH_TO BAXTER CLOTH_SHORT_EDGE CLOTH_FOLD_TABLE_TARGET_3 CLOTH_GRASP_END_2 CLOTH_GRASP_END_3 \n'.format(act_num))
+        act_num += 1
+
+        plan = self.plan_from_str(ll_plan_str)
+
+        cloth_offset = self.corner_predictor.predict("left")
+        self.update_plan(plan)
+        plan.params['cloth0'].openrave_body.set_pose([1,1,1])
+        if cloth_offset[1] > 0:
+            plan.params['cloth_long_edge'].pose[:,0] = [0.6, 0.25, 0.64]
+            plan.params['cloth_long_edge'].rotation[:,0] = [np.pi/4, 0, -np.pi/2]
+            plan.params['cloth_target_begin_0'].value[:,0] = [0.65, 0.25, 0.64]
+            plan.params['cloth_target_begin_0'].rotation = np.array([[np.pi/4], [0], [-np.pi/2]])
+            plan.params['cloth_target_begin_0']._free_attrs['value'][:] = 0
+            plan.params['cloth_target_begin_0']._free_attrs['rotation'][:] = 0
+        else:
+            plan.params['cloth_long_edge'].pose[:,0] = [0.6, -0.25, 0.64]
+            plan.params['cloth_long_edge'].rotation[:,0] = [-np.pi/4, 0, -np.pi/2]
+            plan.params['cloth_target_begin_0'].value[:,0] = [0.65, -0.25, 0.64]
+            plan.params['cloth_target_begin_0'].rotation = np.array([[-np.pi/4], [0], [-np.pi/2]])
+            plan.params['cloth_target_begin_0']._free_attrs['value'][:] = 0
+            plan.params['cloth_target_begin_0']._free_attrs['rotation'][:] = 0
+
+        success = self.ll_solver.backtrack_solve(plan, callback=None)
+
+        if success:
+            for action in plan.actions:
+                self.execute_plan(plan, action.active_timesteps)
 
         return []
 

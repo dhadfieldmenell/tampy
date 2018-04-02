@@ -368,10 +368,10 @@ class RobotLLSolver(LLSolver):
                 ee_left = target_pos + offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0.05], [0.01, 0.01, 0])
                 ee_right = target_pos - offset + const_dir + np.multiply(np.random.sample(3)-[0.5, 0.5, 0.05], [0.01, 0.01, 0])
 
-                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [np.pi/2, np.pi/2, 0], "left_arm")
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [-np.pi/2, np.pi/2, 0], "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, [-np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
-                    import ipdb; ipdb.set_trace()
+                    # import ipdb; ipdb.set_trace()
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
@@ -721,8 +721,8 @@ class RobotLLSolver(LLSolver):
                 ee_left = target.value[:, 0] + offset + random_dir
                 ee_right = target.value[:, 0] - offset + random_dir
 
-                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
-                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot+np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot+np.pi/2, np.pi/2, 0], "right_arm")
                 if not len(l_arm_pose) or not len(r_arm_pose):
                     continue
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
@@ -743,10 +743,23 @@ class RobotLLSolver(LLSolver):
                 ee_left = target.value[:, 0] + offset
                 ee_right = target.value[:, 0] - offset
 
-                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot-np.pi/2, np.pi/2, 0], "left_arm")
-                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot-np.pi/2, np.pi/2, 0], "right_arm")
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot+np.pi/2, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot+np.pi/2, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, [target_rot, np.pi/2, 0], "left_arm")
+                    r_arm_pose = robot_body.get_ik_from_pose(ee_right, [target_rot, np.pi/2, 0], "right_arm")
+
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, 0, -np.pi/2], "left_arm")
+                    r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, 0, -np.pi/2], "right_arm")
+
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    l_arm_pose = robot_body.get_ik_from_pose(ee_left, [-np.pi/2, 0, 0], "left_arm")
+                    r_arm_pose = robot_body.get_ik_from_pose(ee_right, [np.pi/2, 0, 0], "right_arm")
+
                 if not len(l_arm_pose) or not len(r_arm_pose):
                     continue
+
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
                 # TODO once we have the rotor_base we should resample pose

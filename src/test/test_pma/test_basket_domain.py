@@ -1616,6 +1616,57 @@ class TestBasketDomain(unittest.TestCase):
         import ipdb; ipdb.set_trace()
 
 
+    def test_both_end_cloth_grasp_2(self):
+        domain_fname = '../domains/laundry_domain/laundry.domain'
+        d_c = main.parse_file_to_dict(domain_fname)
+        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+        hls = hl_solver.FFSolver(d_c)
+        print "loading laundry problem..."
+        p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/baxter_laundry_1.prob')
+        problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+        ll_plan_str = []
+        act_num = 0
+        ll_plan_str.append('{0}: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_END_CLOTH_GRASP BAXTER CLOTH_SHORT_EDGE CLOTH_TARGET_BEGIN_0 CLOTH_GRASP_BEGIN_0 CG_EE_0 CG_EE_1 CLOTH_GRASP_END_0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_MOVE_CLOTH_TO BAXTER CLOTH_SHORT_EDGE CLOTH_FOLD_AIR_TARGET_2 CLOTH_GRASP_END_0 CLOTH_GRASP_END_1 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_MOVE_CLOTH_TO BAXTER CLOTH_SHORT_EDGE CLOTH_FOLD_TABLE_TARGET_2 CLOTH_GRASP_END_1 CLOTH_GRASP_END_2 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: BOTH_MOVE_CLOTH_TO BAXTER CLOTH_SHORT_EDGE CLOTH_FOLD_TABLE_TARGET_3 CLOTH_GRASP_END_2 CLOTH_GRASP_END_3 \n'.format(act_num))
+        act_num += 1
+
+        plan = hls.get_plan(ll_plan_str, domain, problem)
+        plan.params['cloth_short_edge'].pose[:,0] = [0.65, 0.25, 0.63]
+        plan.params['cloth_short_edge'].rotation[:,0] = [np.pi/4, 0, -np.pi/2]
+        plan.params['cloth_target_begin_0'].value[:,0] = [0.65, 0.25, 0.63]
+        plan.params['cloth_target_begin_0'].rotation = np.array([[np.pi/4], [0], [-np.pi/2]])
+        plan.params['cloth_target_begin_0']._free_attrs['value'][:] = 0
+        plan.params['cloth_target_begin_0']._free_attrs['rotation'][:] = 0
+        plan.params['baxter'].pose[:,:] = (2*np.pi/180)
+        plan.params['basket'].pose[:,:] = 2
+        plan.params['robot_init_pose'].value[:,:] = (2*np.pi/180)
+        print "solving basket domain problem..."
+        viewer = OpenRAVEViewer.create_viewer(plan.env)
+        viewer.draw_plan_ts(plan, 0)
+        serializer = PlanSerializer()
+        def callback(a): return viewer
+        velocites = np.ones((plan.horizon, ))*1
+
+        solver = robot_ll_solver.RobotLLSolver()
+        start = time.time()
+        result = solver.backtrack_solve(plan, callback = callback, verbose=False)
+        end = time.time()
+
+        print "Planning finished within {}s.".format(end - start)
+        print "Planning succeeded: {}".format(result)
+        ee_time = traj_retiming(plan, velocites)
+        plan.time = ee_time.reshape((1, ee_time.shape[0]))
+        self.assertTrue(result)
+        import ipdb; ipdb.set_trace()
+
+
     def move_basket(self):
         domain_fname = '../domains/laundry_domain/laundry.domain'
         d_c = main.parse_file_to_dict(domain_fname)

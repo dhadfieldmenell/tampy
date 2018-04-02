@@ -1053,7 +1053,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         # self._param_to_body = {}
         # self._param_to_body[params[0]] = OpenRAVEBody(self._env, 'baxter_obstruct', params[0].geom)
         self.true_washer_body = self._param_to_body[params[3]]
-        self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .35])),
+        self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .375])),
                                           OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
                                           OpenRAVEBody(self._env, 'obstruct_handle', Sphere(.08,))]
         self._param_to_body[params[3]][0].set_pose([0,0,0])

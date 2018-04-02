@@ -127,8 +127,12 @@ CLOTH_FOLD_LARM_AFTER_GRASP = [-0.3, -1.14799978, -1.76643182, 1.13115012, 0.470
 CLOTH_FOLD_LARM_AFTER_DRAG = [0.5, -0.47861236, -0.7299432, 1.15500323, 0.71010347, 1.13834947, 0.51377547] # EE at 0.5, 0.8, 0.65
 CLOTH_FOLD_LARM_SCAN_FOR_CORNER_1 = [-0.1, -0.93750567, -0.78511595, 0.80543256, 0.44764154, 1.83030012, 0.16473142] # EE at 0.75, 0.5, 1.05
 CLOTH_FOLD_LARM_AFTER_GRASP_2 = [-1.4, -0.7146655, -1.22840151, 0.59829491, 0.11014072, 0.54789971, 0.69913018] # EE at 0.5, -0.7, 1.45
-CLOTH_FOLD_LARM_AFTER_DRAG_2 = [-0.1, -0.94072904, -0.58511655, 2.02695359, 0.56882439, 0.64868041, -1.81315771] # EE at 0.6, 0.4, 0.655
-CLOTH_FOLD_RARM_SCAN_FOR_CORNER_2 = [0.8, -0.8133342, 0.08481631, 0.42255944, -0.06302153, 1.96266681, 0.0871061 ] # EE at 0.85, -0.2, 1.05
+# CLOTH_FOLD_LARM_AFTER_DRAG_2 = [-0.1, -0.94072904, -0.58511655, 2.02695359, 0.56882439, 0.64868041, -1.81315771] # EE at 0.6, 0.4, 0.655
+CLOTH_FOLD_LARM_AFTER_DRAG_2 = [-0.4, -1.16950788, -0.0342681, 2.3684357, 0.03679739, 0.37230904, -1.25122245]
+# CLOTH_FOLD_RARM_SCAN_FOR_CORNER_2 = [0.8, -0.8133342, 0.08481631, 0.42255944, -0.06302153, 1.96266681, 0.0871061 ] # EE at 0.85, -0.2, 1.05
+CLOTH_FOLD_RARM_SCAN_FOR_CORNER_2 = [0.8, -0.70980126, -0.20536722, 0.51791927, 0.16287424, 1.72182649, -0.0878267]
+CLOTH_FOLD_LARM_SCAN_TWO_CORNER = [-0.6, -1.43361283, -0.81721771, 1.45860241, 0.09990902, 1.5887184, -0.66021639] # EE at 0.6, 0, 1.05
+
 CLOTH_FOLD_HOLDING_BOTH_CORNERS_LARM = [-0.7, -1.06296608, 0.22662184, 1.00532877, -0.10973573, 1.63895279, 0.24181173]
 CLOTH_FOLD_HOLDING_BOTH_CORNERS_RARM = [0.7, -1.01026434, -0.078992, 0.90689717, 0.04219482, 1.67547625, -0.18283847]
 CLOTH_FOLD_HOLDING_BOTH_CORNERS_AFTER_DRAG_LARM = [0.3, -0.93675309, -0.88253178, 2.3922476 , -2.10919189, -0.56206989, 2.46083622]
@@ -206,14 +210,23 @@ EEPOSE_PUT_INTO_WASHER_ROT_3 = [np.pi/3, np.pi/20, 0]
 cloth_init_poses = np.ones((NUM_CLOTH, 3)) * [-1, 1, 0.625]
 cloth_init_poses = cloth_init_poses.tolist()
 
-CLOTH_1_LENGTH = 0.45
-CLOTH_2_LENGTH = 0.15
+CLOTH_1_LENGTH = 0.35
+CLOTH_2_LENGTH = 0.1
 
 CLOTH_FOLD_AIR_TARGET_1_POSE = [0.8, 0, 0.95]
 CLOTH_FOLD_AIR_TARGET_1_ROT = [0, 0, -np.pi/2]
 
-CLOTH_FOLD_TABLE_TARGET_1_POSE = [0.5, 0, 0.65]
+CLOTH_FOLD_TABLE_TARGET_1_POSE = [0.55, 0, 0.65]
 CLOTH_FOLD_TABLE_TARGET_1_ROT = [0, 0, -np.pi/2]
+
+CLOTH_FOLD_AIR_TARGET_2_POSE = [1.1, 0.02, 1.5]
+CLOTH_FOLD_AIR_TARGET_2_ROT = [0, 0, -np.pi/2]
+
+CLOTH_FOLD_TABLE_TARGET_2_POSE = [0.6, 0.02, 1.05]
+CLOTH_FOLD_TABLE_TARGET_2_ROT = [0, 0, -np.pi/2]
+
+CLOTH_FOLD_TABLE_TARGET_3_POSE = [0.9, 0.02, 0.65]
+CLOTH_FOLD_TABLE_TARGET_3_ROT = [0, 0, -np.pi/2]
 
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
@@ -347,6 +360,7 @@ def main():
         s += "RobotPose (name {}); ".format("fold_after_grasp_2")
         s += "RobotPose (name {}); ".format("fold_after_drag_2")
         s += "RobotPose (name {}); ".format("fold_scan_corner_2")
+        s += "RobotPose (name {}); ".format("fold_scan_two_corner")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
         s += "Obstacle (name {}); ".format("wall")
@@ -361,6 +375,9 @@ def main():
         s += "Rotation (name {}); ".format("region4")
         s += "ClothTarget (name {}); ".format("cloth_fold_air_target_1")
         s += "ClothTarget (name {}); ".format("cloth_fold_table_target_1")
+        s += "ClothTarget (name {}); ".format("cloth_fold_air_target_2")
+        s += "ClothTarget (name {}); ".format("cloth_fold_table_target_2")
+        s += "ClothTarget (name {}); ".format("cloth_fold_table_target_3")
         s += "Can (name {}); ".format("cloth_long_edge")
         s += "Can (name {}); \n\n".format("cloth_short_edge")
 
@@ -469,6 +486,7 @@ def main():
         s += get_robot_pose_str('fold_after_grasp_2', CLOTH_FOLD_LARM_AFTER_GRASP_2, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION2)
         s += get_robot_pose_str('fold_after_drag_2', CLOTH_FOLD_LARM_AFTER_DRAG_2, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION2)
         s += get_robot_pose_str('fold_scan_corner_2', CLOTH_FOLD_LARM_AFTER_DRAG_2, CLOTH_FOLD_RARM_SCAN_FOR_CORNER_2, INT_GRIPPER, REGION2)
+        s += get_robot_pose_str('fold_scan_two_corner', CLOTH_FOLD_LARM_SCAN_TWO_CORNER, BASKET_SCAN_RARM, INT_GRIPPER, REGION2)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)
@@ -485,9 +503,17 @@ def main():
         s += "(value cloth_fold_table_target_1 {}), ".format(CLOTH_FOLD_TABLE_TARGET_1_POSE)
         s += "(rotation cloth_fold_table_target_1 {}), ".format(CLOTH_FOLD_TABLE_TARGET_1_ROT)
 
-
         s += "(value cloth_fold_air_target_1 {}), ".format(CLOTH_FOLD_AIR_TARGET_1_POSE)
         s += "(rotation cloth_fold_air_target_1 {}), ".format(CLOTH_FOLD_AIR_TARGET_1_ROT)
+
+        s += "(value cloth_fold_table_target_2 {}), ".format(CLOTH_FOLD_TABLE_TARGET_2_POSE)
+        s += "(rotation cloth_fold_table_target_2 {}), ".format(CLOTH_FOLD_TABLE_TARGET_2_ROT)
+
+        s += "(value cloth_fold_air_target_2 {}), ".format(CLOTH_FOLD_AIR_TARGET_2_POSE)
+        s += "(rotation cloth_fold_air_target_2 {}), ".format(CLOTH_FOLD_AIR_TARGET_2_ROT)
+
+        s += "(value cloth_fold_table_target_3 {}), ".format(CLOTH_FOLD_TABLE_TARGET_3_POSE)
+        s += "(rotation cloth_fold_table_target_3 {}), ".format(CLOTH_FOLD_TABLE_TARGET_3_ROT)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_INIT_POS)
