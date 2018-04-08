@@ -319,15 +319,6 @@ class LaundryWorldEEAgent(Agent):
         # if self.stochastic_conditions and save_global:
         #     self.replace_cond(condition)
 
-        if noisy and np.random.uniform(0, 1) < 0.6:
-            noise = np.random.normal(0, 0.022, (self.T, self.dU))
-            noise[:, self.plan.action_inds[('baxter', 'lGripper')]] *= 22
-            noise[:, self.plan.action_inds[('baxter', 'rGripper')]] *= 22
-            noise[:, self.plan.action_inds[('baxter', 'ee_left_rot')]] *= 0.5
-            noise[:, self.plan.action_inds[('baxter', 'ee_right_rot')]] *= 0.5
-        else:
-            noise = np.zeros((self.T, self.dU))
-
         attempts = 0
         success = False
         while not success and attempts < 3:
@@ -339,18 +330,39 @@ class LaundryWorldEEAgent(Agent):
             last_right_ctrl = x0[3][1:8]
             jac = np.zeros((self.dU, 18))
             delta = 1
+
             for t in range(0, self.T, delta):
                 X, ee_pos, grippers, joints = self._get_simulator_state(self.plan.state_inds, self.plan.symbolic_bound)
                 im = self.get_obs()
                 obs = np.r_[im, grippers]
                 U = policy.act(X.copy(), obs, t, noise[t])
                 steps = min(delta, self.T-t)
+
+                if noisy and np.random.uniform(0, 1) < 0.6:
+                    noise = np.zeros((self.dU))
+                    left_noise = np.radnom.normal((3))
+                    left_noise[2] = np.abs(left_noise[2])
+                    a = U[self.plan.action_inds['baxter', 'ee_left_pos']] - ee_pos[:3]
+                    rot_dir = np.cross(a, [0,0,1])
+                    rot_angle = np.arcos(np.dot(a, [0, 0, 1]))
+                    vec = np.cos(rot_angle)*left_noise + np.sin(rot_angle)*np.cross(a, left_noise) = (1-np.cos(rot_angle))*np.dot(a, left_noise)*a
+                    noise[self.plan.action_inds[('baxter', 'ee_left_pos')]] = vec
+                    right_noise = np.radnom.normal((3))
+                    right_noise[2] = np.abs(right_noise[2])
+                    a = U[self.plan.action_inds['baxter', 'ee_right_pos']] - ee_pos[3:6]
+                    rot_dir = np.cross(a, [0,0,1])
+                    rot_angle = np.arcos(np.dot(a, [0, 0, 1]))
+                    vec = np.cos(rot_angle)*right_noise + np.sin(rot_angle)*np.cross(a, right_noise) = (1-np.cos(rot_angle))*np.dot(a, right_noise)*a
+                    noise[self.plan.action_inds[('baxter', 'ee_right_pos')]] = vec
+                else:
+                    noise = np.zeros((self.dU))
+
                 for i in range(steps):
                     sample.set(STATE_ENUM, X.copy(), t+i)
                     if OBS_ENUM in self._hyperparams['obs_include']:
                         sample.set(OBS_ENUM, im.copy(), t+i)
                     sample.set(ACTION_ENUM, U.copy(), t+i)
-                    sample.set(NOISE_ENUM, noise[t], t+i)
+                    sample.set(NOISE_ENUM, noise, t+i)
                     sample.set(EE_ENUM, ee_pos, t+i)
                     sample.set(GRIPPER_ENUM, grippers, t+i)
                     sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t+i)

@@ -70,44 +70,13 @@ class BaxterPolicySolver(RobotLLSolver):
         for c in range(num_cloths):
             x_params.append('cloth_{0}'.format(c))
 
-        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
-        # initial_plan.action_inds, initial_plan.symbolic_bound = \
-        # utils.get_plan_to_policy_mapping(initial_plan, 
-        #                                  x_params=['baxter', 'cloth_0', 'cloth_1', 'cloth_2', 'cloth_3', 'basket'], 
-        #                                  x_attrs=['pose'], 
-        #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
-        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
-        # initial_plan.action_inds, initial_plan.symbolic_bound = \
-        # utils.get_plan_to_policy_mapping(initial_plan, 
-        #                                  x_params=['baxter', 'cloth_0', 'cloth_1', 'basket'], 
-        #                                  x_attrs=['pose'], 
-        #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         initial_plan.action_inds, initial_plan.symbolic_bound = \
         utils.get_state_action_inds(initial_plan, state_vector_include, actio_vector_include)
-        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
-        # initial_plan.action_inds, initial_plan.symbolic_bound = \
-        # utils.get_plan_to_policy_mapping(initial_plan, 
-        #                                  x_params=['baxter', 'basket'], 
-        #                                  x_attrs=['pose'], 
-        #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
-        # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
-        # initial_plan.action_inds, initial_plan.symbolic_bound = \
-        # utils.get_plan_to_policy_mapping(initial_plan, 
-        #                                  x_params=['baxter', 'cloth_0', 'basket'], 
-        #                                  x_attrs=['pose'], 
-        #                                  u_attrs=set(['ee_left_pos', 'ee_left_rot', 'lGripper']))
         
         x0s = []
-        # for c in range(self.config['num_conds']):
-        #     x0s.append(get_randomized_initial_state(initial_plan))
-        # for c in range(0, self.config['num_conds'], num_cloths):
-        #     x0s.extend(get_randomized_initial_state_multi_step(initial_plan, c/num_cloths))
         for c in range(0, self.config['num_conds']):
-            # x0s.append(get_randomized_initial_state_left(initial_plan))
             x0s.append(get_random_initial_pick_place_state(initial_plan, num_cloths))
-        # for c in range(0, self.config['num_conds']):
-        #     x0s.append(get_randomized_initial_state_move(initial_plan))
 
         sensor_dims = {
             utils.STATE_ENUM: initial_plan.symbolic_bound,
@@ -132,17 +101,14 @@ class BaxterPolicySolver(RobotLLSolver):
                 'conditions': self.config['num_conds'],
                 'dX': initial_plan.symbolic_bound,
                 'dU': initial_plan.dU,
-                'demonstrations': 5,
-                'expert_ratio': 0.75,
                 'solver': self,
                 'num_cloths': num_cloths,
-                # 'T': initial_plan.horizon - 1
                 'T': int(self.T * utils.POLICY_STEPS_PER_SECOND),
                 'stochastic_conditions': self.config['stochastic_conditions'],
                 'image_width': utils.IM_W,
                 'image_height': utils.IM_H,
                 'image_channels': utils.IM_C,
-                'hist_len': self.config['hist_len']
+                'hist_len': 4
             }
             self.config['algorithm']['cost'] = []
 
