@@ -1221,10 +1221,10 @@ class TestBasketDomain(unittest.TestCase):
         plan.params['baxter'].pose[0,0] = -2*np.pi/180
         plan.params['robot_init_pose'].value[0,0] = plan.params['baxter'].pose[0,0]
         print "solving basket domain problem..."
-        viewer = OpenRAVEViewer.create_viewer(plan.env)
-        viewer.draw_plan_ts(plan, 0)
+        # viewer = OpenRAVEViewer.create_viewer(plan.env)
+        # viewer.draw_plan_ts(plan, 0)
         serializer = PlanSerializer()
-        def callback(a): return viewer
+        def callback(a): return None # return viewer
         velocites = np.ones((plan.horizon, ))*1
 
         # robot, washer = plan.params['baxter'], plan.params['washer']
@@ -1245,8 +1245,8 @@ class TestBasketDomain(unittest.TestCase):
 
         print "Planning finished within {}s.".format(end - start)
         print "Planning succeeded: {}".format(result)
-        ee_time = traj_retiming(plan, velocites)
-        plan.time = ee_time.reshape((1, ee_time.shape[0]))
+        # ee_time = traj_retiming(plan, velocites)
+        # plan.time = ee_time.reshape((1, ee_time.shape[0]))
 
         print "Saving current plan to file washer_manipulation_plan.hdf5..."
         # serializer.write_plan_to_hdf5("washer_manipulation_plan.hdf5", plan)

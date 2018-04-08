@@ -19,6 +19,7 @@ from gps.algorithm.cost.cost_utils import *
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
 from policy_hooks.base_gps_main import GPSMain
+from policy_hooks.cloth_exp_vec_include import *
 from policy_hooks.cloth_world_policy_utils import *
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
@@ -83,10 +84,7 @@ class BaxterPolicySolver(RobotLLSolver):
         #                                  u_attrs=set(['lArmPose', 'lGripper', 'rArmPose', 'rGripper']))
         initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         initial_plan.action_inds, initial_plan.symbolic_bound = \
-        utils.get_plan_to_policy_mapping(initial_plan, 
-                                         x_params=x_params, 
-                                         x_attrs=['pose'], 
-                                         u_attrs=set(['ee_left_pos', 'ee_left_rot', 'lGripper', 'ee_right_pos', 'ee_right_rot', 'rGripper']))
+        utils.get_state_action_inds(initial_plan, state_vector_include, actio_vector_include)
         # initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
         # initial_plan.action_inds, initial_plan.symbolic_bound = \
         # utils.get_plan_to_policy_mapping(initial_plan, 
@@ -116,6 +114,7 @@ class BaxterPolicySolver(RobotLLSolver):
             utils.ACTION_ENUM: initial_plan.dU,
             utils.OBS_ENUM: utils.IM_H*utils.IM_W*utils.IM_C,
             utils.EE_ENUM: 6,
+            utils.TRAJ_HIST_ENUM = initial_plan.dU*self.config['hist_len']
         }
 
         self.T = initial_plan.actions[x0s[0][1][1]].active_timesteps[1] - initial_plan.actions[x0s[0][1][0]].active_timesteps[0]
@@ -143,6 +142,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'image_width': utils.IM_W,
                 'image_height': utils.IM_H,
                 'image_channels': utils.IM_C,
+                'hist_len': self.config['hist_len']
             }
             self.config['algorithm']['cost'] = []
 

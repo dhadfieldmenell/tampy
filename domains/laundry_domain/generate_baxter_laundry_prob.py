@@ -173,7 +173,8 @@ WASHER_CONFIG = [True, True]
 WASHER_INIT_POS = [0.29, 1.37, 0.97-0.375+0.65/2+0.03]
 # WASHER_INIT_POS = [0.27, 1.37, 0.97-0.375+0.65/2+0.05] # true height
 # WASHER_INIT_POS = [0.24, 1.4, 0.97-0.375+0.65/2+0.015]
-WASHER_INIT_ROT = [5*np.pi/6,0,0]
+# WASHER_INIT_ROT = [5*np.pi/6,0,0]
+WASHER_INIT_ROT = [3*np.pi/4, 0, 0]
 # Center of barrel is at (0.1, 1.12)
 
 WASHER_OPEN_DOOR = [-np.pi/2]

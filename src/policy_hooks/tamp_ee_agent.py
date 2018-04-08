@@ -82,6 +82,11 @@ class LaundryWorldEEAgent(Agent):
         self.initial_opt = True
         self.stochastic_conditions = self._hyperparams['stochastic_conditions']
 
+        self.hist_len = self._hyperparams['hist_len']
+        self.traj_hist = None
+        self._reset_hist()
+
+
 
     def _generate_xml(self, plan, motor=True):
         '''
@@ -176,7 +181,7 @@ class LaundryWorldEEAgent(Agent):
         self.cloth_inds = []
         for i in range(self.num_cloths):
             self.cloth_inds.append(mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'cloth_{0}'.format(i)))
-
+        return model
         if motor and view:
             self.motor_viewer = mjviewer.MjViewer()
             self.motor_viewer.start()
@@ -296,10 +301,9 @@ class LaundryWorldEEAgent(Agent):
         return X, np.r_[X[x_inds[('baxter', 'ee_left_pos')]], X[x_inds[('baxter', 'ee_right_pos')]], X[x_inds[('baxter', 'ee_left_rot')]], X[x_inds[('baxter', 'ee_right_rot')]]], \
                np.r_[X[x_inds[('baxter', 'lGripper')]], X[x_inds[('baxter', 'rGripper')]]], joints
 
-    
-    def _get_obs(self, cond, t):
-        o_t = np.zeros((self.plan.symbolic_bound))
-        return o_t
+
+    def _reset_hist(self):
+        self.traj_hist = np.zeros((self.dU, self.hist_len)).tolist() if self.hist_len > 0 else None
 
 
     def sample(self, policy, condition, save_global=False, verbose=False, save=True, noisy=True):
@@ -349,6 +353,10 @@ class LaundryWorldEEAgent(Agent):
                     sample.set(NOISE_ENUM, noise[t], t+i)
                     sample.set(EE_ENUM, ee_pos, t+i)
                     sample.set(GRIPPER_ENUM, grippers, t+i)
+                    sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t+i)
+
+                self.traj_hist.pop(0)
+                self.traj_hist.append(U)
 
                 ee_left_pos = U[self.plan.action_inds[('baxter', 'ee_left_pos')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_pos')]]
                 ee_left_rot = U[self.plan.action_inds[('baxter', 'ee_left_rot')]] + noise[t, self.plan.action_inds[('baxter', 'ee_left_rot')]]

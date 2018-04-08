@@ -10,6 +10,7 @@ OBS_ENUM = 2
 NOISE_ENUM = 3
 EE_ENUM = 4
 GRIPPER_ENUM = 5
+TRAJ_HIST_ENUM = 6
 
 IM_H = 140
 IM_W = 140
@@ -34,6 +35,71 @@ INCLUDE_PREDS = [BaxterCloseGripperLeft, \
                  BaxterOpenGripperLeft, BaxterRCollides, BaxterCollides, BaxterObstructs, \
                  BaxterBasketInGripper, BaxterClothInGripperLeft, BaxterRSelfCollides, \
                  BaxterObstructsHolding]
+
+def get_state_action_inds(plan, x_params={}, u_params={}):
+    '''
+    Maps the parameters of the plan actions to indices in the policy state and action vectors, and returns the dimensions of those vectors.
+    This mapping should apply to any plan with the given actions. Replaces get_plan_to_policy_mapping.
+    '''
+    # assert all(map(lambda a: a.train_policy, plan.actions))
+    if not len(plan.actions):
+        return 0, {}, 0, {}
+
+    params_to_x_inds, params_to_u_inds = {}, {}
+    cur_x_ind, cur_u_ind = 0, 0
+
+    robot_x_attrs = x_params['baxter']
+    robot_u_attrs = u_params['baxter']
+    robot_attr_map = const.ATTR_MAP['Robot']
+    ee_pos_attrs = ['ee_left_pos', 'ee_right_pos']
+    ee_rot_attrs = ['ee_left_rot', 'ee_right_rot']
+    for attr in robot_x_attrs:
+        if attr in ee_pos_attrs or ee_rot_attrs:
+            x_inds = np.array([0, 1, 2]) + cur_x_ind
+            cur_x_ind = x_inds[-1] + 1
+            params_to_x_inds[('baxter', attr)] = x_inds
+            continue
+
+        inds = filter(lambda p: p[0]==attr, robot_attr_map)[0]
+        x_inds = inds + cur_x_ind
+        cur_x_ind = x_inds[-1] + 1
+        params_to_x_inds[('baxter', attr)] = x_inds
+
+    for attr in robot_u_attrs:
+        if attr in ee_pos_attrs or ee_rot_attrs:
+            u_inds = np.array([0, 1, 2]) + cur_u_ind
+            cur_u_ind = u_inds[-1] + 1
+            params_to_u_inds[('baxter', attr)] = u_inds
+            continue
+
+        inds = filter(lambda p: p[0]==attr, robot_attr_map)[0]
+        u_inds = inds + cur_u_ind
+        cur_u_ind = u_inds[-1] + 1
+        params_to_u_inds[('baxter', attr)] = u_inds
+
+    for param_name in x_params:
+        if param_name not in plan.params: continue
+        param = plan.params[param_name]
+        param_attr_map = const.ATTR_MAP[param._type]
+        for attr in x_params[param_name]:
+            if (param_name, arre) in params_to_x_inds: continue
+            inds = filter(lambda p: p[0]==attr, const.ATTR_MAP[param._type])[0][1] + cur_x_ind
+            cur_x_ind = inds[-1] + 1
+            params_to_x_inds[(param.name, attr)] = inds
+
+    symbolic_boundary = cur_x_ind # Used to differntiate parameters from symbols in the state vector
+
+    for param in plan.params.values():
+        if not param.is_symbol(): continue
+        param_attr_map = const.ATTR_MAP[param._type]
+        for attr in param_attr_map:
+            if (param.name, attr[0]) in params_to_x_inds: continue
+            inds = attr[1] + cur_x_ind
+            cur_x_ind = inds[-1] + 1
+            params_to_x_inds[(param.name, attr[0])] = inds
+
+    # dX, state index map, dU, (policy) action map
+    return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary
 
 def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_attrs=[]):
     '''
