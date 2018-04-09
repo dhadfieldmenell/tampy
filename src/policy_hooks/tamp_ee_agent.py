@@ -340,14 +340,14 @@ class LaundryWorldEEAgent(Agent):
 
                 if noisy and np.random.uniform(0, 1) < 0.6:
                     noise = np.zeros((self.dU))
-                    left_noise = np.radnom.normal((3))
+                    left_noise = np.radnom.normal(0, 1, (3,))
                     left_noise[2] = np.abs(left_noise[2])
                     a = U[self.plan.action_inds['baxter', 'ee_left_pos']] - ee_pos[:3]
                     rot_dir = np.cross(a, [0,0,1])
                     rot_angle = np.arcos(np.dot(a, [0, 0, 1]))
                     vec = np.cos(rot_angle)*left_noise + np.sin(rot_angle)*np.cross(a, left_noise) = (1-np.cos(rot_angle))*np.dot(a, left_noise)*a
                     noise[self.plan.action_inds[('baxter', 'ee_left_pos')]] = vec
-                    right_noise = np.radnom.normal((3))
+                    right_noise = np.radnom.normal(0, 1, (3,))
                     right_noise[2] = np.abs(right_noise[2])
                     a = U[self.plan.action_inds['baxter', 'ee_right_pos']] - ee_pos[3:6]
                     rot_dir = np.cross(a, [0,0,1])
