@@ -63,16 +63,10 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config.update(hyperparams)
 
         initial_plan = generate_full_cond(num_cloths)
-        # initial_plan = generate_move_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
 
-        x_params=['baxter', 'cloth_0', 'cloth_1', 'cloth_2', 'cloth_3', 'basket']
-        for c in range(num_cloths):
-            x_params.append('cloth_{0}'.format(c))
-
-        initial_plan.dX, initial_plan.state_inds, initial_plan.dU, \
-        initial_plan.action_inds, initial_plan.symbolic_bound = \
-        utils.get_state_action_inds(initial_plan, state_vector_include, actio_vector_include)
+        dX, state_inds, dU, action_inds, symbolic_bound = \
+        utils.get_state_action_inds(initial_plan, state_vector_include, action_vector_include)
         
         x0s = []
         for c in range(0, self.config['num_conds']):
@@ -83,7 +77,8 @@ class BaxterPolicySolver(RobotLLSolver):
             utils.ACTION_ENUM: initial_plan.dU,
             utils.OBS_ENUM: utils.IM_H*utils.IM_W*utils.IM_C,
             utils.EE_ENUM: 6,
-            utils.TRAJ_HIST_ENUM = initial_plan.dU*self.config['hist_len']
+            utils.TRAJ_HIST_ENUM = initial_plan.dU*self.config['hist_len'],
+            utils.COLORS_ENUM = num_cloths,
         }
 
         self.T = initial_plan.actions[x0s[0][1][1]].active_timesteps[1] - initial_plan.actions[x0s[0][1][0]].active_timesteps[0]

@@ -25,9 +25,11 @@ import core.util_classes.baxter_constants as const
 import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
+
 from policy_hooks.baxter_controller import BaxterMujocoController
 from policy_hooks.cloth_world_policy_utils import *
 from policy_hooks.policy_solver_utils import STATE_ENUM, OBS_ENUM, ACTION_ENUM, NOISE_ENUM, EE_ENUM, GRIPPER_ENUM
+from policy_hooks.setup_mjc_model import setup_mjc_model
 import policy_hooks.policy_solver_utils as utils
 
 '''
@@ -72,8 +74,8 @@ class LaundryWorldEEAgent(Agent):
         self.num_cloths = self._hyperparams['num_cloths']
         self.x0 = self._hyperparams['x0']
         self.sim = 'mujoco'
-        self.viewer = None
-        self.pos_model = self.setup_mujoco_model(self.plan, motor=False, view=True)
+        self.viewer = self._hyperparams['viewer']
+        self.pos_model = self.setup_mujoco_model(self.plan, motor=False, view=True) if not self._hyperparams['model'] else self._hyperparams['model']
 
         self.symbols = filter(lambda p: p.is_symbol(), self.plan.params.values())
         self.params = filter(lambda p: not p.is_symbol(), self.plan.params.values())
@@ -181,16 +183,8 @@ class LaundryWorldEEAgent(Agent):
         self.cloth_inds = []
         for i in range(self.num_cloths):
             self.cloth_inds.append(mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, 'cloth_{0}'.format(i)))
-        return model
-        if motor and view:
-            self.motor_viewer = mjviewer.MjViewer()
-            self.motor_viewer.start()
-            self.motor_viewer.set_model(model)
-            self.motor_viewer.cam.distance = 3
-            self.motor_viewer.cam.azimuth = 180.0
-            self.motor_viewer.cam.elevation = -37.5
-            self.motor_viewer.loop_once()
-        elif view:
+
+        if not self.viewer:
             self.viewer = mjviewer.MjViewer()
             self.viewer.start()
             self.viewer.set_model(model)
@@ -198,6 +192,11 @@ class LaundryWorldEEAgent(Agent):
             self.viewer.cam.azimuth = 180.0
             self.viewer.cam.elevation = -37.5
             self.viewer.loop_once()
+
+        self.setup_obs_viewer()
+        return model
+
+    def setup_obs_viewer(self):
         self.obs_viewer = mjviewer.MjViewer(False, utils.IM_W, utils.IM_H)
         self.obs_viewer.start()
         self.obs_viewer.set_model(model)
@@ -205,9 +204,6 @@ class LaundryWorldEEAgent(Agent):
         self.obs_viewer.cam.azimuth = 180.0
         self.obs_viewer.cam.elevation = -47.5
         self.viewer.loop_once()
-        return model
-
-
 
     def _set_simulator_state(self, x, plan, motor=False, joints=[]):
         '''

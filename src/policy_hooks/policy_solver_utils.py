@@ -11,6 +11,7 @@ NOISE_ENUM = 3
 EE_ENUM = 4
 GRIPPER_ENUM = 5
 TRAJ_HIST_ENUM = 6
+COLORS_ENUM = 7
 
 IM_H = 140
 IM_W = 140
@@ -201,7 +202,7 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
             params_to_x_inds[(param.name, attr[0])] = inds
 
     # dX, state index map, dU, (policy) action map
-    return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary
+    return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary   
 
 def fill_vector(params, params_to_inds, vec, t):
     for param in params:
