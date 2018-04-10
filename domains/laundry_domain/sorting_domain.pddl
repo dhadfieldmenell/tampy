@@ -3,6 +3,7 @@
                  (ClothInRightRegion ?cloth)
                  (ClothAtLeftTarget ?cloth ?target)
                  (ClothAtRightTarget ?cloth ?target)
+                 (BasketAtTarget ?target)
     )
 
     (:action move_cloth_to_left_target

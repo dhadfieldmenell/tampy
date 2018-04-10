@@ -6,7 +6,7 @@ import random
 import ros_interface.utils as utils
 
 
-NUM_CLOTH = 1
+NUM_CLOTH = 10
 NUM_SYMBOLS = 5
 
 # SEED = 1234
@@ -229,6 +229,14 @@ CLOTH_FOLD_TABLE_TARGET_2_ROT = [0, 0, -np.pi/2]
 CLOTH_FOLD_TABLE_TARGET_3_POSE = [0.9, 0.02, 0.65]
 CLOTH_FOLD_TABLE_TARGET_3_ROT = [0, 0, -np.pi/2]
 
+LEFT_REGION = [0.7, 0.1]
+RIGHT_REGION = [0.7, -0.1]
+
+BLUE_TARGET_POSE = [0.8, 0.5, 0.65]
+GREEN_TARGET_POSE = [0.5, 0.7, 0.65]
+YELLOW_TARGET_POSE = [0.5, 0.7, 0.65]
+WHITE_TARGET_POSE = [0.8, 0.5, 0.65]
+
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
     s += "(geom {})".format(name)
@@ -379,8 +387,14 @@ def main():
         s += "ClothTarget (name {}); ".format("cloth_fold_air_target_2")
         s += "ClothTarget (name {}); ".format("cloth_fold_table_target_2")
         s += "ClothTarget (name {}); ".format("cloth_fold_table_target_3")
+        s += "ClothTarget (name {}); ".format("blue_target")
+        s += "ClothTarget (name {}); ".format("green_target")
+        s += "ClothTarget (name {}); ".format("yellow_target")
+        s += "ClothTarget (name {}); ".format("white_target")
         s += "Can (name {}); ".format("cloth_long_edge")
         s += "Can (name {}); \n\n".format("cloth_short_edge")
+        s += "Region (name {}); ".format("left_region")
+        s += "Region (name {}); \n\n".format("right_region")
 
         s += "Init: "
         s += "(geom basket), "
@@ -516,6 +530,18 @@ def main():
         s += "(value cloth_fold_table_target_3 {}), ".format(CLOTH_FOLD_TABLE_TARGET_3_POSE)
         s += "(rotation cloth_fold_table_target_3 {}), ".format(CLOTH_FOLD_TABLE_TARGET_3_ROT)
 
+        s += "(value blue_target {}), ".format(BLUE_TARGET_POSE)
+        s += "(rotation blue_target {}), ".format(CLOTH_ROT)
+
+        s += "(value green_target {}), ".format(GREEN_TARGET_POSE)
+        s += "(rotation green_target {}), ".format(CLOTH_ROT)
+
+        s += "(value yellow_target {}), ".format(YELLOW_TARGET_POSE)
+        s += "(rotation yellow_target {}), ".format(CLOTH_ROT)
+
+        s += "(value white_target {}), ".format(WHITE_TARGET_POSE)
+        s += "(rotation white_target {}), ".format(CLOTH_ROT)
+
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_INIT_POS)
         s += "(rotation washer {}), ".format(WASHER_INIT_ROT)
@@ -533,6 +559,9 @@ def main():
         s += "(pose cloth_short_edge {}), ".format([1.6,0,0])
         s += "(rotation cloth_short_edge {}), ".format([0,0,np.pi/2])
 
+        s += "(value left_region {}), ".format(LEFT_REGION)
+        s += "(value right_region {}), ".format(RIGHT_REGION)
+
         s += "(geom wall {}), ".format(WALL_GEOM)
         s += "(pose wall {}), ".format(WALL_POS)
         s += "(rotation wall {}), ".format(WALL_ROT)
@@ -548,7 +577,6 @@ def main():
 
         # s += "(BaxterAt basket basket_init_target), "
         # s += "(BaxterBasketLevel basket), "
-        s += "(BaxterRobotAt baxter robot_init_pose) \n\n"
         # s += "(BaxterWasherAt washer washer_init_pose), "
         # s += "(BaxterEEReachableLeftVer baxter basket_grasp_begin bg_ee_left), "
         # s += "(BaxterEEReachableRightVer baxter basket_grasp_begin bg_ee_right), "
@@ -560,6 +588,10 @@ def main():
         # s += "(BaxterIsMP baxter), "
         # s += "(BaxterWithinJointLimit baxter), "
         # s += "(BaxterStationaryW table) \n\n"
+
+        for c in range(NUM_CLOTH):
+            s += "(BaxterClothAt cloth{0} cloth_target_begin_{0}), ".format(c)
+        s += "(BaxterRobotAt baxter robot_init_pose) \n\n"
 
         s += "Goal: {}".format(GOAL)
 

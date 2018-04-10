@@ -50,7 +50,8 @@ ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
                      ("rotation", np.array([0,1,2], dtype=np.int))),
            "Fabric": (("gripleft", np.array([0,1,2], dtype=np.int)),
                       ("gripright", np.array([0,1,2], dtype=np.int))),
-           "EEVel": (("value", np.array([0], dtype=np.int)))
+           "EEVel": (("value", np.array([0], dtype=np.int))),
+           "Region": [("value", np.array([0,1], dtype=np.int))]
           }
 
 """
@@ -88,6 +89,29 @@ class BaxterPoseAtRotation(robot_predicates.RobotAt):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][4:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(BaxterPoseAtRotation, self).__init__(name, params, expected_param_types, env)
+
+class BaxterClothTargetAtRegion(robot_predicates.RobotAt):
+
+    # RobotAt, ClothTarget, Region
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.target, self.obj = params
+        attr_inds = OrderedDict([(self.obj, [("value", np.array([0,1], dtype=np.int))]),
+                                 (self.target, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
+        b, val = np.zeros((6, 1)), np.ones((6, 1))
+        val[0] = 0.07
+        val[1] = 0.03
+        val[2] = 0.001
+        val[3] = 0.07
+        val[4] = 0.03
+        val[5] = 0.001
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
 
 class BaxterWasherAt(robot_predicates.RobotAt):
 
