@@ -14,9 +14,11 @@ def plan_from_str(ll_plan_str, num_cloth):
     return plan
 
 def get_tasks(self, file_name):
-    with open(file_name) as f:
+    with open(file_name, 'r+') as f:
         task_map = eval(f.read())
     return task_map
     
-def replace_param(plan_str, old_param_name, new_param_name):
-    return plan_str.replace(old_param_name, new_param_name)
+def fill_params(plan_str, values):
+    for i in range(len(plan_str)):
+        plan_str[i] = plan_str[i].format(*values.append(i))
+    return plan_str

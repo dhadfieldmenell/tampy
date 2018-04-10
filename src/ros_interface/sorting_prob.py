@@ -1,3 +1,6 @@
+from pma.hl_solver import FFSolver
+from policy_hooks.load_task_definitions import get_tasks, plan_from_str, fill_params
+
 def get_sorting_problem(plan, color_map):
     hl_plan_str = "(define (problem sorting_problem)\n"
     hl_plan_str += "(:domain sorting_domain)\n"
@@ -51,3 +54,11 @@ def parse_initial_state(plan):
     
     hl_init_state += ")\n"
     return hl_init_state
+
+def get_hl_plan(prob):
+    with open('../domains/laundry_domain/sorting_domain.pddl', 'r+') as f:
+        domain = f.read()
+    hl_solver = FFSolver()
+    return hl_solver._run_planner(domain, prob)
+
+def 

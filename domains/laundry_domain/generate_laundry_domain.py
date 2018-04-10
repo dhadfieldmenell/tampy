@@ -1119,7 +1119,7 @@ class ClothGraspFromHandle(Action):
 
 class ClothGraspRight(Action):
     def __init__(self):
-        self.name = 'cloth_grasp'
+        self.name = 'cloth_grasp_right'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?sp - RobotPose ?ee_right - EEPose ?ep - RobotPose)'
