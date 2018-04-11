@@ -224,7 +224,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
         return policy
 
-    def prob(self, obs):
+    def prob(self, obs, task=""):
         """
         Run policy forward.
         Args:

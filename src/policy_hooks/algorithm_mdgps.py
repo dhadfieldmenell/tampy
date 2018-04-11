@@ -36,6 +36,8 @@ class AlgorithmMDGPS(Algorithm):
         else:
             self.policy_opt = self._hyperparams['policy_opt']
 
+        self.task = self._hyperparams[task]
+
     def iteration(self, sample_lists):
         """
         Run iteration of MDGPS-based guided policy search.
@@ -115,7 +117,7 @@ class AlgorithmMDGPS(Algorithm):
         pol_info = self.cur[m].pol_info
         X = samples.get_X()
         obs = samples.get_obs().copy()
-        pol_mu, pol_sig = self.policy_opt.prob(obs)[:2]
+        pol_mu, pol_sig = self.policy_opt.prob(obs, self.task)[:2]
         pol_info.pol_mu, pol_info.pol_sig = pol_mu, pol_sig
 
         # Update policy prior.

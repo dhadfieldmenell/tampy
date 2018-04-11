@@ -7,7 +7,7 @@ import os.path
 import numpy as np
 
 from gps.algorithm.algorithm_mdgps import AlgorithmMDGPS
-from gps.algorithm.algorithm_pigps import AlgorithmPIGPS
+# from gps.algorithm.algorithm_pigps import AlgorithmPIGPS
 from gps.algorithm.algorithm_traj_opt_pilqr import AlgorithmTrajOptPILQR
 from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
@@ -21,6 +21,7 @@ from gps.algorithm.policy.policy_prior import PolicyPrior
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.gui.config import generate_experiment_info
 
+from policy_hooks.algorithm_pigps import AlgorithmPIGPS
 from policy_hooks.algorithm_tamp_gps import AlgorithmTAMPGPS
 import policy_hooks.policy_solver_utils as utils
 
