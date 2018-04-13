@@ -65,7 +65,7 @@ class BaxterPolicySolver(RobotLLSolver):
         initial_plan = generate_full_cond(num_cloths)
         initial_plan.time = np.ones((initial_plan.horizon,))
 
-        dX, state_inds, dU, action_inds, symbolic_bound = \
+        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = \
         utils.get_state_action_inds(initial_plan, state_vector_include, action_vector_include)
         
         x0s = []
@@ -73,12 +73,13 @@ class BaxterPolicySolver(RobotLLSolver):
             x0s.append(get_random_initial_pick_place_state(initial_plan, num_cloths))
 
         sensor_dims = {
-            utils.STATE_ENUM: initial_plan.symbolic_bound,
-            utils.ACTION_ENUM: initial_plan.dU,
+            utils.STATE_ENUM: self.symbolic_bound,
+            utils.ACTION_ENUM: self.dU,
             utils.OBS_ENUM: utils.IM_H*utils.IM_W*utils.IM_C,
             utils.EE_ENUM: 6,
-            utils.TRAJ_HIST_ENUM = initial_plan.dU*self.config['hist_len'],
+            utils.TRAJ_HIST_ENUM = self.dU*self.config['hist_len'],
             utils.COLORS_ENUM = num_cloths,
+            utils.TASK_ENUM = len(task_list)
         }
 
         self.T = initial_plan.actions[x0s[0][1][1]].active_timesteps[1] - initial_plan.actions[x0s[0][1][0]].active_timesteps[0]
@@ -88,14 +89,17 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['agent'] = {
                 'type': LaundryWorldEEAgent,
                 'x0s': x0s,
-                'x0': map(lambda x: x[0][:initial_plan.symbolic_bound], x0s),
+                'x0': map(lambda x: x[0][:self.symbolic_bound], x0s),
                 'plan': initial_plan,
+                'state_inds': self.state_inds,
+                'action_inds': self.action_inds,
+                'dU': self.dU,
+                'dX': self.symbolic_bound,
+                'symbolic_bound': self.symbolic_bound,
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM],
                 'obs_include': [utils.STATE_ENUM],
                 'conditions': self.config['num_conds'],
-                'dX': initial_plan.symbolic_bound,
-                'dU': initial_plan.dU,
                 'solver': self,
                 'num_cloths': num_cloths,
                 'T': int(self.T * utils.POLICY_STEPS_PER_SECOND),
@@ -112,11 +116,11 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['agent']['conditions'] += self.config['num_conds']
             self.config['agent']['x0'].extend(x0s)
 
-        action_cost_wp = np.ones((self.config['agent']['T'], initial_plan.dU), dtype='float64')
-        state_cost_wp = np.ones((self.config['agent']['T'], initial_plan.symbolic_bound), dtype='float64')
-        for (param_name, attr) in initial_plan.state_inds:
+        action_cost_wp = np.ones((self.config['agent']['T'], self.dU), dtype='float64')
+        state_cost_wp = np.ones((self.config['agent']['T'], self.symbolic_bound), dtype='float64')
+        for (param_name, attr) in state_inds:
             if not initial_plan.params[param_name].is_symbol() and param_name.startswith('cloth'):
-                state_cost_wp[:, initial_plan.state_inds[param_name, attr]] *= 4
+                state_cost_wp[:, state_inds[param_name, attr]] *= 4
 
         # state_cost_wp[:, initial_plan.state_inds['baxter', 'ee_right_pos']] *= 0.2
         # state_cost_wp[:, initial_plan.state_inds['baxter', 'ee_right_rot']] *= 0.2
@@ -134,7 +138,7 @@ class BaxterPolicySolver(RobotLLSolver):
                             'data_types': {
                                 utils.STATE_ENUM: {
                                     'wp': state_cost_wp,
-                                    'target_state': np.zeros((self.config['agent']['T'], initial_plan.symbolic_bound)),
+                                    'target_state': np.zeros((self.config['agent']['T'], self.symbolic_bound)),
                                     'wp_final_multiplier': 10.0,
                                 }
                             },
@@ -144,8 +148,8 @@ class BaxterPolicySolver(RobotLLSolver):
                             'type': CostAction,
                             'data_types': {
                                 utils.ACTION_ENUM: {
-                                    'wp': np.ones((self.config['agent']['T'], initial_plan.dU), dtype='float64'),
-                                    'target_state': np.zeros((self.config['agent']['T'], initial_plan.dU)),
+                                    'wp': np.ones((self.config['agent']['T'], self.dU), dtype='float64'),
+                                    'target_state': np.zeros((self.config['agent']['T'], self.dU)),
                                 }
                             },
                             'ramp_option': RAMP_CONSTANT
@@ -157,8 +161,8 @@ class BaxterPolicySolver(RobotLLSolver):
                                                         'weights': [10.0, 1.0],
                                                     })
 
-        self.config['dQ'] = initial_plan.dU
-        self.config['algorithm']['init_traj_distr']['dQ'] = initial_plan.dU
+        self.config['dQ'] = self.dU
+        self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
         self.config['algorithm']['init_traj_distr']['T'] = self.config['agent']['T']
 
@@ -184,7 +188,8 @@ class BaxterPolicySolver(RobotLLSolver):
 
         if not self.gps:
             self.gps = GPSMain(self.config)
-            self._add_policy_constraints_to_plan(initial_plan, x_params)
+            for plan in plans:
+                self._add_policy_constraints_to_plan(plan, x_params)
         else:
             # TODO: Handle this case
             self._update_agent(x0s)
@@ -333,12 +338,12 @@ class BaxterPolicySolver(RobotLLSolver):
     def _traj_policy_opt(self, plan, traj_mean, start_t, end_t):
         transfer_objs = []
         base_t = plan.actions[self.gps.agent.init_plan_states[self.gps.agent.current_cond][1][0]].active_timesteps[0]
-        for param_name, attr_name in plan.action_inds.keys():
+        for param_name, attr_name in self.action_inds.keys():
             param = plan.params[param_name]
             attr_type = param.get_attr_type(attr_name)
             param_ll = self._param_to_ll[param]
             T = end_t - start_t + 1
-            attr_val = traj_mean[plan.action_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
+            attr_val = traj_mean[self.action_inds[(param_name, attr_name)], start_t-base_t:end_t-base_t+1].T
             K = attr_type.dim
 
             KT = K*T
@@ -367,16 +372,16 @@ class BaxterPolicySolver(RobotLLSolver):
 
     def _add_policy_constraints_to_plan(self, plan, param_names):
         params = [plan.params[name] for name in param_names]
-        state_inds = plan.state_inds
-        action_inds = plan.action_inds
-        dX = plan.symbolic_bound
-        dU = plan.dU
-        policy_func = lambda x: self.gps.algorithm.policy_opt.policy.act(x, x, 0, 0) # The global policy should be time independent
-        pred = BaxterPolicyEEPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
+        state_inds = self.state_inds
+        action_inds = self.action_inds
+        dX = self.symbolic_bound
+        dU = self.dU
         for action in plan.actions:
+            task = filter(lambda t: plan.task_breaks[t][0] >= action.active_timesteps[0] and plan.task_breaks[t][1] <= action.active_timesteps[1], self.task_list)[0]
+            policy_func = lambda x: self.gps.alg_map[task].policy_opt.task_map['policy'].act(x, x, 0, 0) # The global policy should be time independent
+            pred = BaxterPolicyEEPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
             pred_dict = {'hl_info': 'policy', 'pred': pred, 'negated': False, 'active_timesteps': action.active_timesteps}
             action.preds.append(pred_dict)
-        self.policy_pred = pred
 
 
     def _solve_policy_opt_prob(self, plan, global_traj_mean, active_ts, resample):

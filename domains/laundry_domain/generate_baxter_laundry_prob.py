@@ -458,9 +458,9 @@ def main():
             s += "(rotation washer_push_pose_{0} {1}), ".format(i, WASHER_INIT_ROT)
             s += "(door washer_push_pose_{0} {1}), ".format(i, WASHER_PUSH_DOOR)
 
-        s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION1)
-        s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION1)
-        s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_END_POSE)
+        s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, [0])
+        s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, [0])
+        s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, [0])
         s += get_robot_pose_str('washer_scan_pose', WASHER_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('close_door_scan_pose', CLOSE_DOOR_SCAN_LARM, CLOSE_DOOR_SCAN_RARM, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('open_door_scan_pose', OPEN_DOOR_SCAN_LARM, OPEN_DOOR_SCAN_RARM, INT_GRIPPER, REGION1)

@@ -22,3 +22,10 @@ def fill_params(plan_str, values):
     for i in range(len(plan_str)):
         plan_str[i] = plan_str[i].format(*values.append(i))
     return plan_str
+
+def get_task_encoding(task_list):
+    encoding = {}
+    for i in range(len(task_list)):
+        encoding[task_list[i]] = i
+
+    return encoding

@@ -34,21 +34,13 @@ class GPSMain(object):
         """
         self._quit_on_end = quit_on_end
         self._hyperparams = config
-        self._conditions = config['common']['conditions']
-        if 'train_conditions' in config['common']:
-            self._train_idx = config['common']['train_conditions']
-            self._test_idx = config['common']['test_conditions']
-        else:
-            self._train_idx = range(self._conditions)
-            config['common']['train_conditions'] = config['common']['conditions']
-            self._hyperparams=config
-            self._test_idx = self._train_idx
+        self.agent = config['agent']['type'](config['agent'])
+        self._train_idx = self.agent.task_conditions
+        self._hyperparams=config
+        self._test_idx = self._train_idx
 
         self._data_files_dir = config['common']['data_files_dir']
 
-        self.agent = config['agent']['type'](config['agent'])
-        self._train_idx = self.agent.conditions
-        self._test_idx = self._train_idx
         self.data_logger = DataLogger()
         self.gui = GPSTrainingGUI(config['common']) if config['gui_on'] else None
 
@@ -88,18 +80,16 @@ class GPSMain(object):
                         for task in self.task_list:
                             self._take_sample(itr, cond, i, task)
 
-                task_sample_lists = {}
-                for task in self.task_list:
-                    task_sample_lists[task] = [
-                        self.agent.get_samples(cond, -self._hyperparams['num_samples'], task)
-                        for cond in self._train_idx[task]
-                    ]
+                traj_sample_lists = [
+                    self.agent.get_samples(cond, -self._hyperparams['num_samples'])
+                    for cond in self._train_idx
+                ]
 
                 # Clear agent samples.
                 self.agent.clear_samples()
 
-                self._take_iteration(itr, task_sample_lists)
-                # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, traj_opt, itr, datetime.now().isoformat())), copy.copy(self.algorithm))
+                self._take_iteration(itr, traj_sample_lists)
+                self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, traj_opt, itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 if replace_conds:
                     self.agent.replace_all_conds()
                     self.agent.init_cost_trajectories(self.algorithm, center=False)
@@ -184,7 +174,7 @@ class GPSMain(object):
                     'Press \'go\' to begin.') % itr_load)
             return itr_load + 1
 
-    def _take_sample(self, itr, cond, i, task):
+    def _take_sample(self, itr, cond, i):
         """
         Collect a sample from the agent.
         Args:
@@ -193,12 +183,15 @@ class GPSMain(object):
             i: Sample number.
         Returns: None
         """
-        if self.alg_map[task]._hyperparams['sample_on_policy'] \
-                and self.alg_map[task].iteration_count > 0:
-            pol = self.alg_map[task].policy_opt.task_map[task]['policy']
+        if self._hyperparams['sample_on_policy'] \
+                and self.iteration_count > 0:
+            pol = self.alg_map[task].policy_opt.task_map
             on_policy = True
         else:
-            pol = self.alg_map[task].cur[cond].traj_distr
+            pol = {}
+            for task in self.task_list:
+                pol[task] = {}
+                pol[task]['policy'] = self.alg_map[task].cur[cond].traj_distr
             on_policy = True
         if self.gui:
             self.gui.set_image_overlays(cond)   # Must call for each new cond.
@@ -235,7 +228,7 @@ class GPSMain(object):
                     redo = False
         else:
             self.agent.sample(
-                pol, cond, task,
+                pol, cond,
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
 
@@ -249,8 +242,7 @@ class GPSMain(object):
         if self.gui:
             self.gui.set_status_text('Calculating.')
             self.gui.start_display_calculating()
-        for task in sample_lists:
-            self.alg_map[task].iteration(sample_lists[task])
+        self.algorithm.iteration(sample_lists)
         if self.gui:
             self.gui.stop_display_calculating()
 
@@ -267,20 +259,15 @@ class GPSMain(object):
         verbose = self._hyperparams['verbose_policy_trials']
         if self.gui:
             self.gui.set_status_text('Taking policy samples.')
-        pol_samples = {}
+        pol_samples = [[None] for _ in range(len(self._test_idx))]
         # Since this isn't noisy, just take one sample.
         # TODO: Make this noisy? Add hyperparam?
         # TODO: Take at all conditions for GUI?
-        for task in self.task_list:
-            pol_samples[task] = [[None] for _ in range(len(self._test_idx[task]))]
-            for cond in range(len(self._test_idx[task])):
-                pol_samples[task][cond][0] = self.agent.sample(
-                    self.alg_map[task].policy_opt.task_map[task]['policy'], self._test_idx[task][cond],
-                    save_global=True, verbose=verbose, save=False, noisy=False)
-        sample_lists = {}
-        for task in self.task_list:
-            sample_lists[task] = [SampleList(samples) for samples in pol_sample[task]]
-        return sample_lists
+        for cond in range(len(self._test_idx)):
+            pol_samples[cond][0] = self.agent.sample(
+                self.algorithm.policy_opt.policy, self._test_idx[cond],
+                save_global=True, verbose=verbose, save=False, noisy=False)
+        return [SampleList(samples) for samples in pol_samples]
 
     def _log_data(self, itr, traj_sample_lists, pol_sample_lists=None):
         """

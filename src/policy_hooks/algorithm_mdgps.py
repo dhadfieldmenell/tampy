@@ -36,7 +36,7 @@ class AlgorithmMDGPS(Algorithm):
         else:
             self.policy_opt = self._hyperparams['policy_opt']
 
-        self.task = self._hyperparams[task]
+        self.task = self._hyperparams['task']
 
     def iteration(self, sample_lists):
         """
@@ -101,7 +101,51 @@ class AlgorithmMDGPS(Algorithm):
             tgt_prc = np.concatenate((tgt_prc, prc))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, samples.get_obs()))
-        self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt)
+        self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
+
+    # def _update_policy(self):
+    #     """ Compute the new policy. """
+    #     obs_data = {}
+    #     tgt_mu = {}
+    #     tgt_prc = {}
+    #     tgt_wt = {}
+    #     dU, dO = self.dU, self.dO
+    #     for task in self.task_list:
+    #         # Compute target mean, cov, and weight for each sample.
+    #         T = self.task_durations[task]
+    #         obs_data[task], tgt_mu[task] = np.zeros((0, T, dO)), np.zeros((0, T, dU))
+    #         tgt_prc[task], tgt_wt[task] = np.zeros((0, T, dU, dU)), np.zeros((0, T))
+        
+    #     for m in range(self.M):
+    #         T = self.agent.Ts[m]
+    #         samples = self.cur[m].sample_list
+    #         task_breaks = self.agent.task_breaks[m]
+    #         X = samples.get_X()
+    #         N = len(samples)
+    #         traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
+    #         mu = np.zeros((N, T, dU))
+    #         prc = np.zeros((N, T, dU, dU))
+    #         wt = np.zeros((N, T))
+    #         # Get time-indexed actions.
+    #         for t in range(T):
+    #             # Compute actions along this trajectory.
+    #             prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
+    #                                       [N, 1, 1])
+    #             for i in range(N):
+    #                 mu[i, t, :] = (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])
+    #             wt[:, t].fill(pol_info.pol_wt[t])
+
+    #         obs = samples.get_obs()
+    #         for task, ts in task_breaks:
+    #             tgt_mu[task] = np.concatenate((tgt_mu[task], mu[ts[0]:ts[1], :]))
+    #             tgt_prc[task] = np.concatenate((tgt_prc[task], prc[ts[0]:ts[1], :, :]))
+    #             tgt_wt[task] = np.concatenate((tgt_wt[task], wt[ts[0]:ts[1]]))
+    #             obs_data[task] = np.concatenate((obs_data[task], obs[ts[0]:ts[1], :]))
+
+    #     for task in self.task_list:
+    #         if len(obs_data):
+    #             self.policy_opt.update(obs_data[task], tgt_mu[task], tgt_prc[task], tgt_wt[task], task)
+
 
     def _update_policy_fit(self, m):
         """

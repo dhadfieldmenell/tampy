@@ -7,6 +7,10 @@ from pma.hl_solver import FFSolver
 from policy_hooks.cloth_color_utils import get_cloth_color_mapping
 from policy_hooks.load_task_definitions import get_tasks, plan_from_str
 
+cloth_locs = [
+    [],
+]
+
 def get_sorting_problem(plan, color_map):
     hl_plan_str = "(define (problem sorting_problem)\n"
     hl_plan_str += "(:domain sorting_domain)\n"
@@ -73,6 +77,7 @@ def get_hl_plan(prob):
 def get_ll_plan_str(hl_plan):
     tasks = get_tasks('sorting_task_mapping')
     ll_plan_str = []
+    actions_per_task = []
     for i in range(len(hl_plan)):
         action = hl_plan[i]
         act_params = action.split()
@@ -87,7 +92,8 @@ def get_ll_plan_str(hl_plan):
         for j in range(len(next_task_str)):
             next_task_str[j].format(cloth, target, region, i)
         ll_plan_str.extend(next_task_str)
-    return ll_plan_str
+        actions_per_task.append((len(next_task_str), action))
+    return ll_plan_str, actions_per_task
 
 def get_plan(plan):
     cloths = []
@@ -98,8 +104,17 @@ def get_plan(plan):
     color_map = get_cloth_color_mapping(cloths)
     prob = get_sorting_problem(plan, color_map)
     hl_plan = get_hl_plan(prob)
-    ll_plan_str = get_ll_plan_str(hl_plan)
-    return plan_from_str(ll_plan_str)
+    ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan)
+    plan = plan_from_str(ll_plan_str)
+
+    task_timestps = []
+    cur_act = 0
+    for i in range(len(hl_plan)):
+        num_actions = actions_per_task[i][0]
+        final_t = plan.actions[cur_act+num_actions-1].active_timesteps[1]
+        task_timestps.append((final_t, actions_per_task[i][1]))
+
+    return plan, task_timestps
 
 def get_target_state_vector(plan, goal_state):
     state = np.zeros((plan.symbolic_bound, ))
@@ -122,3 +137,9 @@ def get_task_durations():
         plan = plan_from_str(task[i])
         durations.append(plan.horizon-1)
     return durations
+
+def fill_random_initial_configuration(plan):
+    for param in plan.params:
+        if plan.params[param]._Type == "Cloth":
+            next_pos = np.random.choice(cloth_locs)
+            plan.params[param].pose[:,0] = next_pos
