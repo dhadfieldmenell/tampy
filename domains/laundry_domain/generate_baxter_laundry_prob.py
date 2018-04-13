@@ -4,7 +4,7 @@ import numpy as np
 import random
 
 import ros_interface.utils as utils
-
+from policy_hooks.sorting_prob import targets
 
 NUM_CLOTH = 10
 NUM_SYMBOLS = 10
@@ -232,10 +232,10 @@ CLOTH_FOLD_TABLE_TARGET_3_ROT = [0, 0, -np.pi/2]
 LEFT_REGION = [0.7, 0.1]
 RIGHT_REGION = [0.7, -0.1]
 
-BLUE_TARGET_POSE = [0.8, 0.5, 0.65]
-GREEN_TARGET_POSE = [0.5, 0.7, 0.65]
-YELLOW_TARGET_POSE = [0.5, 0.7, 0.65]
-WHITE_TARGET_POSE = [0.8, 0.5, 0.65]
+BLUE_TARGET_POSE = targets['blue_target']
+GREEN_TARGET_POSE = targets['green_target']
+YELLOW_TARGET_POSE = targets['yellow_target']
+WHITE_TARGET_POSE = targets['white_target']
 
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""

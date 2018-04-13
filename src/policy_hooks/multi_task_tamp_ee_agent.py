@@ -79,15 +79,14 @@ class LaundryWorldEEAgent(Agent):
         self.dU = self._hyperparams['dU']
         self.symbolic_bound = self._hyperparams['symbolic_bound']
         self.solver = self._hyperparams['solver']
-        self.init_plan_states = self._hyperparams['x0s']
         self.num_cloths = self._hyperparams['num_cloths']
         self.x0 = self._hyperparams['x0']
         self.sim = 'mujoco'
         self.viewer = self._hyperparams['viewer']
         self.pos_model = self.setup_mujoco_model(self.plans[0], motor=False, view=True) if not self._hyperparams['model'] else self._hyperparams['model']
 
-        self.symbols = [filter(lambda p: p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.init_plan_states))]
-        self.params = [filter(lambda p: not p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.init_plan_states))]
+        self.symbols = [filter(lambda p: p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.plans))]
+        self.params = [filter(lambda p: not p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.plans))]
         self.current_cond = 0
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
         self.initial_opt = True
@@ -97,8 +96,8 @@ class LaundryWorldEEAgent(Agent):
         self.traj_hist = None
         self._reset_hist()
 
-        self.optimal_state_traj = [[] for _ in range(len(self.init_plan_states))]
-        self.optimal_act_traj = [[] for _ in range(len(self.init_plan_states))]
+        self.optimal_state_traj = [[] for _ in range(len(self.plans))]
+        self.optimal_act_traj = [[] for _ in range(len(self.plans))]
 
 
     def get_samples(self, condition, start=0, end=None, task):
@@ -222,11 +221,11 @@ class LaundryWorldEEAgent(Agent):
         self.obs_viewer.cam.elevation = -47.5
         self.viewer.loop_once()
 
-    def _set_simulator_state(self, x, cond, plan, motor=False, joints=[]):
+    def _set_simulator_state(self, cond, plan, t, joints=[]):
         '''
             Set the simulator to the state of the specified condition, except for the robot
         '''
-        model  = self.pos_model if not motor else self.motor_model
+        model  = self.pos_model
         xpos = model.body_pos.copy()
         xquat = model.body_quat.copy()
         params = plan.params.values()
@@ -236,10 +235,10 @@ class LaundryWorldEEAgent(Agent):
                 param_ind = mjlib.mj_name2id(model.ptr, mjconstants.mjOBJ_BODY, param.name)
                 if param_ind == -1: continue
                 if (param.name, 'pose') in self.state_inds:
-                    pos = x[self.state_inds[(param.name, 'pose')]]
+                    pos = param.pose[:,t]
                     xpos[param_ind] = pos + np.array([0, 0, MUJOCO_MODEL_Z_OFFSET]) + np.array([0, 0, 0.025])
                 if (param.name, 'rotation') in self.state_inds:
-                    rot = x[self.state_inds[(param.name, 'rotation')]]
+                    rot = param.rotation[:,t]
                     xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(pos, rot)[:3,:3])
                 if param.name == 'basket' and (param.name, 'rotation') not in self.state_inds:
                     xquat[param_ind] = openravepy.quatFromRotationMatrix(OpenRAVEBody.transform_from_obj_pose(pos, [0, 0, np.pi/2])[:3,:3])
@@ -248,10 +247,10 @@ class LaundryWorldEEAgent(Agent):
         model.body_pos = xpos
         model.body_quat = xquat
         x_inds = self.state_inds
-        l_joints = x[x_inds['baxter', 'lArmPose']] if ('baxter', 'lArmPose') in x_inds else joints[10:17]
-        r_joints = x[x_inds['baxter', 'rArmPose']] if ('baxter', 'rArmPose') in x_inds else joints[1:8]
-        l_grip = x[x_inds['baxter', 'lGripper']] if ('baxter', 'lGripper') in x_inds else joints[17]
-        r_grip = x[x_inds['baxter', 'rGripper']] if ('baxter', 'rGripper') in x_inds else joints[8]
+        l_joints = plan.params['baxter'].lArmPose[:,t]
+        r_joints = plan.params['baxter'].rArmPose[:,t]
+        l_grip = plan.params['baxter'].lGripper[:,t]
+        r_grip = plan.params['baxter'].rGripper[:,t]
         model.data.qpos = self._baxter_to_mujoco(x, x_inds, l_joints, r_joints, l_grip, r_grip).reshape((19,1))
         model.forward()
 
@@ -326,7 +325,7 @@ class LaundryWorldEEAgent(Agent):
         self.plans[condition].params['table'].openrave_body.set_pose([5, 5, 5])
         self.plans[condition].params['basket'].openrave_body.set_pose([-5, 5, 5])
         self.current_cond = condition
-        x0 = self.init_plan_states[condition]
+        # x0 = self.init_plan_states[condition]
         num_tasks = len(self.task_encoding.keys())
         cur_task_ind = 0
         base_t = 0
@@ -340,12 +339,11 @@ class LaundryWorldEEAgent(Agent):
         attempts = 0
         success = False
         while not success and attempts < 3:
-            joints = x0[3] if len(x0) > 3 else []
-            self._set_simulator_state(x0[0], condition, self.plans[condition], joints=joints)
-            last_successful_pos = self.pos_model.data.qpos.copy()
-            last_success_X = (x0[0], x0[3])
-            last_left_ctrl = x0[3][10:17]
-            last_right_ctrl = x0[3][1:8]
+            self._set_simulator_state(x0[0], condition, self.plans[condition])
+            # last_successful_pos = self.pos_model.data.qpos.copy()
+            # last_success_X = (x0[0], x0[3])
+            # last_left_ctrl = x0[3][10:17]
+            # last_right_ctrl = x0[3][1:8]
             jac = np.zeros((self.dU, 18))
 
             for t in range(0, self.plans[condition].horizon*utils.POLICY_STEPS_PER_SECOND):
@@ -603,24 +601,7 @@ class LaundryWorldEEAgent(Agent):
 
 
     def init_cost_trajectories(self, center=False, full_solve=True):
-        for m in range(0, len(self.init_plan_states)):
-            x0 = self.init_plan_states[m]
-            init_act = self.plans[m].actions[x0[1][0]]
-            final_act = self.plans[m].actions[x0[1][1]]
-            init_t = init_act.active_timesteps[0]
-            final_t = final_act.active_timesteps[1]
-            joints = x0[3] if len(x0) > 3 else []
-
-            utils.set_params_attrs(self.params[m], self.state_inds, x0[0], init_t)
-            utils.set_params_attrs(self.symbol[m], self.state_inds, x0[0], init_t)
-            if len(joints):
-                self.plans[m].params['baxter'].lArmPose[:, init_t] = joints[10:17]
-                self.plans[m].params['baxter'].rArmPose[:, init_t] = joints[1:8]
-                self.plans[m].params['baxter'].lGripper[:, init_t] = joints[17]
-                self.plans[m].params['baxter'].rGripper[:, init_t] = joints[8]
-            for param in x0[2]:
-                self.plans[m].params[param].pose[:,:] = x0[0][self.state_inds[(param, 'pose')]].reshape(3,1)
-
+        for m in range(0, len(self.plans)):
             old_params_free = {}
             for p in self.params:
                 if p.is_symbol():
@@ -633,45 +614,29 @@ class LaundryWorldEEAgent(Agent):
                     p_attrs = {}
                     old_params_free[p] = p_attrs
                     for attr in p._free_attrs:
-                        p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
-                        p._free_attrs[attr][:, init_t] = 0
+                        p_attrs[attr] = p._free_attrs[attr][:, 0].copy()
+                        p._free_attrs[attr][:, 0] = 0
 
             self.current_cond = m
             if full_solve:
-                success = self.solver._backtrack_solve(self.plans[m], anum=x0[1][0], amax=x0[1][1], n_resamples=3)
+                success = self.solver._backtrack_solve(self.plans[m], n_resamples=3)
             else:
                 success = True
-                self.set_plan_from_cost_trajs(alg, init_t, final_t, m)
+                self.set_plan_from_cost_trajs(alg, 0, self.plans[m].horizon, m)
 
             while not success:
                 print "Solve failed."
-                for p in self.params:
+                for p in self.params[m]:
                     if p.is_symbol():
                         if p not in init_act.params: continue
                         p._free_attrs = old_params_free[p]
                     else:
                         for attr in p._free_attrs:
-                            p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
+                            p._free_attrs[attr][:, 0] = old_params_free[p][attr]
                 self.replace_cond(m)
-                x0 = self.init_plan_states[m]
-                init_act = self.plans[m].actions[x0[1][0]]
-                final_act = self.plans[m].actions[x0[1][1]]
-                init_t = init_act.active_timesteps[0]
-                final_t = final_act.active_timesteps[1]
-                joints = x0[3] if len(x0) > 3 else []
-
-                utils.set_params_attrs(self.params[m], self.state_inds, x0[0], init_t)
-                utils.set_params_attrs(self.symbols[m], self.state_inds, x0[0], init_t)
-                if len(joints):
-                    self.plans[m].params['baxter'].lArmPose[:, init_t] = joints[10:17]
-                    self.plans[m]params['baxter'].rArmPose[:, init_t] = joints[1:8]
-                    self.plans[m].params['baxter'].lGripper[:, init_t] = joints[17]
-                    self.plans[m].params['baxter'].rGripper[:, init_t] = joints[8]
-                for param in x0[2]:
-                    self.plans[m].params[param].pose[:,:] = x0[0][self.state_inds[(param, 'pose')]].reshape(3,1)
 
                 old_params_free = {}
-                for p in self.params:
+                for p in self.params[m]:
                     if p.is_symbol():
                         if p not in init_act.params: continue
                         old_params_free[p] = p._free_attrs
@@ -682,22 +647,20 @@ class LaundryWorldEEAgent(Agent):
                         p_attrs = {}
                         old_params_free[p] = p_attrs
                         for attr in p._free_attrs:
-                            p_attrs[attr] = p._free_attrs[attr][:, init_t].copy()
-                            p._free_attrs[attr][:, init_t] = 0
-                success = self.solver._backtrack_solve(self.plans[m], anum=x0[1][0], amax=x0[1][1], n_resamples=3)
+                            p_attrs[attr] = p._free_attrs[attr][:, 0].copy()
+                            p._free_attrs[attr][:, 0] = 0
 
-            # if not self.initial_opt:
-            #     self.solver.optimize_against_global(self.plan, x0[1][0], x0[1][1], m)
+                success = self.solver._backtrack_solve(self.plans[m], n_resamples=3)
 
-            for p in self.params:
+            for p in self.params[m]:
                 if p.is_symbol():
                     if p not in init_act.params: continue
                     p._free_attrs = old_params_free[p]
                 else:
                     for attr in p._free_attrs:
-                        p._free_attrs[attr][:, init_t] = old_params_free[p][attr]
+                        p._free_attrs[attr][:, 0] = old_params_free[p][attr]
 
-            self.set_cost_trajectories(init_t, final_t, m, center=center)
+            self.set_cost_trajectories(0, self.plans[m].horizon, m, center=center)
 
         self.initial_opt = False
 
@@ -706,10 +669,10 @@ class LaundryWorldEEAgent(Agent):
         tgt_x = alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state']
         if utils.POLICY_STEPS_PER_SECOND < 1:
             for t in range(0, final_t-init_t, (1/utils.POLICY_STEPS_PER_SECOND)):
-                utils.set_params_attrs(self.params, self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
+                utils.set_params_attrs(self.params[m], self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
         else:
             for t in range(0, final_t-init_t):
-                utils.set_params_attrs(self.params, self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
+                utils.set_params_attrs(self.params[m], self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
 
 
     def set_cost_trajectories(self, init_t, final_t, m, center=False):
@@ -718,7 +681,7 @@ class LaundryWorldEEAgent(Agent):
 
         if utils.POLICY_STEPS_PER_SECOND < 1:
             for t in range(0, final_t-init_t, int(1/utils.POLICY_STEPS_PER_SECOND)):
-                utils.fill_vector(self.params, self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)                
+                utils.fill_vector(self.params[m], self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)                
                 self.plans[m].params['baxter'].openrave_body.set_dof({'lArmPose': self.plans[m].params['baxter'].lArmPose[:, init_t+t+1], \
                                                                   'lGripper': self.plans[m].params['baxter'].lGripper[:, init_t+t+1], \
                                                                   'rArmPose': self.plans[m].params['baxter'].rArmPose[:, init_t+t+1], \
@@ -738,7 +701,7 @@ class LaundryWorldEEAgent(Agent):
                 tgt_u[int(t*utils.POLICY_STEPS_PER_SECOND), self.state_inds[('baxter', 'pose')]] = self.plans[m].params['baxter'].pose[:, init_t+t+1]
         else:
             for t in range(0, final_t-init_t):
-                utils.fill_vector(self.params, self.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
+                utils.fill_vector(self.params[m], self.state_inds, tgt_x[t*utils.POLICY_STEPS_PER_SECOND], t+init_t)
                 tgt_x[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND] = tgt_x[t*utils.POLICY_STEPS_PER_SECOND]
                 
                 self.plans[m].params['baxter'].openrave_body.set_dof({'lArmPose': self.plans[m].params['baxter'].lArmPose[:, init_t+t+1], \
@@ -766,38 +729,11 @@ class LaundryWorldEEAgent(Agent):
 
     def replace_cond(self, cond):
         print "Replacing Condition {0}.\n".format(cond)
-        x0s = get_random_initial_pick_place_state(self.plans[cond], self.num_cloths)
-        self.init_plan_states[cond] = x0s
-        self.x0[cond] = x0s[0][:self.symbolic_bound]
-
-
-    def replace_all_conds(self):
-        for cond in range(len(self.x0)):
-            self.replace_cond(cond)
-
-
-    def get_policy_avg_cost(self):
-        cost = 0
-        conds = 0
-        for m in range(len(self.init_plan_states)):
-            pol_sample = self.cond_global_pol_sample[m]
-            if not pol_sample: continue
-            x0 = self.init_plan_states[m]
-            init_act = self.plans[m].actions[x0[1][0]]
-            final_act = self.plans[m].actions[x0[1][1]]
-            init_t = init_act.active_timesteps[0]
-            final_t = final_act.active_timesteps[1]
-            conds += 1.0
-            for t in range(init_t, final_t):
-                X = pol_sample.get_X((t-init_t)*utils.MUJOCO_STEPS_PER_SECOND)
-                self._clip_joint_angles(X)
-                utils.set_params_attrs(self.params, self.state_inds, X, t)
-            X = pol_sample.get_X((final_t-init_t)*utils.MUJOCO_STEPS_PER_SECOND-1)
-            self._clip_joint_angles(X)
-            utils.set_params_attrs(self.params[m], self.state_inds, X, final_t)
-            utils.set_params_attrs(self.symbols[m], self.state_inds, x0[0], t)
-            cond_costs = utils.get_trajectory_cost(self.plan, init_t, final_t)[0]
-            cost += np.sum(cond_costs)
-        if conds < 1.0:
-            return 1e5
-        return float(cost) / (conds * self.T)
+        new_plan = self.get_random_starting_plan(self.plans[cond], self.num_cloths)
+        self.plans[cond].env.destroy()
+        self.plans[cond] = new_plan
+        self.params[m] = filter(lambda p: not p.is_symbol(), new_plan.params.values())
+        self.symbols[m] = filter(lambda p: p.is_symbol(), new_plan.params.values())
+        x = np.zeros((self.symbolic_bound,))
+        utils.fill_vector(self.params[m], self.state_inds, x, 0)                
+        self.x0[cond] = x

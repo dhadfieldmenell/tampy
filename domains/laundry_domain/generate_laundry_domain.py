@@ -1237,7 +1237,7 @@ class ClothPutdownInRegionLeft(Action):
         self.name = 'cloth_putdown_at_region_left'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
-        self.args = '(?robot - Robot ?cloth - Cloth ?region - Region ?target - ClothTarget ?sp - RobotPose ?ee_left - EEPose ?ep - RobotPose)'
+        self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?region - Region ?sp - RobotPose ?ee_left - EEPose ?ep - RobotPose)'
         putdown_time = const.EEREACHABLE_STEPS+5
         approach_time = 5
         retreat_time = end-5
@@ -1295,7 +1295,7 @@ class ClothPutdownInRegionRight(Action):
         self.name = 'cloth_putdown_in_region_right'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
-        self.args = '(?robot - Robot ?cloth - Cloth ?region - Region ?target - ClothTarget ?sp - RobotPose ?ee_right - EEPose ?ep - RobotPose)'
+        self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?region - Region ?sp - RobotPose ?ee_right - EEPose ?ep - RobotPose)'
         putdown_time = const.EEREACHABLE_STEPS+5
         approach_time = 5
         retreat_time = end-5

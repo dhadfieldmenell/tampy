@@ -68,22 +68,23 @@ class MultiHeadPolicyOptTf(PolicyOpt):
     def init_network(self):
         """ Helper method to initialize the tf networks used """
         for task in self.task_list:
-            self.task_map[task] = {}
-            tf_map_generator = self._hyperparams['network_model']
-            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dU, batch_size=self.batch_size,
-                                      network_config=self._hyperparams['network_params'])
-            self.task_map[task]['obs_tensor'] = tf_map.get_input_tensor()
-            self.task_map[task]['precision_tensor'] = tf_map.get_precision_tensor()
-            self.task_map[task]['action_tensor'] = tf_map.get_target_output_tensor()
-            self.task_map[task]['act_op'] = tf_map.get_output_op()
-            self.task_map[task]['feat_op'] = tf_map.get_feature_op()
-            self.task_map[task]['loss_scalar'] = tf_map.get_loss_op()
-            self.task_map[task]['fc_vars'] = fc_vars
-            self.task_map[task]['last_conv_vars'] = last_conv_vars
+            with tf.variable_scope(task):
+                self.task_map[task] = {}
+                tf_map_generator = self._hyperparams['network_model']
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dU, batch_size=self.batch_size,
+                                          network_config=self._hyperparams['network_params'])
+                self.task_map[task]['obs_tensor'] = tf_map.get_input_tensor()
+                self.task_map[task]['precision_tensor'] = tf_map.get_precision_tensor()
+                self.task_map[task]['action_tensor'] = tf_map.get_target_output_tensor()
+                self.task_map[task]['act_op'] = tf_map.get_output_op()
+                self.task_map[task]['feat_op'] = tf_map.get_feature_op()
+                self.task_map[task]['loss_scalar'] = tf_map.get_loss_op()
+                self.task_map[task]['fc_vars'] = fc_vars
+                self.task_map[task]['last_conv_vars'] = last_conv_vars
 
-            # Setup the gradients
-            self.task_map[task]['grads'] = [tf.gradients(self.act_op[:,u], self.obs_tensor)[0]
-                    for u in range(self._dU)]
+                # Setup the gradients
+                self.task_map[task]['grads'] = [tf.gradients(self.act_op[:,u], self.obs_tensor)[0]
+                        for u in range(self._dU)]
 
     def init_solver(self):
         """ Helper method to initialize the solver. """
@@ -107,7 +108,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                                     np.zeros(dU), 
                                                     self.sess, 
                                                     self.device_string, 
-                                                    copy_param_scope=self._hyperparams['copy_param_scope'])
+                                                    copy_param_scope=None)
 
     def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task=""):
         """
@@ -277,11 +278,11 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             'hyperparams': self._hyperparams,
             'dO': self._dO,
             'dU': self._dU,
-            'scale': self.policy.scale,
-            'bias': self.policy.bias,
+            'scale': {task:self.task_map[task]['policy'].scale for task in self.task_list},
+            'bias': {task:self.task_map[task]['policy'].bias for task in self.task_list},
             'tf_iter': self.tf_iter,
-            'x_idx': self.policy.x_idx,
-            'chol_pol_covar': self.policy.chol_pol_covar,
+            'x_idx': {task:self.task_map[task]['policy'].x_idx for task in self.task_list},
+            'chol_pol_covar': {task:self.task_map[task]['policy'].chol_pol_covar for task in self.task_list},
             'wts': wts,
         }
 
@@ -290,10 +291,11 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         from tensorflow.python.framework import ops
         ops.reset_default_graph()  # we need to destroy the default graph before re_init or checkpoint won't restore.
         self.__init__(state['hyperparams'], state['dO'], state['dU'])
-        self.policy.scale = state['scale']
-        self.policy.bias = state['bias']
-        self.policy.x_idx = state['x_idx']
-        self.policy.chol_pol_covar = state['chol_pol_covar']
+        for task in self.task_list:
+            self.policy[task].scale = state['scale']
+            self.policy[task].bias = state['bias']
+            self.policy[task].x_idx = state['x_idx']
+            self.policy[task].chol_pol_covar = state['chol_pol_covar']
         self.tf_iter = state['tf_iter']
 
         with tempfile.NamedTemporaryFile('w+b', delete=True) as f:

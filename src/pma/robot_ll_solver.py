@@ -132,6 +132,18 @@ class RobotLLSolver(LLSolver):
         elif a.name == 'cloth_putdown':
             ## find possible ee_poses for right arms
             rs_param = a.params[-1]
+        elif a.name == 'cloth_grasp_right':
+            ## find possible ee_poses for right arms
+            rs_param = a.params[-1]
+        elif a.name == 'cloth_putdown_right':
+            ## find possible ee_poses for right arms
+            rs_param = a.params[-1]
+        elif a.name == 'cloth_putdown_in_region_left':
+            ## find possible ee_poses for right arms
+            rs_param = a.params[-1]
+        elif a.name == 'cloth_putdown_in_region_right':
+            ## find possible ee_poses for right arms
+            rs_param = a.params[-1]
         elif a.name =='put_into_washer':
             rs_param = a.params[-1]
         elif a.name =='take_out_of_washer':

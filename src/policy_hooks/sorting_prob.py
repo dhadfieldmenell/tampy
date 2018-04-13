@@ -2,16 +2,21 @@
 Defines utility functions for planning in the sorting domain
 """
 import numpy as np
+import random
 
 from pma.hl_solver import FFSolver
 from policy_hooks.cloth_color_utils import get_cloth_color_mapping
+from policy_hooks.cloth_locs import cloth_locs as possible_cloth_locs
 from policy_hooks.load_task_definitions import get_tasks, plan_from_str
 
-cloth_locs = [
-    [],
-]
+targets = {
+            'blue_target': [0.8, 0.5, 0.65]
+            'green_target': [0.5, 0.7, 0.65]
+            'yellow_target': [0.5, -0.7, 0.65]
+            'white_target': [0.8, -0.5, 0.65]
+          }
 
-def get_sorting_problem(plan, color_map):
+def get_sorting_problem(cloth_locs, color_map):
     hl_plan_str = "(define (problem sorting_problem)\n"
     hl_plan_str += "(:domain sorting_domain)\n"
 
@@ -20,7 +25,7 @@ def get_sorting_problem(plan, color_map):
         hl_plan_str += " {0}".format(cloth)
     hl_plan_str += ")\n"
 
-    hl_plan_str += parse_initial_state(plan)
+    hl_plan_str += parse_initial_state(cloth_locs)
 
     goal_str = "(:goal (and"
     for cloth in color_map:
@@ -40,30 +45,26 @@ def get_sorting_problem(plan, color_map):
     hl_plan_str += "\n)"
     return hl_plan_str, goal_str
 
-def parse_initial_state(plan):
+def parse_initial_state(cloth_locs):
     hl_init_state = "(and "
-    blue_target = plan.params['blue_target']
-    green_target = plan.params['green_target']
-    white_target = plan.params['white_target']
-    yellow_target = plan.params['yellow_target']
-    for param in plan.params:
-        if param._type == "Cloth":
-            if param.pose[1,0] > 0:
-                hl_init_state += " (ClothInLeftRegion {0})".format(param.name)
-            else:
-                hl_init_state += " (ClothInRightRegion {0})".format(param.name)
+    for i in range(len(cloth_locs)):
+        loc = cloth_locs[i]
+        if loc[1] > 0:
+            hl_init_state += " (ClothInLeftRegion Cloth{0})".format(i)
+        else:
+            hl_init_state += " (ClothInRightRegion Cloth{0})".format(i)
 
-            for target in [blue_target, white_target]:
-                if np.all(np.abs(target.value - param.pose[:,0]) < 0.03):
-                    hl_init_state += " (ClothAtLeftTarget {0} {1})".format(param.name, target.name)
-                else:
-                    hl_init_state += " (not (ClothAtLeftTarget {0} {1}))".format(param.name, target.name)
-            
-            for target in [green_target, yellow_target]:
-                if np.all(np.abs(target.value - param.pose[:,0]) < 0.03):
-                    hl_init_state += " (ClothAtRightTarget {0} {1})".format(param.name, target.name)
-                else:
-                    hl_init_state += " (not (ClothAtRightTarget {0} {1}))".format(param.name, target.name)
+        for target in ['blue_target', 'white_target']:
+            if np.all(np.abs(np.array(targets[target]) - loc) < 0.03):
+                hl_init_state += " (ClothAtLeftTarget Cloth{0} {1})".format(i, target)
+            else:
+                hl_init_state += " (not (ClothAtLeftTarget Cloth{0} {1}))".format(i, target)
+        
+        for target in ['green_target', 'yellow_target']:
+            if np.all(np.abs(np.array(targets[target]) - loc) < 0.03):
+                hl_init_state += " (ClothAtRightTarget Cloth{0} {1})".format(i, target)
+            else:
+                hl_init_state += " (not (ClothAtRightTarget Cloth{0} {1}))".format(i, target)
     hl_init_state += " (BasketAtTarget basket_start_target)"
     hl_init_state += ")\n"
     return hl_init_state
@@ -116,17 +117,19 @@ def get_plan(plan):
 
     return plan, task_timestps
 
-def get_target_state_vector(plan, goal_state):
-    state = np.zeros((plan.symbolic_bound, ))
-    weights = np.zeros((plan.symbolic_bound, ))
+def get_target_state_vector(state_inds, goal_state, dX):
+    state = np.zeros((dX, ))
+    weights = np.zeros((dX, ))
     preds = goal_state.split('(')[3:-1]
     for i in range(len(preds)):
         preds[i] = preds[i].split()
         preds[i][-1] = preds[i][-1][:-1]
 
         if preds[i][0] == "ClothAtLeftTarget" or preds[i][0] == "ClothAtRightTarget":
-            state[plan.state_inds[(preds[i][1], 'pose')]] = plan.params[preds[i][2]].value[:,0]
-            weights[plan.state_inds[(preds[i][1], 'pose')]] = 1.0
+            target = preds[i][2]
+            state[state_inds[(preds[i][1], 'pose')]] = targets[target]
+            weights[state_inds[(preds[i][1], 'pose')]] = 1.0
+    return state, weights
 
 def get_task_durations():
     tasks = get_tasks('sorting_task_mapping')
@@ -141,5 +144,13 @@ def get_task_durations():
 def fill_random_initial_configuration(plan):
     for param in plan.params:
         if plan.params[param]._Type == "Cloth":
-            next_pos = np.random.choice(cloth_locs)
+            next_pos = random.choice(possible_cloth_locs)
+            next_pos[1] *= random.choice([-1, 1])
             plan.params[param].pose[:,0] = next_pos
+
+def get_random_initial_cloth_locations(num_cloths):
+    locs = []
+    for _ in range(num_cloths):
+        locs.append(random.choice(possible_cloth_locs))
+        locs[-1][1] *= random.choice([-1, 1])
+    return locs
