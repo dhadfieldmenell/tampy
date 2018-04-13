@@ -67,12 +67,11 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
 class LaundryWorldEEAgent(Agent):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
-        self._samples = [{task:[] for task in self.task_list} for _ in range(self._hyperparams['conditions'])]
-        
         # Note: All plans should contain identical sets of parameters
         self.plans = self._hyperparams['plans']
         self.task_breaks = self._hyperparams['task_breaks']
         self.task_encoding = self._hyperparams['task_encoding']
+        self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
         self.state_inds = self._hyperparams['state_inds']
         self.action_inds = self._hyperparams['action_inds']
         self.dX = self._hyperparams['dX']

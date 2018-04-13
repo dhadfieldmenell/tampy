@@ -21,9 +21,11 @@ from  pma.robot_ll_solver import RobotLLSolver
 from policy_hooks.base_gps_main import GPSMain
 from policy_hooks.cloth_exp_vec_include import *
 from policy_hooks.cloth_world_policy_utils import *
+from policy_hooks.load_task_definitions import *
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
 import policy_hooks.policy_solver_utils as utils
+from policy_hooks.sorting_prob import *
 from policy_hooks.tamp_agent import LaundryWorldClothAgent
 from policy_hooks.tamp_ee_agent import LaundryWorldEEAgent
 from policy_hooks.tamp_cost import TAMPCost
@@ -62,15 +64,25 @@ class BaxterPolicySolver(RobotLLSolver):
         if hyperparams and self.config:
             self.config.update(hyperparams)
 
-        initial_plan = generate_full_cond(num_cloths)
-        initial_plan.time = np.ones((initial_plan.horizon,))
+        self.task_list = get_tasks('sorting_task_mapping').keys()
+        self.config['task_list'] = self.task_list
+        task_encoding = get_task_encoding(self.task_list)
+
+        plans = []
+        task_breaks = []
+        for m in range(self.config['num_conds']):
+            plan, task_break = get_plan(num_cloths)
+            plans.append(plan)
+            task_breaks.append(task_breaks)
 
         self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = \
-        utils.get_state_action_inds(initial_plan, state_vector_include, action_vector_include)
-        
-        x0s = []
-        for c in range(0, self.config['num_conds']):
-            x0s.append(get_random_initial_pick_place_state(initial_plan, num_cloths))
+        utils.get_state_action_inds(plans[0], state_vector_include, action_vector_include)
+
+        x0 = []
+        for plan in plans:
+            x0.append(np.zeros((self.symbolic_bound,)))
+            utils.fill_vector(filter(lambda p: not p.is_symbol(), plan.params.values()), self.state_inds, x0[-1], 0)
+
 
         sensor_dims = {
             utils.STATE_ENUM: self.symbolic_bound,
@@ -79,18 +91,17 @@ class BaxterPolicySolver(RobotLLSolver):
             utils.EE_ENUM: 6,
             utils.TRAJ_HIST_ENUM = self.dU*self.config['hist_len'],
             utils.COLORS_ENUM = num_cloths,
-            utils.TASK_ENUM = len(task_list)
+            utils.TASK_ENUM = len(self.task_list)
         }
-
-        self.T = initial_plan.actions[x0s[0][1][1]].active_timesteps[1] - initial_plan.actions[x0s[0][1][0]].active_timesteps[0]
 
         self.policy_transfer_coeff = self.config['algorithm']['policy_transfer_coeff']
         if is_first_run:
             self.config['agent'] = {
                 'type': LaundryWorldEEAgent,
-                'x0s': x0s,
-                'x0': map(lambda x: x[0][:self.symbolic_bound], x0s),
-                'plan': initial_plan,
+                'x0': x0,
+                'plans': plans,
+                'task_breaks': task_breaks,
+                'task_encoding': task_encoding,
                 'state_inds': self.state_inds,
                 'action_inds': self.action_inds,
                 'dU': self.dU,

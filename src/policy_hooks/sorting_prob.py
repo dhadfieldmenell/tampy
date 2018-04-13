@@ -11,8 +11,8 @@ from policy_hooks.load_task_definitions import get_tasks, plan_from_str
 
 targets = {
             'blue_target': [0.8, 0.5, 0.65]
-            'green_target': [0.5, 0.7, 0.65]
-            'yellow_target': [0.5, -0.7, 0.65]
+            'green_target': [0.4, 0.9, 0.65]
+            'yellow_target': [0.4, -0.9, 0.65]
             'white_target': [0.8, -0.5, 0.65]
           }
 
@@ -96,17 +96,17 @@ def get_ll_plan_str(hl_plan):
         actions_per_task.append((len(next_task_str), action))
     return ll_plan_str, actions_per_task
 
-def get_plan(plan):
-    cloths = []
-    for param in plan.params:
-        if param._Type == "Cloth":
-            cloths.append(param)
-
+def get_plan(num_cloths):
+    cloths = ["Cloth{0}".fromat(i) for i in range(num_cloths)]
     color_map = get_cloth_color_mapping(cloths)
-    prob = get_sorting_problem(plan, color_map)
+    cloth_locs = get_random_initial_cloth_locations(num_cloths)
+    prob = get_sorting_problem(cloth_locs, color_map)
     hl_plan = get_hl_plan(prob)
     ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan)
     plan = plan_from_str(ll_plan_str)
+    for i in range(len(cloth_locs)):
+        plan.params['cloth{0}'.format(i)].pose[:,0] = cloth_locs[i]
+        plan.params['cloth_target_begin_{0}'.format(i)].value[:,0] = plan.params['cloth{0}'.format(i)].pose[:,0]
 
     task_timestps = []
     cur_act = 0

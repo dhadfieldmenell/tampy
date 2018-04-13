@@ -25,6 +25,6 @@ def get_cloth_color_mapping(cloths):
         while i >= splits[0]:
             splits[0].pop(0)
             color_ind += 1
-        color_map[cloth.name] = (color_list[color_ind], colors[color_list[color_ind]])
+        color_map[cloth] = (color_list[color_ind], colors[color_list[color_ind]])
 
     return color_map, colors.copy()
