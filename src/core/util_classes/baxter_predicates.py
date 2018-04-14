@@ -90,7 +90,7 @@ class BaxterPoseAtRotation(robot_predicates.RobotAt):
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(BaxterPoseAtRotation, self).__init__(name, params, expected_param_types, env)
 
-class BaxterClothTargetAtRegion(robot_predicates.RobotAt):
+class BaxterClothTargetAtRegion(ExprPredicate):
 
     # RobotAt, ClothTarget, Region
     def __init__(self, name, params, expected_param_types, env=None):
@@ -110,7 +110,7 @@ class BaxterClothTargetAtRegion(robot_predicates.RobotAt):
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
 
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        super(BaxterClothTargetAtRegion, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
 class BaxterWasherAt(robot_predicates.RobotAt):

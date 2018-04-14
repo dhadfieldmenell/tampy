@@ -35,7 +35,7 @@ class GPSMain(object):
         self._quit_on_end = quit_on_end
         self._hyperparams = config
         self.agent = config['agent']['type'](config['agent'])
-        self._train_idx = self.agent.task_conditions
+        self._train_idx = range(len(self.agent.plans))
         self._hyperparams=config
         self._test_idx = self._train_idx
 
@@ -47,9 +47,19 @@ class GPSMain(object):
         self.task_list = config['task_list']
         self.alg_map = {}
         policy_opt = None
+        task_durations = {}
+        for task_breaks in self.agent.task_breaks:
+            cur_t = 0
+            for next_t, task in task_breaks:
+                if task not in task_durations:
+                    task_durations[task] = next_t - cur_t
+                cur_t = next_t
         for task in self.task_list:
-            config['algorithm'][task]['policy_opt'] = policy_opt
+            if task not in task_durations: continue
+            config['algorithm'][task]['policy_opt']['prev'] = policy_opt
             config['algorithm'][task]['agent'] = self.agent
+            config['algorithm'][task]['task_breaks'] = self.agent.task_breaks
+            config['algorithm'][task]['init_traj_distr']['T'] = task_durations[task]
             self.alg_map[task] = config['algorithm'][task]['type'](config['algorithm'][task])
             policy_opt = self.alg_map[task].policy_opt
 
@@ -69,32 +79,36 @@ class GPSMain(object):
 
             # self.agent.optimize_trajectories(self.algorithm)
             # self.agent.replace_all_conds()
-            on_policy = self.algorithm._hyperparams['sample_on_policy']
-            traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
-            replace_conds = self.algorithm._hyperparams['policy_sample_mode'] == 'replace'
-            self.agent.init_cost_trajectories(self.algorithm, center=on_policy)
+            on_policy = True # self.algorithm._hyperparams['sample_on_policy']
+            # traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
+            replace_conds = True # self.algorithm._hyperparams['policy_sample_mode'] == 'replace'
+            self.agent.init_cost_trajectories(center=on_policy)
 
             for itr in range(itr_start, self._hyperparams['iterations']):
                 for cond in self._train_idx:
                     for i in range(self._hyperparams['num_samples']):
                         for task in self.task_list:
-                            self._take_sample(itr, cond, i, task)
+                            self._take_sample(itr, cond, i)
 
-                traj_sample_lists = [
-                    self.agent.get_samples(cond, -self._hyperparams['num_samples'])
+                if self._hyperparams['take_optimal_sample']:
+                    self.agent.sample_optimal_trajectories()
+
+
+                traj_sample_lists = {task: [
+                    self.agent.get_samples(cond, task, -self._hyperparams['num_samples'])
                     for cond in self._train_idx
-                ]
+                ] for task in self.task_list}
 
                 # Clear agent samples.
                 self.agent.clear_samples()
 
                 self._take_iteration(itr, traj_sample_lists)
-                self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, traj_opt, itr, datetime.now().isoformat())), copy.copy(self.algorithm))
+                # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 if replace_conds:
                     self.agent.replace_all_conds()
-                    self.agent.init_cost_trajectories(self.algorithm, center=False)
+                    self.agent.init_cost_trajectories(center=False)
                 else:
-                    self.agent.init_cost_trajectories(self.algorithm, center=False, full_solve=False)
+                    self.agent.init_cost_trajectories(center=False, full_solve=False)
                 if itr > -1:
                     import ipdb; ipdb.set_trace()
                 pol_sample_lists = self._take_policy_samples()
@@ -242,7 +256,8 @@ class GPSMain(object):
         if self.gui:
             self.gui.set_status_text('Calculating.')
             self.gui.start_display_calculating()
-        self.algorithm.iteration(sample_lists)
+        for task in self.alg_map:
+            self.alg_map[task].iteration(sample_lists[task])
         if self.gui:
             self.gui.stop_display_calculating()
 

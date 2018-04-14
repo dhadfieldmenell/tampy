@@ -6,7 +6,7 @@ dom_str = """
 # Configuration file for CAN domain. Blank lines and lines beginning with # are filtered out.
 
 # implicity, all types require a name
-Types: Basket, BasketTarget, RobotPose, Robot, EEPose, Obstacle, Washer, WasherPose, Cloth, ClothTarget, Rotation, Can
+Types: Basket, BasketTarget, RobotPose, Robot, EEPose, Obstacle, Washer, WasherPose, Cloth, ClothTarget, Rotation, Can, Region
 
 # Define the class location of each non-standard attribute type used in the above parameter type descriptions.
 
@@ -164,7 +164,7 @@ dp.add('BaxterClothAtHandle', ['Cloth', 'BasketTarget'])
 dp.add('BaxterClothBothGraspValidLeft', ['EEPose', 'ClothTarget', 'Can'])
 dp.add('BaxterClothBothGraspValidRight', ['EEPose', 'ClothTarget', 'Can'])
 dp.add('BaxterBothEndsInGripper', ['Robot', 'Can'])
-dp.add('ClothTargetAtRegion', ['ClothTarget', 'Region'])
+dp.add('BaxterClothTargetAtRegion', ['ClothTarget', 'Region'])
 
 dom_str += dp.get_str() + '\n'
 
@@ -339,7 +339,7 @@ class MoveHoldingCloth(Action):
             ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
         ]
         self.eff = [\
-            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(end, end)),
+            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(0, end)),
             ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
         ]
@@ -380,6 +380,44 @@ class BothMoveClothTo(Action):
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end)),
             ('(BaxterEdgeAt ?cloth ?target)', '{}:{}'.format(end, end))
         ]
+
+class MoveHoldingClothRight(Action):
+    def __init__(self):
+        self.name = 'moveholding_cloth_right'
+        self.timesteps = 20
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?cloth - Cloth)'
+        self.pre = [\
+            ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
+            ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
+            ('(forall (?obj - Basket)\
+                (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
+            )', '0:{}'.format(end)),
+            ('(forall (?obj - Washer)\
+                (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Basket)\
+                (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '0:{}'.format(end-1)),
+            ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
+            ('(forall (?obs - Obstacle)\
+                (forall (?obj - Basket)\
+                    (not (BaxterCollides ?obj ?obs))\
+                )\
+            )', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
+            ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
+        ]
+        self.eff = [\
+            ('(BaxterClothInGripperRight ?robot ?cloth)', '{}:{}'.format(0, end)),
+            ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
+        ]
+
 class MoveHoldingBasketWithCloth(Action):
     def __init__(self):
         self.name = 'moveholding_basket_with_cloth'
@@ -1234,7 +1272,7 @@ class ClothPutdown(Action):
 
 class ClothPutdownInRegionLeft(Action):
     def __init__(self):
-        self.name = 'cloth_putdown_at_region_left'
+        self.name = 'cloth_putdown_in_region_left'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?region - Region ?sp - RobotPose ?ee_left - EEPose ?ep - RobotPose)'
@@ -2039,7 +2077,9 @@ actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(),
            RotateHoldingBasketWithCloth(), GrabCornerLeft(), GrabCornerRight(), 
            DragClothLeft(), DragClothBoth(), FoldInHalf(), MoveToEEPos(),
            MoveToEEPosLeft(), PushDoorClose(), ClothGraspFromHandle(),
-           MoveAroundWasher(), BothMoveClothTo(), BothEndClothGrasp()]
+           MoveAroundWasher(), BothMoveClothTo(), BothEndClothGrasp(),
+           ClothGraspRight(), ClothPutdownRight(), ClothPutdownInRegionLeft(),
+           ClothPutdownInRegionRight(), MoveHoldingClothRight()]
 
 for action in actions:
     dom_str += '\n\n'

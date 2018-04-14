@@ -12,7 +12,7 @@ from gps.algorithm.algorithm_traj_opt_pilqr import AlgorithmTrajOptPILQR
 from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
 from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
 from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
-from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
+# from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
 from gps.algorithm.traj_opt.traj_opt_pilqr import TrajOptPILQR
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
@@ -23,12 +23,14 @@ from gps.gui.config import generate_experiment_info
 
 from policy_hooks.algorithm_pigps import AlgorithmPIGPS
 from policy_hooks.algorithm_tamp_gps import AlgorithmTAMPGPS
+from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.policy_solver_utils as utils
+from policy_hooks.traj_opt_pi2 import TrajOptPI2
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 12
+NUM_CONDS = 1
 
 
 common = {
@@ -67,9 +69,9 @@ algorithm['traj_opt'] = {
     'min_temperature': 0.0001,
 }
 
-algorithm['policy_prior'] = {
-    'type': PolicyPrior,
-}
+# algorithm['policy_prior'] = {
+#     'type': PolicyPrior,
+# }
 
 # algorithm = {
 #     'type': AlgorithmMDGPS,
@@ -123,12 +125,12 @@ algorithm['policy_prior'] = {
 #     'type': TrajOptLQRPython,
 # }
 
-# algorithm['policy_prior'] = {
-#     'type': PolicyPriorGMM,
-#     'max_clusters': 20,
-#     'min_samples_per_cluster': 40,
-#     'max_samples': 20,
-# }
+algorithm['policy_prior'] = {
+    'type': PolicyPriorGMM,
+    'max_clusters': 20,
+    'min_samples_per_cluster': 40,
+    'max_samples': 20,
+}
 
 config = {
     'gui_on': False,
@@ -141,6 +143,7 @@ config = {
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': True,
-    'policy_coeff': 1e0
+    'policy_coeff': 1e0,
+    'hist_len': 4
 }
 

@@ -28,7 +28,7 @@ from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeseri
 
 from policy_hooks.baxter_controller import BaxterMujocoController
 from policy_hooks.cloth_world_policy_utils import *
-from policy_hooks.policy_solver_utils import STATE_ENUM, OBS_ENUM, ACTION_ENUM, NOISE_ENUM, EE_ENUM, GRIPPER_ENUM
+from policy_hooks.policy_solver_utils import STATE_ENUM, OBS_ENUM, ACTION_ENUM, NOISE_ENUM, EE_ENUM, GRIPPER_ENUM, COLORS_ENUM, TRAJ_HIST_ENUM, TASK_ENUM
 from policy_hooks.setup_mjc_model import setup_mjc_model
 import policy_hooks.policy_solver_utils as utils
 
@@ -71,6 +71,7 @@ class LaundryWorldEEAgent(Agent):
         self.plans = self._hyperparams['plans']
         self.task_breaks = self._hyperparams['task_breaks']
         self.task_encoding = self._hyperparams['task_encoding']
+        self.color_maps = self._hyperparams['color_maps']
         self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
         self.state_inds = self._hyperparams['state_inds']
         self.action_inds = self._hyperparams['action_inds']
@@ -98,11 +99,29 @@ class LaundryWorldEEAgent(Agent):
         self.optimal_state_traj = [[] for _ in range(len(self.plans))]
         self.optimal_act_traj = [[] for _ in range(len(self.plans))]
 
+        self.get_plan = self._hyperparams['get_plan']
 
-    def get_samples(self, condition, start=0, end=None, task):
-        return (SampleList(self._samples[condition][task][start:]) if end is None
-                else SampleList(self._samples[condition][task][start:end]))
 
+    def get_samples(self, condition, task, start=0, end=None):
+        if np.abs(start) >= len*self._samples[condition][task]:
+            start = 0
+
+        samples = {}
+        if end is None:
+            for sample in self._samples[condition][task][start:]:
+                if sample.init_t not in samples:
+                    samples[init_t] = []
+                samples[init_t].append(sample)
+        else:
+            for sample in self._samples[condition][task][start:end]:
+                if sample.init_t not in samples:
+                    samples[init_t] = []
+                samples[init_t].append(sample)
+
+        for ts in samples:
+            samples[ts] = SampleList(samples[ts])
+
+        return samples
 
 
     def _generate_xml(self, plan, motor=True):
@@ -208,10 +227,10 @@ class LaundryWorldEEAgent(Agent):
             self.viewer.cam.elevation = -37.5
             self.viewer.loop_once()
 
-        self.setup_obs_viewer()
+        self.setup_obs_viewer(model)
         return model
 
-    def setup_obs_viewer(self):
+    def setup_obs_viewer(self, model):
         self.obs_viewer = mjviewer.MjViewer(False, utils.IM_W, utils.IM_H)
         self.obs_viewer.start()
         self.obs_viewer.set_model(model)
@@ -317,7 +336,7 @@ class LaundryWorldEEAgent(Agent):
         self.traj_hist = np.zeros((self.dU, self.hist_len)).tolist() if self.hist_len > 0 else None
 
 
-    def sample(self, policy, condition, save_global=False, verbose=False, save=True, noisy=True):
+    def sample(self, policy_map, condition, use_base_t=True, save_global=False, verbose=False, save=True, noisy=True):
         '''
             Take a sample for a given condition
         '''
@@ -327,13 +346,19 @@ class LaundryWorldEEAgent(Agent):
         # x0 = self.init_plan_states[condition]
         num_tasks = len(self.task_encoding.keys())
         cur_task_ind = 0
-        base_t = 0
-        self.T, _ = self.task_breaks[condition][cur_task_ind] # self.plans[condition].horizon*utils.POLICY_STEPS_PER_SECOND
         next_t, task = self.task_breaks[condition][cur_task_ind]
+        policy = policy_map[task]['policy']
+        base_t = 0
+        self.T - next_t
         sample = Sample(self)
+        sample.init_t = 0
         print 'Starting on-policy sample for condition {0}.'.format(condition)
         # if self.stochastic_conditions and save_global:
         #     self.replace_cond(condition)
+
+        color_vec = np.zeros((len(self.color_maps[condition].keys()))) * 100
+        for key in self.color_maps[condition]:
+            color_vec[key] = self.color_maps[condition][key]
 
         attempts = 0
         success = False
@@ -349,16 +374,33 @@ class LaundryWorldEEAgent(Agent):
                 if t >= next_t:
                     if save:
                         self._samples[condition][task].append(sample)
-                    base_t = next_t
                     cur_task_ind += 1
-                    self.T, _ = self.task_breaks[condition][cur_task_ind]
                     next_t, task = self.task_breaks[condition][cur_task_ind]
-                    next_t -= base_t
+                    policy = policy_map[task]['policy']
+                    self.T = next_t - t
                     sample = Sample(self)
+                    sample.init_ts = t
+
+                if use_base_t:
+                    base_t = sample.init_ts
+
                 X, ee_pos, grippers, joints = self._get_simulator_state(self.state_inds, condition, self.symbolic_bound)
-                im = self.get_obs()
-                obs = np.r_[im, grippers]
-                U = policy.act(X.copy(), obs, t, np.zeros((self.dU,)))
+
+                obs = []
+                if OBS_ENUM in self._hyperparams['obs_include']:
+                    im = self.get_obs()
+                    obs = np.r_[obs, im]
+
+                if EE_ENUM in self._hyperparams['obs_include']:
+                    obs = np.r_[obs, ee_pos]
+                
+                if GRIPPER_ENUM in self._hyperparams['obs_include']:
+                    obs = np.r_[obs, grippers]
+                
+                if STATE_ENUM in self._hyperparams['obs_include']:
+                    obs = np.r_[obs, X]
+
+                U = policy.act(X.copy(), obs, t-base_t, np.zeros((self.dU,)))
 
                 if noisy and np.random.uniform(0, 1) < 0.8:
                     noise = np.zeros((self.dU,))
@@ -367,30 +409,32 @@ class LaundryWorldEEAgent(Agent):
                     a = U[self.action_inds['baxter', 'ee_left_pos']] - ee_pos[:3]
                     rot_dir = np.cross(a, [0,0,1])
                     rot_angle = np.arcos(np.dot(a, [0, 0, 1]))
-                    vec = np.cos(rot_angle)*left_noise + np.sin(rot_angle)*np.cross(a, left_noise) = (1-np.cos(rot_angle))*np.dot(a, left_noise)*a
+                    vec = np.cos(rot_angle)*left_noise + np.sin(rot_angle)*np.cross(a, left_noise) + (1-np.cos(rot_angle))*np.dot(a, left_noise)*a
                     noise[self.action_inds[('baxter', 'ee_left_pos')]] = vec
                     right_noise = np.radnom.normal(0, 1, (3,))
                     right_noise[2] = np.abs(right_noise[2])
                     a = U[self.action_inds['baxter', 'ee_right_pos']] - ee_pos[3:6]
                     rot_dir = np.cross(a, [0,0,1])
                     rot_angle = np.arcos(np.dot(a, [0, 0, 1]))
-                    vec = np.cos(rot_angle)*right_noise + np.sin(rot_angle)*np.cross(a, right_noise) = (1-np.cos(rot_angle))*np.dot(a, right_noise)*a
+                    vec = np.cos(rot_angle)*right_noise + np.sin(rot_angle)*np.cross(a, right_noise) + (1-np.cos(rot_angle))*np.dot(a, right_noise)*a
                     noise[self.action_inds[('baxter', 'ee_right_pos')]] = vec
                 else:
                     noise = np.zeros((self.dU,))
 
                 for i in range(1):
-                    sample.set(STATE_ENUM, X.copy(), t+i)
+                    sample.set(STATE_ENUM, X.copy(), t-base_t+i)
                     if OBS_ENUM in self._hyperparams['obs_include']:
-                        sample.set(OBS_ENUM, im.copy(), t+i)
-                    sample.set(ACTION_ENUM, U.copy(), t+i)
-                    sample.set(NOISE_ENUM, noise, t+i)
-                    sample.set(EE_ENUM, ee_pos, t+i)
-                    sample.set(GRIPPER_ENUM, grippers, t+i)
-                    sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t+i)
+                        sample.set(OBS_ENUM, im.copy(), t-base_t+i)
+                    sample.set(ACTION_ENUM, U.copy(), t-base_t+i)
+                    sample.set(NOISE_ENUM, noise, t-base_t+i)
+                    sample.set(EE_ENUM, ee_pos, t-base_t+i)
+                    sample.set(GRIPPER_ENUM, grippers, t-base_t+i)
+                    sample.set(COLORS_ENUM, color_vec.copy(), t-base_t+i)
+                    sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t-base_t+i)
                     task_vec = nnp.zeros((num_tasks,))
                     task_vec[self.task_encoding[task]] = 1
-                    sample.set(TASK_ENUM, task_vec, t+i)
+                    sample.set(TASK_ENUM, task_vec, t-base_t+i)
+
 
                 self.traj_hist.pop(0)
                 self.traj_hist.append(U)
@@ -485,10 +529,12 @@ class LaundryWorldEEAgent(Agent):
                 if not success:
                     attempts += 1
                     cur_task_ind = 0
-                    self.T, _ = self.task_breaks[condition][cur_task_ind]
                     next_t, task = self.task_breaks[condition][cur_task_ind]
-                    next_t -= base_t
+                    policy = policy_map[task]['policy']
+                    self.T = next_t
                     sample = Sample(self)
+                    sample.init_ts = 0
+
                     break
             print 'Finished on-policy sample.\n'.format(condition)
 
@@ -602,7 +648,7 @@ class LaundryWorldEEAgent(Agent):
     def init_cost_trajectories(self, center=False, full_solve=True):
         for m in range(0, len(self.plans)):
             old_params_free = {}
-            for p in self.params:
+            for p in self.params[m]:
                 if p.is_symbol():
                     if p not in init_act.params: continue
                     old_params_free[p] = p._free_attrs
@@ -718,21 +764,61 @@ class LaundryWorldEEAgent(Agent):
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.state_inds[('baxter', 'lGripper')]] = 0 if self.plans[m].params['baxter'].lGripper[0, init_t+t] <= const.GRIPPER_CLOSE_VALUE else 1
                 tgt_u[t*utils.POLICY_STEPS_PER_SECOND:(t+1)*utils.POLICY_STEPS_PER_SECOND, self.state_inds[('baxter', 'rGripper')]] = 0 if self.plans[m].params['baxter'].rGripper[0, init_t+t] <= const.GRIPPER_CLOSE_VALUE else 1
             
-        self.optimal_act_traj[m] = tgt_x
-        self.optimal_state_traj[m] = tgt_u
+        self.optimal_act_traj[m] = tgt_u
+        self.optimal_state_traj[m] = tgt_x
 
         if center:
             traj_distr = alg.cur[m].traj_distr
             traj_distr.k = tgt_u.copy()
 
 
+    def sample_optimal_trajectories(self):
+        def get_policy_map(m):
+            policy_map = {}
+            for task in self.task_list:
+                policy_map[task] = {}
+                policy_map[task]['policy'] = lambda X, O, t, noise: self.optimal_act_traj[m][t].copy()
+
+            return policy_map
+
+        for m in range(len(self.plans)):
+            self.sample(get_policy_map(m), m, use_base_t=False, save=True, noisy=False)
+
+
+    # def set_alg_conditions(self, alg):
+
+    #     alg.cur = [{} for _ in range(alg.M)]
+    #     alg.prev = [{} for _ in range(alg.M)]
+
+    #     for m in range(len(self.plans)):
+    #         plan = self.plans[m]
+    #         task_breaks = self.task_breaks[m]
+    #         cur_t = 0
+    #         for next_t, task in task_breaks:
+    #             if task == alg.task:
+    #                 alg.cur[m][cur_t] = IterationData()
+    #                 alg.prev[m][cur_t] = IterationData()
+    #                 alg.cur[m][cur_t] = TrajectoryInfo()
+    #                 if alg._hyperparams['fit_dynamics']:
+    #                     dynamics = alg._hyperparams['dynamics']
+    #                     alg.cur[m][cur_t].traj_info.dynamics = dynamics['type'](dynamics)
+
+    #                 init_traj_distr = extract_condition(
+    #                     alg._hyperparams['init_traj_distr'], alg._cond_idx[m]
+    #                 )
+
+    #                 alg.cur[m][cur_t].traj_distr = init_traj_distr['type'](init_traj_distr)
+
+
     def replace_cond(self, cond):
         print "Replacing Condition {0}.\n".format(cond)
-        new_plan = self.get_random_starting_plan(self.plans[cond], self.num_cloths)
-        self.plans[cond].env.destroy()
-        self.plans[cond] = new_plan
-        self.params[m] = filter(lambda p: not p.is_symbol(), new_plan.params.values())
-        self.symbols[m] = filter(lambda p: p.is_symbol(), new_plan.params.values())
+        plan, task_breaks, color_map = self.get_plan(self.num_cloths)
+        self.plans[cond].env.Destroy()
+        self.plans[cond] = plan
+        self.params[cond] = filter(lambda p: not p.is_symbol(), plan.params.values())
+        self.symbols[cond] = filter(lambda p: p.is_symbol(), plan.params.values())
+        self.task_breaks[cond] = task_breaks
+        self.color_maps[cond] = color_map
         x = np.zeros((self.symbolic_bound,))
-        utils.fill_vector(self.params[m], self.state_inds, x, 0)                
+        utils.fill_vector(self.params[cond], self.state_inds, x, 0)                
         self.x0[cond] = x

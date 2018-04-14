@@ -5,15 +5,15 @@ import numpy as np
 import random
 
 from pma.hl_solver import FFSolver
-from policy_hooks.cloth_color_utils import get_cloth_color_mapping
+from policy_hooks.cloth_color_utils import *
 from policy_hooks.cloth_locs import cloth_locs as possible_cloth_locs
 from policy_hooks.load_task_definitions import get_tasks, plan_from_str
 
 targets = {
-            'blue_target': [0.8, 0.5, 0.65]
-            'green_target': [0.4, 0.9, 0.65]
-            'yellow_target': [0.4, -0.9, 0.65]
-            'white_target': [0.8, -0.5, 0.65]
+            'blue_target': [0.8, 0.5, 0.65],
+            'green_target': [0.4, 0.9, 0.65],
+            'yellow_target': [0.4, -0.9, 0.65],
+            'white_target': [0.8, -0.5, 0.65],
           }
 
 def get_sorting_problem(cloth_locs, color_map):
@@ -30,13 +30,13 @@ def get_sorting_problem(cloth_locs, color_map):
     goal_str = "(:goal (and"
     for cloth in color_map:
         if color_map[cloth][0] == BLUE:
-            goal_str += " (ClothAtLeftTarget {0} blue_target)"
+            goal_str += " (ClothAtLeftTarget {0} blue_target)".format(cloth)
         elif color_map[cloth][0] == WHITE:
-            goal_str += " (ClothAtLeftTarget {0} white_target)"
+            goal_str += " (ClothAtLeftTarget {0} white_target)".format(cloth)
         elif color_map[cloth][0] == YELLOW:
-            goal_str += " (ClothAtRightTarget {0} yellow_target)"
+            goal_str += " (ClothAtRightTarget {0} yellow_target)".format(cloth)
         elif color_map[cloth][0] == GREEN:
-            goal_str += " (ClothAtRightTarget {0} green_target)"
+            goal_str += " (ClothAtRightTarget {0} green_target)".format(cloth)
     goal_str += " (BasketAtTarget basket_start_target) "
     goal_str += "))\n"
 
@@ -46,7 +46,7 @@ def get_sorting_problem(cloth_locs, color_map):
     return hl_plan_str, goal_str
 
 def parse_initial_state(cloth_locs):
-    hl_init_state = "(and "
+    hl_init_state = "(:init "
     for i in range(len(cloth_locs)):
         loc = cloth_locs[i]
         if loc[1] > 0:
@@ -76,7 +76,7 @@ def get_hl_plan(prob):
     return hl_solver._run_planner(domain, prob)
 
 def get_ll_plan_str(hl_plan):
-    tasks = get_tasks('sorting_task_mapping')
+    tasks = get_tasks('policy_hooks/sorting_task_mapping')
     ll_plan_str = []
     actions_per_task = []
     for i in range(len(hl_plan)):
@@ -85,37 +85,39 @@ def get_ll_plan_str(hl_plan):
         next_task_str = tasks[act_params[1].lower()]
         cloth = act_params[2].lower()
         target = "blue_target"
-        if len(act_params > 3):
+        if len(act_params) > 3:
             target = act_params[3]
         region = "left_region"
         if act_params[1].lower() == "move_cloth_to_right_region":
             region = "right_region"
         for j in range(len(next_task_str)):
-            next_task_str[j].format(cloth, target, region, i)
+            next_task_str[j]= next_task_str[j].format(cloth[-1], target, region, i)
         ll_plan_str.extend(next_task_str)
         actions_per_task.append((len(next_task_str), action))
     return ll_plan_str, actions_per_task
 
 def get_plan(num_cloths):
-    cloths = ["Cloth{0}".fromat(i) for i in range(num_cloths)]
-    color_map = get_cloth_color_mapping(cloths)
+    cloths = ["Cloth{0}".format(i) for i in range(num_cloths)]
+    color_map, colors = get_cloth_color_mapping(cloths)
     cloth_locs = get_random_initial_cloth_locations(num_cloths)
-    prob = get_sorting_problem(cloth_locs, color_map)
+    prob, goal_str = get_sorting_problem(cloth_locs, color_map)
     hl_plan = get_hl_plan(prob)
     ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan)
-    plan = plan_from_str(ll_plan_str)
+    plan = plan_from_str(ll_plan_str, num_cloths)
     for i in range(len(cloth_locs)):
         plan.params['cloth{0}'.format(i)].pose[:,0] = cloth_locs[i]
         plan.params['cloth_target_begin_{0}'.format(i)].value[:,0] = plan.params['cloth{0}'.format(i)].pose[:,0]
 
-    task_timestps = []
+    task_timesteps = []
     cur_act = 0
     for i in range(len(hl_plan)):
         num_actions = actions_per_task[i][0]
         final_t = plan.actions[cur_act+num_actions-1].active_timesteps[1]
-        task_timestps.append((final_t, actions_per_task[i][1]))
+        task_timesteps.append((final_t, actions_per_task[i][1]))
+        cur_act += num_actions
 
-    return plan, task_timestps
+    plan.task_breaks = task_timesteps
+    return plan, task_timesteps, color_map
 
 def get_target_state_vector(state_inds, goal_state, dX):
     state = np.zeros((dX, ))
@@ -132,7 +134,7 @@ def get_target_state_vector(state_inds, goal_state, dX):
     return state, weights
 
 def get_task_durations():
-    tasks = get_tasks('sorting_task_mapping')
+    tasks = get_tasks('policy_hooks/sorting_task_mapping')
     durations = []
     for task in tasks:
         for i in range(len(task)):

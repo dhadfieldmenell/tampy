@@ -136,7 +136,8 @@ ATTR_MAP = {
              ("rotation", np.array([0,1,2], dtype=np.int))),
     "ClothTarget": (("value", np.array([0,1,2], dtype=np.int)),
              ("rotation", np.array([0,1,2], dtype=np.int))),
-    "EEVel": (("value", np.array([0], dtype=np.int)))
+    "EEVel": (("value", np.array([0], dtype=np.int))),
+    "Region": (("value", np.array([0,1], dtype=np.int)),),
 }
 
 left_joints = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2"]

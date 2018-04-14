@@ -84,7 +84,7 @@ def get_state_action_inds(plan, x_params={}, u_params={}):
         param = plan.params[param_name]
         param_attr_map = const.ATTR_MAP[param._type]
         for attr in x_params[param_name]:
-            if (param_name, arre) in params_to_x_inds: continue
+            if (param_name, attr) in params_to_x_inds: continue
             inds = filter(lambda p: p[0]==attr, const.ATTR_MAP[param._type])[0][1] + cur_x_ind
             cur_x_ind = inds[-1] + 1
             params_to_x_inds[(param.name, attr)] = inds

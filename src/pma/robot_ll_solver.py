@@ -108,6 +108,9 @@ class RobotLLSolver(LLSolver):
         elif a.name == 'moveholding_cloth':
             ## find possible values for the final robot_pose
             rs_param = a.params[2]
+        elif a.name == 'moveholding_cloth_right':
+            ## find possible values for the final robot_pose
+            rs_param = a.params[2]
         elif a.name == 'basket_grasp':
             ## find possible ee_poses for both arms
             rs_param = a.params[-1]
@@ -183,6 +186,7 @@ class RobotLLSolver(LLSolver):
         elif a.name == 'both_move_cloth_to':
             rs_param = a.params[-1]
         else:
+            import ipdb; ipdb.set_trace()
             raise NotImplemented
 
         def recursive_solve():

@@ -12,23 +12,26 @@ from sco.variable import Variable
 # from gps.gps_main import GPSMain
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
-from gps.algorithm.cost.cost_state import CostState
+# from gps.algorithm.cost.cost_state import CostState
 from gps.algorithm.cost.cost_sum import CostSum
 from gps.algorithm.cost.cost_utils import *
 
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
-from policy_hooks.base_gps_main import GPSMain
+from policy_hooks.multi_task_main import GPSMain
 from policy_hooks.cloth_exp_vec_include import *
 from policy_hooks.cloth_world_policy_utils import *
 from policy_hooks.load_task_definitions import *
+from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
+from policy_hooks.multi_task_tamp_ee_agent import LaundryWorldEEAgent
+from policy_hooks.pose_suggester import obj_pose_suggester
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
 import policy_hooks.policy_solver_utils as utils
 from policy_hooks.sorting_prob import *
 from policy_hooks.tamp_agent import LaundryWorldClothAgent
-from policy_hooks.tamp_ee_agent import LaundryWorldEEAgent
 from policy_hooks.tamp_cost import TAMPCost
+from policy_hooks.cost_state import CostState
 from policy_hooks.tamp_action_cost import CostAction
 
 
@@ -64,16 +67,18 @@ class BaxterPolicySolver(RobotLLSolver):
         if hyperparams and self.config:
             self.config.update(hyperparams)
 
-        self.task_list = get_tasks('sorting_task_mapping').keys()
+        self.task_list = get_tasks('policy_hooks/sorting_task_mapping').keys()
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
 
         plans = []
         task_breaks = []
+        color_maps = []
         for m in range(self.config['num_conds']):
-            plan, task_break = get_plan(num_cloths)
+            plan, task_break, color_map = get_plan(num_cloths)
             plans.append(plan)
-            task_breaks.append(task_breaks)
+            task_breaks.append(task_break)
+            color_maps.append(color_map)
 
         self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = \
         utils.get_state_action_inds(plans[0], state_vector_include, action_vector_include)
@@ -89,9 +94,9 @@ class BaxterPolicySolver(RobotLLSolver):
             utils.ACTION_ENUM: self.dU,
             utils.OBS_ENUM: utils.IM_H*utils.IM_W*utils.IM_C,
             utils.EE_ENUM: 6,
-            utils.TRAJ_HIST_ENUM = self.dU*self.config['hist_len'],
-            utils.COLORS_ENUM = num_cloths,
-            utils.TASK_ENUM = len(self.task_list)
+            utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
+            utils.COLORS_ENUM: num_cloths,
+            utils.TASK_ENUM: len(self.task_list)
         }
 
         self.policy_transfer_coeff = self.config['algorithm']['policy_transfer_coeff']
@@ -101,24 +106,28 @@ class BaxterPolicySolver(RobotLLSolver):
                 'x0': x0,
                 'plans': plans,
                 'task_breaks': task_breaks,
+                'color_maps': color_maps,
                 'task_encoding': task_encoding,
                 'state_inds': self.state_inds,
                 'action_inds': self.action_inds,
                 'dU': self.dU,
                 'dX': self.symbolic_bound,
                 'symbolic_bound': self.symbolic_bound,
+                'get_plan': get_plan,
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM],
                 'obs_include': [utils.STATE_ENUM],
                 'conditions': self.config['num_conds'],
                 'solver': self,
                 'num_cloths': num_cloths,
-                'T': int(self.T * utils.POLICY_STEPS_PER_SECOND),
                 'stochastic_conditions': self.config['stochastic_conditions'],
                 'image_width': utils.IM_W,
                 'image_height': utils.IM_H,
                 'image_channels': utils.IM_C,
-                'hist_len': 4
+                'hist_len': self.config['hist_len'],
+                'T': -1,
+                'viewer': None,
+                'model': None
             }
             self.config['algorithm']['cost'] = []
 
@@ -127,11 +136,11 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['agent']['conditions'] += self.config['num_conds']
             self.config['agent']['x0'].extend(x0s)
 
-        action_cost_wp = np.ones((self.config['agent']['T'], self.dU), dtype='float64')
-        state_cost_wp = np.ones((self.config['agent']['T'], self.symbolic_bound), dtype='float64')
-        for (param_name, attr) in state_inds:
-            if not initial_plan.params[param_name].is_symbol() and param_name.startswith('cloth'):
-                state_cost_wp[:, state_inds[param_name, attr]] *= 4
+        # action_cost_wp = np.ones((self.config['agent']['T'], self.dU), dtype='float64')
+        # state_cost_wp = np.ones((self.config['agent']['T'], self.symbolic_bound), dtype='float64')
+        # for (param_name, attr) in state_inds:
+        #     if not initial_plan.params[param_name].is_symbol() and param_name.startswith('cloth'):
+        #         state_cost_wp[:, state_inds[param_name, attr]] *= 4
 
         # state_cost_wp[:, initial_plan.state_inds['baxter', 'ee_right_pos']] *= 0.2
         # state_cost_wp[:, initial_plan.state_inds['baxter', 'ee_right_rot']] *= 0.2
@@ -141,15 +150,15 @@ class BaxterPolicySolver(RobotLLSolver):
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'ee_right_rot']] *= 0.75
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'lGripper']] *= 10
         # action_cost_wp[:, initial_plan.action_inds['baxter', 'rGripper']] *= 10
-        state_cost_wp[-1, :] = 0
-        action_cost_wp[-1, :] = 0
-        for cond in range(len(x0s)):
+        # state_cost_wp[-1, :] = 0
+        # action_cost_wp[-1, :] = 0
+        for cond in range(len(plans)):
             traj_cost = {
                             'type': CostState,
                             'data_types': {
                                 utils.STATE_ENUM: {
-                                    'wp': state_cost_wp,
-                                    'target_state': np.zeros((self.config['agent']['T'], self.symbolic_bound)),
+                                    'wp': np.ones((1, self.dU), dtype='float64'),
+                                    'target_state': np.zeros((1, self.symbolic_bound)),
                                     'wp_final_multiplier': 10.0,
                                 }
                             },
@@ -159,8 +168,8 @@ class BaxterPolicySolver(RobotLLSolver):
                             'type': CostAction,
                             'data_types': {
                                 utils.ACTION_ENUM: {
-                                    'wp': np.ones((self.config['agent']['T'], self.dU), dtype='float64'),
-                                    'target_state': np.zeros((self.config['agent']['T'], self.dU)),
+                                    'wp': np.ones((1, self.dU), dtype='float64'),
+                                    'target_state': np.zeros((1, self.dU)),
                                 }
                             },
                             'ramp_option': RAMP_CONSTANT
@@ -175,15 +184,19 @@ class BaxterPolicySolver(RobotLLSolver):
         self.config['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
-        self.config['algorithm']['init_traj_distr']['T'] = self.config['agent']['T']
 
         self.config['algorithm']['policy_opt'] = {
-            'type': PolicyOptTf,
+            'type': MultiHeadPolicyOptTf,
             'network_params': {
                 'obs_include': [utils.STATE_ENUM],
                 'obs_vector_data': [utils.STATE_ENUM],
+                'obs_image_data': [],
+                'image_width': utils.IM_W,
+                'image_height': utils.IM_H,
+                'image_channels': utils.IM_C,
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
+                'num_filters': [5,10],
                 'dim_hidden': [700, 700]
             },
             'lr': 1e-4,
@@ -197,17 +210,23 @@ class BaxterPolicySolver(RobotLLSolver):
             'image_channels': utils.IM_C,
         }
 
+        alg_map = {}
+        for task in self.task_list:
+            alg_map[task] = self.config['algorithm']
+
+        self.config['algorithm'] = alg_map
+
         if not self.gps:
             self.gps = GPSMain(self.config)
             for plan in plans:
-                self._add_policy_constraints_to_plan(plan, x_params)
-        else:
-            # TODO: Handle this case
-            self._update_agent(x0s)
-            self._update_algorithm(self.config['algorithm']['cost'][-len(x0s):])
+                self._add_policy_constraints_to_plan(plan, state_vector_include.keys())
+        # else:
+        #     # TODO: Handle this case
+        #     self._update_agent(x0s)
+        #     self._update_algorithm(self.config['algorithm']['cost'][-len(x0s):])
         
         self.gps.run()
-
+        
 
     def optimize_against_global(self, plan, a_start=0, a_end=-1, cond=0):
         a_num = a_start
@@ -387,8 +406,13 @@ class BaxterPolicySolver(RobotLLSolver):
         action_inds = self.action_inds
         dX = self.symbolic_bound
         dU = self.dU
+        cur_task_ind = 0
+        next_t, task = plan.task_breaks[cur_task_ind]
         for action in plan.actions:
-            task = filter(lambda t: plan.task_breaks[t][0] >= action.active_timesteps[0] and plan.task_breaks[t][1] <= action.active_timesteps[1], self.task_list)[0]
+            if action.active_timesteps[0] >= next_t:
+                cur_task_ind += 1
+                next_t, task = plan.task_breaks[cur_task_ind]
+
             policy_func = lambda x: self.gps.alg_map[task].policy_opt.task_map['policy'].act(x, x, 0, 0) # The global policy should be time independent
             pred = BaxterPolicyEEPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
             pred_dict = {'hl_info': 'policy', 'pred': pred, 'negated': False, 'active_timesteps': action.active_timesteps}
@@ -540,4 +564,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(4)
+    PS.train_policy(5)

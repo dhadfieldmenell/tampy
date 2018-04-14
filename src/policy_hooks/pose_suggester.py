@@ -1,10 +1,13 @@
 import numpy as np
 
-import core.util_Classes.baxter_sampling as baxter_sampling
+import core.util_classes.baxter_constants as baxter_constants
+import core.util_classes.baxter_sampling as baxter_sampling
 
-def obj_pose_suggester(self, plan, anum, resample_size=20):
+DOWN_ROT = [0, np.pi/2, 0]
+
+
+def obj_pose_suggester(plan, anum, resample_size=20):
     robot_pose = []
-    assert anum + 1 <= len(plan.actions)
 
     if anum + 1 < len(plan.actions):
         act, next_act = plan.actions[anum], plan.actions[anum+1]
@@ -461,6 +464,7 @@ def obj_pose_suggester(self, plan, anum, resample_size=20):
             robot_pose.append({'lArmPose': l_arm_poses[0], 'rArmPose': r_arm_poses[0], 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': init_pos.value.copy()})
 
         else:
+            import ipdb; ipdb.set_trace()
             raise NotImplementedError
     if not robot_pose:
         print "Unable to find IK"
