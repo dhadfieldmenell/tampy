@@ -101,7 +101,7 @@ def get_ll_plan_str(hl_plan, num_cloths):
         for j in range(len(next_task_str)):
             next_task_str[j]= next_task_str[j].format(cloth[-1], target, region_target, i, last_pose, start)
         ll_plan_str.extend(next_task_str)
-        actions_per_task.append((len(next_task_str), action))
+        actions_per_task.append((len(next_task_str), act_params[1].lower()))
         last_pose = "CLOTH_PUTDOWN_END_{0}".format(i)
     return ll_plan_str, actions_per_task
 

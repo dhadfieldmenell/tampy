@@ -8,6 +8,7 @@ import scipy as sp
 from gps.algorithm.algorithm import Algorithm
 from gps.algorithm.algorithm_utils import IterationData, TrajectoryInfo, PolicyInfo
 from gps.algorithm.config import ALG_MDGPS
+from gps.utility.general_utils import extract_condition
 from gps.sample.sample_list import SampleList
 
 LOGGER = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ class AlgorithmMDGPS(Algorithm):
         config.update(hyperparams)
         Algorithm.__init__(self, config)
 
+        self.task_breaks = self._hyperparams['task_breaks']
         self.set_conditions()
 
         if self._hyperparams['policy_opt']['prev'] is None:
@@ -32,18 +34,17 @@ class AlgorithmMDGPS(Algorithm):
         else:
             self.policy_opt = self._hyperparams['policy_opt']['prev']
 
-        self.task = self._hyperparams['task']
-        self.task_breaks = self._hyperparams['task_breaks']
-
     def set_conditions(self):
         self.cur = [{} for _ in range(self.M)]
         self.prev = [{} for _ in range(self.M)]
         policy_prior = self._hyperparams['policy_prior']
 
-        for m in range(len(self.M)):
+        for m in range(self.M):
             cur_t = 0
-            for next_t, task in task_breaks:
+            for next_t, task in self.task_breaks[m]:
                 if task == self.task:
+                    self.T = next_t - cur_t
+                    self._hyperparams['T'] = self.T
                     self.cur[m][cur_t] = IterationData()
                     self.prev[m][cur_t] = IterationData()
                     self.cur[m][cur_t].traj_info = TrajectoryInfo()
@@ -57,8 +58,9 @@ class AlgorithmMDGPS(Algorithm):
 
                     self.cur[m][cur_t].traj_distr = init_traj_distr['type'](init_traj_distr)
 
-                    self.cur[m][cur_ts].pol_info = PolicyInfo(self._hyperparams)
-                    self.cur[m][cur_ts].pol_info.policy_prior = policy_prior['type'](policy_prior)
+                    self.cur[m][cur_t].pol_info = PolicyInfo(self._hyperparams)
+                    self.cur[m][cur_t].pol_info.policy_prior = policy_prior['type'](policy_prior)
+                cur_t = next_t
 
     def iteration(self, sample_lists):
         """

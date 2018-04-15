@@ -144,6 +144,8 @@ config = {
     'mode': 'position',
     'stochastic_conditions': True,
     'policy_coeff': 1e0,
-    'hist_len': 4
+    'sample_on_policy': True,
+    'hist_len': 4,
+    'take_optimal_sample': True
 }
 

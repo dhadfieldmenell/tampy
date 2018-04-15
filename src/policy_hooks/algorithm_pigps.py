@@ -18,9 +18,10 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
     Sample-based joint policy learning and trajectory optimization with
     path integral guided policy search algorithm.
     """
-    def __init__(self, hyperparams):
+    def __init__(self, hyperparams, task):
         config = copy.deepcopy(ALG_PIGPS)
         config.update(hyperparams)
+        self.task = task
         AlgorithmMDGPS.__init__(self, config)
 
     def iteration(self, sample_lists):

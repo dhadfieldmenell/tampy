@@ -25,8 +25,8 @@ ROT_LB = -np.pi
 ROT_UB = np.pi
 
 # EEReachable Constants
-APPROACH_DIST = 0.015
-RETREAT_DIST = 0.015
+APPROACH_DIST = 0.02
+RETREAT_DIST = 0.02
 EEREACHABLE_STEPS = 5
 
 # Collision Constants

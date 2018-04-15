@@ -83,8 +83,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 self.task_map[task]['last_conv_vars'] = last_conv_vars
 
                 # Setup the gradients
-                self.task_map[task]['grads'] = [tf.gradients(self.act_op[:,u], self.obs_tensor)[0]
-                        for u in range(self._dU)]
+                self.task_map[task]['grads'] = [tf.gradients(self.task_map[task]['act_op'][:,u], self.task_map[task]['obs_tensor'])[0] for u in range(self._dU)]
 
     def init_solver(self):
         """ Helper method to initialize the solver. """

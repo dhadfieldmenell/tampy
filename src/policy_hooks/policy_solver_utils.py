@@ -56,25 +56,37 @@ def get_state_action_inds(plan, x_params={}, u_params={}):
     ee_pos_attrs = ['ee_left_pos', 'ee_right_pos']
     ee_rot_attrs = ['ee_left_rot', 'ee_right_rot']
     for attr in robot_x_attrs:
-        if attr in ee_pos_attrs or ee_rot_attrs:
+        if attr in ee_pos_attrs:
             x_inds = np.array([0, 1, 2]) + cur_x_ind
             cur_x_ind = x_inds[-1] + 1
             params_to_x_inds[('baxter', attr)] = x_inds
             continue
 
-        inds = filter(lambda p: p[0]==attr, robot_attr_map)[0]
+        if attr in ee_rot_attrs:
+            x_inds = np.array([0, 1, 2, 3]) + cur_x_ind
+            cur_x_ind = x_inds[-1] + 1
+            params_to_x_inds[('baxter', attr)] = x_inds
+            continue
+
+        inds = filter(lambda p: p[0]==attr, robot_attr_map)[0][1]
         x_inds = inds + cur_x_ind
         cur_x_ind = x_inds[-1] + 1
         params_to_x_inds[('baxter', attr)] = x_inds
 
     for attr in robot_u_attrs:
-        if attr in ee_pos_attrs or ee_rot_attrs:
+        if attr in ee_pos_attrs:
             u_inds = np.array([0, 1, 2]) + cur_u_ind
             cur_u_ind = u_inds[-1] + 1
             params_to_u_inds[('baxter', attr)] = u_inds
             continue
 
-        inds = filter(lambda p: p[0]==attr, robot_attr_map)[0]
+        if attr in ee_rot_attrs:
+            u_inds = np.array([0, 1, 2, 3]) + cur_u_ind
+            cur_u_ind = u_inds[-1] + 1
+            params_to_u_inds[('baxter', attr)] = u_inds
+            continue
+
+        inds = filter(lambda p: p[0]==attr, robot_attr_map)[0][1]
         u_inds = inds + cur_u_ind
         cur_u_ind = u_inds[-1] + 1
         params_to_u_inds[('baxter', attr)] = u_inds

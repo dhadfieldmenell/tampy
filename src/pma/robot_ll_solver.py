@@ -1479,7 +1479,7 @@ class RobotLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
-        if priority == MAX_PRIORITY:
+        if True or priority == MAX_PRIORITY:
             success = success or len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
         self._update_ll_params()
 

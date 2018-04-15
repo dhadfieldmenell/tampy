@@ -208,6 +208,7 @@ class BaxterPolicySolver(RobotLLSolver):
             'image_width': utils.IM_W,
             'image_height': utils.IM_H,
             'image_channels': utils.IM_C,
+            'task_list': self.task_list
         }
 
         alg_map = {}
@@ -226,7 +227,7 @@ class BaxterPolicySolver(RobotLLSolver):
         #     self._update_algorithm(self.config['algorithm']['cost'][-len(x0s):])
         
         self.gps.run()
-        
+
 
     def optimize_against_global(self, plan, a_start=0, a_end=-1, cond=0):
         a_num = a_start

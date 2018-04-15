@@ -60,7 +60,7 @@ class GPSMain(object):
             config['algorithm'][task]['agent'] = self.agent
             config['algorithm'][task]['task_breaks'] = self.agent.task_breaks
             config['algorithm'][task]['init_traj_distr']['T'] = task_durations[task]
-            self.alg_map[task] = config['algorithm'][task]['type'](config['algorithm'][task])
+            self.alg_map[task] = config['algorithm'][task]['type'](config['algorithm'][task], task)
             policy_opt = self.alg_map[task].policy_opt
 
     def run(self, itr_load=None):
@@ -79,23 +79,24 @@ class GPSMain(object):
 
             # self.agent.optimize_trajectories(self.algorithm)
             # self.agent.replace_all_conds()
-            on_policy = True # self.algorithm._hyperparams['sample_on_policy']
+            on_policy = False # self.algorithm._hyperparams['sample_on_policy']
             # traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
             replace_conds = True # self.algorithm._hyperparams['policy_sample_mode'] == 'replace'
             self.agent.init_cost_trajectories(center=on_policy)
 
             for itr in range(itr_start, self._hyperparams['iterations']):
+                additional_samples = 0
+                if self._hyperparams['take_optimal_sample']:
+                    self.agent.sample_optimal_trajectories()
+                    additional_samples = 1
+
                 for cond in self._train_idx:
                     for i in range(self._hyperparams['num_samples']):
                         for task in self.task_list:
                             self._take_sample(itr, cond, i)
 
-                if self._hyperparams['take_optimal_sample']:
-                    self.agent.sample_optimal_trajectories()
-
-
                 traj_sample_lists = {task: [
-                    self.agent.get_samples(cond, task, -self._hyperparams['num_samples'])
+                    self.agent.get_samples(cond, task, -self._hyperparams['num_samples']-additional_samples)
                     for cond in self._train_idx
                 ] for task in self.task_list}
 
