@@ -426,12 +426,15 @@ def main():
             s += "(geom cloth{0}), ".format(i)
             s += "(pose cloth{0} {1}), ".format(i, cloth_init_poses[i])
             s += "(rotation cloth{0} {1}), ".format(i, CLOTH_ROT)
+            s += "(value cloth_target_begin_{0} {1})".format(i, cloth_init_poses[i])
+            s += "(rotation cloth_target_begin_{0} {1})".format(i, [0.0, 0.0, 0.0])
 
         for i in range(NUM_SYMBOLS):
             s += get_undefined_symbol('cloth_target_end_{0}'.format(i))
-            # s += get_undefined_symbol('cloth_target_begin_{0}'.format(i))
-            s += "(value cloth_target_begin_{0} {1})".format(i, cloth_init_poses[i % NUM_CLOTH])
-            s += "(rotation cloth_target_begin_{0} {1})".format(i, [0.0, 0.0, 0.0])
+            if i >= NUM_CLOTH:
+                s += get_undefined_symbol('cloth_target_begin_{0}'.format(i))
+            # s += "(value cloth_target_begin_{0} {1})".format(i, cloth_init_poses[i % NUM_CLOTH])
+            # s += "(rotation cloth_target_begin_{0} {1})".format(i, [0.0, 0.0, 0.0])
 
             s += get_undefined_symbol("cg_ee_{0}".format(i))
             s += get_undefined_symbol("cp_ee_{0}".format(i))
