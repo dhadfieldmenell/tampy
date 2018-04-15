@@ -1,6 +1,7 @@
 """
 Defines utility functions for planning in the sorting domain
 """
+import copy
 import numpy as np
 import random
 
@@ -32,11 +33,11 @@ def get_sorting_problem(cloth_locs, color_map):
         if color_map[cloth][0] == BLUE:
             goal_str += " (ClothAtLeftTarget {0} blue_target)".format(cloth)
         elif color_map[cloth][0] == WHITE:
-            goal_str += " (ClothAtLeftTarget {0} white_target)".format(cloth)
+            goal_str += " (ClothAtRightTarget {0} white_target)".format(cloth)
         elif color_map[cloth][0] == YELLOW:
             goal_str += " (ClothAtRightTarget {0} yellow_target)".format(cloth)
         elif color_map[cloth][0] == GREEN:
-            goal_str += " (ClothAtRightTarget {0} green_target)".format(cloth)
+            goal_str += " (ClothAtLeftTarget {0} green_target)".format(cloth)
     goal_str += " (BasketAtTarget basket_start_target) "
     goal_str += "))\n"
 
@@ -54,13 +55,13 @@ def parse_initial_state(cloth_locs):
         else:
             hl_init_state += " (ClothInRightRegion Cloth{0})".format(i)
 
-        for target in ['blue_target', 'white_target']:
+        for target in ['blue_target', 'green_target']:
             if np.all(np.abs(np.array(targets[target]) - loc) < 0.03):
                 hl_init_state += " (ClothAtLeftTarget Cloth{0} {1})".format(i, target)
             else:
                 hl_init_state += " (not (ClothAtLeftTarget Cloth{0} {1}))".format(i, target)
         
-        for target in ['green_target', 'yellow_target']:
+        for target in ['white_target', 'yellow_target']:
             if np.all(np.abs(np.array(targets[target]) - loc) < 0.03):
                 hl_init_state += " (ClothAtRightTarget Cloth{0} {1})".format(i, target)
             else:
@@ -75,25 +76,33 @@ def get_hl_plan(prob):
     hl_solver = FFSolver(abs_domain=domain)
     return hl_solver._run_planner(domain, prob)
 
-def get_ll_plan_str(hl_plan):
+def get_ll_plan_str(hl_plan, num_cloths):
     tasks = get_tasks('policy_hooks/sorting_task_mapping')
     ll_plan_str = []
     actions_per_task = []
+    last_pose = "ROBOT_INIT_POSE"
+    used_starts = set()
     for i in range(len(hl_plan)):
         action = hl_plan[i]
         act_params = action.split()
-        next_task_str = tasks[act_params[1].lower()]
+        next_task_str = copy.deepcopy(tasks[act_params[1].lower()])
         cloth = act_params[2].lower()
-        target = "blue_target"
+        target = "BLUE_TARGET"
         if len(act_params) > 3:
-            target = act_params[3]
-        region = "left_region"
+            target = act_params[3].upper()
+        region_target = "LEFT_CLOTH_TARGET_{0}".format(i % 5)
         if act_params[1].lower() == "move_cloth_to_right_region":
-            region = "right_region"
+            region_target = "RIGHT_CLOTH_TARGET_{0}".format(i % 5)
+        if int(cloth[-1]) in used_starts:
+            start = int(cloth[-1]) + num_cloths
+        else:
+            start = int(cloth[-1])
+            used_starts.add(start)
         for j in range(len(next_task_str)):
-            next_task_str[j]= next_task_str[j].format(cloth[-1], target, region, i)
+            next_task_str[j]= next_task_str[j].format(cloth[-1], target, region_target, i, last_pose, start)
         ll_plan_str.extend(next_task_str)
         actions_per_task.append((len(next_task_str), action))
+        last_pose = "CLOTH_PUTDOWN_END_{0}".format(i)
     return ll_plan_str, actions_per_task
 
 def get_plan(num_cloths):
@@ -102,7 +111,7 @@ def get_plan(num_cloths):
     cloth_locs = get_random_initial_cloth_locations(num_cloths)
     prob, goal_str = get_sorting_problem(cloth_locs, color_map)
     hl_plan = get_hl_plan(prob)
-    ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan)
+    ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan, num_cloths)
     plan = plan_from_str(ll_plan_str, num_cloths)
     for i in range(len(cloth_locs)):
         plan.params['cloth{0}'.format(i)].pose[:,0] = cloth_locs[i]

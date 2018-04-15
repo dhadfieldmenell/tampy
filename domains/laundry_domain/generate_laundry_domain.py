@@ -324,6 +324,7 @@ class MoveHoldingCloth(Action):
                 (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
@@ -398,6 +399,7 @@ class MoveHoldingClothRight(Action):
                 (not (BaxterCollidesWasher ?robot ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Basket)\
                 (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(forall (?obs - Washer) (BaxterStationaryWasher ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obs - Washer) (BaxterStationaryWasherDoor ?obs))', '0:{}'.format(end-1)),
@@ -1010,6 +1012,7 @@ class ClothGrasp(Action):
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  end)),
             ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(0, grasp_time-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
             )', '0:{}'.format(end-1)),
@@ -1028,7 +1031,7 @@ class ClothGrasp(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -1175,6 +1178,7 @@ class ClothGraspRight(Action):
             ('(BaxterOpenGripperRight ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperRight ?robot)', '{}:{}'.format(grasp_time,  end)),
             ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(0, grasp_time-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
             )', '0:{}'.format(end-1)),
@@ -1193,7 +1197,7 @@ class ClothGraspRight(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            # ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -1240,6 +1244,7 @@ class ClothPutdown(Action):
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
@@ -1281,13 +1286,14 @@ class ClothPutdownInRegionLeft(Action):
         retreat_time = end-5
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
-            ('(BaxterClothTargetAtRegion ?target ?region)', '0:0'),
+            ('(BaxterClothTargetAtRegion ?target ?region)', '1:1'),
             ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(0, putdown_time)),
             ('(BaxterClothGraspValid ?ee_left ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(putdown_time,  end)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(0,  putdown_time-1)),
             ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(putdown_time, end-1)),
+            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
             )', '0:{}'.format(end-1)),
@@ -1298,6 +1304,7 @@ class ClothPutdownInRegionLeft(Action):
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
@@ -1317,7 +1324,6 @@ class ClothPutdownInRegionLeft(Action):
             )', '{}:{}'.format(0, end))
         ]
         self.eff = [\
-            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end-1)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end)),
@@ -1339,13 +1345,14 @@ class ClothPutdownInRegionRight(Action):
         retreat_time = end-5
         self.pre = [\
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
-            ('(BaxterClothTargetAtRegion ?target ?region)', '0:0'),
+            ('(BaxterClothTargetAtRegion ?target ?region)', '1:1'),
             ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterClothInGripperRight ?robot ?cloth)', '{}:{}'.format(0, putdown_time)),
             ('(BaxterClothGraspValid ?ee_right ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(BaxterOpenGripperRight ?robot)', '{}:{}'.format(putdown_time,  end)),
             ('(BaxterCloseGripperRight ?robot)', '{}:{}'.format(0,  putdown_time-1)),
             ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(putdown_time, end-1)),
+            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(putdown_time, putdown_time)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
             )', '0:{}'.format(end-1)),
@@ -1356,6 +1363,7 @@ class ClothPutdownInRegionRight(Action):
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),
@@ -1375,7 +1383,6 @@ class ClothPutdownInRegionRight(Action):
             )', '{}:{}'.format(0, end))
         ]
         self.eff = [\
-            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end-1)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(not (BaxterClothInGripperRight ?robot ?cloth))', '{}:{}'.format(end, end)),
@@ -1413,6 +1420,7 @@ class ClothPutdownRight(Action):
             ('(forall (?obs - Obstacle)\
                 (BaxterStationaryW ?obs)\
             )', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
             ('(BaxterIsMP ?robot)', '0:{}'.format(end-1)),
             ('(BaxterWithinJointLimit ?robot)', '0:{}'.format(end)),

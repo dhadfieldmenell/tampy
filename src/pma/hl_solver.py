@@ -276,7 +276,8 @@ class FFSolver(HLSolver):
                     else:
                         # handle universally quantified params by creating a valuation for each possibility
                         p_type = a_schema.universally_quantified_params[a]
-                        arg_names_of_type = [k for k, v in params.items() if v.get_type() == p_type]
+                        bound_names = [bindings[key][0] for key in bindings]
+                        arg_names_of_type = [k for k, v in params.items() if v.get_type() == p_type and k not in bound_names]
                         arg_valuations = [val + [(name, p_type)] for name in arg_names_of_type for val in arg_valuations]
                 for val in arg_valuations:
                     val, types = zip(*val)

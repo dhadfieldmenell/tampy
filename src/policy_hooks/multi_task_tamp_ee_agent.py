@@ -170,7 +170,7 @@ class LaundryWorldEEAgent(Agent):
             elif param._type == 'Basket':
                 x, y, z = param.pose[:, active_ts[0]]
                 yaw, pitch, roll = param.rotation[:, active_ts[0]]
-                basket_body = xml.SubElement(worldbody, 'body', {'name':param.name, 'pos':"{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET), 'euler':'{} {} {}'.format(pitch, roll, yaw)})
+                basket_body = xml.SubElement(worldbody, 'body', {'name':param.name, 'pos':"{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET), 'euler':'{} {} {}'.format(roll, pitch, yaw)})
                 basket_intertial = xml.SubElement(basket_body, 'inertial', {'pos':"0 0 0", 'mass':"0.1", 'diaginertia':"2 1 1"})
                 basket_geom = xml.SubElement(basket_body, 'geom', {'name':param.name, 'type':'mesh', 'mesh': "laundry_basket"})
 
@@ -721,8 +721,8 @@ class LaundryWorldEEAgent(Agent):
 
 
     def set_cost_trajectories(self, init_t, final_t, m, center=False):
-        tgt_x = np.zeros((self.T, self.symbolic_bound))
-        tgt_u = np.zeros((self.T, self.dU))
+        tgt_x = np.zeros((final_t-init_t, self.symbolic_bound))
+        tgt_u = np.zeros((final_t-init_t, self.dU))
 
         if utils.POLICY_STEPS_PER_SECOND < 1:
             for t in range(0, final_t-init_t, int(1/utils.POLICY_STEPS_PER_SECOND)):

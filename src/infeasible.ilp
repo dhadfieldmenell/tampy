@@ -1,12 +1,12 @@
 Minimize
-  + 308.9926461407128 Constant
+  + 217.1998481904004 Constant
 Subject To
- R100: (basket-rotation-(0,_0)) = 0.7853981633974483
- R106: (basket_near_target-rotation-(0,_0)) = 2.094395102393195
- R1169: (basket_near_target-rotation-(0,_0)) - (basket-rotation-(0,_0))
+ R171: (cloth_target_begin_2-value-(2,_0)) = 0.655
+ R669: (cloth2-pose-(2,_0)) = 0.6539625794474178
+ R798: - (cloth2-pose-(2,_0)) + (cloth_target_begin_2-value-(2,_0))
    <= 0.001
 Bounds
- (basket_near_target-rotation-(0,_0)) free
- (basket-rotation-(0,_0)) free
+ (cloth2-pose-(2,_0)) free
+ (cloth_target_begin_2-value-(2,_0)) free
  Constant = 1
 End

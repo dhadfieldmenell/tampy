@@ -99,14 +99,12 @@ class BaxterClothTargetAtRegion(ExprPredicate):
         attr_inds = OrderedDict([(self.obj, [("value", np.array([0,1], dtype=np.int))]),
                                  (self.target, [("value", np.array([0,1], dtype=np.int))])])
 
-        A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
-        b, val = np.zeros((6, 1)), np.ones((6, 1))
-        val[0] = 0.07
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b, val = np.zeros((4, 1)), np.ones((4, 1))
+        val[0] = 0.1
         val[1] = 0.03
-        val[2] = 0.001
-        val[3] = 0.07
-        val[4] = 0.03
-        val[5] = 0.001
+        val[2] = 0.1
+        val[3] = 0.03
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
 

@@ -18,8 +18,8 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_clo
 # init Baxter pose
 BAXTER_INIT_POSE = [np.pi/4]
 BAXTER_END_POSE = [np.pi/4]
-R_ARM_INIT = [-np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
-L_ARM_INIT = [np.pi/4, -np.pi/4, 0, 0, 0, 0, 0]
+R_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
+L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
 INT_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
 
@@ -147,15 +147,15 @@ CLOTH_FOLD_FINAL_FOLD_RARM_END = [0.1, 0.02054086, 0.87543503, 0.82736412, 0.024
 
 # init basket pose
 BASKET_NEAR_POS = utils.basket_near_pos.tolist()
-BASKET_FAR_POS = utils.basket_far_pos.tolist()
+BASKET_FAR_POS = [-2, 0, 1] # utils.basket_far_pos.tolist()
 BASKET_NEAR_ROT = utils.basket_near_rot.tolist()
 BASKET_FAR_ROT = utils.basket_far_rot.tolist()
 
 CLOTH_ROT = [0, 0, 0]
 
-TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
+TABLE_GEOM = [1.4, 1.4, 0.97/2]
 # TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375]
-TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375]
+TABLE_POS = [0, 0, 0.97/2-0.375]
 TABLE_ROT = [0,0,0]
 
 WALL_GEOM = [0.03, 0.25, 0.5]
@@ -170,7 +170,7 @@ WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
 # WASHER_INIT_POS = [0.19, 1.37, 0.97-0.375+0.65/2+0.015]
 # WASHER_INIT_POS = [0.2, 1.37, 0.97-0.375+0.65/2+0.05] # true height
-WASHER_INIT_POS = [0.29, 1.37, 0.97-0.375+0.65/2+0.03]
+WASHER_INIT_POS = [1, 1, 0]
 # WASHER_INIT_POS = [0.27, 1.37, 0.97-0.375+0.65/2+0.05] # true height
 # WASHER_INIT_POS = [0.24, 1.4, 0.97-0.375+0.65/2+0.015]
 # WASHER_INIT_ROT = [5*np.pi/6,0,0]
@@ -229,13 +229,25 @@ CLOTH_FOLD_TABLE_TARGET_2_ROT = [0, 0, -np.pi/2]
 CLOTH_FOLD_TABLE_TARGET_3_POSE = [0.9, 0.02, 0.65]
 CLOTH_FOLD_TABLE_TARGET_3_ROT = [0, 0, -np.pi/2]
 
-LEFT_REGION = [0.7, 0.1]
-RIGHT_REGION = [0.7, -0.1]
+LEFT_REGION = [0.65, 0.1]
+RIGHT_REGION = [0.65, -0.1]
 
 BLUE_TARGET_POSE = targets['blue_target']
 GREEN_TARGET_POSE = targets['green_target']
 YELLOW_TARGET_POSE = targets['yellow_target']
 WHITE_TARGET_POSE = targets['white_target']
+
+LEFT_CLOTH_TARGET_0_POSE = [0.55, 0.1, 0.655]
+LEFT_CLOTH_TARGET_1_POSE = [0.58, 0.1, 0.655]
+LEFT_CLOTH_TARGET_2_POSE = [0.61, 0.1, 0.655]
+LEFT_CLOTH_TARGET_3_POSE = [0.64, 0.1, 0.655]
+LEFT_CLOTH_TARGET_4_POSE = [0.67, 0.1, 0.655]
+
+RIGHT_CLOTH_TARGET_0_POSE = [0.55, -0.1, 0.655]
+RIGHT_CLOTH_TARGET_1_POSE = [0.58, -0.1, 0.655]
+RIGHT_CLOTH_TARGET_2_POSE = [0.61, -0.1, 0.655]
+RIGHT_CLOTH_TARGET_3_POSE = [0.64, -0.1, 0.655]
+RIGHT_CLOTH_TARGET_4_POSE = [0.67, -0.1, 0.655]
 
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
@@ -372,7 +384,6 @@ def main():
         # s += "RobotPose (name {}); ".format("fold_scan_two_corner")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
-        s += "Obstacle (name {}); ".format("wall")
         s += "BasketTarget (name {}); ".format("basket_near_target")
         s += "BasketTarget (name {}); ".format("basket_far_target")
         s += "EEPose (name {}); ".format("put_into_washer_ee_1")
@@ -391,6 +402,16 @@ def main():
         s += "ClothTarget (name {}); ".format("green_target")
         s += "ClothTarget (name {}); ".format("yellow_target")
         s += "ClothTarget (name {}); ".format("white_target")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_0")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_1")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_2")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_3")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_4")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_0")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_1")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_2")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_3")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_4")
         s += "Can (name {}); ".format("cloth_long_edge")
         s += "Can (name {}); ".format("cloth_short_edge")
         s += "Region (name {}); ".format("left_region")
@@ -542,6 +563,27 @@ def main():
         s += "(value white_target {}), ".format(WHITE_TARGET_POSE)
         s += "(rotation white_target {}), ".format(CLOTH_ROT)
 
+        s += "(value left_cloth_target_0 {}), ".format(LEFT_CLOTH_TARGET_0_POSE)
+        s += "(rotation left_cloth_target_0 {}), ".format(CLOTH_ROT)
+        s += "(value left_cloth_target_1 {}), ".format(LEFT_CLOTH_TARGET_1_POSE)
+        s += "(rotation left_cloth_target_1 {}), ".format(CLOTH_ROT)
+        s += "(value left_cloth_target_2 {}), ".format(LEFT_CLOTH_TARGET_2_POSE)
+        s += "(rotation left_cloth_target_2 {}), ".format(CLOTH_ROT)
+        s += "(value left_cloth_target_3 {}), ".format(LEFT_CLOTH_TARGET_3_POSE)
+        s += "(rotation left_cloth_target_3 {}), ".format(CLOTH_ROT)
+        s += "(value left_cloth_target_4 {}), ".format(LEFT_CLOTH_TARGET_4_POSE)
+        s += "(rotation left_cloth_target_4 {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_0 {}), ".format(RIGHT_CLOTH_TARGET_0_POSE)
+        s += "(rotation right_cloth_target_0 {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_1 {}), ".format(RIGHT_CLOTH_TARGET_1_POSE)
+        s += "(rotation right_cloth_target_1 {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_2 {}), ".format(RIGHT_CLOTH_TARGET_2_POSE)
+        s += "(rotation right_cloth_target_2 {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_3 {}), ".format(RIGHT_CLOTH_TARGET_3_POSE)
+        s += "(rotation right_cloth_target_3 {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_4 {}), ".format(RIGHT_CLOTH_TARGET_4_POSE)
+        s += "(rotation right_cloth_target_4 {}), ".format(CLOTH_ROT)
+
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_INIT_POS)
         s += "(rotation washer {}), ".format(WASHER_INIT_ROT)
@@ -561,10 +603,6 @@ def main():
 
         s += "(value left_region {}), ".format(LEFT_REGION)
         s += "(value right_region {}), ".format(RIGHT_REGION)
-
-        s += "(geom wall {}), ".format(WALL_GEOM)
-        s += "(pose wall {}), ".format(WALL_POS)
-        s += "(rotation wall {}), ".format(WALL_ROT)
 
         s += "(geom basket_near_target), "
         s += "(value basket_near_target {}), ".format(BASKET_NEAR_POS)
