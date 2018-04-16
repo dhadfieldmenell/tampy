@@ -69,7 +69,7 @@ class BaxterPolicySolver(RobotLLSolver):
         if hyperparams and self.config:
             self.config.update(hyperparams)
 
-        self.task_list = get_tasks('policy_hooks/sorting_task_mapping').keys()
+        self.task_list = get_tasks('policy_hooks/sorting_task_mapping_2').keys()
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
 

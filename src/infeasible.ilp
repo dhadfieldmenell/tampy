@@ -1,12 +1,12 @@
 Minimize
-  + 217.1998481904004 Constant
+  + 130.137933377794 Constant
 Subject To
- R171: (cloth_target_begin_2-value-(2,_0)) = 0.655
- R669: (cloth2-pose-(2,_0)) = 0.6539625794474178
- R798: - (cloth2-pose-(2,_0)) + (cloth_target_begin_2-value-(2,_0))
-   <= 0.001
+ R191: (cloth0-pose-(1,_0)) = -0.15
+ R324: (right_cloth_target_0_off-value-(1,_0)) = -0.1
+ R661: (right_cloth_target_0_off-value-(1,_0)) - (cloth0-pose-(1,_0))
+   <= 0.01
 Bounds
- (cloth2-pose-(2,_0)) free
- (cloth_target_begin_2-value-(2,_0)) free
+ (right_cloth_target_0_off-value-(1,_0)) free
+ (cloth0-pose-(1,_0)) free
  Constant = 1
 End

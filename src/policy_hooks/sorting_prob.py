@@ -11,10 +11,10 @@ from policy_hooks.cloth_locs import cloth_locs as possible_cloth_locs
 from policy_hooks.load_task_definitions import get_tasks, plan_from_str
 
 targets = {
-            'blue_target': [0.7, 0.9, 0.65],
+            'blue_target': [0.65, 0.85, 0.65],
             'green_target': [0.3, 0.9, 0.65],
             'yellow_target': [0.3, -0.9, 0.65],
-            'white_target': [0.7, -0.9, 0.65],
+            'white_target': [0.65, -0.85, 0.65],
           }
 
 ## Uncomment these two functions for more general tasks (use with sorting_domain and sorting_task_mapping)
@@ -76,7 +76,7 @@ def get_sorting_problem(cloth_locs, color_map):
     hl_plan_str = "(define (problem sorting_problem)\n"
     hl_plan_str += "(:domain sorting_domain)\n"
 
-    hl_plan_str += "(:objectst"
+    hl_plan_str += "(:objects"
     for cloth in color_map:
         hl_plan_str += " {0}".format(cloth)
     hl_plan_str += ")\n"
@@ -111,23 +111,15 @@ def parse_initial_state(cloth_locs):
 
         if np.all(np.abs(np.array(targets['blue_target']) - loc) < 0.03):
             hl_init_state += " (ClothAtBlueTarget Cloth{0})".format(i)
-        else:
-            hl_init_state += " (not (ClothAtBlueTarget Cloth{0}))".format(i)
         
         if np.all(np.abs(np.array(targets['green_target']) - loc) < 0.03):
             hl_init_state += " (ClothAtGreenTarget Cloth{0})".format(i)
-        else:
-            hl_init_state += " (not (ClothAtGreenTarget Cloth{0}))".format(i)
         
         if np.all(np.abs(np.array(targets['yellow_target']) - loc) < 0.03):
             hl_init_state += " (ClothAtYellowTarget Cloth{0})".format(i)
-        else:
-            hl_init_state += " (not (ClothAtYellowTarget Cloth{0}))".format(i)
         
         if np.all(np.abs(np.array(targets['white_target']) - loc) < 0.03):
             hl_init_state += " (ClothAtWhiteTarget Cloth{0})".format(i)
-        else:
-            hl_init_state += " (not (ClothAtWhiteTarget Cloth{0}))".format(i)
         
     hl_init_state += ")\n"
     return hl_init_state
@@ -143,25 +135,28 @@ def get_ll_plan_str(hl_plan, num_cloths):
     ll_plan_str = []
     actions_per_task = []
     last_pose = "ROBOT_INIT_POSE"
-    used_starts = set()
+    region_targets = {}
     for i in range(len(hl_plan)):
         action = hl_plan[i]
         act_params = action.split()
         next_task_str = copy.deepcopy(tasks[act_params[1].lower()])
         cloth = act_params[2].lower()
+        if cloth in region_targets:
+            final_target = region_targets[cloth] + "_OFF"
+        else:
+            final_target = "CLOTH_TARGET_BEGIN_{0}".format(cloth[-1])
         target = "BLUE_TARGET"
         if len(act_params) > 3:
             target = act_params[3].upper()
         region_target = "LEFT_CLOTH_TARGET_{0}".format(i % 5)
         if act_params[1].lower() == "move_cloth_to_right_region":
             region_target = "RIGHT_CLOTH_TARGET_{0}".format(i % 5)
-        if int(cloth[-1]) in used_starts:
-            start = int(cloth[-1]) + num_cloths
-        else:
-            start = int(cloth[-1])
-            used_starts.add(start)
+
+        if act_params[1].lower() in ["move_cloth_to_right_region", "move_cloth_to_left_region"]:
+            region_targets[cloth] = region_target
+
         for j in range(len(next_task_str)):
-            next_task_str[j]= next_task_str[j].format(cloth[-1], target, region_target, i, last_pose, start)
+            next_task_str[j]= next_task_str[j].format(cloth[-1], target, region_target, i, last_pose, final_target)
         ll_plan_str.extend(next_task_str)
         actions_per_task.append((len(next_task_str), act_params[1].lower()))
         last_pose = "CLOTH_PUTDOWN_END_{0}".format(i)
@@ -237,6 +232,6 @@ def get_random_initial_cloth_locations(num_cloths):
     locs = []
     for _ in range(num_cloths):
         locs.append(random.choice(possible_cloth_locs))
-        locs[-1][1] *= random.choice([-1, 1])
+        # locs[-1][1] *= random.choice([-1, 1])
 
     return locs

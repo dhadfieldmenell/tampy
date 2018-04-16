@@ -237,17 +237,29 @@ GREEN_TARGET_POSE = targets['green_target']
 YELLOW_TARGET_POSE = targets['yellow_target']
 WHITE_TARGET_POSE = targets['white_target']
 
-LEFT_CLOTH_TARGET_0_POSE = [0.55, 0.1, 0.655]
-LEFT_CLOTH_TARGET_1_POSE = [0.58, 0.1, 0.655]
-LEFT_CLOTH_TARGET_2_POSE = [0.61, 0.1, 0.655]
-LEFT_CLOTH_TARGET_3_POSE = [0.64, 0.1, 0.655]
-LEFT_CLOTH_TARGET_4_POSE = [0.67, 0.1, 0.655]
+LEFT_CLOTH_TARGET_0_POSE = [0.55, 0.2, 0.655]
+LEFT_CLOTH_TARGET_1_POSE = [0.58, 0.2, 0.655]
+LEFT_CLOTH_TARGET_2_POSE = [0.61, 0.2, 0.655]
+LEFT_CLOTH_TARGET_3_POSE = [0.64, 0.2, 0.655]
+LEFT_CLOTH_TARGET_4_POSE = [0.67, 0.2, 0.655]
 
-RIGHT_CLOTH_TARGET_0_POSE = [0.55, -0.1, 0.655]
-RIGHT_CLOTH_TARGET_1_POSE = [0.58, -0.1, 0.655]
-RIGHT_CLOTH_TARGET_2_POSE = [0.61, -0.1, 0.655]
-RIGHT_CLOTH_TARGET_3_POSE = [0.64, -0.1, 0.655]
-RIGHT_CLOTH_TARGET_4_POSE = [0.67, -0.1, 0.655]
+RIGHT_CLOTH_TARGET_0_POSE = [0.55, -0.2, 0.655]
+RIGHT_CLOTH_TARGET_1_POSE = [0.58, -0.2, 0.655]
+RIGHT_CLOTH_TARGET_2_POSE = [0.61, -0.2, 0.655]
+RIGHT_CLOTH_TARGET_3_POSE = [0.64, -0.2, 0.655]
+RIGHT_CLOTH_TARGET_4_POSE = [0.67, -0.2, 0.655]
+
+LEFT_CLOTH_TARGET_OFF_0_POSE = [0.55, -0.2, 0.655]
+LEFT_CLOTH_TARGET_OFF_1_POSE = [0.58, -0.2, 0.655]
+LEFT_CLOTH_TARGET_OFF_2_POSE = [0.61, -0.2, 0.655]
+LEFT_CLOTH_TARGET_OFF_3_POSE = [0.64, -0.2, 0.655]
+LEFT_CLOTH_TARGET_OFF_4_POSE = [0.67, -0.2, 0.655]
+
+RIGHT_CLOTH_TARGET_OFF_0_POSE = [0.55, 0.2, 0.655]
+RIGHT_CLOTH_TARGET_OFF_1_POSE = [0.58, 0.2, 0.655]
+RIGHT_CLOTH_TARGET_OFF_2_POSE = [0.61, 0.2, 0.655]
+RIGHT_CLOTH_TARGET_OFF_3_POSE = [0.64, 0.2, 0.655]
+RIGHT_CLOTH_TARGET_OFF_4_POSE = [0.67, 0.2, 0.655]
 
 def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):
     s = ""
@@ -412,6 +424,16 @@ def main():
         s += "ClothTarget (name {}); ".format("right_cloth_target_2")
         s += "ClothTarget (name {}); ".format("right_cloth_target_3")
         s += "ClothTarget (name {}); ".format("right_cloth_target_4")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_0_off")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_1_off")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_2_off")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_3_off")
+        s += "ClothTarget (name {}); ".format("left_cloth_target_4_off")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_0_off")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_1_off")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_2_off")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_3_off")
+        s += "ClothTarget (name {}); ".format("right_cloth_target_4_off")
         s += "Can (name {}); ".format("cloth_long_edge")
         s += "Can (name {}); ".format("cloth_short_edge")
         s += "Region (name {}); ".format("left_region")
@@ -586,6 +608,27 @@ def main():
         s += "(rotation right_cloth_target_3 {}), ".format(CLOTH_ROT)
         s += "(value right_cloth_target_4 {}), ".format(RIGHT_CLOTH_TARGET_4_POSE)
         s += "(rotation right_cloth_target_4 {}), ".format(CLOTH_ROT)
+
+        s += "(value left_cloth_target_0_off {}), ".format(LEFT_CLOTH_TARGET_OFF_0_POSE)
+        s += "(rotation left_cloth_target_0_off {}), ".format(CLOTH_ROT)
+        s += "(value left_cloth_target_1_off {}), ".format(LEFT_CLOTH_TARGET_OFF_1_POSE)
+        s += "(rotation left_cloth_target_1_off {}), ".format(CLOTH_ROT)
+        s += "(value left_cloth_target_2_off {}), ".format(LEFT_CLOTH_TARGET_OFF_2_POSE)
+        s += "(rotation left_cloth_target_2_off {}), ".format(CLOTH_ROT)
+        s += "(value left_cloth_target_3_off {}), ".format(LEFT_CLOTH_TARGET_OFF_3_POSE)
+        s += "(rotation left_cloth_target_3_off {}), ".format(CLOTH_ROT)
+        s += "(value left_cloth_target_4_off {}), ".format(LEFT_CLOTH_TARGET_OFF_4_POSE)
+        s += "(rotation left_cloth_target_4_off {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_0_off {}), ".format(RIGHT_CLOTH_TARGET_OFF_0_POSE)
+        s += "(rotation right_cloth_target_0_off {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_1_off {}), ".format(RIGHT_CLOTH_TARGET_OFF_1_POSE)
+        s += "(rotation right_cloth_target_1_off {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_2_off {}), ".format(RIGHT_CLOTH_TARGET_OFF_2_POSE)
+        s += "(rotation right_cloth_target_2_off {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_3_off {}), ".format(RIGHT_CLOTH_TARGET_OFF_3_POSE)
+        s += "(rotation right_cloth_target_3_off {}), ".format(CLOTH_ROT)
+        s += "(value right_cloth_target_4_off {}), ".format(RIGHT_CLOTH_TARGET_OFF_4_POSE)
+        s += "(rotation right_cloth_target_4_off {}), ".format(CLOTH_ROT)
 
         s += "(geom washer {}), ".format(WASHER_CONFIG)
         s += "(pose washer {}), ".format(WASHER_INIT_POS)

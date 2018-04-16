@@ -299,9 +299,11 @@
                 </body>
             </body>
         </body>
-    <body euler="0 0 0" name="cloth0" pos="0.2 0.7 -0.081"><geom friction="1 1 1" name="cloth0" rgba="1 1 1 1" size="0.05" type="sphere" /><inertial diaginertia="0.01 0.01 0.01" mass="0.1" pos="0 0 0" quat="0 0 0 1" /></body><body euler="0 0 0" name="table" pos="0.0 0.0 -0.626"><geom name="table" size="1.4 1.4 0.485" type="box" /></body><body euler="1.57079632679 0.0 0.785398163397" name="basket" pos="-2.0 0.0 0.264"><inertial diaginertia="2 1 1" mass="0.1" pos="0 0 0" /><geom mesh="laundry_basket" name="basket" type="mesh" /><body euler="0 0 0" name="basket_left_handle" pos="0.317 0 0"><geom size="0.01" type="sphere" /></body><body euler="0 0 0" name="basket_right_handle" pos="-0.317 0 0"><geom size="0.01" type="sphere" /></body></body></worldbody>
+    <body euler="0 0 0" name="cloth0" pos="0.63 0.5 -0.081"><geom friction="1 1 1" name="cloth0" rgba="1 1 1 1" size="0.05" type="sphere" /><inertial diaginertia="0.01 0.01 0.01" mass="0.1" pos="0 0 0" quat="0 0 0 1" /></body><body euler="0 0 0" name="table" pos="0.0 0.0 -0.626"><geom name="table" size="1.4 1.4 0.485" type="box" /></body><body euler="1.57079632679 0.0 0.785398163397" name="basket" pos="-2.0 0.0 0.264"><inertial diaginertia="2 1 1" mass="0.1" pos="0 0 0" /><geom mesh="laundry_basket" name="basket" type="mesh" /><body euler="0 0 0" name="basket_left_handle" pos="0.317 0 0"><geom size="0.01" type="sphere" /></body><body euler="0 0 0" name="basket_right_handle" pos="-0.317 0 0"><geom size="0.01" type="sphere" /></body></body></worldbody>
 
 
+
+    
 
     
 
@@ -310,20 +312,20 @@
     
 
     <actuator>
-        <position gear="1 0 0 0 0 0" joint="right_s0" kp="715" />
+        <position gear="1 0 0 0 0 0" joint="right_s0" kp="815" />
         <position gear="1 0 0 0 0 0" joint="right_s1" kp="630" />
-        <position gear="1 0 0 0 0 0" joint="right_e0" kp="355" />
-        <position gear="1 0 0 0 0 0" joint="right_e1" kp="280" />
+        <position gear="1 0 0 0 0 0" joint="right_e0" kp="555" />
+        <position gear="1 0 0 0 0 0" joint="right_e1" kp="480" />
         <position joint="right_w0" kp="250" />
         <position joint="right_w1" kp="375" />
         <position joint="right_w2" kp="100" />
         <position joint="right_gripper_l_finger_joint" kp="50" />
         <position joint="right_gripper_r_finger_joint" kp="50" />
         
-        <position gear="1 0 0 0 0 0" joint="left_s0" kp="715" />
+        <position gear="1 0 0 0 0 0" joint="left_s0" kp="815" />
         <position gear="1 0 0 0 0 0" joint="left_s1" kp="630" />
-        <position gear="1 0 0 0 0 0" joint="left_e0" kp="355" />
-        <position gear="1 0 0 0 0 0" joint="left_e1" kp="280" />
+        <position gear="1 0 0 0 0 0" joint="left_e0" kp="555" />
+        <position gear="1 0 0 0 0 0" joint="left_e1" kp="480" />
         <position joint="left_w0" kp="250" />
         <position joint="left_w1" kp="375" />
         <position joint="left_w2" kp="100" />

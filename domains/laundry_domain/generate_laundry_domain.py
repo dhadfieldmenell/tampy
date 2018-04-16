@@ -1004,14 +1004,14 @@ class ClothGrasp(Action):
         approach_time = 5
         retreat_time = end-5
         self.pre = [\
-            ('(BaxterClothAt ?cloth ?target)', '0:0'),
+            ('(BaxterClothAt ?cloth ?target)', '1:1'),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(grasp_time, end)),
             ('(BaxterClothGraspValid ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  end)),
-            ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(0, grasp_time-1)),
+            ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(1, grasp_time-1)),
             ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
@@ -1170,14 +1170,14 @@ class ClothGraspRight(Action):
         approach_time = 5
         retreat_time = end-5
         self.pre = [\
-            ('(BaxterClothAt ?cloth ?target)', '0:0'),
+            ('(BaxterClothAt ?cloth ?target)', '1:1'),
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterClothInGripperRight ?robot ?cloth)', '{}:{}'.format(grasp_time, end)),
             ('(BaxterClothGraspValid ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGripperRight ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperRight ?robot)', '{}:{}'.format(grasp_time,  end)),
-            ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(0, grasp_time-1)),
+            ('(BaxterStationaryCloth ?cloth)', '{}:{}'.format(1, grasp_time-1)),
             ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
             ('(forall (?obj - Basket) \
                 (BaxterStationary ?obj)\
