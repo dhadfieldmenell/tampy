@@ -366,7 +366,7 @@ class BaxterClothGraspValid(ExprPredicate):
 
         self.attr_dim = 5
         A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
-        b, val = np.array([[0,0,0,-np.pi/2,-np.pi/2]]).T, np.zeros((self.attr_dim,1))
+        b, val = np.array([[0,0,0,0,-np.pi/2]]).T, np.zeros((self.attr_dim,1))
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(BaxterClothGraspValid, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)

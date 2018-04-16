@@ -628,6 +628,8 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[3].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
+                robot_body.set_dof({'rArmPose': np.zeros((7,))})
+
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0])
                 ee_left = target_pos + random_dir
                 ee_left[2] += 0.2
@@ -646,7 +648,7 @@ class RobotLLSolver(LLSolver):
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
 
                 # TODO once we have the rotor_base we should resample pose
-                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': np.zeros((7,1)), 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
             
             elif next_act != None and next_act.name == 'cloth_grasp_right':
                 target = next_act.params[2]
@@ -660,6 +662,8 @@ class RobotLLSolver(LLSolver):
                     target._free_attrs['rotation'][:] = 0
 
                 # old_pose = next_act.params[3].value[:,0]
+
+                robot_body.set_dof({'lArmPose': np.zeros((7,))})
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0])
@@ -680,7 +684,7 @@ class RobotLLSolver(LLSolver):
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
 
                 # TODO once we have the rotor_base we should resample pose
-                robot_pose.append({'lArmPose': old_l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
+                robot_pose.append({'lArmPose': np.zeros((7,1)), 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
             
             elif next_act != None and (next_act.name == 'cloth_putdown' or next_act.name == 'cloth_putdown_in_region_left'):
                 target = next_act.params[2]

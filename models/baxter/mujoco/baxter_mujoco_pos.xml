@@ -435,34 +435,34 @@
     </actuator> -->
 
     <!-- <actuator>
-        <position kp="675" gear="1 0 0 0 0 0" joint="right_s0"/>
-        <position kp="545" gear="1 0 0 0 0 0" joint="right_s1"/>
-        <position kp="355" gear="1 0 0 0 0 0" joint="right_e0"/>
-        <position kp="250" gear="1 0 0 0 0 0" joint="right_e1"/>
-        <position kp="250" joint="right_w0"/>
-        <position kp="125" joint="right_w1"/>
-        <position kp="100" joint="right_w2"/>
-        <position kp="50" joint="right_gripper_l_finger_joint"/>
-        <position kp="50" joint="right_gripper_r_finger_joint"/>
+        <position kp="1200" gear="2 0 0 0 0 0" joint="right_s0"/>
+        <position kp="1045" gear="2 0 0 0 0 0" joint="right_s1"/>
+        <position kp="600" gear="2 0 0 0 0 0" joint="right_e0"/>
+        <position kp="600" gear="1 0 0 0 0 0" joint="right_e1"/>
+        <position kp="300" gear="1 0 0 0 0 0" joint="right_w0"/>
+        <position kp="200" gear="1 0 0 0 0 0" joint="right_w1"/>
+        <position kp="100" gear="1 0 0 0 0 0" joint="right_w2"/>
+        <position kp="10" joint="right_gripper_l_finger_joint"/>
+        <position kp="10" joint="right_gripper_r_finger_joint"/>
         
-        <position kp="675" gear="1 0 0 0 0 0" joint="left_s0"/>
-        <position kp="545" gear="1 0 0 0 0 0" joint="left_s1"/>
-        <position kp="355" gear="1 0 0 0 0 0" joint="left_e0"/>
-        <position kp="250" gear="1 0 0 0 0 0" joint="left_e1"/>
-        <position kp="250" joint="left_w0"/>
-        <position kp="125" joint="left_w1"/>
-        <position kp="100" joint="left_w2"/>
-        <position kp="50" joint="left_gripper_l_finger_joint"/>
-        <position kp="50" joint="left_gripper_r_finger_joint"/>
+        <position kp="1200" gear="2 0 0 0 0 0" joint="left_s0"/>
+        <position kp="1045" gear="2 0 0 0 0 0" joint="left_s1"/>
+        <position kp="600" gear="2 0 0 0 0 0" joint="left_e0"/>
+        <position kp="600" gear="1 0 0 0 0 0" joint="left_e1"/>
+        <position kp="300" gear="1 0 0 0 0 0" joint="left_w0"/>
+        <position kp="200" gear="1 0 0 0 0 0" joint="left_w1"/>
+        <position kp="100" gear="1 0 0 0 0 0" joint="left_w2"/>
+        <position kp="10" joint="left_gripper_l_finger_joint"/>
+        <position kp="10" joint="left_gripper_r_finger_joint"/>
     </actuator> -->
 
-    <!-- <actuator>
+    <actuator>
         <position kp="715" gear="1 0 0 0 0 0" joint="right_s0"/>
         <position kp="630" gear="1 0 0 0 0 0" joint="right_s1"/>
         <position kp="355" gear="1 0 0 0 0 0" joint="right_e0"/>
         <position kp="280" gear="1 0 0 0 0 0" joint="right_e1"/>
         <position kp="250" joint="right_w0"/>
-        <position kp="175" joint="right_w1"/>
+        <position kp="375" joint="right_w1"/>
         <position kp="100" joint="right_w2"/>
         <position kp="50" joint="right_gripper_l_finger_joint"/>
         <position kp="50" joint="right_gripper_r_finger_joint"/>
@@ -472,31 +472,53 @@
         <position kp="355" gear="1 0 0 0 0 0" joint="left_e0"/>
         <position kp="280" gear="1 0 0 0 0 0" joint="left_e1"/>
         <position kp="250" joint="left_w0"/>
-        <position kp="175" joint="left_w1"/>
+        <position kp="375" joint="left_w1"/>
         <position kp="100" joint="left_w2"/>
         <position kp="50" joint="left_gripper_l_finger_joint"/>
         <position kp="50" joint="left_gripper_r_finger_joint"/>
-    </actuator> -->
+    </actuator>
 
-    <actuator>
+    <!-- <actuator>
         <position kp="715" gear="1 0 0 0 0 0" joint="right_s0"/>
-        <position kp="730" gear="1 0 0 0 0 0" joint="right_s1"/>
+        <position kp="730" gear="2 0 0 0 0 0" joint="right_s1"/>
         <position kp="455" gear="2 0 0 0 0 0" joint="right_e0"/>
         <position kp="280" gear="1 0 0 0 0 0" joint="right_e1"/>
-        <position kp="250" gear="2 0 0 0 0 0" joint="right_w0"/>
+        <position kp="250" joint="right_w0"/>
         <position kp="175" joint="right_w1"/>
         <position kp="100" joint="right_w2"/>
         <position kp="50" joint="right_gripper_l_finger_joint"/>
         <position kp="50" joint="right_gripper_r_finger_joint"/>
         
         <position kp="715" gear="1 0 0 0 0 0" joint="left_s0"/>
-        <position kp="730" gear="1 0 0 0 0 0" joint="left_s1"/>
-        <position kp="455" gear="1 0 0 0 0 0" joint="left_e0"/>
+        <position kp="730" gear="2 0 0 0 0 0" joint="left_s1"/>
+        <position kp="455" gear="2 0 0 0 0 0" joint="left_e0"/>
         <position kp="280" gear="1 0 0 0 0 0" joint="left_e1"/>
         <position kp="250" joint="left_w0"/>
         <position kp="175" joint="left_w1"/>
         <position kp="100" joint="left_w2"/>
         <position kp="50" joint="left_gripper_l_finger_joint"/>
         <position kp="50" joint="left_gripper_r_finger_joint"/>
-    </actuator>
+    </actuator> -->
+
+    <!-- <actuator>
+        <position kp="715" gear="2 0 0 0 0 0" joint="right_s0"/>
+        <position kp="1030" gear="2 0 0 0 0 0" joint="right_s1"/>
+        <position kp="655" gear="2 0 0 0 0 0" joint="right_e0"/>
+        <position kp="980" gear="2 0 0 0 0 0" joint="right_e1"/>
+        <position kp="150" joint="right_w0"/>
+        <position kp="175" joint="right_w1"/>
+        <position kp="100" joint="right_w2"/>
+        <position kp="50" joint="right_gripper_l_finger_joint"/>
+        <position kp="50" joint="right_gripper_r_finger_joint"/>
+        
+        <position kp="715" gear="2 0 0 0 0 0" joint="left_s0"/>
+        <position kp="1030" gear="2 0 0 0 0 0" joint="left_s1"/>
+        <position kp="655" gear="2 0 0 0 0 0" joint="left_e0"/>
+        <position kp="980" gear="2 0 0 0 0 0" joint="left_e1"/>
+        <position kp="250" joint="left_w0"/>
+        <position kp="175" joint="left_w1"/>
+        <position kp="100" joint="left_w2"/>
+        <position kp="50" joint="left_gripper_l_finger_joint"/>
+        <position kp="50" joint="left_gripper_r_finger_joint"/>
+    </actuator> -->
 </mujoco>

@@ -23,6 +23,10 @@ from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
 
 
+class LocalControl:
+    def __init__(self, policy_func):
+        self.act = policy_func
+
 class GPSMain(object):
     """ Main class to run algorithms and experiments. """
     def __init__(self, config, quit_on_end=False):
@@ -54,6 +58,7 @@ class GPSMain(object):
                 if task not in task_durations:
                     task_durations[task] = next_t - cur_t
                 cur_t = next_t
+            self.task_durations = task_durations
         for task in self.task_list:
             if task not in task_durations: continue
             config['algorithm'][task]['policy_opt']['prev'] = policy_opt
@@ -93,7 +98,7 @@ class GPSMain(object):
                 for cond in self._train_idx:
                     for i in range(self._hyperparams['num_samples']):
                         for task in self.task_list:
-                            self._take_sample(itr, cond, i)
+                            if task in self.task_durations: self._take_sample(itr, cond, i, task)
 
                 traj_sample_lists = {task: [
                     self.agent.get_samples(cond, task, -self._hyperparams['num_samples']-additional_samples)
@@ -189,7 +194,7 @@ class GPSMain(object):
                     'Press \'go\' to begin.') % itr_load)
             return itr_load + 1
 
-    def _take_sample(self, itr, cond, i):
+    def _take_sample(self, itr, cond, i, task):
         """
         Collect a sample from the agent.
         Args:
@@ -199,15 +204,28 @@ class GPSMain(object):
         Returns: None
         """
         if self._hyperparams['sample_on_policy'] \
-                and self.iteration_count > 0:
+                and self.alg_map[task].iteration_count > 0:
             pol = self.alg_map[task].policy_opt.task_map
             on_policy = True
         else:
             pol = {}
             for task in self.task_list:
                 pol[task] = {}
-                pol[task]['policy'] = self.alg_map[task].cur[cond].traj_distr
-            on_policy = True
+                if task not in self.task_durations: continue
+                def get_traj_step(task):
+                    def act(x, o, t, noisy):
+                        cur_t = 0
+                        for next_t, cur_task in self.alg_map[task].task_breaks[cond]:
+                            if cur_t <= t and t < next_t:
+                                return self.alg_map[task].cur[cond][cur_t].traj_distr.act(x, o, t, noisy)
+                            else:
+                                cur_t = next_t
+
+                    return act 
+
+                pol[task]['policy'] = LocalControl(get_traj_step(task))
+            on_policy = False
+
         if self.gui:
             self.gui.set_image_overlays(cond)   # Must call for each new cond.
             redo = True

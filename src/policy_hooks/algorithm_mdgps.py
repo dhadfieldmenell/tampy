@@ -302,7 +302,27 @@ class AlgorithmMDGPS(Algorithm):
         Move all 'cur' variables to 'prev', reinitialize 'cur'
         variables, and advance iteration counter.
         """
-        Algorithm._advance_iteration_variables(self)
+        self.iteration_count += 1
+        for m in range(self.M):
+            for ts in self.cur[m]:
+                self.prev[m][ts] = copy.deepcopy(self.cur[m][ts])
+        # TODO: change IterationData to reflect new stuff better
+        for m in range(self.M):
+            for ts in self.cur[m]:
+                self.prev[m][ts].new_traj_distr = self.new_traj_distr[m][ts]
+
+        self.cur = [{} for _ in range(self.M)]
+        for m in range(self.M):
+            for ts in self.prev:
+                self.cur[m][ts] = IterationData()
+                self.cur[m][ts].traj_info = TrajectoryInfo()
+                self.cur[m][ts].traj_info.dynamics = copy.deepcopy(self.prev[m][ts].traj_info.dynamics)
+                self.cur[m][ts].step_mult = self.prev[m][ts].step_mult
+                self.cur[m][ts].eta = self.prev[m][ts].eta
+                self.cur[m][ts].traj_distr = self.new_traj_distr[m][ts]
+        delattr(self, 'new_traj_distr')
+
+
         for m in range(self.M):
             for ts in self.cur[m]:
                 self.cur[m][ts].traj_info.last_kl_step = \

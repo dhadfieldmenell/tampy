@@ -11,10 +11,10 @@ from policy_hooks.cloth_locs import cloth_locs as possible_cloth_locs
 from policy_hooks.load_task_definitions import get_tasks, plan_from_str
 
 targets = {
-            'blue_target': [0.8, 0.5, 0.65],
-            'green_target': [0.4, 0.9, 0.65],
-            'yellow_target': [0.4, -0.9, 0.65],
-            'white_target': [0.8, -0.5, 0.65],
+            'blue_target': [0.7, 0.9, 0.65],
+            'green_target': [0.3, 0.9, 0.65],
+            'yellow_target': [0.3, -0.9, 0.65],
+            'white_target': [0.7, -0.9, 0.65],
           }
 
 def get_sorting_problem(cloth_locs, color_map):
@@ -164,4 +164,5 @@ def get_random_initial_cloth_locations(num_cloths):
     for _ in range(num_cloths):
         locs.append(random.choice(possible_cloth_locs))
         locs[-1][1] *= random.choice([-1, 1])
+
     return locs

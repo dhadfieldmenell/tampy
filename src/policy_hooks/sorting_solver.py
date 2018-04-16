@@ -19,11 +19,13 @@ from gps.algorithm.cost.cost_utils import *
 import core.util_classes.baxter_constants as const
 from  pma.robot_ll_solver import RobotLLSolver
 from policy_hooks.multi_task_main import GPSMain
-from policy_hooks.cloth_exp_vec_include import *
+# from policy_hooks.cloth_exp_vec_include import *
+from policy_hooks.cloth_exp_2_vec_include import *
 from policy_hooks.cloth_world_policy_utils import *
 from policy_hooks.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
-from policy_hooks.multi_task_tamp_ee_agent import LaundryWorldEEAgent
+from policy_hooks.multi_task_tamp_agent import LaundryWorldEEAgent
+# from policy_hooks.multi_task_tamp_ee_agent import LaundryWorldEEAgent
 from policy_hooks.pose_suggester import obj_pose_suggester
 import policy_hooks.policy_hyperparams as baxter_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
@@ -93,7 +95,7 @@ class BaxterPolicySolver(RobotLLSolver):
             utils.STATE_ENUM: self.symbolic_bound,
             utils.ACTION_ENUM: self.dU,
             utils.OBS_ENUM: utils.IM_H*utils.IM_W*utils.IM_C,
-            utils.EE_ENUM: 6,
+            # utils.EE_ENUM: 6,
             utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
             utils.COLORS_ENUM: num_cloths,
             utils.TASK_ENUM: len(self.task_list)
@@ -402,7 +404,7 @@ class BaxterPolicySolver(RobotLLSolver):
 
 
     def _add_policy_constraints_to_plan(self, plan, param_names):
-        params = [plan.params[name] for name in param_names]
+        params = [plan.params[name] for name in param_names if name in plan.params]
         state_inds = self.state_inds
         action_inds = self.action_inds
         dX = self.symbolic_bound
@@ -415,7 +417,8 @@ class BaxterPolicySolver(RobotLLSolver):
                 next_t, task = plan.task_breaks[cur_task_ind]
 
             policy_func = lambda x: self.gps.alg_map[task].policy_opt.task_map['policy'].act(x, x, 0, 0) # The global policy should be time independent
-            pred = BaxterPolicyEEPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
+            # pred = BaxterPolicyEEPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
+            pred = BaxterPolicyPredicate('PolicyPred', params, state_inds, action_inds, policy_func, dX, dU, self.config['policy_coeff'])
             pred_dict = {'hl_info': 'policy', 'pred': pred, 'negated': False, 'active_timesteps': action.active_timesteps}
             action.preds.append(pred_dict)
 
@@ -565,4 +568,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(5)
+    PS.train_policy(1)

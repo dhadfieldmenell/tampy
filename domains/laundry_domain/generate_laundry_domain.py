@@ -1264,7 +1264,7 @@ class ClothPutdown(Action):
             )', '{}:{}'.format(0, end))
         ]
         self.eff = [\
-            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end-1)),
+            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end)),
@@ -1440,7 +1440,7 @@ class ClothPutdownRight(Action):
             )', '{}:{}'.format(0, end))
         ]
         self.eff = [\
-            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end-1)),
+            ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
             ('(not (BaxterClothInGripperRight ?robot ?cloth))', '{}:{}'.format(end, end)),

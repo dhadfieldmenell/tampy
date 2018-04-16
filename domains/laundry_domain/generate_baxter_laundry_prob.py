@@ -6,8 +6,8 @@ import random
 import ros_interface.utils as utils
 from policy_hooks.sorting_prob import targets
 
-NUM_CLOTH = 5
-NUM_SYMBOLS = 10
+NUM_CLOTH = 1
+NUM_SYMBOLS = 13
 
 # SEED = 1234
 NUM_PROBS = 1
@@ -18,8 +18,8 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_clo
 # init Baxter pose
 BAXTER_INIT_POSE = [np.pi/4]
 BAXTER_END_POSE = [np.pi/4]
-R_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
-L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0]
+R_ARM_INIT = [0, -0.75, 0, 0.75, 0, 0, 0]
+L_ARM_INIT = [0, -0.75, 0, 0.75, 0, 0, 0]
 INT_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
 
