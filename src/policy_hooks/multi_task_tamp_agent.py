@@ -20,6 +20,7 @@ from gps.agent.agent import Agent
 from gps.agent.agent_utils import generate_noise
 from gps.agent.config import AGENT
 from gps.sample.sample import Sample
+from gps.sample.sample_list import SampleList
 
 import core.util_classes.baxter_constants as const
 import core.util_classes.items as items
@@ -110,18 +111,30 @@ class LaundryWorldEEAgent(Agent):
         if end is None:
             for sample in self._samples[condition][task][start:]:
                 if sample.init_t not in samples:
-                    samples[init_t] = []
-                samples[init_t].append(sample)
+                    samples[sample.init_t] = []
+                samples[sample.init_t].append(sample)
         else:
             for sample in self._samples[condition][task][start:end]:
                 if sample.init_t not in samples:
-                    samples[init_t] = []
-                samples[init_t].append(sample)
+                    samples[sample.init_t] = []
+                samples[sample.init_t].append(sample)
 
         for ts in samples:
             samples[ts] = SampleList(samples[ts])
 
         return samples
+
+        
+    def clear_samples(self, condition=None):
+        """
+        Reset the samples for a given condition, defaulting to all conditions.
+        Args:
+            condition: Condition for which to reset samples.
+        """
+        if condition is None:
+            self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
+        else:
+            self._samples[condition] = {task:[] for task in self.task_encoding.keys()}
 
 
     def _generate_xml(self, plan, motor=True):
@@ -334,7 +347,6 @@ class LaundryWorldEEAgent(Agent):
         '''
             Take a sample for a given condition
         '''
-        import ipdb; ipdb.set_trace()
         self.plans[condition].params['table'].openrave_body.set_pose([5, 5, 5])
         self.plans[condition].params['basket'].openrave_body.set_pose([-5, 5, 5])
         self.current_cond = condition
@@ -390,15 +402,16 @@ class LaundryWorldEEAgent(Agent):
                 if STATE_ENUM in self._hyperparams['obs_include']:
                     obs = np.r_[obs, X]
 
-                if use_base_t:
-                    U = policy.act(X.copy(), obs, t-base_t, np.zeros((self.dU,)))
-                else:
-                    U = policy.act(X.copy(), obs, t, np.zeros((self.dU,)))
-
                 if noisy and np.random.uniform(0, 1) < 0.8:
-                    noise = np.random.normal(0, 0.02, (self.dU,))
+                    noise = np.random.normal(0, 0.1, (self.dU,))
                 else:
                     noise = np.zeros((self.dU,))
+
+                if use_base_t:
+                    U = policy.act(X.copy(), obs, t-base_t, noise)
+                else:
+                    U = policy.act(X.copy(), obs, t, noise)
+
 
                 for i in range(1):
                     sample.set(STATE_ENUM, X.copy(), t-base_t+i)
@@ -554,7 +567,7 @@ class LaundryWorldEEAgent(Agent):
         return imArr
 
 
-    def init_cost_trajectories(self, center=False, full_solve=True):
+    def init_cost_trajectories(self, alg_map, center=False, full_solve=True):
         for m in range(0, len(self.plans)):
             old_params_free = {}
             for p in self.params[m]:
@@ -576,7 +589,7 @@ class LaundryWorldEEAgent(Agent):
                 success = self.solver._backtrack_solve(self.plans[m], n_resamples=3)
             else:
                 success = True
-                self.set_plan_from_cost_trajs(alg, 0, self.plans[m].horizon, m)
+                self.set_plan_from_cost_trajs(alg_map.values()[0], 0, self.plans[m].horizon, m)
 
             while not success:
                 print "Solve failed."
@@ -614,7 +627,7 @@ class LaundryWorldEEAgent(Agent):
                     for attr in p._free_attrs:
                         p._free_attrs[attr][:, 0] = old_params_free[p][attr]
 
-            self.set_cost_trajectories(0, self.plans[m].horizon-1, m, center=center)
+            self.set_cost_trajectories(0, self.plans[m].horizon-1, m, alg_map.values(), center=center)
 
         self.initial_opt = False
 
@@ -629,7 +642,7 @@ class LaundryWorldEEAgent(Agent):
                 utils.set_params_attrs(self.params[m], self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
 
 
-    def set_cost_trajectories(self, init_t, final_t, m, center=False):
+    def set_cost_trajectories(self, init_t, final_t, m, algs, center=False):
         tgt_x = np.zeros((final_t-init_t, self.symbolic_bound))
         tgt_u = np.zeros((final_t-init_t, self.dU))
 
@@ -659,9 +672,9 @@ class LaundryWorldEEAgent(Agent):
         self.optimal_act_traj[m] = tgt_u
         self.optimal_state_traj[m] = tgt_x
 
-        # if center:
-        #     traj_distr = alg.cur[m].traj_distr
-        #     traj_distr.k = tgt_u.copy()
+        for alg in algs:
+            alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x.copy()
+            alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u.copy()
 
 
     def sample_optimal_trajectories(self):

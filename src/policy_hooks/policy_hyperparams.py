@@ -16,7 +16,7 @@ from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
 from gps.algorithm.traj_opt.traj_opt_pilqr import TrajOptPILQR
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
-from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
+# from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
 from gps.algorithm.policy.policy_prior import PolicyPrior
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.gui.config import generate_experiment_info
@@ -24,13 +24,14 @@ from gps.gui.config import generate_experiment_info
 from policy_hooks.algorithm_pigps import AlgorithmPIGPS
 from policy_hooks.algorithm_tamp_gps import AlgorithmTAMPGPS
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
+from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 import policy_hooks.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 1
+NUM_CONDS = 2
 
 
 common = {

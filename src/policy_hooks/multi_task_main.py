@@ -68,6 +68,8 @@ class GPSMain(object):
             self.alg_map[task] = config['algorithm'][task]['type'](config['algorithm'][task], task)
             policy_opt = self.alg_map[task].policy_opt
 
+        self.policy_opt = policy_opt
+
     def run(self, itr_load=None):
         """
         Run training by iteratively sampling and taking an iteration.
@@ -87,7 +89,7 @@ class GPSMain(object):
             on_policy = False # self.algorithm._hyperparams['sample_on_policy']
             # traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
             replace_conds = True # self.algorithm._hyperparams['policy_sample_mode'] == 'replace'
-            self.agent.init_cost_trajectories(center=on_policy)
+            self.agent.init_cost_trajectories(self.alg_map, center=False)
 
             for itr in range(itr_start, self._hyperparams['iterations']):
                 additional_samples = 0
@@ -97,11 +99,10 @@ class GPSMain(object):
 
                 for cond in self._train_idx:
                     for i in range(self._hyperparams['num_samples']):
-                        for task in self.task_list:
-                            if task in self.task_durations: self._take_sample(itr, cond, i, task)
+                        self._take_sample(itr, cond, i)
 
                 traj_sample_lists = {task: [
-                    self.agent.get_samples(cond, task, -self._hyperparams['num_samples']-additional_samples)
+                    self.agent.get_samples(cond, task, 0)
                     for cond in self._train_idx
                 ] for task in self.task_list}
 
@@ -112,12 +113,12 @@ class GPSMain(object):
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 if replace_conds:
                     self.agent.replace_all_conds()
-                    self.agent.init_cost_trajectories(center=False)
+                    self.agent.init_cost_trajectories(self.alg_map, center=False)
                 else:
-                    self.agent.init_cost_trajectories(center=False, full_solve=False)
+                    self.agent.init_cost_trajectories(self.alg_map, center=False, full_solve=False)
                 if itr > -1:
                     import ipdb; ipdb.set_trace()
-                pol_sample_lists = self._take_policy_samples()
+                # pol_sample_lists = self._take_policy_samples()
                 # log_file = open("avg_cost_log.txt", "a+")
                 # log_file.write("{0}\n".format(self.agent.get_policy_avg_cost()))
                 # log_file.close()
@@ -194,7 +195,7 @@ class GPSMain(object):
                     'Press \'go\' to begin.') % itr_load)
             return itr_load + 1
 
-    def _take_sample(self, itr, cond, i, task):
+    def _take_sample(self, itr, cond, i):
         """
         Collect a sample from the agent.
         Args:
@@ -204,26 +205,29 @@ class GPSMain(object):
         Returns: None
         """
         if self._hyperparams['sample_on_policy'] \
-                and self.alg_map[task].iteration_count > 0:
-            pol = self.alg_map[task].policy_opt.task_map
+                and self.alg_map.values()[0].iteration_count > 0:
+            pol = self.policy_opt.task_map
             on_policy = True
         else:
             pol = {}
             for task in self.task_list:
                 pol[task] = {}
                 if task not in self.task_durations: continue
-                def get_traj_step(task):
-                    def act(x, o, t, noisy):
-                        cur_t = 0
-                        for next_t, cur_task in self.alg_map[task].task_breaks[cond]:
-                            if cur_t <= t and t < next_t:
-                                return self.alg_map[task].cur[cond][cur_t].traj_distr.act(x, o, t, noisy)
-                            else:
-                                cur_t = next_t
+                def act(x, o, t, noisy):
+                    cur_t = 0
+                    cur_task = None
+                    for next_t, next_task in self.agent.task_breaks[cond]:
+                        if cur_t <= t and t < next_t:
+                            U = self.alg_map[next_task].cur[cond][cur_t].traj_distr.act(x, o, t-cur_t, noisy)
+                            return U
 
-                    return act 
+                        cur_t = next_t
+                        cur_task = next_task
 
-                pol[task]['policy'] = LocalControl(get_traj_step(task))
+                    U = self.alg_map[cur_task].cur[cond][cur_t].traj_distr.act(x, o, t-cur_t, noisy)
+                    return U
+
+                pol[task]['policy'] = LocalControl(act)
             on_policy = False
 
         if self.gui:
@@ -249,7 +253,7 @@ class GPSMain(object):
                     (itr, cond, i)
                 )
                 self.agent.sample(
-                    pol, cond,
+                    pol, cond, use_base_t=False,
                     verbose=(i < self._hyperparams['verbose_trials'])
                 )
 
@@ -261,7 +265,7 @@ class GPSMain(object):
                     redo = False
         else:
             self.agent.sample(
-                pol, cond,
+                pol, cond, use_base_t=False,
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
 

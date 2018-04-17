@@ -182,7 +182,7 @@ class AlgorithmMDGPS(Algorithm):
         """
         dX, dU, T = self.dX, self.dU, self.T
         # Choose samples to use.
-        for ts in self.cur[m][ts]:
+        for ts in self.cur[m]:
             samples = self.cur[m][ts].sample_list
             N = len(samples)
             pol_info = self.cur[m][ts].pol_info
@@ -195,7 +195,7 @@ class AlgorithmMDGPS(Algorithm):
             policy_prior = pol_info.policy_prior
             samples = SampleList(self.cur[m][ts].sample_list)
             mode = self._hyperparams['policy_sample_mode']
-            policy_prior.update(samples, self.policy_opt, mode)
+            policy_prior.update(samples, self.policy_opt, mode, self.task)
 
             # Fit linearization and store in pol_info.
             pol_info.pol_K, pol_info.pol_k, pol_info.pol_S = \
@@ -212,7 +212,7 @@ class AlgorithmMDGPS(Algorithm):
         """
         # Constants.
         T, dX, dU = self.T, self.dX, self.dU
-        N = len(self.cur[cond].sample_list)
+        N = len(self.cur[cond][ts].sample_list)
 
         # Compute cost.
         cs = np.zeros((N, T))
@@ -261,7 +261,7 @@ class AlgorithmMDGPS(Algorithm):
             ]
 
         for cond in range(self.M):
-            for ts in self.cur[m]:
+            for ts in self.cur[cond]:
                 self.new_traj_distr[cond][ts], self.cur[cond][ts].eta = \
                         self.traj_opt.update(cond, ts, self)
 
@@ -313,7 +313,7 @@ class AlgorithmMDGPS(Algorithm):
 
         self.cur = [{} for _ in range(self.M)]
         for m in range(self.M):
-            for ts in self.prev:
+            for ts in self.prev[m]:
                 self.cur[m][ts] = IterationData()
                 self.cur[m][ts].traj_info = TrajectoryInfo()
                 self.cur[m][ts].traj_info.dynamics = copy.deepcopy(self.prev[m][ts].traj_info.dynamics)

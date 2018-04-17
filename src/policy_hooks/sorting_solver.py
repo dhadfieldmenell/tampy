@@ -159,7 +159,7 @@ class BaxterPolicySolver(RobotLLSolver):
                             'type': CostState,
                             'data_types': {
                                 utils.STATE_ENUM: {
-                                    'wp': np.ones((1, self.dU), dtype='float64'),
+                                    'wp': np.ones((1, self.symbolic_bound), dtype='float64'),
                                     'target_state': np.zeros((1, self.symbolic_bound)),
                                     'wp_final_multiplier': 10.0,
                                 }

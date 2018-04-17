@@ -209,7 +209,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         if self.task_map[task]['feat_op'] is not None:
             self.task_map[task]['feat_vals'] = self.task_map[task]['solver'].get_var_values(self.sess, self.task_map[task]['feat_op'], feed_dict, num_values, self.batch_size)
         # Keep track of tensorflow iterations for loading solver states.
-        self.task_map[task]['tf_iter'] += self._hyperparams['iterations']
+        self.tf_iter += self._hyperparams['iterations']
 
         # Optimize variance.
         A = np.sum(tgt_prc_orig, 0) + 2 * N * T * \

@@ -1,5 +1,5 @@
 state_vector_include = {
-    'baxter': ['lArmPose', 'rArmPose', 'pose', 'lGripper', 'rGripper'],
+    'baxter': ['pose', 'lArmPose', 'rArmPose', 'lGripper', 'rGripper'],
     'basket': ['pose', 'rotation'],
     'cloth0': ['pose'],
     'cloth1': ['pose'],
