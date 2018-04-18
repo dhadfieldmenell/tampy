@@ -377,7 +377,6 @@ class LaundryWorldEEAgent(Agent):
             # last_success_X = (x0[0], x0[3])
             # last_left_ctrl = x0[3][10:17]
             # last_right_ctrl = x0[3][1:8]
-            jac = np.zeros((self.dU, 18))
 
             for t in range(0, (self.plans[condition].horizon-1)*utils.POLICY_STEPS_PER_SECOND):
                 if t >= next_t:
@@ -401,6 +400,9 @@ class LaundryWorldEEAgent(Agent):
                 
                 if STATE_ENUM in self._hyperparams['obs_include']:
                     obs = np.r_[obs, X]
+
+                if TRAJ_HIST_ENUM in self._hyperparams['obs_include']:
+                    obs = np.r_[obs, np.array(self.traj_hist).flatten()]
 
                 if noisy and np.random.uniform(0, 1) < 0.8:
                     noise = np.random.normal(0, 0.1, (self.dU,))
@@ -628,6 +630,8 @@ class LaundryWorldEEAgent(Agent):
                         p._free_attrs[attr][:, 0] = old_params_free[p][attr]
 
             self.set_cost_trajectories(0, self.plans[m].horizon-1, m, alg_map.values(), center=center)
+            for alg in alg_map.values():
+                alg.task_breaks = self.task_breaks
 
         self.initial_opt = False
 
@@ -675,6 +679,11 @@ class LaundryWorldEEAgent(Agent):
         for alg in algs:
             alg.cost[m]._costs[0]._hyperparams['data_types'][utils.STATE_ENUM]['target_state'] = tgt_x.copy()
             alg.cost[m]._costs[1]._hyperparams['data_types'][utils.ACTION_ENUM]['target_state'] = tgt_u.copy()
+
+        if center:
+            for alg in algs:
+                for ts in alg.cur[m]:
+                    alg.cur[m][ts].traj_distr.k = self.optimal_act_traj[m][ts:ts+alg.T]
 
 
     def sample_optimal_trajectories(self):

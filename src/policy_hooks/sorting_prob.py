@@ -232,6 +232,6 @@ def get_random_initial_cloth_locations(num_cloths):
     locs = []
     for _ in range(num_cloths):
         locs.append(random.choice(possible_cloth_locs))
-        # locs[-1][1] *= random.choice([-1, 1])
+        locs[-1][1] *= random.choice([-1, 1])
 
     return locs

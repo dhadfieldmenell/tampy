@@ -34,10 +34,15 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         # Store the samples and evaluate the costs.
         for m in range(self.M):
             for ts in self.cur[m]:
-                self.cur[m][ts].sample_list = sample_lists[m][ts]
-                self._eval_cost(m, ts)
+                try:
+                    self.cur[m][ts].sample_list = sample_lists[m][ts]
+                    self._eval_cost(m, ts)
+                except:
+                    import ipdb; ipdb.set_trace()
 
         # On the first iteration, need to catch policy up to init_traj_distr.
+        if self.task == 'move_cloth_to_white_target':
+            import ipdb; ipdb.set_trace()
         if self.iteration_count == 0:
             self.new_traj_distr = [
                 {ts: self.cur[cond][ts].traj_distr for ts in self.cur[cond]} for cond in range(self.M)

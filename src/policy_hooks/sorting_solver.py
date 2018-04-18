@@ -118,7 +118,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'get_plan': get_plan,
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM],
-                'obs_include': [utils.STATE_ENUM],
+                'obs_include': [utils.STATE_ENUM, utils.TRAJ_HIST_ENUM],
                 'conditions': self.config['num_conds'],
                 'solver': self,
                 'num_cloths': num_cloths,
@@ -180,7 +180,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [10.0, 1.0],
+                                                        'weights': [4.0, 1.0],
                                                     })
 
         self.config['dQ'] = self.dU
@@ -199,12 +199,12 @@ class BaxterPolicySolver(RobotLLSolver):
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
                 'num_filters': [5,10],
-                'dim_hidden': [700, 700]
+                'dim_hidden': [500, 500]
             },
             'lr': 1e-4,
             'network_model': tf_network,
-            'iterations': 20000,
-            'batch_size': 60,
+            'iterations': 10000,
+            'batch_size': 100,
             'weight_decay': 0.005,
             'weights_file_prefix': EXP_DIR + 'policy',
             'image_width': utils.IM_W,

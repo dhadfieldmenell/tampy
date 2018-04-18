@@ -178,7 +178,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 feed_dict = {self.task_map[task]['last_conv_vars']: conv_values[idx_i],
                              self.task_map[task]['action_tensor']: tgt_mu[idx_i],
                              self.task_map[task]['precision_tensor']: tgt_prc[idx_i]}
-                train_loss = self.solver(feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
+                train_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
                 average_loss += train_loss
 
                 if (i+1) % 500 == 0:

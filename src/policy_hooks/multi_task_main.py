@@ -42,6 +42,7 @@ class GPSMain(object):
         self._train_idx = range(len(self.agent.plans))
         self._hyperparams=config
         self._test_idx = self._train_idx
+        self.iter_count = 0
 
         self._data_files_dir = config['common']['data_files_dir']
 
@@ -89,20 +90,20 @@ class GPSMain(object):
             on_policy = False # self.algorithm._hyperparams['sample_on_policy']
             # traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
             replace_conds = True # self.algorithm._hyperparams['policy_sample_mode'] == 'replace'
-            self.agent.init_cost_trajectories(self.alg_map, center=False)
+            self.agent.init_cost_trajectories(self.alg_map, center=True)
 
             for itr in range(itr_start, self._hyperparams['iterations']):
+                for cond in self._train_idx:
+                    for i in range(self._hyperparams['num_samples']):
+                        self._take_sample(itr, cond, i)
+
                 additional_samples = 0
                 if self._hyperparams['take_optimal_sample']:
                     self.agent.sample_optimal_trajectories()
                     additional_samples = 1
 
-                for cond in self._train_idx:
-                    for i in range(self._hyperparams['num_samples']):
-                        self._take_sample(itr, cond, i)
-
                 traj_sample_lists = {task: [
-                    self.agent.get_samples(cond, task, 0)
+                    self.agent.get_samples(cond, task, -self._hyperparams['num_samples']-additional_samples)
                     for cond in self._train_idx
                 ] for task in self.task_list}
 
@@ -114,6 +115,8 @@ class GPSMain(object):
                 if replace_conds:
                     self.agent.replace_all_conds()
                     self.agent.init_cost_trajectories(self.alg_map, center=False)
+                    for alg in self.alg_map.values():
+                        alg.set_conditions()
                 else:
                     self.agent.init_cost_trajectories(self.alg_map, center=False, full_solve=False)
                 if itr > -1:
@@ -205,7 +208,7 @@ class GPSMain(object):
         Returns: None
         """
         if self._hyperparams['sample_on_policy'] \
-                and self.alg_map.values()[0].iteration_count > 0:
+                and self.iter_count > 0:
             pol = self.policy_opt.task_map
             on_policy = True
         else:
@@ -279,10 +282,13 @@ class GPSMain(object):
         if self.gui:
             self.gui.set_status_text('Calculating.')
             self.gui.start_display_calculating()
+        import ipdb; ipdb.set_trace()
         for task in self.alg_map:
             self.alg_map[task].iteration(sample_lists[task])
         if self.gui:
             self.gui.stop_display_calculating()
+
+        self.iter_count += 2
 
     def _take_policy_samples(self, N=None):
         """
