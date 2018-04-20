@@ -78,7 +78,7 @@ def get_sorting_problem(cloth_locs, color_map):
 
     hl_plan_str += "(:objects"
     for cloth in color_map:
-        hl_plan_str += " {0}".format(cloth)
+        hl_plan_str += " {0} - cloth".format(cloth)
     hl_plan_str += ")\n"
 
     hl_plan_str += parse_initial_state(cloth_locs)
@@ -148,9 +148,9 @@ def get_ll_plan_str(hl_plan, num_cloths):
         target = "BLUE_TARGET"
         if len(act_params) > 3:
             target = act_params[3].upper()
-        region_target = "LEFT_CLOTH_TARGET_{0}".format(i % 5)
+        region_target = "LEFT_CLOTH_TARGET_{0}".format(0)
         if act_params[1].lower() == "move_cloth_to_right_region":
-            region_target = "RIGHT_CLOTH_TARGET_{0}".format(i % 5)
+            region_target = "RIGHT_CLOTH_TARGET_{0}".format(0)
 
         if act_params[1].lower() in ["move_cloth_to_right_region", "move_cloth_to_left_region"]:
             region_targets[cloth] = region_target
@@ -166,6 +166,7 @@ def get_plan(num_cloths):
     cloths = ["Cloth{0}".format(i) for i in range(num_cloths)]
     color_map, colors = get_cloth_color_mapping(cloths)
     cloth_locs = get_random_initial_cloth_locations(num_cloths)
+    print "\n\n", cloth_locs, "\n\n"
     prob, goal_str = get_sorting_problem(cloth_locs, color_map)
     hl_plan = get_hl_plan(prob)
     ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan, num_cloths)
@@ -231,7 +232,21 @@ def fill_random_initial_configuration(plan):
 def get_random_initial_cloth_locations(num_cloths):
     locs = []
     for _ in range(num_cloths):
-        locs.append(random.choice(possible_cloth_locs))
-        locs[-1][1] *= random.choice([-1, 1])
+        next_loc = random.choice(possible_cloth_locs)
+        next_loc[1] *= random.choice([-1, 1])
+        while len(locs) and np.any(np.abs(np.array(locs)[:,:2]-next_loc[:2]) < 0.05):
+            next_loc = random.choice(possible_cloth_locs)
+            next_loc[1] *= random.choice([-1, 1])
 
+        locs.append(next_loc)
+
+    def compare_locs(a, b):
+        if b[0] > a[0]: return 1
+        if b[0] < a[0]: return -1
+        if b[1] > a[1]: return 1
+        if b[1] < a[1]: return -1
+        return 0
+
+    locs.sort(compare_locs)
+    
     return locs

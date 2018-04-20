@@ -79,10 +79,10 @@
         <exclude body1="basket" body2="right_hand" />
         <exclude body1="basket" body2="left_gripper_base" />
         <exclude body1="basket" body2="left_hand" />
-    <exclude body1="cloth0" body2="left_wrist" /><exclude body1="cloth0" body2="left_hand" /><exclude body1="cloth0" body2="left_gripper_base" /><exclude body1="cloth0" body2="left_gripper_l_finger_tip" /><exclude body1="cloth0" body2="left_gripper_l_finger" /><exclude body1="cloth0" body2="left_gripper_r_finger_tip" /><exclude body1="cloth0" body2="left_gripper_r_finger" /><exclude body1="cloth0" body2="basket" /><exclude body1="basket_left_handle" body2="basket" /><exclude body1="basket_left_handle" body2="left_gripper_l_finger_tip" /><exclude body1="basket_left_handle" body2="left_gripper_r_finger_tip" /><exclude body1="basket_right_handle" body2="basket" /><exclude body1="basket_right_handle" body2="right_gripper_l_finger_tip" /><exclude body1="basket_right_handle" body2="right_gripper_r_finger_tip" /></contact>
+    <exclude body1="cloth2" body2="left_wrist" /><exclude body1="cloth2" body2="left_hand" /><exclude body1="cloth2" body2="left_gripper_base" /><exclude body1="cloth2" body2="left_gripper_l_finger_tip" /><exclude body1="cloth2" body2="left_gripper_l_finger" /><exclude body1="cloth2" body2="left_gripper_r_finger_tip" /><exclude body1="cloth2" body2="left_gripper_r_finger" /><exclude body1="cloth2" body2="right_wrist" /><exclude body1="cloth2" body2="right_hand" /><exclude body1="cloth2" body2="right_gripper_base" /><exclude body1="cloth2" body2="right_gripper_l_finger_tip" /><exclude body1="cloth2" body2="right_gripper_l_finger" /><exclude body1="cloth2" body2="right_gripper_r_finger_tip" /><exclude body1="cloth2" body2="right_gripper_r_finger" /><exclude body1="cloth2" body2="basket" /><exclude body1="cloth3" body2="left_wrist" /><exclude body1="cloth3" body2="left_hand" /><exclude body1="cloth3" body2="left_gripper_base" /><exclude body1="cloth3" body2="left_gripper_l_finger_tip" /><exclude body1="cloth3" body2="left_gripper_l_finger" /><exclude body1="cloth3" body2="left_gripper_r_finger_tip" /><exclude body1="cloth3" body2="left_gripper_r_finger" /><exclude body1="cloth3" body2="right_wrist" /><exclude body1="cloth3" body2="right_hand" /><exclude body1="cloth3" body2="right_gripper_base" /><exclude body1="cloth3" body2="right_gripper_l_finger_tip" /><exclude body1="cloth3" body2="right_gripper_l_finger" /><exclude body1="cloth3" body2="right_gripper_r_finger_tip" /><exclude body1="cloth3" body2="right_gripper_r_finger" /><exclude body1="cloth3" body2="basket" /><exclude body1="cloth0" body2="left_wrist" /><exclude body1="cloth0" body2="left_hand" /><exclude body1="cloth0" body2="left_gripper_base" /><exclude body1="cloth0" body2="left_gripper_l_finger_tip" /><exclude body1="cloth0" body2="left_gripper_l_finger" /><exclude body1="cloth0" body2="left_gripper_r_finger_tip" /><exclude body1="cloth0" body2="left_gripper_r_finger" /><exclude body1="cloth0" body2="right_wrist" /><exclude body1="cloth0" body2="right_hand" /><exclude body1="cloth0" body2="right_gripper_base" /><exclude body1="cloth0" body2="right_gripper_l_finger_tip" /><exclude body1="cloth0" body2="right_gripper_l_finger" /><exclude body1="cloth0" body2="right_gripper_r_finger_tip" /><exclude body1="cloth0" body2="right_gripper_r_finger" /><exclude body1="cloth0" body2="basket" /><exclude body1="cloth1" body2="left_wrist" /><exclude body1="cloth1" body2="left_hand" /><exclude body1="cloth1" body2="left_gripper_base" /><exclude body1="cloth1" body2="left_gripper_l_finger_tip" /><exclude body1="cloth1" body2="left_gripper_l_finger" /><exclude body1="cloth1" body2="left_gripper_r_finger_tip" /><exclude body1="cloth1" body2="left_gripper_r_finger" /><exclude body1="cloth1" body2="right_wrist" /><exclude body1="cloth1" body2="right_hand" /><exclude body1="cloth1" body2="right_gripper_base" /><exclude body1="cloth1" body2="right_gripper_l_finger_tip" /><exclude body1="cloth1" body2="right_gripper_l_finger" /><exclude body1="cloth1" body2="right_gripper_r_finger_tip" /><exclude body1="cloth1" body2="right_gripper_r_finger" /><exclude body1="cloth1" body2="basket" /><exclude body1="basket_left_handle" body2="basket" /><exclude body1="basket_left_handle" body2="left_gripper_l_finger_tip" /><exclude body1="basket_left_handle" body2="left_gripper_r_finger_tip" /><exclude body1="basket_right_handle" body2="basket" /><exclude body1="basket_right_handle" body2="right_gripper_l_finger_tip" /><exclude body1="basket_right_handle" body2="right_gripper_r_finger_tip" /></contact>
 
     <equality>
-    <connect active="false" anchor="0 0 0" body1="cloth0" body2="left_gripper_l_finger_tip" /><connect active="true" anchor="0 0.317 0" body1="basket_left_handle" body2="basket" /><connect active="false" anchor="0 0 0" body1="basket_left_handle" body2="left_gripper_r_finger_tip" /><connect active="true" anchor="0 -0.317 0" body1="basket_right_handle" body2="basket" /><connect active="false" anchor="0 0 0" body1="basket_right_handle" body2="right_gripper_l_finger_tip" /></equality>
+    <connect active="false" anchor="0 0 0" body1="cloth2" body2="left_gripper_l_finger_tip" /><connect active="false" anchor="0 0 0" body1="cloth3" body2="left_gripper_l_finger_tip" /><connect active="false" anchor="0 0 0" body1="cloth0" body2="left_gripper_l_finger_tip" /><connect active="false" anchor="0 0 0" body1="cloth1" body2="left_gripper_l_finger_tip" /><connect active="true" anchor="0 0.317 0" body1="basket_left_handle" body2="basket" /><connect active="false" anchor="0 0 0" body1="basket_left_handle" body2="left_gripper_r_finger_tip" /><connect active="true" anchor="0 -0.317 0" body1="basket_right_handle" body2="basket" /><connect active="false" anchor="0 0 0" body1="basket_right_handle" body2="right_gripper_l_finger_tip" /></equality>
     
     <worldbody>
         
@@ -299,7 +299,7 @@
                 </body>
             </body>
         </body>
-    <body euler="0 0 0" name="cloth0" pos="0.9 0.35 -0.081"><geom friction="1 1 1" name="cloth0" rgba="1 1 1 1" size="0.05" type="sphere" /><inertial diaginertia="0.01 0.01 0.01" mass="0.1" pos="0 0 0" quat="0 0 0 1" /></body><body euler="0 0 0" name="table" pos="0.0 0.0 -0.626"><geom name="table" size="1.4 1.4 0.485" type="box" /></body><body euler="1.57079632679 0.0 0.785398163397" name="basket" pos="-2.0 0.0 0.264"><inertial diaginertia="2 1 1" mass="0.1" pos="0 0 0" /><geom mesh="laundry_basket" name="basket" type="mesh" /><body euler="0 0 0" name="basket_left_handle" pos="0.317 0 0"><geom size="0.01" type="sphere" /></body><body euler="0 0 0" name="basket_right_handle" pos="-0.317 0 0"><geom size="0.01" type="sphere" /></body></body></worldbody>
+    <body euler="0 0 0" name="cloth2" pos="0.57 0.5 -0.081"><geom friction="1 1 1" name="cloth2" rgba="1 1 1 1" size="0.05" type="sphere" /><inertial diaginertia="0.01 0.01 0.01" mass="0.1" pos="0 0 0" quat="0 0 0 1" /></body><body euler="0 0 0" name="cloth3" pos="0.17 -0.75 -0.081"><geom friction="1 1 1" name="cloth3" rgba="0 1 0 1" size="0.05" type="sphere" /><inertial diaginertia="0.01 0.01 0.01" mass="0.1" pos="0 0 0" quat="0 0 0 1" /></body><body euler="0 0 0" name="cloth0" pos="0.77 0.3 -0.081"><geom friction="1 1 1" name="cloth0" rgba="1 1 1 1" size="0.05" type="sphere" /><inertial diaginertia="0.01 0.01 0.01" mass="0.1" pos="0 0 0" quat="0 0 0 1" /></body><body euler="0 0 0" name="cloth1" pos="0.7 0.55 -0.081"><geom friction="1 1 1" name="cloth1" rgba="1 1 0 1" size="0.05" type="sphere" /><inertial diaginertia="0.01 0.01 0.01" mass="0.1" pos="0 0 0" quat="0 0 0 1" /></body><body euler="0 0 0" name="table" pos="0.0 0.0 -0.626"><geom name="table" size="1.4 1.4 0.485" type="box" /></body><body euler="1.57079632679 0.0 0.785398163397" name="basket" pos="-2.0 0.0 0.264"><inertial diaginertia="2 1 1" mass="0.1" pos="0 0 0" /><geom mesh="laundry_basket" name="basket" type="mesh" /><body euler="0 0 0" name="basket_left_handle" pos="0.317 0 0"><geom size="0.01" type="sphere" /></body><body euler="0 0 0" name="basket_right_handle" pos="-0.317 0 0"><geom size="0.01" type="sphere" /></body></body></worldbody>
 
 
 
@@ -314,20 +314,20 @@
     <actuator>
         <position gear="1 0 0 0 0 0" joint="right_s0" kp="815" />
         <position gear="1 0 0 0 0 0" joint="right_s1" kp="630" />
-        <position gear="1 0 0 0 0 0" joint="right_e0" kp="555" />
-        <position gear="1 0 0 0 0 0" joint="right_e1" kp="480" />
-        <position joint="right_w0" kp="250" />
-        <position joint="right_w1" kp="375" />
+        <position gear="1 0 0 0 0 0" joint="right_e0" kp="655" />
+        <position gear="1 0 0 0 0 0" joint="right_e1" kp="580" />
+        <position joint="right_w0" kp="350" />
+        <position joint="right_w1" kp="475" />
         <position joint="right_w2" kp="100" />
         <position joint="right_gripper_l_finger_joint" kp="50" />
         <position joint="right_gripper_r_finger_joint" kp="50" />
         
         <position gear="1 0 0 0 0 0" joint="left_s0" kp="815" />
         <position gear="1 0 0 0 0 0" joint="left_s1" kp="630" />
-        <position gear="1 0 0 0 0 0" joint="left_e0" kp="555" />
-        <position gear="1 0 0 0 0 0" joint="left_e1" kp="480" />
-        <position joint="left_w0" kp="250" />
-        <position joint="left_w1" kp="375" />
+        <position gear="1 0 0 0 0 0" joint="left_e0" kp="655" />
+        <position gear="1 0 0 0 0 0" joint="left_e1" kp="580" />
+        <position joint="left_w0" kp="350" />
+        <position joint="left_w1" kp="475" />
         <position joint="left_w2" kp="100" />
         <position joint="left_gripper_l_finger_joint" kp="50" />
         <position joint="left_gripper_r_finger_joint" kp="50" />

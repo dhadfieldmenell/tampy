@@ -13,22 +13,11 @@ colors = {
          }
 
 def get_cloth_color_mapping(cloths):
-    splits = []
-    for i in range(len(colors.keys())-1):
-        splits.append(np.random.choice(range(len(cloths))))
-
-    splits.sort()
-    color_map = {}
-    color_list = colors.keys()
-    color_ind = 0
-    cur_split = splits.pop(0)
-    i = 0
+    colors_to_cloth = {}
+    cloth_to_colors = {}
     for cloth in cloths:
-        if i == cur_split:
-            color_ind += 1
-        while i >= cur_split and len(splits):
-            cur_split = splits.pop(0)
-        color_map[cloth] = (color_list[color_ind], colors[color_list[color_ind]])
-        i += 1
+        color = np.random.choice(colors.keys())
+        colors_to_cloth[color] = cloth
+        cloth_to_colors[cloth.lower()] = (color, colors[color])
 
-    return color_map, colors.copy()
+    return cloth_to_colors, colors.copy()

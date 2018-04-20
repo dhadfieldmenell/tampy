@@ -94,6 +94,7 @@ class GPSMain(object):
 
             for itr in range(itr_start, self._hyperparams['iterations']):
                 for cond in self._train_idx:
+                    self.agent.replace_model(cond)
                     for i in range(self._hyperparams['num_samples']):
                         self._take_sample(itr, cond, i)
 
@@ -282,7 +283,6 @@ class GPSMain(object):
         if self.gui:
             self.gui.set_status_text('Calculating.')
             self.gui.start_display_calculating()
-        import ipdb; ipdb.set_trace()
         for task in self.alg_map:
             self.alg_map[task].iteration(sample_lists[task])
         if self.gui:

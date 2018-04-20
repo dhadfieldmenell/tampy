@@ -137,7 +137,7 @@ class LaundryWorldEEAgent(Agent):
             self._samples[condition] = {task:[] for task in self.task_encoding.keys()}
 
 
-    def _generate_xml(self, plan, motor=True):
+    def _generate_xml(self, plan, cond=0, motor=False):
         '''
             Search a plan for cloths, tables, and baskets to create an XML in MJCF format
         '''
@@ -157,9 +157,10 @@ class LaundryWorldEEAgent(Agent):
                 height = param.geom.height
                 radius = param.geom.radius * 2.5
                 x, y, z = param.pose[:, active_ts[0]]
+                color = self.color_maps[cond][param.name]
                 cloth_body = xml.SubElement(worldbody, 'body', {'name': param.name, 'pos': "{} {} {}".format(x,y,z+MUJOCO_MODEL_Z_OFFSET), 'euler': "0 0 0"})
                 # cloth_geom = xml.SubElement(cloth_body, 'geom', {'name':param.name, 'type':'cylinder', 'size':"{} {}".format(radius, height), 'rgba':"0 0 1 1", 'friction':'1 1 1'})
-                cloth_geom = xml.SubElement(cloth_body, 'geom', {'name': param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':"1 1 1 1", 'friction':'1 1 1'})
+                cloth_geom = xml.SubElement(cloth_body, 'geom', {'name': param.name, 'type':'sphere', 'size':"{}".format(radius), 'rgba':'{}'.format(color[1]), 'friction':'1 1 1'})
                 cloth_intertial = xml.SubElement(cloth_body, 'inertial', {'pos':'0 0 0', 'quat':'0 0 0 1', 'mass':'0.1', 'diaginertia': '0.01 0.01 0.01'})
                 xml.SubElement(equality, 'connect', {'body1': param.name, 'body2': 'left_gripper_l_finger_tip', 'anchor': "0 0 0", 'active':'false'})
                 self.equal_active_inds[(param.name, 'left_gripper')] = cur_eq_ind
@@ -172,6 +173,13 @@ class LaundryWorldEEAgent(Agent):
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_l_finger'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger_tip'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_wrist'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_hand'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_base'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_l_finger_tip'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_l_finger'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_r_finger_tip'})
+                xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_r_finger'})
                 xml.SubElement(contacts, 'exclude', {'body1': param.name, 'body2': 'basket'})
             elif param._type == 'Obstacle': 
                 length = param.geom.dim[0]
@@ -242,6 +250,29 @@ class LaundryWorldEEAgent(Agent):
 
         self.setup_obs_viewer(model)
         return model
+
+
+    def replace_model(self, condition):
+        self._generate_xml(self.plans[condition], condition)
+        self.pos_model = mjcore.MjModel(ENV_XML)
+        
+        self.left_grip_l_ind = mjlib.mj_name2id(self.pos_model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_l_finger_tip')
+        self.left_grip_r_ind = mjlib.mj_name2id(self.pos_model.ptr, mjconstants.mjOBJ_BODY, 'left_gripper_r_finger_tip')
+        self.right_grip_l_ind = mjlib.mj_name2id(self.pos_model.ptr, mjconstants.mjOBJ_BODY, 'right_gripper_l_finger_tip')
+        self.right_grip_r_ind = mjlib.mj_name2id(self.pos_model.ptr, mjconstants.mjOBJ_BODY, 'right_gripper_r_finger_tip')
+        self.basket_ind = mjlib.mj_name2id(self.pos_model.ptr, mjconstants.mjOBJ_BODY, 'basket')
+        self.basket_left_ind = mjlib.mj_name2id(self.pos_model.ptr, mjconstants.mjOBJ_BODY, 'basket_left_ind')
+        self.basket_right_ind = mjlib.mj_name2id(self.pos_model.ptr, mjconstants.mjOBJ_BODY, 'basket_right_ind')
+        self.cloth_inds = []
+        for i in range(self.num_cloths):
+            self.cloth_inds.append(mjlib.mj_name2id(self.pos_model.ptr, mjconstants.mjOBJ_BODY, 'cloth{0}'.format(i)))
+
+        if self.viewer:
+            self.viewer.set_model(self.pos_model)
+            self.viewer.loop_once()
+
+        self.setup_obs_viewer(self.pos_model)
+
 
     def setup_obs_viewer(self, model):
         self.obs_viewer = mjviewer.MjViewer(False, utils.IM_W, utils.IM_H)
@@ -405,7 +436,9 @@ class LaundryWorldEEAgent(Agent):
                     obs = np.r_[obs, np.array(self.traj_hist).flatten()]
 
                 if noisy and np.random.uniform(0, 1) < 0.8:
-                    noise = np.random.normal(0, 0.1, (self.dU,))
+                    noise = np.random.normal(0, 0.05, (self.dU,))
+                    noise[self.action_inds['baxter', 'lGripper']] *= 0
+                    noise[self.action_inds['baxter', 'rGripper']] *= 0
                 else:
                     noise = np.zeros((self.dU,))
 
@@ -523,16 +556,28 @@ class LaundryWorldEEAgent(Agent):
         grip_cloth = -1
         if not run_forward:
             for i in range(self.num_cloths):
-                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_l_ind])**2 < [0.0081, 0.0081, 0.0081]) and l_grip < const.GRIPPER_CLOSE_VALUE:
+                if xpos[self.cloth_inds[i]][2] > 0.67 and np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_r_ind])**2 < [0.01, 0.01, 0.01]) and l_grip < const.GRIPPER_CLOSE_VALUE:
                     body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
-                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.615 + MUJOCO_MODEL_Z_OFFSET)
+                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
+                    run_forward = True
+                    break
+
+                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_r_ind])**2 < [0.0036, 0.0036, 0.0025]) and l_grip < const.GRIPPER_CLOSE_VALUE:
+                    body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
+                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
                     run_forward = True
                     break
 
             for i in range(self.num_cloths):
-                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.right_grip_r_ind])**2 < [0.0081, 0.0081, 0.0081]) and r_grip < const.GRIPPER_CLOSE_VALUE:
+                if xpos[self.cloth_inds[i]][2] > 0.67 and np.all((xpos[self.cloth_inds[i]] - xpos[self.right_grip_l_ind])**2 < [0.01, 0.01, 0.01]) and r_grip < const.GRIPPER_CLOSE_VALUE:
                     body_pos[self.cloth_inds[i]] = (xpos[self.right_grip_r_ind] + xpos[self.right_grip_l_ind]) / 2.0
-                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.615 + MUJOCO_MODEL_Z_OFFSET)
+                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
+                    run_forward = True
+                    break
+
+                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.right_grip_l_ind])**2 < [0.0036, 0.0036, 0.0025]) and r_grip < const.GRIPPER_CLOSE_VALUE:
+                    body_pos[self.cloth_inds[i]] = (xpos[self.right_grip_r_ind] + xpos[self.right_grip_l_ind]) / 2.0
+                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
                     run_forward = True
                     break
 
@@ -701,6 +746,7 @@ class LaundryWorldEEAgent(Agent):
 
 
         for m in range(len(self.plans)):
+            self.replace_model(m)
             self.sample(get_policy_map(m), m, save=True, use_base_t=False, noisy=False)
 
 

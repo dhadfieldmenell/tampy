@@ -41,8 +41,6 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
                     import ipdb; ipdb.set_trace()
 
         # On the first iteration, need to catch policy up to init_traj_distr.
-        if self.task == 'move_cloth_to_white_target':
-            import ipdb; ipdb.set_trace()
         if self.iteration_count == 0:
             self.new_traj_distr = [
                 {ts: self.cur[cond][ts].traj_distr for ts in self.cur[cond]} for cond in range(self.M)

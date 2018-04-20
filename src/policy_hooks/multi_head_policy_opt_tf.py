@@ -88,6 +88,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
     def init_solver(self):
         """ Helper method to initialize the solver. """
         for task in self.task_list:
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
             self.task_map[task]['solver'] = TfSolver(loss_scalar=self.task_map[task]['loss_scalar'],
                                                        solver_name=self._hyperparams['solver_type'],
                                                        base_lr=self._hyperparams['lr'],
@@ -95,7 +96,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                                        momentum=self._hyperparams['momentum'],
                                                        weight_decay=self._hyperparams['weight_decay'],
                                                        fc_vars=self.task_map[task]['fc_vars'],
-                                                       last_conv_vars=self.task_map[task]['last_conv_vars'])
+                                                       last_conv_vars=self.task_map[task]['last_conv_vars'],
+                                                       vars_to_opt=vars_to_opt)
         self.saver = tf.train.Saver()
 
     def init_policies(self, dU):

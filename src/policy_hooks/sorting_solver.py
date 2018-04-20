@@ -164,7 +164,7 @@ class BaxterPolicySolver(RobotLLSolver):
                                     'wp_final_multiplier': 10.0,
                                 }
                             },
-                            'ramp_option': RAMP_LINEAR
+                            'ramp_option': RAMP_QUADRATIC
                         }
             action_cost = {
                             'type': CostAction,
@@ -180,7 +180,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [4.0, 1.0],
+                                                        'weights': [2.0, 1.0],
                                                     })
 
         self.config['dQ'] = self.dU
@@ -199,13 +199,13 @@ class BaxterPolicySolver(RobotLLSolver):
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
                 'num_filters': [5,10],
-                'dim_hidden': [500, 500]
+                'dim_hidden': [200, 200]
             },
             'lr': 1e-4,
             'network_model': tf_network,
-            'iterations': 10000,
+            'iterations': 25000,
             'batch_size': 100,
-            'weight_decay': 0.005,
+            'weight_decay': 0.05,
             'weights_file_prefix': EXP_DIR + 'policy',
             'image_width': utils.IM_W,
             'image_height': utils.IM_H,
@@ -568,4 +568,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(1)
+    PS.train_policy(4)
