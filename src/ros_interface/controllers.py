@@ -115,14 +115,14 @@ class TrajectoryController(object):
 
         return (np.all(np.abs(left_target - current_left) < stop_error_limits) or not use_left) and (np.all(np.abs(right_target - current_right) < stop_error_limits) or not use_right)
 
-    def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right'], stop_on_fail=False, check_collision=True):
+    def execute_plan(self, plan, mode='position', active_ts=None, controller=None, limbs=['left', 'right'], stop_on_fail=False, check_collision=True, check_grip_time=None):
         # rospy.Rate(ROS_RATE)
         if mode == 'position':
-            return self._execute_position_control(plan, active_ts, limbs, stop_on_fail, check_collision)
+            return self._execute_position_control(plan, active_ts, limbs, stop_on_fail, check_collision, check_grip_time)
         else:
             return self._execute_torque_control(plan, active_ts, controller)
 
-    def _execute_position_control(self, plan, active_ts=None, limbs=['left', 'right'], stop_on_fail=False, check_collision=True):
+    def _execute_position_control(self, plan, active_ts=None, limbs=['left', 'right'], stop_on_fail=False, check_collision=True, check_grip_time=None):
         if active_ts is None:
             active_ts = (0, plan.horizon-1)
 
@@ -140,9 +140,12 @@ class TrajectoryController(object):
         cur_ts = active_ts[0]
         baxter = plan.params['baxter']
         act_index = 0
+        completed = True
         while cur_ts <= active_ts[1] and cur_ts < plan.horizon:
             cur_action = plan.actions[act_index]
             success = self.execute_timestep(baxter, cur_ts, 5, limbs=limbs, check_collision=check_collision)
+            if check_grip_time is not None and check_grip_time[0] == cur_ts and self.left_grip.position() < check_grip_time[1]:
+                completed = False
             if not success:
                 print 'Failed timestep {}'.format(cur_ts)
                 if stop_on_fail:
@@ -162,7 +165,7 @@ class TrajectoryController(object):
             #         raise Exception("Invalid timestep (> max) passed to plan execution")
             #     cur_action = plan.actions[act_index]
         # print 'Execution finished'
-        return True
+        return completed
 
     def _execute_torque_control(self, plan, active_ts, controller):
         if active_ts is None:

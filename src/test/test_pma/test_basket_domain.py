@@ -1206,19 +1206,20 @@ class TestBasketDomain(unittest.TestCase):
         act_num += 1
         ll_plan_str.append('{0}: OPEN_DOOR BAXTER WASHER OPEN_DOOR_BEGIN_0 OPEN_DOOR_EE_APPROACH_0 OPEN_DOOR_EE_RETREAT_0 OPEN_DOOR_END_0 WASHER_CLOSE_POSE_0 WASHER_OPEN_POSE_0 \n'.format(act_num))
         act_num += 1
-        # ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER OPEN_DOOR_END_0 ROBOT_INIT_POSE \n'.format(act_num))
-        # act_num += 1
-        ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER OPEN_DOOR_END_0 ARM_BACK_2 \n'.format(act_num))
+        ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER OPEN_DOOR_END_0 ARM_BACK_1 \n'.format(act_num))
         act_num += 1
-        ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ARM_BACK_2 ROBOT_INIT_POSE \n'.format(act_num))
+        # ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER OPEN_DOOR_END_0 ARM_BACK_2 \n'.format(act_num))
+        # act_num += 1
+        # ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ARM_BACK_2 ROBOT_INIT_POSE \n'.format(act_num))
         # act_num += 1
         # ll_plan_str.append('{0}: MOVE_AROUND_WASHER BAXTER ROBOT_INIT_POSE CLOSE_DOOR_BEGIN_0 \n'.format(act_num))
         # act_num += 1
-        # ll_plan_str.append('{0}: CLOSE_DOOR BAXTER WASHER CLOSE_DOOR_BEGIN_0 CLOSE_DOOR_EE_APPROACH_0 CLOSE_DOOR_EE_RETREAT_0 CLOSE_DOOR_END_0 WASHER_OPEN_POSE_0 WASHER_CLOSE_POSE_0 \n'.format(act_num))
+        # ll_plan_str.append('{0}: CLOSE_DOOR BAXTER WASHER OPEN_DOOR_BEGIN_0 CLOSE_DOOR_EE_APPROACH_0 CLOSE_DOOR_EE_RETREAT_0 CLOSE_DOOR_END_0 WASHER_OPEN_POSE_0 WASHER_CLOSE_POSE_0 \n'.format(act_num))
         # act_num += 1
         plan = hls.get_plan(ll_plan_str, domain, problem)
-        plan.params['washer'].door[0, 0] = 0
-        plan.params['baxter'].pose[0,0] = -2*np.pi/180
+        plan.params['washer'].door[0, 0] = 0 # -np.pi/2
+        plan.params['baxter'].pose[0,0] = 8./9. * np.pi
+        plan.params['basket'].pose[:,:] = [[1], [1], [1]]
         plan.params['robot_init_pose'].value[0,0] = plan.params['baxter'].pose[0,0]
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
@@ -1226,6 +1227,7 @@ class TestBasketDomain(unittest.TestCase):
         serializer = PlanSerializer()
         def callback(a): return viewer
         velocites = np.ones((plan.horizon, ))*1
+        import ipdb; ipdb.set_trace()
 
         # robot, washer = plan.params['baxter'], plan.params['washer']
         # robot_body, washer_body = robot.openrave_body, washer.openrave_body
@@ -1391,8 +1393,8 @@ class TestBasketDomain(unittest.TestCase):
         act_num += 1
 
         plan = hls.get_plan(plan_str, domain, problem)
-        plan.params['cloth0'].pose[:,:30] = [[0.55], [0.3], [0.68]]
-        plan.params['cloth_target_begin_0'].value[:,:] = [[0.55], [0.3], [0.68]]
+        plan.params['cloth0'].pose[:,:30] = [[-0.65], [0.15], [0.68]]
+        plan.params['cloth_target_begin_0'].value[:,0] = plan.params['cloth0'].pose[:,0]
         plan.params['basket'].pose[:,:] = plan.params['basket_near_target'].value[:,:]
         plan.params['basket'].rotation[:,:] = plan.params['basket_near_target'].rotation[:,:]
 
@@ -1469,10 +1471,11 @@ class TestBasketDomain(unittest.TestCase):
 
         plan = hls.get_plan(ll_plan_str, domain, problem)
         plan.params['washer'].door[0, 0] = -np.pi/2
-        plan.params['baxter'].pose[:,:] = (2*np.pi/9)
+        plan.params['baxter'].pose[:,:] = 8*np.pi/9
+        plan.params['robot_init_pose'].value[:,:] = 8*np.pi/9
         plan.params['basket'].pose[:,0] = plan.params['basket_near_target'].value[:,0]
         plan.params['basket'].rotation[:,0] = plan.params['basket_near_target'].rotation[:,0]
-        plan.params['cloth0'].pose[:, 0] = plan.params['washer'].pose[:,0] + np.array([const.WASHER_DEPTH_OFFSET/2, np.sqrt(3)*const.WASHER_DEPTH_OFFSET/2, -.14]) # self.state.washer_cloth_poses[0]
+        plan.params['cloth0'].pose[:, 0] = plan.params['washer'].pose[:,0] + np.array([0.1, 0, -.14]) # self.state.washer_cloth_poses[0]
         plan.params['cloth_target_begin_0'].value[:,0] = plan.params['cloth0'].pose[:,0]
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
@@ -1480,6 +1483,8 @@ class TestBasketDomain(unittest.TestCase):
         serializer = PlanSerializer()
         def callback(a): return viewer
         velocites = np.ones((plan.horizon, ))*1
+
+        import ipdb; ipdb.set_trace()
 
         # robot, washer = plan.params['baxter'], plan.params['washer']
         # robot_body, washer_body = robot.openrave_body, washer.openrave_body
@@ -1685,16 +1690,17 @@ class TestBasketDomain(unittest.TestCase):
         ]
 
         plan = hls.get_plan(plan_str, domain, problem)
-        plan.params['basket'].pose[:,:35] = [[0.5], [-0.5], [0.875]]
-        plan.params['basket_far_target'].value[:,:] = [[0.5], [-0.5], [0.875]]
-        plan.params['basket'].rotation[:,:35] = [[np.pi/4], [0], [np.pi/2]]
-        plan.params['basket_far_target'].rotation[:,:] = [[np.pi/4], [0], [np.pi/2]]
+        plan.params['basket'].pose[:,:35] = [[0.55], [0.], [0.875]]
+        plan.params['basket_far_target'].value[:,:] = [[0.55], [0.], [0.875]]
+        plan.params['basket_near_target'].value[:,:] = [[-0.6], [0.15], [0.875]]
+        plan.params['basket'].rotation[:,:35] = [[np.pi/2], [0], [np.pi/2]]
+        # plan.params['basket_near_target'].rotation[:,:] = [[-np.pi/2], [0], [np.pi/2]]
         plan.params['robot_init_pose'].lArmPose[:,0] = [0, -0.75, 0, 0, 0, 0, 0]
         plan.params['robot_init_pose'].rArmPose[:,0] = [0, -0.75, 0, 0, 0, 0, 0]
-        plan.params['robot_init_pose'].value[0,0] = -np.pi/4
+        plan.params['robot_init_pose'].value[0,0] = 0
         plan.params['baxter'].lArmPose[:,0] = [0, -0.75, 0, 0, 0, 0, 0]
         plan.params['baxter'].rArmPose[:,0] = [0, -0.75, 0, 0, 0, 0, 0]
-        plan.params['baxter'].pose[0,0] = -np.pi/4
+        plan.params['baxter'].pose[0,0] = 0
         print "solving basket domain problem..."
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         serializer = PlanSerializer()

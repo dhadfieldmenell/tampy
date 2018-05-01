@@ -27,8 +27,8 @@ labels_file = 'data/shuffledClothGridLabels.npy'
 im_height = 15
 im_width = 15
 
-input_images = np.load(path+images_file)
-labels = np.load(path+labels_file)
+# input_images = np.load(path+images_file)
+# labels = np.load(path+labels_file)
 
 # images = preprocess_input(np.load(path+images_file)[:,:,:,:3], mode='tf')
 # test_images = preprocess_input(np.load(path+test_image_file)[:,:,:,:3], mode='tf')
@@ -60,16 +60,85 @@ labels = np.load(path+labels_file)
 
 # test_labels[:,1] -= 0.325
 
-training_set = input_images[:-75]
-training_labels = labels[:-75]
+# training_set = input_images[:-75]
+# training_labels = labels[:-75]
+
+# mean = np.mean(training_set, axis=(0,1,2))
+# std = np.std(training_set, axis=(0,1,2))
+
+# training_set = (training_set - mean) / std
+
+# validation_set = (input_images[-75:] - mean) / std
+# validation_labels = labels[-75:]
+
+ims1 = np.load('data/clothGridImages.npy')
+labs1 = np.load('data/clothGridLabels.npy')
+
+ims2 = np.load('data/clothGridImages2.npy')
+labs2 = np.load('data/clothGridLabels2.npy')
+
+ims3 = np.load('data/clothGridImages3.npy')
+labs3 = np.load('data/clothGridLabels3.npy')
+
+ims4 = np.load('data/clothGridImages4.npy')
+labs4 = np.load('data/clothGridLabels4.npy')
+
+ims5= np.load('data/clothGridImages5.npy')
+labs5 = np.load('data/clothGridLabels5.npy')
+
+ims6 = np.load('data/clothGridImages6.npy')
+labs6 = np.load('data/clothGridLabels6.npy')
+
+final_ims = np.zeros((len(ims1)+len(ims2)+len(ims3)+len(ims4)+len(ims5)+len(ims6), im_height, im_width, 3))
+
+cur_index = 0
+for i in range(len(ims1)):
+    final_ims[i] = cv2.resize(ims1[i], (im_width, im_height))
+
+cur_index = len(ims1)
+for i in range(len(ims2)):
+    final_ims[i+cur_index] = cv2.resize(ims2[i], (im_width, im_height))
+
+cur_index += len(ims2)
+for i in range(len(ims3)):
+    final_ims[i+cur_index] = cv2.resize(ims3[i], (im_width, im_height))
+
+cur_index += len(ims3)
+for i in range(len(ims4)):
+    final_ims[i+cur_index] = cv2.resize(ims4[i], (im_width, im_height))
+
+cur_index += len(ims4)
+for i in range(len(ims5)):
+    final_ims[i+cur_index] = cv2.resize(ims5[i], (im_width, im_height))
+
+cur_index += len(ims5)
+for i in range(len(ims6)):
+    final_ims[i+cur_index] = cv2.resize(ims6[i], (im_width, im_height))
+
+final_labs = np.r_[labs1, labs2, labs3, labs4, labs5, labs6]
+
+order = np.random.permutation(len(final_ims))
+
+final_ims = final_ims[order]
+final_labs = final_labs[order]
+
+# one_hot_labs = np.zeros((len(final_labs), 2))
+# for i in range(len(final_labs)):
+#     one_hot_labs[i][final_labs[i]] = 1
+
+training_set = final_ims[400:]
+training_labels = final_labs[400:]
+
+validation_set = final_ims[:400]
+validation_labels = final_labs[:400]
 
 mean = np.mean(training_set, axis=(0,1,2))
 std = np.std(training_set, axis=(0,1,2))
 
-training_set = (training_set - mean) / std
+print mean, std
 
-validation_set = (input_images[-75:] - mean) / std
-validation_labels = labels[-75:]
+training_set = (training_set - mean) / std
+validation_set = (validation_set - mean) / std
 
 # def input_generator(images, labels, batch_size, steps):
 #     i = 0
@@ -83,7 +152,7 @@ validation_labels = labels[-75:]
 #             labels = labels[new_order]
 
 # preprocessing_fn = lambda x: x - [103.939, 116.779, 123.68]  # lambda x: 2*((x / 255.0) - 0.5)
-augment_gen = image.ImageDataGenerator(featurewise_center=False, featurewise_std_normalization=False, rotation_range=5, shear_range=np.pi/32, zoom_range=0.02, channel_shift_range=0.03)
+augment_gen = image.ImageDataGenerator(featurewise_center=False, featurewise_std_normalization=False, rotation_range=0, shear_range=np.pi/32, zoom_range=0.02, channel_shift_range=0.0)
 # augment_gen.fit(training_set[:10])
 
 def get_session(gpu_fraction=0.5, allow_growth=True):
@@ -113,8 +182,8 @@ x = Flatten()(inputs)
 # x = Dense(1024, activation='relu', kernel_regularizer=l2(1e-4))(x)
 # x = Dense(64, activation='relu')(x)
 x = Dense(200, activation='relu')(x)
-x = Dense(200, activation='relu')(x)
-predictions = Dense(1, activation=None)(x)
+x = Dense(200, activation='relu', kernel_regularizer=l2(0.1))(x)
+predictions = Dense(1, activation=None, kernel_regularizer=l2(0.1))(x)
 
 # this is the model we will train
 model = Model(inputs=inputs, outputs=predictions)

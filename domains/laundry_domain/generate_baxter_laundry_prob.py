@@ -15,6 +15,11 @@ filename = "laundry_probs/baxter_laundry_{0}.prob".format(NUM_CLOTH)
 GOAL = "(BaxterRobotAt baxter robot_end_pose), (BaxterWasherAt washer washer_close_pose_0)"
 
 
+REGION1 = utils.regions[0]
+REGION2 = utils.regions[1]
+REGION3 = utils.regions[2]
+REGION4 = utils.regions[3]
+
 # init Baxter pose
 BAXTER_INIT_POSE = [np.pi/4]
 BAXTER_END_POSE = [np.pi/4]
@@ -110,6 +115,9 @@ UNLOAD_WASHER_5_LARM = [-0.2, -0.17400108, 0.23694677, 0.52691205, -1.23359682, 
 # INTERMEDIATE_UNLOAD_LARM = [1.1, -0.5470185 , -0.93117317,  2.11125834,  0.91997842, -0.82086358,  0.27235029]
 INTERMEDIATE_UNLOAD_LARM = [0.6, -1.23076612, -0.40187972, 2.53417753, 0.68715756, -1.26100506, -0.47337906]
 
+PUSH_WASHER_CLOSE_LARM_BEGIN = [1.4, -0.40760073, -0.2537029,  1.17184856,  1.85163312, -1.53399347, -0.84281407]
+PUSH_WASHER_CLOSE_LARM_END = [0.5, -0.86689111, -0.23599081,  2.36613383,  1.00980312, -1.39693714,  0.00912516]
+
 ## Use PUT_INTO_WASHER_BEGIN; pretty much the same gripper position
 # DOOR_SCAN_IR_LARM = [1.6, -0.72647354, 0.185418, 2.02671195, -1.71400472, 1.67279272, 2.84759038]
 # DOOR_SCAN_IR_LARM = [1.7, -0.73574863, 0.01571105, 2.02178752, 1.45038389, -1.54767978, -0.28413698]
@@ -145,6 +153,10 @@ CLOTH_FOLD_RARM_FINAL_FOLD_MID = [-0.8, 0.17580006, 1.26630857, 1.90759271, -0.1
 CLOTH_FOLD_FINAL_FOLD_LARM_END = [0., -0.03439064, -0.80929995, 0.92621978, -0.09353719, 1.30169803, 2.06723639]
 CLOTH_FOLD_FINAL_FOLD_RARM_END = [0.1, 0.02054086, 0.87543503, 0.82736412, 0.02483959, 1.33911524, -2.02606305]
 
+END_POSE_LARM = [0, 0, 0, 0, 0, 0, 0]
+END_POSE_RARM = [0, 0, 0, 0, 0, 0, 0]
+END_POSE_ROT = REGION2
+
 # init basket pose
 BASKET_NEAR_POS = utils.basket_near_pos.tolist()
 BASKET_FAR_POS = utils.basket_far_pos.tolist()
@@ -153,9 +165,9 @@ BASKET_FAR_ROT = utils.basket_far_rot.tolist()
 
 CLOTH_ROT = [0, 0, 0]
 
-TABLE_GEOM = [1.23/2, 2.45/2, 0.97/2]
+TABLE_GEOM = [1.4, 2.45/2, 0.97/2]
 # TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375]
-TABLE_POS = [1.23/2-0.1, 0, 0.97/2-0.375]
+TABLE_POS = [0, 0, 0.97/2-0.385]
 TABLE_ROT = [0,0,0]
 
 WALL_GEOM = [0.03, 0.25, 0.5]
@@ -170,25 +182,18 @@ WASHER_CONFIG = [True, True]
 # WASHER_INIT_POS = [0.2, 1.39, 0.97-0.375+0.65/2]
 # WASHER_INIT_POS = [0.19, 1.37, 0.97-0.375+0.65/2+0.015]
 # WASHER_INIT_POS = [0.2, 1.37, 0.97-0.375+0.65/2+0.05] # true height
-WASHER_INIT_POS = [0.29, 1.37, 0.97-0.375+0.65/2+0.03]
+# WASHER_INIT_POS = [0.29, 1.37, 0.97-0.375+0.65/2+0.03]
 # WASHER_INIT_POS = [0.27, 1.37, 0.97-0.375+0.65/2+0.05] # true height
 # WASHER_INIT_POS = [0.24, 1.4, 0.97-0.375+0.65/2+0.015]
-WASHER_INIT_ROT = [5*np.pi/6,0,0]
+# WASHER_INIT_POS = [-1.31, -0.53, 0.97-0.375+0.65/2]
+# WASHER_INIT_POS = [-1.31, -0.59, 0.97-0.375+0.65/2]
+WASHER_INIT_POS = [-1.31, -0.55, 0.97-0.375+0.65/2]
+WASHER_INIT_ROT = [3*np.pi/2,0,0]
 # Center of barrel is at (0.1, 1.12)
 
 WASHER_OPEN_DOOR = [-np.pi/2]
 WASHER_CLOSE_DOOR = [0.0]
 WASHER_PUSH_DOOR = [-np.pi/4]
-
-# REGION1 = [np.pi/4]
-# REGION2 = [0]
-# REGION3 = [-np.pi/4]
-# REGION4 = [-np.pi/2]
-
-REGION1 = utils.regions[0]
-REGION2 = utils.regions[1]
-REGION3 = utils.regions[2]
-REGION4 = utils.regions[3]
 
 # # EEPOSE_PUT_INTO_WASHER_POS_1 = [0.05, 1.0, 0.75]
 # EEPOSE_PUT_INTO_WASHER_POS_1 = [0.02, 1.14, 0.73]
@@ -206,6 +211,8 @@ EEPOSE_PUT_INTO_WASHER_ROT_2 = [np.pi/3, 0, 0]
 # EEPOSE_PUT_INTO_WASHER_POS_3 = [0.15, 1.3, 0.8]
 EEPOSE_PUT_INTO_WASHER_POS_3 = [0.11, 1.25, 0.9]
 EEPOSE_PUT_INTO_WASHER_ROT_3 = [np.pi/3, np.pi/20, 0]
+
+BASKET_GRASP_FAR_ROT = [-np.pi/2, np.pi/2, 0]
 
 cloth_init_poses = np.ones((NUM_CLOTH, 3)) * [-1, 1, 0.625]
 cloth_init_poses = cloth_init_poses.tolist()
@@ -361,9 +368,12 @@ def main():
         s += "RobotPose (name {}); ".format("fold_after_drag_2")
         s += "RobotPose (name {}); ".format("fold_scan_corner_2")
         s += "RobotPose (name {}); ".format("fold_scan_two_corner")
+        s += "RobotPose (name {}); ".format("push_washer_close_begin")
+        s += "RobotPose (name {}); ".format("push_washer_close_end")
+        s += "RobotPose (name {}); ".format("end_pose")
         s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
-        s += "Obstacle (name {}); ".format("wall")
+        # s += "Obstacle (name {}); ".format("wall")
         s += "BasketTarget (name {}); ".format("basket_near_target")
         s += "BasketTarget (name {}); ".format("basket_far_target")
         s += "EEPose (name {}); ".format("put_into_washer_ee_1")
@@ -443,8 +453,8 @@ def main():
             s += "(rotation washer_push_pose_{0} {1}), ".format(i, WASHER_INIT_ROT)
             s += "(door washer_push_pose_{0} {1}), ".format(i, WASHER_PUSH_DOOR)
 
-        s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION1)
-        s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION1)
+        s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION4)
+        s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, REGION4)
         s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_END_POSE)
         s += get_robot_pose_str('washer_scan_pose', WASHER_SCAN_LARM, BASKET_SCAN_RARM, INT_GRIPPER, REGION1)
         s += get_robot_pose_str('close_door_scan_pose', CLOSE_DOOR_SCAN_LARM, CLOSE_DOOR_SCAN_RARM, INT_GRIPPER, REGION1)
@@ -487,6 +497,9 @@ def main():
         s += get_robot_pose_str('fold_after_drag_2', CLOTH_FOLD_LARM_AFTER_DRAG_2, BASKET_SCAN_RARM, CLOSE_GRIPPER, REGION2)
         s += get_robot_pose_str('fold_scan_corner_2', CLOTH_FOLD_LARM_AFTER_DRAG_2, CLOTH_FOLD_RARM_SCAN_FOR_CORNER_2, INT_GRIPPER, REGION2)
         s += get_robot_pose_str('fold_scan_two_corner', CLOTH_FOLD_LARM_SCAN_TWO_CORNER, BASKET_SCAN_RARM, INT_GRIPPER, REGION2)
+        s += get_robot_pose_str('push_washer_close_begin', PUSH_WASHER_CLOSE_LARM_BEGIN, BASKET_SCAN_RARM, INT_GRIPPER, REGION1)
+        s += get_robot_pose_str('push_washer_close_end', PUSH_WASHER_CLOSE_LARM_END, BASKET_SCAN_RARM, INT_GRIPPER, REGION1)
+        s += get_robot_pose_str('end_pose', END_POSE_LARM, END_POSE_RARM, INT_GRIPPER, END_POSE_ROT)
 
         s += "(value region1 {}), ".format(REGION1)
         s += "(value region2 {}), ".format(REGION2)
@@ -532,9 +545,9 @@ def main():
         s += "(pose cloth_short_edge {}), ".format([1.6,0,0])
         s += "(rotation cloth_short_edge {}), ".format([0,0,np.pi/2])
 
-        s += "(geom wall {}), ".format(WALL_GEOM)
-        s += "(pose wall {}), ".format(WALL_POS)
-        s += "(rotation wall {}), ".format(WALL_ROT)
+        # s += "(geom wall {}), ".format(WALL_GEOM)
+        # s += "(pose wall {}), ".format(WALL_POS)
+        # s += "(rotation wall {}), ".format(WALL_ROT)
 
         s += "(geom basket_near_target), "
         s += "(value basket_near_target {}), ".format(BASKET_NEAR_POS)

@@ -233,6 +233,38 @@ class Move(Action):
             (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
 
+class MoveNoCollisionCheck(Action):
+    def __init__(self):
+        self.name = 'move_no_collision_check'
+        self.timesteps = 30
+        end = self.timesteps - 1
+        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose)'
+        self.pre = [\
+            ('(forall (?obj - Basket)\
+                (not (BaxterBasketInGripper ?robot ?obj))\
+            )', '{}:{}'.format(0, 0)),
+            ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
+            ('(BaxterStationaryBase ?robot)', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Basket)\
+                (BaxterStationary ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Cloth) (BaxterStationaryCloth ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obs - Can) (BaxterStationaryEdge ?obs))', '0:{}'.format(end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasher ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Washer)\
+                (BaxterStationaryWasherDoor ?obj))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obs - Obstacle) (BaxterStationaryW ?obs))', '{}:{}'.format(0, end-1)),
+            ('(forall (?basket - Basket) (BaxterBasketLevel ?basket))', '{}:{}'.format(0, end)),
+            ('(BaxterIsMP ?robot)', '{}:{}'.format(0, end-1)),
+            ('(BaxterWithinJointLimit ?robot)', '{}:{}'.format(0, end)),
+            ('(BaxterOpenGrippers ?robot)', '{}:{}'.format(1, end-1)),
+            ('(forall (?w - Obstacle) (not (BaxterRCollides ?robot ?w)))', '{}:{}'.format(0, end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
+        ]
+        self.eff = [\
+            (' (not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
+            ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))]
+
 class MoveAroundWasher(Action):
     def __init__(self):
         self.name = 'move_around_washer'
@@ -716,7 +748,7 @@ class PutdownWithCloth(Action):
 class OpenDoor(Action):
     def __init__(self):
         self.name = 'open_door'
-        self.timesteps = 2*(const.EEREACHABLE_STEPS+6) + 25
+        self.timesteps = 2*(const.EEREACHABLE_STEPS+6) + 5 # 25
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?washer - Washer ?sp - RobotPose ?ee_approach - EEPose ?ee_retreat - EEPose ?ep - RobotPose ?wsp - WasherPose ?wep - WasherPose)'
         grasp_time = const.EEREACHABLE_STEPS + 5
@@ -892,7 +924,7 @@ class PushDoorClose(Action):
 class CloseDoor(Action):
     def __init__(self):
         self.name = 'close_door'
-        self.timesteps = 2*(const.EEREACHABLE_STEPS+6) + 25
+        self.timesteps = 2*(const.EEREACHABLE_STEPS+6) + 5 # 25
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?washer - Washer ?sp - RobotPose ?ee_approach - EEPose ?ee_retreat - EEPose ?ep - RobotPose ?wsp - WasherPose ?wep - WasherPose)'
         grasp_time = const.EEREACHABLE_STEPS + 5
@@ -1921,7 +1953,8 @@ actions = [Move(), MoveHoldingBasket(), MoveHoldingCloth(), Grasp(), Putdown(),
            RotateHoldingBasketWithCloth(), GrabCornerLeft(), GrabCornerRight(), 
            DragClothLeft(), DragClothBoth(), FoldInHalf(), MoveToEEPos(),
            MoveToEEPosLeft(), PushDoorClose(), ClothGraspFromHandle(),
-           MoveAroundWasher(), BothMoveClothTo(), BothEndClothGrasp()]
+           MoveAroundWasher(), BothMoveClothTo(), BothEndClothGrasp(),
+           MoveNoCollisionCheck()]
 
 for action in actions:
     dom_str += '\n\n'

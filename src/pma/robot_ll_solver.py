@@ -99,6 +99,9 @@ class RobotLLSolver(LLSolver):
         elif a.name == 'move_around_washer':
             ## find possible values for the final robot_pose
             rs_param = a.params[2]
+        elif a.name == 'move_no_collision_check':
+            ## find possible values for the final robot_pose
+            rs_param = a.params[2]
         elif a.name == 'moveholding_basket':
             ## find possible values for the final robot_pose
             rs_param = a.params[2]
@@ -841,11 +844,12 @@ class RobotLLSolver(LLSolver):
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
                 # random_dir = np.multiply(np.random.sample(3) - [.5, 1, 0], [.005, .2, .1])
-                random_dir = np.multiply(np.random.sample(3) - [3, 1, 0], [.075, .075, .05])
+                random_dir = np.multiply(np.random.sample(3) - [-2, 0, 0], [.075, .075, .05])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([np.pi/6, 0, 0])
+                ee_rot = np.array([5*np.pi/6, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
+                    import ipdb; ipdb.set_trace()
                     continue
                 arm_pose = baxter_sampling.closest_arm_pose(ik_arm_poses, old_l_arm_pose.flatten()).reshape((7,1))
 
@@ -862,9 +866,9 @@ class RobotLLSolver(LLSolver):
                 # old_pose = next_act.params[2].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [.5, 2.5, .5], [.025, .1, .05])
+                random_dir = np.multiply(np.random.sample(3) + [1, 1, 0], [.15, .025, .05])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([np.pi/2, 0, 0])
+                ee_rot = np.array([np.pi, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
@@ -883,9 +887,9 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[2].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [1, 2.5, 0], [.05, .1, .05])
+                random_dir = np.multiply(np.random.sample(3) + [1, 1, 0], [.15, .025, .05])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([5*np.pi/12, 0, 0])
+                ee_rot = np.array([np.pi, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue
@@ -903,9 +907,9 @@ class RobotLLSolver(LLSolver):
                 # old_pose = act.params[2].value[:,0]
                 # robot_body.set_pose([0, 0, old_pose[0]])
 
-                random_dir = np.multiply(np.random.sample(3) - [2, 2, 0], [.1, .1, .05])
+                random_dir = np.multiply(np.random.sample(3) - [-2, 0, 0], [.075, .075, .05])
                 ee_pos = target_pos + random_dir
-                ee_rot = np.array([np.pi/6, 0, 0])
+                ee_rot = np.array([5*np.pi/6, 0, 0])
                 ik_arm_poses = robot_body.get_ik_from_pose(ee_pos, ee_rot, "left_arm")
                 if not len(ik_arm_poses):
                     continue

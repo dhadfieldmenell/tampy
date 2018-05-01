@@ -18,8 +18,12 @@ from sensor_msgs.msg import Image
 
 import ros_interface.utils as utils
 
+box_color = [0, 0, 255]
+box_width = 5
+zed_threshold = 0.8
+wrist_threshold = 0.6
 
-TRAINED_MODEL = 'ros_interface/cloth/March23TrainedClothGrid.h5'
+TRAINED_MODEL = 'ros_interface/cloth/April30thTrained.h5'
 
 # def get_session():
 #     with tf.device("/cpu:0"):
@@ -33,7 +37,7 @@ class ClothGridPredict:
         self.cur_im = None
         self.cur_grip_im = None
         self.image_sub = rospy.Subscriber("/zed/rgb/image_rect_color", Image, self.callback)
-        self.grip_im_sub = rospy.Subscriber("/cameras/left_hand_camera/image", Image, self.grip_callback)
+        self.grip_im_sub = rospy.Subscriber("/cameras/right_hand_camera/image", Image, self.grip_callback)
         with tf.device("/cpu:0"):
             self.net = load_model(TRAINED_MODEL)
 
@@ -73,18 +77,70 @@ class ClothGridPredict:
             im = self.bridge.imgmsg_to_cv2(self.cur_im, 'passthrough')
             im = np.array(im, dtype=np.float32)
             for loc in utils.cloth_grid_coordinates:
-                pixel_val_x = utils.cloth_grid_ref[0][0] + int(utils.pixels_per_cm*(utils.cloth_grid_ref[1][0] - 100*loc[0][0]))
-                pixel_val_y = utils.cloth_grid_ref[0][1] + int(utils.pixels_per_cm*(utils.cloth_grid_ref[1][1] - 100*loc[0][1]))
+                cm_offset = [utils.cloth_grid_ref[1][0] - 100*loc[0][0], utils.cloth_grid_ref[1][1] - 100*loc[0][1]]
+                im_offset = utils.cloth_grid_rot_mat.dot(cm_offset)*utils.pixels_per_cm
+                pixel_val_x = utils.cloth_grid_ref[0][0] + int(im_offset[0])
+                pixel_val_y = utils.cloth_grid_ref[0][1] + int(im_offset[1])
 
                 region = im[pixel_val_x-utils.cloth_grid_window:pixel_val_x+utils.cloth_grid_window, pixel_val_y-utils.cloth_grid_window:pixel_val_y+utils.cloth_grid_window]
                 region = np.expand_dims(cv2.resize(region, ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
                 region = (region - utils.cloth_net_mean) / utils.cloth_net_std
                 prediction = self.net.predict(region)
 
-                if prediction > 0.95:
+                if prediction > zed_threshold:
                     locs.append(loc)
 
         return locs
+
+    def test_predict(self):
+        import matplotlib.pyplot as plt
+
+        if self.cur_im: 
+            im = self.bridge.imgmsg_to_cv2(self.cur_im, 'passthrough')
+            im = np.array(im, dtype=np.float64)
+
+            bounds = [[[260, 1080], [40, 300]], [[260, 520], [40, 680]], [[800, 1080], [40, 600]], [[260, 1080], [580, 680]]]
+
+            for ((lower_y, upper_y), (lower_x, upper_x)) in bounds:
+                for y in range(lower_y, upper_y, utils.cloth_grid_window*2):
+                    for x in range(lower_x, upper_x, utils.cloth_grid_window*2):
+                        region = im[x-utils.cloth_grid_window:x+utils.cloth_grid_window, y-utils.cloth_grid_window:y+utils.cloth_grid_window]
+                        region = np.expand_dims(cv2.resize(region, ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
+                        region = (region - utils.cloth_net_mean) / utils.cloth_net_std
+                        prediction = self.net.predict(region)
+                        if prediction > zed_threshold:
+                            im[x-utils.cloth_grid_window-box_width:x-utils.cloth_grid_window, y-utils.cloth_grid_window:y+utils.cloth_grid_window] = box_color
+                            im[x+utils.cloth_grid_window:x+utils.cloth_grid_window+box_width, y-utils.cloth_grid_window:y+utils.cloth_grid_window] = box_color
+                            im[x-utils.cloth_grid_window:x+utils.cloth_grid_window, y-utils.cloth_grid_window-box_width:y-utils.cloth_grid_window] = box_color
+                            im[x-utils.cloth_grid_window:x+utils.cloth_grid_window, y+utils.cloth_grid_window:y+utils.cloth_grid_window+box_width] = box_color
+
+            plt.imshow(im)
+            plt.show()
+
+    def test_wrist_predict(self):
+        import matplotlib.pyplot as plt
+
+        if self.cur_grip_im: 
+            im = self.bridge.imgmsg_to_cv2(self.cur_grip_im, 'passthrough')
+            im = np.array(im, dtype=np.float64)[:,:,:3]
+
+            bounds = [[[30, 290], [30, 170]]]
+
+            for ((lower_y, upper_y), (lower_x, upper_x)) in bounds:
+                for y in range(lower_y, upper_y, utils.cloth_grid_window*2):
+                    for x in range(lower_x, upper_x, utils.cloth_grid_window*2):
+                        region = im[x-utils.cloth_grid_window:x+utils.cloth_grid_window, y-utils.cloth_grid_window:y+utils.cloth_grid_window]
+                        region = np.expand_dims(cv2.resize(region, ((utils.cloth_grid_input_dim, utils.cloth_grid_input_dim))), 0)
+                        region = (region - utils.cloth_net_mean) / utils.cloth_net_std
+                        prediction = self.net.predict(region)
+                        if prediction > wrist_threshold:
+                            im[x-utils.cloth_grid_window-box_width:x-utils.cloth_grid_window, y-utils.cloth_grid_window:y+utils.cloth_grid_window] = box_color
+                            im[x+utils.cloth_grid_window:x+utils.cloth_grid_window+box_width, y-utils.cloth_grid_window:y+utils.cloth_grid_window] = box_color
+                            im[x-utils.cloth_grid_window:x+utils.cloth_grid_window, y-utils.cloth_grid_window-box_width:y-utils.cloth_grid_window] = box_color
+                            im[x-utils.cloth_grid_window:x+utils.cloth_grid_window, y+utils.cloth_grid_window:y+utils.cloth_grid_window+box_width] = box_color
+
+            plt.imshow(im)
+            plt.show()
 
     def predict_washer(self):
         locs = []
@@ -97,13 +153,13 @@ class ClothGridPredict:
                 region = (region - utils.cloth_net_mean) / utils.cloth_net_std
                 prediction = self.net.predict(region)
 
-                if prediction > 0.95:
+                if prediction > wrist_threshold:
                     locs.append(loc[1])
                     break
 
         return locs
 
-    def predict_wrist_center(self, offset=[0,0], threshold=0.7):
+    def predict_wrist_center(self, offset=[0,0], threshold=wrist_threshold):
         prediction = False
         if self.cur_grip_im: 
             im = self.bridge.imgmsg_to_cv2(self.cur_grip_im, 'passthrough')

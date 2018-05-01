@@ -1055,7 +1055,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         self.true_washer_body = self._param_to_body[params[3]]
         self._param_to_body[params[3]] = [OpenRAVEBody(self._env, 'washer_obstruct', Box([.375, .375, .375])),
                                           OpenRAVEBody(self._env, 'obstruct_door', Can(.35, .05)),
-                                          OpenRAVEBody(self._env, 'obstruct_handle', Sphere(.08,))]
+                                          OpenRAVEBody(self._env, 'obstruct_handle', Sphere(.05,))]
         self._param_to_body[params[3]][0].set_pose([0,0,0])
         self._param_to_body[params[3]][1].set_pose([0,0,0])
         self._param_to_body[params[3]][2].set_pose([0,0,0])
@@ -1070,7 +1070,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         col_expr = Expr(f, grad)
         links = len(self.robot.geom.col_links)
 
-        val = np.zeros((len(self.col_link_pairs),1))
+        val = np.zeros((len(self.col_link_pairs)*3,1))
         # e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -1106,7 +1106,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         washer_door_pos = door_trans.dot([0, 0.025, 0, 1])[:3]
         washer_door.set_pose(washer_door_pos, [washer_rot[0]+[np.pi/2+x[-1]], np.pi/2, 0])
         handle_trans = self.true_washer_body.env_body.GetLink('washer_handle').GetTransform()
-        washer_handle.set_pose(handle_trans[:3,3]+[0,0,0.02])
+        washer_handle.set_pose(handle_trans[:3,3]+[0,0,0.04])
 
         # Make sure two body is in the same environment
         assert robot_body.env_body.GetEnv() == washer_body.env_body.GetEnv()
@@ -1129,8 +1129,8 @@ class BaxterObstructsWasher(BaxterObstructs):
         washer_body.set_pose([0,0,0])
         washer_door.set_pose([0,0,0])
         washer_handle.set_pose([0,0,0])
-        return col_val+door_col_val+handle_col_val, col_jac+door_col_jac+handle_col_jac
-        # return np.vstack([col_val, door_col_val, handle_col_val]), np.vstack([col_jac, door_col_jac, handle_col_jac])
+        # return col_val+door_col_val+handle_col_val, col_jac+door_col_jac+handle_col_jac
+        return np.vstack([col_val, door_col_val, handle_col_val]), np.vstack([col_jac, door_col_jac, handle_col_jac])
 
     def _calc_grad_and_val(self, robot_body, obj_body, collisions):
         """

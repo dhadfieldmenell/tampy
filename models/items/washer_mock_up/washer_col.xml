@@ -128,7 +128,7 @@
    </Body> -->
 
    <Body name="washer_handle">
-     <Translation>0 0.425 0.375</Translation>
+     <Translation>-0.02 0.425 0.385</Translation>
      <RotationAxis>1 0 0 90</RotationAxis>
      <Geom type="cylinder">
        <radius>0.01</radius>
