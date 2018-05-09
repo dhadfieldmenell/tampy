@@ -1458,10 +1458,10 @@ class TestBasketDomain(unittest.TestCase):
         # act_num += 1
         # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 LOAD_WASHER_INTERMEDIATE_POSE CLOTH0 \n'.format(act_num))
         # act_num += 1
-        # ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
-        # act_num += 1
-        # ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_NEAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_1 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
-        # act_num += 1
+        ll_plan_str.append('{0}: MOVEHOLDING_CLOTH BAXTER LOAD_WASHER_INTERMEDIATE_POSE CLOTH_PUTDOWN_BEGIN_0 CLOTH0 \n'.format(act_num))
+        act_num += 1
+        ll_plan_str.append('{0}: PUT_INTO_BASKET BAXTER CLOTH0 BASKET CLOTH_TARGET_END_0 BASKET_NEAR_TARGET CLOTH_PUTDOWN_BEGIN_0 CP_EE_1 CLOTH_PUTDOWN_END_0 \n'.format(act_num))
+        act_num += 1
         # ll_plan_str.append('{0}: MOVETO BAXTER CLOTH_PUTDOWN_END_0 LOAD_WASHER_INTERMEDIATE_POSE \n'.format(act_num))
         # act_num += 1
         # ll_plan_str.append('{0}: MOVETO BAXTER LOAD_WASHER_INTERMEDIATE_POSE WASHER_SCAN_POSE \n'.format(act_num))
