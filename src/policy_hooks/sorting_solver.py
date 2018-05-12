@@ -35,6 +35,7 @@ from policy_hooks.tamp_agent import LaundryWorldClothAgent
 from policy_hooks.tamp_cost import TAMPCost
 from policy_hooks.cost_state import CostState
 from policy_hooks.tamp_action_cost import CostAction
+from policy_hooks.task_net import tf_classification_network
 
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
@@ -70,6 +71,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config.update(hyperparams)
 
         self.task_list = get_tasks('policy_hooks/sorting_task_mapping_2').keys()
+        self.task_durations = get_task_durations('policy_hooks/sorting_task_mapping_2')
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
 
@@ -110,6 +112,7 @@ class BaxterPolicySolver(RobotLLSolver):
                 'task_breaks': task_breaks,
                 'color_maps': color_maps,
                 'task_encoding': task_encoding,
+                'task_durations': self.task_durations,
                 'state_inds': self.state_inds,
                 'action_inds': self.action_inds,
                 'dU': self.dU,
@@ -139,7 +142,11 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['agent']['x0'].extend(x0s)
 
         # action_cost_wp = np.ones((self.config['agent']['T'], self.dU), dtype='float64')
-        # state_cost_wp = np.ones((self.config['agent']['T'], self.symbolic_bound), dtype='float64')
+        state_cost_wp = np.ones((self.symbolic_bound), dtype='float64')
+        state_cost_wp[self.state_inds['baxter', 'lArmPose']] *= 0.1
+        state_cost_wp[self.state_inds['baxter', 'rArmPose']] *= 0.1
+        state_cost_wp[self.state_inds['baxter', 'lGripper']] *= 0.1
+        state_cost_wp[self.state_inds['baxter', 'rGripper']] *= 0.1
         # for (param_name, attr) in state_inds:
         #     if not initial_plan.params[param_name].is_symbol() and param_name.startswith('cloth'):
         #         state_cost_wp[:, state_inds[param_name, attr]] *= 4
@@ -159,7 +166,7 @@ class BaxterPolicySolver(RobotLLSolver):
                             'type': CostState,
                             'data_types': {
                                 utils.STATE_ENUM: {
-                                    'wp': np.ones((1, self.symbolic_bound), dtype='float64'),
+                                    'wp': state_cost_wp,
                                     'target_state': np.zeros((1, self.symbolic_bound)),
                                     'wp_final_multiplier': 10.0,
                                 }
@@ -180,7 +187,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [2.0, 1.0],
+                                                        'weights': [2.0, 0.5],
                                                     })
 
         self.config['dQ'] = self.dU
@@ -201,9 +208,10 @@ class BaxterPolicySolver(RobotLLSolver):
                 'num_filters': [5,10],
                 'dim_hidden': [200, 200]
             },
-            'lr': 1e-4,
+            'lr': 1e-3,
             'network_model': tf_network,
-            'iterations': 25000,
+            'primitive_network_model': tf_classification_network,
+            'iterations': 10000,
             'batch_size': 100,
             'weight_decay': 0.05,
             'weights_file_prefix': EXP_DIR + 'policy',

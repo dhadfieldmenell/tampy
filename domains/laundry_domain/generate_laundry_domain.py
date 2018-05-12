@@ -501,7 +501,7 @@ class Grasp(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -650,7 +650,7 @@ class Putdown(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -800,7 +800,7 @@ class OpenDoor(Action):
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
-            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?sp ?ep ?obj))\
             )', '0:{}'.format(grasp_time-1))
@@ -853,7 +853,7 @@ class PushDoorOpen(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -910,7 +910,7 @@ class PushDoorClose(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),
@@ -972,7 +972,7 @@ class CloseDoor(Action):
                     (not (BaxterCollides ?obj ?obs))\
                 )\
             )', '0:{}'.format(end-1)),
-            ('(not (BaxterRSelfCollides ?robot))', '0:{}'.format(end)),
+            ('(not (BaxterRSelfCollides ?robot))', '1:{}'.format(end-1)),
             ('(forall (?obs - Obstacle)\
                 (not (BaxterRCollides ?robot ?obs))\
             )', '0:{}'.format(end)),

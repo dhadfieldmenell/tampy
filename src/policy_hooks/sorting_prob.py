@@ -234,7 +234,7 @@ def get_random_initial_cloth_locations(num_cloths):
     for _ in range(num_cloths):
         next_loc = random.choice(possible_cloth_locs)
         next_loc[1] *= random.choice([-1, 1])
-        while len(locs) and np.any(np.abs(np.array(locs)[:,:2]-next_loc[:2]) < 0.05):
+        while len(locs) and np.any(np.abs(np.array(locs)[:,:2]-next_loc[:2]) < 0.08):
             next_loc = random.choice(possible_cloth_locs)
             next_loc[1] *= random.choice([-1, 1])
 

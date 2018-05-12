@@ -17,9 +17,16 @@ def plan_from_str(ll_plan_str, num_cloth):
 
 def get_tasks(file_name):
     with open(file_name, 'r+') as f:
-        task_map = eval(f.read())
+        task_info = f.read().split(';')
+        task_map = eval(task_info[0])
     return task_map
     
+def get_task_durations(file_name):
+    with open(file_name, 'r+') as f:
+        task_info = f.read().split(';')
+        task_durations = eval(task_info[1])
+    return task_durations
+
 def fill_params(plan_str, values):
     for i in range(len(plan_str)):
         plan_str[i] = plan_str[i].format(*values.append(i))

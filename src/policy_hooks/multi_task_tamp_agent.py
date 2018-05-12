@@ -72,6 +72,7 @@ class LaundryWorldEEAgent(Agent):
         self.plans = self._hyperparams['plans']
         self.task_breaks = self._hyperparams['task_breaks']
         self.task_encoding = self._hyperparams['task_encoding']
+        self.task_durations = self._hyperparams['task_durations']
         self.color_maps = self._hyperparams['color_maps']
         self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
         self.state_inds = self._hyperparams['state_inds']
@@ -101,6 +102,9 @@ class LaundryWorldEEAgent(Agent):
         self.optimal_act_traj = [[] for _ in range(len(self.plans))]
 
         self.get_plan = self._hyperparams['get_plan']
+
+        self.in_left_grip = -1
+        self.in_right_grip = -1
 
 
     def get_samples(self, condition, task, start=0, end=None):
@@ -409,6 +413,15 @@ class LaundryWorldEEAgent(Agent):
             # last_left_ctrl = x0[3][10:17]
             # last_right_ctrl = x0[3][1:8]
 
+            if noisy:
+                noise = generate_noise(self.T, self.dU, self._hyperparams)
+            else:
+                noise = np.zeros((self.T, self.dU))
+
+            noise[:, self.action_inds['baxter', 'lGripper']] = 0
+            noise[:, self.action_inds['baxter', 'rGripper']] = 0
+
+
             for t in range(0, (self.plans[condition].horizon-1)*utils.POLICY_STEPS_PER_SECOND):
                 if t >= next_t:
                     if save:
@@ -435,17 +448,10 @@ class LaundryWorldEEAgent(Agent):
                 if TRAJ_HIST_ENUM in self._hyperparams['obs_include']:
                     obs = np.r_[obs, np.array(self.traj_hist).flatten()]
 
-                if noisy and np.random.uniform(0, 1) < 0.8:
-                    noise = np.random.normal(0, 0.05, (self.dU,))
-                    noise[self.action_inds['baxter', 'lGripper']] *= 0
-                    noise[self.action_inds['baxter', 'rGripper']] *= 0
-                else:
-                    noise = np.zeros((self.dU,))
-
                 if use_base_t:
-                    U = policy.act(X.copy(), obs, t-base_t, noise)
+                    U = policy.act(X.copy(), obs, t-base_t, noise[t-base_t])
                 else:
-                    U = policy.act(X.copy(), obs, t, noise)
+                    U = policy.act(X.copy(), obs, t, noise[t-base_t])
 
 
                 for i in range(1):
@@ -453,7 +459,7 @@ class LaundryWorldEEAgent(Agent):
                     if OBS_ENUM in self._hyperparams['obs_include']:
                         sample.set(OBS_ENUM, im.copy(), t-base_t+i)
                     sample.set(ACTION_ENUM, U.copy(), t-base_t+i)
-                    sample.set(NOISE_ENUM, noise, t-base_t+i)
+                    sample.set(NOISE_ENUM, noise[t-base_t], t-base_t+i)
                     sample.set(COLORS_ENUM, color_vec.copy(), t-base_t+i)
                     sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t-base_t+i)
                     task_vec = np.zeros((num_tasks,))
@@ -491,6 +497,108 @@ class LaundryWorldEEAgent(Agent):
             self._samples[condition][task].append(sample)
         return sample
 
+
+    def sample_task(self, policy, condition, x0, task, save_global=False, verbose=False, save=True, use_base_t=True, noisy=True):
+        '''
+            Take a sample for a given condition
+        '''
+        self.plans[condition].params['table'].openrave_body.set_pose([5, 5, 5])
+        self.plans[condition].params['basket'].openrave_body.set_pose([-5, 5, 5])
+        for (param, attr) in self.state_inds:
+            if plan.params[param].is_symbol(): continue
+            getattr(self.plans[condition].params[param], attr)[:,1] = x0[self.state_inds[param, attr]]
+        num_tasks = len(self.task_encoding.keys())
+        cur_task_ind = 0
+        self.T = self.task_durations[task]
+        base_t = 0
+        sample = Sample(self)
+        sample.init_t = 0
+        print 'Starting on-policy sample for condition {0}.'.format(condition)
+        # if self.stochastic_conditions and save_global:
+        #     self.replace_cond(condition)
+
+        color_vec = np.zeros((len(self.color_maps[condition].keys())))
+        for cloth_name in self.color_maps[condition]:
+            color_vec[int(cloth_name[-1])] = self.color_maps[condition][cloth_name][0] * 100
+
+        attempts = 0
+        success = False
+        while not success and attempts < 3:
+            self._set_simulator_state(condition, self.plans[condition], 1)
+            last_successful_pos = self.pos_model.data.qpos.copy()
+            # last_success_X = (x0[0], x0[3])
+            # last_left_ctrl = x0[3][10:17]
+            # last_right_ctrl = x0[3][1:8]
+
+            if noisy:
+                noise = generate_noise(self.T, self.dU, self._hyperparams)
+            else:
+                noise = np.zeros((self.T, self.dU))
+
+            noise[:, self.action_inds['baxter', 'lGripper']] = 0
+            noise[:, self.action_inds['baxter', 'rGripper']] = 0
+
+
+            for t in range(0, self.T*utils.POLICY_STEPS_PER_SECOND):
+                base_t = sample.init_t
+
+                X, joints = self._get_simulator_state(self.state_inds, condition, self.symbolic_bound)
+
+                obs = []
+                if OBS_ENUM in self._hyperparams['obs_include']:
+                    im = self.get_obs()
+                    obs = np.r_[obs, im]
+                
+                if STATE_ENUM in self._hyperparams['obs_include']:
+                    obs = np.r_[obs, X]
+
+                if TRAJ_HIST_ENUM in self._hyperparams['obs_include']:
+                    obs = np.r_[obs, np.array(self.traj_hist).flatten()]
+
+                if use_base_t:
+                    U = policy.act(X.copy(), obs, t-base_t, noise[t-base_t])
+                else:
+                    U = policy.act(X.copy(), obs, t, noise[t-base_t])
+
+
+                for i in range(1):
+                    sample.set(STATE_ENUM, X.copy(), t-base_t+i)
+                    if OBS_ENUM in self._hyperparams['obs_include']:
+                        sample.set(OBS_ENUM, im.copy(), t-base_t+i)
+                    sample.set(ACTION_ENUM, U.copy(), t-base_t+i)
+                    sample.set(NOISE_ENUM, noise[t-base_t], t-base_t+i)
+                    sample.set(COLORS_ENUM, color_vec.copy(), t-base_t+i)
+                    sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t-base_t+i)
+                    task_vec = np.zeros((num_tasks,))
+                    task_vec[self.task_encoding[task]] = 1
+                    sample.set(TASK_ENUM, task_vec, t-base_t+i)
+
+
+                self.traj_hist.pop(0)
+                self.traj_hist.append(U)
+
+                left_vec = U[self.action_inds['baxter', 'lArmPose']] - X[self.state_inds['baxter', 'lArmPose']]
+                right_vec = U[self.action_inds['baxter', 'rArmPose']] - X[self.state_inds['baxter', 'rArmPose']]
+
+                iteration = 0
+                while np.any(np.abs(np.r_[left_vec, right_vec]) > 0.02) and iteration < 200:
+                    success = self.run_policy_step(U, last_successful_pos)
+                    last_successful_pos[:] = self.pos_model.data.qpos.copy()[:]
+                    iteration += 1
+
+                self.viewer.loop_once()
+
+                if not success:
+                    attempts += 1
+                    sample = Sample(self)
+                    sample.init_t = 0
+
+                    break
+            print 'Finished on-policy sample.\n'.format(condition)
+
+        if save:
+            self._samples[condition][task].append(sample)
+        return sample
 
     def run_policy_step(self, u, last_success, grip_cloth=-1, grip_basket=False):
         u_inds = self.action_inds
@@ -554,42 +662,61 @@ class LaundryWorldEEAgent(Agent):
             run_forward = True
 
         grip_cloth = -1
-        if not run_forward:
+        if self.in_left_grip < 0:
+            cur_left_dist = -1
             for i in range(self.num_cloths):
                 if xpos[self.cloth_inds[i]][2] > 0.67 and np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_r_ind])**2 < [0.01, 0.01, 0.01]) and l_grip < const.GRIPPER_CLOSE_VALUE:
-                    body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
-                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
-                    run_forward = True
-                    break
+                    new_dist = np.sum((xpos[self.cloth_inds[i]] - xpos[self.left_grip_r_ind])**2)
+                    if cur_left_dist < 0 or new_dist < cur_left_dist:
+                        self.in_left_grip = i
+                        cur_left_dist = new_dist
 
-                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_r_ind])**2 < [0.0036, 0.0036, 0.0025]) and l_grip < const.GRIPPER_CLOSE_VALUE:
-                    body_pos[self.cloth_inds[i]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
-                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
-                    run_forward = True
-                    break
+                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.left_grip_r_ind])**2 < [0.0081, 0.0081, 0.005]) and l_grip < const.GRIPPER_CLOSE_VALUE:
+                    new_dist = np.sum((xpos[self.cloth_inds[i]] - xpos[self.left_grip_r_ind])**2)
+                    if cur_left_dist < 0 or new_dist < cur_left_dist:
+                        self.in_left_grip = i
+                        cur_left_dist = new_dist
 
+        if self.in_right_grip < 0:
+            cur_right_dist = -1
             for i in range(self.num_cloths):
                 if xpos[self.cloth_inds[i]][2] > 0.67 and np.all((xpos[self.cloth_inds[i]] - xpos[self.right_grip_l_ind])**2 < [0.01, 0.01, 0.01]) and r_grip < const.GRIPPER_CLOSE_VALUE:
-                    body_pos[self.cloth_inds[i]] = (xpos[self.right_grip_r_ind] + xpos[self.right_grip_l_ind]) / 2.0
-                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
-                    run_forward = True
-                    break
+                    new_dist = np.sum((xpos[self.cloth_inds[i]] - xpos[self.right_grip_l_ind])**2)
+                    if cur_right_dist < 0 or new_dist < cur_right_dist:
+                        self.in_right_grip = i
+                        cur_right_dist = new_dist
 
-                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.right_grip_l_ind])**2 < [0.0036, 0.0036, 0.0025]) and r_grip < const.GRIPPER_CLOSE_VALUE:
-                    body_pos[self.cloth_inds[i]] = (xpos[self.right_grip_r_ind] + xpos[self.right_grip_l_ind]) / 2.0
-                    body_pos[self.cloth_inds[i]][2] = max(body_pos[self.cloth_inds[i]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
-                    run_forward = True
-                    break
+                if grip_cloth == i or np.all((xpos[self.cloth_inds[i]] - xpos[self.right_grip_l_ind])**2 < [0.0081, 0.0081, 0.005]) and r_grip < const.GRIPPER_CLOSE_VALUE:
+                    new_dist = np.sum((xpos[self.cloth_inds[i]] - xpos[self.right_grip_l_ind])**2)
+                    if cur_right_dist < 0 or new_dist < cur_right_dist:
+                        self.in_right_grip = i
+                        cur_right_dist = new_dist
 
-            for i in range(self.num_cloths-1, -1, -1):
-                if l_grip > const.GRIPPER_CLOSE_VALUE and np.all((xpos[self.cloth_inds[i]] - xpos[self.basket_ind])**2 < [0.06, 0.06, 0.04]) and xpos[self.cloth_inds[i]][2] > 0.65 + MUJOCO_MODEL_Z_OFFSET:
-                    pos = xpos[self.cloth_inds[i]].copy()
-                    pos[0] += 0.03
-                    pos[1] -= 0.04
-                    pos[2] = 0.67 + MUJOCO_MODEL_Z_OFFSET
-                    body_pos[self.cloth_inds[i]] = pos
-                    run_forward = True
-                    break
+        if l_grip > const.GRIPPER_CLOSE_VALUE:
+            self.in_left_grip = -1
+
+        if r_grip > const.GRIPPER_CLOSE_VALUE:
+            self.in_right_grip = -1
+
+        if self.in_left_grip > -1:
+            run_forward = True
+            body_pos[self.cloth_inds[self.in_left_grip]] = (xpos[self.left_grip_l_ind] + xpos[self.left_grip_r_ind]) / 2.0
+            body_pos[self.cloth_inds[self.in_left_grip]][2] = max(body_pos[self.cloth_inds[self.in_left_grip]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
+
+        if self.in_right_grip > -1:
+            run_forward = True
+            body_pos[self.cloth_inds[self.in_right_grip]] = (xpos[self.right_grip_l_ind] + xpos[self.right_grip_r_ind]) / 2.0
+            body_pos[self.cloth_inds[self.in_right_grip]][2] = max(body_pos[self.cloth_inds[self.in_right_grip]][2], 0.655 + MUJOCO_MODEL_Z_OFFSET)
+
+            # for i in range(self.num_cloths-1, -1, -1):
+            #     if l_grip > const.GRIPPER_CLOSE_VALUE and np.all((xpos[self.cloth_inds[i]] - xpos[self.basket_ind])**2 < [0.06, 0.06, 0.04]) and xpos[self.cloth_inds[i]][2] > 0.65 + MUJOCO_MODEL_Z_OFFSET:
+            #         pos = xpos[self.cloth_inds[i]].copy()
+            #         pos[0] += 0.03
+            #         pos[1] -= 0.04
+            #         pos[2] = 0.67 + MUJOCO_MODEL_Z_OFFSET
+            #         body_pos[self.cloth_inds[i]] = pos
+            #         run_forward = True
+            #         break
 
         if run_forward:
             self.pos_model.body_pos = body_pos

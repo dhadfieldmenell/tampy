@@ -2,6 +2,7 @@
 
 import matplotlib as mpl
 mpl.use('Qt4Agg')
+import numpy as np
 
 import logging
 import imp
@@ -21,6 +22,8 @@ from gps.gui.gps_training_gui import GPSTrainingGUI
 from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
+
+from policy_hooks.policy_solver_utils import TASK_ENUM
 
 
 class LocalControl:
@@ -134,6 +137,31 @@ class GPSMain(object):
             traceback.print_exception(*sys.exc_info())
         finally:
             self._end()
+
+    def update_primitives(self):
+        dP, dO = len(self.task_list), self.alg_map.values()[0].dO
+        # Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
+        tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
+        for alg in self.alg_map.values():
+            for m in range(alg.M):
+                for ts in alg.prev[m]:
+                    samples = alg.prev[m][ts].sample_list
+                    X = [sample.get(TASK_ENUM) for sample in samples.get_samples()]
+                    N = len(samples)
+                    T = samples.get_samples()[0].T
+                    mu = np.zeros((N*T, dP))
+                    prc = np.zeros((N*T, dP, dP))
+                    wt = np.ones((N*T))
+                    for t in range(T):
+                        for i in range(N):
+                            mu[i+t*N, :] = X[i+t*N, :]
+
+                    tgt_mu = np.concatenate((tgt_mu, mu))
+                    tgt_prc = np.concatenate((tgt_prc, prc))
+                    tgt_wt = np.concatenate((tgt_wt, wt))
+                    obs_data = np.concatenate((obs_data, samples.get_obs()))
+        self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def test_policy(self, itr, N):
         """
@@ -285,6 +313,7 @@ class GPSMain(object):
             self.gui.start_display_calculating()
         for task in self.alg_map:
             self.alg_map[task].iteration(sample_lists[task])
+        self.update_primitives()
         if self.gui:
             self.gui.stop_display_calculating()
 

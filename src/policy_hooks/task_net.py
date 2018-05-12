@@ -1,8 +1,7 @@
 import tensorflow as tf
-import tensorflow.layers as layers
 from gps.algorithm.policy_opt.tf_utils import TfMap
 import numpy as np
-
+from copy import copy
 
 def init_weights(shape, name=None):
     return tf.get_variable(name, initializer=tf.random_normal(shape, stddev=0.01))
@@ -76,12 +75,12 @@ def get_loss_layer(mlp_out, task):
 
 def tf_classification_network(dim_input=27, dim_output=7, batch_size=25, network_config=None):
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
-    dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else network_config['dim_hidden']
+    dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
     dim_hidden.append(dim_output)
 
     nn_input, action, precision = get_input_layer(dim_input, dim_output)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
     fc_vars = weights_FC + biases_FC
-    loss_out = get_loss_layer(mlp_out=mlp_applied, task=task)
+    loss_out = get_loss_layer(mlp_out=mlp_applied, task=action)
 
     return TfMap.init_from_lists([nn_input, action, precision], [mlp_applied], [loss_out]), fc_vars, []

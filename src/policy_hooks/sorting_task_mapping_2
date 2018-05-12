@@ -40,4 +40,13 @@
         '2: MOVEHOLDING_CLOTH_RIGHT BAXTER CLOTH_GRASP_END_{3} CLOTH_PUTDOWN_BEGIN_{3} CLOTH{0}',
         '3: CLOTH_PUTDOWN_RIGHT BAXTER CLOTH{0} YELLOW_TARGET CLOTH_PUTDOWN_BEGIN_{3} CP_EE_{3} CLOTH_PUTDOWN_END_{3}'
     ],
+};
+
+{
+    'move_cloth_to_left_region': 92,
+    'move_cloth_to_right_region': 92,
+    'move_cloth_to_blue_target': 92,
+    'move_cloth_to_white_target': 92,
+    'move_loth_to_green_target': 92,
+    'move_cloth_to_yellow_target': 92,
 }

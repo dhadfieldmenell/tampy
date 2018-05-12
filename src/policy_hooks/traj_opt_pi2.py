@@ -137,7 +137,7 @@ class TrajOptPI2(TrajOpt):
             for t in xrange(T):
 
                 # Compute cost-to-go for each time step for each sample.
-                cost_to_go = np.sum(costs[:, t:T], axis=1)
+                cost_to_go = costs[:, t] # np.sum(costs[:, t:T], axis=1)
 
                 if use_fixed_eta:
                     eta = (fixed_eta[t] if isinstance(fixed_eta, np.ndarray)
