@@ -78,11 +78,13 @@ class BaxterPolicySolver(RobotLLSolver):
         plans = []
         task_breaks = []
         color_maps = []
+        goal_states = []
         for m in range(self.config['num_conds']):
-            plan, task_break, color_map = get_plan(num_cloths)
+            plan, task_break, color_map, goal_state = get_plan(num_cloths)
             plans.append(plan)
             task_breaks.append(task_break)
             color_maps.append(color_map)
+            goal_states.append(goal_state)
 
         self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = \
         utils.get_state_action_inds(plans[0], state_vector_include, action_vector_include)
@@ -576,4 +578,4 @@ class BaxterPolicySolver(RobotLLSolver):
 
 if __name__ == '__main__':
     PS = BaxterPolicySolver()
-    PS.train_policy(4)
+    PS.train_policy(2)

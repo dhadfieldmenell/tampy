@@ -103,11 +103,11 @@ class GPSMain(object):
 
                 additional_samples = 0
                 if self._hyperparams['take_optimal_sample']:
-                    self.agent.sample_optimal_trajectories()
-                    additional_samples = 1
+                    self.agent.sample_optimal_trajectories(n=2)
+                    additional_samples = 2
 
                 traj_sample_lists = {task: [
-                    self.agent.get_samples(cond, task, -self._hyperparams['num_samples']-additional_samples)
+                    self.agent.get_samples(cond, task, 0)
                     for cond in self._train_idx
                 ] for task in self.task_list}
 
@@ -147,20 +147,23 @@ class GPSMain(object):
             for m in range(alg.M):
                 for ts in alg.prev[m]:
                     samples = alg.prev[m][ts].sample_list
-                    X = [sample.get(TASK_ENUM) for sample in samples.get_samples()]
+                    X = np.array([sample.get(TASK_ENUM) for sample in samples.get_samples()])
+                    obs = samples.get_obs()
                     N = len(samples)
                     T = samples.get_samples()[0].T
                     mu = np.zeros((N*T, dP))
-                    prc = np.zeros((N*T, dP, dP))
+                    prc = np.ones((N*T, dP, dP))
                     wt = np.ones((N*T))
                     for t in range(T):
                         for i in range(N):
-                            mu[i+t*N, :] = X[i+t*N, :]
+                            mu[i+t*N, :] = X[i, t, :]
 
                     tgt_mu = np.concatenate((tgt_mu, mu))
                     tgt_prc = np.concatenate((tgt_prc, prc))
                     tgt_wt = np.concatenate((tgt_wt, wt))
-                    obs_data = np.concatenate((obs_data, samples.get_obs()))
+                    for t in range(T):
+                        for n in range(N):
+                            obs_data = np.concatenate((obs_data, [obs[n,t, :]]))
         self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def test_policy(self, itr, N):
@@ -312,7 +315,8 @@ class GPSMain(object):
             self.gui.set_status_text('Calculating.')
             self.gui.start_display_calculating()
         for task in self.alg_map:
-            self.alg_map[task].iteration(sample_lists[task])
+            if len(sample_lists[task]):
+                self.alg_map[task].iteration(sample_lists[task])
         self.update_primitives()
         if self.gui:
             self.gui.stop_display_calculating()

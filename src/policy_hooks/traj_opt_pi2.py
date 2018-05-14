@@ -89,10 +89,12 @@ class TrajOptPI2(TrajOpt):
         traj_distr.K = prev_traj_distr.K
 
         # Optimize feedforward controls and covariances with PI2.
+        print "\nEntering PI^2 Update"
         k, pS, ipS, cpS, eta = self.update_pi2(
             ffw_controls, costs, prev_traj_distr.k, prev_traj_distr.pol_covar,
             fixed_eta, use_fixed_eta
         )
+        print "Leaving PI^2 Update\n"
         traj_distr.k, traj_distr.pol_covar = k, pS
         traj_distr.inv_pol_covar, traj_distr.chol_pol_covar = ipS, cpS
 
@@ -137,7 +139,7 @@ class TrajOptPI2(TrajOpt):
             for t in xrange(T):
 
                 # Compute cost-to-go for each time step for each sample.
-                cost_to_go = costs[:, t] # np.sum(costs[:, t:T], axis=1)
+                cost_to_go = np.sum(costs[:, t:T], axis=1)
 
                 if use_fixed_eta:
                     eta = (fixed_eta[t] if isinstance(fixed_eta, np.ndarray)

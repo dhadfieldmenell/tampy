@@ -49,7 +49,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.feat_vals = None
         self.init_network()
         self.init_solver()
-        self.var = self._hyperparams['init_var'] * np.ones(dU)
+        self.var = {task: self._hyperparams['init_var'] * np.ones(dU) for task in self.task_map}
+        self.var[""] = self._hyperparams['init_var'] * np.ones(dU)
         self.sess = tf.Session()
         self.init_policies(dU)
         # List of indices for state (vector) data and image (tensor) data in observation.
@@ -219,6 +220,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             average_loss = 0
 
         # actual training.
+        print "\nEntering Tensorflow Training Loop"
         for i in range(self._hyperparams['iterations']):
             # Load in data for this batch.
             start_idx = int(i * self.batch_size %
@@ -234,6 +236,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 LOGGER.info('tensorflow iteration %d, average loss %f',
                              i+1, average_loss / 50)
                 average_loss = 0
+        print "Leaving Tensorflow Training Loop\n"
 
         feed_dict = {self.obs_tensor: obs}
         num_values = obs.shape[0]
@@ -248,8 +251,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         A = A / np.sum(tgt_wt)
 
         # TODO - Use dense covariance?
-        self.var = 1 / np.diag(A)
-        policy.chol_pol_covar = np.diag(np.sqrt(self.var))
+        self.var[task] = 1 / np.diag(A)
+        policy.chol_pol_covar = np.diag(np.sqrt(self.var[task]))
 
         return policy
 
@@ -337,16 +340,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         num_values = obs.shape[0]
         if self.primitive_feat_op is not None:
             self.primitive_feat_vals = self.primitive_solver.get_var_values(self.sess, self.primitive_feat_op, feed_dict, num_values, self.batch_size)
-        # Keep track of tensorflow iterations for loading solver states.
-        self.tf_iter += self._hyperparams['iterations']
 
-        # Optimize variance.
-        A = np.sum(tgt_prc_orig, 0) + 2 * N * \
-                self._hyperparams['ent_reg'] * np.ones((dP, dP))
-        A = A / np.sum(tgt_wt)
-
-        # TODO - Use dense covariance?
-        self.var = 1 / np.diag(A)
 
     def prob(self, obs, task=""):
         """
@@ -374,9 +368,9 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 with tf.device(self.device_string):
                     output[i, t, :] = self.sess.run(self.task_map[task]['act_op'], feed_dict=feed_dict)
 
-        pol_sigma = np.tile(np.diag(self.var), [N, T, 1, 1])
-        pol_prec = np.tile(np.diag(1.0 / self.var), [N, T, 1, 1])
-        pol_det_sigma = np.tile(np.prod(self.var), [N, T])
+        pol_sigma = np.tile(np.diag(self.var[task]), [N, T, 1, 1])
+        pol_prec = np.tile(np.diag(1.0 / self.var[task]), [N, T, 1, 1])
+        pol_det_sigma = np.tile(np.prod(self.var[task]), [N, T])
 
         return output, pol_sigma, pol_prec, pol_det_sigma
 

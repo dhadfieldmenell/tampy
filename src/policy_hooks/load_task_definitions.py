@@ -38,3 +38,14 @@ def get_task_encoding(task_list):
         encoding[task_list[i]] = i
 
     return encoding
+
+def compare_task_states(state1, state2):
+    num_states = 0.
+    num_states_match = 0.
+    for key in state1:
+        if key not in state2: continue
+        num_states += 1.
+        if state1[key] -- state2[key]:
+            num_states_match += 1.
+
+    return num_states_match / num_states

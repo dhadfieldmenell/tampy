@@ -858,7 +858,7 @@ class LaundryWorldEEAgent(Agent):
                     alg.cur[m][ts].traj_distr.k = self.optimal_act_traj[m][ts:ts+alg.T]
 
 
-    def sample_optimal_trajectories(self):
+    def sample_optimal_trajectories(self, n=1):
         class optimal_pol:
             def __init__(self, act_f):
                 self.act = act_f
@@ -874,7 +874,8 @@ class LaundryWorldEEAgent(Agent):
 
         for m in range(len(self.plans)):
             self.replace_model(m)
-            self.sample(get_policy_map(m), m, save=True, use_base_t=False, noisy=False)
+            for _ in range(n):
+                self.sample(get_policy_map(m), m, save=True, use_base_t=False, noisy=False)
 
 
     # def set_alg_conditions(self, alg):
@@ -904,7 +905,7 @@ class LaundryWorldEEAgent(Agent):
 
     def replace_cond(self, cond):
         print "Replacing Condition {0}.\n".format(cond)
-        plan, task_breaks, color_map = self.get_plan(self.num_cloths)
+        plan, task_breaks, color_map, goal_state = self.get_plan(self.num_cloths)
         self.plans[cond].env.Destroy()
         self.plans[cond] = plan
         self.params[cond] = filter(lambda p: not p.is_symbol(), plan.params.values())

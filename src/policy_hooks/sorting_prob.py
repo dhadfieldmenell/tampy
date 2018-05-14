@@ -83,22 +83,27 @@ def get_sorting_problem(cloth_locs, color_map):
 
     hl_plan_str += parse_initial_state(cloth_locs)
 
+    goal_state = {}
     goal_str = "(:goal (and"
     for cloth in color_map:
         if color_map[cloth][0] == BLUE:
             goal_str += " (ClothAtBlueTarget {0})".format(cloth)
+            goal_state["(ClothAtBlueTarget {0})".format(cloth)] = True
         elif color_map[cloth][0] == WHITE:
             goal_str += " (ClothAtWhiteTarget {0})".format(cloth)
+            goal_state["(ClothAtWhiteTarget {0})".format(cloth)] = True
         elif color_map[cloth][0] == YELLOW:
             goal_str += " (ClothAtYellowTarget {0})".format(cloth)
+            goal_state["(ClothAtYellowTarget {0})".format(cloth)] = True
         elif color_map[cloth][0] == GREEN:
             goal_str += " (ClothAtGreenTarget {0})".format(cloth)
+            goal_state["(ClothAtGreenTarget {0})".format(cloth)] = True
     goal_str += "))\n"
 
     hl_plan_str += goal_str
 
     hl_plan_str += "\n)"
-    return hl_plan_str, goal_str
+    return hl_plan_str, goal_state
 
 def parse_initial_state(cloth_locs):
     hl_init_state = "(:init "
@@ -167,7 +172,7 @@ def get_plan(num_cloths):
     color_map, colors = get_cloth_color_mapping(cloths)
     cloth_locs = get_random_initial_cloth_locations(num_cloths)
     print "\n\n", cloth_locs, "\n\n"
-    prob, goal_str = get_sorting_problem(cloth_locs, color_map)
+    prob, goal_state = get_sorting_problem(cloth_locs, color_map)
     hl_plan = get_hl_plan(prob)
     ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan, num_cloths)
     plan = plan_from_str(ll_plan_str, num_cloths)
@@ -184,7 +189,7 @@ def get_plan(num_cloths):
         cur_act += num_actions
 
     plan.task_breaks = task_timesteps
-    return plan, task_timesteps, color_map
+    return plan, task_timesteps, color_map, goal_state
 
 def get_target_state_vector(state_inds, goal_state, dX):
     state = np.zeros((dX, ))
@@ -250,3 +255,18 @@ def get_random_initial_cloth_locations(num_cloths):
     locs.sort(compare_locs)
     
     return locs
+
+def sorting_state_eval(x, state_inds, num_cloths):
+    hl_state = {}
+    for cloth in range(num_cloths):
+        cloth_loc = np.array(x[state_inds['cloth{}'.format(cloth), 'pose']])
+        if np.sqrt(np.sum((cloth_loc-targets['blue_target'])**2)) < 0.07:
+            hl_state["(ClothAtBlueTarget cloth{0})".format(cloth)]
+        elif np.sqrt(np.sum((cloth_loc-targets['green_target'])**2)) < 0.07:
+            hl_state["(ClothAtGreenTarget cloth{0})".format(cloth)]
+        elif np.sqrt(np.sum((cloth_loc-targets['yellow_target'])**2)) < 0.07:
+            hl_state["(ClothAtYellowTarget cloth{0})".format(cloth)]
+        elif np.sqrt(np.sum((cloth_loc-targets['white_target'])**2)) < 0.07:
+            hl_state["(ClothAtWhiteTarget cloth{0})".format(cloth)]
+
+    return hl_state
