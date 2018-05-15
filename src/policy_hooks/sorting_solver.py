@@ -170,10 +170,10 @@ class BaxterPolicySolver(RobotLLSolver):
                                 utils.STATE_ENUM: {
                                     'wp': state_cost_wp,
                                     'target_state': np.zeros((1, self.symbolic_bound)),
-                                    'wp_final_multiplier': 10.0,
+                                    'wp_final_multiplier': 1.0,
                                 }
                             },
-                            'ramp_option': RAMP_QUADRATIC
+                            'ramp_option': RAMP_LINEAR
                         }
             action_cost = {
                             'type': CostAction,
@@ -189,7 +189,7 @@ class BaxterPolicySolver(RobotLLSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [2.0, 0.5],
+                                                        'weights': [1.0, 0.0],
                                                     })
 
         self.config['dQ'] = self.dU

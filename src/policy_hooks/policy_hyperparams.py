@@ -55,19 +55,22 @@ algorithm = {
     'fit_dynamics': False,
     'stochastic_conditions': True,
     'policy_transfer_coeff': 5e-3,
+    'kl_step': 1.0,
+    'min_step_mult': 0.5,
+    'max_step_mult': 3.0,
 }
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.02,
-    'pos_gains': 0.1,
+    'init_var': 0.01,
+    'pos_gains': 0.0,
 }
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
-    'kl_threshold': 1e0,
-    'covariance_damping': 5.0,
-    'min_temperature': 0.0001,
+    'kl_threshold': 2e0,
+    'covariance_damping': 2.0,
+    'min_temperature': 0.001,
 }
 
 # algorithm['policy_prior'] = {
@@ -140,7 +143,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 10,
+    'num_samples': 15,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': True,
