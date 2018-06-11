@@ -445,9 +445,9 @@ class TestNamoPredicates(unittest.TestCase):
         """
             Uncomment the following to see the graph
         """
-        # v = viewer.OpenRAVEViewer()
-        # v.draw([can, border], 0, 0.5)
-        # import ipdb; ipdb.set_trace()
+        v = viewer.OpenRAVEViewer()
+        v.draw([can, border], 0, 0.5)
+        import ipdb; ipdb.set_trace()
 
     def test_r_collides(self):
         env = Environment()

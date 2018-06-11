@@ -116,40 +116,53 @@ class OpenRAVEViewer(Viewer):
                 name = "{0}-{1}".format(obj.name, t)
                 self._draw_rave_body(obj, name, t)
 
+    # def _draw_rave_body(self, obj, name, t, transparency = 0.7):
+    #     rotation = np.array([[0],[0],[0]])
+    #     pose = obj.pose[:,t]
+
+    #     assert isinstance(obj, Object) and not np.any(np.isnan(pose))
+    #     if name not in self.name_to_rave_body:
+    #         self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
+    #         obj.openrave_body = self.name_to_rave_body[name]
+
+    #     if isinstance(obj.geom, Robot):
+    #         dof_value_map = None
+    #         pose = [0, 0, pose]
+    #         if isinstance(obj.geom, PR2):
+    #             dof_value_map = {"backHeight": obj.backHeight[:, t],
+    #                              "lArmPose": obj.lArmPose[:, t],
+    #                              "lGripper": obj.lGripper[:, t],
+    #                              "rArmPose": obj.rArmPose[:, t],
+    #                              "rGripper": obj.rGripper[:, t]}
+    #         elif isinstance(obj.geom, Baxter):
+    #             dof_value_map = {"lArmPose": obj.lArmPose[:, t],
+    #                              "lGripper": obj.lGripper[:, t],
+    #                              "rArmPose": obj.rArmPose[:, t],
+    #                              "rGripper": obj.rGripper[:, t]}
+    #         elif isinstance(obj.geom, Washer):
+    #             dof_value_map = {"door": obj.door[:, t]}
+    #             pose = obj.pose[:, t]
+    #             rotation = obj.rotation[:, t]
+
+    #         self.name_to_rave_body[name].set_dof(dof_value_map)
+    #     else:
+    #         rotation = obj.rotation[:, t]
+    #         assert not np.any(np.isnan(rotation))
+
+    #     self.name_to_rave_body[name].set_pose(pose, rotation)
+    #     self.name_to_rave_body[name].set_transparency(transparency)
     def _draw_rave_body(self, obj, name, t, transparency = 0.7):
         rotation = np.array([[0],[0],[0]])
-        pose = obj.pose[:,t]
-
-        assert isinstance(obj, Object) and not np.any(np.isnan(pose))
+        assert isinstance(obj, Object)
         if name not in self.name_to_rave_body:
             self.name_to_rave_body[name] = OpenRAVEBody(self.env, name, obj.geom)
-            obj.openrave_body = self.name_to_rave_body[name]
-
-        if isinstance(obj.geom, Robot):
-            dof_value_map = None
-            pose = [0, 0, pose]
-            if isinstance(obj.geom, PR2):
-                dof_value_map = {"backHeight": obj.backHeight[:, t],
-                                 "lArmPose": obj.lArmPose[:, t],
-                                 "lGripper": obj.lGripper[:, t],
-                                 "rArmPose": obj.rArmPose[:, t],
-                                 "rGripper": obj.rGripper[:, t]}
-            elif isinstance(obj.geom, Baxter):
-                dof_value_map = {"lArmPose": obj.lArmPose[:, t],
-                                 "lGripper": obj.lGripper[:, t],
-                                 "rArmPose": obj.rArmPose[:, t],
-                                 "rGripper": obj.rGripper[:, t]}
-            elif isinstance(obj.geom, Washer):
-                dof_value_map = {"door": obj.door[:, t]}
-                pose = obj.pose[:, t]
-                rotation = obj.rotation[:, t]
-
-            self.name_to_rave_body[name].set_dof(dof_value_map)
-        else:
+        if isinstance(obj.geom, PR2):
+            self.name_to_rave_body[name].set_dof(obj.backHeight[:, t], obj.lArmPose[:, t], obj.lGripper[:, t], obj.rArmPose[:, t], obj.rGripper[:, t])
+        if isinstance(obj.geom, Can) or isinstance(obj.geom, Box) or isinstance(obj.geom, Table):
             rotation = obj.rotation[:, t]
             assert not np.any(np.isnan(rotation))
-
-        self.name_to_rave_body[name].set_pose(pose, rotation)
+        assert not np.any(np.isnan(obj.pose[:, t]))
+        self.name_to_rave_body[name].set_pose(obj.pose[:, t], rotation)
         self.name_to_rave_body[name].set_transparency(transparency)
 
     def animate_plan(self, plan, delay=.1):
