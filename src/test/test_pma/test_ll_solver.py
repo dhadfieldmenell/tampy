@@ -28,6 +28,9 @@ class TestLLSolver(unittest.TestCase):
             problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
             abs_problem = hls.translate_problem(problem)
             if plan_str is not None:
+                print "*****************************************************"
+                print "calling hls"
+                print "*****************************************************"
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
 
@@ -105,7 +108,7 @@ class TestLLSolver(unittest.TestCase):
 
     def test_namo_solver_one_move_plan_solve_init(self):
         # return
-        plan = self.move_no_obs
+        plan = self.move_w_obs
         # import ipdb; ipdb.set_trace()
         move = plan.actions[0]
         pr2 = move.params[0]
@@ -129,11 +132,11 @@ class TestLLSolver(unittest.TestCase):
         """
         Uncomment out lines below to see optimization.
         """
-        # viewer = OpenRAVEViewer()
-        # def callback():
-        #     namo_solver._update_ll_params()
-        #     viewer.draw_plan(plan)
-        #     time.sleep(0.3)
+        viewer = OpenRAVEViewer()
+        def callback():
+            namo_solver._update_ll_params()
+            viewer.draw_plan(plan)
+            time.sleep(2)
         """
         """
         namo_solver = ll_solver.NAMOSolver()
@@ -151,8 +154,8 @@ class TestLLSolver(unittest.TestCase):
         # Uncomment following three lines to view trajectory
         # """
         # # viewer.draw_traj([pr2], range(20))
-        # viewer.draw_plan(plan)
-        # import ipdb; ipdb.set_trace()
+        viewer.draw_plan(plan)
+        import ipdb; ipdb.set_trace()
         # time.sleep(3)
 
     def test_move_no_obs(self):

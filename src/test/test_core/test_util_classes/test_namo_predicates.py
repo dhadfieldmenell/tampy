@@ -472,9 +472,9 @@ class TestNamoPredicates(unittest.TestCase):
         """
             Uncomment the following to see the graph
         """
-        # v = viewer.OpenRAVEViewer()
-        # v.draw([robot, border], 2, 0.5)
-        # import ipdb; ipdb.set_trace()
+        v = viewer.OpenRAVEViewer()
+        v.draw([robot, border], 2, 0.5)
+        import ipdb; ipdb.set_trace()
 
     def test_stationary_w(self):
         attrs = {"geom": ["closet"], "pose": [(0, 0)], "_type": ["Obstacle"], "name": ["wall"]}
