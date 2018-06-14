@@ -38,14 +38,14 @@ class CollisionPredicate(ExprPredicate):
 
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
 
-    def test(self, time, negated=False):
+    def test(self, time, negated=False, tol=1e-4):
         # This test is overwritten so that collisions can be calculated correctly
         if not self.is_concrete():
             return False
         if time < 0:
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
-            return self.neg_expr.eval(self.get_param_vector(time), tol=self.tol, negated = (not negated))
+            return self.neg_expr.eval(self.get_param_vector(time), tol, negated = (not negated))
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
@@ -201,8 +201,8 @@ class InContact(CollisionPredicate):
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
 
-    def test(self, time, negated=False):
-        return super(CollisionPredicate, self).test(time, negated)
+    def test(self, time, negated=False, tol=1e-4):
+        return super(CollisionPredicate, self).test(time, negated, tol)
 
 class Collides(CollisionPredicate):
 

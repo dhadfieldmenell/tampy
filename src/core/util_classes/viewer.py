@@ -90,6 +90,24 @@ class OpenRAVEViewer(Viewer):
                    "{}.mp4".format(outf)]
         subprocess.call(arglist)
 
+    # def snap_plan_init(self, plan, res = (640, 480)):
+    #     """
+    #     creates a picture of a plan and returns it; does not work if no nvidia card
+    #     """
+    #     # self.animate_range(plan, (0, 0))
+    #     obj_list = self._get_plan_obj_list(plan)
+    #     v = self.env.GetViewer()
+    #     self.draw(obj_list, 0)
+    #     time.sleep(1)
+    #     import pyscreenshot as ImageGrab
+    #     im = ImageGrab.grab()
+    #     from numpy import array
+    #     print(array(im))
+    #     time.sleep(10)
+    #     # cam = v.GetCameraTransform()
+    #     # v.SendCommand('SetFiguresInCamera 1')
+    #     # im = v.GetCameraImage(res[0], res[1], cam,[640,640,320,240])
+        
 
     def initialize_from_workspace(self, workspace):
         pass

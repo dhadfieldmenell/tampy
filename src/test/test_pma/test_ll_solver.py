@@ -11,9 +11,17 @@ from sco.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes import circle
+from core.util_classes.items import RedCircle, BlueCircle, GreenCircle
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter
 import time, main
+from matplotlib.collections import PatchCollection
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.patches as patches
+
+wall_endpoints = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
+
 
 class TestLLSolver(unittest.TestCase):
     def setUp(self):
@@ -45,6 +53,7 @@ class TestLLSolver(unittest.TestCase):
                                                                                      '1: GRASP PR2 CAN0 TARGET0 PDP_TARGET2 PDP_TARGET0 GRASP0',
                                                                                      '2: MOVETOHOLDING PR2 PDP_TARGET0 PDP_TARGET2 CAN0 GRASP0',
                                                                                      '3: PUTDOWN PR2 CAN0 TARGET2 PDP_TARGET2 ROBOT_END_POSE GRASP0'])
+        self.move_two_cans = get_plan('../domains/namo_domain/namo_probs/namo_1234_1.prob')
 
     def test_llparam(self):
         # TODO: tests for undefined, partially defined and fully defined params
@@ -108,7 +117,7 @@ class TestLLSolver(unittest.TestCase):
 
     def test_namo_solver_one_move_plan_solve_init(self):
         # return
-        plan = self.move_w_obs
+        plan = self.move_no_obs
         # import ipdb; ipdb.set_trace()
         move = plan.actions[0]
         pr2 = move.params[0]
@@ -136,7 +145,7 @@ class TestLLSolver(unittest.TestCase):
         def callback():
             namo_solver._update_ll_params()
             viewer.draw_plan(plan)
-            time.sleep(2)
+            time.sleep(0.1)
         """
         """
         namo_solver = ll_solver.NAMOSolver()
@@ -159,31 +168,31 @@ class TestLLSolver(unittest.TestCase):
         # time.sleep(3)
 
     def test_move_no_obs(self):
-        _test_plan(self, self.move_no_obs)
+        _test_plan_with_learning(self, self.move_no_obs)
 
     def test_move_w_obs(self):
-        _test_plan(self, self.move_w_obs)
+        _test_plan_with_learning(self, self.move_w_obs)
 
     def test_move_grasp(self):
-        _test_plan(self, self.move_grasp)
+        _test_plan_with_learning(self, self.move_grasp)
 
     def test_moveholding(self):
-        _test_plan(self, self.move_grasp_moveholding)
+        _test_plan_with_learning(self, self.move_grasp_moveholding)
 
     def test_place(self):
-        _test_plan(self, self.place)
+        _test_plan_with_learning(self, self.place)
 
     def test_putaway(self):
-        _test_plan(self, self.putaway)
+        _test_plan_with_learning(self, self.putaway)
 
     def test_putaway3(self):
-        _test_plan(self, self.putaway3)
+        _test_plan_with_learning(self, self.putaway3)
 
     def test_putaway2(self):
         # this is a plan where the robot needs to end up
         # behind the obstruction (this means that the
         # default initialization should fail
-        _test_plan(self, self.putaway2, plot=False, animate=False)
+        _test_plan_with_learning(self, self.putaway2, animate=True)
 
 
     def test_early_converge(self):
@@ -204,7 +213,103 @@ class TestLLSolver(unittest.TestCase):
         _test_plan(self, self.putaway, method='Backtrack')
 
     def test_backtrack_putaway2(self):
-        _test_plan(self, self.putaway2, method='Backtrack', plot=False)
+        _test_plan(self, self.putaway2, method='Backtrack')
+
+def closet_maker(thickness, wall_endpoints, ax):
+    rects = []
+    for i, (start, end) in enumerate(zip(wall_endpoints[0:-1], wall_endpoints[1:])):
+        dim_x, dim_y = 0, 0
+        et = thickness / 2.0
+        if start[0] == end[0]: # vertical line
+            if start[1] > end[1]: #downwards line
+                x1 = (start[0] - et, start[1] + et)
+                x2 = (end[0] + et, end[1] - et)
+            else:
+                x1 = (end[0] - et, end[1] + et)
+                x2 = (start[0] + et, start[1] - et)
+        elif start[1] == end[1]: # horizontal line
+            if start[0] < end[0]: #left to right
+                x1 = (start[0] - et, start[1] + et)
+                x2 = (end[0] + et, end[1] - et)
+            else:
+                x1 = (end[0] - et, end[1] + et)
+                x2 = (start[0] + et, start[1] - et)
+        left_bottom = (x1[0], x2[1])
+        width = x2[0] - x1[0]
+        height = x1[1] - x2[1]
+        rects.append([(left_bottom[0], left_bottom[1]), width, height])
+    for rect in rects:
+        p = patches.Rectangle(rect[0],rect[1],rect[2], lw=0, color="brown")
+        ax.add_patch(p)
+    return True
+
+def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=True, verbose=False,
+               early_converge=False):
+    import ipdb; ipdb.set_trace
+    print "testing plan: {}".format(plan.actions)
+    if not plot:
+        callback = None
+        viewer = None
+    else:
+        fig, ax = plt.subplots()
+        viewer = OpenRAVEViewer.create_viewer()
+        objList = viewer._get_plan_obj_list(plan)
+        center = 0
+        radius = 0
+        circColor = None
+        for obj in objList:
+            if (isinstance(obj.geom, BlueCircle)):
+                circColor = 'blue'
+            elif (isinstance(obj.geom, GreenCircle)):
+                circColor = 'g'
+            elif (isinstance(obj.geom, RedCircle)):
+                circColor = 'r'
+            else:
+                print("not a circle; probably a wall")
+                continue
+            center = obj.pose[:,0]
+            radius = obj.geom.radius
+            ax.add_artist(plt.Circle((center[0], center[1]), radius, color=circColor))
+        closet_maker(1, wall_endpoints, ax)
+        ax.set_xlim(-3, 10)
+        ax.set_ylim(-5, 10)
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.show(block=False)
+        robot_cord = raw_input("Robot's Coordinates = ")
+        plt.close()
+        plt.axis("off") #turn this off when collecting samples/feeding to vision system
+        plt.savefig('init_config.png')
+        if method=='SQP':
+            def callback():
+                namo_solver._update_ll_params()
+                # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
+                # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
+                viewer.draw_plan_range(plan, [0,19])
+                # viewer.draw_plan(plan)
+                # viewer.draw_cols(plan)
+                time.sleep(0.03)
+        elif method == 'Backtrack':
+            def callback(a):
+                namo_solver._update_ll_params()
+                viewer.clear()
+                viewer.draw_plan_range(plan, a.active_timesteps)
+                time.sleep(0.3)
+    namo_solver = ll_solver.NAMOSolver(early_converge=early_converge)
+    start = time.time()
+    if method == 'SQP':
+        namo_solver.solve(plan, callback=callback, verbose=verbose)
+    elif method == 'Backtrack':
+        namo_solver.backtrack_solve(plan, callback=callback, verbose=verbose)
+    print "Solve Took: {}".format(time.time() - start)
+    fp = plan.get_failed_preds()
+    _, _, t = plan.get_failed_pred()
+    if animate:
+        viewer = OpenRAVEViewer.create_viewer()
+        # import ipdb; ipdb.set_trace()
+        viewer.animate_plan(plan)
+        if t < plan.horizon:
+            viewer.draw_plan_ts(plan, t)
+        import ipdb; ipdb.set_trace()
 
 def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=False,
                early_converge=False):
@@ -242,10 +347,7 @@ def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=
         viewer = OpenRAVEViewer.create_viewer()
         viewer.animate_plan(plan)
         if t < plan.horizon:
-            viewer.draw_plan_ts(plan, t)
-
-    # test_obj.assertTrue(plan.satisfied())
-
+            viewer.draw_plan_ts(plan, t)  
 
 if __name__ == "__main__":
     unittest.main()
