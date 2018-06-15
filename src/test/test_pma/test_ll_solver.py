@@ -245,8 +245,8 @@ def closet_maker(thickness, wall_endpoints, ax):
 
 def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=True, verbose=False,
                early_converge=False):
-    import ipdb; ipdb.set_trace
     print "testing plan: {}".format(plan.actions)
+    import ipdb; ipdb.set_trace()
     if not plot:
         callback = None
         viewer = None
@@ -276,6 +276,26 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
         plt.gca().set_aspect('equal', adjustable='box')
         plt.show(block=False)
         robot_cord = raw_input("Robot's Coordinates = ")
+        # import ipdb; ipdb.set_trace()
+        plan.params.values()[6].pose[0][0] = 1
+        plan.params.values()[1].value[0][0] = 1
+        # plt.close()
+        objList = viewer._get_plan_obj_list(plan)
+        for obj in objList:
+            if (isinstance(obj.geom, BlueCircle)):
+                circColor = 'blue'
+            elif (isinstance(obj.geom, GreenCircle)):
+                circColor = 'g'
+            elif (isinstance(obj.geom, RedCircle)):
+                circColor = 'r'
+            else:
+                print("not a circle; probably a wall")
+                continue
+            center = obj.pose[:,0]
+            radius = obj.geom.radius
+            ax.add_artist(plt.Circle((center[0], center[1]), radius, color=circColor))
+        plt.show(block=False)
+        import ipdb; ipdb.set_trace()
         plt.close()
         plt.axis("off") #turn this off when collecting samples/feeding to vision system
         plt.savefig('init_config.png')
