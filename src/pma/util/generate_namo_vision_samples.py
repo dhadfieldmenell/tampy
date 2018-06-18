@@ -10,6 +10,7 @@ from scipy.io import savemat
 WALL_ENDPOINTS = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
 ROBOT_RADIUS = 0.4
 CAN_RADIUS = 0.3
+saveFile = "namo_2d_images.mat"
 
 class Pose:
     def __init__(self, x, y, radius):
@@ -45,49 +46,56 @@ def closet_maker(thickness, wall_endpoints, ax):
         ax.add_patch(p)
     return True
 
-def collect_samples(numRobots=1, numCans=2):
-        images = []
-        labels = []
-        for iter in range(10000):
-            if iter % 1000 == 0:
-                print("Iteration {}".format(iter))
-            fig, ax = plt.subplots()
-            objList = []
-            center = 0
-            radius = 0
-            circColor = None
-            x = None
-            y = None
-            radius = None
-            for _ in range(numRobots):
-                x, y, radius = namo_2d_location_generator(objects = objList)
-                objList.append(Pose(x, y, radius))
-                ax.add_artist(plt.Circle((x, y), ROBOT_RADIUS, color='g'))
-            for _ in range(numCans):
-                x, y, radius = namo_2d_location_generator(objects = objList)
-                objList.append(Pose(x, y, radius))
-                ax.add_artist(plt.Circle((x, y), CAN_RADIUS, color='r'))
-            closet_maker(1, WALL_ENDPOINTS, ax)
-            ax.set_xlim(-3, 10)
-            ax.set_ylim(-5, 10)
-            plt.gca().set_aspect('equal', adjustable='box')
-            fig.canvas.draw()
-            plt.axis("off")
-            image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-            image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-            images.append(image)
-            objLocations = []
-            for obj in objList:
-                objLocations.extend([obj.x, obj.y, obj.radius])
-            label = np.array(objLocations)
-            labels.append(label)
-            # imageio.imwrite('outfile.jpg', data)
-            plt.close()
-        images = np.array(images)
-        labels = np.array(labels)
-        dataDict = {'images': images, 'labels': labels}
-        savemat("namo_2d_images.mat", dataDict)
-
+def collect_samples(bar = False, numSamples = 2500, numRobots=1, numCans=2):
+    if bar:
+        import progressbar
+        print("Collecting Samples:")
+        bar = progressbar.ProgressBar(maxval=numSamples, widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+        bar.start()
+    images = []
+    labels = []
+    for iter in range(numSamples):
+        if bar:
+            bar.update(iter + 1)
+        fig, ax = plt.subplots()
+        objList = []
+        center = 0
+        radius = 0
+        circColor = None
+        x = None
+        y = None
+        radius = None
+        for _ in range(numRobots):
+            x, y, radius = namo_2d_location_generator(objects = objList)
+            objList.append(Pose(x, y, radius))
+            ax.add_artist(plt.Circle((x, y), ROBOT_RADIUS, color='g'))
+        for _ in range(numCans):
+            x, y, radius = namo_2d_location_generator(objects = objList)
+            objList.append(Pose(x, y, radius))
+            ax.add_artist(plt.Circle((x, y), CAN_RADIUS, color='r'))
+        closet_maker(1, WALL_ENDPOINTS, ax)
+        ax.set_xlim(-3, 10)
+        ax.set_ylim(-5, 10)
+        plt.gca().set_aspect('equal', adjustable='box')
+        fig.canvas.draw()
+        plt.axis("off")
+        image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        images.append(image)
+        objLocations = []
+        for obj in objList:
+            objLocations.extend([obj.x, obj.y, obj.radius])
+        label = np.array(objLocations)
+        labels.append(label)
+        # imageio.imwrite('outfile.jpg', data)
+        plt.close()
+    images = np.array(images)
+    labels = np.array(labels)
+    dataDict = {'images': images, 'labels': labels}
+    if bar:
+        print("") 
+    print("Saving to {}".format(saveFile))
+    savemat(saveFile, dataDict)
 def namo_2d_location_generator(radius = None, objects = [], thickness = 0.5):
     '''
     Samples an x, y, radius for a generic can or circle that is collision free
@@ -129,4 +137,4 @@ def in_collision(body1, body2):
         return True
     else:
         return False
-collect_samples()
+collect_samples(bar = True)
