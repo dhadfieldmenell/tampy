@@ -19,6 +19,9 @@ from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as patches
+from Tkinter import *
+import tkFileDialog
+from PIL import ImageTk, Image
 
 wall_endpoints = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
 
@@ -39,6 +42,7 @@ class TestLLSolver(unittest.TestCase):
                 print "*****************************************************"
                 print "calling hls"
                 print "*****************************************************"
+                import ipdb; ipdb.set_trace()
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
 
@@ -141,7 +145,6 @@ class TestLLSolver(unittest.TestCase):
         """
         Uncomment out lines below to see optimization.
         """
-        viewer = OpenRAVEViewer()
         def callback():
             namo_solver._update_ll_params()
             viewer.draw_plan(plan)
@@ -246,14 +249,16 @@ def closet_maker(thickness, wall_endpoints, ax):
 def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=True, verbose=False,
                early_converge=False):
     print "testing plan: {}".format(plan.actions)
-    import ipdb; ipdb.set_trace()
     if not plot:
         callback = None
         viewer = None
     else:
-        fig, ax = plt.subplots()
         viewer = OpenRAVEViewer.create_viewer()
-        objList = viewer._get_plan_obj_list(plan)
+        fig, ax = plt.subplots()
+        objList = []
+        for p in plan.params.itervalues():
+            if not p.is_symbol():
+                objList.append(p)
         center = 0
         radius = 0
         circColor = None
@@ -274,31 +279,35 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
         ax.set_xlim(-3, 10)
         ax.set_ylim(-5, 10)
         plt.gca().set_aspect('equal', adjustable='box')
-        plt.show(block=False)
-        robot_cord = raw_input("Robot's Coordinates = ")
-        # import ipdb; ipdb.set_trace()
-        plan.params.values()[6].pose[0][0] = 1
-        plan.params.values()[1].value[0][0] = 1
-        # plt.close()
-        objList = viewer._get_plan_obj_list(plan)
-        for obj in objList:
-            if (isinstance(obj.geom, BlueCircle)):
-                circColor = 'blue'
-            elif (isinstance(obj.geom, GreenCircle)):
-                circColor = 'g'
-            elif (isinstance(obj.geom, RedCircle)):
-                circColor = 'r'
-            else:
-                print("not a circle; probably a wall")
-                continue
-            center = obj.pose[:,0]
-            radius = obj.geom.radius
-            ax.add_artist(plt.Circle((center[0], center[1]), radius, color=circColor))
-        plt.show(block=False)
-        import ipdb; ipdb.set_trace()
-        plt.close()
-        plt.axis("off") #turn this off when collecting samples/feeding to vision system
-        plt.savefig('init_config.png')
+        plt.axis("off")
+        fig.canvas.draw()
+        root = Tk()
+        image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        image = Image.fromarray(image)
+        img = ImageTk.PhotoImage(image)
+        '''
+        Uncomment below lines for calibration:
+        '''
+        # path = "calibration.jpg"
+        # img = ImageTk.PhotoImage(Image.open(path))
+        panel = Label(root, image = img)
+        panel.pack(side = "bottom", fill = "both", expand = "yes")
+        def motion(event):
+            origin = (241, 307)
+            scaling = 25.0
+            x, y = event.x, event.y
+            X = (x - origin[0])/scaling
+            Y =-(y - origin [1])/scaling
+            print('{}, {}'.format(X, Y))
+            plan.params['pr2'].pose[0][0] = X
+            plan.params['pr2'].pose[0][1] = Y
+            plan.params['robot_init_pose'].value[0][0] = X
+            plan.params['robot_init_pose'].value[1][0] = Y
+            root.destroy()
+        root.bind('<ButtonRelease-1>', motion)
+        root.mainloop()
+        # offset_tolerance = [[0.000085], [-0.000085]]
         if method=='SQP':
             def callback():
                 namo_solver._update_ll_params()
