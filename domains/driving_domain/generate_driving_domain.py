@@ -36,11 +36,11 @@ class PrimitivePredicates(object):
         return prim_str
 
 pp = PrimitivePredicates()
-pp.add('Vehicle', [('geom', 'Vehicle'), ('xy', 'Vector2d'), ('theta', 'Vector1d'), ('vel', 'Vector1d'), ('phi', 'Vector1d'), ('u1', 'Vector1d'), ('u2', 'Vector1d')])
-pp.add('Obstacle', [('geom', 'Obstacle'), ('xy', 'Vector2d'), ('theta', 'Vector1d')])
-pp.add('Crate', [('geom', 'Crate'), ('xy', 'Vector2d'), ('theta', 'Vector1d')])
-pp.add('Road', [('geom', 'Road'), ('xy', 'Vector2d'), ('theta', 'Vector1d')])
-pp.add('StopSign', [('geom', 'StopSign'), ('xy', 'Vector2d')])
+pp.add('Vehicle', [('pose', 'Vector2d'), ('geom', 'Vehicle'), ('xy', 'Vector2d'), ('theta', 'Vector1d'), ('vel', 'Vector1d'), ('phi', 'Vector1d'), ('u1', 'Vector1d'), ('u2', 'Vector1d')])
+pp.add('Obstacle', [('pose', 'Vector2d'), ('geom', 'Obstacle'), ('xy', 'Vector2d'), ('theta', 'Vector1d')])
+pp.add('Crate', [('pose', 'Vector2d'), ('geom', 'Crate'), ('xy', 'Vector2d'), ('theta', 'Vector1d')])
+pp.add('Road', [('pose', 'Vector2d'), ('geom', 'Road'), ('xy', 'Vector2d'), ('theta', 'Vector1d')])
+pp.add('StopSign', [('pose', 'Vector2d'), ('geom', 'StopSign'), ('xy', 'Vector2d')])
 pp.add('VehiclePose', [('value', 'Vector1d'), ('xy', 'Vector2d'), ('theta', 'Vector1d'), ('vel', 'Vector1d'), ('phi', 'Vector1d'), ('u1', 'Vector1d'), ('u2', 'Vector1d')])
 pp.add('ObstaclePose', [('value', 'Vector1d'), ('xy', 'Vector2d'), ('theta', 'Vector1d')])
 pp.add('CratePose', [('value', 'Vector1d'), ('xy', 'Vector2d'), ('theta', 'Vector1d')])
@@ -114,8 +114,8 @@ dp.add('VehicleCratePathCollision', ['Vehicle', 'Crate'])
 dp.add('CrateObstaclePathCollision', ['Crate', 'Obstacle'])
 dp.add('Follow', ['Vehicle', 'Vehicle', 'Distance'])
 dp.add('StopAtStopSign', ['Vehicle', 'StopSign'])
-dp.add('ExternalVehiclePastRoadEnd', ['Vehicle', 'Road'])
-dp.add('ExternalDriveDownRoad', ['Vehicle', 'Road'])
+dp.add('ExternalVehiclePastRoadEnd', ['Vehicle'])
+dp.add('ExternalDriveDownRoad', ['Vehicle'])
 dp.add('PosesWithinDistance', ['VehiclePose', 'VehiclePose', 'Distance'])
 
 dom_str += dp.get_str() + '\n'
@@ -207,11 +207,9 @@ class DriveDownRoad(DrivingAction):
                     (AccUpperLimit ?vehicle ?au_limit))', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Vehicle)\
                     (AccLowerLimit ?vehicle ?al_limit))', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?obj - Crate) (CrateStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?sign - StopSign)\
-                    (forall (?obj - Vehicle)\
-                        (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Crate) (CrateStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?sign - StopSign) (forall (?obj - Vehicle) (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
               ]
 
         eff = [\
@@ -220,7 +218,7 @@ class DriveDownRoad(DrivingAction):
 
         super(DriveDownRoad, self).__init__(name, timesteps, pre, eff, args)
 
-class Follow(Action):
+class Follow(DrivingAction):
     def __init__(self):
         name = 'follow'
         timesteps = 100
@@ -243,11 +241,9 @@ class Follow(Action):
                     (AccUpperLimit ?vehicle ?au_limit))', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Vehicle)\
                     (AccLowerLimit ?vehicle ?al_limit))', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?obj - Crate) (CrateStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?sign - StopSign)\
-                    (forall (?obj - Vehicle)\
-                        (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Crate) (CrateStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?sign - StopSign) (forall (?obj - Vehicle) (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
               ]
 
         eff = [\
@@ -257,7 +253,7 @@ class Follow(Action):
 
         super(Follow, self).__init__(name, timesteps, pre, eff, args)
 
-class Pass(Action):
+class Pass(DrivingAction):
     def __init__(self):
         name = 'pass'
         timesteps = 100
@@ -278,11 +274,9 @@ class Pass(Action):
                     (AccUpperLimit ?vehicle ?au_limit))', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Vehicle)\
                     (AccLowerLimit ?vehicle ?al_limit))', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?obj - Crate) (CrateStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?sign - StopSign)\
-                    (forall (?obj - Vehicle)\
-                        (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Crate) (CrateStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?sign - StopSign) (forall (?obj - Vehicle) (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
               ]
 
         eff = [\
@@ -291,7 +285,7 @@ class Pass(Action):
 
         super(Pass, self).__init__(name, timesteps, pre, eff, args)
 
-class Left(Action):
+class Left(DrivingAction):
     def __init__(self):
         name = 'left'
         timesteps = 50
@@ -303,7 +297,7 @@ class Left(Action):
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
                 ('(PoseLeftOfLane ?end ?road ?lane_n)', '{}:{}'.format(0, 0)),
-                ('(PosesWithinDistance ?start ?end ?merge_dist)', '{}:{}'.format(0, 0))
+                ('(PosesWithinDistance ?start ?end ?merge_dist)', '{}:{}'.format(0, 0)),
                 ('(forall (?obj - Vehicle)\
                     (VelUpperLimit ?vehicle ?vu_limit))', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Vehicle)\
@@ -312,11 +306,9 @@ class Left(Action):
                     (AccUpperLimit ?vehicle ?au_limit))', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Vehicle)\
                     (AccLowerLimit ?vehicle ?al_limit))', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?obj - Crate) (CrateStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?sign - StopSign)\
-                    (forall (?obj - Vehicle)\
-                        (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Crate) (CrateStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?sign - StopSign) (forall (?obj - Vehicle) (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
               ]
 
         eff = [\
@@ -326,7 +318,7 @@ class Left(Action):
 
         super(Left, self).__init__(name, timesteps, pre, eff, args)
 
-class Right(Action):
+class Right(DrivingAction):
     def __init__(self):
         name = 'right'
         timesteps = 50
@@ -338,7 +330,7 @@ class Right(Action):
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
                 ('(PoseRightOfLane ?end ?road ?lane_n)', '{}:{}'.format(0, 0)),
-                ('(PosesWithinDistance ?start ?end ?merge_dist)', '{}:{}'.format(0, 0))
+                ('(PosesWithinDistance ?start ?end ?merge_dist)', '{}:{}'.format(0, 0)),
                 ('(forall (?obj - Vehicle)\
                     (VelUpperLimit ?vehicle ?vu_limit))', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Vehicle)\
@@ -347,11 +339,9 @@ class Right(Action):
                     (AccUpperLimit ?vehicle ?au_limit))', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Vehicle)\
                     (AccLowerLimit ?vehicle ?al_limit))', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?obj - Crate) (CrateStationary ?obj)))', '{}:{}'.format(0, end-1)),
-                ('(forall (?sign - StopSign)\
-                    (forall (?obj - Vehicle)\
-                        (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Obstacle) (ObstacleStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?obj - Crate) (CrateStationary ?obj))', '{}:{}'.format(0, end-1)),
+                ('(forall (?sign - StopSign) (forall (?obj - Vehicle) (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),
               ]
 
         eff = [\
@@ -372,7 +362,6 @@ for action in actions:
 
 # removes all the extra spaces
 dom_str = dom_str.replace('            ', '')
-dom_str = dom_str.replace('    ', '')
 dom_str = dom_str.replace('    ', '')
 
 print dom_str

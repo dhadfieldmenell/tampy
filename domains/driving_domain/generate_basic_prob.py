@@ -4,8 +4,9 @@ import numpy as np
 import random
 
 filename = "driving_probs/basic.prob"
-GOAL = "(VehicleAt user end)"
+GOAL = "(VehicleAt user0 end0)"
 
+NUM_PROBS = 1
 
 VEHICLE_INIT_XY = [1., 45.]
 VEHICLE_INIT_THETA = [0.]
@@ -23,17 +24,18 @@ NUM_LANES = 1.
 LANE_WIDTH = 3.
 ROAD_LEN = 120.
 
-X_LIMIT = 120.
-Y_LIMIT = 90.
+X_LIMIT = [120.]
+Y_LIMIT = [90.]
 
-VEL_U_LIMIT = 11.176 # 25 mph
-VEL_L_LIMIT = -2. # Only go slow in reverse
-ACC_U_LIMIT = 1.
-ACC_L_LIMIT = -2.
+VEL_U_LIMIT = [11.176] # 25 mph
+VEL_L_LIMIT = [-2.] # Only go slow in reverse
+ACC_U_LIMIT = [1.]
+ACC_L_LIMIT = [-2.]
 
-def get_vehicle_str(name, xy=VEHICLE_INIT_XY, theta=VEHICLE_INIT_THETA, vel=VEHICLE_INIT_VEL, phi=VEHICLE_INIT_PHI, u1=VEHICLE_INIT_U1, u2=VEHICLE_INIT_U2, user=True):
+def get_vehicle_str(name, vehicle_id, xy=VEHICLE_INIT_XY, theta=VEHICLE_INIT_THETA, vel=VEHICLE_INIT_VEL, phi=VEHICLE_INIT_PHI, u1=VEHICLE_INIT_U1, u2=VEHICLE_INIT_U2, user=True):
     s = ""
-    s += "(geom {} 2 {} {} {} {} {} {})".format(name, xy[0], xy[1], theta[0], VEHICLE_WHEELBASE, VEHICLE_WIDTH, user)
+    s += "(geom {} {} 2 {} {} {} {} {} {})".format(name, vehicle_id, xy[0], xy[1], theta[0], VEHICLE_WHEELBASE, VEHICLE_WIDTH, user)
+    s += "(pose {} {}), ".format(name, xy)
     s += "(xy {} {}), ".format(name, xy)
     s += "(theta {} {}), ".format(name, theta)
     s += "(vel {} {}), ".format(name, vel)
@@ -44,7 +46,7 @@ def get_vehicle_str(name, xy=VEHICLE_INIT_XY, theta=VEHICLE_INIT_THETA, vel=VEHI
 
 def get_vehicle_pose_str(name, xy=VEHICLE_INIT_XY, theta=VEHICLE_INIT_THETA, vel=VEHICLE_INIT_VEL, phi=VEHICLE_INIT_PHI, u1=VEHICLE_INIT_U1, u2=VEHICLE_INIT_U2):
     s = ""
-    s += "(value {} 0)".format(name)
+    s += "(value {} [0])".format(name)
     s += "(xy {} {}), ".format(name, xy)
     s += "(theta {} {}), ".format(name, theta)
     s += "(vel {} {}), ".format(name, vel)
@@ -84,27 +86,28 @@ def main():
         s += "Limit (name {}); ".format("vu_limit")
         s += "Limit (name {}); ".format("vl_limit")
         s += "Limit (name {}); ".format("au_limit")
-        s += "Limit (name {}); ".format("al_limit")
+        s += "Limit (name {}) \n\n".format("al_limit")
 
         s += "Init: "
-        s += get_vehicle_str('user0')
+        s += get_vehicle_str('user0', 0)
 
-        s += "(geom road0 0 {} {} {} {} {} {}), ".format(ROAD_XY[0], ROAD_XY[1], ROAD_LEN. ROAD_DIR, NUM_LANES, LANE_WIDTH)
+        s += "(geom road0 0 {} {} {} {} {} {}), ".format(ROAD_XY[0], ROAD_XY[1], ROAD_LEN, ROAD_DIR, NUM_LANES, LANE_WIDTH)
+        s += '(pose road0 {}), '.format(ROAD_XY)
         s += '(xy road0 {}), '.format(ROAD_XY)
-        s ++ '(dir road0 {}), '.format(ROAD_DIR)
+        s += '(theta road0 {}), '.format(ROAD_DIR)
 
         s += get_vehicle_pose_str('start0')
         s += get_undefined_vehicle_pose_str('end0')
 
         s += "(value x_limit {}), ".format(X_LIMIT)
         s += "(value y_limit {}), ".format(Y_LIMIT)
-        s += "(value vu_limit {}), ".format(VU_LIMIT)
-        s += "(value vl_limit {}), ".format(VL_LIMIT)
-        s += "(value au_limit {}), ".format(AU_LIMIT)
-        s += "(value al_limit {});".format(AL_LIMIT)
+        s += "(value vu_limit {}), ".format(VEL_U_LIMIT)
+        s += "(value vl_limit {}), ".format(VEL_L_LIMIT)
+        s += "(value au_limit {}), ".format(ACC_U_LIMIT)
+        s += "(value al_limit {});".format(ACC_L_LIMIT)
 
 
-        s += "(VehicleAt vehicle0 start0) \n\n"
+        s += "(VehicleAt user0 start0) \n\n"
 
         s += "Goal: {}".format(GOAL)
 

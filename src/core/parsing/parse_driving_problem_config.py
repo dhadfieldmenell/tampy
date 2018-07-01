@@ -4,14 +4,15 @@ from errors_exceptions import ProblemConfigException
 
 from driving_sim.internal_state.simulator_state import SimulatorState
 
-def update_or_spawn_sim(env, params, problem_config, domain):
+def update_or_spawn_sim(env, params):
     if env is None:
         env = SimulatorState(2, params['x_limit'].value[0,0], params['y_limit'].value[0, 0])
 
     env.clear()
 
     for param in params:
-        env.add(param._type, param.geom)
+        if hasattr(param, 'geom'):
+            env.add(param._type, param.geom)
 
     return env
 
@@ -64,6 +65,9 @@ class ParseDrivingProblemConfig(object):
                     import pdb; pdb.set_trace()
                 o_type = attr_dict["_type"][0]
                 name = attr_dict["name"][0]
+                if 'geom' in attr_dict:
+                    attr_dict['geom'] = map(eval, attr_dict['geom'])
+
                 try:
                     params[obj_name] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
                                                                                 attr_types=domain.param_schemas[o_type].attr_dict)
@@ -77,7 +81,7 @@ class ParseDrivingProblemConfig(object):
             if type(v) is dict:
                 raise ProblemConfigException("Problem file has no primitive predicates for object '%s'."%k)
 
-        env = update_or_spawn_sim(env, params, problem_config)
+        env = update_or_spawn_sim(env, params)
 
         init_preds = set()
         if deriv_preds:

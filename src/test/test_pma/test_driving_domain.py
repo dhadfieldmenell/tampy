@@ -1,11 +1,11 @@
 import numpy as np
 import unittest, time, main
 from pma import hl_solver, driving_solver
-from core.driving_utils import *
+from core.util_classes.driving_utils import *
 from core.parsing import parse_domain_config, parse_driving_problem_config
 
-class TestDrivingDomain(unittest.Testcase):
-    def basic_drive(self):
+class TestDrivingDomain(unittest.TestCase):
+    def test_basic_drive(self):
         domain_fname = '../domains/driving_domain/driving.domain'
         d_c = main.parse_file_to_dict(domain_fname)
         domain = parse_domain_config.ParseDomainConfig.parse(d_c)
@@ -18,3 +18,9 @@ class TestDrivingDomain(unittest.Testcase):
             '1: DRIVE_DOWN_ROAD USER0 ROAD0 START0 END0 VU_LIMIT VL_LIMIT AU_LIMIT AL_LIMIT'
         ]
         plan = hls.get_plan(plan_str, domain, problem)
+        solver = driving_solver.DrivingSolver()
+        solver.backtrack_solve(plan)
+
+        transfer_plan_to_sim(plan)
+        gui = get_driving_gui(plan)
+        gui.run_sim()

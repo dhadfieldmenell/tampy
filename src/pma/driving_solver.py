@@ -204,9 +204,9 @@ class DrivingSolver(LLSolver):
                 dist = road.geom.length / 2 - 1
                 x = road.geom.x
                 y = road.geom.y
-                final_xy = x + dist * np.cos(direction), y + dist * np.sin(direction)
+                final_xy = np.array([[x + dist * np.cos(direction)], [y + dist * np.sin(direction)]])
 
-                vehicle_poses.append({'xy': final_xy, 'theta': direction, 'vel': 0, 'phi': 0, 'u1': 0, 'u2': 0, 'value': 0})
+                vehicle_poses.append({'xy': final_xy, 'theta': np.array([[direction]]), 'vel': np.zeros((1,1)), 'phi': np.zeros((1,1)), 'u1': np.zeros((1,1)), 'u2': np.zeros((1,1)), 'value': np.zeros((1,1))})
             else:
                 raise NotImplementedError
         if not vehicle_poses:
@@ -269,7 +269,6 @@ class DrivingSolver(LLSolver):
                         active_ts=None, verbose=False, resample=False, smoothing = False):
         if callback is not None: viewer = callback()
         self.plan = plan
-        vehicle = plan.params['vehicle']
         if active_ts==None:
             active_ts = (0, plan.horizon-1)
         plan.save_free_attrs()
