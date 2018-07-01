@@ -302,7 +302,7 @@ class Left(Action):
 
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
-                ('(PoseLeftOfLane ?end ?road ?lane_n)', '{}:{}'.format(end, end)),
+                ('(PoseLeftOfLane ?end ?road ?lane_n)', '{}:{}'.format(0, 0)),
                 ('(PosesWithinDistance ?start ?end ?merge_dist)', '{}:{}'.format(0, 0))
                 ('(forall (?obj - Vehicle)\
                     (VelUpperLimit ?vehicle ?vu_limit))', '{}:{}'.format(0, end)),
@@ -337,7 +337,7 @@ class Right(Action):
 
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
-                ('(PoseRightOfLane ?end ?road ?lane_n)', '{}:{}'.format(end, end)),
+                ('(PoseRightOfLane ?end ?road ?lane_n)', '{}:{}'.format(0, 0)),
                 ('(PosesWithinDistance ?start ?end ?merge_dist)', '{}:{}'.format(0, 0))
                 ('(forall (?obj - Vehicle)\
                     (VelUpperLimit ?vehicle ?vu_limit))', '{}:{}'.format(0, end)),
@@ -363,3 +363,18 @@ class Right(Action):
 
 # TODO: StopAtSign, Turn, Wait
 # tODO: Variants with grasping, shipping
+
+actions = [DriveDownRoad(), Follow(), Pass(), Left(), Right()]
+
+for action in actions:
+    dom_str += '\n\n'
+    dom_str += action.to_str()
+
+# removes all the extra spaces
+dom_str = dom_str.replace('            ', '')
+dom_str = dom_str.replace('    ', '')
+dom_str = dom_str.replace('    ', '')
+
+print dom_str
+f = open('driving.domain', 'w')
+f.write(dom_str)

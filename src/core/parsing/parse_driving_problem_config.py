@@ -4,25 +4,25 @@ from errors_exceptions import ProblemConfigException
 
 from driving_sim.internal_state.simulator_state import SimulatorState
 
-def update_or_spawn_sim(sim, params, problem_config, domain):
-    if sim is None:
-        sim = SimulatorState(2, params['x_limit'].value[0,0], params['y_limit'].value[0, 0])
+def update_or_spawn_sim(env, params, problem_config, domain):
+    if env is None:
+        env = SimulatorState(2, params['x_limit'].value[0,0], params['y_limit'].value[0, 0])
 
-    sim.clear()
-    
+    env.clear()
+
     for param in params:
-        sim.add(param._type, param.geom)
+        env.add(param._type, param.geom)
 
-    return sim
+    return env
 
-class ParseDrivingSSProblemConfig(object):
+class ParseDrivingProblemConfig(object):
     """
     Read the problem configuration data and spawn the corresponding initial Problem object (see Problem class).
     This is only done for spawning the very first Problem object, from the initial state specified in the problem configuration file.
     Validation is performed against the schemas stored in the Domain object self.domain.
     """
     @staticmethod
-    def parse(problem_config, domain, sim=None):
+    def parse(problem_config, domain, env=None):
         # create parameter objects
         params = {}
             
@@ -77,7 +77,7 @@ class ParseDrivingSSProblemConfig(object):
             if type(v) is dict:
                 raise ProblemConfigException("Problem file has no primitive predicates for object '%s'."%k)
 
-        sim = update_or_spawn_sim(sim, params, problem_config)
+        env = update_or_spawn_sim(env, params, problem_config)
 
         init_preds = set()
         if deriv_preds:
@@ -94,7 +94,7 @@ class ParseDrivingSSProblemConfig(object):
                     init_preds.add(domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
-                                                                          sim=sim))
+                                                                          env=env))
                 except TypeError:
                     print("type error for {}".format(pred))
 

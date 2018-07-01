@@ -36,45 +36,48 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
             attr_inds[param] = [(attr_name, inds, t)]
 
 class DrivingPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, active_range, sim, priority):
-        self.sim = sim
-        super(DrivingPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=active_range, sim=sim, priority=priority)
+    '''
+    Used to introduce a layer of interface to the simulator but wans't necessary.
+    May become revleant in future.
+    '''
+    def __init__(self, name, e, attr_inds, params, expected_param_types, active_range, env, priority):
+        super(DrivingPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=active_range, env=env, priority=priority)
 
 class HLPred(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         attr_inds = OrderedDict([(self.obj, [("xy", np.array([0,1], dtype=np.int))])])
         A = np.zeros((2,2))
         b = np.zeros((2,1))
         val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(HLPred, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=-2)    
+        super(HLPred, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)    
 
 class HLNoCollisions(HLPred):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.obj, = params
 
-        super(HLNoCollisions, self).__init__(name, params, expected_param_types, sim=sim, priority=-2)
+        super(HLNoCollisions, self).__init__(name, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = False
 
-    def check_if_true(self, sim):
-        return np.any([sim.check_all_collisions(v) for v in sim.user_vehicles]) or \
-               np.any([sim.check_all_collisions(v) for v in sim.external_vehicles])
+    def check_if_true(self, env):
+        return np.any([env.check_all_collisions(v) for v in env.user_vehicles]) or \
+               np.any([env.check_all_collisions(v) for v in env.external_vehicles])
 
 class HLCrateInTrunk(HLPred):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.crate = params
 
-        super(HLCrateInTrunk, self).__init__(name, params, expected_param_types, sim=sim, priority=-2)
+        super(HLCrateInTrunk, self).__init__(name, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = False
 
-    def check_if_true(self, sim):
+    def check_if_true(self, env):
         return self.obj.geom.in_trunk(self.crate.geom)
 
 class DynamicPredicate(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.obj, = params
         attr_inds = OrderedDict([(self.obj, [("xy", np.array([0,1], dtype=np.int)),
@@ -88,11 +91,11 @@ class DynamicPredicate(DrivingPredicate):
         dynamics_expr = Expr(self.f, self.grad)
         e = EqExpr(dynamics_expr, val)
 
-        super(DynamicPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), sim=sim, priority=1)
+        super(DynamicPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=1)
         self.spacial_anchor = False
 
 class XValid(DynamicPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             return DYNAMICS_COEFF * (np.array([x[7] - next_px_f(x[0], x[2], x[3], x[5], x[6], self.sess)]))
 
@@ -104,10 +107,40 @@ class XValid(DynamicPredicate):
 
         self.f = f
         self.grad = grad
-        super(XValid).__init__(name, params, expected_param_types, sim)
+        super(XValid).__init__(name, params, expected_param_types, env)
+        
+    def resample(self, negated, t, plan):
+        if negated:
+            return None, None
+        else:
+            attr_inds, res = OrderedDict(), OrderedDict()
+            act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] < t and  t <= act.active_timesteps[1]][0]
+            act_start, act_end = action.active_timesteps
+
+            old_pose1 = self.obj1.geom.update_xy_theta(x[0], x[1], x[2], 0)
+            old_pose2 = self.obj2.geom.update_xy_theta(x[3], x[4], x[5], 0)
+            obj1_pts = self.obj1.geom.get_points(0, COL_DIST)
+            obj2_pts = self.obj2.geom.get_points(0, COL_DIST)
+            self.obj1.geom.update_xy_theta(0, old_pose1[0], old_pose1[1], old_pose1[2])
+            self.obj2.geom.update_xy_theta(0, old_pose2[0], old_pose2[1], old_pose2[2])
+            col_vec = collision_vector(obj1_pts, obj2_pts)
+
+            random_dir = np.random.randint(-1, 2) * np.array([-1./col_vec[0], 1./col_vec[1]])
+            target_xy = np.random.uniform(1, 3) * col_vec - self.obj1.xy[t] + np.random.uniform(1, 3) * random_dir / np.linalg.norm(random_dir)
+
+            start_t = max(t - 5, act_start)
+            start_xy = self.obj1.xy[:, start_t]
+            start_theta = self.obj1.theta[0, start_t]
+            end_theta = np.arccos((target_xy - start_xy).dot([1,0]) / np.linalg.norm(target_xy - start_xy))
+
+            for i in range(start_t+1, t+1):
+                t_ratio = float((i - start_t)) / (t - start_t)
+                add_to_attr_inds_and_res(i, attr_inds, res, self.obj1, [('xy', t_ratio * target_xy + (1 - t_ratio) * start_xy), ('theta', t_ratio * end_theta + (1 - t_ratio) * start_theta)])
+
+            return attr_inds, res
 
 class YValid(DynamicPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             return DYNAMICS_COEFF * (np.array([x[8] - next_py_f(x[1], x[2], x[3], x[5], x[6], self.sess)]))
 
@@ -119,10 +152,10 @@ class YValid(DynamicPredicate):
 
         self.f = f
         self.grad = grad
-        super(YValid).__init__(name, params, expected_param_types, sim)
+        super(YValid).__init__(name, params, expected_param_types, env)
 
 class ThetaValid(DynamicPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             return DYNAMICS_COEFF * (np.array([x[9] - next_theta_f(x[2], x[3], x[4], x[5], x[6], self.sess)]))
 
@@ -134,10 +167,10 @@ class ThetaValid(DynamicPredicate):
 
         self.f = f
         self.grad = grad
-        super(ThetaValid).__init__(name, params, expected_param_types, sim)
+        super(ThetaValid).__init__(name, params, expected_param_types, env)
 
 class VelocityValid(DynamicPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             return DYNAMICS_COEFF * (np.array([x[10] - next_v_f(x[3], x[5], x[6], self.sess)]))
 
@@ -149,10 +182,10 @@ class VelocityValid(DynamicPredicate):
 
         self.f = f
         self.grad = grad
-        super(VelocityValid).__init__(name, params, expected_param_types, sim)
+        super(VelocityValid).__init__(name, params, expected_param_types, env)
         
 class PhiValid(DynamicPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             return DYNAMICS_COEFF * (np.array([x[11] - next_phi_f(x[4], x[5], x[6], self.sess)]))
 
@@ -164,10 +197,10 @@ class PhiValid(DynamicPredicate):
 
         self.f = f
         self.grad = grad
-        super(PhiValid).__init__(name, params, expected_param_types, sim)
+        super(PhiValid).__init__(name, params, expected_param_types, env)
         
 class At(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.target = params
         attr_inds = OrderedDict([(self.obj,    [("xy", np.array([0,1], dtype=np.int)),
@@ -180,7 +213,7 @@ class At(DrivingPredicate):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
 
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=-2)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = True
     
 class VehicleAt(At):
@@ -193,7 +226,7 @@ class ObstacleAt(At):
     pass
 
 class Near(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 3
         self.obj, self.target, self.dist = params
         attr_inds = OrderedDict([(self.obj,    [("xy", np.array([0,1], dtype=np.int))]),
@@ -205,14 +238,14 @@ class Near(DrivingPredicate):
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
 
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=-2)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = True
 
 class VehicleAtSign(Near):
     pass
 
 class VelAt(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.target = params
         attr_inds = OrderedDict([(self.obj,    [("vel", np.array([0], dtype=np.int))]),
@@ -223,14 +256,14 @@ class VelAt(DrivingPredicate):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
 
-        super(VelAt, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=-2)
+        super(VelAt, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = True
 
 class VehicleVelAt(Velt):
     pass
 
 class ExternalVehicleVelAt(VelAt):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.target = params
 
@@ -243,14 +276,14 @@ class ExternalVehicleVelAt(VelAt):
             aff_e = AffExpr(A, b)
             e = EqExpr(aff_e, val)
 
-            super(VelAt, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=-2)
+            super(VelAt, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
             self.spacial_anchor = True
 
         else:
             super(ExternalVehicleVelAt, self).__init__(name, params, expected_param_types)
 
 class ExternalVehiclePastRoadEnd(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
 
         self.obj, = params
@@ -276,11 +309,11 @@ class ExternalVehiclePastRoadEnd(DrivingPredicate):
             aff_e = AffExpr(A, b)
             e = EqExpr(aff_e, val)
 
-        super(ExternalVehiclePastRoadEnd, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=-2)
+        super(ExternalVehiclePastRoadEnd, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = True
 
 class Stationary(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.obj, = params
         attr_inds = OrderedDict([(self.obj, [("xy", np.array([0,1], dtype=np.int)),
@@ -289,7 +322,7 @@ class Stationary(DrivingPredicate):
         A = np.c_[np.eye(3), -np.eye(3)]
         b, val = np.zeros((3, 1)), np.zeros((3, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), sim=sim, priority=-2)
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=-2)
         self.spacial_anchor = False
 
 class VehicleStationary(Stationary):
@@ -302,7 +335,7 @@ class ObstacleStationary(Stationary):
     pass
 
 class StationaryLimit(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.limit, = params
         attr_inds = OrderedDict([(self.limit, [("value", np.array([0], dtype=np.int))])])
@@ -310,11 +343,11 @@ class StationaryLimit(DrivingPredicate):
         A = np.c_[1, -1]
         b, val = np.zeros((1, 1)), np.zeros((1, 1))
         e = EqExpr(AffExpr(A, b), val)
-        super(StationaryLimit, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), sim=sim, priority=-2)
+        super(StationaryLimit, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=-2)
         self.spacial_anchor = False
 
 class IsMP(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.obj, = params
         attr_inds = OrderedDict([(self.obj, [("xy", np.array([0,1], dtype=np.int)),
@@ -323,11 +356,11 @@ class IsMP(DrivingPredicate):
         A = np.c_[np.r_[np.eye(3), -np.eye(3)], np.r_[-np.eye(3), np.eye(3)]]
         b, val = np.zeros((6, 1)), MOVE_FACTOR * np.ones((6, 1))
         e = LEqExpr(AffExpr(A, b), val)
-        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), sim=sim, priority=-2)
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=-2)
         self.spacial_anchor = False
 
 class OnSurface(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.surface = params
         attr_inds = OrderedDict([(self.obj, [("xy", np.array([0,1], dtype=np.int))])])
@@ -339,7 +372,7 @@ class OnSurface(DrivingPredicate):
         expr = Expr(f, grad)
         e = EqExpr(expr, val)
 
-        super(OnSurface, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=2)
+        super(OnSurface, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=2)
         self.spacial_anchor = False
 
 class OnRoad(OnSurface):
@@ -349,7 +382,7 @@ class OnLot(DrivingPredicate):
     pass
 
 class InLane(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 3
         self.obj, self.road, self.lane_num = params
         attr_inds = OrderedDict([(self.obj, [("xy",    np.array([0,1], dtype=np.int)),
@@ -365,11 +398,11 @@ class InLane(DrivingPredicate):
         expr = Expr(f, grad)
         e = EqExpr(expr, val)
 
-        super(InLane, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=2)
+        super(InLane, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=2)
         self.spacial_anchor = False
 
 class ExternalInLane(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 3
         self.obj, self.road, self.lane_num = params
         attr_inds = OrderedDict([(self.obj, [("xy",    np.array([0,1], dtype=np.int)),
@@ -385,18 +418,18 @@ class ExternalInLane(DrivingPredicate):
         expr = Expr(f, grad)
         e = EqExpr(expr, val)
 
-        super(ExternalInLane, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=2)
+        super(ExternalInLane, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=2)
         self.spacial_anchor = False
 
 class LeftOfLane(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 3
         self.obj, self.road, self.lane_num = params
         attr_inds = OrderedDict([(self.obj, [("xy",    np.array([0,1], dtype=np.int)),
                                              ("theta", np.array([0], dtype=np.int))])])
 
         lane_n = self.lane_num.value[0,0]
-        f = lambda x: LOC_COEFF * self.road.geom.to_lane(x[0], x[1], x[2], lane_n)[0] if lane_n > 0 else LOC_COEFF * self.road.geom.to_lane(x[0], x[1], x[2], lane_n)[0]
+        f = lambda x: LOC_COEFF * self.road.geom.to_lane(x[0], x[1], x[2], lane_n - 1)[0] if lane_n > 0 else LOC_COEFF * self.road.geom.to_lane(x[0], x[1], x[2], lane_n)[0]
         def grad(x):
             grad = np.zeros((3, 2))
             grad[:2,:] = np.eye(2)
@@ -406,11 +439,11 @@ class LeftOfLane(DrivingPredicate):
         expr = Expr(f, grad)
         e = EqExpr(expr, val)
 
-        super(LeftOfLane, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=2)
+        super(LeftOfLane, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=2)
         self.spacial_anchor = False
 
 class RightOfLane(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 3
         self.obj, self.road, self.lane_num = params
         attr_inds = OrderedDict([(self.obj, [("xy",    np.array([0,1], dtype=np.int)),
@@ -426,23 +459,23 @@ class RightOfLane(DrivingPredicate):
         expr = Expr(f, grad)
         e = EqExpr(expr, val)
 
-        super(LeftOfLane, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=2)
+        super(LeftOfLane, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=2)
         self.spacial_anchor = False
 
 class PoseInLane(InLane):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         pass
 
 class PoseLeftOfLane(LeftOfLane):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         pass
 
 class PoseRightOfLane(RightOfLane):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         pass
 
 class XY_Limit(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 3
         self.obj, self.xlimit, self.ylimit = params
         attr_inds = OrderedDict([(self.obj, [("xy", np.array([0, 1], dtype=np.int))]),
@@ -455,11 +488,11 @@ class XY_Limit(DrivingPredicate):
         A[2:4,:2] = -np.eye(2) 
         b, val = np.zeros((4, 1)), np.zeros((4, 1))
         e = LEqExpr(AffExpr(A, b), val)
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=-2)
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = False
 
 class Limit(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.limit = params
         attr_inds = OrderedDict([(self.obj, [("v", np.array([0], dtype=np.int)),
@@ -468,43 +501,43 @@ class Limit(DrivingPredicate):
 
         b, val = np.zeros((1, 1)), np.zeros((1, 1))
         e = LEqExpr(AffExpr(self.A, b), val)
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=-2)
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=-2)
         self.spacial_anchor = False
 
 class VelLowerLimit(Limit):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         self.A = np.zeros((1,3))
         self.A[0,0] = -1
         self.A[0,2] = 1
-        super(VelLowerLimit, self).__init__(name, params, expected_param_types, sim)
+        super(VelLowerLimit, self).__init__(name, params, expected_param_types, env)
         self.spacial_anchor = False
 
 class VelUpperLimit(Limit):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         self.A = np.zeros((1,3))
         self.A[0,0] = 1
         self.A[0,2] = -1
-        super(VelUpperLimit, self).__init__(name, params, expected_param_types, sim)
+        super(VelUpperLimit, self).__init__(name, params, expected_param_types, env)
         self.spacial_anchor = False
 
 class AccLowerLimit(Limit):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         self.A = np.zeros((1,3))
         self.A[0,1] = -1
         self.A[0,2] = 1
-        super(AccLowerLimit, self).__init__(name, params, expected_param_types, sim)
+        super(AccLowerLimit, self).__init__(name, params, expected_param_types, env)
         self.spacial_anchor = False
 
 class AccUpperLimit(Limit):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         self.A = np.zeros((1,3))
         self.A[0,1] = 1
         self.A[0,2] = -1
-        super(AccUpperLimit, self).__init__(name, params, expected_param_types, sim)
+        super(AccUpperLimit, self).__init__(name, params, expected_param_types, env)
         self.spacial_anchor = False
 
 class CollisionPredicate(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj1, self.obj2 = params
         attr_inds = OrderedDict([(self.obj1, [("xy", np.array([0,1], dtype=np.int)),
@@ -531,7 +564,7 @@ class CollisionPredicate(DrivingPredicate):
         col_expr = Expr(f, grad)
         e = EqExpr(col_expr, val)
 
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=3)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=3)
         self.spacial_anchor = False
 
     def resample(self, negated, t, plan):
@@ -577,7 +610,7 @@ class CrateObstacleCollision(CollisionPredicate):
     pass
 
 class PathCollisionPredicate(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj1, self.obj2 = params
         attr_inds = OrderedDict([(self.obj1, [("xy", np.array([0,1], dtype=np.int)),
@@ -610,7 +643,7 @@ class PathCollisionPredicate(DrivingPredicate):
         col_expr = Expr(f, grad)
         e = EqExpr(col_expr, val)
 
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), sim=sim, priority=3)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=3)
         self.spacial_anchor = False
 
     def resample(self, negated, t, plan):
@@ -663,7 +696,7 @@ class CrateObstaclePathCollision(CollisionPredicate):
     pass
 
 class Follow(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 3
         self.v1, self.v2, self.dist = params
         attr_inds = OrderedDict([(self.v1, [("xy", np.array([0,1], dtype=np.int)),
@@ -696,11 +729,11 @@ class Follow(DrivingPredicate):
 
         val = np.zeros((3, 1))
         e = EqExpr(Expr(f, grad), val)
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=3)
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=3)
         self.spacial_anchor = False
 
 class StopAtStopSign(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 2
         self.obj, self.sign = params
         attr_inds = OrderedDict([(self.obj, [("xy", np.array([0,1], dtype=np.int))])])
@@ -725,11 +758,11 @@ class StopAtStopSign(DrivingPredicate):
 
         val = np.zeros((2, 1))
         e = EqExpr(Expr(f, grad), val)
-        super(StopAtStopSign, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), sim=sim, priority=2)
+        super(StopAtStopSign, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=2)
         self.spacial_anchor = False
 
 class ExternalDriveDownRoad(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 1
         self.obj, = params
         attr_inds = OrderedDict([(self.obj, [("xy", np.array([0,1], dtype=np.int))])])
@@ -754,11 +787,11 @@ class ExternalDriveDownRoad(DrivingPredicate):
 
         val = np.zeros((2, 1))
         e = EqExpr(Expr(f, grad), val)
-        super(ExternalDriveDownRoad, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), sim=sim, priority=2)
+        super(ExternalDriveDownRoad, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=2)
         self.spacial_anchor = False
 
 class WithinDistance(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, sim=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         assert len(params) == 3
         self.target1, self.target2, self.dist = params
         attr_inds = OrderedDict([(self.target1, [("xy", np.array([0,1], dtype=np.int))]),
@@ -781,7 +814,7 @@ class WithinDistance(DrivingPredicate):
         dynamics_expr = Expr(self.f, self.grad)
         e = LEqExpr(dynamics_expr, val)
 
-        super(WithinDistance, self).__init__(name, e, attr_inds, params, expected_param_types, sim=sim, priority=1)
+        super(WithinDistance, self).__init__(name, e, attr_inds, params, expected_param_types, env=env, priority=1)
         self.spacial_anchor = False
 
 class PosesWithDistance(WithinDistance):

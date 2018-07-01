@@ -201,7 +201,7 @@ class DrivingSolver(LLSolver):
                 init_pos = act.params[2]
 
                 direction = road.geom.direction
-                dist = road.geom.length / 2
+                dist = road.geom.length / 2 - 1
                 x = road.geom.x
                 y = road.geom.y
                 final_xy = x + dist * np.cos(direction), y + dist * np.sin(direction)
