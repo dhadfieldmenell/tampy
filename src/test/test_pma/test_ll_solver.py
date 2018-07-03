@@ -42,7 +42,6 @@ class TestLLSolver(unittest.TestCase):
                 print "*****************************************************"
                 print "calling hls"
                 print "*****************************************************"
-                import ipdb; ipdb.set_trace()
                 return hls.get_plan(plan_str, domain, problem)
             return hls.solve(abs_problem, domain, problem)
 
@@ -300,11 +299,12 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
             X = (x - origin[0])/scaling
             Y =-(y - origin [1])/scaling
             print('{}, {}'.format(X, Y))
-            plan.params['pr2'].pose[0][0] = X
-            plan.params['pr2'].pose[0][1] = Y
-            plan.params['robot_init_pose'].value[0][0] = X
-            plan.params['robot_init_pose'].value[1][0] = Y
+            plan.params['pr2'].pose[0][0] = int(X)
+            plan.params['pr2'].pose[1][0] = int(Y)
+            plan.params['robot_init_pose'].value[0][0] = int(X)
+            plan.params['robot_init_pose'].value[1][0] = int(Y)
             root.destroy()
+            time.sleep(0.1)
         root.bind('<ButtonRelease-1>', motion)
         root.mainloop()
         # offset_tolerance = [[0.000085], [-0.000085]]
@@ -313,8 +313,8 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                 namo_solver._update_ll_params()
                 # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
                 # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
-                viewer.draw_plan_range(plan, [0,19])
-                # viewer.draw_plan(plan)
+                # viewer.draw_plan_range(plan, [0,19])
+                viewer.draw_plan(plan)
                 # viewer.draw_cols(plan)
                 time.sleep(0.03)
         elif method == 'Backtrack':
@@ -325,6 +325,7 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                 time.sleep(0.3)
     namo_solver = ll_solver.NAMOSolver(early_converge=early_converge)
     start = time.time()
+    
     if method == 'SQP':
         namo_solver.solve(plan, callback=callback, verbose=verbose)
     elif method == 'Backtrack':
