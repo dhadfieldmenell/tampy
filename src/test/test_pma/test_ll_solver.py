@@ -325,7 +325,9 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                 time.sleep(0.3)
     namo_solver = ll_solver.NAMOSolver(early_converge=early_converge)
     start = time.time()
-    
+    #plan to check preds
+    #subtract actual position, check which timestep plan fails due to a COLLISION.
+    #recall planner if this happens.
     if method == 'SQP':
         namo_solver.solve(plan, callback=callback, verbose=verbose)
     elif method == 'Backtrack':
@@ -339,6 +341,12 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
         viewer.animate_plan(plan)
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
+        # pseudocode
+        # plan.params['pr2'].pose -= inaccuracy
+        # plan.params['robot_init_pose'].value -= inaccuracy
+        # for ts in range(plan.horizon):
+        #     if plan.get_failed_pred()[ts] and isinstance(collisionPredicate):
+        #         replan???
         import ipdb; ipdb.set_trace()
 
 def _test_plan(test_obj, plan, method='SQP', plot=False, animate=False, verbose=False,
