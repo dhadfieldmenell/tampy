@@ -23,6 +23,16 @@ def parse_file_to_dict(f_name):
     cache[f_name] = d
     return d.copy()
 
+def parse_prob_str_to_dict(probStr):
+    d = {}
+    stringIterator = iter(probStr.split("\n"))
+    for line in stringIterator:
+        line = line.strip()
+        if line and not line.startswith("#"):
+            k, v = line.split(":", 1)
+            d[k.strip()] = v.strip()
+    return d.copy()
+
 def main(domain_file, problem_file, solvers_file):
     try:
         domain_config = parse_file_to_dict(domain_file)
