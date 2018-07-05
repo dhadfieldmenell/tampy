@@ -25,29 +25,27 @@ from PIL import ImageTk, Image
 
 wall_endpoints = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
 
+domain_fname = '../domains/namo_domain/namo.domain'
+d_c = main.parse_file_to_dict(domain_fname)
+domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+hls = hl_solver.FFSolver(d_c)
+
+def get_plan(p_fname, plan_str=None, is_prob_str = False, prob_str=None):
+    if is_prob_str:
+        p_c = main.parse_prob_str_to_dict(prob_str)
+    else:
+        p_c = main.parse_file_to_dict(p_fname)
+    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+    abs_problem = hls.translate_problem(problem)
+    if plan_str is not None:
+        print "*****************************************************"
+        print "calling hls"
+        print "*****************************************************"
+        return hls.get_plan(plan_str, domain, problem)
+    return hls.solve(abs_problem, domain, problem)
 
 class TestLLSolver(unittest.TestCase):
     def setUp(self):
-
-        domain_fname = '../domains/namo_domain/namo.domain'
-        d_c = main.parse_file_to_dict(domain_fname)
-        domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-        hls = hl_solver.FFSolver(d_c)
-
-        def get_plan(p_fname, plan_str=None, is_prob_str = False, prob_str=None):
-            if is_prob_str:
-                p_c = main.parse_prob_str_to_dict(prob_str)
-            else:
-                p_c = main.parse_file_to_dict(p_fname)
-            problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-            abs_problem = hls.translate_problem(problem)
-            if plan_str is not None:
-                print "*****************************************************"
-                print "calling hls"
-                print "*****************************************************"
-                return hls.get_plan(plan_str, domain, problem)
-            return hls.solve(abs_problem, domain, problem)
-
         self.move_no_obs = get_plan('../domains/namo_domain/namo_probs/move_no_obs.prob')
         self.move_w_obs = get_plan('../domains/namo_domain/namo_probs/move_w_obs.prob')
         self.move_grasp = get_plan('../domains/namo_domain/namo_probs/move_grasp.prob')
@@ -255,95 +253,111 @@ def closet_maker(thickness, wall_endpoints, ax):
 
 def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=True, verbose=False,
                early_converge=False):
-    print "testing plan: {}".format(plan.actions)
-    if not plot:
-        callback = None
-        viewer = None
-    else:
-        viewer = OpenRAVEViewer.create_viewer()
-        fig, ax = plt.subplots()
-        objList = []
-        for p in plan.params.itervalues():
-            if not p.is_symbol():
-                objList.append(p)
-        center = 0
-        radius = 0
-        circColor = None
-        for obj in objList:
-            if (isinstance(obj.geom, BlueCircle)):
-                circColor = 'blue'
-            elif (isinstance(obj.geom, GreenCircle)):
-                circColor = 'g'
-            elif (isinstance(obj.geom, RedCircle)):
-                circColor = 'r'
-            else:
-                print("not a circle; probably a wall")
-                continue
-            center = obj.pose[:,0]
-            radius = obj.geom.radius
-            ax.add_artist(plt.Circle((center[0], center[1]), radius, color=circColor))
-        closet_maker(1, wall_endpoints, ax)
-        ax.set_xlim(-3, 10)
-        ax.set_ylim(-5, 10)
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.axis("off")
-        fig.canvas.draw()
-        root = Tk()
-        image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-        image = Image.fromarray(image)
-        img = ImageTk.PhotoImage(image)
-        '''
-        Uncomment below lines for calibration:
-        '''
-        # path = "calibration.jpg"
-        # img = ImageTk.PhotoImage(Image.open(path))
-        panel = Label(root, image = img)
-        panel.pack(side = "bottom", fill = "both", expand = "yes")
-        def motion(event):
-            origin = (241, 307)
-            scaling = 25.0
-            x, y = event.x, event.y
-            X = (x - origin[0])/scaling
-            Y =-(y - origin [1])/scaling
-            print('{}, {}'.format(X, Y))
-            plan.params['pr2'].pose[0][0] = int(X)
-            plan.params['pr2'].pose[1][0] = int(Y)
-            plan.params['robot_init_pose'].value[0][0] = int(X)
-            plan.params['robot_init_pose'].value[1][0] = int(Y)
-            root.destroy()
-            time.sleep(0.1)
-        root.bind('<ButtonRelease-1>', motion)
-        root.mainloop()
-        # offset_tolerance = [[0.000085], [-0.000085]]
-        if method=='SQP':
-            def callback():
-                namo_solver._update_ll_params()
-                # viewer.draw_plan_range(plan, range(57, 77)) # displays putdown action
-                # viewer.draw_plan_range(plan, range(38, 77)) # displays moveholding and putdown action
-                # viewer.draw_plan_range(plan, [0,19])
-                viewer.draw_plan(plan)
-                # viewer.draw_cols(plan)
-                time.sleep(0.03)
+    success = False
+    while(not success):
+        print "testing plan: {}".format(plan.actions)
+        original_robot_pose = plan.params['robot_init_pose'].value.copy() # Store original pose so we can account for error in human labeling
+        if not plot:
+            callback = None
+            viewer = None
+        else:
+            viewer = OpenRAVEViewer.create_viewer()
+            fig, ax = plt.subplots()
+            objList = []
+            for p in plan.params.itervalues():
+                if not p.is_symbol():
+                    objList.append(p)
+            center = 0
+            radius = 0
+            circColor = None
+            for obj in objList:
+                if (isinstance(obj.geom, BlueCircle)):
+                    circColor = 'blue'
+                elif (isinstance(obj.geom, GreenCircle)):
+                    circColor = 'g'
+                elif (isinstance(obj.geom, RedCircle)):
+                    circColor = 'r'
+                else:
+                    print("not a circle; probably a wall")
+                    continue
+                center = obj.pose[:,0]
+                radius = obj.geom.radius
+                ax.add_artist(plt.Circle((center[0], center[1]), radius, color=circColor))
+            closet_maker(1, wall_endpoints, ax)
+            ax.set_xlim(-3, 10)
+            ax.set_ylim(-5, 10)
+            plt.gca().set_aspect('equal', adjustable='box')
+            plt.axis("off")
+            fig.canvas.draw()
+            root = Tk()
+            image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+            image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+            image = Image.fromarray(image)
+            img = ImageTk.PhotoImage(image)
+            '''
+            Uncomment below lines for calibration:
+            '''
+            # path = "calibration.jpg"
+            # img = ImageTk.PhotoImage(Image.open(path))
+            panel = Label(root, image = img)
+            panel.pack(side = "bottom", fill = "both", expand = "yes")
+            def motion(event):
+                origin = (241, 307)
+                scaling = 25.0
+                x, y = event.x, event.y
+                X = (x - origin[0])/scaling
+                Y =-(y - origin [1])/scaling
+                print('{}, {}'.format(X, Y))
+                plan.params['pr2'].pose[0][0] = X
+                plan.params['pr2'].pose[1][0] = Y
+                plan.params['robot_init_pose'].value = plan.params['robot_init_pose'].value.astype(float)
+                plan.params['robot_init_pose'].value[0][0] = X
+                plan.params['robot_init_pose'].value[1][0] = Y
+                root.destroy()
+                time.sleep(0.1)
+            root.bind('<ButtonRelease-1>', motion)
+            root.mainloop()
+            if method=='SQP':
+                def callback():
+                    namo_solver._update_ll_params()
+                    viewer.draw_plan(plan)
+                    time.sleep(0.03)
+            elif method == 'Backtrack':
+                def callback(a):
+                    namo_solver._update_ll_params()
+                    viewer.clear()
+                    viewer.draw_plan_range(plan, a.active_timesteps)
+                    time.sleep(0.3)
+        namo_solver = ll_solver.NAMOSolver(early_converge=early_converge)
+        start = time.time()
+        if method == 'SQP':
+            namo_solver.solve(plan, callback=callback, verbose=verbose)
         elif method == 'Backtrack':
-            def callback(a):
-                namo_solver._update_ll_params()
-                viewer.clear()
-                viewer.draw_plan_range(plan, a.active_timesteps)
-                time.sleep(0.3)
-    import ipdb; ipdb.set_trace()
-    namo_solver = ll_solver.NAMOSolver(early_converge=early_converge)
-    start = time.time()
-    #plan to check preds
-    #subtract actual position, check which timestep plan fails due to a COLLISION.
-    #recall planner if this happens.
-    if method == 'SQP':
-        namo_solver.solve(plan, callback=callback, verbose=verbose)
-    elif method == 'Backtrack':
-        namo_solver.backtrack_solve(plan, callback=callback, verbose=verbose)
-    print "Solve Took: {}".format(time.time() - start)
-    fp = plan.get_failed_preds()
-    _, _, t = plan.get_failed_pred()
+            namo_solver.backtrack_solve(plan, callback=callback, verbose=verbose)
+        print "Solve Took: {}".format(time.time() - start)
+
+        print "Taking into account of innacuracies"
+        inaccuracy = plan.params['robot_init_pose'].value - original_robot_pose
+        plan.params['robot_init_pose'].value -= inaccuracy
+        plan.params['pr2'].pose -= inaccuracy
+        if animate: # Show failed timestep
+            viewer = OpenRAVEViewer.create_viewer()
+            failed_pred , _, t = plan.get_failed_pred()
+            viewer.draw_plan_ts(plan, t)
+            import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
+        fp = plan.get_failed_preds()
+        failed_pred , _, t = plan.get_failed_pred()
+        if plan.get_failed_pred()[0] is False:
+            success = True
+        CAN0_INIT_POSE = [plan.params['can0'].pose[:, t-1][0], plan.params['can0'].pose[:, t-1][1]]
+        CAN1_INIT_POSE = [plan.params['can1'].pose[:, t-1][0], plan.params['can1'].pose[:, t-1][1]]
+        PR2_INIT_POSE = [plan.params['pr2'].pose[:, t-1][0], plan.params['pr2'].pose[:, t-1][1]]
+        # GOAL_CAN_TARGET = [3.5, 6]
+        plan = get_plan(None, is_prob_str = True, prob_str = generate_putaway3(CAN0_INIT_POSE = CAN0_INIT_POSE, 
+                                                                                CAN1_INIT_POSE = CAN1_INIT_POSE, 
+                                                                                PR2_INIT_POSE = PR2_INIT_POSE))
+        #add the replanning step here
 
     if animate:
         viewer = OpenRAVEViewer.create_viewer()
@@ -351,12 +365,6 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
         viewer.animate_plan(plan)
         if t < plan.horizon:
             viewer.draw_plan_ts(plan, t)
-        # pseudocode
-        # plan.params['pr2'].pose -= inaccuracy
-        # plan.params['robot_init_pose'].value -= inaccuracy
-        # for ts in range(plan.horizon):
-        #     if plan.get_failed_pred()[ts] and isinstance(collisionPredicate):
-        #         replan???
         import ipdb; ipdb.set_trace()
 
 def generate_putaway3(CAN0_INIT_POSE = [2, 0], CAN1_INIT_POSE = [6, 1], PR2_INIT_POSE = [2, 2], 
