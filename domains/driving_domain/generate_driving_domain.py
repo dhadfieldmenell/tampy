@@ -117,6 +117,8 @@ dp.add('StopAtStopSign', ['Vehicle', 'StopSign'])
 dp.add('ExternalVehiclePastRoadEnd', ['Vehicle'])
 dp.add('ExternalDriveDownRoad', ['Vehicle'])
 dp.add('PosesWithinDistance', ['VehiclePose', 'VehiclePose', 'Distance'])
+dp.add('ValidU1Vel', ['Vehicle'])
+dp.add('ValidU2Phi', ['Vehicle'])
 
 dom_str += dp.get_str() + '\n'
 
@@ -161,6 +163,7 @@ class DrivingAction(Action):
 
         self.pre = [\
             ('(VehicleAt ?vehicle ?start)', '{}:{}'.format(0, 0)),
+            ('(VehicleStationary ?vehicle)', '{}:{}'.format(0,0)),
             ('(forall (?obj - Vehicle)\
                 (XValid ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
@@ -171,6 +174,10 @@ class DrivingAction(Action):
                 (VelValid ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
                 (PhiValid ?vehicle))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Vehicle)\
+                (ValidU1Vel ?vehicle))', '{}:{}'.format(0, end-1)),
+            ('(forall (?obj - Vehicle)\
+                (ValidU2Phi ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
                 (VehicleVehiclePathCollision ?vehicle ?obj))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Obstacle)\

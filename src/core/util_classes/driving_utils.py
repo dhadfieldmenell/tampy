@@ -10,12 +10,12 @@ def get_driving_gui(plan):
 
 def transfer_to_sim(plan, param_name):
     param = plan.params[param_name]
-    if param.is_symbol: raise ValueError("Cannot transfer symbol {} into the simulator.".format(param.name))
+    if param.is_symbol(): raise ValueError("Cannot transfer symbol {} into the simulator.".format(param.name))
     if not hasattr(param, 'geom') or param.geom is None: raise ValueError("Cannot transfer {} into the simulator without a geom attribute.".format(param.name))
 
     if isinstance(param.geom, DrivingObject):
         for attr in dir(param):
-            param_attr = geetattr(param, attr)
+            param_attr = getattr(param, attr)
             if isinstance(param_attr, np.ndarray) and hasattr(param.geom, attr):
                 getattr(param.geom, attr)[:] = param_attr.flatten()
             elif attr == 'xy':
@@ -24,5 +24,7 @@ def transfer_to_sim(plan, param_name):
 
 
 def transfer_plan_to_sim(plan):
+    plan.env.update_horizon(plan.horizon)
     for param_name in plan.params:
+        if plan.params[param_name].is_symbol(): continue
         transfer_to_sim(plan, param_name)
