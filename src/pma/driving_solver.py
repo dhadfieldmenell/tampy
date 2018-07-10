@@ -27,7 +27,6 @@ DEBUG = True
 
 # used for pose suggester
 RESAMPLE_FACTOR = baxter_constants.RESAMPLE_FACTOR
-DOWN_ROT = [0, np.pi/2, 0]
 
 attr_map = {}
 
@@ -39,7 +38,7 @@ class DrivingSolver(LLSolver):
         self.transfer_coeff = 1e0
         self.rs_coeff = 5e1
         self.trajopt_coeff = 1e0
-        self.initial_trust_region_size = 1e-2
+        self.initial_trust_region_size = 1e2
         self.init_penalty_coeff = 4e3
         self.smooth_penalty_coeff = 7e4
         self.max_merit_coeff_increases = 5
@@ -63,14 +62,14 @@ class DrivingSolver(LLSolver):
 
         return success
 
-    def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=5):
+    def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=2):
         plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose, n_resamples=n_resamples)
         # plan.restore_free_attrs()
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=1):
         # if anum == 2:
         #     import ipdb; ipdb.set_trace()
         if amax is None:
@@ -315,7 +314,7 @@ class DrivingSolver(LLSolver):
                 add_nonlin=False, active_ts= active_ts, verbose=verbose)
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
-            initial_trust_region_size = 1e3
+            initial_trust_region_size = 1e1
             # import ipdb; ipdb.set_trace()
         else:
             self._bexpr_to_pred = {}
@@ -328,7 +327,7 @@ class DrivingSolver(LLSolver):
                 self._add_first_and_last_timesteps_of_actions(plan,
                     priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
                 tol = 1e-1
-                initial_trust_region_size = 1e3
+                initial_trust_region_size = 1e1
             elif priority == -1:
                 """
                 Solve the optimization problem while enforcing every constraints.
@@ -357,29 +356,28 @@ class DrivingSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
-        if priority == MAX_PRIORITY:
-            success = success or len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+        success = success or len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
         self._update_ll_params()
 
         if DEBUG: assert not plan.has_nan(active_ts)
 
-        if resample:
-            # During resampling phases, there must be changes added to sampling_trace
-            if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
-                reward = 0
-                if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
-                    reward = len(plan.actions)
-                else:
-                    failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
-                    for i in range(len(plan.actions)):
-                        if failed_t > plan.actions[i].active_timesteps[1]:
-                            reward += 1
-                plan.sampling_trace[-1]['reward'] = reward
+        # if resample:
+        #     # During resampling phases, there must be changes added to sampling_trace
+        #     if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
+        #         reward = 0
+        #         if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
+        #             reward = len(plan.actions)
+        #         else:
+        #             failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
+        #             for i in range(len(plan.actions)):
+        #                 if failed_t > plan.actions[i].active_timesteps[1]:
+        #                     reward += 1
+        #         plan.sampling_trace[-1]['reward'] = reward
         ##Restore free_attrs values
         plan.restore_free_attrs()
 
         self.reset_variable()
-        print "priority: {}\n".format(priority)
+        print "priority: {}     success:{}\n".format(priority, success)
 
         return success
 
@@ -642,8 +640,8 @@ class DrivingSolver(LLSolver):
             ## returns a vector of new values and an
             ## attr_inds (OrderedDict) that gives the mapping
             ## to parameter attributes
-            if pred_type.get(pred.get_type, False):
-                continue
+            # if pred_type.get(pred.get_type, False):
+            #     continue
             val, attr_inds = pred.resample(negated, t, plan)
             if val is not None: pred_type[pred.get_type] = True
             ## if no resample defined for that pred, continue

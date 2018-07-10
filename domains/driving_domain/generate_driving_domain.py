@@ -88,6 +88,10 @@ dp.add('YValid', ['Vehicle'])
 dp.add('ThetaValid', ['Vehicle'])
 dp.add('VelValid', ['Vehicle'])
 dp.add('PhiValid', ['Vehicle'])
+dp.add('VelNewValidPxDotThetaNew', ['Vehicle'])
+dp.add('VelNewValidPyDotThetaNew', ['Vehicle'])
+dp.add('VelNewValidThetaDotPhiNew', ['Vehicle'])
+dp.add('PhiNewValidThetaDotVelNew', ['Vehicle'])
 dp.add('VehicleStationary', ['Vehicle'])
 dp.add('ObstacleStationary', ['Obstacle'])
 dp.add('CrateStationary', ['Crate'])
@@ -163,17 +167,24 @@ class DrivingAction(Action):
 
         self.pre = [\
             ('(VehicleAt ?vehicle ?start)', '{}:{}'.format(0, 0)),
-            ('(VehicleStationary ?vehicle)', '{}:{}'.format(0,0)),
             ('(forall (?obj - Vehicle)\
                 (XValid ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
                 (YValid ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
                 (ThetaValid ?vehicle))', '{}:{}'.format(0, end-1)),
+#            ('(forall (?obj - Vehicle)\
+#                (VelValid ?vehicle))', '{}:{}'.format(0, end-1)),
+#            ('(forall (?obj - Vehicle)\
+#                (PhiValid ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
-                (VelValid ?vehicle))', '{}:{}'.format(0, end-1)),
+                (VelNewValidPxDotThetaNew ?vehicle))', '{}:{}'.format(0, end-1)),
+            # ('(forall (?obj - Vehicle)\
+            #     (VelNewValidPyDotThetaNew ?vehicle))', '{}:{}'.format(0, end-1)),
+            # ('(forall (?obj - Vehicle)\
+            #     (VelNewValidThetaDotPhiNew ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
-                (PhiValid ?vehicle))', '{}:{}'.format(0, end-1)),
+                (PhiNewValidThetaDotVelNew ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
                 (ValidU1Vel ?vehicle))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Vehicle)\
@@ -206,14 +217,14 @@ class DriveDownRoad(DrivingAction):
         
         pre = [\
                 ('(OnRoad ?vehicle ?road)', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Vehicle)\
-                    (VelUpperLimit ?vehicle ?vu_limit))', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Vehicle)\
-                    (VelLowerLimit ?vehicle ?vl_limit))', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Vehicle)\
-                    (AccUpperLimit ?vehicle ?au_limit))', '{}:{}'.format(0, end)),
-                ('(forall (?obj - Vehicle)\
-                    (AccLowerLimit ?vehicle ?al_limit))', '{}:{}'.format(0, end)),
+#                ('(forall (?obj - Vehicle)\
+#                    (VelUpperLimit ?vehicle ?vu_limit))', '{}:{}'.format(0, end)),
+#                ('(forall (?obj - Vehicle)\
+#                    (VelLowerLimit ?vehicle ?vl_limit))', '{}:{}'.format(0, end)),
+#                ('(forall (?obj - Vehicle)\
+#                    (AccUpperLimit ?vehicle ?au_limit))', '{}:{}'.format(0, end)),
+#                ('(forall (?obj - Vehicle)\
+#                    (AccLowerLimit ?vehicle ?al_limit))', '{}:{}'.format(0, end)),
                 ('(forall (?obj - Obstacle) (ObstacleStationary ?obj))', '{}:{}'.format(0, end-1)),
                 ('(forall (?obj - Crate) (CrateStationary ?obj))', '{}:{}'.format(0, end-1)),
                 ('(forall (?sign - StopSign) (forall (?obj - Vehicle) (StopAtStopSign ?obj ?sign)))', '{}:{}'.format(0, end-1)),

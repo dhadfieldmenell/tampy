@@ -15,7 +15,7 @@ VEHICLE_INIT_PHI = [0.]
 VEHICLE_INIT_U1 = [0.]
 VEHICLE_INIT_U2 = [0.]
 
-VEHICLE_WHEELBASE = 3.
+VEHICLE_WHEELBASE = 1.
 VEHICLE_WIDTH = 1.5
 
 ROAD_XY = [25., 45.]
@@ -27,9 +27,9 @@ ROAD_LEN = 50.
 X_LIMIT = [120.]
 Y_LIMIT = [90.]
 
-VEL_U_LIMIT = [100] # [11.176] # 25 mph
+VEL_U_LIMIT = [11.176] # 25 mph
 VEL_L_LIMIT = [-2.] # Only go slow in reverse
-ACC_U_LIMIT = [100] # [1.]
+ACC_U_LIMIT = [1.]
 ACC_L_LIMIT = [-2.]
 
 def get_vehicle_str(name, vehicle_id, xy=VEHICLE_INIT_XY, theta=VEHICLE_INIT_THETA, vel=VEHICLE_INIT_VEL, phi=VEHICLE_INIT_PHI, u1=VEHICLE_INIT_U1, u2=VEHICLE_INIT_U2, user=True):

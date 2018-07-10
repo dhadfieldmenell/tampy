@@ -7,14 +7,15 @@ from core.util_classes.common_predicates import ExprPredicate
 
 from driving_sim.internal_state.dynamics import *
 
-ZERO_TOL = 0.001
+ZERO_TOL = 0.005
 
 MOVE_FACTOR = 2
 END_DIST = 4
 COL_DIST = 0.5
 
-DYNAMICS_COEFF = 0.1
-DYNAMICS_GRAD_COEFF = 100
+GRAD_COEFF = 0.05
+DYNAMICS_COEFF = 0.01
+DYNAMICS_GRAD_COEFF = 0.005
 COLLISION_COEFF = 0.1
 LOC_COEFF = 1
 FOLLOW_COEFF = 0.01
@@ -40,7 +41,7 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
 
 class DrivingPredicate(ExprPredicate):
     '''
-    Used to introduce a layer of interface to the simulator but wans't necessary.
+    Used to introduce a layer of interface to the simulator but wasn't necessary.
     May become revleant in future.
     '''
     def __init__(self, name, e, attr_inds, params, expected_param_types, active_range=(0,0), env=None, priority=-2):
@@ -80,7 +81,7 @@ class HLCrateInTrunk(HLPred):
         return self.obj.geom.in_trunk(self.crate.geom)
 
 class DynamicPredicate(DrivingPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, priority=1):
         assert len(params) == 1
         self.obj, = params
         self.wheelbase = self.obj.geom.wheelbase
@@ -95,40 +96,39 @@ class DynamicPredicate(DrivingPredicate):
         dynamics_expr = Expr(self.f, self.grad)
         e = EqExpr(dynamics_expr, val)
 
-        super(DynamicPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=1)
+        super(DynamicPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=priority)
         self.spacial_anchor = False
 
 class XValid(DynamicPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             x = x.flatten()
-            return DYNAMICS_COEFF * (np.array([x[7] - next_px_f(self.wheelbase, x[0], x[2], x[3], x[5], x[6])]))
+            return DYNAMICS_COEFF * (np.array([x[7] - f_x_new_from_x_theta_new_v_new(self.wheelbase, x[0], x[2], x[3])]))
 
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0,7] = -1
-            dyn_grads = next_px_grad(self.wheelbase, x[0], x[2], x[3], x[5], x[6])
-            grad[0,0], grad[0,2], grad[0,3], grad[0,5], grad[0,6] = dyn_grads
+            grad[0,7] = -GRAD_COEFF
+            dyn_grads = np.array(grad_x_new_from_x_theta_new_v_new(self.wheelbase, x[0], x[2], x[3]))
+            grad[0,0], grad[0,2], grad[0,3] = dyn_grads
             return DYNAMICS_GRAD_COEFF * grad
 
         self.f = f
         self.grad = grad
         super(XValid, self).__init__(name, params, expected_param_types, env)
 
-
 class YValid(DynamicPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             x = x.flatten()
-            return DYNAMICS_COEFF * (np.array([x[8] - next_py_f(self.wheelbase, x[1], x[2], x[3], x[5], x[6])]))
+            return DYNAMICS_COEFF * (np.array([x[8] - f_y_new_from_y_theta_new_v_new(self.wheelbase, x[1], x[2], x[3])]))
 
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0,8] = -1
-            dyn_grads = next_py_grad(self.wheelbase, x[1], x[2], x[3], x[5], x[6])
-            grad[0,1], grad[0,2], grad[0,3], grad[0,5], grad[0,6] = dyn_grads 
+            grad[0,8] = -GRAD_COEFF
+            dyn_grads = grad_y_new_from_y_theta_new_v_new(self.wheelbase, x[1], x[2], x[3])
+            grad[0,1], grad[0,2], grad[0,3] = dyn_grads 
             return DYNAMICS_GRAD_COEFF * grad
 
         self.f = f
@@ -139,16 +139,14 @@ class ThetaValid(DynamicPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             x = x.flatten()
-            if np.any(np.isnan([next_theta_f(self.wheelbase, x[2], x[3], x[4], x[5], x[6])])):
-                import ipdb; ipdb.set_trace()
-            return DYNAMICS_COEFF * (np.array([x[9] - next_theta_f(self.wheelbase, x[2], x[3], x[4], x[5], x[6])]))
+            return DYNAMICS_COEFF * (np.array([x[9] - f_theta_new_from_theta_v_new_phi_new(self.wheelbase, x[2], x[3], x[4])]))
 
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0,9] = -1
-            dyn_grads = next_theta_grad(self.wheelbase, x[2], x[3], x[4], x[5], x[6])
-            grad[0,2], grad[0,3], grad[0,4], grad[0,5], grad[0,6] = dyn_grads
+            grad[0,9] = -GRAD_COEFF
+            dyn_grads = grad_theta_new_from_theta_v_new_phi_new(self.wheelbase, x[2], x[3], x[4])
+            grad[0,2], grad[0,3], grad[0,4] = dyn_grads
             return DYNAMICS_GRAD_COEFF * grad
 
         self.f = f
@@ -164,8 +162,8 @@ class VelValid(DynamicPredicate):
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0,10] = -1
-            dyn_grads = next_v_grad(self.wheelbase, x[3], x[5], x[6])
+            grad[0,10] = -GRAD_COEFF
+            dyn_grads = np.array(next_v_grad(self.wheelbase, x[3], x[5], x[6]))
             grad[0,3], grad[0,5], grad[0,6] = dyn_grads
             return DYNAMICS_GRAD_COEFF * grad
 
@@ -182,7 +180,7 @@ class PhiValid(DynamicPredicate):
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0,11] = -1
+            grad[0,11] = -GRAD_COEFF
             dyn_grads = next_phi_grad(self.wheelbase, x[4], x[5], x[6])
             grad[0,4], grad[0,5], grad[0,6] = dyn_grads
             return DYNAMICS_GRAD_COEFF * grad
@@ -196,92 +194,201 @@ class VelNewValidPxDotThetaNew(DynamicPredicate):
         def f(x):
             x = x.flatten()
             u1 = x[5]
-            v_new = x[10]
+            v_new = x[3]
             px_dot = x[7] - x[0]
-            theta_new = x[9]
-            if np.abs(np.cos(theta_new)) < ZERO_TOL: return 0
-            return DYNAMICS_COEFF * (np.array([v_new - f_v_new_from_px_dot_and_theta_new(px_dot, theta_new)]))
+            theta = x[2]
+            if np.abs(np.cos(theta)) < ZERO_TOL: return np.zeros((1,))
+            return DYNAMICS_COEFF * (np.array([v_new - f_v_new_from_px_dot_and_theta_new(px_dot, theta)]))
 
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0, 10] = -1
-            dyn_grads = grad_v_new_from_px_dot_and_theta_new(x[7] - x[0], x[9])
-            grad[0,0], grad[0,7], grad[0,9] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
+            grad[0, 3] = -GRAD_COEFF
+            if np.abs(np.cos(x[2])) < ZERO_TOL: return DYNAMICS_GRAD_COEFF * grad
+            dyn_grads = grad_v_new_from_px_dot_and_theta_new(x[7] - x[0], x[2])
+            grad[0,0], grad[0,7], grad[0,2] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
             return DYNAMICS_GRAD_COEFF * grad
 
         self.f = f
         self.grad = grad
-        super(VelNewValidPxDotThetaNew, self).__init__(name, params, expected_param_types, env)
+        super(VelNewValidPxDotThetaNew, self).__init__(name, params, expected_param_types, env, 0)
+
+    def resample(self, negated, t, plan):
+        if negated:
+            return None, None
+        attr_inds, res = OrderedDict(), OrderedDict()
+        act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+        act_start, act_end = action.active_timesteps
+        x1 = self.obj.xy[0,t]
+        x2 = self.obj.xy[0,t+1]
+        theta = self.obj.theta[0,t]
+        vel = self.obj.vel[0,t]
+
+        if np.abs(np.cos(theta)) < ZERO_TOL:
+            return None, None
+
+        if t == action.active_timesteps[1]:
+            return None, None
+
+
+        if t + 1 == action.active_timesteps[1]:
+            v_new = f_v_new_from_px_dot_and_theta_new(x2 - x1, theta)
+            add_to_attr_inds_and_res(t, attr_inds, res, self.obj, [('vel', np.array([v_new]))])
+
+        elif t == action.active_timesteps[0]:
+            next_x = f_x_new_from_x_theta_new_v_new(self.wheelbase, x1, theta, vel)
+            add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('xy', np.array([next_x, self.obj.xy[1,t+1]]))])
+        
+        else:
+            next_x = f_x_new_from_x_theta_new_v_new(self.wheelbase, x1, theta, vel)
+            avg_next_x = (next_x + x2) / 2.
+            add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('xy', np.array([avg_next_x, self.obj.xy[1,t+1]]))])
+            v_new = f_v_new_from_px_dot_and_theta_new(avg_next_x - x1, theta)
+            add_to_attr_inds_and_res(t, attr_inds, res, self.obj, [('vel', np.array([v_new]))])
+
+        return res, attr_inds
 
 class VelNewValidPyDotThetaNew(DynamicPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             x = x.flatten()
             u1 = x[5]
-            v_new = x[10]
+            v_new = x[3]
             py_dot = x[8] - x[1]
-            theta_new = x[9]
-            if np.abs(np.sin(theta_new)) < ZERO_TOL: return 0
+            theta_new = x[2]
+            if np.abs(np.sin(theta_new)) < ZERO_TOL: return np.zeros((1,))
             return DYNAMICS_COEFF * (np.array([v_new - f_v_new_from_py_dot_and_theta_new(py_dot, theta_new)]))
 
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0, 10] = -1
-            dyn_grads = grad_v_new_from_py_dot_and_theta_new(x[8] - x[1], x[9])
-            grad[0,1], grad[0,8], grad[0,9] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
+            grad[0, 3] = -GRAD_COEFF
+            if np.abs(np.sin(x[2])) < ZERO_TOL: return DYNAMICS_GRAD_COEFF * grad
+            dyn_grads = grad_v_new_from_py_dot_and_theta_new(x[8] - x[1], x[2])
+            grad[0,1], grad[0,8], grad[0,2] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
             return DYNAMICS_GRAD_COEFF * grad
 
         self.f = f
         self.grad = grad
-        super(VelNewValidPyDotThetaNew, self).__init__(name, params, expected_param_types, env)
+        super(VelNewValidPyDotThetaNew, self).__init__(name, params, expected_param_types, env, 0)
+
+    def resample(self, negated, t, plan):
+        if negated:
+            return None, None
+        attr_inds, res = OrderedDict(), OrderedDict()
+        act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+        act_start, act_end = action.active_timesteps
+        y1 = self.obj.xy[0,t]
+        y2 = self.obj.xy[0,t+1]
+        theta = self.obj.theta[0,t]
+        vel = self.obj.vel[0,t]
+
+        if np.abs(np.sin(theta)) < ZERO_TOL:
+            return None, None
+
+        if t == action.active_timesteps[1]:
+            return None, None
+
+
+        if t + 1 == action.active_timesteps[1]:
+            v_new = f_v_new_from_py_dot_and_theta_new(y2 - y1, theta)
+            add_to_attr_inds_and_res(t, attr_inds, res, self.obj, [('vel', np.array([v_new]))])
+
+        elif t == action.active_timesteps[0]:
+            next_y = f_y_new_from_y_theta_new_v_new(self.wheelbase, y1, theta, vel)
+            add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('xy', np.array([self.obj.xy[0,t+1], next_y]))])
+        
+        else:
+            next_y = f_y_new_from_y_theta_new_v_new(self.wheelbase, y1, theta, vel)
+            avg_next_y = (next_y + y2) / 2.
+            add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('xy', np.array([self.obj.xy[0,t+1], avg_next_y]))])
+            v_new = f_v_new_from_py_dot_and_theta_new(avg_next_y - y1, theta)
+            add_to_attr_inds_and_res(t, attr_inds, res, self.obj, [('vel', np.array([v_new]))])
+
+        return res, attr_inds
 
 class VelNewValidThetaDotPhiNew(DynamicPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             x = x.flatten()
             u1 = x[5]
-            v_new = x[10]
+            v_new = x[3]
             theta_dot = x[9] - x[2]
-            phi_new = x[11]
-            if np.abs(np.cos(phi_new)) < ZERO_TOL: return 0
-            return DYNAMICS_COEFF * (np.array([v_new - f_v_new_from_theta_dot_phi_new(theta_dot, phi_new)]))
+            phi_new = x[4]
+            if np.abs(np.sin(phi_new)) < ZERO_TOL: return np.zeros((1,))
+            return DYNAMICS_COEFF * (np.array([v_new - f_v_new_from_theta_dot_phi_new(self.wheelbase, theta_dot, phi_new)]))
 
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0, 10] = -1
-            dyn_grads = grad_v_new_from_theta_dot_phi_new(x[9] - x[2], x[11]) 
-            grad[0,2], grad[0,9], grad[0,11] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
+            grad[0, 3] = -GRAD_COEFF
+            if np.abs(np.sin(x[4])) < ZERO_TOL: return DYNAMICS_GRAD_COEFF * grad
+            dyn_grads = grad_v_new_from_theta_dot_phi_new(self.wheelbase, x[9] - x[2], x[4]) 
+            grad[0,2], grad[0,9], grad[0,4] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
             return DYNAMICS_GRAD_COEFF * grad
 
         self.f = f
         self.grad = grad
-        super(VelNewValidThetaDotPhiNew, self).__init__(name, params, expected_param_types, env)
+        super(VelNewValidThetaDotPhiNew, self).__init__(name, params, expected_param_types, env, 0)
 
 class PhiNewValidThetaDotVelNew(DynamicPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
         def f(x):
             x = x.flatten()
             u1 = x[5]
-            v_new = x[10]
+            v_new = x[3]
             theta_dot = x[9] - x[2]
-            phi_new = x[11]
-            if np.abs(v_new) < ZERO_TOL: return 0
-            return DYNAMICS_COEFF * (np.array([phi_new - f_phi_new_from_theta_dot_v_new(theta_dot, v_new)]))
+            phi_new = x[4]
+            if np.abs(v_new) < ZERO_TOL: return np.zeros((1,))
+            return DYNAMICS_COEFF * (np.array([phi_new - f_phi_new_from_theta_dot_v_new(self.wheelbase, theta_dot, v_new)]))
 
         def grad(x):
             x = x.flatten()
             grad = np.zeros((1, 14))
-            grad[0, 11] = -1
-            dyn_grads = grad_phi_new_from_theta_dot_v_new(x[9] - x[2], x[10])
-            grad[0,2], grad[0,9], grad[0,10] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
+            grad[0, 4] = -GRAD_COEFF
+            if np.abs(x[3]) < ZERO_TOL: return DYNAMICS_GRAD_COEFF * grad 
+            dyn_grads = grad_phi_new_from_theta_dot_v_new(self.wheelbase, x[9] - x[2], x[3])
+            grad[0,2], grad[0,9], grad[0,3] = -dyn_grads[0], dyn_grads[0], dyn_grads[1]
             return DYNAMICS_GRAD_COEFF * grad
 
         self.f = f
         self.grad = grad
-        super(PhiNewValidThetaDotVelNew, self).__init__(name, params, expected_param_types, env)
+        super(PhiNewValidThetaDotVelNew, self).__init__(name, params, expected_param_types, env, 0)
+
+    def resample(self, negated, t, plan):
+        if negated:
+            return None, None
+        attr_inds, res = OrderedDict(), OrderedDict()
+        act_inds, action = [(i, act) for i, act in enumerate(plan.actions) if act.active_timesteps[0] <= t and  t <= act.active_timesteps[1]][0]
+        act_start, act_end = action.active_timesteps
+        theta1 = self.obj.theta[0,t]
+        theta2 = self.obj.theta[0,t+1]
+        phi = self.obj.phi[0,t]
+        vel = self.obj.vel[0,t]
+
+        if np.abs(np.cos(phi)) < ZERO_TOL:
+            return None, None
+
+        if t == action.active_timesteps[1]:
+            return None, None
+
+
+        if t + 1 == action.active_timesteps[1]:
+            phi_new = f_phi_new_from_theta_dot_v_new(self.wheelbase, theta2 - theta1, vel)
+            add_to_attr_inds_and_res(t, attr_inds, res, self.obj, [('phi', np.array([phi_new]))])
+
+        elif t == action.active_timesteps[0]:
+            next_theta = f_theta_new_from_theta_v_new_phi_new(self.wheelbase, theta1, vel, phi)
+            add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('theta', np.array([next_theta]))])
+        
+        else:
+            next_theta = f_theta_new_from_theta_v_new_phi_new(self.wheelbase, theta1, vel, phi)
+            avg_next_theta = (next_theta + theta2) / 2.
+            add_to_attr_inds_and_res(t+1, attr_inds, res, self.obj, [('theta', np.array([avg_next_theta]))])
+            phi_new = f_phi_new_from_theta_dot_v_new(self.wheelbase, avg_next_theta - theta1, vel)
+            add_to_attr_inds_and_res(t, attr_inds, res, self.obj, [('phi', np.array([phi_new]))])
+
+        return res, attr_inds
 
 class ValidU1Vel(DrivingPredicate):
     def __init__(self, name, params, expected_param_types, env=None):
@@ -293,9 +400,9 @@ class ValidU1Vel(DrivingPredicate):
         A = np.array([[-1., -time_delta, 1, 0]])
         b, val = np.zeros((1, 1)), np.zeros((1, 1))
         aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
+        e = EqExpr(aff_e, val)
 
-        super(ValidU1Vel, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=-2)
+        super(ValidU1Vel, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=1)
         self.spacial_anchor = True
 
 class ValidU2Phi(DrivingPredicate):
@@ -308,9 +415,9 @@ class ValidU2Phi(DrivingPredicate):
         A = np.array([[-1., -time_delta, 1, 0]])
         b, val = np.zeros((1, 1)), np.zeros((1, 1))
         aff_e = AffExpr(A, b)
-        e = LEqExpr(aff_e, val)
+        e = EqExpr(aff_e, val)
 
-        super(ValidU2Phi, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=-2)
+        super(ValidU2Phi, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), env=env, priority=1)
         self.spacial_anchor = True
 
 class At(DrivingPredicate):
