@@ -307,7 +307,8 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                 x, y = event.x, event.y
                 X = (x - origin[0])/scaling
                 Y =-(y - origin [1])/scaling
-                print('{}, {}'.format(X, Y))
+                print('Labeled as : {}, {}'.format(X, Y))
+                print('Actual coor: {}, {}'.format(original_robot_pose[0][0], original_robot_pose[1][0]))
                 plan.params['pr2'].pose[0][0] = X
                 plan.params['pr2'].pose[1][0] = Y
                 plan.params['robot_init_pose'].value = plan.params['robot_init_pose'].value.astype(float)
@@ -345,19 +346,18 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
             failed_pred , _, t = plan.get_failed_pred()
             viewer.draw_plan_ts(plan, t)
             import ipdb; ipdb.set_trace()
-        # import ipdb; ipdb.set_trace()
         fp = plan.get_failed_preds()
         failed_pred , _, t = plan.get_failed_pred()
         if plan.get_failed_pred()[0] is False:
             success = True
-        CAN0_INIT_POSE = [plan.params['can0'].pose[:, t-1][0], plan.params['can0'].pose[:, t-1][1]]
-        CAN1_INIT_POSE = [plan.params['can1'].pose[:, t-1][0], plan.params['can1'].pose[:, t-1][1]]
-        PR2_INIT_POSE = [plan.params['pr2'].pose[:, t-1][0], plan.params['pr2'].pose[:, t-1][1]]
-        # GOAL_CAN_TARGET = [3.5, 6]
-        plan = get_plan(None, is_prob_str = True, prob_str = generate_putaway3(CAN0_INIT_POSE = CAN0_INIT_POSE, 
-                                                                                CAN1_INIT_POSE = CAN1_INIT_POSE, 
-                                                                                PR2_INIT_POSE = PR2_INIT_POSE))
-        #add the replanning step here
+        else:
+            CAN0_INIT_POSE = [plan.params['can0'].pose[:, t-1][0], plan.params['can0'].pose[:, t-1][1]]
+            CAN1_INIT_POSE = [plan.params['can1'].pose[:, t-1][0], plan.params['can1'].pose[:, t-1][1]]
+            PR2_INIT_POSE = [plan.params['pr2'].pose[:, t-1][0], plan.params['pr2'].pose[:, t-1][1]]
+            # GOAL_CAN_TARGET = [3.5, 6]
+            plan = get_plan(None, is_prob_str = True, prob_str = generate_putaway3(CAN0_INIT_POSE = CAN0_INIT_POSE, 
+                                                                                    CAN1_INIT_POSE = CAN1_INIT_POSE, 
+                                                                                    PR2_INIT_POSE = PR2_INIT_POSE))
 
     if animate:
         viewer = OpenRAVEViewer.create_viewer()
