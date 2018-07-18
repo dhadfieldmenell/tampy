@@ -227,7 +227,7 @@ def closet_maker(thickness, wall_endpoints, ax):
     rects = []
     for i, (start, end) in enumerate(zip(wall_endpoints[0:-1], wall_endpoints[1:])):
         dim_x, dim_y = 0, 0
-        et = thickness / 2.0
+        et = thickness
         if start[0] == end[0]: # vertical line
             if start[1] > end[1]: #downwards line
                 x1 = (start[0] - et, start[1] + et)
@@ -250,9 +250,48 @@ def closet_maker(thickness, wall_endpoints, ax):
         p = patches.Rectangle(rect[0],rect[1],rect[2], lw=0, color="brown")
         ax.add_patch(p)
     return True
+def _calibration():
+    coords = {}
+    for i in range(2):
+        fig, ax = plt.subplots()
+        center = (4*i,4*i)
+        radius = 0.15
+        ax.add_artist(plt.Circle((center[0], center[1]), radius, color='g'))
+        closet_maker(1, wall_endpoints, ax)
+        ax.set_xlim(-3, 10)
+        ax.set_ylim(-5, 10)
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.axis("off")
+        fig.canvas.draw()
+        root = Tk()
+        image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        image = Image.fromarray(image)
+        img = ImageTk.PhotoImage(image)
+        '''
+        Uncomment below lines for calibration:
+        '''
+        # path = "calibration.jpg"
+        # img = ImageTk.PhotoImage(Image.open(path))
+        panel = Label(root, image = img)
+        panel.pack(side = "bottom", fill = "both", expand = "yes")
+        def motion(event):
+            x, y = event.x, event.y
+            coords[i]=(x,y)
+            print('Raw coord: {}, {}'.format(x,y))
+            print('Actual coor: {}, {}'.format(i, i))
+            root.destroy()
+            time.sleep(0.1)
+        root.bind('<ButtonRelease-1>', motion)
+        root.mainloop()
+    scaling_x = (coords[1][0] - coords[0][0]) / 4.0
+    scaling_y = (coords[0][1] - coords[1][1]) / 4.0
+    return coords[0], scaling_x, scaling_y
 
 def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=True, verbose=False,
-               early_converge=False):
+               early_converge=False, calibration=False):
+    if calibration:
+        origin, scaling = _calibration()
     success = False
     while(not success):
         print "testing plan: {}".format(plan.actions)
@@ -303,10 +342,12 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
             panel.pack(side = "bottom", fill = "both", expand = "yes")
             def motion(event):
                 origin = (241, 307)
-                scaling = 25.0
+                scaling_x = 25.75
+                scaling_y = 25.5
                 x, y = event.x, event.y
-                X = (x - origin[0])/scaling
-                Y =-(y - origin [1])/scaling
+                X = (x - origin[0])/scaling_x
+                Y =-(y - origin [1])/scaling_y
+                print('Raw coord: {}, {}'.format(x,y))
                 print('Labeled as : {}, {}'.format(X, Y))
                 print('Actual coor: {}, {}'.format(original_robot_pose[0][0], original_robot_pose[1][0]))
                 plan.params['pr2'].pose[0][0] = X
