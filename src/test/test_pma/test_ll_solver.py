@@ -14,6 +14,7 @@ from core.util_classes import circle
 from core.util_classes.items import RedCircle, BlueCircle, GreenCircle
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter
+from core.util_classes.namo_predicates import CollisionPredicate
 import time, main
 from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
@@ -391,6 +392,10 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
         failed_pred , _, t = plan.get_failed_pred()
         if plan.get_failed_pred()[0] is False:
             success = True
+        elif not isinstance(plan.get_failed_pred()[1], CollisionPredicate):
+            # not a collision; what should we do? tbd
+            print(plan.get_failed_pred()[1])
+            import ipdb; ipdb.set_trace()
         else:
             CAN0_INIT_POSE = [plan.params['can0'].pose[:, t-1][0], plan.params['can0'].pose[:, t-1][1]]
             CAN1_INIT_POSE = [plan.params['can1'].pose[:, t-1][0], plan.params['can1'].pose[:, t-1][1]]
