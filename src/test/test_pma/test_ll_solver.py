@@ -10,8 +10,8 @@ from sco.solver import Solver
 from sco.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
-# from core.util_classes.items import circle
 from core.util_classes.items import RedCircle, BlueCircle, GreenCircle
+# from core.util_classes.pose_estimator import *
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter
 from core.util_classes.namo_predicates import CollisionPredicate
@@ -23,6 +23,7 @@ import matplotlib.patches as patches
 from Tkinter import *
 import tkFileDialog
 from PIL import ImageTk, Image
+
 
 wall_endpoints = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
 
@@ -291,6 +292,7 @@ def _calibration():
 
 def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=True, verbose=False,
                early_converge=False, calibration=False):
+    import ipdb; ipdb.set_trace()
     if calibration:
         origin, scaling_x, scaling_y = _calibration()
         print("origin = {}".format(origin))
@@ -298,6 +300,8 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
         print("scaling_y = {}".format(scaling_y))
         import ipdb; ipdb.set_trace()
     success = False
+    pictures = []
+    labels = []
     while(not success):
         print "testing plan: {}".format(plan.actions)
         original_robot_pose = plan.params['robot_init_pose'].value.copy() # Store original pose so we can account for error in human labeling
@@ -336,6 +340,7 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
             root = Tk()
             image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
             image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+            pictures.append(image.copy())
             image = Image.fromarray(image)
             img = ImageTk.PhotoImage(image)
             '''
@@ -361,6 +366,7 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                 plan.params['robot_init_pose'].value = plan.params['robot_init_pose'].value.astype(float)
                 plan.params['robot_init_pose'].value[0][0] = X
                 plan.params['robot_init_pose'].value[1][0] = Y
+                labels.append([X, Y])
                 root.destroy()
                 time.sleep(0.1)
             root.bind('<ButtonRelease-1>', motion)

@@ -9,6 +9,23 @@ import tensorflow as tf
 
 tf.logging.set_verbosity(tf.logging.INFO)
 #TODO: learn how to load pretrained weights
+data = loadmat("namo_2d_images.mat")
+
+images = np.asarray(data['images'], dtype=np.float32)
+labels = np.asarray(data['labels'], dtype=np.float32)
+mean_r = np.mean(images, axis=0)
+std_r = np.std(images, axis=0)
+for color_index in range(3):
+  mean = np.mean(images[:,:,:,color_index], axis=0)
+  std = np.std(images[:,:,:,color_index], axis=0)
+  std[std==0] = 1e-6
+  images[:,:,:,color_index] -= mean
+  images[:,:,:,color_index] /= std
+
+train_data = images[:8000]  # Returns np.array
+train_labels = labels[:8000]
+eval_data = images[8000:]  # Returns np.array
+eval_labels = labels[8000:]
 
 def cnn_model_fn_simple(features, labels, mode):
   """Model function for CNN."""
@@ -191,76 +208,48 @@ def cnn_model_fn(features, labels, mode):
   return tf.estimator.EstimatorSpec(
       mode=mode, loss=loss)
 
-
-def main(unused_argv):
-  # Load training and eval data
-  # mnist = tf.contrib.learn.datasets.load_dataset("mnist")
-  data = loadmat("namo_2d_images.mat")
-  
-  images = np.asarray(data['images'], dtype=np.float32)
-  labels = np.asarray(data['labels'], dtype=np.float32)
-  mean_r = np.mean(images, axis=0)
-  std_r = np.std(images, axis=0)
-  for color_index in range(3):
-    mean = np.mean(images[:,:,:,color_index], axis=0)
-    std = np.std(images[:,:,:,color_index], axis=0)
-    std[std==0] = 1e-6
-    images[:,:,:,color_index] -= mean
-    images[:,:,:,color_index] /= std
-  train_data = images[:8000]  # Returns np.array
-  train_labels = labels[:8000]
-  eval_data = images[8000:]  # Returns np.array
-  eval_labels = labels[8000:]
-
+def create_net():
   # Create the Estimator
   run_config = tf.estimator.RunConfig()
   run_config = run_config.replace(
       session_config=tf.ConfigProto(allow_soft_placement=True,
                                     gpu_options=tf.GPUOptions(allow_growth=True,
-							      per_process_gpu_memory_fraction=0.5)))
+                    per_process_gpu_memory_fraction=0.5)))
   mnist_classifier = tf.estimator.Estimator(
       model_fn=cnn_model_fn_simple,
       config=run_config,
       model_dir="./pose_weights")
+  return mnist_classifier
 
-  # Set up logging for predictions
-  # Log the values in the "Softmax" tensor with label "probabilities"
-  tensors_to_log = {#"predicted coordinates": "pred_coord",
-                    #"actual coordinates": "labels"
-                   }
-  logging_hook = tf.train.LoggingTensorHook(
-     tensors=tensors_to_log, every_n_iter=50)
-
+def train(classifier, train_data, train_labels, num_epochs=1):
   # Train the model
   train_input_fn = tf.estimator.inputs.numpy_input_fn(
       x={"x": train_data},
       y=train_labels,
-      batch_size=100,
-      num_epochs=200,
+      batch_size=10,
+      num_epochs=num_epochs,
       shuffle=True)
-  
-  mnist_classifier.train(
-      input_fn=train_input_fn,
-      hooks=[logging_hook])
 
+  classifier.train(
+      input_fn=train_input_fn)
+
+def training_error(classifier, train_images, train_labels):
   # Evaluate the model and print results
   print("Training Error")
-  eval_input_fn = tf.estimator.inputs.numpy_input_fn(
-      x={"x": train_data},
-      y=train_labels,
-      num_epochs=1,
-      shuffle=False)
-  eval_results = mnist_classifier.evaluate(input_fn=eval_input_fn)
-  print(eval_results)
-  
+  evaluate_loss(train_images, train_labels)
+
+def validation_error(classifier, valid_images, valid_labels):
+  # Evaluate the model and print results
   print("Validation Error")
+  evaluate_loss(valid_images, valid_labels)
+
+def evaluate_loss(classifier, images, labels):
   eval_input_fn = tf.estimator.inputs.numpy_input_fn(
-      x={"x": eval_data},
-      y=eval_labels,
+      x={"x": images},
+      y=labels,
       num_epochs=1,
-      shuffle=False)
-  eval_results = mnist_classifier.evaluate(input_fn=eval_input_fn)
+      shuffle=False,
+      batch_size=10)
+  eval_results = classifier.evaluate(input_fn=eval_input_fn)
   print(eval_results)
 
-if __name__ == "__main__":
-  tf.app.run()
