@@ -4,3 +4,4 @@
 *.pyc
 *.hdf5
 *.h5
+src/.gitignore

@@ -10,7 +10,7 @@ from sco.solver import Solver
 from sco.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
-from core.util_classes import circle
+# from core.util_classes.items import circle
 from core.util_classes.items import RedCircle, BlueCircle, GreenCircle
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter
@@ -292,7 +292,11 @@ def _calibration():
 def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=True, verbose=False,
                early_converge=False, calibration=False):
     if calibration:
-        origin, scaling = _calibration()
+        origin, scaling_x, scaling_y = _calibration()
+        print("origin = {}".format(origin))
+        print("scaling_x = {}".format(scaling_x))
+        print("scaling_y = {}".format(scaling_y))
+        import ipdb; ipdb.set_trace()
     success = False
     while(not success):
         print "testing plan: {}".format(plan.actions)
@@ -342,8 +346,9 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
             panel = Label(root, image = img)
             panel.pack(side = "bottom", fill = "both", expand = "yes")
             def motion(event):
-                origin = (241, 307)
+                origin = (240, 307)
                 scaling_x = 25.75
+                # scaling_y = 25.25 # Use this value when running on John Bishek native resolution
                 scaling_y = 25.5
                 x, y = event.x, event.y
                 X = (x - origin[0])/scaling_x
