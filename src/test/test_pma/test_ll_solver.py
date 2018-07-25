@@ -26,6 +26,7 @@ import rospy
 from rospy.numpy_msg import numpy_msg
 from numpy_tutorial.msg import Train_data
 from numpy_tutorial.srv import PosePredict, PosePredictResponse
+from collect_images import *
 
 wall_endpoints = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
 
@@ -307,10 +308,38 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
     success = False
     pictures = []
     labels = []
-    for i in range(10):
-        if i + 1 % 5 == 0:
-            human_labeling=False
+
+    initialized_before = True
+    for i in range(100):
+        if not initialized_before:
+            numRobots = 1
+            numCans = 2
+            objListPoses = []
+            for _ in range(numRobots):
+                x, y, radius = namo_2d_location_generator(objects = objListPoses)
+                radius = ROBOT_RADIUS
+                objListPoses.append(Pose(x, y, radius))
+            for _ in range(numCans):
+                x, y, radius = namo_2d_location_generator(objects = objListPoses)
+                radius = CAN_RADIUS
+                objListPoses.append(Pose(x, y, radius))
+
+            PR2_INIT_POSE  = [objListPoses[0].x, objListPoses[0].y]
+            CAN0_INIT_POSE = [objListPoses[1].x, objListPoses[1].y]
+            CAN1_INIT_POSE = [objListPoses[2].x, objListPoses[2].y]
+
+            plan = get_plan(None, is_prob_str = True, prob_str = generate_putaway3(CAN0_INIT_POSE = CAN0_INIT_POSE, 
+                                                                                        CAN1_INIT_POSE = CAN1_INIT_POSE, 
+                                                                                        PR2_INIT_POSE = PR2_INIT_POSE))
+        initialized_before = False
+        success = False
         while(not success):
+            # a = raw_input("Human labeling: y/n")
+            # if a == "y":
+            #     human_labeling = True
+            # else:
+            #     human_labeling = False
+
             print "testing plan: {}".format(plan.actions)
             original_robot_pose = plan.params['robot_init_pose'].value.copy() # Store original pose so we can account for error in human labeling
             if not plot:
@@ -362,9 +391,9 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                     panel.pack(side = "bottom", fill = "both", expand = "yes")
                     def motion(event):
                         origin = (240, 307)
-                        scaling_x = 25.75
-                        # scaling_y = 25.25 # Use this value when running on John Bishek native resolution
-                        scaling_y = 25.5
+                        scaling_x = 25.5
+                        scaling_y = 25.75 # Use this value when running on John Bishek native resolution
+                        # scaling_y = 25.5
                         x, y = event.x, event.y
                         X = (x - origin[0])/scaling_x
                         Y =-(y - origin [1])/scaling_y
@@ -387,6 +416,7 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                     root.bind('<ButtonRelease-1>', motion)
                     root.mainloop()
                 else:
+                    human_labeling = True
                     # Attempt a call to pose_predict node
                     rospy.wait_for_service('pose_predict')
                     try:
@@ -452,13 +482,13 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                 plan = get_plan(None, is_prob_str = True, prob_str = generate_putaway3(CAN0_INIT_POSE = CAN0_INIT_POSE, 
                                                                                         CAN1_INIT_POSE = CAN1_INIT_POSE, 
                                                                                         PR2_INIT_POSE = PR2_INIT_POSE))
-    if animate:
-        viewer = OpenRAVEViewer.create_viewer()
-        # import ipdb; ipdb.set_trace()
-        viewer.animate_plan(plan)
-        if t < plan.horizon:
-            viewer.draw_plan_ts(plan, t)
-        import ipdb; ipdb.set_trace()
+        if animate:
+            viewer = OpenRAVEViewer.create_viewer()
+            # import ipdb; ipdb.set_trace()
+            viewer.animate_plan(plan)
+            if t < plan.horizon:
+                viewer.draw_plan_ts(plan, t)
+            import ipdb; ipdb.set_trace()
 
 def generate_putaway3(CAN0_INIT_POSE = [2, 0], CAN1_INIT_POSE = [6, 1], PR2_INIT_POSE = [2, 2], 
                                                ROBOT_END_POSE = [0, 0], GOAL_CAN_TARGET = [3.5, 6]):
