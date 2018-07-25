@@ -9,23 +9,11 @@ import tensorflow as tf
 
 tf.logging.set_verbosity(tf.logging.INFO)
 #TODO: learn how to load pretrained weights
-data = loadmat("namo_2d_images.mat")
 
-images = np.asarray(data['images'], dtype=np.float32)
-labels = np.asarray(data['labels'], dtype=np.float32)
-mean_r = np.mean(images, axis=0)
-std_r = np.std(images, axis=0)
-for color_index in range(3):
-  mean = np.mean(images[:,:,:,color_index], axis=0)
-  std = np.std(images[:,:,:,color_index], axis=0)
-  std[std==0] = 1e-6
-  images[:,:,:,color_index] -= mean
-  images[:,:,:,color_index] /= std
-
-train_data = images[:8000]  # Returns np.array
-train_labels = labels[:8000]
-eval_data = images[8000:]  # Returns np.array
-eval_labels = labels[8000:]
+# train_data = images[:8000]  # Returns np.array
+# train_labels = labels[:8000]
+# eval_data = images[8000:]  # Returns np.array
+# eval_labels = labels[8000:]
 
 def cnn_model_fn_simple(features, labels, mode):
   """Model function for CNN."""
@@ -219,9 +207,26 @@ def create_net():
       model_fn=cnn_model_fn_simple,
       config=run_config,
       model_dir="./pose_weights")
+  data = loadmat("namo_2d_images.mat")
+  images = np.asarray(data['images'], dtype=np.float32)
+  labels = np.asarray(data['labels'], dtype=np.float32)
+  print(labels.shape)
   return mnist_classifier
 
 def train(classifier, train_data, train_labels, num_epochs=1):
+  if len(train_data) == 1:
+    print("Not enough data")
+    return
+  train_data = np.asarray(train_data, dtype=np.float32)
+  train_labels = np.asarray(train_labels, dtype=np.float32)
+  mean_r = np.mean(train_data, axis=0)
+  std_r = np.std(train_data, axis=0)
+  for color_index in range(3):
+    mean = np.mean(train_data[:,:,:,color_index], axis=0)
+    std = np.std(train_data[:,:,:,color_index], axis=0)
+    std[std==0] = 1e-6
+    train_data[:,:,:,color_index] -= mean
+    train_data[:,:,:,color_index] /= std
   # Train the model
   train_input_fn = tf.estimator.inputs.numpy_input_fn(
       x={"x": train_data},
