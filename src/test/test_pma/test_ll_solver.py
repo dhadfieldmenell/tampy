@@ -11,7 +11,6 @@ from sco.variable import Variable
 from sco import expr
 from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.items import RedCircle, BlueCircle, GreenCircle
-# from core.util_classes.pose_estimator import *
 from core.util_classes.matrix import Vector2d
 from core.internal_repr import parameter
 from core.util_classes.namo_predicates import CollisionPredicate
@@ -23,7 +22,10 @@ import matplotlib.patches as patches
 from Tkinter import *
 import tkFileDialog
 from PIL import ImageTk, Image
-
+import rospy
+from rospy.numpy_msg import numpy_msg
+from numpy_tutorial.msg import Train_data
+from numpy_tutorial.srv import PosePredict, PosePredictResponse
 
 wall_endpoints = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
 
@@ -291,14 +293,17 @@ def _calibration():
     return coords[0], scaling_x, scaling_y
 
 def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=True, verbose=False,
-               early_converge=False, calibration=False):
-    import ipdb; ipdb.set_trace()
+               early_converge=False, calibration=False, human_labeling=False):
     if calibration:
         origin, scaling_x, scaling_y = _calibration()
         print("origin = {}".format(origin))
         print("scaling_x = {}".format(scaling_x))
         print("scaling_y = {}".format(scaling_y))
         import ipdb; ipdb.set_trace()
+    # Initialize publisher
+    pub = rospy.Publisher('floats', numpy_msg(Train_data),queue_size=10)
+    rospy.init_node('talker', anonymous=True)
+    r = rospy.Rate(10) # 10hz
     success = False
     pictures = []
     labels = []
@@ -338,39 +343,65 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
             plt.axis("off")
             fig.canvas.draw()
             root = Tk()
-            image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-            image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-            pictures.append(image.copy())
-            image = Image.fromarray(image)
-            img = ImageTk.PhotoImage(image)
-            '''
-            Uncomment below lines for calibration:
-            '''
-            # path = "calibration.jpg"
-            # img = ImageTk.PhotoImage(Image.open(path))
-            panel = Label(root, image = img)
-            panel.pack(side = "bottom", fill = "both", expand = "yes")
-            def motion(event):
-                origin = (240, 307)
-                scaling_x = 25.75
-                # scaling_y = 25.25 # Use this value when running on John Bishek native resolution
-                scaling_y = 25.5
-                x, y = event.x, event.y
-                X = (x - origin[0])/scaling_x
-                Y =-(y - origin [1])/scaling_y
-                print('Raw coord: {}, {}'.format(x,y))
-                print('Labeled as : {}, {}'.format(X, Y))
-                print('Actual coor: {}, {}'.format(original_robot_pose[0][0], original_robot_pose[1][0]))
+            flattened_image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+            # print(fig.canvas.get_width_height())
+            if (human_labeling):
+                image = flattened_image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+                # pictures.append(image.copy())
+                image = Image.fromarray(image)
+                img = ImageTk.PhotoImage(image)
+                '''
+                Uncomment below lines for calibration:
+                '''
+                # path = "calibration.jpg"
+                # img = ImageTk.PhotoImage(Image.open(path))
+                panel = Label(root, image = img)
+                panel.pack(side = "bottom", fill = "both", expand = "yes")
+                def motion(event):
+                    origin = (240, 307)
+                    scaling_x = 25.75
+                    # scaling_y = 25.25 # Use this value when running on John Bishek native resolution
+                    scaling_y = 25.5
+                    x, y = event.x, event.y
+                    X = (x - origin[0])/scaling_x
+                    Y =-(y - origin [1])/scaling_y
+                    print('Raw coord: {}, {}'.format(x,y))
+                    print('Labeled as : {}, {}'.format(X, Y))
+                    print('Actual coor: {}, {}'.format(original_robot_pose[0][0], original_robot_pose[1][0]))
+                    plan.params['pr2'].pose[0][0] = X
+                    plan.params['pr2'].pose[1][0] = Y
+                    plan.params['robot_init_pose'].value = plan.params['robot_init_pose'].value.astype(float)
+                    plan.params['robot_init_pose'].value[0][0] = X
+                    plan.params['robot_init_pose'].value[1][0] = Y
+                    # labels.append([X, Y])
+                    msg = Train_data()
+                    msg.image = flattened_image
+                    msg.label = np.array([X, Y])
+                    pub.publish(msg)
+                    root.destroy()
+                    time.sleep(0.1)
+
+                root.bind('<ButtonRelease-1>', motion)
+                root.mainloop()
+            else:
+                # Attempt a call to pose_predict node
+                rospy.wait_for_service('pose_predict')
+                try:
+                    pose_predict = rospy.ServiceProxy('pose_predict', PosePredict)
+                    resp1 = pose_predict(flattened_image)
+                    label = np.array(resp1.label)
+                    print("received = {}".format(label.shape))
+                except rospy.ServiceException, e:
+                    print "Service call failed: %s"%e
+                import ipdb; ipdb.set_trace()
+                # unbox labels
+                X, Y = label
                 plan.params['pr2'].pose[0][0] = X
                 plan.params['pr2'].pose[1][0] = Y
                 plan.params['robot_init_pose'].value = plan.params['robot_init_pose'].value.astype(float)
                 plan.params['robot_init_pose'].value[0][0] = X
                 plan.params['robot_init_pose'].value[1][0] = Y
-                labels.append([X, Y])
-                root.destroy()
-                time.sleep(0.1)
-            root.bind('<ButtonRelease-1>', motion)
-            root.mainloop()
+
             if method=='SQP':
                 def callback():
                     namo_solver._update_ll_params()
@@ -382,6 +413,7 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                     viewer.clear()
                     viewer.draw_plan_range(plan, a.active_timesteps)
                     time.sleep(0.3)
+
         namo_solver = ll_solver.NAMOSolver(early_converge=early_converge)
         start = time.time()
         if method == 'SQP':
@@ -415,7 +447,6 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
             plan = get_plan(None, is_prob_str = True, prob_str = generate_putaway3(CAN0_INIT_POSE = CAN0_INIT_POSE, 
                                                                                     CAN1_INIT_POSE = CAN1_INIT_POSE, 
                                                                                     PR2_INIT_POSE = PR2_INIT_POSE))
-
     if animate:
         viewer = OpenRAVEViewer.create_viewer()
         # import ipdb; ipdb.set_trace()
