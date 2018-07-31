@@ -24,7 +24,7 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         self.task = task
         AlgorithmMDGPS.__init__(self, config)
 
-    def iteration(self, sample_lists):
+    def iteration(self, sample_lists, optimal_samples):
         """
         Run iteration of PI-based guided policy search.
 
@@ -55,7 +55,7 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         self._update_trajectories()
 
         # S-step
-        self._update_policy()
+        self._update_policy(optimal_samples)
 
         # Prepare for next iteration
         self._advance_iteration_variables()

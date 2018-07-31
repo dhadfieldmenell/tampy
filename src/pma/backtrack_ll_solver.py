@@ -4,8 +4,6 @@ from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
 from openravepy import matrixFromAxisAngle
 from core.internal_repr.parameter import Object
-from core.util_classes import baxter_predicates, common_predicates, robot_predicates, baxter_sampling, baxter_constants
-import core.util_classes.baxter_solve_enums as solve_enums
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer
@@ -15,7 +13,6 @@ import gurobipy as grb
 import numpy as np
 GRB = grb.GRB
 from core.util_classes.viewer import OpenRAVEViewer
-from core.util_classes import baxter_sampling
 
 
 MAX_PRIORITY=3
@@ -25,12 +22,8 @@ SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
 DEBUG = True
 
-# used for pose suggester
-RESAMPLE_FACTOR = baxter_constants.RESAMPLE_FACTOR
 
-attr_map = {}
-
-class DrivingSolver(LLSolver):
+class BacktrackLLSolver(LLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
         # To avoid numerical difficulties during optimization, try keep
         # range of coefficeint within 1e9
@@ -38,7 +31,7 @@ class DrivingSolver(LLSolver):
         self.transfer_coeff = 1e0
         self.rs_coeff = 5e1
         self.trajopt_coeff = 1e0
-        self.initial_trust_region_size = 1e2
+        self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 4e3
         self.smooth_penalty_coeff = 7e4
         self.max_merit_coeff_increases = 5
@@ -69,9 +62,7 @@ class DrivingSolver(LLSolver):
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=1):
-        # if anum == 2:
-        #     import ipdb; ipdb.set_trace()
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5):
         if amax is None:
             amax = len(plan.actions) - 1
 
@@ -82,13 +73,9 @@ class DrivingSolver(LLSolver):
         print "backtracking Solve on {}".format(a.name)
         active_ts = a.active_timesteps
         inits = {}
-        if a.name == 'drive_down_road':
-            rs_param = a.params[3]
-        else:
-            raise NotImplemented
+        rs_param = self.get_resample_param(a)
 
         def recursive_solve():
-            # import ipdb; ipdb.set_trace()
             ## don't optimize over any params that are already set
             old_params_free = {}
             for p in plan.params.itervalues():
@@ -104,7 +91,7 @@ class DrivingSolver(LLSolver):
                     for attr in p._free_attrs:
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                         p._free_attrs[attr][:, active_ts[1]] = 0
-            self.child_solver = DrivingSolver()
+            self.child_solver = self.__class__()
             success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
 
             # reset free_attrs
@@ -124,7 +111,7 @@ class DrivingSolver(LLSolver):
                 callback_a = lambda: callback(a)
             else:
                 callback_a = None
-            self.child_solver = DrivingSolver()
+            self.child_solver = self.__class__()
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose, force_init=True)
 
@@ -143,11 +130,7 @@ class DrivingSolver(LLSolver):
         """
         sampler_begin
         """
-        vehicle_poses = self.obj_pose_suggester(plan, anum, resample_size=3)
-        if not vehicle_poses:
-            success = False
-            # print "Using Random Poses"
-            # robot_poses = self.random_pose_suggester(plan, anum, resample_size = 5)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=3)
 
         """
         sampler end
@@ -158,12 +141,12 @@ class DrivingSolver(LLSolver):
         else:
             callback_a = None
 
-        for rp in vehicle_poses:
+        for rp in robot_poses:
             for attr, val in rp.iteritems():
                 setattr(rs_param, attr, val)
 
             success = False
-            self.child_solver = DrivingSolver()
+            self.child_solver = self.__class__()
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
                                               force_init=True)
@@ -175,44 +158,6 @@ class DrivingSolver(LLSolver):
 
         rs_param._free_attrs = rs_free
         return success
-
-    #@profile
-    def random_pose_suggester(self, plan, anum, resample_size=5):
-        pass
-
-    #@profile
-    def obj_pose_suggester(self, plan, anum, resample_size=20):
-        vehicle_poses = []
-        assert anum + 1 <= len(plan.actions)
-
-        if anum + 1 < len(plan.actions):
-            act, next_act = plan.actions[anum], plan.actions[anum+1]
-        else:
-            act, next_act = plan.actions[anum], None
-
-        vehicle = act.params[0]
-
-        start_ts, end_ts = act.active_timesteps
-
-        for i in range(resample_size):
-            if act.name == "drive_down_road":
-                road = act.params[1]
-                init_pos = act.params[2]
-
-                direction = road.geom.direction
-                dist = road.geom.length / 2 - 1
-                x = road.geom.x
-                y = road.geom.y
-                final_xy = np.array([[x + dist * np.cos(direction)], [y + dist * np.sin(direction)]])
-
-                vehicle_poses.append({'xy': final_xy, 'theta': np.array([[direction]]), 'vel': np.zeros((1,1)), 'phi': np.zeros((1,1)), 'u1': np.zeros((1,1)), 'u2': np.zeros((1,1)), 'value': np.zeros((1,1))})
-            else:
-                raise NotImplementedError
-        if not vehicle_poses:
-            print "Unable to find IK"
-            # import ipdb; ipdb.set_trace()
-
-        return vehicle_poses
 
     #@profile
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
@@ -244,7 +189,7 @@ class DrivingSolver(LLSolver):
                 if success:
                     break
 
-                success = self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
+                self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
                 # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                 #     break
@@ -257,9 +202,6 @@ class DrivingSolver(LLSolver):
                     print "error in predicate checking"
 
                 assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
-
-                if success:
-                    break
 
             if not success:
                 return False
@@ -317,7 +259,7 @@ class DrivingSolver(LLSolver):
                 add_nonlin=False, active_ts= active_ts, verbose=verbose)
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
-            initial_trust_region_size = 1e1
+            initial_trust_region_size = 1e3
             # import ipdb; ipdb.set_trace()
         else:
             self._bexpr_to_pred = {}
@@ -329,8 +271,8 @@ class DrivingSolver(LLSolver):
                 self._add_obj_bexprs(obj_bexprs)
                 self._add_first_and_last_timesteps_of_actions(plan,
                     priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
-                tol = 1e-3
-                initial_trust_region_size = 1e1
+                tol = 1e-1
+                initial_trust_region_size = 1e3
             elif priority == -1:
                 """
                 Solve the optimization problem while enforcing every constraints.
@@ -340,7 +282,7 @@ class DrivingSolver(LLSolver):
                 self._add_first_and_last_timesteps_of_actions(plan,
                     priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
                     add_nonlin=True)
-                tol = 1e-3
+                tol = 1e-1
             elif priority >= 0:
                 obj_bexprs = self._get_trajopt_obj(plan, active_ts)
                 self._add_obj_bexprs(obj_bexprs)
@@ -359,29 +301,28 @@ class DrivingSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
-        success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+        if True or priority == MAX_PRIORITY:
+            success = success or len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
         self._update_ll_params()
 
         if DEBUG: assert not plan.has_nan(active_ts)
 
-        # if resample:
-        #     # During resampling phases, there must be changes added to sampling_trace
-        #     if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
-        #         reward = 0
-        #         if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
-        #             reward = len(plan.actions)
-        #         else:
-        #             failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
-        #             for i in range(len(plan.actions)):
-        #                 if failed_t > plan.actions[i].active_timesteps[1]:
-        #                     reward += 1
-        #         plan.sampling_trace[-1]['reward'] = reward
+        if resample:
+            # During resampling phases, there must be changes added to sampling_trace
+            if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
+                reward = 0
+                if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
+                    reward = len(plan.actions)
+                else:
+                    failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
+                    for i in range(len(plan.actions)):
+                        if failed_t > plan.actions[i].active_timesteps[1]:
+                            reward += 1
+                plan.sampling_trace[-1]['reward'] = reward
         ##Restore free_attrs values
         plan.restore_free_attrs()
 
         self.reset_variable()
-        print "priority: {}     success: {}\n".format(priority, success)
-
         return success
 
     #@profile
@@ -459,6 +400,7 @@ class DrivingSolver(LLSolver):
         transfer_objs = []
         if norm == 'min-vel':
             for param in plan.params.values():
+                # if param._type in ['Robot', 'Can', 'EEPose']:
                 for attr_name in param.__dict__.iterkeys():
                     attr_type = param.get_attr_type(attr_name)
                     if issubclass(attr_type, Vector):
@@ -643,8 +585,8 @@ class DrivingSolver(LLSolver):
             ## returns a vector of new values and an
             ## attr_inds (OrderedDict) that gives the mapping
             ## to parameter attributes
-            # if pred_type.get(pred.get_type, False):
-            #     continue
+            if pred_type.get(pred.get_type, False):
+                continue
             val, attr_inds = pred.resample(negated, t, plan)
             if val is not None: pred_type[pred.get_type] = True
             ## if no resample defined for that pred, continue
@@ -695,7 +637,6 @@ class DrivingSolver(LLSolver):
                 return
 
             if pred.priority > priority: return
-            if DEBUG: assert isinstance(pred, common_predicates.ExprPredicate)
             expr = pred.get_expr(negated)
 
             if expr is not None:
@@ -844,7 +785,12 @@ class DrivingSolver(LLSolver):
                         Q *= self.trajopt_coeff/float(plan.horizon)
 
                         quad_expr = None
-                        quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
+                        if attr_name == 'pose' and param._type == 'Robot':
+                            quad_expr = QuadExpr(BASE_MOVE_COEFF*Q,
+                                                 np.zeros((1,KT)),
+                                                 np.zeros((1,1)))
+                        else:
+                            quad_expr = QuadExpr(Q, np.zeros((1,KT)), np.zeros((1,1)))
                         param_ll = self._param_to_ll[param]
                         ll_attr_val = getattr(param_ll, attr_name)
                         param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')

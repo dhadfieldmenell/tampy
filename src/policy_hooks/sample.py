@@ -28,6 +28,8 @@ class Sample(object):
         self._obs.fill(np.nan)
         self._meta = np.empty(self.dM)
         self._meta.fill(np.nan)
+        self._ref_U = np.zeros((self.T, self.dU))
+        self._ref_X = np.zeros((self.T, self.dX))
 
     def set(self, sensor_name, sensor_data, t=None):
         """ Set trajectory data for a particular sensor. """
@@ -90,6 +92,18 @@ class Sample(object):
                 data = self._data[data_type]
                 self.agent.pack_data_meta(meta, data, data_types=[data_type])
         return meta
+
+    def set_ref_X(self, X):
+        self._ref_X[:,:] = X[:, :]
+
+    def set_ref_U(self, U):
+        self._ref_U[:, :] = U[:, :]
+
+    def get_ref_X(self):
+        return self._ref_X.copy()
+
+    def get_ref_U(self):
+        return self._ref_U.copy()
 
     # For pickling.
     def __getstate__(self):

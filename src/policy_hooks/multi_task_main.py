@@ -102,8 +102,9 @@ class GPSMain(object):
                         self._take_sample(itr, cond, i)
 
                 additional_samples = 0
+                optimal_samples = []
                 if self._hyperparams['take_optimal_sample']:
-                    self.agent.sample_optimal_trajectories(n=2)
+                    optimal_samples = self.agent.sample_optimal_trajectories(n=2)
                     additional_samples = 2
 
                 traj_sample_lists = {task: [
@@ -114,7 +115,7 @@ class GPSMain(object):
                 # Clear agent samples.
                 self.agent.clear_samples()
 
-                self._take_iteration(itr, traj_sample_lists)
+                self._take_iteration(itr, traj_sample_lists, optimal_samples)
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 if replace_conds:
                     self.agent.replace_all_conds()
@@ -304,7 +305,7 @@ class GPSMain(object):
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
 
-    def _take_iteration(self, itr, sample_lists):
+    def _take_iteration(self, itr, sample_lists, optimal_samples):
         """
         Take an iteration of the algorithm.
         Args:
@@ -315,8 +316,9 @@ class GPSMain(object):
             self.gui.set_status_text('Calculating.')
             self.gui.start_display_calculating()
         for task in self.alg_map:
+            task_num = self.agent.task_encoding[task]
             if len(sample_lists[task]):
-                self.alg_map[task].iteration(sample_lists[task])
+                self.alg_map[task].iteration(sample_lists[task], filter(lambda s: s.get(TASK_ENUM, 0)[task_num], optimal_samples))
         self.update_primitives()
         if self.gui:
             self.gui.stop_display_calculating()

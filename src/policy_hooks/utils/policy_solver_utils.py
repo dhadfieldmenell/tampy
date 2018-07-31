@@ -221,6 +221,7 @@ def fill_vector(params, params_to_inds, vec, t):
     for param in params:
         for attr in const.ATTR_MAP[param._type]:
             if (param.name, attr[0]) not in params_to_inds: continue
+
             inds = params_to_inds[(param.name, attr[0])]
             if param.is_symbol():
                 vec[inds] = getattr(param, attr[0])[:, 0].copy()
