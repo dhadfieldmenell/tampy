@@ -408,6 +408,7 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                         # labels.append([X, Y])
                         msg = Train_data()
                         msg.image = flattened_image
+                        # import ipdb; ipdb.set_trace()
                         msg.label = np.array([X, Y])
                         pub.publish(msg)
                         root.destroy()
@@ -426,7 +427,6 @@ def _test_plan_with_learning(test_obj, plan, method='SQP', plot=True, animate=Tr
                         print("received = {}".format(label.shape))
                     except rospy.ServiceException, e:
                         print "Service call failed: %s"%e
-                    import ipdb; ipdb.set_trace()
                     # unbox labels
                     X, Y = label
                     plan.params['pr2'].pose[0][0] = X
