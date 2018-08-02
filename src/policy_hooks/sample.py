@@ -99,10 +99,14 @@ class Sample(object):
     def set_ref_U(self, U):
         self._ref_U[:, :] = U[:, :]
 
-    def get_ref_X(self):
+    def get_ref_X(self, t=-1):
+        if t > 0:
+            return self._ref_X[t].copy()
         return self._ref_X.copy()
 
-    def get_ref_U(self):
+    def get_ref_U(self, t=-1):
+        if t > 0:
+            return self._ref_U[t].copy()
         return self._ref_U.copy()
 
     # For pickling.
