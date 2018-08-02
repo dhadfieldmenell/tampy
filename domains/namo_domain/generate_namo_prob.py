@@ -40,10 +40,13 @@ def main():
             s += "(geom can%d 1), (pose can%d %s), "%(i, i, list(coords[i]))
             # s += "(value gp_can%d undefined), "%i
         s += "(value grasp0 undefined), "
-        s += "(geom %s 1), (pose %s %s), "%("pr2", "pr2", list(coords[NUM_TARGETS]))
+        s += "(geom %s [1]), (pose %s %s), "%("pr2", "pr2", list(coords[NUM_TARGETS]))
         s += "(pose pr2 {}), ".format(list(coords[NUM_TARGETS]))
+        s += "(gripper pr2 [1]), "
         s += "(value %s %s), "%("robot_init_pose", list(coords[NUM_TARGETS]))
         s += "(value %s %s), "%("robot_end_pose", list(coords[NUM_TARGETS]))
+        s += "(gripper %s [1]), "%("robot_init_pose")
+        s += "(gripper %s [1]), "%("robot_end_pose")
         s += "(pose %s [0, 0]), "%"obs0"
         s += "(geom %s %s); "%("obs0", "closet")
 

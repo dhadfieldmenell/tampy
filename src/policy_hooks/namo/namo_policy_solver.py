@@ -67,6 +67,7 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
         if hyperparams and self.config:
             self.config.update(hyperparams)
 
+        conditions = config['num_conds']
         self.task_list = get_tasks('policy_hooks/namo/sorting_task_mapping').keys()
         self.task_durations = get_task_durations('policy_hooks/namo/sorting_task_mapping')
         self.config['task_list'] = self.task_list
@@ -74,30 +75,47 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
 
         plans = []
         task_breaks = []
-        color_maps = []
         goal_states = []
-        for m in range(self.config['num_conds']):
-            plan, task_break, color_map, goal_state = get_plan(num_cans)
-            plans.append(plan)
-            task_breaks.append(task_break)
-            color_maps.append(color_map)
-            goal_states.append(goal_state)
+        targets = []
 
+        env = None
+        openrave_bodies = {}
+        for task in self.task_list:
+            self.agent.plans[task] = get_plan_for_task(task, ['can0', 'can0_init_target'], num_cans, env, openrave_bodies)
+            if env is None:
+                env = self.agent.plans[task].env
+                for param in self.agent.plans[task].params.values():
+                    if not param.is_symbol():
+                        openrave_bodies[param.name] = param.openrave_body
+            plans.append(self.agent.plans[task]        
+
+        state_vector_include, action_vector_include = get_vector(num_cans)
         self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = \
         utils.get_state_action_inds(plans[0], state_vector_include, action_vector_include)
 
-        x0 = []
-        for plan in plans:
-            x0.append(np.zeros((self.symbolic_bound,)))
-            utils.fill_vector(filter(lambda p: not p.is_symbol(), plan.params.values()), self.state_inds, x0[-1], 0)
+        for i in range(conditions):
+            targets.append(np.zeros((2*num_cans)))
+            target_map = get_end_targets(num_cans)
+            for n in range(num_cans):
+                targets[-1][2*n:2*n+2] = target_map['can{0]}'.format(n)]
 
+        for plan in plans:
+            plan.state_inds = self.state_inds
+            plan.action_inds = self.action_inds
+            plan.dX = self.dX
+            plan.dU = self.dU
+            plan.symbolic_bound = self.symbolic_bound
+
+        x0 = []
+        for _ in range(conditions):
+            x0.append(get_random_initial_state_vec(self.dX, self.state_inds))
 
         sensor_dims = {
             utils.STATE_ENUM: self.symbolic_bound,
             utils.ACTION_ENUM: self.dU,
             utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
-            utils.COLORS_ENUM: num_cans,
-            utils.TASK_ENUM: len(self.task_list)
+            utils.TASK_ENUM: 1,
+            utils.TARGETS_ENUM: 2 * num_cans,
         }
 
         self.policy_transfer_coeff = self.config['algorithm']['policy_transfer_coeff']
@@ -105,9 +123,9 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
             self.config['agent'] = {
                 'type': LaundryWorldEEAgent,
                 'x0': x0,
+                'targets': targets,
                 'plans': plans,
                 'task_breaks': task_breaks,
-                'color_maps': color_maps,
                 'task_encoding': task_encoding,
                 'task_durations': self.task_durations,
                 'state_inds': self.state_inds,
@@ -117,8 +135,8 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
                 'symbolic_bound': self.symbolic_bound,
                 'get_plan': get_plan,
                 'sensor_dims': sensor_dims,
-                'state_include': [utils.STATE_ENUM],
-                'obs_include': [utils.STATE_ENUM, utils.TRAJ_HIST_ENUM],
+                'state_include': [utils.STATE_ENUM, utils.TARGETS_ENUM],
+                'obs_include': [utils.STATE_ENUM, utils.TARGETS_ENUM],
                 'conditions': self.config['num_conds'],
                 'solver': self,
                 'num_cans': num_cans,
@@ -166,7 +184,7 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
             self.config['algorithm']['cost'].append({
                                                         'type': CostSum,
                                                         'costs': [traj_cost, action_cost],
-                                                        'weights': [1.0, 0.0],
+                                                        'weights': [1.0, 1.0],
                                                     })
 
         self.config['dQ'] = self.dU
@@ -185,7 +203,7 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
                 'num_filters': [5,10],
-                'dim_hidden': [200, 200]
+                'dim_hidden': [50, 50]
             },
             'lr': 1e-3,
             'network_model': tf_network,

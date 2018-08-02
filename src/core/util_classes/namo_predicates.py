@@ -179,6 +179,17 @@ class RobotAt(At):
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+class GripperClosed(ExprPredicate):
+    def __init__(self, name, params, expecteD_parma_type,s env=None):
+        self.robot, = params
+        attr_inds = OrderedDict([(self.robot, [("gripper", np.array([0], dtype=np.int))])])
+        A = np.ones((1))
+        b = np.zeros((1))
+        val = np.ones((1,1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(GrippedClosed, self).__init__(name, e, attr_inds, params, expected_param_types)
+
 class InContact(CollisionPredicate):
 
     # InContact, Robot, RobotPose, Target

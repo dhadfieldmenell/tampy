@@ -1,0 +1,16 @@
+{
+    'grasp': [
+        '0: GRASP PR2 {0} {1} ROBOT_INIT_POSE ROBOT_END_POSE GRASP'
+    ],
+
+    'putdown': [
+        '0: PUTDOWN PR2 {0} {1} ROBOT_INIT_POSE ROBOT_END_POSE GRASP'
+    ],
+
+};
+
+{
+    'grasp': 20,
+    'putdown': 20,
+}
+

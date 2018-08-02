@@ -19,7 +19,7 @@ class MCTSNode():
         self.value = (self.value*(self.n_explored-1) + new_value) / self.n_explored
 
 class MCTS:
-    def __init__(self, tasks, state_func, prob_func, rollout_policy, condition, agent, num_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20):
+    def __init__(self, tasks, state_func, prob_func, goal_f, target_f, rollout_policy, condition, agent, num_samples, choose_next=None, cost_f=None, soft_decision=1.0, C=2, max_depth=20):
         self.tasks = tasks
         self.state_func = state_func
         self.prob_func = prob_func
@@ -32,7 +32,23 @@ class MCTS:
         self.C = C
         self.num_rollouts = num_samples
         self._choose_next = choose_next if choose_next != None else self._default_choose_next
-        slef.node_check_f = lambda n: n.value+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
+        self._cost_f = cost_f if cost_f != None else self._default_cost_f
+        self._goal_f = goal_f
+        self._target_f = target_f
+        self.node_check_f = lambda n: n.value+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
+
+    def _default_cost_f(self, X, task, target, t_range=None):
+        plan = self.agent.plans[task]
+        self.agent.set_target(plan, target)
+        if t_range == None: t_range = (0, plan.horizon)
+        for t in range(t_range[0], t_range[1]):
+            set_params_attrs(plan.params.values(), plan.params.state_inds, X[t], t)
+
+        failed = [(pred, negated) for negated, pred, t in plan.get_failed_preds(active_ts=t_range, priority=3, tol=1e-3)]
+        if len(failed):
+            return sum([np.max(pred.check_pred_violation(tol=1e-3, negated=negated)) for pred, negated in failed])
+
+        return 0
 
     def _simulate_from_unexplored(self, state, node, prev_sample):
         prob_distr = self.prob_func(state)
@@ -43,7 +59,8 @@ class MCTS:
         while np.any(prob_distr > 0):
             next_ind = np.argmax(prob_distr)
             prob_distr[next_ind] = 0
-            if np.all(self.check_preconditions(state, self.tasks[next_ind]) == 0):
+            target = self._target_f(self.agent.plans[self.tasks[next_ind]], self.tasks[next_ind], state)
+            if target != None:
                 next_node = Node(next_ind, 0, node)
                 cost = self.simulate_from_next(node, state, prev_sample)
                 next_node.value -= cost
@@ -66,7 +83,8 @@ class MCTS:
         while np.any(prob_distr > 0):
             next_ind = np.argmax(prob_distr)
             prob_distr[next_ind] = 0
-            if np.all(self.check_preconditions(state, self.tasks[next_ind]) == 0):
+            target = self._target_f(self.agent.plans[self.tasks[next_ind]], self.tasks[next_ind], state)
+            if target != None:
                 return node.children[next_ind]
 
         return None
@@ -117,40 +135,45 @@ class MCTS:
                 break
 
             task = self.tasks[next_node.label]
+            target = self._target_f(self.agent.plans[task], task, cur_state)
             for n in range(self.num_rollouts):
                 samples.append(self.agent.sample_task(self.rollout_policy[next_node.label], self.condition, cur_state, task, save=True, noisy=True))
 
             sample_costs = {}
             for sample in samples:
-                sample_costs[sample] = self.check_sample_end_cost(sample)
+                sample_costs[sample] = self._cost_f(sample.get_X(), task, target)
             
             lowest_cost_ind = np.argmin(samples_costs.values())
             lowest_cost_sample = sample_costs.keys()[lowest_cost_ind]
             
             if sample_costs[lowest_cost_sample] > 0:
-                opt_X, opt_U = self.agent.get_opt_traj(cur_state, next_node.label, self.condition)
-                for sample in sample_costs:
+                opt_sample = self.agent.sample_optimal_trajectory(cur_state, self.tasks[next_node.label], self.condition, target)
+                opt_X, opt_U = opt_sample.get_X(), opt_sample.get_U()
+                samples.append(opt_sample)
+                for sample in samples:
                     sample.set_ref_X(opt_X)
                     sample.set_ref_U(opt_U)
             else:
-                for sample in sample_costs:
+                for sample in samples:
                     if sample_costs[sample] > 0:
                         sample.set_ref_X(lowest_cost_sample.get_X().copy())
                         sample.set_ref_U(lowest_cost_sample.get_U().copy())
                     else:
                         sample.set_ref_X(sample.get_X().copy())
                         sample.set_ref_U(sample.get_U().copy())
-
+            
+            cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
             current_node.sample_links[lowest_cost_sample] = prev_sample # Used to retrace paths
             prev_sample = lowest_cost_sample
  
             current_node = next_node
             path.append(current_node)
 
-            if self.is_terminal(cur_state) or current_node.depth >= self.max_depth:
+            if self._goal_f(cur_state) == 0 or current_node.depth >= self.max_depth:
                 break
 
-        path_value = self.end_state_value(current_node)
+        end_ts = self.agent.plans[task].horizon - 1
+        path_value = self._goal_f(cur_state)
         while current_node is not self.root:
             current_node.n_explored += 1
             current_node.value -= path_value
@@ -164,19 +187,21 @@ class MCTS:
     def _simulate_from_next(self, task_ind, depth, state, prob_func, samples):
         task = self.tasks[task_ind]
         new_samples = []
+        target = self._target_f(self.agent.plans[task], task, state)
+
         for n in range(self.num_rollouts):
             sample = self.agent.sample_task(self.rollout_policy[task], self.condition, task, state, save=True, noisy=True)
             new_samples.append(sample)
 
         sample_costs = {}
         for sample in new_samples:
-            sample_costs[sample] = self.check_sample_end_cost(sample)
-
+            sample_costs[sample] = self._cost_f(sample.get_X(), task, target)
+        
         lowest_cost_ind = np.argmin(samples_costs.values())
         lowest_cost_sample = sample_costs.keys()[lowest_cost_ind]
 
         if sample_costs[lowest_cost_sample] > 0:
-            opt_X, opt_U = self.agent.get_opt_traj(cur_state, self.tasks[taks_ind], self.condition)
+            opt_X, opt_U = self.agent.get_opt_traj(cur_state, self.tasks[taks_ind], self.condition, target)
             for sample in sample_costs:
                 sample.set_ref_X(opt_X)
                 sample.set_ref_U(opt_U)
@@ -198,3 +223,4 @@ class MCTS:
             next_task = np.argmax(prob_distr)
 
         return self._simulate_from_next(next_task, depth+1, end_state, prob_func, samples)
+

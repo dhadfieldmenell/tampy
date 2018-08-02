@@ -36,8 +36,8 @@ class NAMOSortingAgent(Agent):
         self.task_breaks = self._hyperparams['task_breaks']
         self.task_encoding = self._hyperparams['task_encoding']
         self.task_durations = self._hyperparams['task_durations']
-        self.color_maps = self._hyperparams['color_maps']
-        self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
+        # self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
+        self._samples = []
         self.state_inds = self._hyperparams['state_inds']
         self.action_inds = self._hyperparams['action_inds']
         self.dX = self._hyperparams['dX']
@@ -46,6 +46,7 @@ class NAMOSortingAgent(Agent):
         self.solver = self._hyperparams['solver']
         self.num_cans = self._hyperparams['num_cans']
         self.x0 = self._hyperparams['x0']
+        self.targets = self._hyperparams['targets']
         self.sim = 'mujoco'
         self.viewers = self._hyperparams['viewers']
 
@@ -60,6 +61,7 @@ class NAMOSortingAgent(Agent):
         self.traj_hist = None
         self._reset_hist()
 
+        self.optimal_samples = []
         self.optimal_state_traj = [[] for _ in range(len(self.plans))]
         self.optimal_act_traj = [[] for _ in range(len(self.plans))]
 
@@ -69,40 +71,20 @@ class NAMOSortingAgent(Agent):
         self.in_right_grip = -1
 
 
-    def get_samples(self, condition, task, start=0, end=None):
-        if np.abs(start) >= len(self._samples[condition][task]):
-            start = 0
-
-        samples = {}
-        if end is None:
-            for sample in self._samples[condition][task][start:]:
-                if sample.init_t not in samples:
-                    samples[sample.init_t] = []
-                samples[sample.init_t].append(sample)
-        else:
-            for sample in self._samples[condition][task][start:end]:
-                if sample.init_t not in samples:
-                    samples[sample.init_t] = []
-                samples[sample.init_t].append(sample)
-
-        for ts in samples:
-            samples[ts] = SampleList(samples[ts])
+    def get_samples(self, task):
+        samples = []
+        for batch in self._samples[task]:
+            samples.extend(SampleList(batch))
 
         return samples
-
         
-    def clear_samples(self, condition=None):
-        """
-        Reset the samples for a given condition, defaulting to all conditions.
-        Args:
-            condition: Condition for which to reset samples.
-        """
-        if condition is None:
-            self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
-        else:
-            self._samples[condition] = {task:[] for task in self.task_encoding.keys()}
 
-        return X
+    def add_sample_batch(self, samples, task):
+        self._samples[task].append(samples)
+
+
+    def clear_samples(self):
+        self._samples = {task: [] for task in self.task_list}
 
 
     def _reset_hist(self):
@@ -128,10 +110,6 @@ class NAMOSortingAgent(Agent):
         print 'Starting on-policy sample for condition {0}.'.format(condition)
         # if self.stochastic_conditions and save_global:
         #     self.replace_cond(condition)
-
-        color_vec = np.zeros((len(self.color_maps[condition].keys())))
-        for can_name in self.color_maps[condition]:
-            color_vec[int(can_name[-1])] = self.color_maps[condition][can_name][0] * 100
 
         attempts = 0
         success = False
@@ -181,7 +159,6 @@ class NAMOSortingAgent(Agent):
                         sample.set(OBS_ENUM, im.copy(), t-base_t+i)
                     sample.set(ACTION_ENUM, U.copy(), t-base_t+i)
                     sample.set(NOISE_ENUM, noise[t-base_t], t-base_t+i)
-                    sample.set(COLORS_ENUM, color_vec.copy(), t-base_t+i)
                     sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t-base_t+i)
                     task_vec = np.zeros((num_tasks,))
                     task_vec[self.task_encoding[task]] = 1
@@ -200,81 +177,56 @@ class NAMOSortingAgent(Agent):
         return samples
 
 
-    def sample_task(self, policy, condition, x0, task, save_global=False, verbose=False, save=True, use_base_t=True, noisy=True):
-        '''
-            Take a sample for a given condition
-        '''
+    def sample_task(self, policy, x0, task, save_global=False, verbose=False, use_base_t=True, noisy=True):
+        plan = self.plans[task]
         for (param, attr) in self.state_inds:
             if plan.params[param].is_symbol(): continue
-            getattr(self.plans[condition].params[param], attr)[:,1] = x0[self.state_inds[param, attr]]
-        num_tasks = len(self.task_encoding.keys())
-        cur_task_ind = 0
-        self.T = self.task_durations[task]
+            getattr(self.plans[task].params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
+
         base_t = 0
         sample = Sample(self)
         sample.init_t = 0
-        print 'Starting on-policy sample for condition {0}.'.format(condition)
-        # if self.stochastic_conditions and save_global:
-        #     self.replace_cond(condition)
-
-        color_vec = np.zeros((len(self.color_maps[condition].keys())))
-        for can_name in self.color_maps[condition]:
-            color_vec[int(can_name[-1])] = self.color_maps[condition][can_name][0] * 100
-
-        attempts = 0
-        success = False
-        while not success and attempts < 3:
-            self._set_simulator_state(condition, self.plans[condition], 1)
-
-            if noisy:
-                noise = generate_noise(self.T, self.dU, self._hyperparams)
-            else:
-                noise = np.zeros((self.T, self.dU))
 
 
-            for t in range(0, self.T*utils.POLICY_STEPS_PER_SECOND):
-                base_t = sample.init_t
+        set_param_attrs(plan.params.values(), plan.state_inds, x0, 0)
 
-                X, joints = self._get_simulator_state(self.state_inds, condition, self.symbolic_bound)
+        if noisy:
+            noise = generate_noise(self.T, self.dU, self._hyperparams)
+        else:
+            noise = np.zeros((self.T, self.dU))
 
-                obs = []
+        for t in range(0, self.T):
+            X = np.zeros((plan.symbolic_bound))
+            fill_vector(plan.params.values(), plan.state_inds, X, t) 
+
+            obs = []
+            if OBS_ENUM in self._hyperparams['obs_include']:
+                im = self.get_obs()
+                obs = np.r_[obs, im]
+            
+            if STATE_ENUM in self._hyperparams['obs_include']:
+                obs = np.r_[obs, X]
+
+            if TRAJ_HIST_ENUM in self._hyperparams['obs_include']:
+                obs = np.r_[obs, np.array(self.traj_hist).flatten()]
+
+            U = policy.act(X.copy(), obs, t, noise[t])
+
+            for i in range(1):
+                sample.set(STATE_ENUM, X.copy(), t+i)
                 if OBS_ENUM in self._hyperparams['obs_include']:
-                    im = self.get_obs()
-                    obs = np.r_[obs, im]
-                
-                if STATE_ENUM in self._hyperparams['obs_include']:
-                    obs = np.r_[obs, X]
-
-                if TRAJ_HIST_ENUM in self._hyperparams['obs_include']:
-                    obs = np.r_[obs, np.array(self.traj_hist).flatten()]
-
-                if use_base_t:
-                    U = policy.act(X.copy(), obs, t-base_t, noise[t-base_t])
-                else:
-                    U = policy.act(X.copy(), obs, t, noise[t-base_t])
-
-
-                for i in range(1):
-                    sample.set(STATE_ENUM, X.copy(), t-base_t+i)
-                    if OBS_ENUM in self._hyperparams['obs_include']:
-                        sample.set(OBS_ENUM, im.copy(), t-base_t+i)
-                    sample.set(ACTION_ENUM, U.copy(), t-base_t+i)
-                    sample.set(NOISE_ENUM, noise[t-base_t], t-base_t+i)
-                    sample.set(COLORS_ENUM, color_vec.copy(), t-base_t+i)
-                    # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t-base_t+i)
-                    task_vec = np.zeros((num_tasks,))
-                    task_vec[self.task_encoding[task]] = 1
-                    sample.set(TASK_ENUM, task_vec, t-base_t+i)
-
-                
-                if len(self.traj_hist) >= self.hist_len: self.traj_hist.pop(0)
+                    sample.set(OBS_ENUM, im.copy(), t+i)
+                sample.set(ACTION_ENUM, U.copy(), t+i)
+                sample.set(NOISE_ENUM, noise[t], t+i)
+                # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t+i)
+                sample.set(TASK_ENUM, [self.task_encoding[task]], t+i)
+                sample.set(TARGETS_ENUM, self.targets[condition])
+            
+            if len(self.traj_hist) >= self.hist_len: self.traj_hist.pop(0)
                 self.traj_hist.append(U)
 
-                self.run_policy_step(U)
-            print 'Finished on-policy sample.\n'.format(condition)
+            self.run_policy_step(U)
 
-        if save:
-            self._samples[condition][task].append(sample)
         return sample
 
     def run_policy_step(self, u, x, plan, t):
@@ -285,7 +237,7 @@ class NAMOSortingAgent(Agent):
             getattr(plan.params[param], attr)[:, t+1] = u[param, attr]
 
         for param in plan.params:
-            if param._type == 'Can' and u['pr2', 'gripper'] == 0 and (x['pr2', 'pose'] - x[param.name, 'pose'])**2 <= 0.01:
+            if param._type == 'Can' and u['pr2', 'gripper'] == 0 and np.sum((x['pr2', 'pose'] - x[param.name, 'pose']))**2 <= 0.0001:
                 param.pose[:, t+1] = u['pr2', 'pose']
 
         return True
@@ -392,43 +344,26 @@ class NAMOSortingAgent(Agent):
                     alg.cur[m][ts].traj_distr.k = self.optimal_act_traj[m][ts:ts+alg.T]
 
 
-    def sample_optimal_trajectories(self, n=1):
+    def set_nonopt_attr(self, plan, task):
+        plan.dX, plan.dU, plan.symbolic_bound = self.dX, self.dU, self.symbolic_bound
+        plan.state_inds, plan.action_inds = self.state_inds, self.action_inds
+
+
+    def sample_optimal_trajectory(self, x0, task, condition, targets=[]):
+        targets = get_next_target(self.plans[task], x0, task) if not len(targets) else targets
+        plan = get_plan_for_task(task, target, self.num_cans, self.env, self.openrave_bodies)
+        self.set_nonopt_attrs(plan, task)
+        n = int(targets[0].name[-1])
+        targets[1].value[:,0] = self.targets[condition][2*n:2*n+2]
+        success = self.solver._backtrack_solve(plan, n_resamples=3)
+        
         class optimal_pol:
-            def __init__(self, act_f):
-                self.act = act_f
+            def act(X, O, t, noise):
+                U = np.zeros((plan.dU))
+                fill_vector(plan.params.values(), plan.action_inds, U, t)
+                return U
 
-        def get_policy_map(m):
-            policy_map = {}
-            for task in self.task_encoding.keys():
-                policy_map[task] = {}
-                policy_map[task]['policy'] = optimal_pol(lambda X, O, t, noise: self.optimal_act_traj[m][t].copy())
-
-            return policy_map
-
-        samples = []
-
-        for m in range(len(self.plans)):
-            samples.append([])
-            for _ in range(n):
-                samples[-1].append(self.sample(get_policy_map(m), m, save=True, use_base_t=False, noisy=False))
-
-        return samples
-
-    def replace_cond(self, cond):
-        print "Replacing Condition {0}.\n".format(cond)
-        plan, task_breaks, color_map, goal_state = self.get_plan(self.num_cans)
-        self.plans[cond].env.Destroy()
-        self.plans[cond] = plan
-        self.params[cond] = filter(lambda p: not p.is_symbol(), plan.params.values())
-        self.symbols[cond] = filter(lambda p: p.is_symbol(), plan.params.values())
-        self.task_breaks[cond] = task_breaks
-        self.color_maps[cond] = color_map
-        x = np.zeros((self.symbolic_bound,))
-        utils.fill_vector(self.params[cond], self.state_inds, x, 0)                
-        self.x0[cond] = x
-
-
-    def replace_all_conds(self):
-        for cond in range(len(self.plans)):
-            self.replace_cond(cond)
+        sample = self.sample_task(optimal_pol(), x0, task, noisy=False): 
+        self.optimal_samples.append(sample)
+        return sample
 
