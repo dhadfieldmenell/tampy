@@ -135,31 +135,22 @@ class GPSMain(object):
         finally:
             self._end()
 
-    def update_primitives(self):
+    def update_primitives(self, samples):
         dP, dO = len(self.task_list), self.alg_map.values()[0].dO
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
-        for alg in self.alg_map.values():
-            for m in range(len(alg.prev)):
-                    samples = alg.prev[m].sample_list
-                    X = np.array([sample.get(TASK_ENUM) for sample in samples.get_samples()])
-                    obs = samples.get_obs()
-                    N = len(samples)
-                    T = samples.get_samples()[0].T
-                    mu = np.zeros((N*T, dP))
-                    prc = np.ones((N*T, dP, dP))
-                    wt = np.ones((N*T))
-                    for t in range(T):
-                        for i in range(N):
-                            mu[i+t*N, :] = X[i, t, :]
+        for sample in samples:
+            for t in range(sample.T):
+                obs = [sample.get_obs(t=t)]
+                mu = [sample.get(TASK_ENUM, t=t)]
+                prc = [np.exp(-sample.task_cost) * np.ones((dP, dP))]
+                wt = [1]
 
-                    tgt_mu = np.concatenate((tgt_mu, mu))
-                    tgt_prc = np.concatenate((tgt_prc, prc))
-                    tgt_wt = np.concatenate((tgt_wt, wt))
-                    for t in range(T):
-                        for n in range(N):
-                            obs_data = np.concatenate((obs_data, [obs[n,t, :]]))
+                tgt_mu = np.concatenate((tgt_mu, mu))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                obs_data = np.concatenate((obs_data, obs))
         self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def test_policy(self, itr, N):

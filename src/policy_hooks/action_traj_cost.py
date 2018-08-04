@@ -8,7 +8,7 @@ from gps.algorithm.cost.cost import Cost
 from gps.algorithm.cost.cost_utils import evall1l2term, get_ramp_multiplier
 
 
-class CostState(Cost):
+class ActionTrajCost(Cost):
     """ Computes l1/l2 distance to a fixed target state. """
     def __init__(self, hyperparams):
         config = copy.deepcopy(COST_STATE)

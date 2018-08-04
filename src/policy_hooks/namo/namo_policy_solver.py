@@ -29,12 +29,10 @@ from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEE
 import policy_hooks.policy_solver_utils as utils
 from policy_hooks.namo.sorting_prob import *
 from policy_hooks.tamp_agent import LaundryWorldClothAgent
-from policy_hooks.tamp_cost import TAMPCost
-from policy_hooks.cost_state import CostState
-from policy_hooks.tamp_action_cost import CostAction
 from policy_hooks.task_net import tf_classification_network
-from policy_hooks.end_state_cost import EndStateCost
 from policy_hooks.mcts import MCTS
+from policy_hooks.state_traj_cost import StateTrajCost
+from policy_hooks.act_traj_cost import ActTrajCost
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + '/experiments'
@@ -169,7 +167,7 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
         state_cost_wp = np.ones((self.symbolic_bound), dtype='float64')
         for cond in range(len(plans)):
             traj_cost = {
-                            'type': CostState,
+                            'type': StateTrajCost,
                             'data_types': {
                                 utils.STATE_ENUM: {
                                     'wp': state_cost_wp,
@@ -180,7 +178,7 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
                             'ramp_option': RAMP_CONSTANT
                         }
             action_cost = {
-                            'type': CostAction,
+                            'type': ActionTrajCost,
                             'data_types': {
                                 utils.ACTION_ENUM: {
                                     'wp': np.ones((1, self.dU), dtype='float64'),
