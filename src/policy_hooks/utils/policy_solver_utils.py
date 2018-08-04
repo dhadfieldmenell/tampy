@@ -116,6 +116,19 @@ def get_state_action_inds(plan, x_params={}, u_params={}):
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary
 
+def get_target_inds(plan, include):
+    cur_ind = 0
+    target_inds = {}
+    for param in plan.params.values():
+        if param.name in include:
+            for attr in include[param.name]:
+                param_attr_map = const.ATTR_MAP[param._type]
+                inds = filter(lambda p: p[0]==attr, const.ATTR_MAP[param._type])[0][1] + cur_ind
+                cur_ind = inds[-1] + 1
+                target_inds[param.name, attr] = inds
+
+    return cur_ind, target_inds
+
 def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_attrs=[]):
     '''
     Maps the parameters of the plan actions to indices in the policy state and action vectors, and returns the dimensions of those vectors.

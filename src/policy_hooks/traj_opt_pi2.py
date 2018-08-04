@@ -41,7 +41,7 @@ class TrajOptPI2(TrajOpt):
         self._covariance_damping = self._hyperparams['covariance_damping']
         self._min_temperature = self._hyperparams['min_temperature']
     
-    def update(self, m, ts, algorithm, use_lqr_actions=False,
+    def update(self, m, algorithm, use_lqr_actions=False,
                fixed_eta=None, use_fixed_eta=False, costs=None):
         """
         Perform optimization of the feedforward controls of time-varying
@@ -62,8 +62,8 @@ class TrajOptPI2(TrajOpt):
             costs = algorithm.cur[m][ts].cs
 
         # Get sampled controls, states and old trajectory distribution.
-        cur_data = algorithm.cur[m][ts].sample_list                
-        prev_traj_distr = algorithm.cur[m][ts].traj_distr
+        cur_data = algorithm.cur[m].sample_list                
+        prev_traj_distr = algorithm.cur[m].traj_distr
         X = cur_data.get_X()
         U = cur_data.get_U()
         T = prev_traj_distr.T

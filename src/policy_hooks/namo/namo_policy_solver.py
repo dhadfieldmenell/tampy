@@ -27,13 +27,14 @@ from policy_hooks.namo.namo_agent import NAMOSortingAgent
 import policy_hooks.namo.namo_hyperparams as namo_hyperparams
 from policy_hooks.policy_predicates import BaxterPolicyPredicate, BaxterPolicyEEPredicate
 import policy_hooks.policy_solver_utils as utils
-from policy_hooks.sorting_prob import *
+from policy_hooks.namo.sorting_prob import *
 from policy_hooks.tamp_agent import LaundryWorldClothAgent
 from policy_hooks.tamp_cost import TAMPCost
 from policy_hooks.cost_state import CostState
 from policy_hooks.tamp_action_cost import CostAction
 from policy_hooks.task_net import tf_classification_network
 from policy_hooks.end_state_cost import EndStateCost
+from policy_hooks.mcts import MCTS
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + '/experiments'
@@ -62,7 +63,7 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
 
         is_first_run = not self.config
         if is_first_run:
-            self.config = baxter_hyperparams.config if not hyperparams else hyperparams
+            self.config = namo_hyperparams.config if not hyperparams else hyperparams
 
         if hyperparams and self.config:
             self.config.update(hyperparams)
@@ -93,11 +94,13 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
         self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = \
         utils.get_state_action_inds(plans[0], state_vector_include, action_vector_include)
 
+        self.target_dim, self.target_inds = utils.get_target_inds(plans[0], target_vector_include)
+
+        x0 = []
         for i in range(conditions):
-            targets.append(np.zeros((2*num_cans)))
-            target_map = get_end_targets(num_cans)
-            for n in range(num_cans):
-                targets[-1][2*n:2*n+2] = target_map['can{0]}'.format(n)]
+            targets.append(get_end_targets(num_cans))
+
+            x0.append(get_random_initial_state_vec(num_cans, target_map, self.dX, self.state_inds))
 
         for plan in plans:
             plan.state_inds = self.state_inds
@@ -114,9 +117,13 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
             utils.STATE_ENUM: self.symbolic_bound,
             utils.ACTION_ENUM: self.dU,
             utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
-            utils.TASK_ENUM: 1,
-            utils.TARGETS_ENUM: 2 * num_cans,
+            utils.TASK_ENUM: len(self.task_list),
+            utils.TARGETS_ENUM: self.target_dim,
         }
+
+        self.config['goal_f'] = goal_f
+        self.config['cost_f'] = cost_f
+        self.config['target_f'] = get_next_target
 
         self.policy_transfer_coeff = self.config['algorithm']['policy_transfer_coeff']
         if is_first_run:
@@ -130,9 +137,11 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
                 'task_durations': self.task_durations,
                 'state_inds': self.state_inds,
                 'action_inds': self.action_inds,
+                'target_inds': self.target_inds,
                 'dU': self.dU,
                 'dX': self.symbolic_bound,
                 'symbolic_bound': self.symbolic_bound,
+                'tagret_dim': self.target_dim,
                 'get_plan': get_plan,
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM, utils.TARGETS_ENUM],
@@ -215,7 +224,8 @@ class NAMOPolicySolver(NAMOBacktrackSolver):
             'image_width': utils.IM_W,
             'image_height': utils.IM_H,
             'image_channels': utils.IM_C,
-            'task_list': self.task_list
+            'task_list': self.task_list,
+            'gpu_fraction': 0.4,
         }
 
         alg_map = {}

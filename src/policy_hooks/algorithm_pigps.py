@@ -31,24 +31,25 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         Args:
             sample_lists: List of SampleList objects for each condition.
         """
+
+        self.set_conditions(len(sample_lists))
         # Store the samples and evaluate the costs.
-        for m in range(self.M):
-            for ts in self.cur[m]:
-                try:
-                    self.cur[m][ts].sample_list = sample_lists[m][ts]
-                    self._eval_cost(m, ts)
-                except:
-                    import ipdb; ipdb.set_trace()
+        for m in range(len(self.cur)):
+            try:
+                self.cur[m].sample_list = sample_lists[m]
+                self._eval_cost(m)
+            except:
+                import ipdb; ipdb.set_trace()
 
         # On the first iteration, need to catch policy up to init_traj_distr.
         if self.iteration_count == 0:
             self.new_traj_distr = [
-                {ts: self.cur[cond][ts].traj_distr for ts in self.cur[cond]} for cond in range(self.M)
+                self.cur[cond].traj_distr for cond in range(len(self.cur))
             ]
             self._update_policy()
 
         # Update policy linearizations.
-        for m in range(self.M):
+        for m in range(len(self.cur)):
             self._update_policy_fit(m)
 
         # C-step        
@@ -59,3 +60,4 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
 
         # Prepare for next iteration
         self._advance_iteration_variables()
+

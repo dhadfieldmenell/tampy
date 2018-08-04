@@ -33,8 +33,6 @@ class NAMOSortingAgent(Agent):
         Agent.__init__(self, hyperparams)
         # Note: All plans should contain identical sets of parameters
         self.plans = self._hyperparams['plans']
-        self.task_breaks = self._hyperparams['task_breaks']
-        self.task_encoding = self._hyperparams['task_encoding']
         self.task_durations = self._hyperparams['task_durations']
         # self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
         self._samples = []
@@ -50,6 +48,8 @@ class NAMOSortingAgent(Agent):
         self.sim = 'mujoco'
         self.viewers = self._hyperparams['viewers']
 
+        self._get_hl_plan = self._hyperparams['get_hl_plan']
+
         self.symbols = [filter(lambda p: p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.plans))]
         self.params = [filter(lambda p: not p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.plans))]
         self.current_cond = 0
@@ -61,7 +61,7 @@ class NAMOSortingAgent(Agent):
         self.traj_hist = None
         self._reset_hist()
 
-        self.optimal_samples = []
+        self.optimal_samples = {task: [] for task in self.task_list}
         self.optimal_state_traj = [[] for _ in range(len(self.plans))]
         self.optimal_act_traj = [[] for _ in range(len(self.plans))]
 
@@ -177,7 +177,7 @@ class NAMOSortingAgent(Agent):
         return samples
 
 
-    def sample_task(self, policy, x0, task, save_global=False, verbose=False, use_base_t=True, noisy=True):
+    def sample_task(self, policy, condition, x0, task, save_global=False, verbose=False, use_base_t=True, noisy=True):
         plan = self.plans[task]
         for (param, attr) in self.state_inds:
             if plan.params[param].is_symbol(): continue
@@ -187,8 +187,12 @@ class NAMOSortingAgent(Agent):
         sample = Sample(self)
         sample.init_t = 0
 
+        target_vec = np.zeros((self.target_dim,))
 
         set_param_attrs(plan.params.values(), plan.state_inds, x0, 0)
+        for target in self.targets[condition]:
+            target.value[:,0] = self.targets[condition][target.name]
+            target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
 
         if noisy:
             noise = generate_noise(self.T, self.dU, self._hyperparams)
@@ -219,8 +223,10 @@ class NAMOSortingAgent(Agent):
                 sample.set(ACTION_ENUM, U.copy(), t+i)
                 sample.set(NOISE_ENUM, noise[t], t+i)
                 # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t+i)
-                sample.set(TASK_ENUM, [self.task_encoding[task]], t+i)
-                sample.set(TARGETS_ENUM, self.targets[condition])
+                task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
+                task_vec[self.taks_list.index(task)] = 1.
+                sample.set(TASK_ENUM, task_vec, t+i)
+                sample.set(TARGETS_ENUM, target_vec.copy(), t+i)
             
             if len(self.traj_hist) >= self.hist_len: self.traj_hist.pop(0)
                 self.traj_hist.append(U)
@@ -351,10 +357,11 @@ class NAMOSortingAgent(Agent):
 
     def sample_optimal_trajectory(self, x0, task, condition, targets=[]):
         targets = get_next_target(self.plans[task], x0, task) if not len(targets) else targets
-        plan = get_plan_for_task(task, target, self.num_cans, self.env, self.openrave_bodies)
+        plan = get_plan_for_task(task, targets, self.num_cans, self.env, self.openrave_bodies)
         self.set_nonopt_attrs(plan, task)
-        n = int(targets[0].name[-1])
-        targets[1].value[:,0] = self.targets[condition][2*n:2*n+2]
+        for target in targets:
+            if target._type == 'Target':
+                target.value[:,0] = self.targets[condition][target.name]
         success = self.solver._backtrack_solve(plan, n_resamples=3)
         
         class optimal_pol:
@@ -364,6 +371,14 @@ class NAMOSortingAgent(Agent):
                 return U
 
         sample = self.sample_task(optimal_pol(), x0, task, noisy=False): 
-        self.optimal_samples.append(sample)
+        self.optimal_samples[task].append(sample)
         return sample
+
+
+    def get_hl_plan(self, condition):
+        return self._get_hl_plan(self.x0[condition], self.plans.values()[0].params, self.state_inds)
+
+
+    def update_targets(self, targets, condition):
+        self.targets[condition] = targets
 

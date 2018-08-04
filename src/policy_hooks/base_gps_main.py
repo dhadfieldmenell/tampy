@@ -22,6 +22,8 @@ from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
 
+from policy_hooks.mcts import MCTS
+
 
 class GPSMain(object):
     """ Main class to run algorithms and experiments. """
@@ -52,6 +54,20 @@ class GPSMain(object):
 
         config['algorithm']['agent'] = self.agent
         self.algorithm = config['algorithm']['type'](config['algorithm'])
+        self.mcts = []
+        tasks = self.agent.task_list
+        rollout_policies = {task: self.algorithm.policy_opt.task_map[task]['policy'] for task in tasks}
+        for condition in range(self._conditions):
+            self.mcts.append(MCTS(
+                                  tasks,
+                                  
+                                  goal_f,
+                                  target_f,
+                                  rollout_policies,
+                                  condition,
+                                  self.agent,
+                                  num_samples,  
+                                  ))
 
     def run(self, itr_load=None):
         """

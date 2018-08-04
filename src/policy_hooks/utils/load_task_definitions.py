@@ -1,4 +1,5 @@
 import main
+import numpy as np
 
 from core.parsing import parse_domain_config, parse_problem_config
 from pma.hl_solver import FFSolver
@@ -35,7 +36,8 @@ def fill_params(plan_str, values):
 def get_task_encoding(task_list):
     encoding = {}
     for i in range(len(task_list)):
-        encoding[task_list[i]] = i
+        encoding[task_list[i]] = np.zeros((len(task_list))
+        encoding[task_list[i]][i] = 1
 
     return encoding
 
@@ -49,3 +51,18 @@ def compare_task_states(state1, state2):
             num_states_match += 1.
 
     return num_states_match / num_states
+
+def get_hl_plan(prob, domain_file):
+    with open(domain_file, 'r+') as f:
+        domain = f.read()
+    hl_solver = FFSolver(abs_domain=domain)
+    return hl_solver._run_planner(domain, prob)
+
+def parse_hl_plan(hl_plan):
+    for i in range(len(hl_plan)):
+        action = hl_plan[i].split()
+        task = action[1]
+        params = []
+        for param in action[2:]:
+            params.append(param.lower())
+

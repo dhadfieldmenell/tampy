@@ -31,6 +31,8 @@ class Sample(object):
         self._ref_U = np.zeros((self.T, self.dU))
         self._ref_X = np.zeros((self.T, self.dX))
 
+        self.task_cost = 0
+
     def set(self, sensor_name, sensor_data, t=None):
         """ Set trajectory data for a particular sensor. """
         if t is None:

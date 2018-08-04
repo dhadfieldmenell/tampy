@@ -24,9 +24,8 @@ class AlgorithmMDGPS(Algorithm):
         config.update(hyperparams)
         Algorithm.__init__(self, config)
 
-        self.task_breaks = self._hyperparams['task_breaks']
-        self.set_conditions()
-
+        self.cur = []
+        self.prev = []
         if self._hyperparams['policy_opt']['prev'] is None:
             self.policy_opt = self._hyperparams['policy_opt']['type'](
                 self._hyperparams['policy_opt'], self.dO, self.dU
@@ -34,6 +33,7 @@ class AlgorithmMDGPS(Algorithm):
         else:
             self.policy_opt = self._hyperparams['policy_opt']['prev']
 
+    """
     def set_conditions(self):
         self.cur = [{} for _ in range(self.M)]
         self.prev = [{} for _ in range(self.M)]
@@ -63,36 +63,31 @@ class AlgorithmMDGPS(Algorithm):
                     self.cur[m][cur_t].pol_info = PolicyInfo(self._hyperparams)
                     self.cur[m][cur_t].pol_info.policy_prior = policy_prior['type'](policy_prior)
                 cur_t = next_t
-                
-    def set_conditions(self):
-        self.cur = [{} for _ in range(self.M)]
-        self.prev = [{} for _ in range(self.M)]
+    """
+         
+    def set_conditions(self, M):
+        self.cur = []
         policy_prior = self._hyperparams['policy_prior']
 
-        for m in range(self.M):
-            cur_t = 0
-            for next_t, task in self.task_breaks[m]:
-                if task == self.task:
-                    self.T = next_t - cur_t
-                    self._hyperparams['T'] = self.T
-                    self.cur[m][cur_t] = IterationData()
-                    self.prev[m][cur_t] = IterationData()
-                    self.cur[m][cur_t].traj_info = TrajectoryInfo()
-                    # if self._hyperparams['fit_dynamics']:
-                    #     dynamics = self._hyperparams['dynamics']
-                    #     self.cur[m][cur_t].traj_info.dynamics = dynamics['type'](dynamics)
+        for m in range(M):
+            self.cur.append(IterationData())
+            self.prev.append(IterationData())
+            self.cur[-1].traj_info = TrajectoryInfo()
 
-                    self._hyperparams['init_traj_distr']['T'] = self.T
+            self._hyperparams['init_traj_distr']['T'] = self.T
 
-                    init_traj_distr = extract_condition(
-                        self._hyperparams['init_traj_distr'], self._cond_idx[m]
-                    )
+            if self._hyperparams['fit_dynamics']:
+                        dynamics = self._hyperparams['dynamics']
+                        self.cur[m].traj_info.dynamics = dynamics['type'](dynamics)
 
-                    self.cur[m][cur_t].traj_distr = init_traj_distr['type'](init_traj_distr)
+            init_traj_distr = extract_condition(
+                self._hyperparams['init_traj_distr'], 0 # Because conditions are no longer fixed
+            )
 
-                    self.cur[m][cur_t].pol_info = PolicyInfo(self._hyperparams)
-                    self.cur[m][cur_t].pol_info.policy_prior = policy_prior['type'](policy_prior)
-                cur_t = next_t
+            self.cur[m].traj_distr = init_traj_distr['type'](init_traj_distr)
+
+            self.cur[m].pol_info = PolicyInfo(self._hyperparams)
+            self.cur[m].pol_info.policy_prior = policy_prior['type'](policy_prior)
 
     def iteration(self, sample_lists):
         """
@@ -102,10 +97,10 @@ class AlgorithmMDGPS(Algorithm):
             sample_lists: List of SampleList objects for each condition.
         """
         # Store the samples and evaluate the costs.
-        for m in range(self.M):
-            for ts in self.cur[m]:
-                self.cur[m][ts].sample_list = sample_lists[ts]
-                self._eval_cost(m, ts)
+        self.set_conditions(len(sample_lists))
+        for m in range(len(sample_lists)):
+            self.cur[m].sample_list = sample_lists[m]
+            self._eval_cost(m)
 
         # Update dynamics linearizations.
         self._update_dynamics()
@@ -113,7 +108,7 @@ class AlgorithmMDGPS(Algorithm):
         # On the first iteration, need to catch policy up to init_traj_distr.
         if self.iteration_count == 0:
             self.new_traj_distr = [
-                {ts: self.cur[cond][ts].traj_distr for ts in self.cur[cond]}for cond in range(self.M)
+                self.cur[cond].traj_distr for cond in range(self.M)
             ]
             self._update_policy()
 
@@ -155,27 +150,26 @@ class AlgorithmMDGPS(Algorithm):
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, [sample.get_obs()]))
 
-        for m in range(self.M):
-            for ts in self.cur[m]:
-                samples = self.cur[m][ts].sample_list
-                X = samples.get_X()
-                N = len(samples)
-                traj, pol_info = self.new_traj_distr[m][ts], self.cur[m][ts].pol_info
-                mu = np.zeros((N, T, dU))
-                prc = np.zeros((N, T, dU, dU))
-                wt = np.zeros((N, T))
-                # Get time-indexed actions.
-                for t in range(T):
-                    # Compute actions along this trajectory.
-                    prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
-                                              [N, 1, 1])
-                    for i in range(N):
-                        mu[i, t, :] = (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])
-                    wt[:, t].fill(pol_info.pol_wt[t])
-                tgt_mu = np.concatenate((tgt_mu, mu))
-                tgt_prc = np.concatenate((tgt_prc, prc))
-                tgt_wt = np.concatenate((tgt_wt, wt))
-                obs_data = np.concatenate((obs_data, samples.get_obs()))
+        for m in range(len(self.cur)):
+            samples = self.cur[m].sample_list
+            X = samples.get_X()
+            N = len(samples)
+            traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
+            mu = np.zeros((N, T, dU))
+            prc = np.zeros((N, T, dU, dU))
+            wt = np.zeros((N, T))
+            # Get time-indexed actions.
+            for t in range(T):
+                # Compute actions along this trajectory.
+                prc[:, t, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
+                                          [N, 1, 1])
+                for i in range(N):
+                    mu[i, t, :] = (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])
+                wt[:, t].fill(pol_info.pol_wt[t])
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            tgt_prc = np.concatenate((tgt_prc, prc))
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs_data = np.concatenate((obs_data, samples.get_obs()))
         self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
 
     # def _update_policy(self):
@@ -231,37 +225,38 @@ class AlgorithmMDGPS(Algorithm):
         """
         dX, dU, T = self.dX, self.dU, self.T
         # Choose samples to use.
-        for ts in self.cur[m]:
-            samples = self.cur[m][ts].sample_list
-            N = len(samples)
-            pol_info = self.cur[m][ts].pol_info
-            X = samples.get_X()
-            obs = samples.get_obs().copy()
-            pol_mu, pol_sig = self.policy_opt.prob(obs, self.task)[:2]
-            pol_info.pol_mu, pol_info.pol_sig = pol_mu, pol_sig
+        samples = self.cur[m].sample_list
+        N = len(samples)
+        pol_info = self.cur[m].pol_info
+        X = samples.get_X()
+        obs = samples.get_obs().copy()
+        pol_mu, pol_sig = self.policy_opt.prob(obs, self.task)[:2]
+        pol_info.pol_mu, pol_info.pol_sig = pol_mu, pol_sig
 
-            # Update policy prior.
-            policy_prior = pol_info.policy_prior
-            samples = SampleList(self.cur[m][ts].sample_list)
-            mode = self._hyperparams['policy_sample_mode']
-            policy_prior.update(samples, self.policy_opt, mode, self.task)
+        # Update policy prior.
+        policy_prior = pol_info.policy_prior
+        samples = SampleList(self.cur[m].sample_list)
+        mode = self._hyperparams['policy_sample_mode']
+        policy_prior.update(samples, self.policy_opt, mode, self.task)
 
-            # Fit linearization and store in pol_info.
-            pol_info.pol_K, pol_info.pol_k, pol_info.pol_S = \
-                    policy_prior.fit(X, pol_mu, pol_sig)
-            for t in range(T):
-                pol_info.chol_pol_S[t, :, :] = \
-                        sp.linalg.cholesky(pol_info.pol_S[t, :, :])
+        # Fit linearization and store in pol_info.
+        pol_info.pol_K, pol_info.pol_k, pol_info.pol_S = \
+                policy_prior.fit(X, pol_mu, pol_sig)
+        for t in range(T):
+            pol_info.chol_pol_S[t, :, :] = \
+                sp.linalg.cholesky(pol_info.pol_S[t, :, :])
 
-    def _eval_cost(self, cond, ts):
+    def _eval_cost(self, cond):
         """
         Evaluate costs for all samples for a condition.
         Args:
             cond: Condition to evaluate cost on.
         """
+        sample_list = self.cur[cond].sample_list
+        
         # Constants.
         T, dX, dU = self.T, self.dX, self.dU
-        N = len(self.cur[cond][ts].sample_list)
+        N = len(sample_list)
 
         # Compute cost.
         cs = np.zeros((N, T))
@@ -269,9 +264,9 @@ class AlgorithmMDGPS(Algorithm):
         cv = np.zeros((N, T, dX+dU))
         Cm = np.zeros((N, T, dX+dU, dX+dU))
         for n in range(N):
-            sample = self.cur[cond][ts].sample_list[n]
+            sample = sample_list[n]
             # Get costs.
-            l, lx, lu, lxx, luu, lux = self.cost[cond].eval(sample)
+            l, lx, lu, lxx, luu, lux = self.cost.eval(sample)
             cc[n, :] = l
             cs[n, :] = l
 
@@ -294,11 +289,11 @@ class AlgorithmMDGPS(Algorithm):
             cv[n, :, :] += cv_update
 
         # Fill in cost estimate.
-        self.cur[cond][ts].traj_info.cc = np.mean(cc, 0)  # Constant term (scalar).
-        self.cur[cond][ts].traj_info.cv = np.mean(cv, 0)  # Linear term (vector).
-        self.cur[cond][ts].traj_info.Cm = np.mean(Cm, 0)  # Quadratic term (matrix).
+        self.cur[cond].traj_info.cc = np.mean(cc, 0)  # Constant term (scalar).
+        self.cur[cond].traj_info.cv = np.mean(cv, 0)  # Linear term (vector).
+        self.cur[cond].traj_info.Cm = np.mean(Cm, 0)  # Quadratic term (matrix).
 
-        self.cur[cond][ts].cs = cs  # True value of cost.
+        self.cur[cond].cs = cs  # True value of cost.
 
     def _update_trajectories(self):
         """
@@ -306,13 +301,12 @@ class AlgorithmMDGPS(Algorithm):
         """
         if not hasattr(self, 'new_traj_distr'):
             self.new_traj_distr = [
-                {ts: self.cur[cond][ts].traj_distr for ts in self.cur[cond]} for cond in range(self.M)
+                self.cur[cond].traj_distr for cond in range(len(self.cur))
             ]
 
-        for cond in range(self.M):
-            for ts in self.cur[cond]:
-                self.new_traj_distr[cond][ts], self.cur[cond][ts].eta = \
-                        self.traj_opt.update(cond, ts, self)
+        for cond in range(len(self.cur)):
+            self.new_traj_distr[cond], self.cur[cond].eta = \
+                    self.traj_opt.update(cond, self)
 
     def _update_dynamics(self):
         """
@@ -320,31 +314,30 @@ class AlgorithmMDGPS(Algorithm):
         current samples.
         """
         for m in range(self.M):
-            for ts in self.cur[m]:
-                cur_data = self.cur[m][ts].sample_list
-                X = cur_data.get_X()
-                U = cur_data.get_U()
+            cur_data = self.cur[m].sample_list
+            X = cur_data.get_X()
+            U = cur_data.get_U()
 
-                # Update prior and fit dynamics.
-                self.cur[m][ts].traj_info.dynamics.update_prior(cur_data)
-                self.cur[m][ts].traj_info.dynamics.fit(X, U)
+            # Update prior and fit dynamics.
+            self.cur[m].traj_info.dynamics.update_prior(cur_data)
+            self.cur[m].traj_info.dynamics.fit(X, U)
 
-                # Fit x0mu/x0sigma.
-                x0 = X[:, 0, :]
-                x0mu = np.mean(x0, axis=0)
-                self.cur[m][ts].traj_info.x0mu = x0mu
-                self.cur[m][ts].traj_info.x0sigma = np.diag(
-                    np.maximum(np.var(x0, axis=0),
-                               self._hyperparams['initial_state_var'])
-                )
+            # Fit x0mu/x0sigma.
+            x0 = X[:, 0, :]
+            x0mu = np.mean(x0, axis=0)
+            self.cur[m].traj_info.x0mu = x0mu
+            self.cur[m].traj_info.x0sigma = np.diag(
+                np.maximum(np.var(x0, axis=0),
+                           self._hyperparams['initial_state_var'])
+            )
 
-                prior = self.cur[m][ts].traj_info.dynamics.get_prior()
-                if prior:
-                    mu0, Phi, priorm, n0 = prior.initial_state()
-                    N = len(cur_data)
-                    self.cur[m][ts].traj_info.x0sigma += \
-                            Phi + (N*priorm) / (N+priorm) * \
-                            np.outer(x0mu-mu0, x0mu-mu0) / (N+n0)
+            prior = self.cur[m].traj_info.dynamics.get_prior()
+            if prior:
+                mu0, Phi, priorm, n0 = prior.initial_state()
+                N = len(cur_data)
+                self.cur[m].traj_info.x0sigma += \
+                        Phi + (N*priorm) / (N+priorm) * \
+                        np.outer(x0mu-mu0, x0mu-mu0) / (N+n0)
 
     def _advance_iteration_variables(self):
         """
@@ -352,7 +345,7 @@ class AlgorithmMDGPS(Algorithm):
         variables, and advance iteration counter.
         """
         self.iteration_count += 1
-        self.prev = self.cur # [{} for _ in range(self.M)]
+        self.prev = self.cur
 
         # for m in range(self.M):
         #     for ts in self.cur[m]:
@@ -360,26 +353,23 @@ class AlgorithmMDGPS(Algorithm):
 
         # TODO: change IterationData to reflect new stuff better
         for m in range(self.M):
-            for ts in self.cur[m]:
-                self.prev[m][ts].new_traj_distr = self.new_traj_distr[m][ts]
+            self.prev[m].new_traj_distr = self.new_traj_distr[m]
 
-        self.cur = [{} for _ in range(self.M)]
+        self.cur = []
         for m in range(self.M):
-            for ts in self.cur[m]:
-                self.cur[m][ts] = IterationData()
-                self.cur[m][ts].traj_info = TrajectoryInfo()
-                self.cur[m][ts].traj_info.dynamics = copy.deepcopy(self.prev[m][ts].traj_info.dynamics)
-                self.cur[m][ts].step_mult = self.prev[m][ts].step_mult
-                self.cur[m][ts].eta = self.prev[m][ts].eta
-                self.cur[m][ts].traj_distr = self.new_traj_distr[m][ts]
+            self.cur.append(IterationData())
+            self.cur[m].traj_info = TrajectoryInfo()
+            self.cur[m].traj_info.dynamics = copy.deepcopy(self.prev[m].traj_info.dynamics)
+            self.cur[m].step_mult = self.prev[m].step_mult
+            self.cur[m].eta = self.prev[m].eta
+            self.cur[m].traj_distr = self.new_traj_distr[m]
         delattr(self, 'new_traj_distr')
 
 
         for m in range(self.M):
-            for ts in self.cur[m]:
-                self.cur[m][ts].traj_info.last_kl_step = \
-                        self.prev[m][ts].traj_info.last_kl_step
-                self.cur[m][ts].pol_info = copy.deepcopy(self.prev[m][ts].pol_info)
+                self.cur[m].traj_info.last_kl_step = \
+                        self.prev[m].traj_info.last_kl_step
+                self.cur[m].pol_info = copy.deepcopy(self.prev[m].pol_info)
 
     def _stepadjust(self):
         """

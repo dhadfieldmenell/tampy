@@ -2,13 +2,14 @@
 Defines utility functions for planning in the sorting domain
 """
 import copy
+import itertools
 import numpy as np
 import random
 
 from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 
-possible_can_locs = [[-3, 2], [-1, 2], [1, 2], [3, 2]] 
+possible_can_locs = list(product(range(-5, 5), [3]))
 
 
 prob_file = "../domains/namo_domain/sort_prob_{0}.prob"
@@ -16,9 +17,27 @@ domain_file = "../domains/namo_domain/namo.domain"
 
 
 def get_end_targets(num_cans):
-    pass
+    targets = {}
+    cur_target = [-4., -4.]
+    for n in range(num_cans):
+        targets['can{0}_end_tagret'.format(n)] = cur_target
+        cur_target = copy(cur_target)
+        cur_target[0] += 1
+    targets['middle_target'] = [0., 0.]
+    return targets
 
-def get_sorting_problem(can_locs, end_targets):
+def get_random_initial_state_vec(num_cans, targets, dX, state_inds):
+    X = np.zeros((dX, ))
+    can_locs = get_random_initial_can_locations(num_cans)
+    for n in range(num_cans):
+        X[state_inds['can{0}'.format(n), pose]] = can_locs[n]
+        X[state_inds['can{0}_init_target', 'vaue']] = X[state_inds['can{0}'.format(n)]
+    for target in targets:
+        X[state_inds[target, 'value']] = targets[target]
+
+    return X
+
+def get_sorting_problem(can_locs, targets):
     hl_plan_str = "(define (problem sorting_problem)\n"
     hl_plan_str += "(:domain sorting_domain)\n"
 
@@ -31,7 +50,7 @@ def get_sorting_problem(can_locs, end_targets):
 
     hl_plan_str += ")\n"
 
-    hl_plan_str += parse_initial_state(can_locs)
+    hl_plan_str += parse_initial_state(can_locs, targets)
 
     goal_state = {}
     goal_str = "(:goal (and"
@@ -48,12 +67,14 @@ def get_sorting_problem(can_locs, end_targets):
 
 def parse_initial_state(can_locs, targets):
     hl_init_state = "(:init "
-    for i in range(len(can_locs)):
-        loc = can_locs[i]
+    for can in can_locs:
+        loc = can_locs[can]
 
-        closest_target = np.argmin(np.sum((np.array(targets) - loc)**2, axis=1))
-        if (targets[closest_target] - loc)**2 < 0.001:
-            hl_init_state += " (CanAtTarget can{0} can{1}_end_target)".format(i, closest_target)
+        closest_target = np.argmin(np.sum((np.array(targets.values()) - loc)**2, axis=1))
+        closest_target_name = targets.keys()[closest_target]
+
+        if (targets[closest_target_name] - loc)**2 < 0.001:
+            hl_init_state += " (CanAtTarget {0} {1})".format(can, closest_target_name)
 
     hl_init_state += ")\n"
     return hl_init_state
@@ -63,6 +84,32 @@ def get_hl_plan(prob):
         domain = f.read()
     hl_solver = FFSolver(abs_domain=domain)
     return hl_solver._run_planner(domain, prob)
+
+def parse_hl_plan(hl_plan):
+    plan = []
+    for i in range(len(hl_plan)):
+        action = hl_plan[i]
+        act_params = action.split()
+        task = act_params[1].lower()
+        next_params = [p.lower() for p in act_params[2:]]
+        plan.append[(task, next_params)]
+    return plan
+
+def hl_plan_for_state(state, param_map, state_inds):
+    can_locs = {}
+    targets = {}
+
+    for param in params:
+        if param_map[param._type] == 'Can':
+            can_locs[param.name] = state[state_inds(param.name, 'pose')]
+
+        # Don't pay attention to initial targets
+        if param_map[param._type] == 'Target' and not param.name.contains('init'):
+            targets[param.name] = state[state_inds(param.name, 'pose')]
+
+    prob = get_sorting_prob(can_locs, targets)
+    hl_plan = get_hl_plan(prob)
+    return parse_hl_plan(hl_plan)
 
 def get_ll_plan_str(hl_plan, num_cans):
     tasks = get_tasks('policy_hooks/namo/sorting_task_mapping')
@@ -75,13 +122,13 @@ def get_ll_plan_str(hl_plan, num_cans):
         act_params = action.split()
         next_task_str = copy.deepcopy(tasks[act_params[1].lower()])
         can = act_params[2].lower()
-        if len(act_params) > 1:
-            target = act_params[1].upper()
+        if len(act_params) > 3:
+            target = act_params[3].upper()
         else:
             target = "CAN{}_INIT_TARGET".format(can[-1])
 
         for j in range(len(next_task_str)):
-            next_task_str[j]= next_task_str[j].format(can[-1], target)
+            next_task_str[j]= next_task_str[j].format(can, target)
         ll_plan_str.extend(next_task_str)
         actions_per_task.append((len(next_task_str), act_params[1].lower()))
     return ll_plan_str, actions_per_task
@@ -156,7 +203,7 @@ def get_random_initial_can_locations(num_cans):
     locs = []
     for _ in range(num_cans):
         next_loc = random.choice(possible_can_locs)
-        while len(locs) and np.any(np.abs(np.array(locs)[:,:2]-next_loc[:2]) < 0.2):
+        while len(locs) and np.any(np.abs(np.array(locs)[:,:2]-next_loc[:2]) < 0.5):
             next_loc = random.choice(possible_can_locs)
             next_loc[1] *= random.choice([-1, 1])
 
@@ -169,7 +216,7 @@ def get_random_initial_can_locations(num_cans):
         if b[1] < a[1]: return -1
         return 0
 
-    locs.sort(compare_locs)
+    # locs.sort(compare_locs)
     
     return locs
 
@@ -211,15 +258,16 @@ def get_next_target(plan, state, task):
         for can in range(plan.num_cans):
             param = plan.params['can{0}'.format(can)]
             param_pose = state[plan.state_inds[param.name, 'pose']]
-            if np.sum((param_pose - target_poses['{0}_target'.format(param.color)])**2) > 0.0001:
-                return param, plan.params['{0}_target'.format(param.color)]
+            if np.sum((param_pose - target_poses['{0}_end_target'.format(param.name)])**2) > 0.0001:
+                return param
     
     if task == 'putdown':
         target_occupied = False
         middle_occupied = False
         for param in plan.params.values():
+            if param._type != 'Can': continue
             param_pose = state[plan.state_inds[param.name, 'pose']]
-            if np.sum((param_pose-robot_pose)**2) < 0.0001:
+            if np.sum((param_pose-robot_pose)**2) < 0.001:
                 for param_2 in plan.params.values():
                     if param_2.name != param.name:
                         param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
@@ -239,7 +287,32 @@ def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
     tasks = get_tasks('policy_hooks/namo/sorting_task_mapping')
     plan_str = copy.deepcopy(tasks[task])
     for j in range(len(next_task_str)):
-        next_task_str[j]= next_task_str[j].format(*targets)
+        next_task_str[j]= next_task_str[j].format(*[target.name for target in targets])
 
     return plan_from_str(next_task_str, prob_file.format(num_cans), domain_file, env, openrave_bodies)
+
+def cost_f(Xs, task, params, targets, plan):
+    if task.lower() == 'putdown':
+        X = Xs[-1]
+        can = params[0]
+        target = params[1]
+        dist = np.sum((X[plan.state_inds[can.name, 'pose']] - targets[target.name].value[:,0])**2)
+        if dist < 0.001: return 0
+        return dist
     
+    if task.lower() == 'grasp':
+        X = xs[-1]
+        can = params[0]
+        dist = np.sum((X[plan.state_inds[can.name, 'pose']] - plan.params['pr2'].pose[:,-1])**2)
+        if dist < 0.001: return 0
+        return dist
+
+def goal_f(X, targets, plan):
+    cost = 0
+    for param in plan.params.values():
+        if param._type == 'Can':
+            dist = np.sum((X[plan.state_inds[param.name, 'pose']] - targets['{0}_end_target'.format(param.name)])**2)
+            cost += dist if dist > 0.01 else 0
+
+    return cost
+

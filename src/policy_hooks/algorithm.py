@@ -24,6 +24,7 @@ class Algorithm(object):
         config.update(hyperparams)
         self._hyperparams = config
 
+        '''
         if 'train_conditions' in hyperparams:
             self._cond_idx = hyperparams['train_conditions']
             self.M = len(self._cond_idx)
@@ -32,6 +33,7 @@ class Algorithm(object):
             self._cond_idx = range(self.M)
             self._hyperparams['train_conditions'] = self._cond_idx
             self._hyperparams['test_conditions'] = self._cond_idx
+        '''
         self.iteration_count = 0
 
         # Grab a few values from the agent.
@@ -47,35 +49,17 @@ class Algorithm(object):
         init_traj_distr['dU'] = agent.dU
         del self._hyperparams['agent']  # Don't want to pickle this.
 
-        # IterationData objects for each condition.
-        self.cur = [IterationData() for _ in range(self.M)]
-        self.prev = [IterationData() for _ in range(self.M)]
 
         if self._hyperparams['fit_dynamics']:
             dynamics = self._hyperparams['dynamics']
-
-        for m in range(self.M):
-            self.cur[m].traj_info = TrajectoryInfo()
-            if self._hyperparams['fit_dynamics']:
-                self.cur[m].traj_info.dynamics = dynamics['type'](dynamics)
-            init_traj_distr = extract_condition(
-                self._hyperparams['init_traj_distr'], self._cond_idx[m]
-            )
-            self.cur[m].traj_distr = init_traj_distr['type'](init_traj_distr)
 
         self.traj_opt = hyperparams['traj_opt']['type'](
             hyperparams['traj_opt']
         )
         if type(hyperparams['cost']) == list:
-            self.cost = [
-                hyperparams['cost'][i]['type'](hyperparams['cost'][i])
-                for i in range(self.M)
-            ]
+            raise Exception('Cannot use list of costs')
         else:
-            self.cost = [
-                hyperparams['cost']['type'](hyperparams['cost'])
-                for _ in range(self.M)
-            ]
+            self.cost = hyperparams['cost']['type'](hyperparams['cost'])
         self.base_kl_step = self._hyperparams['kl_step']
 
     @abc.abstractmethod

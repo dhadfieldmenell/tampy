@@ -51,7 +51,11 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.init_solver()
         self.var = {task: self._hyperparams['init_var'] * np.ones(dU) for task in self.task_map}
         self.var[""] = self._hyperparams['init_var'] * np.ones(dU)
-        self.sess = tf.Session()
+
+        self.gpu_fraction = self._hyperparams['gpu_fraction']
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
+        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
         self.init_policies(dU)
         # List of indices for state (vector) data and image (tensor) data in observation.
         self.x_idx, self.img_idx, i = [], [], 0
@@ -140,6 +144,9 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                                     self.sess, 
                                                     self.device_string, 
                                                     copy_param_scope=None)
+
+    def task_distr(self, obs):
+        return self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs})
 
     def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task=""):
         """

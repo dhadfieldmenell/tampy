@@ -35,8 +35,8 @@ class CostState(Cost):
         for data_type in self._hyperparams['data_types']:
             config = self._hyperparams['data_types'][data_type]
             wp = config['wp']
-            tgt = config['target_state']
-            x = sample.get(data_type)
+            tgt = sample.get_ref_X().copy()
+            x = sample.get_X()
             _, dim_sensor = x.shape
 
             wpm = get_ramp_multiplier(
@@ -61,3 +61,4 @@ class CostState(Cost):
             sample.agent.pack_data_x(final_lxx, lss,
                                      data_types=[data_type, data_type])
         return final_l, final_lx, final_lu, final_lxx, final_luu, final_lux
+

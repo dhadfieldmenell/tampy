@@ -55,14 +55,7 @@ class GPSMain(object):
         self.task_list = config['task_list']
         self.alg_map = {}
         policy_opt = None
-        task_durations = {}
-        for task_breaks in self.agent.task_breaks:
-            cur_t = 0
-            for next_t, task in task_breaks:
-                if task not in task_durations:
-                    task_durations[task] = next_t - cur_t
-                cur_t = next_t
-            self.task_durations = task_durations
+        self.task_durations = config['task_durations']
         for task in self.task_list:
             if task not in task_durations: continue
             config['algorithm'][task]['policy_opt']['prev'] = policy_opt
@@ -73,6 +66,22 @@ class GPSMain(object):
             policy_opt = self.alg_map[task].policy_opt
 
         self.policy_opt = policy_opt
+
+        self.mcts = []
+        num_samples = self._hyperparams['num_samples']
+        rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in tasks}
+        for condition in range(self._conditions):
+            self.mcts.append(MCTS(
+                                  tasks,
+                                  self.policy_opt.traj_distr
+                                  self._hyperparams['cost_f'],
+                                  self._hyperparams['goal_f'],
+                                  self._hyperparams['target_f'],
+                                  rollout_policies,
+                                  condition,
+                                  self.agent,
+                                  num_samples,  
+                                  ))
 
     def run(self, itr_load=None):
         """
@@ -97,35 +106,22 @@ class GPSMain(object):
 
             for itr in range(itr_start, self._hyperparams['iterations']):
                 for cond in self._train_idx:
-                    self.agent.replace_model(cond)
-                    for i in range(self._hyperparams['num_samples']):
-                        self._take_sample(itr, cond, i)
-
-                additional_samples = 0
-                optimal_samples = []
-                if self._hyperparams['take_optimal_sample']:
-                    optimal_samples = self.agent.sample_optimal_trajectories(n=2)
-                    additional_samples = 2
-
-                traj_sample_lists = {task: [
-                    self.agent.get_samples(cond, task, 0)
-                    for cond in self._train_idx
-                ] for task in self.task_list}
+                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'])
+                    if val > 0:
+                        opt_hl_plan = self.agent.get_hl_plan(cond)
+                        self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], opt_hl_plan)
+                        
+                traj_sample_lists = {task: 
+                    self.agent.get_samples(task) for task in self.taks_list}
 
                 # Clear agent samples.
                 self.agent.clear_samples()
 
-                self._take_iteration(itr, traj_sample_lists, optimal_samples)
+                self._take_iteration(itr, traj_sample_lists)
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 if replace_conds:
                     self.agent.replace_all_conds()
-                    self.agent.init_cost_trajectories(self.alg_map, center=False)
-                    for alg in self.alg_map.values():
-                        alg.set_conditions()
-                else:
-                    self.agent.init_cost_trajectories(self.alg_map, center=False, full_solve=False)
-                if itr > -1:
-                    import ipdb; ipdb.set_trace()
+
                 # pol_sample_lists = self._take_policy_samples()
                 # log_file = open("avg_cost_log.txt", "a+")
                 # log_file.write("{0}\n".format(self.agent.get_policy_avg_cost()))
@@ -145,9 +141,8 @@ class GPSMain(object):
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         for alg in self.alg_map.values():
-            for m in range(alg.M):
-                for ts in alg.prev[m]:
-                    samples = alg.prev[m][ts].sample_list
+            for m in range(len(alg.prev)):
+                    samples = alg.prev[m].sample_list
                     X = np.array([sample.get(TASK_ENUM) for sample in samples.get_samples()])
                     obs = samples.get_obs()
                     N = len(samples)
@@ -305,7 +300,7 @@ class GPSMain(object):
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
 
-    def _take_iteration(self, itr, sample_lists, optimal_samples):
+    def _take_iteration(self, itr, sample_lists):
         """
         Take an iteration of the algorithm.
         Args:
@@ -318,12 +313,12 @@ class GPSMain(object):
         for task in self.alg_map:
             task_num = self.agent.task_encoding[task]
             if len(sample_lists[task]):
-                self.alg_map[task].iteration(sample_lists[task], filter(lambda s: s.get(TASK_ENUM, 0)[task_num], optimal_samples))
+                self.alg_map[task].iteration(sample_lists[task], self.agent.optimal_samples[task])
         self.update_primitives()
         if self.gui:
             self.gui.stop_display_calculating()
 
-        self.iter_count += 2
+        self.iter_count += 1
 
     def _take_policy_samples(self, N=None):
         """
