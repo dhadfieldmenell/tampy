@@ -1,12 +1,11 @@
 Minimize
-  + 130.137933377794 Constant
+  + 38.64150455680154 Constant
 Subject To
- R191: (cloth0-pose-(1,_0)) = -0.15
- R324: (right_cloth_target_0_off-value-(1,_0)) = -0.1
- R661: (right_cloth_target_0_off-value-(1,_0)) - (cloth0-pose-(1,_0))
-   <= 0.01
+ R2: (robot_init_pose-value-(1,_0)) = 1
+ R13: (pr2-pose-(1,_0)) = -0.424262627173106
+ R17: - (robot_init_pose-value-(1,_0)) + (pr2-pose-(1,_0)) = 0
 Bounds
- (right_cloth_target_0_off-value-(1,_0)) free
- (cloth0-pose-(1,_0)) free
+ (robot_init_pose-value-(1,_0)) free
+ (pr2-pose-(1,_0)) free
  Constant = 1
 End

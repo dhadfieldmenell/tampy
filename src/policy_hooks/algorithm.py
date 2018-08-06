@@ -49,7 +49,6 @@ class Algorithm(object):
         init_traj_distr['dU'] = agent.dU
         del self._hyperparams['agent']  # Don't want to pickle this.
 
-
         if self._hyperparams['fit_dynamics']:
             dynamics = self._hyperparams['dynamics']
 

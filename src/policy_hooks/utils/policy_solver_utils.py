@@ -1,6 +1,5 @@
 import core.util_classes.baxter_constants as const
 from core.util_classes.robot_predicates import CollisionPredicate
-from core.util_classes.baxter_predicates import *
 import numpy as np
 
 # Don't change these
@@ -24,22 +23,8 @@ GPS_RATIO = 1e3
 MUJOCO_STEPS_PER_SECOND = 200
 POLICY_STEPS_PER_SECOND = 1
 
-# INCLUDE_PREDS = ['BaxterAt', 'BaxterClothAt', 'BaxterRobotAt', 'BaxterCloseGripperLeft', \
-#                  'BaxterCloseGripperRight', 'BaxterOpenGripperLeft', \
-#                  'BaxterOpenGripperRight', 'BaxterCloseGrippers', \
-#                  'BaxterOpenGrippers', 'BaxterObstructs', \
-#                  'BaxterObstructsHolding', 'BaxterObstructsCloth', \
-#                  'BaxterObstructsWasher', 'BaxterObstructsHoldingCloth', \
-#                  'BaxterCollides', 'BaxterRCollides', 'BaxterRSelfCollides', \
-#                  'BaxterCollidesWasher', 'BaxterBasketInGripper', \
-#                  'BaxterClothInGripperLeft', 'BaxterClothInGripperRight']
 
-INCLUDE_PREDS = [BaxterCloseGripperLeft, \
-                 BaxterOpenGripperLeft, BaxterRCollides, BaxterCollides, BaxterObstructs, \
-                 BaxterBasketInGripper, BaxterClothInGripperLeft, BaxterRSelfCollides, \
-                 BaxterObstructsHolding]
-
-def get_state_action_inds(plan, x_params={}, u_params={}):
+def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
     '''
     Maps the parameters of the plan actions to indices in the policy state and action vectors, and returns the dimensions of those vectors.
     This mapping should apply to any plan with the given actions. Replaces get_plan_to_policy_mapping.
@@ -51,54 +36,54 @@ def get_state_action_inds(plan, x_params={}, u_params={}):
     params_to_x_inds, params_to_u_inds = {}, {}
     cur_x_ind, cur_u_ind = 0, 0
 
-    robot_x_attrs = x_params['baxter']
-    robot_u_attrs = u_params['baxter']
-    robot_attr_map = const.ATTR_MAP['Robot']
+    robot_x_attrs = x_params[robot_name]
+    robot_u_attrs = u_params[robot_name]
+    robot_attr_map = attr_map['Robot']
     ee_pos_attrs = ['ee_left_pos', 'ee_right_pos']
     ee_rot_attrs = ['ee_left_rot', 'ee_right_rot']
     for attr in robot_x_attrs:
         if attr in ee_pos_attrs:
             x_inds = np.array([0, 1, 2]) + cur_x_ind
             cur_x_ind = x_inds[-1] + 1
-            params_to_x_inds[('baxter', attr)] = x_inds
+            params_to_x_inds[(robot_name, attr)] = x_inds
             continue
 
         if attr in ee_rot_attrs:
             x_inds = np.array([0, 1, 2, 3]) + cur_x_ind
             cur_x_ind = x_inds[-1] + 1
-            params_to_x_inds[('baxter', attr)] = x_inds
+            params_to_x_inds[(robot_name, attr)] = x_inds
             continue
 
         inds = filter(lambda p: p[0]==attr, robot_attr_map)[0][1]
         x_inds = inds + cur_x_ind
         cur_x_ind = x_inds[-1] + 1
-        params_to_x_inds[('baxter', attr)] = x_inds
+        params_to_x_inds[(robot_name, attr)] = x_inds
 
     for attr in robot_u_attrs:
         if attr in ee_pos_attrs:
             u_inds = np.array([0, 1, 2]) + cur_u_ind
             cur_u_ind = u_inds[-1] + 1
-            params_to_u_inds[('baxter', attr)] = u_inds
+            params_to_u_inds[(robot_name, attr)] = u_inds
             continue
 
         if attr in ee_rot_attrs:
             u_inds = np.array([0, 1, 2, 3]) + cur_u_ind
             cur_u_ind = u_inds[-1] + 1
-            params_to_u_inds[('baxter', attr)] = u_inds
+            params_to_u_inds[(robot_name, attr)] = u_inds
             continue
 
         inds = filter(lambda p: p[0]==attr, robot_attr_map)[0][1]
         u_inds = inds + cur_u_ind
         cur_u_ind = u_inds[-1] + 1
-        params_to_u_inds[('baxter', attr)] = u_inds
+        params_to_u_inds[(robot_name, attr)] = u_inds
 
     for param_name in x_params:
         if param_name not in plan.params: continue
         param = plan.params[param_name]
-        param_attr_map = const.ATTR_MAP[param._type]
+        param_attr_map = attr_map[param._type]
         for attr in x_params[param_name]:
             if (param_name, attr) in params_to_x_inds: continue
-            inds = filter(lambda p: p[0]==attr, const.ATTR_MAP[param._type])[0][1] + cur_x_ind
+            inds = filter(lambda p: p[0]==attr, attr_map[param._type])[0][1] + cur_x_ind
             cur_x_ind = inds[-1] + 1
             params_to_x_inds[(param.name, attr)] = inds
 
@@ -106,7 +91,7 @@ def get_state_action_inds(plan, x_params={}, u_params={}):
 
     for param in plan.params.values():
         if not param.is_symbol(): continue
-        param_attr_map = const.ATTR_MAP[param._type]
+        param_attr_map = attr_map[param._type]
         for attr in param_attr_map:
             if (param.name, attr[0]) in params_to_x_inds: continue
             inds = attr[1] + cur_x_ind
@@ -116,20 +101,20 @@ def get_state_action_inds(plan, x_params={}, u_params={}):
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary
 
-def get_target_inds(plan, include):
+def get_target_inds(plan, attr_map, include):
     cur_ind = 0
     target_inds = {}
     for param in plan.params.values():
         if param.name in include:
             for attr in include[param.name]:
-                param_attr_map = const.ATTR_MAP[param._type]
-                inds = filter(lambda p: p[0]==attr, const.ATTR_MAP[param._type])[0][1] + cur_ind
+                param_attr_map = attr_map[param._type]
+                inds = filter(lambda p: p[0]==attr, attr_map[param._type])[0][1] + cur_ind
                 cur_ind = inds[-1] + 1
                 target_inds[param.name, attr] = inds
 
     return cur_ind, target_inds
 
-def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_attrs=[]):
+def get_plan_to_policy_mapping(plan, robot_name, x_params=[], u_params=[], x_attrs=[], u_attrs=[]):
     '''
     Maps the parameters of the plan actions to indices in the policy state and action vectors, and returns the dimensions of those vectors.
     This mapping should apply to any plan with the given actions
@@ -159,7 +144,7 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
     else:
         params = map(lambda p: plan.params[p], x_params)
 
-    robot = plan.params['baxter'] #TODO: Make this more general
+    robot = plan.params[robot_name] #TODO: Make this more general
     robot_attr_map = const.ATTR_MAP[robot._type]
     ee_pos_attrs = ['ee_left_pos', 'ee_right_pos']
     ee_rot_attrs = ['ee_left_rot', 'ee_right_rot']
@@ -231,25 +216,25 @@ def get_plan_to_policy_mapping(plan, x_params=[], u_params=[], x_attrs=[], u_att
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary   
 
-def fill_vector(params, params_to_inds, vec, t):
-    for param in params:
-        for attr in const.ATTR_MAP[param._type]:
-            if (param.name, attr[0]) not in params_to_inds: continue
-
-            inds = params_to_inds[(param.name, attr[0])]
-            if param.is_symbol():
-                vec[inds] = getattr(param, attr[0])[:, 0].copy()
-            else:
-                vec[inds] = getattr(param, attr[0])[:, t].copy()
-
-def set_params_attrs(params, params_to_inds, vec, t):
-    for param in params:
-        for attr in const.ATTR_MAP[param._type]:
-            if (param.name, attr[0]) not in params_to_inds: continue
-            if param.is_symbol():
-                getattr(param, attr[0])[:, 0] = vec[params_to_inds[(param.name, attr[0])]]
-            else:
-                getattr(param, attr[0])[:, t] = vec[params_to_inds[(param.name, attr[0])]]
+def fill_vector(params, params_to_inds, vec, t, use_symbols=False):
+    for param_name, attr in params_to_inds:
+        inds = params_to_inds[(param_name, attr)]
+        param = params[param_name]
+        if param.is_symbol():
+            if not use_symbols: continue
+            vec[inds] = getattr(param, attr)[:, 0].copy()
+        else:
+            vec[inds] = getattr(param, attr)[:, t].copy()       
+       
+def set_params_attrs(params, params_to_inds, vec, t, use_symbols=False):
+    for param_name, attr in params_to_inds:
+        inds = params_to_inds[(param_name, attr)]
+        param = params[param_name]
+        if param.is_symbol():
+            if not use_symbols: continue
+            getattr(param, attr)[:, 0] = vec[params_to_inds[(param.name, attr)]]
+        else:
+            getattr(param, attr)[:, t] = vec[params_to_inds[(param.name, attr)]]               
 
 def fill_sample_from_trajectory(sample, plan, u_vec, noise, t, dX):
     active_ts, params = get_plan_traj_info(plan)

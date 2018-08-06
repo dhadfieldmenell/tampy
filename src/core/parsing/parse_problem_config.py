@@ -63,7 +63,8 @@ class ParseProblemConfig(object):
                 except KeyError:
                     import ipdb; ipdb.set_trace()
                     raise ProblemConfigException("Parameter '%s' not defined in domain file."%name)
-                except ValueError:
+                except ValueError as e:
+                    print e
                     raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%name)
         for k, v in params.items():
             if type(v) is dict:

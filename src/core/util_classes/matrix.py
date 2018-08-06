@@ -16,7 +16,7 @@ class Vector(Matrix):
             if not vec.endswith(")"):
                 vec += ")"
             vec = eval(vec)
-        obj = np.array(vec)
+        obj = np.array(vec, dtype=np.float32)
         # deals with case where obj is zero-dimensional
         assert len(np.atleast_1d(obj)) == cls.dim
         obj = obj.reshape((cls.dim, obj.size/cls.dim))

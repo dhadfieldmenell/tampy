@@ -1,6 +1,9 @@
+import itertools
+import random
+
 NUM_CANS = 1
 
-filename = "namo_probs/namo_simple_sort_{0}.prob".format(NUM_CANS)
+filename = "namo_probs/sort_prob_{0}.prob".format(NUM_CANS)
 
 GOAL = "(RobotAt pr2 robot_end_pose)"
 HEIGHT = 5
@@ -24,34 +27,38 @@ def main():
     s += "Grasp (name {}); ".format("grasp0")
     s += "RobotPose (name %s); "%"robot_init_pose"
     s += "RobotPose (name %s); "%"robot_end_pose"
-    s += "Obstacle (name %s) \n\n"%"obs0"
+    s += "Target (name %s) \n\n"%"middle_target"
+#    s += "Obstacle (name %s) \n\n"%"obs0"
 
     s += "Init: "
     for i in range(NUM_CANS):
         s += "(geom can%d_init_target 1), (value can%d_init_target %s), "%(i, i, list(coords[i]))
         s += "(value pdp_target%d undefined), "%i
+        s += "(gripper pdp_target%d undefined), "%i
         s += "(geom can%d 0.4), (pose can%d %s), "%(i, i, list(coords[i]))
         s += "(geom can%d_end_target 1), (value can%d_end_target %s), "%(i, i, list(coords[i]))
     s += "(value grasp0 undefined), "
-    s += "(geom %s [0.4]), (pose %s %s), "%("pr2", "pr2", [0, 0])
-    s += "(gripper pr2 [1]), "
-    s += "(value %s %s), "%("robot_init_pose", [0, 0])
-    s += "(value %s %s), "%("robot_end_pose", [0, 0])
-    s += "(gripper %s [1]), "%("robot_init_pose")
-    s += "(gripper %s [1]), "%("robot_end_pose")
-    s += "(pose %s [5, 5]), "%"obs0"
-    s += "(geom %s %s); "%("obs0", "closet")
+    s += "(geom %s 0.4), (pose %s %s), "%("pr2", "pr2", [0, 0])
+    s += "(gripper pr2 [1.]), "
+    s += "(value %s %s), "%("robot_init_pose", [0., 0.])
+    s += "(value %s %s), "%("robot_end_pose", "undefined")
+    s += "(gripper %s [1.]), "%("robot_init_pose")
+    s += "(gripper %s undefined), "%("robot_end_pose")
+    s += "(value %s [0,, 0.]); "%("middle_target")
+#    s += "(pose %s [0, 0]), "%"obs0"
+#    s += "(geom %s %s); "%("obs0", "closet")
 
     for i in range(NUM_CANS):
         s += "(At can{} can{}_init_target), ".format(i, i)
         s += "(Stationary can{}), ".format(i)
         for j in range(NUM_CANS):
             s += "(StationaryNEq can{} can{}), ".format(i, j)
-        s += "(InContact pr2 pdp_target{} can{}_init_target), ".format(i, i)
-        s += "(GraspValid pdp_target{} can{}_init_target grasp0), ".format(i, i)
+        # s += "(InContact pr2 pdp_target{} can{}_init_target), ".format(i, i)
+        # s += "(GraspValid pdp_target{} can{}_init_target grasp0), ".format(i, i)
+
     s += "(RobotAt pr2 robot_init_pose), "
-    s += "(IsMP pr2), "
-    s += "(StationaryW obs0) \n\n"
+    s += "(IsMP pr2) \n\n "
+#    s += "(StationaryW obs0) \n\n"
 
     s += "Goal: %s"%GOAL
 
@@ -60,5 +67,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-                                                                                                                                                               71,1          Bot
 

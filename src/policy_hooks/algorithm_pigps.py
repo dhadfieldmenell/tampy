@@ -35,11 +35,8 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         self.set_conditions(len(sample_lists))
         # Store the samples and evaluate the costs.
         for m in range(len(self.cur)):
-            try:
-                self.cur[m].sample_list = sample_lists[m]
-                self._eval_cost(m)
-            except:
-                import ipdb; ipdb.set_trace()
+            self.cur[m].sample_list = sample_lists[m]
+            self._eval_cost(m)
 
         # On the first iteration, need to catch policy up to init_traj_distr.
         if self.iteration_count == 0:

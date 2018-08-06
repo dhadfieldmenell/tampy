@@ -23,6 +23,17 @@ RS_SCALE = 0.5
 N_DIGS = 3
 
 
+ATTRMAP = {
+    "Robot":     (("pose", np.array(range(2), dtype=np.int)),
+                  ("gripper", np.array(range(1), dtype=np.int))),
+    "Can":       (("pose", np.array(range(2), dtype=np.int)),),
+    "Target":    (("value", np.array(range(2), dtype=np.int)),),
+    "RobotPose": (("value", np.array(range(2), dtype=np.int)),
+                  ("gripper", np.array(range(1), dtype=np.int))),
+    "Obstacle":  (("pose", np.array(range(2), dtype=np.int)),),
+    "Grasp":     (("value", np.array(range(2), dtype=np.int)),),
+}
+
 class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
         self._debug = debug
@@ -38,14 +49,14 @@ class CollisionPredicate(ExprPredicate):
 
         super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
 
-    def test(self, time, negated=False):
+    def test(self, time, negated=False, tol=1e-4):
         # This test is overwritten so that collisions can be calculated correctly
         if not self.is_concrete():
             return False
         if time < 0:
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
-            return self.neg_expr.eval(self.get_param_vector(time), tol=self.tol, negated = (not negated))
+            return self.neg_expr.eval(self.get_param_vector(time), tol=tol, negated = (not negated))
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
@@ -180,15 +191,15 @@ class RobotAt(At):
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class GripperClosed(ExprPredicate):
-    def __init__(self, name, params, expecteD_parma_type,s env=None):
+    def __init__(self, name, params, expected_param_types, env=None):
         self.robot, = params
         attr_inds = OrderedDict([(self.robot, [("gripper", np.array([0], dtype=np.int))])])
-        A = np.ones((1))
-        b = np.zeros((1))
+        A = np.ones((1, 1))
+        b = np.zeros((1, 1))
         val = np.ones((1,1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(GrippedClosed, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(GripperClosed, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class InContact(CollisionPredicate):
 
@@ -212,8 +223,8 @@ class InContact(CollisionPredicate):
         e = EqExpr(col_expr, val)
         super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
 
-    def test(self, time, negated=False):
-        return super(CollisionPredicate, self).test(time, negated)
+    def test(self, time, negated=False, tol=1e-4):
+        return super(CollisionPredicate, self).test(time, negated, tol)
 
 class Collides(CollisionPredicate):
 

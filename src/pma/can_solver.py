@@ -39,7 +39,7 @@ class CanSolver(backtrack_ll_solver.BacktrackLLSolver):
 
         return rs_param
 
-    def obj_pose_suggester(self, plan, anum, resmaple_size=10):
+    def obj_pose_suggester(self, plan, anum, resample_size=10):
         robot_pose = []
         assert anum + 1 <= len(plan.actions)
 
@@ -70,7 +70,7 @@ class CanSolver(backtrack_ll_solver.BacktrackLLSolver):
                 closest_ind = np.argmin(np.sum(np.abs(rposes - old_r_arm_pose), axis=1))
                 rpose = rposes[closest_ind]
 
-                robot_poses.append({'lArmPose': old_l_arm_pose,
+                robot_pose.append({'lArmPose': old_l_arm_pose,
                                     'lGripper': np.array([[GRIPPER_OPEN_VAL]]),
                                     'rArmPose': rpose,
                                     'rGripper': np.array([[GRIPPER_OPEN_VAL]]),
@@ -88,7 +88,7 @@ class CanSolver(backtrack_ll_solver.BacktrackLLSolver):
                 closest_ind = np.argmin(np.sum(np.abs(lposes - old_l_arm_pose), axis=1))
                 lpose = lposes[closest_ind]
 
-                robot_poses.append({'lArmPose': lpose,
+                robot_pose.append({'lArmPose': lpose,
                                     'lGripper': np.array([[GRIPPER_OPEN_VAL]]),
                                     'rArmPose': old_r_arm_pose,
                                     'rGripper': np.array([[GRIPPER_OPEN_VAL]]),
@@ -106,7 +106,7 @@ class CanSolver(backtrack_ll_solver.BacktrackLLSolver):
                 closest_ind = np.argmin(np.sum(np.abs(rposes - old_r_arm_pose), axis=1))
                 rpose = rposes[closest_ind]
 
-                robot_poses.append({'lArmPose': old_l_arm_pose,
+                robot_pose.append({'lArmPose': old_l_arm_pose,
                                     'lGripper': np.array([[GRIPPER_OPEN_VAL]]),
                                     'rArmPose': rpose,
                                     'rGripper': np.array([[GRIPPER_OPEN_VAL]]),
@@ -124,7 +124,7 @@ class CanSolver(backtrack_ll_solver.BacktrackLLSolver):
                 closest_ind = np.argmin(np.sum(np.abs(lposes - old_l_arm_pose), axis=1))
                 lpose = lposes[closest_ind]
 
-                robot_poses.append({'lArmPose': lpose,
+                robot_pose.append({'lArmPose': lpose,
                                     'lGripper': np.array([[GRIPPER_OPEN_VAL]]),
                                     'rArmPose': old_r_arm_pose,
                                     'rGripper': np.array([[GRIPPER_OPEN_VAL]]),

@@ -1,6 +1,6 @@
-def get_vec(num_cans):
+def get_vector(num_cans):
     state_vector_include = {
-        'baxter': ['pose', 'gripper'] 
+        'pr2': ['pose', 'gripper'] 
     }
 
     for i in range(num_cans):

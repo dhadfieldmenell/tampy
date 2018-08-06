@@ -15,7 +15,7 @@ from openravepy import RaveCreatePhysicsEngine
 from gps.agent.agent import Agent
 from gps.agent.agent_utils import generate_noise
 from gps.agent.config import AGENT
-from gps.sample.sample import Sample
+#from gps.sample.sample import Sample
 from gps.sample.sample_list import SampleList
 
 import core.util_classes.baxter_constants as const
@@ -23,9 +23,10 @@ import core.util_classes.items as items
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 
-from policy_hooks.can_world_policy_utils import *
-from policy_hooks.policy_solver_utils import STATE_ENUM, OBS_ENUM, ACTION_ENUM, NOISE_ENUM, EE_ENUM, GRIPPER_ENUM, COLORS_ENUM, TRAJ_HIST_ENUM, TASK_ENUM
-import policy_hooks.policy_solver_utils as utils
+from policy_hooks.sample import Sample
+from policy_hooks.utils.policy_solver_utils import *
+import policy_hooks.utils.policy_solver_utils as utils
+from policy_hooks.namo.sorting_prob import *
 
 
 class NAMOSortingAgent(Agent):
@@ -33,9 +34,11 @@ class NAMOSortingAgent(Agent):
         Agent.__init__(self, hyperparams)
         # Note: All plans should contain identical sets of parameters
         self.plans = self._hyperparams['plans']
+        self.task_list = self._hyperparams['task_list']
         self.task_durations = self._hyperparams['task_durations']
+        self.task_encoding = self._hyperparams['task_encoding']
         # self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
-        self._samples = []
+        self._samples = {task: [] for task in self.task_list}
         self.state_inds = self._hyperparams['state_inds']
         self.action_inds = self._hyperparams['action_inds']
         self.dX = self._hyperparams['dX']
@@ -43,15 +46,15 @@ class NAMOSortingAgent(Agent):
         self.symbolic_bound = self._hyperparams['symbolic_bound']
         self.solver = self._hyperparams['solver']
         self.num_cans = self._hyperparams['num_cans']
-        self.x0 = self._hyperparams['x0']
+        self.init_vecs = self._hyperparams['x0']
+        self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
         self.targets = self._hyperparams['targets']
-        self.sim = 'mujoco'
-        self.viewers = self._hyperparams['viewers']
-
+        self.target_dim = self._hyperparams['target_dim']
+        self.target_inds = self._hyperparams['target_inds']
         self._get_hl_plan = self._hyperparams['get_hl_plan']
+        self.env = self._hyperparams['env']
+        self.openrave_bodies = self._hyperparams['openrave_bodies']
 
-        self.symbols = [filter(lambda p: p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.plans))]
-        self.params = [filter(lambda p: not p.is_symbol(), self.plans[m].params.values()) for m in range(len(self.plans))]
         self.current_cond = 0
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
         self.initial_opt = True
@@ -74,7 +77,7 @@ class NAMOSortingAgent(Agent):
     def get_samples(self, task):
         samples = []
         for batch in self._samples[task]:
-            samples.extend(SampleList(batch))
+            samples.append(SampleList(batch))
 
         return samples
         
@@ -184,13 +187,15 @@ class NAMOSortingAgent(Agent):
             getattr(self.plans[task].params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
 
         base_t = 0
+        self.T = self.task_durations[task]
         sample = Sample(self)
         sample.init_t = 0
 
         target_vec = np.zeros((self.target_dim,))
 
-        set_param_attrs(plan.params.values(), plan.state_inds, x0, 0)
-        for target in self.targets[condition]:
+        set_params_attrs(plan.params, plan.state_inds, x0, 0)
+        for target_name in self.targets[condition]:
+            target = plan.params[target_name]
             target.value[:,0] = self.targets[condition][target.name]
             target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
 
@@ -201,7 +206,7 @@ class NAMOSortingAgent(Agent):
 
         for t in range(0, self.T):
             X = np.zeros((plan.symbolic_bound))
-            fill_vector(plan.params.values(), plan.state_inds, X, t) 
+            fill_vector(plan.params, plan.state_inds, X, t) 
 
             obs = []
             if OBS_ENUM in self._hyperparams['obs_include']:
@@ -224,28 +229,32 @@ class NAMOSortingAgent(Agent):
                 sample.set(NOISE_ENUM, noise[t], t+i)
                 # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t+i)
                 task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
-                task_vec[self.taks_list.index(task)] = 1.
+                task_vec[self.task_list.index(task)] = 1.
                 sample.set(TASK_ENUM, task_vec, t+i)
                 sample.set(TARGETS_ENUM, target_vec.copy(), t+i)
             
-            if len(self.traj_hist) >= self.hist_len: self.traj_hist.pop(0)
-                self.traj_hist.append(U)
+            if len(self.traj_hist) >= self.hist_len:
+                self.traj_hist.pop(0)
+            self.traj_hist.append(U)
 
-            self.run_policy_step(U)
+            self.run_policy_step(U, X, self.plans[task], t)
 
         return sample
 
     def run_policy_step(self, u, x, plan, t):
         u_inds = self.action_inds
+        x_inds = self.state_inds
         in_gripper = False
 
-        for param, attr in u_inds:
-            getattr(plan.params[param], attr)[:, t+1] = u[param, attr]
+        if t < plan.horizon - 1:
+            for param, attr in u_inds:
+                getattr(plan.params[param], attr)[:, t+1] = u[u_inds[param, attr]]
 
-        for param in plan.params:
-            if param._type == 'Can' and u['pr2', 'gripper'] == 0 and np.sum((x['pr2', 'pose'] - x[param.name, 'pose']))**2 <= 0.0001:
-                param.pose[:, t+1] = u['pr2', 'pose']
-
+            for param in plan.params.values():
+                if param._type == 'Can' and u[u_inds['pr2', 'gripper']] == 0 and np.sum((x[x_inds['pr2', 'pose']] - x[x_inds[param.name, 'pose']]))**2 <= 0.0001:
+                    param.pose[:, t+1] = u[u_inds['pr2', 'pose']]
+                elif param._type == 'Can':
+                    param.pose[:, t+1] = param.pose[:, t]
         return True
 
 
@@ -333,7 +342,7 @@ class NAMOSortingAgent(Agent):
         for t in range(0, final_t-init_t, int(1/utils.POLICY_STEPS_PER_SECOND)):
             utils.fill_vector(self.params[m], self.state_inds, tgt_x[int(t*utils.POLICY_STEPS_PER_SECOND)], t+init_t)
             tgt_u[t, self.action_inds['pr2', 'pose']] = self.plans[m].params['pr2'].pose[:, init_t+t+1]
-            tgt_u[t, self.action_inds['pr2', 'gripper']] = self.plans[m[.params['pr2'].gripper[:, init_t+t1]
+            tgt_u[t, self.action_inds['pr2', 'gripper']] = self.plans[m].params['pr2'].gripper[:, init_t+t1]
 
             utils.fill_vector(self.params[m], self.state_inds, tgt_x[t], t+init_t)
             
@@ -350,33 +359,42 @@ class NAMOSortingAgent(Agent):
                     alg.cur[m][ts].traj_distr.k = self.optimal_act_traj[m][ts:ts+alg.T]
 
 
-    def set_nonopt_attr(self, plan, task):
+    def set_nonopt_attrs(self, plan, task):
         plan.dX, plan.dU, plan.symbolic_bound = self.dX, self.dU, self.symbolic_bound
         plan.state_inds, plan.action_inds = self.state_inds, self.action_inds
 
 
-    def sample_optimal_trajectory(self, x0, task, condition, targets=[]):
-        targets = get_next_target(self.plans[task], x0, task) if not len(targets) else targets
-        plan = get_plan_for_task(task, targets, self.num_cans, self.env, self.openrave_bodies)
+    def sample_optimal_trajectory(self, state, task, condition, targets=[]):
+        targets = get_next_target(self.plans[task], self.init_vecs[condition], task) if not len(targets) else targets
+        plan = get_plan_for_task(task, [target.name for target in targets], self.num_cans, self.env, self.openrave_bodies)
         self.set_nonopt_attrs(plan, task)
+        # set_params_attrs(plan.params, plan.state_inds, self.init_vecs[condition], 0, True)
+        set_params_attrs(plan.params, plan.state_inds, state, 0)
+        for param_name in plan.params:
+            param = plan.params[param_name]
+            if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
+                plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
+
+        plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
         for target in targets:
             if target._type == 'Target':
+                print target, self.targets[condition][target.name]
                 target.value[:,0] = self.targets[condition][target.name]
         success = self.solver._backtrack_solve(plan, n_resamples=3)
         
         class optimal_pol:
-            def act(X, O, t, noise):
+            def act(self, X, O, t, noise):
                 U = np.zeros((plan.dU))
-                fill_vector(plan.params.values(), plan.action_inds, U, t)
+                fill_vector(plan.params, plan.action_inds, U, t)
                 return U
 
-        sample = self.sample_task(optimal_pol(), x0, task, noisy=False): 
+        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
         self.optimal_samples[task].append(sample)
         return sample
 
 
     def get_hl_plan(self, condition):
-        return self._get_hl_plan(self.x0[condition], self.plans.values()[0].params, self.state_inds)
+        return self._get_hl_plan(self.init_vecs[condition], self.plans.values()[0].params, self.state_inds)
 
 
     def update_targets(self, targets, condition):

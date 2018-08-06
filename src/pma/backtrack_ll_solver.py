@@ -114,7 +114,6 @@ class BacktrackLLSolver(LLSolver):
             self.child_solver = self.__class__()
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose, force_init=True)
-
             if not success:
                 ## if planning fails we're done
                 return False

@@ -45,6 +45,7 @@ class Agent(object):
             dim = self._hyperparams['sensor_dims'][sensor]
             self._obs_idx.append(list(range(i, i+dim)))
             i += dim
+
         self.dO = i
 
         # List of indices for each data type in meta data.

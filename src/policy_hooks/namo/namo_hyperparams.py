@@ -25,7 +25,7 @@ from policy_hooks.algorithm_pigps import AlgorithmPIGPS
 from policy_hooks.algorithm_tamp_gps import AlgorithmTAMPGPS
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
-import policy_hooks.policy_solver_utils as utils
+import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'

@@ -23,7 +23,8 @@ from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
 from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
 
-from policy_hooks.policy_solver_utils import TASK_ENUM
+from policy_hooks.mcts import MCTS
+from policy_hooks.utils.policy_solver_utils import TASK_ENUM
 
 
 class LocalControl:
@@ -57,23 +58,23 @@ class GPSMain(object):
         policy_opt = None
         self.task_durations = config['task_durations']
         for task in self.task_list:
-            if task not in task_durations: continue
+            if task not in self.task_durations: continue
             config['algorithm'][task]['policy_opt']['prev'] = policy_opt
             config['algorithm'][task]['agent'] = self.agent
-            config['algorithm'][task]['task_breaks'] = self.agent.task_breaks
-            config['algorithm'][task]['init_traj_distr']['T'] = task_durations[task]
+            config['algorithm'][task]['init_traj_distr']['T'] = self.task_durations[task]
             self.alg_map[task] = config['algorithm'][task]['type'](config['algorithm'][task], task)
             policy_opt = self.alg_map[task].policy_opt
+            self.alg_map[task].set_conditions(len(self.agent.x0))
 
         self.policy_opt = policy_opt
 
         self.mcts = []
         num_samples = self._hyperparams['num_samples']
-        rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in tasks}
-        for condition in range(self._conditions):
+        rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
+        for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
-                                  tasks,
-                                  self.policy_opt.traj_distr
+                                  self.task_list,
+                                  self.policy_opt.task_distr,
                                   self._hyperparams['cost_f'],
                                   self._hyperparams['goal_f'],
                                   self._hyperparams['target_f'],
@@ -102,22 +103,29 @@ class GPSMain(object):
             on_policy = False # self.algorithm._hyperparams['sample_on_policy']
             # traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
             replace_conds = True # self.algorithm._hyperparams['policy_sample_mode'] == 'replace'
-            self.agent.init_cost_trajectories(self.alg_map, center=True)
 
             for itr in range(itr_start, self._hyperparams['iterations']):
+                paths = []
                 for cond in self._train_idx:
-                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'])
+                    if self.iter_count > 0:
+                        rollout_policies = self.rollout_policies
+                    else:
+                        rollout_policies = {task: self.alg_map[task].cur[cond].traj_distr for task in self.task_list}
+                    new_paths, val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], new_policies=rollout_policies)
+                    paths.extend(new_paths)
                     if val > 0:
                         opt_hl_plan = self.agent.get_hl_plan(cond)
-                        self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], opt_hl_plan)
-                        
-                traj_sample_lists = {task: 
-                    self.agent.get_samples(task) for task in self.taks_list}
+                        opt_path, val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], opt_hl_plan)
+                        paths.extend(opt_path)
+                traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
 
                 # Clear agent samples.
                 self.agent.clear_samples()
 
-                self._take_iteration(itr, traj_sample_lists)
+                path_samples = []
+                for path in paths:
+                    path_samples.extend(path)
+                self._take_iteration(itr, traj_sample_lists, path_samples)
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 if replace_conds:
                     self.agent.replace_all_conds()
@@ -291,7 +299,7 @@ class GPSMain(object):
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
 
-    def _take_iteration(self, itr, sample_lists):
+    def _take_iteration(self, itr, sample_lists, paths):
         """
         Take an iteration of the algorithm.
         Args:
@@ -305,7 +313,7 @@ class GPSMain(object):
             task_num = self.agent.task_encoding[task]
             if len(sample_lists[task]):
                 self.alg_map[task].iteration(sample_lists[task], self.agent.optimal_samples[task])
-        self.update_primitives()
+        self.update_primitives(paths)
         if self.gui:
             self.gui.stop_display_calculating()
 

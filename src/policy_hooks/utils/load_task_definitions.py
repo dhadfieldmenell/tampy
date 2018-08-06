@@ -36,7 +36,7 @@ def fill_params(plan_str, values):
 def get_task_encoding(task_list):
     encoding = {}
     for i in range(len(task_list)):
-        encoding[task_list[i]] = np.zeros((len(task_list))
+        encoding[task_list[i]] = np.zeros((len(task_list)))
         encoding[task_list[i]][i] = 1
 
     return encoding
