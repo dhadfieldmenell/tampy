@@ -40,6 +40,8 @@ class MCTS:
             target = self.agent.plans.values()[0].params[target_name]
             self.targets[self.agent.target_inds[target.name, 'value']] = self.agent.targets[condition][target.name]
 
+        self._opt_cache = {}
+
     def prob_func(self, state):
         return self._prob_func(state).flatten()
 
@@ -153,7 +155,7 @@ class MCTS:
         next_node = self._select_from_explored(state, node)
         return next_node
 
-    def sample(self, task, cur_state, target):
+    def sample(self, task, cur_state, target, node=None):
         samples = []
 
         for n in range(self.num_samples):
@@ -171,15 +173,23 @@ class MCTS:
 
         # If the motion policy is not optimal yet, want to collect optimal trajectories from the motion planner
         if sample_costs[lowest_cost_sample] > 0:
-            opt_sample = self.agent.sample_optimal_trajectory(cur_state, task, self.condition, target)
-            if opt_sample != None:
-                opt_X, opt_U = opt_sample.get_X(), opt_sample.get_U()
-                samples.append(opt_sample)
+            if node not in self._opt_cache:
+                opt_sample = self.agent.sample_optimal_trajectory(cur_state, task, self.condition, target)
+                if opt_sample != None:
+                    opt_X, opt_U = opt_sample.get_X(), opt_sample.get_U()
+                    samples.append(opt_sample)
+                    for sample in samples:
+                        sample.set_ref_X(opt_X)
+                        sample.set_ref_U(opt_U)
+                    if node != None:
+                        self._opt_cache[node] = (opt_X, opt_U)
+                else:
+                    opt_fail = True
+            else:
                 for sample in samples:
+                    opt_X, opt_U = self._opt_cache[node]
                     sample.set_ref_X(opt_X)
                     sample.set_ref_U(opt_U)
-            else:
-                opt_fail = True
 
         if sample_costs[lowest_cost_sample] == 0 or opt_fail:
             for sample in samples:
@@ -217,7 +227,7 @@ class MCTS:
             if target[0] == None:
                 break
 
-            next_sample, cur_state = self.sample(task, cur_state, target)
+            next_sample, cur_state = self.sample(task, cur_state, target, next_node)
 
             current_node.sample_links[next_sample] = prev_sample # Used to retrace paths
             prev_sample = next_sample
