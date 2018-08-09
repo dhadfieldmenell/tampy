@@ -50,7 +50,7 @@ def get_lstm_input_layer(dim_input, dim_output, lstm_steps):
         action: mu, the ground truth actions we're trying to learn.
         precision: precision matrix used to commpute loss."""
     net_input = tf.placeholder("float", [None, lstm_steps, dim_input], name='nn_input')
-    action = tf.placeholder('float', [None, dim_output], name='action')
+    action = tf.placeholder('float', [None, lstm_steps, dim_output], name='action')
     precision = tf.placeholder('float', [None, dim_output, dim_output], name='precision')
     return net_input, action, precision
 
@@ -63,9 +63,12 @@ def get_mlp_layers(mlp_input, number_layers, dimension_hidden):
     weights = []
     biases = []
     for layer_step in range(0, number_layers):
-        in_shape = cur_top.get_shape().dims[1].value
-        cur_weight = init_weights([in_shape, dimension_hidden[layer_step]], name='w_' + str(layer_step))
-        cur_bias = init_bias([dimension_hidden[layer_step]], name='b_' + str(layer_step))
+        in_shape = [d.value for d in cur_top.get_shape().dims[1:]]
+        in_shape.append(dimension_hidden[layer_step])
+        cur_weight = init_weights(in_shape, name='w_' + str(layer_step))
+        bias_shape = [dimension_hidden[layer_step]]
+        if len(in_shape) > 1: bias_shape.insert(0, in_shape[0])
+        cur_bias = init_bias(bias_shape, name='b_' + str(layer_step))
         weights.append(cur_weight)
         biases.append(cur_bias)
         if layer_step != number_layers-1:  # final layer has no RELU
@@ -105,7 +108,7 @@ def tf_lstm_network(dim_input, dim_output, batch_size, network_config=None):
 
     init_state, final_state, lstm_out = get_lstm_layers(lstm_size, n_lstm_layers, lstm_steps, nn_inputs, batch_size)
     
-    mlp_applied, weights, biases = get_mlp_layers(lstm_out[:,-1], n_layers, dim_hidden)
+    mlp_applied, weights, biases = get_mlp_layers(lstm_out, n_layers, dim_hidden)
     fc_vars = weights + biases
 
     loss_out = get_loss_layer(mlp_out=mlp_applied, action=action, precision=precision, batch_size=batch_size)
