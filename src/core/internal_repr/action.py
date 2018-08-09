@@ -28,7 +28,7 @@ class Action(object):
     def __repr__(self):
         return "%d: %s %s %s"%(self.step_num, self.name, self.active_timesteps, " ".join([p.name for p in self.params]))
 
-    def get_failed_preds(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-4):
+    def get_failed_preds(self, active_ts=None, priority=MAX_PRIORITY, tol=1e-4):
         if active_ts is None:
             active_ts = self.active_timesteps
         failed = []

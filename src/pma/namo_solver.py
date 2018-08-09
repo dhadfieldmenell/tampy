@@ -6,10 +6,10 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
         if a.name == 'moveto':
             ## find possible values for the final pose
-            rs_param = a.params[2]
+            rs_param = None # a.params[2]
         elif a.name == 'movetoholding':
             ## find possible values for the final pose
-            rs_param = a.params[2]
+            rs_param = None # a.params[2]
         elif a.name == 'grasp':
             ## sample the grasp/grasp_pose
             rs_param = None # a.params[4]

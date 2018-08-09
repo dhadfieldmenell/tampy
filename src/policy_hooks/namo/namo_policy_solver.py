@@ -78,12 +78,13 @@ class NAMOPolicySolver(NAMOSolver):
         env = None
         openrave_bodies = {}
         for task in self.task_list:
-            plans[task] = get_plan_for_task(task, ['can0', 'can0_init_target'], num_cans, env, openrave_bodies)
-            if env is None:
-                env = plans[task].env
-                for param in plans[task].params.values():
-                    if not param.is_symbol():
-                        openrave_bodies[param.name] = param.openrave_body
+            for c in range(num_cans):
+                plans[task, 'can{0}'.format(c)] = get_plan_for_task(task, ['can{0}'.format(c)], num_cans, env, openrave_bodies)
+                if env is None:
+                    env = plans[task, 'can{0}'.format(c)].env
+                    for param in plans[task, 'can{0}'.format(c)].params.values():
+                        if not param.is_symbol():
+                            openrave_bodies[param.name] = param.openrave_body
 
         state_vector_include, action_vector_include, target_vector_include = get_vector(num_cans)
 
@@ -102,6 +103,8 @@ class NAMOPolicySolver(NAMOSolver):
             plan.dX = self.dX
             plan.dU = self.dU
             plan.symbolic_bound = self.symbolic_bound
+            plan.target_dim = self.target_dim
+            plan.target_inds = self.target_inds
 
         sensor_dims = {
             utils.STATE_ENUM: self.symbolic_bound,
@@ -111,6 +114,7 @@ class NAMOPolicySolver(NAMOSolver):
             utils.TARGETS_ENUM: self.target_dim,
         }
 
+        self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name] 
         self.config['goal_f'] = goal_f
         self.config['cost_f'] = cost_f
         self.config['target_f'] = get_next_target

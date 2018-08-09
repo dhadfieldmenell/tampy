@@ -4,7 +4,7 @@
     ],
 
     'putdown': [
-        '0: PUTDOWN PR2 {0} {1} ROBOT_INIT_POSE ROBOT_END_POSE GRASP0'
+        '0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} GRASP0'
     ],
 
 };

@@ -1,13 +1,13 @@
 (define (domain sorting_domain)
-    (:predicates (CanAtTarget ?can ?target)
-                 (CanInGripper ?can)
+    (:predicates (CanAtTarget ?can - Can ?target - Target)
+                 (CanInGripper ?can - Can)
     )
 
     (:types Can Target)
 
     (:action grasp
-        :paramters (?can - Can)
-        :pecondition ((forall ?c - Can) (not (CanInGripper ?c)))
+        :parameters (?can - Can)
+        :precondition (forall (?c - Can) (not (CanInGripper ?c)))
         :effect (CanInGripper ?can)
     )
 

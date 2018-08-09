@@ -114,7 +114,7 @@ class Plan(object):
         return res
 
     #@profile
-    def get_failed_pred(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
+    def get_failed_pred(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-4):
         #just return the first one for now
         t_min = self.horizon+1
         pred = None
@@ -127,7 +127,7 @@ class Plan(object):
         return negated, pred, t_min
 
     #@profile
-    def get_failed_preds(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
+    def get_failed_preds(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-4):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
         failed = []
@@ -135,7 +135,7 @@ class Plan(object):
             failed.extend(a.get_failed_preds(active_ts, priority, tol=tol))
         return failed
 
-    def get_failed_preds_by_action(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
+    def get_failed_preds_by_action(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-4):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
         failed = []

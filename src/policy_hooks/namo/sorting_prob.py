@@ -8,6 +8,7 @@ import random
 
 from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
+from policy_hooks.utils.policy_solver_utils import *
 
 possible_can_locs = list(itertools.product(range(-5, 5), [3]))
 
@@ -43,7 +44,7 @@ def get_sorting_problem(can_locs, targets):
     hl_plan_str += "(:domain sorting_domain)\n"
 
     hl_plan_str += "(:objects"
-    for can in color_map:
+    for can in can_locs:
         hl_plan_str += " {0} - Can".format(can)
 
     for target in targets:
@@ -74,7 +75,7 @@ def parse_initial_state(can_locs, targets):
         closest_target = np.argmin(np.sum((np.array(targets.values()) - loc)**2, axis=1))
         closest_target_name = targets.keys()[closest_target]
 
-        if (targets[closest_target_name] - loc)**2 < 0.001:
+        if np.sum((targets[closest_target_name] - loc)**2) < 0.001:
             hl_init_state += " (CanAtTarget {0} {1})".format(can, closest_target_name)
 
     hl_init_state += ")\n"
@@ -93,22 +94,23 @@ def parse_hl_plan(hl_plan):
         act_params = action.split()
         task = act_params[1].lower()
         next_params = [p.lower() for p in act_params[2:]]
-        plan.append[(task, next_params)]
+        plan.append((task, next_params))
     return plan
 
 def hl_plan_for_state(state, param_map, state_inds):
     can_locs = {}
     targets = {}
 
-    for param in params:
-        if param_map[param._type] == 'Can':
-            can_locs[param.name] = state[state_inds(param.name, 'pose')]
+    for param_name in param_map:
+        param = param_map[param_name]
+        if param_map[param_name]._type == 'Can':
+            can_locs[param.name] = state[state_inds[param.name, 'pose']]
 
         # Don't pay attention to initial targets
-        if param_map[param._type] == 'Target' and not param.name.contains('init'):
-            targets[param.name] = state[state_inds(param.name, 'pose')]
+        if param_map[param_name]._type == 'Target':
+            targets[param.name] = state[state_inds[param.name, 'value']]
 
-    prob = get_sorting_prob(can_locs, targets)
+    prob, goal = get_sorting_problem(can_locs, targets)
     hl_plan = get_hl_plan(prob)
     return parse_hl_plan(hl_plan)
 
@@ -258,8 +260,8 @@ def get_next_target(plan, state, task, target_poses):
         for param in plan.params.values():
             if param._type != 'Can': continue
             param_pose = state[plan.state_inds[param.name, 'pose']]
-            if np.sum((param_pose - target_poses['{0}_end_target'.format(param.name)])**2) > 0.0001:
-                return [param]
+            if np.sum((param_pose - target_poses['{0}_end_target'.format(param.name)])**2) > 0.001:
+                return param, plan.params['{0}_init_target'.format(param.name)]
     
     if task == 'putdown':
         target_occupied = False
@@ -291,12 +293,41 @@ def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
 
     return plan_from_str(next_task_str, prob_file.format(num_cans), domain_file, env, openrave_bodies)
 
-def cost_f(Xs, task, params, targets, plan):
+def cost_f(Xs, task, params, targets, plan, active_ts=None):
+    tol = 1e-2
+
+    if active_ts == None:
+        active_ts = (1, plan.horizon-1)
+
+    for t in range(active_ts[0], active_ts[1]):
+        set_params_attrs(plan.params, plan.state_inds, Xs[t], t)
+
+    plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
+    plan.params['robot_end_pose'].value[:,0] = plan.params['pr2'].pose[:,-1]
+    plan.params['{0}_init_target'.format(params[0].name)].value[:,0] = plan.params[params[0].name].pose[:,0]
+    plan.params['{0}_end_target'.format(params[0].name)].value[:,0] = targets['{0}_end_target'.format(params[0].name)]
+
+    failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+
+    cost = 0
+    for failed in failed_preds:
+        for t in range(active_ts[0], active_ts[1]+1):
+            if t + failed[1].active_range[1] > active_ts[1]:
+                break
+
+            try:
+                cost += np.max(failed[1].check_pred_violation(t, negated=failed[0], tol=tol))
+            except:
+                import ipdb; ipdb.set_trace()
+
+    return cost
+    
+    # Below this was an old approach
     if task.lower() == 'putdown':
         X = Xs[-1]
         can = params[0]
         target = params[1]
-        dist = np.sum((X[plan.state_inds[can.name, 'pose']] - targets[target.name].value[:,0])**2)
+        dist = np.sum((X[plan.state_inds[can.name, 'pose']] - targets[target.name])**2)
         if dist < 0.001: return 0
         return dist
     

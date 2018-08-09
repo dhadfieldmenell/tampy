@@ -301,7 +301,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         tgt_prc = tgt_wt * tgt_prc
 
         # Assuming that N*T >= self.batch_size.
-        batches_per_epoch = np.floor(N / self.batch_size)
+        batch_size = np.minimum(self.batch_size, N)
+        batches_per_epoch = np.floor(N / batch_size)
         idx = range(N)
         average_loss = 0
         np.random.shuffle(idx)
@@ -309,11 +310,11 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         if self._hyperparams['fc_only_iterations'] > 0:
             feed_dict = {self.obs_tensor: obs}
             num_values = obs.shape[0]
-            conv_values = self.primitive_solver.get_last_conv_values(self.sess, feed_dict, num_values, self.batch_size)
+            conv_values = self.primitive_solver.get_last_conv_values(self.sess, feed_dict, num_values, batch_size)
             for i in range(self._hyperparams['fc_only_iterations'] ):
-                start_idx = int(i * self.batch_size %
-                                (batches_per_epoch * self.batch_size))
-                idx_i = idx[start_idx:start_idx+self.batch_size]
+                start_idx = int(i * batch_size %
+                                (batches_per_epoch * batch_size))
+                idx_i = idx[start_idx:start_idx+batch_size]
                 feed_dict = {self.primitive_last_conv_vars: conv_values[idx_i],
                              self.primitive_action_tensor: tgt_mu[idx_i],
                              self.primitive_precision_tensor: tgt_prc[idx_i]}

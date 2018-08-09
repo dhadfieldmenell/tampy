@@ -19,7 +19,7 @@ class MCTSNode():
         self.value = (self.value*(self.n_explored-1) + new_value) / self.n_explored
 
 class MCTS:
-    def __init__(self, tasks, prob_func, cost_f, goal_f, target_f, rollout_policy, condition, agent, num_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20):
+    def __init__(self, tasks, prob_func, plan_f, cost_f, goal_f, target_f, rollout_policy, condition, agent, num_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20):
         self.tasks = tasks
         self._prob_func = prob_func
         self.root = MCTSNode(-1, -1, None, len(tasks))
@@ -31,6 +31,7 @@ class MCTS:
         self.C = C
         self.num_samples = num_samples
         self._choose_next = choose_next if choose_next != None else self._default_choose_next
+        self._plan_f = plan_f
         self._cost_f = cost_f 
         self._goal_f = goal_f
         self._target_f = target_f
@@ -53,18 +54,26 @@ class MCTS:
         if hl_plan == None:
             for n in range(num_rollouts):
                 print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
-                paths.append(self.simulate(state))
-                end = paths[-1][-1]
+                next_path = self.simulate(state)
+                if not len(next_path):
+                    continue
+                    paths.append(next_path)
+                end = next_path[-1]
                 opt_val = np.minimum(self._goal_f(end.get_X(t=end.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0]), opt_val)
         else:
             cur_state = state
             paths = [[]]
             for step in hl_plan:
                 targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
-                next_sample, cur_state = self.sample(step[0], cur_state, targets)
+                if len(targets) < 2:
+                    targets.append(self.agent.plans.values()[0].params['{0}_init_target'.format(p_name)])
+                plan = self._plan_f(step[0], targets)
+                # next_sample, cur_state = self.sample(step[0], cur_state, targets, plan)
+                next_sample = self.agent.sample_optimal_trajectory(cur_state, step[0], self.condition, targets)
+                cur_state = next_sample.get_X(t=next_sample.T-1)
                 paths[0].append(next_sample)
                 next_sample.task_cost = 0
-            opt_val = np.minimum(self._goal_f(next_sample.get_X(t=end.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0]), opt_val)
+            opt_val = np.minimum(self._goal_f(next_sample.get_X(t=next_sample.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0]), opt_val)
         return paths, opt_val
 
     '''
@@ -91,7 +100,7 @@ class MCTS:
         while np.any(prob_distr > 0):
             next_ind = np.argmax(prob_distr)
             prob_distr[next_ind] = 0
-            target = self._target_f(self.agent.plans[self.tasks[next_ind]], state, self.tasks[next_ind], self.agent.targets[self.condition])
+            target = self._target_f(self.agent.plans.values()[0], state, self.tasks[next_ind], self.agent.targets[self.condition])
             if target[0] != None:
                 next_node = MCTSNode(next_ind, 0, node, len(self.tasks))
                 cost = self.simulate_from_next(next_node, state, prev_sample)
@@ -115,7 +124,7 @@ class MCTS:
         while np.any(prob_distr > 0):
             next_ind = np.argmax(prob_distr)
             prob_distr[next_ind] = 0
-            target = self._target_f(self.agent.plans[self.tasks[next_ind]], state, self.tasks[next_ind], self.agent.targets[self.condition])
+            target = self._target_f(self.agent.plans.values()[0], state, self.tasks[next_ind], self.agent.targets[self.condition])
             if target[0] != None:
                 return node.children[next_ind]
 
@@ -155,22 +164,24 @@ class MCTS:
         next_node = self._select_from_explored(state, node)
         return next_node
 
-    def sample(self, task, cur_state, target, node=None):
+    def sample(self, task, cur_state, target, plan, node=None):
         samples = []
 
         for n in range(self.num_samples):
-            samples.append(self.agent.sample_task(self.rollout_policy[task], self.condition, cur_state, task, noisy=True))
+            samples.append(self.agent.sample_task(self.rollout_policy[task], self.condition, cur_state, (task, target[0].name), noisy=True))
 
         sample_costs = {}
         for sample in samples:
             # Note: the cost function needs to describe any dynamics not enforced by the sim (such as collisions in openrave)
-            sample_costs[sample] = self._cost_f(sample.get_X(), task, target, self.agent.targets[self.condition], self.agent.plans[task])
+            sample_costs[sample] = self._cost_f(sample.get_X(), task, target, self.agent.targets[self.condition], plan)
+            sample.plan = plan
 
         lowest_cost_ind = np.argmin(sample_costs.values())
         lowest_cost_sample = sample_costs.keys()[lowest_cost_ind]
 
         opt_fail = False
 
+        '''
         # If the motion policy is not optimal yet, want to collect optimal trajectories from the motion planner
         if sample_costs[lowest_cost_sample] > 0:
             if node not in self._opt_cache:
@@ -200,6 +211,7 @@ class MCTS:
                 else:
                     sample.set_ref_X(sample.get_X().copy())
                     sample.set_ref_U(sample.get_U().copy())
+        '''
 
         self.agent.add_sample_batch(samples, task)
         cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
@@ -223,11 +235,17 @@ class MCTS:
                 break
 
             task = self.tasks[next_node.label]
-            target = self._target_f(self.agent.plans[task], cur_state, task, self.agent.targets[self.condition])
-            if target[0] == None:
+            target = self._target_f(self.agent.plans.values()[0], cur_state, task, self.agent.targets[self.condition])
+            if target[0] is None:
                 break
 
-            next_sample, cur_state = self.sample(task, cur_state, target, next_node)
+            plan = self._plan_f(task, target)
+            if self._cost_f(state, task, target, self.agent.targets[self.condition], plan, active_ts=(0,0)) > 0:
+                break
+            # if target[0] == None:
+            #     break
+
+            next_sample, cur_state = self.sample(task, cur_state, target, plan)
 
             current_node.sample_links[next_sample] = prev_sample # Used to retrace paths
             prev_sample = next_sample
@@ -236,11 +254,10 @@ class MCTS:
             path.append(current_node)
 
             # For task planning, asks "would this have been the best course of action if I'd moved optimally?"
-            if self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans[task]) == 0 or current_node.depth >= self.max_depth:
+            if self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0]) == 0 or current_node.depth >= self.max_depth:
                 break
 
-        end_ts = self.agent.plans[task].horizon - 1
-        path_value = self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans[task])
+        path_value = self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
         path = []
         while current_node is not self.root:
             path.append(prev_sample)
@@ -261,21 +278,26 @@ class MCTS:
     def _simulate_from_next(self, task_ind, depth, state, prob_func, samples):
         task = self.tasks[task_ind]
         new_samples = []
-        target = self._target_f(self.agent.plans[task], state, task, self.agent.targets[self.condition])
+        target = self._target_f(self.agent.plans.values()[0], state, task, self.agent.targets[self.condition])
+        if target[0] is None:
+            return self._goal_f(state, self.agent.targets[self.condition], self.agent.plans.values()[0]), samples
 
-        if target[0] == None:
-            return self._goal_f(state, self.agent.targets[self.condition], self.agent.plans[task]), samples 
+        plan = self._plan_f(task, target)
+        if self._cost_f(state, task, target, self.agent.targets[self.condition], plan, active_ts=(0,0)) > 0:
+            return self._goal_f(state, self.agent.targets[self.condition], self.agent.plans.values()[0]), samples
+        # if target[0] == None:
+        #     return self._goal_f(state, self.agent.targets[self.condition], self.agent.plans[task]), samples 
 
-        next_sample, end_state = self.sample(task, state, target)
+        next_sample, end_state = self.sample(task, state, target, plan)
 
         samples.append(next_sample)
 
         # Refer to what the end state would have been moving optimally
-        path_value = self._goal_f(end_state, self.agent.targets[self.condition], self.agent.plans[task])
-        if path_value == 0 or depth >= self.max_depth * 2:
+        path_value = self._goal_f(end_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
+        if path_value == 0 or depth >= self.max_depth:
             for sample in samples:
                 sample.task_cost = path_value
-            return self._goal_f(end_state, self.agent.targets[self.condition], self.agent.plans[task]), samples
+            return self._goal_f(end_state, self.agent.targets[self.condition], self.agent.plans.values()[0]), samples
 
         prob_distr = prob_func([np.concatenate([end_state, self.targets])])
         if np.random.sample() > self.soft_decision:

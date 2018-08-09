@@ -53,6 +53,7 @@ class GPSMain(object):
         self.data_logger = DataLogger()
         self.gui = GPSTrainingGUI(config['common']) if config['gui_on'] else None
 
+        self.replace_conds = self._hyperparams['stochastic_conditions']
         self.task_list = config['task_list']
         self.alg_map = {}
         policy_opt = None
@@ -65,20 +66,22 @@ class GPSMain(object):
             self.alg_map[task] = config['algorithm'][task]['type'](config['algorithm'][task], task)
             policy_opt = self.alg_map[task].policy_opt
             self.alg_map[task].set_conditions(len(self.agent.x0))
+            self.alg_map[task].agent = self.agent
 
         self.policy_opt = policy_opt
 
         self.mcts = []
+        self.rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
         num_samples = self._hyperparams['num_samples']
-        rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
         for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
                                   self.task_list,
                                   self.policy_opt.task_distr,
+                                  self._hyperparams['plan_f'],
                                   self._hyperparams['cost_f'],
                                   self._hyperparams['goal_f'],
                                   self._hyperparams['target_f'],
-                                  rollout_policies,
+                                  self.rollout_policies,
                                   condition,
                                   self.agent,
                                   num_samples,  
@@ -97,12 +100,6 @@ class GPSMain(object):
             # log_file.write("\n{0}\n".format(datetime.now().isoformat()))
             # log_file.close()
             itr_start = self._initialize(itr_load)
-
-            # self.agent.optimize_trajectories(self.algorithm)
-            # self.agent.replace_all_conds()
-            on_policy = False # self.algorithm._hyperparams['sample_on_policy']
-            # traj_opt = self.algorithm._hyperparams['traj_opt']['type'] == TrajOptPI2
-            replace_conds = True # self.algorithm._hyperparams['policy_sample_mode'] == 'replace'
 
             for itr in range(itr_start, self._hyperparams['iterations']):
                 paths = []
@@ -127,8 +124,8 @@ class GPSMain(object):
                     path_samples.extend(path)
                 self._take_iteration(itr, traj_sample_lists, path_samples)
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
-                if replace_conds:
-                    self.agent.replace_all_conds()
+                # if self.replace_conds:
+                #     self.agent.replace_all_conds()
 
                 # pol_sample_lists = self._take_policy_samples()
                 # log_file = open("avg_cost_log.txt", "a+")

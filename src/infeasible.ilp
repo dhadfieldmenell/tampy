@@ -1,11 +1,9 @@
 Minimize
-  + 38.64150455680154 Constant
+  + 33.18406378119999 Constant
 Subject To
- R2: (robot_init_pose-value-(1,_0)) = 1
- R13: (pr2-pose-(1,_0)) = -0.424262627173106
- R17: - (robot_init_pose-value-(1,_0)) + (pr2-pose-(1,_0)) = 0
+ R14: (pr2-gripper-(0,_0)) = -0.0565463968904649
+ R19: (pr2-gripper-(0,_0)) = 1
 Bounds
- (robot_init_pose-value-(1,_0)) free
- (pr2-pose-(1,_0)) free
+ (pr2-gripper-(0,_0)) free
  Constant = 1
 End

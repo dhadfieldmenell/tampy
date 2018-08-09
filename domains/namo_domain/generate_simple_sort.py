@@ -39,12 +39,12 @@ def main():
         s += "(geom can%d_end_target 1), (value can%d_end_target %s), "%(i, i, list(coords[i]))
     s += "(value grasp0 undefined), "
     s += "(geom %s 0.4), (pose %s %s), "%("pr2", "pr2", [0, 0])
-    s += "(gripper pr2 [1.]), "
+    s += "(gripper pr2 [0.]), "
     s += "(value %s %s), "%("robot_init_pose", [0., 0.])
-    s += "(value %s %s), "%("robot_end_pose", "undefined")
-    s += "(gripper %s [1.]), "%("robot_init_pose")
-    s += "(gripper %s undefined), "%("robot_end_pose")
-    s += "(value %s [0,, 0.]); "%("middle_target")
+    s += "(value %s %s), "%("robot_end_pose", [0., 0.])
+    s += "(gripper %s [0.]), "%("robot_init_pose")
+    s += "(gripper %s [0.]), "%("robot_end_pose")
+    s += "(value %s [0., 0.]); "%("middle_target")
 #    s += "(pose %s [0, 0]), "%"obs0"
 #    s += "(geom %s %s); "%("obs0", "closet")
 

@@ -42,7 +42,7 @@ class Predicate(object):
         except:
             import ipdb; ipdb.set_trace()
 
-    def check_pred_violation(self, t, negated = False, tol = 1e-3):
+    def check_pred_violation(self, t, negated=False, tol=1e-3):
         if self.get_expr(negated=negated) is None:
             return None
 

@@ -58,6 +58,7 @@ algorithm = {
     'kl_step': 1.0,
     'min_step_mult': 0.5,
     'max_step_mult': 3.0,
+    'sample_ts_prob': 1.0,
 }
 
 algorithm['init_traj_distr'] = {
@@ -146,11 +147,11 @@ config = {
     'num_samples': 15,
     'num_conds': NUM_CONDS,
     'mode': 'position',
-    'stochastic_conditions': True,
+    'stochastic_conditions': algorithm['stochastic_conditions'],
     'policy_coeff': 1e0,
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 20
+    'num_rollouts': 5
 }
 
