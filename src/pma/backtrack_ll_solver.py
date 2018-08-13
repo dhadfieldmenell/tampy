@@ -270,7 +270,7 @@ class BacktrackLLSolver(LLSolver):
                 self._add_obj_bexprs(obj_bexprs)
                 self._add_first_and_last_timesteps_of_actions(plan,
                     priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
-                tol = 1e-1
+                tol = 1e-3
                 initial_trust_region_size = 1e3
             elif priority == -1:
                 """
@@ -281,7 +281,7 @@ class BacktrackLLSolver(LLSolver):
                 self._add_first_and_last_timesteps_of_actions(plan,
                     priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
                     add_nonlin=True)
-                tol = 1e-1
+                tol = 1e-3
             elif priority >= 0:
                 obj_bexprs = self._get_trajopt_obj(plan, active_ts)
                 self._add_obj_bexprs(obj_bexprs)
@@ -300,8 +300,8 @@ class BacktrackLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
-        if True or priority == MAX_PRIORITY:
-            success = success or len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+        if priority == MAX_PRIORITY:
+            success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
         self._update_ll_params()
 
         if DEBUG: assert not plan.has_nan(active_ts)

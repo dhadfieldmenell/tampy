@@ -86,6 +86,9 @@ class NAMOPolicySolver(NAMOSolver):
                         if not param.is_symbol():
                             openrave_bodies[param.name] = param.openrave_body
 
+                    # env.SetViewer('qtcoin')
+                    # import ipdb; ipdb.set_trace()
+
         state_vector_include, action_vector_include, target_vector_include = get_vector(num_cans)
 
         self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], 'pr2', ATTRMAP, state_vector_include, action_vector_include)

@@ -63,6 +63,8 @@ class MCTS:
         else:
             cur_state = state
             paths = [[]]
+            cur_sample = None
+            opt_val = np.inf
             for step in hl_plan:
                 targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
                 if len(targets) < 2:
@@ -70,11 +72,22 @@ class MCTS:
                 plan = self._plan_f(step[0], targets)
                 # next_sample, cur_state = self.sample(step[0], cur_state, targets, plan)
                 next_sample = self.agent.sample_optimal_trajectory(cur_state, step[0], self.condition, targets)
-                cur_state = next_sample.get_X(t=next_sample.T-1)
-                paths[0].append(next_sample)
-                next_sample.task_cost = 0
-            opt_val = np.minimum(self._goal_f(next_sample.get_X(t=next_sample.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0]), opt_val)
-        return paths, opt_val
+                if next_sample == None:
+                    break
+                cur_sample = next_sample
+                cur_state = cur_sample.get_X(t=cur_sample.T-1)
+                paths[0].append(cur_sample)
+
+            if cur_sample != None: 
+                opt_val = self._goal_f(cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0])
+                for path in paths:
+                    for sample in path:
+                        sample.task_cost = opt_val
+
+            print "Value of solving HL Plan: ", opt_val
+
+        self.agent.add_task_paths(paths)
+        return opt_val
 
     '''
     def _default_cost_f(self, X, task, target, t_range=None):

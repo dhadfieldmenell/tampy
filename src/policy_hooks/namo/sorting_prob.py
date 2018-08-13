@@ -10,8 +10,9 @@ from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 
-possible_can_locs = list(itertools.product(range(-5, 5), [3]))
-
+possible_can_locs = [(0, 6), (0, 5.5), (0, 5), (0, 4.5), (0, 4), (0, 3.5)]
+possible_can_locs.extend(list(itertools.product(range(-3, 3), range(-1, 3))))
+possible_can_locs.remove((0, 0))
 
 prob_file = "../domains/namo_domain/namo_probs/sort_prob_{0}.prob"
 domain_file = "../domains/namo_domain/namo.domain"
@@ -19,11 +20,11 @@ domain_file = "../domains/namo_domain/namo.domain"
 
 def get_end_targets(num_cans):
     targets = {}
-    cur_target = [-4., -4.]
+    cur_target = [0., 6.]
     for n in range(num_cans):
         targets['can{0}_end_target'.format(n)] = cur_target
         cur_target = copy.copy(cur_target)
-        cur_target[0] += 1
+        cur_target[1] -= 0.5
     targets['middle_target'] = [0., 0.]
     return targets
 

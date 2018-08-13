@@ -12,7 +12,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             rs_param = None # a.params[2]
         elif a.name == 'grasp':
             ## sample the grasp/grasp_pose
-            rs_param = None # a.params[4]
+            rs_param = a.params[4]
         elif a.name == 'putdown':
             ## sample the end pose
             rs_param = None # a.params[4]
@@ -37,15 +37,19 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         old_pose = robot.pose[:, start_ts].reshape((2, 1))
         robot_body.set_pose(old_pose[:, 0])
         for i in range(resample_size):
-            if next_act and (next_act.name == 'grasp' or next_act.name == 'putdown'):
+            if next_act != None and (next_act.name == 'grasp' or next_act.name == 'putdown'):
                 target = next_act.params[2]
                 target_pos = target.value - [[0], [0.]]
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]]) if next_act.name == 'putdown' else np.array([[ 0.]])})
             elif act.name == 'grasp' or act.name == 'putdown':
                 target = act.params[2]
-                target_pos = target.value - 0.95 * np.ones((2,1))
+                radius1 = act.params[0].geom.radius
+                radius2 = act.params[1].geom.radius
+                dist = radisu1 + radius2
+                target_pos = target.value - [[0], [dist]]
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]]) if act.name == 'putdown' else np.array([[0.]])})
             else:
                 raise NotImplementedError
+
         return robot_pose
 

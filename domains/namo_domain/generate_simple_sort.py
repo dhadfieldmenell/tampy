@@ -28,25 +28,22 @@ def main():
     s += "RobotPose (name %s); "%"robot_init_pose"
     s += "RobotPose (name %s); "%"robot_end_pose"
     s += "Target (name %s) \n\n"%"middle_target"
-#    s += "Obstacle (name %s) \n\n"%"obs0"
 
     s += "Init: "
     for i in range(NUM_CANS):
-        s += "(geom can%d_init_target 1), (value can%d_init_target %s), "%(i, i, list(coords[i]))
+        s += "(geom can%d_init_target 0.2), (value can%d_init_target %s), "%(i, i, list(coords[i]))
         s += "(value pdp_target%d undefined), "%i
         s += "(gripper pdp_target%d undefined), "%i
-        s += "(geom can%d 0.4), (pose can%d %s), "%(i, i, list(coords[i]))
-        s += "(geom can%d_end_target 1), (value can%d_end_target %s), "%(i, i, list(coords[i]))
+        s += "(geom can%d 0.2), (pose can%d %s), "%(i, i, list(coords[i]))
+        s += "(geom can%d_end_target 0.2), (value can%d_end_target %s), "%(i, i, list(coords[i]))
     s += "(value grasp0 undefined), "
-    s += "(geom %s 0.4), (pose %s %s), "%("pr2", "pr2", [0, 0])
+    s += "(geom %s 0.2), (pose %s %s), "%("pr2", "pr2", [0, 0])
     s += "(gripper pr2 [0.]), "
     s += "(value %s %s), "%("robot_init_pose", [0., 0.])
     s += "(value %s %s), "%("robot_end_pose", [0., 0.])
     s += "(gripper %s [0.]), "%("robot_init_pose")
     s += "(gripper %s [0.]), "%("robot_end_pose")
     s += "(value %s [0., 0.]); "%("middle_target")
-#    s += "(pose %s [0, 0]), "%"obs0"
-#    s += "(geom %s %s); "%("obs0", "closet")
 
     for i in range(NUM_CANS):
         s += "(At can{} can{}_init_target), ".format(i, i)
@@ -57,8 +54,7 @@ def main():
         # s += "(GraspValid pdp_target{} can{}_init_target grasp0), ".format(i, i)
 
     s += "(RobotAt pr2 robot_init_pose), "
-    s += "(IsMP pr2) \n\n "
-#    s += "(StationaryW obs0) \n\n"
+    s += "(IsMP pr2) \n\n"
 
     s += "Goal: %s"%GOAL
 

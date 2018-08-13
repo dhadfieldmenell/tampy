@@ -108,20 +108,22 @@ class GPSMain(object):
                         rollout_policies = self.rollout_policies
                     else:
                         rollout_policies = {task: self.alg_map[task].cur[cond].traj_distr for task in self.task_list}
-                    new_paths, val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], new_policies=rollout_policies)
-                    paths.extend(new_paths)
+                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], new_policies=rollout_policies)
+
                     if val > 0:
                         opt_hl_plan = self.agent.get_hl_plan(cond)
-                        opt_path, val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], opt_hl_plan)
-                        paths.extend(opt_path)
+                        val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], opt_hl_plan)
+
                 traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
 
                 # Clear agent samples.
-                self.agent.clear_samples()
+                self.agent.clear_samples(keep_prob=0.1)
 
                 path_samples = []
-                for path in paths:
+                for path in self.agent.get_task_paths():
                     path_samples.extend(path)
+
+                self.agent.clear_task_paths(keep_prob=0.2)
                 self._take_iteration(itr, traj_sample_lists, path_samples)
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 # if self.replace_conds:

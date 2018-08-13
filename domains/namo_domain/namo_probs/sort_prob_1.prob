@@ -4,6 +4,6 @@
 # The values after each attribute name are the values that get passed into the __init__ method for that attribute's class defined in the domain configuration.
 Objects: Target (name can0_init_target); RobotPose (name pdp_target0); Can (name can0); Target (name can0_end_target); Robot (name pr2); Grasp (name grasp0); RobotPose (name robot_init_pose); RobotPose (name robot_end_pose); Target (name middle_target) 
 
-Init: (geom can0_init_target 1), (value can0_init_target [3, 2]), (value pdp_target0 undefined), (gripper pdp_target0 undefined), (geom can0 0.4), (pose can0 [3, 2]), (geom can0_end_target 1), (value can0_end_target [3, 2]), (value grasp0 undefined), (geom pr2 0.4), (pose pr2 [0, 0]), (gripper pr2 [0.]), (value robot_init_pose [0.0, 0.0]), (value robot_end_pose [0.0, 0.0]), (gripper robot_init_pose [0.]), (gripper robot_end_pose [0.]), (value middle_target [0., 0.]); (At can0 can0_init_target), (Stationary can0), (StationaryNEq can0 can0), (RobotAt pr2 robot_init_pose), (IsMP pr2) 
+Init: (geom can0_init_target 0.2), (value can0_init_target [0, -3]), (value pdp_target0 undefined), (gripper pdp_target0 undefined), (geom can0 0.2), (pose can0 [0, -3]), (geom can0_end_target 0.2), (value can0_end_target [0, -3]), (value grasp0 undefined), (geom pr2 0.2), (pose pr2 [0, 0]), (gripper pr2 [0.]), (value robot_init_pose [0.0, 0.0]), (value robot_end_pose [0.0, 0.0]), (gripper robot_init_pose [0.]), (gripper robot_end_pose [0.]), (value middle_target [0., 0.]); (At can0 can0_init_target), (Stationary can0), (StationaryNEq can0 can0), (RobotAt pr2 robot_init_pose), (IsMP pr2) 
 
- Goal: (RobotAt pr2 robot_end_pose)
+Goal: (RobotAt pr2 robot_end_pose)

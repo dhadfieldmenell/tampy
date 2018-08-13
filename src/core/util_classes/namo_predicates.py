@@ -553,7 +553,7 @@ class InGripper(ExprPredicate):
                                  (self.grasp, [("value", np.array([0, 1], dtype=np.int))])
                                 ])
         # want x0 - x2 = x4, x1 - x3 = x5
-        A = np.array([[1, 0, -1, 0, -1, 0],
+        A = 1e3 * np.array([[1, 0, -1, 0, -1, 0],
                       [0, 1, 0, -1, 0, -1]])
         b = np.zeros((2, 1))
 

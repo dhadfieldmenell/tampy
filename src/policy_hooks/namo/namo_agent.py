@@ -68,6 +68,8 @@ class NAMOSortingAgent(Agent):
         self.optimal_state_traj = [[] for _ in range(len(self.plans))]
         self.optimal_act_traj = [[] for _ in range(len(self.plans))]
 
+        self.task_paths = []
+
         self.get_plan = self._hyperparams['get_plan']
 
         self.in_left_grip = -1
@@ -86,8 +88,26 @@ class NAMOSortingAgent(Agent):
         self._samples[task].append(samples)
 
 
-    def clear_samples(self):
-        self._samples = {task: [] for task in self.task_list}
+    def clear_samples(self, keep_prob=0., keep_opt_prob=1.):
+        for task in self.task_list:
+            n_keep = int(keep_prob * len(self._samples[task]))
+            self._samples[task] = random.sample(self._samples[task], n_keep)
+
+            n_opt_keep = int(keep_opt_prob * len(self.optimal_samples[task]))
+            self.optimal_samples[task] = random.sample(self.optimal_samples[task], n_opt_keep)
+
+
+    def add_task_paths(self, paths):
+        self.task_paths.extend(paths)
+
+
+    def get_task_paths(self):
+        return copy.copy(self.task_paths)
+
+
+    def clear_task_paths(self, keep_prob=0.):
+        n_keep = int(keep_prob * len(self.task_paths))
+        self.task_paths = random.sample(self.task_paths, n_keep)
 
 
     def _reset_hist(self):
@@ -172,10 +192,15 @@ class NAMOSortingAgent(Agent):
                 getattr(plan.params[param], attr)[:, t+1] = u[u_inds[param, attr]]
 
             for param in plan.params.values():
-                if param._type == 'Can' and u[u_inds['pr2', 'gripper']] == 0 and np.sum((x[x_inds['pr2', 'pose']] - x[x_inds[param.name, 'pose']]))**2 <= 0.0001:
-                    param.pose[:, t+1] = u[u_inds['pr2', 'pose']]
-                elif param._type == 'Can':
-                    param.pose[:, t+1] = param.pose[:, t]
+                if param._type == 'Can':
+                    dist = x[x_inds['pr2', 'pose']] - x[x_inds[param.name, 'pose']]
+                    radius1 = param.geom.radius
+                    radius2 = plan.params['pr2'].geom.radius
+                    grip_dist = radius1 + radius2
+                    if u[u_inds['pr2', 'gripper']][0] > 0.9 and dist[0]**2 < 0.01 and np.abs(grip_dist + dist[1]) < 0.01:
+                        param.pose[:, t+1] = u[u_inds['pr2', 'pose']] + [0, grip_dist]
+                    elif param._type == 'Can':
+                        param.pose[:, t+1] = param.pose[:, t]
         return True
 
 
@@ -195,12 +220,15 @@ class NAMOSortingAgent(Agent):
 
         for target in targets:
             if target.name in self.targets[condition]:
-                target.value[:,0] = self.targets[condition][target.name]
+                plan.params[target.name].value[:,0] = self.targets[condition][target.name]
         
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0]
+        dist = plan.params['pr2'].geom.radius + targets[0].geom.radius
+        plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
         success = self.solver._backtrack_solve(plan, n_resamples=3)
-        
+        if not success:
+            return None
+
         class optimal_pol:
             def act(self, X, O, t, noise):
                 U = np.zeros((plan.dU), dtype=np.float32)
@@ -221,4 +249,3 @@ class NAMOSortingAgent(Agent):
 
     def update_targets(self, targets, condition):
         self.targets[condition] = targets
-
