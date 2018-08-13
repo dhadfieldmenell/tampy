@@ -43,7 +43,7 @@ class GPSMain(object):
         self._quit_on_end = quit_on_end
         self._hyperparams = config
         self.agent = config['agent']['type'](config['agent'])
-        self._train_idx = range(len(self.agent.plans))
+        self._train_idx = range(config['num_conds'])
         self._hyperparams=config
         self._test_idx = self._train_idx
         self.iter_count = 0
@@ -117,13 +117,13 @@ class GPSMain(object):
                 traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
 
                 # Clear agent samples.
-                self.agent.clear_samples(keep_prob=0.1)
+                self.agent.clear_samples(keep_prob=0.)
 
                 path_samples = []
                 for path in self.agent.get_task_paths():
                     path_samples.extend(path)
 
-                self.agent.clear_task_paths(keep_prob=0.2)
+                self.agent.clear_task_paths(keep_prob=0.)
                 self._take_iteration(itr, traj_sample_lists, path_samples)
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 # if self.replace_conds:

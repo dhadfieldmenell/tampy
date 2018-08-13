@@ -31,7 +31,7 @@ from policy_hooks.traj_opt_pi2 import TrajOptPI2
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 10
+NUM_CONDS = 50
 
 
 common = {
@@ -144,7 +144,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 15,
+    'num_samples': 20,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': algorithm['stochastic_conditions'],
@@ -152,6 +152,6 @@ config = {
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 5
+    'num_rollouts': 10
 }
 

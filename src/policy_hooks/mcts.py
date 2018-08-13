@@ -54,10 +54,10 @@ class MCTS:
         if hl_plan == None:
             for n in range(num_rollouts):
                 print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
-                next_path = self.simulate(state)
+                next_path = self.simulate(state.copy())
                 if not len(next_path):
                     continue
-                    paths.append(next_path)
+                paths.append(next_path)
                 end = next_path[-1]
                 opt_val = np.minimum(self._goal_f(end.get_X(t=end.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0]), opt_val)
         else:
@@ -237,11 +237,13 @@ class MCTS:
         samples = []
 
         success = True
-        cur_state = state
+        cur_state = state.copy()
         prev_sample = None
         terminated = False
-        opt_state = np.zeros((len(state),))
         while True:
+            if self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0]) == 0 or current_node.depth >= self.max_depth:
+                break
+
             next_node = self._choose_next(cur_state, current_node, prev_sample)
 
             if next_node == None:
@@ -253,7 +255,7 @@ class MCTS:
                 break
 
             plan = self._plan_f(task, target)
-            if self._cost_f(state, task, target, self.agent.targets[self.condition], plan, active_ts=(0,0)) > 0:
+            if self._cost_f(cur_state, task, target, self.agent.targets[self.condition], plan, active_ts=(0,0)) > 0:
                 break
             # if target[0] == None:
             #     break
@@ -266,9 +268,6 @@ class MCTS:
             current_node = next_node
             path.append(current_node)
 
-            # For task planning, asks "would this have been the best course of action if I'd moved optimally?"
-            if self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0]) == 0 or current_node.depth >= self.max_depth:
-                break
 
         path_value = self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
         path = []

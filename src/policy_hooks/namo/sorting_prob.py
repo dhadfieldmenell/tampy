@@ -30,7 +30,14 @@ def get_end_targets(num_cans):
 
 def get_random_initial_state_vec(num_cans, targets, dX, state_inds):
     X = np.zeros((dX, ))
-    can_locs = get_random_initial_can_locations(num_cans)
+    keep = False
+
+    while not keep:
+        can_locs = get_random_initial_can_locations(num_cans)
+        for i in range(num_cans):
+            if can_locs[i][0] != targets['can{0}_end_target'.format(i)][0] or can_locs[i][1] != targets['can{0}_end_target'.format(i)][1]:
+                keep = True
+
     for n in range(num_cans):
         X[state_inds['can{0}'.format(n), 'pose']] = can_locs[n]
         X[state_inds['can{0}_init_target'.format(n), 'value']] = X[state_inds['can{0}'.format(n), 'pose']]

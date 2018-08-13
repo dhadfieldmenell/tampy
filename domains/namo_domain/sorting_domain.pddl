@@ -13,7 +13,8 @@
 
     (:action putdown
         :parameters (?can - Can ?target - Target)
-        :precondition (CanInGripper ?can)
+        :precondition (and (CanInGripper ?can)
+                           (forall (?c - Can) (not (CanAtTarget ?c ?target))))
         :effect (and (not (CanInGripper ?can))
                      (CanAtTarget ?can ?target))
     )
