@@ -163,6 +163,70 @@ class GPSMain(object):
                 obs_data = np.concatenate((obs_data, obs))
         self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
+    def update_distilled(self, optimal_samples=[]):
+        """ Compute the new distilled policy. """
+        dU, dO = self.agent.dU, self.agent.dO
+        # Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dU))
+        tgt_prc, tgt_wt = np.zeros((0, dU, dU)), np.zeros((0,))
+        
+        # Optimize global polciies with optimal samples as well
+        for sample in optimal_samples:
+            T = sample.T
+            data_len = int(self.alg_map.values()[0].sample_ts_prob * T) 
+            mu = np.zeros((0, dU))
+            prc = np.zeros((0, dU, dU))
+            wt = np.zeros((0))
+            obs = np.zeros((0, dO))
+
+            ts = np.random.choice(xrange(T), data_len, replace=False)
+            ts.sort()
+            for t in range(data_len):
+                prc[t] = np.eye(dU)
+                wt[t] = 1.0
+
+            for i in range(data_len):
+                t = ts[i]
+                mu = np.concatenate([mu, sample.get_U(t=t)])
+                obs = np.concatenate([obs, sample.get_obs(t=t)])
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            tgt_prc = np.concatenate((tgt_prc, prc))
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs_data = np.concatenate((obs_data, obs))
+
+        for task in self.alg_map:
+            alg = self.alg_map[taks]
+            for m in range(len(alg.cur)):
+                samples = alg.cur[m].sample_list
+                T = samples[0].T
+                X = samples.get_X()
+                N = len(samples)
+                traj, pol_info = alg.new_traj_distr[m], alg.cur[m].pol_info
+                data_len = int(alg.sample_ts_prob * T)
+                mu = np.zeros((0, dU))
+                prc = np.zeros((0, dU, dU))
+                wt = np.zeros((0,))
+                obs = np.zeros((0, dO))
+                full_obs = samples.get_obs()
+
+                ts = np.random.choice(xrange(T), data_len, replace=False)
+                ts.sort()
+                # Get time-indexed actions.
+                for j in range(data_len):
+                    t = ts[j]
+                    # Compute actions along this trajectory.
+                    prc[:, j, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
+                                              [N, 1, 1])
+                    for i in range(N):
+                        mu = np.concatenate([mu, (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])])
+                    wt = np.concatenate([wt, pol_info.pol_wt[t]])
+                    obs = np.concatenate([obs, full_obs[:, t, :]])
+                tgt_mu = np.concatenate((tgt_mu, mu))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                obs_data = np.concatenate((obs_data, obs))
+        self.policy_opt.update_distilled(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
+
     def test_policy(self, itr, N):
         """
         Take N policy samples of the algorithm state at iteration itr,
@@ -316,6 +380,7 @@ class GPSMain(object):
             if len(sample_lists[task]):
                 self.alg_map[task].iteration(sample_lists[task], self.agent.optimal_samples[task])
         self.update_primitives(paths)
+        self.update_distilled()
         if self.gui:
             self.gui.stop_display_calculating()
 
