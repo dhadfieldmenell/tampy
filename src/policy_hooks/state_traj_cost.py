@@ -7,6 +7,8 @@ from gps.algorithm.cost.config import COST_STATE
 from gps.algorithm.cost.cost import Cost
 from gps.algorithm.cost.cost_utils import evall1l2term, get_ramp_multiplier
 
+from policy_hooks.utils.policy_solver_utils import STATE_ENUM
+
 
 class StateTrajCost(Cost):
     """ Computes l1/l2 distance to a fixed target state. """
@@ -36,7 +38,7 @@ class StateTrajCost(Cost):
             config = self._hyperparams['data_types'][data_type]
             wp = config['wp']
             tgt = sample.get_ref_X().copy()
-            x = sample.get_X()
+            x = sample.get(STATE_ENUM)
             _, dim_sensor = x.shape
 
             wpm = get_ramp_multiplier(

@@ -29,7 +29,7 @@ class Sample(object):
         self._meta = np.empty(self.dM)
         self._meta.fill(np.nan)
         self._ref_U = np.zeros((self.T, self.dU))
-        self._ref_X = np.zeros((self.T, self.dX))
+        self._ref_X = np.zeros((self.T, self.agent.symbolic_bound))
 
         self.task_cost = np.inf
 

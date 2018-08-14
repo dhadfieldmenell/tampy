@@ -40,14 +40,14 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             if next_act != None and (next_act.name == 'grasp' or next_act.name == 'putdown'):
                 target = next_act.params[2]
                 target_pos = target.value - [[0], [0.]]
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]]) if next_act.name == 'putdown' else np.array([[ 0.]])})
+                robot_pose.append({'value': target_pos, 'gripper': np.array([[0.]]) if next_act.name == 'putdown' else np.array([[1.]])})
             elif act.name == 'grasp' or act.name == 'putdown':
                 target = act.params[2]
                 radius1 = act.params[0].geom.radius
                 radius2 = act.params[1].geom.radius
                 dist = radisu1 + radius2
                 target_pos = target.value - [[0], [dist]]
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]]) if act.name == 'putdown' else np.array([[0.]])})
+                robot_pose.append({'value': target_pos, 'gripper': np.array([[0.]]) if act.name == 'putdown' else np.array([[1.]])})
             else:
                 raise NotImplementedError
 

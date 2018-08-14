@@ -199,7 +199,17 @@ class GripperClosed(ExprPredicate):
         val = np.ones((1,1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
+
+        neg_val = np.zeros((1,1))
+        neg_aff_e = AffExpr(A, b)
+        self.neg_expr = EqExpr(neg_aff_e, neg_val)
         super(GripperClosed, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+    def get_expr(self, negated):
+        if negated:
+            return self.neg_expr
+        else:
+            return self.expr
 
 class InContact(CollisionPredicate):
 

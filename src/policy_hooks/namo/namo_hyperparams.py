@@ -31,7 +31,7 @@ from policy_hooks.traj_opt_pi2 import TrajOptPI2
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 50
+NUM_CONDS = 25
 
 
 common = {
@@ -64,14 +64,14 @@ algorithm = {
 algorithm['init_traj_distr'] = {
     'type': init_pd,
     'init_var': 0.01,
-    'pos_gains': 0.01,
+    'pos_gains': 0.05,
 }
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
-    'kl_threshold': 2e0,
+    'kl_threshold': 1e0,
     'covariance_damping': 2.0,
-    'min_temperature': 0.001,
+    'min_temperature': 0.01,
 }
 
 # algorithm['policy_prior'] = {
@@ -144,7 +144,8 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 20,
+    'num_samples': 15,
+    'num_distilled_samples': 5,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': algorithm['stochastic_conditions'],

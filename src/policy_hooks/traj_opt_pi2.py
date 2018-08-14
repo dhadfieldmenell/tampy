@@ -20,6 +20,8 @@ from scipy.optimize import minimize
 from gps.algorithm.traj_opt.config import TRAJ_OPT_PI2
 from gps.algorithm.traj_opt.traj_opt import TrajOpt
 
+from policy_hooks.utils.policy_solver_utils import STATE_ENUM
+
 LOGGER = logging.getLogger(__name__)
 
 class TrajOptPI2(TrajOpt):
@@ -71,7 +73,7 @@ class TrajOptPI2(TrajOpt):
         if not np.any(cur_data[0].get_ref_X()):
             opt_sample = algorithm.agent.sample_optimal_trajectory(cur_data[0].get_X(t=0), cur_data[0].task, cur_data[0].condition)
             for sample in cur_data:
-                sample.set_ref_X(opt_sample.get_X())
+                sample.set_ref_X(opt_sample.get(STATE_ENUM))
                 sample.set_ref_U(opt_sample.get_U())
 
         # We only optimize feedforward controls with PI2. Subtract the feedback

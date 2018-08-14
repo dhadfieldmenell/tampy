@@ -51,6 +51,12 @@ class NAMOSortingAgent(Agent):
         self.targets = self._hyperparams['targets']
         self.target_dim = self._hyperparams['target_dim']
         self.target_inds = self._hyperparams['target_inds']
+        for condition in range(len(self.x0)):
+            target_vec = np.zeros((self.target_dim,))
+            for target_name in self.targets[condition]:
+                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
+            self.x0[condition] = np.concatenate([self.x0[condition], target_vec])
+
         self._get_hl_plan = self._hyperparams['get_hl_plan']
         self.env = self._hyperparams['env']
         self.openrave_bodies = self._hyperparams['openrave_bodies']
@@ -147,32 +153,21 @@ class NAMOSortingAgent(Agent):
             X = np.zeros((plan.symbolic_bound))
             fill_vector(plan.params, plan.state_inds, X, t) 
 
-            obs = []
+            sample.set(STATE_ENUM, X.copy(), t)
             if OBS_ENUM in self._hyperparams['obs_include']:
-                im = self.get_obs()
-                obs = np.r_[obs, im]
+                sample.set(OBS_ENUM, im.copy(), t)
+            sample.set(NOISE_ENUM, noise[t], t)
+            # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
+            task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
+            task_vec[self.task_list.index(task[0])] = 1.
+            sample.set(TASK_ENUM, task_vec, t)
+            sample.set(TARGETS_ENUM, target_vec.copy(), t)
+            sample.task = task[0]
+            sample.condition = condition
+
+            U = policy.act(sample.get_X(t=t), sample.get_obs(t=t), t, noise[t])
+            sample.set(ACTION_ENUM, U.copy(), t)
             
-            if STATE_ENUM in self._hyperparams['obs_include']:
-                obs = np.r_[obs, X]
-
-            if TRAJ_HIST_ENUM in self._hyperparams['obs_include']:
-                obs = np.r_[obs, np.array(self.traj_hist).flatten()]
-
-            U = policy.act(X.copy(), obs, t, noise[t])
-
-            for i in range(1):
-                sample.set(STATE_ENUM, X.copy(), t+i)
-                if OBS_ENUM in self._hyperparams['obs_include']:
-                    sample.set(OBS_ENUM, im.copy(), t+i)
-                sample.set(ACTION_ENUM, U.copy(), t+i)
-                sample.set(NOISE_ENUM, noise[t], t+i)
-                # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t+i)
-                task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
-                task_vec[self.task_list.index(task[0])] = 1.
-                sample.set(TASK_ENUM, task_vec, t+i)
-                sample.set(TARGETS_ENUM, target_vec.copy(), t+i)
-                sample.task = task[0]
-                sample.condition = condition
  
             if len(self.traj_hist) >= self.hist_len:
                 self.traj_hist.pop(0)

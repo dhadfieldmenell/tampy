@@ -1,8 +1,8 @@
 Minimize
-  + 33.18406378119999 Constant
+  + 236.6301908118521 Constant
 Subject To
- R14: (pr2-gripper-(0,_0)) = -0.0565463968904649
- R19: (pr2-gripper-(0,_0)) = 1
+ R9: (pr2-gripper-(0,_0)) = 0
+ R21: (pr2-gripper-(0,_0)) = 1
 Bounds
  (pr2-gripper-(0,_0)) free
  Constant = 1

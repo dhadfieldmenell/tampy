@@ -72,7 +72,6 @@ class GPSMain(object):
 
         self.mcts = []
         self.rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
-        num_samples = self._hyperparams['num_samples']
         for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
                                   self.task_list,
@@ -82,9 +81,11 @@ class GPSMain(object):
                                   self._hyperparams['goal_f'],
                                   self._hyperparams['target_f'],
                                   self.rollout_policies,
+                                  self.policy_opt.distilled_policy,
                                   condition,
                                   self.agent,
-                                  num_samples,  
+                                  self._hyperparams['num_samples'],
+                                  self._hyperparams['num_distilled_samples'],
                                   ))
 
     def run(self, itr_load=None):
@@ -106,13 +107,15 @@ class GPSMain(object):
                 for cond in self._train_idx:
                     if self.iter_count > 0:
                         rollout_policies = self.rollout_policies
+                        use_distilled= True
                     else:
                         rollout_policies = {task: self.alg_map[task].cur[cond].traj_distr for task in self.task_list}
-                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], new_policies=rollout_policies)
+                        use_distilled = False
+                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies)
 
                     if val > 0:
                         opt_hl_plan = self.agent.get_hl_plan(cond)
-                        val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], opt_hl_plan)
+                        val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], hl_plan=opt_hl_plan)
 
                 traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
 
