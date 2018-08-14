@@ -56,5 +56,5 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         self._update_policy(optimal_samples)
 
         # Prepare for next iteration
-        self._advance_iteration_variables()
+        # self._advance_iteration_variables()
 

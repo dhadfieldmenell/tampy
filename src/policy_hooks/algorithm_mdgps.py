@@ -256,7 +256,10 @@ class AlgorithmMDGPS(Algorithm):
         policy_prior = pol_info.policy_prior
         samples = SampleList(self.cur[m].sample_list)
         mode = self._hyperparams['policy_sample_mode']
-        policy_prior.update(samples, self.policy_opt, mode, self.task)
+        try:
+            policy_prior.update(samples, self.policy_opt, mode, self.task)
+        except Exception as e:
+            print 'Policy prior update threw exception: ', e, '\n'
 
         # Fit linearization and store in pol_info.
         pol_info.pol_K, pol_info.pol_k, pol_info.pol_S = \

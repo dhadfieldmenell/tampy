@@ -195,9 +195,12 @@ class GPSMain(object):
             obs_data = np.concatenate((obs_data, obs))
 
         for task in self.alg_map:
-            alg = self.alg_map[taks]
+            alg = self.alg_map[task]
             for m in range(len(alg.cur)):
                 samples = alg.cur[m].sample_list
+                if samples is None:
+                    print "No samples for {0} in distilled update.\n".format(task)
+                    break
                 T = samples[0].T
                 X = samples.get_X()
                 N = len(samples)
@@ -215,17 +218,17 @@ class GPSMain(object):
                 for j in range(data_len):
                     t = ts[j]
                     # Compute actions along this trajectory.
-                    prc[:, j, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
-                                              [N, 1, 1])
+                    prc = np.concatenate([prc, np.tile(traj.inv_pol_covar[t, :, :],
+                                                       [N, 1, 1])])
                     for i in range(N):
-                        mu = np.concatenate([mu, (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])])
-                    wt = np.concatenate([wt, pol_info.pol_wt[t]])
+                        mu = np.concatenate([mu, [traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :]]])
+                    wt = np.concatenate([wt, pol_info.pol_wt[t] * np.ones((N,))])
                     obs = np.concatenate([obs, full_obs[:, t, :]])
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
-        self.policy_opt.update_distilled(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
+        self.policy_opt.update_distilled(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def test_policy(self, itr, N):
         """
@@ -381,6 +384,8 @@ class GPSMain(object):
                 self.alg_map[task].iteration(sample_lists[task], self.agent.optimal_samples[task])
         self.update_primitives(paths)
         self.update_distilled()
+        for task in self.alg_map:
+            self.alg_map[task]._advance_iteration_variables()
         if self.gui:
             self.gui.stop_display_calculating()
 
