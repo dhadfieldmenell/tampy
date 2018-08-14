@@ -86,6 +86,7 @@ class GPSMain(object):
                                   self.agent,
                                   self._hyperparams['num_samples'],
                                   self._hyperparams['num_distilled_samples'],
+                                  max_depth=self._hyperparams['max_tree_depth']
                                   ))
 
     def run(self, itr_load=None):

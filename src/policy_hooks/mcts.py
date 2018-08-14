@@ -19,7 +19,7 @@ class MCTSNode():
         self.value = (self.value*(self.n_explored-1) + new_value) / self.n_explored
 
 class MCTS:
-    def __init__(self, tasks, prob_func, plan_f, cost_f, goal_f, target_f, rollout_policy, distilled_policy, condition, agent, num_samples, num_distilled_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=8):
+    def __init__(self, tasks, prob_func, plan_f, cost_f, goal_f, target_f, rollout_policy, distilled_policy, condition, agent, num_samples, num_distilled_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20):
         self.tasks = tasks
         self._prob_func = prob_func
         self.root = MCTSNode(-1, -1, None, len(tasks))

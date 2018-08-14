@@ -92,7 +92,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
         with tf.variable_scope('distilled'):
             tf_map_generator = self._hyperparams['distilled_network_model']
-            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dP, batch_size=self.batch_size,
+            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dU, batch_size=self.batch_size,
                                       network_config=self._hyperparams['distilled_network_params'])
             self.distilled_obs_tensor = tf_map.get_input_tensor()
             self.distilled_precision_tensor = tf_map.get_precision_tensor()
@@ -396,29 +396,28 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
-        N, T = obs.shape[:2]
+        N, _ = obs.shape[:2]
         dU, dO = self._dU, self._dO
 
         # TODO - Make sure all weights are nonzero?
 
         # Save original tgt_prc.
-        tgt_prc_orig = np.reshape(tgt_prc, [N*T, dU, dU])
+        tgt_prc_orig = np.reshape(tgt_prc, [N, dU, dU])
 
         # Renormalize weights.
-        tgt_wt *= (float(N * T) / np.sum(tgt_wt))
+        tgt_wt *= (float(N) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
         mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
         for n in range(N):
-            for t in range(T):
-                tgt_wt[n, t] = min(tgt_wt[n, t], 2 * mn)
+            tgt_wt[n] = min(tgt_wt[n], 2 * mn)
         # Robust median should be around one.
         tgt_wt /= mn
 
         # Reshape inputs.
-        obs = np.reshape(obs, (N*T, dO))
-        tgt_mu = np.reshape(tgt_mu, (N*T, dU))
-        tgt_prc = np.reshape(tgt_prc, (N*T, dU, dU))
-        tgt_wt = np.reshape(tgt_wt, (N*T, 1, 1))
+        obs = np.reshape(obs, (N, dO))
+        tgt_mu = np.reshape(tgt_mu, (N, dU))
+        tgt_prc = np.reshape(tgt_prc, (N, dU, dU))
+        tgt_wt = np.reshape(tgt_wt, (N, 1, 1))
 
         # Fold weights into tgt_prc.
         tgt_prc = tgt_wt * tgt_prc
@@ -436,9 +435,9 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 obs[:, self.x_idx].dot(self.distilled_policy.scale), axis=0)
         obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.distilled_policy.scale) + self.distilled_policy.bias
 
-        # Assuming that N*T >= self.batch_size.
-        batches_per_epoch = np.floor(N*T / self.batch_size)
-        idx = range(N*T)
+        # Assuming that N >= self.batch_size.
+        batches_per_epoch = np.floor(N / self.batch_size)
+        idx = range(N)
         average_loss = 0
         np.random.shuffle(idx)
 
@@ -487,7 +486,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.tf_iter += self._hyperparams['iterations']
 
         # Optimize variance.
-        A = np.sum(tgt_prc_orig, 0) + 2 * N * T * \
+        A = np.sum(tgt_prc_orig, 0) + 2 * N * \
                 self._hyperparams['ent_reg'] * np.ones((dU, dU))
         A = A / np.sum(tgt_wt)
 

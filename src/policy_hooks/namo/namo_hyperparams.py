@@ -153,6 +153,7 @@ config = {
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 10
+    'num_rollouts': 5,
+    'max_tree_depth': 4,
 }
 
