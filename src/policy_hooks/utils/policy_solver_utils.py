@@ -1,4 +1,3 @@
-import core.util_classes.baxter_constants as const
 from core.util_classes.robot_predicates import CollisionPredicate
 import numpy as np
 

@@ -31,7 +31,7 @@ from policy_hooks.traj_opt_pi2 import TrajOptPI2
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 2
+NUM_CONDS = 1
 
 
 common = {
@@ -58,19 +58,20 @@ algorithm = {
     'kl_step': 1.0,
     'min_step_mult': 0.5,
     'max_step_mult': 3.0,
-    'sample_ts_prob': 1.0,
+    'sample_ts_prob': 0.5,
+    'opt_wt': 1e3,
 }
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.01,
-    'pos_gains': 0.05,
+    'init_var': 0.25,
+    'pos_gains': 0.1,
 }
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
-    'kl_threshold': 1e0,
-    'covariance_damping': 2.0,
+    'kl_threshold': 1e-1,
+    'covariance_damping': 50.0,
     'min_temperature': 0.01,
 }
 
@@ -144,8 +145,8 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 15,
-    'num_distilled_samples': 5,
+    'num_samples': 25,
+    'num_distilled_samples': 2,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': algorithm['stochastic_conditions'],
@@ -153,7 +154,8 @@ config = {
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 5,
+    'num_rollouts': 4,
     'max_tree_depth': 4,
+    'opt_wt': algorithm['opt_wt'],
 }
 

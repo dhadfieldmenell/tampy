@@ -268,7 +268,7 @@ def get_next_target(plan, state, task, target_poses):
         for param in plan.params.values():
             if param._type != 'Can': continue
             param_pose = state[plan.state_inds[param.name, 'pose']]
-            if np.sum((param_pose - target_poses['{0}_end_target'.format(param.name)])**2) > 0.001:
+            if np.sum((param_pose - target_poses['{0}_end_target'.format(param.name)])**2) > 0.01:
                 return param, plan.params['{0}_init_target'.format(param.name)]
     
     if task == 'putdown':
@@ -277,17 +277,17 @@ def get_next_target(plan, state, task, target_poses):
         for param in plan.params.values():
             if param._type != 'Can': continue
             param_pose = state[plan.state_inds[param.name, 'pose']]
-            if np.sum((param_pose-robot_pose)**2) < 0.001:
+            if np.all(np.abs(param_pose-robot_pose-[0, param.geom.radius+plan.params['pr2'].geom.radius]) < 0.4):
                 for param_2 in plan.params.values():
+                    if param_2._type != 'Can': continue
+                    param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
                     if param_2.name != param.name:
                         param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
-                        taget_occupied = target_occupied or (param_2_pose - plan.params['can{0}_end_target'.format(param.name[-1])].value[:,0])**2 < 0.0001
-                    middle_occupied = middle_occupied or (param_2_pose - plan.params['middle_target'.format(param.name[-1])].value[:,0])**2 < 0.0001
+                        taget_occupied = target_occupied or (param_2_pose - plan.params['can{0}_end_target'.format(param.name[-1])].value[:,0])**2 < param_2.geom.radius**2
+                    middle_occupied = middle_occupied or (param_2_pose - plan.params['middle_target'.format(param.name[-1])].value[:,0])**2 < param_2.geom.radius**2
                 if target_occupied:
-                    if middle_occupied: return None, None
-
+                    if middle_occupied: continue
                     return param, plan.params['middle_target']
-
                 else:
                     return param, plan.params['can{0}_end_target'.format(param.name[-1])]
 
@@ -302,7 +302,7 @@ def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
     return plan_from_str(next_task_str, prob_file.format(num_cans), domain_file, env, openrave_bodies)
 
 def cost_f(Xs, task, params, targets, plan, active_ts=None):
-    tol = 1e-2
+    tol = 1e-1
 
     if active_ts == None:
         active_ts = (1, plan.horizon-1)
@@ -316,6 +316,8 @@ def cost_f(Xs, task, params, targets, plan, active_ts=None):
     plan.params['{0}_end_target'.format(params[0].name)].value[:,0] = targets['{0}_end_target'.format(params[0].name)]
 
     failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+    if active_ts[1] == 0 and task == 'putdown' and len(failed_preds):
+        print "Task {0} failed: ".format(task), failed_preds, "\n\n"
 
     cost = 0
     for failed in failed_preds:

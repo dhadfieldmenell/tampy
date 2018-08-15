@@ -70,12 +70,6 @@ class TrajOptPI2(TrajOpt):
         U = cur_data.get_U()
         T = prev_traj_distr.T
 
-        if not np.any(cur_data[0].get_ref_X()):
-            opt_sample = algorithm.agent.sample_optimal_trajectory(cur_data[0].get_X(t=0), cur_data[0].task, cur_data[0].condition)
-            for sample in cur_data:
-                sample.set_ref_X(opt_sample.get(STATE_ENUM))
-                sample.set_ref_U(opt_sample.get_U())
-
         # We only optimize feedforward controls with PI2. Subtract the feedback
         # part from the sampled controls using feedback gain matrix and states.       
         ffw_controls = np.zeros(U.shape)

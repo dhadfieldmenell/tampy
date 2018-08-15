@@ -51,11 +51,12 @@ class NAMOSortingAgent(Agent):
         self.targets = self._hyperparams['targets']
         self.target_dim = self._hyperparams['target_dim']
         self.target_inds = self._hyperparams['target_inds']
+        self.target_vecs = []
         for condition in range(len(self.x0)):
             target_vec = np.zeros((self.target_dim,))
             for target_name in self.targets[condition]:
                 target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-            self.x0[condition] = np.concatenate([self.x0[condition], target_vec])
+            self.target_vecs.append(target_vec)
 
         self._get_hl_plan = self._hyperparams['get_hl_plan']
         self.env = self._hyperparams['env']
@@ -68,7 +69,7 @@ class NAMOSortingAgent(Agent):
 
         self.hist_len = self._hyperparams['hist_len']
         self.traj_hist = None
-        self._reset_hist()
+        self.reset_hist()
 
         self.optimal_samples = {task: [] for task in self.task_list}
         self.optimal_state_traj = [[] for _ in range(len(self.plans))]
@@ -116,8 +117,14 @@ class NAMOSortingAgent(Agent):
         self.task_paths = random.sample(self.task_paths, n_keep)
 
 
-    def _reset_hist(self):
-        self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist() if self.hist_len > 0 else None
+    def reset_hist(self, hist=[]):
+        if not len(hist):
+            hist = np.zeros((self.hist_len, self.dU)).tolist()
+        self.traj_hist = hist
+
+
+    def get_hist(self):
+        return copy.deepcopy(self.traj_hist)
 
 
     def sample(self, policy, condition, save_global=False, verbose=False, noisy=False):
@@ -144,6 +151,8 @@ class NAMOSortingAgent(Agent):
             target.value[:,0] = self.targets[condition][target.name]
             target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
 
+        # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
+
         if noisy:
             noise = generate_noise(self.T, self.dU, self._hyperparams)
         else:
@@ -151,13 +160,13 @@ class NAMOSortingAgent(Agent):
 
         for t in range(0, self.T):
             X = np.zeros((plan.symbolic_bound))
-            fill_vector(plan.params, plan.state_inds, X, t) 
+            fill_vector(plan.params, plan.state_inds, X, t)
 
             sample.set(STATE_ENUM, X.copy(), t)
             if OBS_ENUM in self._hyperparams['obs_include']:
                 sample.set(OBS_ENUM, im.copy(), t)
             sample.set(NOISE_ENUM, noise[t], t)
-            # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
+            sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
             task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
             task_vec[self.task_list.index(task[0])] = 1.
             sample.set(TASK_ENUM, task_vec, t)
@@ -167,15 +176,17 @@ class NAMOSortingAgent(Agent):
 
             U = policy.act(sample.get_X(t=t), sample.get_obs(t=t), t, noise[t])
             sample.set(ACTION_ENUM, U.copy(), t)
+            if np.any(np.isnan(U)):
+                import ipdb; ipdb.set_trace()
             
- 
-            if len(self.traj_hist) >= self.hist_len:
-                self.traj_hist.pop(0)
             self.traj_hist.append(U)
+            if len(self.traj_hist) > self.hist_len:
+                self.traj_hist.pop(0)
 
             self.run_policy_step(U, X, self.plans[task], t)
 
         return sample
+
 
     def run_policy_step(self, u, x, plan, t):
         u_inds = self.action_inds
@@ -188,14 +199,15 @@ class NAMOSortingAgent(Agent):
 
             for param in plan.params.values():
                 if param._type == 'Can':
-                    dist = x[x_inds['pr2', 'pose']] - x[x_inds[param.name, 'pose']]
+                    dist = plan.params['pr2'].pose[:, t] - plan.params[param.name].pose[:, t]
                     radius1 = param.geom.radius
                     radius2 = plan.params['pr2'].geom.radius
                     grip_dist = radius1 + radius2
-                    if u[u_inds['pr2', 'gripper']][0] > 0.9 and dist[0]**2 < 0.01 and np.abs(grip_dist + dist[1]) < 0.01:
-                        param.pose[:, t+1] = u[u_inds['pr2', 'pose']] + [0, grip_dist]
+                    if (plan.params['pr2'].gripper[0, t] > 0.5 or t == plan.horizon - 2) and np.abs(dist[0]) < 0.1 and np.abs(grip_dist + dist[1]) < 0.1:
+                        param.pose[:, t+1] = plan.params['pr2'].pose[:, t+1] + [0, grip_dist]
                     elif param._type == 'Can':
                         param.pose[:, t+1] = param.pose[:, t]
+
         return True
 
 

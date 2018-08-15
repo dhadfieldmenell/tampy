@@ -106,12 +106,15 @@ class GPSMain(object):
             for itr in range(itr_start, self._hyperparams['iterations']):
                 paths = []
                 for cond in self._train_idx:
-                    if self.iter_count > 0:
-                        rollout_policies = self.rollout_policies
-                        use_distilled= True
-                    else:
-                        rollout_policies = {task: self.alg_map[task].cur[cond].traj_distr for task in self.task_list}
-                        use_distilled = False
+                    rollout_policies = {}
+                    use_distilled = False
+                    for task in self.task_list:
+                        if self.alg_map[task].iteration_count > 0:
+                            rollout_policies[task] = self.rollout_policies[task]
+                            use_distilled = True
+                        else:
+                            rollout_policies[task] = self.alg_map[task].cur[cond].traj_distr
+
                     val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies)
 
                     if val > 0:
@@ -155,13 +158,13 @@ class GPSMain(object):
             for t in range(sample.T):
                 obs = [sample.get_obs(t=t)]
                 mu = [sample.get(TASK_ENUM, t=t)]
-                prc = [np.exp(-sample.task_cost) * np.ones((dP, dP))]
-                wt = [1]
-
+                prc = [np.ones((dP, dP))]
+                wt = [np.exp(-sample.task_cost)]
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
+
         self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def update_distilled(self, optimal_samples=[]):
@@ -184,7 +187,7 @@ class GPSMain(object):
             ts.sort()
             for t in range(data_len):
                 prc[t] = np.eye(dU)
-                wt[t] = 1.0
+                wt[t] = self._hyperparams['opt_wt']
 
             for i in range(data_len):
                 t = ts[i]
@@ -386,7 +389,8 @@ class GPSMain(object):
         self.update_primitives(paths)
         self.update_distilled()
         for task in self.alg_map:
-            self.alg_map[task]._advance_iteration_variables()
+            if len(sample_lists[task]):
+                self.alg_map[task]._advance_iteration_variables()
         if self.gui:
             self.gui.stop_display_calculating()
 

@@ -205,7 +205,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         # Renormalize weights.
         tgt_wt *= (float(N * T) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
-        mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
+        # mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
+        mn = np.median(tgt_wt[(tgt_wt > 1e-4).nonzero()])
         for n in range(N):
             for t in range(T):
                 tgt_wt[n, t] = min(tgt_wt[n, t], 2 * mn)
@@ -236,7 +237,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         obs[:, self.x_idx] = obs[:, self.x_idx].dot(policy.scale) + policy.bias
 
         # Assuming that N*T >= self.batch_size.
-        batches_per_epoch = np.floor(N*T / self.batch_size)
+        batches_per_epoch = np.maximum(np.floor(N*T / self.batch_size), 1)
         idx = range(N*T)
         average_loss = 0
         np.random.shuffle(idx)
@@ -436,7 +437,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.distilled_policy.scale) + self.distilled_policy.bias
 
         # Assuming that N >= self.batch_size.
-        batches_per_epoch = np.floor(N / self.batch_size)
+        batches_per_epoch = np.maximum(np.floor(N / self.batch_size), 1)
         idx = range(N)
         average_loss = 0
         np.random.shuffle(idx)

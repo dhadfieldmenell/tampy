@@ -134,13 +134,13 @@ class AlgorithmMDGPS(Algorithm):
     def _update_policy(self, optimal_samples=[]):
         """ Compute the new policy. """
         dU, dO, T = self.dU, self.dO, self.T
+        data_len = int(self.sample_ts_prob * T)
         # Compute target mean, cov, and weight for each sample.
-        obs_data, tgt_mu = np.zeros((0, T, dO)), np.zeros((0, T, dU))
-        tgt_prc, tgt_wt = np.zeros((0, T, dU, dU)), np.zeros((0, T))
+        obs_data, tgt_mu = np.zeros((0, data_len, dO)), np.zeros((0, data_len, dU))
+        tgt_prc, tgt_wt = np.zeros((0, data_len, dU, dU)), np.zeros((0, data_len))
         
         # Optimize global polciies with optimal samples as well
         for sample in optimal_samples:
-            data_len = int(self.sample_ts_prob * T) 
             mu = np.zeros((1, data_len, dU))
             prc = np.zeros((1, data_len, dU, dU))
             wt = np.zeros((1, data_len))
@@ -149,8 +149,8 @@ class AlgorithmMDGPS(Algorithm):
             ts = np.random.choice(xrange(T), data_len, replace=False)
             ts.sort()
             for t in range(data_len):
-                prc[0,t] = np.eye(dU)
-                wt[:,t] = 1.0
+                prc[0,t] = 1e0 * np.eye(dU)
+                wt[:,t] = self._hyperparams['opt_wt']
 
             for i in range(data_len):
                 t = ts[i]
@@ -166,7 +166,6 @@ class AlgorithmMDGPS(Algorithm):
             X = samples.get_X()
             N = len(samples)
             traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
-            data_len = int(self.sample_ts_prob * T)
             mu = np.zeros((N, data_len, dU))
             prc = np.zeros((N, data_len, dU, dU))
             wt = np.zeros((N, data_len))
@@ -366,6 +365,9 @@ class AlgorithmMDGPS(Algorithm):
         Move all 'cur' variables to 'prev', reinitialize 'cur'
         variables, and advance iteration counter.
         """
+        if not hasattr(self, 'new_traj_distr'):
+            return
+
         self.iteration_count += 1
         self.prev = self.cur
 
@@ -374,7 +376,7 @@ class AlgorithmMDGPS(Algorithm):
         #         self.prev[m][ts] = copy.deepcopy(self.cur[m][ts])
 
         # TODO: change IterationData to reflect new stuff better
-        for m in range(self.M):
+        for m in range(len(self.prev)):
             self.prev[m].new_traj_distr = self.new_traj_distr[m]
 
         self.cur = []
