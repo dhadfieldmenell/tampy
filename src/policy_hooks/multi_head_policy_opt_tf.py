@@ -23,6 +23,8 @@ LOGGER = logging.getLogger(__name__)
 class MultiHeadPolicyOptTf(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
     def __init__(self, hyperparams, dO, dU):
+        tf.reset_default_graph()
+        
         config = copy.deepcopy(POLICY_OPT_TF)
         config.update(hyperparams)
 

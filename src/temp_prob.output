@@ -1,0 +1,46 @@
+
+ff: parsing domain file
+domain 'SORTING_DOMAIN' defined
+ ... done.
+ff: parsing problem file
+problem 'SORTING_PROBLEM' defined
+ ... done.
+
+
+
+Cueing down from goal distance:    2 into depth [1]
+                                   1            [1]
+                                   0            
+
+ff: found legal plan as follows
+
+step    0: GRASP CAN0
+        1: PUTDOWN CAN0 CAN0_END_TARGET
+     
+
+time spent:    0.00 seconds instantiating 4 easy, 0 hard action templates
+               0.00 seconds reachability analysis, yielding 7 facts and 3 actions
+               0.00 seconds creating final representation with 6 relevant facts
+               0.00 seconds building connectivity graph
+               0.00 seconds searching, evaluating 3 states, to a max depth of 1
+               0.00 seconds total time
+
+*** States ***
+State 
+
+NOT-CANINGRIPPER(CAN0)
+NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
+NOT-CANATTARGET(CAN0 CAN0_END_TARGET)
+
+State 
+
+NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
+NOT-CANATTARGET(CAN0 CAN0_END_TARGET)
+CANINGRIPPER(CAN0)
+
+State 
+
+NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
+NOT-CANINGRIPPER(CAN0)
+CANATTARGET(CAN0 CAN0_END_TARGET)
+

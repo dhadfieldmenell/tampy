@@ -356,4 +356,3 @@ def goal_f(X, targets, plan):
             cost += dist if dist > 0.01 else 0
 
     return cost
-

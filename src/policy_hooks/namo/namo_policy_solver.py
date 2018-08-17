@@ -31,6 +31,8 @@ from policy_hooks.task_net import tf_classification_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
 from policy_hooks.action_traj_cost import ActionTrajCost
+from policy_hooks.traj_constr_cost import TrajConstrCost
+from policy_hooks.cost_product import CostProduct
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + '/experiments'
@@ -191,11 +193,17 @@ class NAMOPolicySolver(NAMOSolver):
                         'ramp_option': RAMP_CONSTANT
                      }
 
+        constr_cost = {
+                        'type': TrajConstrCost,
+                      }
+
         self.config['algorithm']['cost'] = {
                                                 'type': CostSum,
                                                 'costs': [traj_cost, action_cost],
                                                 'weights': [1.0, 1.0],
                                            }
+
+        # self.config['algorithm']['cost'] = constr_cost
 
         self.config['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
@@ -211,9 +219,9 @@ class NAMOPolicySolver(NAMOSolver):
                 'image_height': utils.IM_H,
                 'image_channels': utils.IM_C,
                 'sensor_dims': sensor_dims,
-                'n_layers': 2,
+                'n_layers': self.config['n_layers'],
                 'num_filters': [5,10],
-                'dim_hidden': [50, 50],
+                'dim_hidden': self.config['dim_hidden'],
             },
             'distilled_network_params': {
                 'obs_include': self.config['agent']['obs_include'],
@@ -225,21 +233,21 @@ class NAMOPolicySolver(NAMOSolver):
                 'sensor_dims': sensor_dims,
                 'n_layers': 2,
                 'num_filters': [5,10],
-                'dim_hidden': [50, 50]
+                'dim_hidden': [300, 300]
             },
-            'lr': 1e-3,
+            'lr': self.config['lr'],
             'network_model': tf_network,
             'distilled_network_model': tf_network,
             'primitive_network_model': tf_classification_network,
-            'iterations': 10000,
-            'batch_size': 2000,
-            'weight_decay': 0.0,
+            'iterations': self.config['train_iterations'],
+            'batch_size': self.config['batch_size'],
+            'weight_decay': self.config['weight_decay'],
             'weights_file_prefix': EXP_DIR + 'policy',
             'image_width': utils.IM_W,
             'image_height': utils.IM_H,
             'image_channels': utils.IM_C,
             'task_list': self.task_list,
-            'gpu_fraction': 0.4,
+            'gpu_fraction': 0.2,
         }
 
         alg_map = {}
@@ -249,10 +257,9 @@ class NAMOPolicySolver(NAMOSolver):
 
         self.config['algorithm'] = alg_map
 
-        if not self.gps:
-            self.gps = GPSMain(self.config)
-        
+        self.gps = GPSMain(self.config)
         self.gps.run()
+        env.Destroy()
 
 
     def optimize_against_global(self, plan, a_start=0, a_end=-1, cond=0):
@@ -590,6 +597,35 @@ class NAMOPolicySolver(NAMOSolver):
         return Variable(x, v)
 
 
+def copy_dict(d):
+    new_d = {}
+    for key in d:
+        if type(d[key]) is d:
+            new_d[key] = copy_dict(d[key])
+        else:
+            new_d[key] = d[key]
+    return new_d
+
 if __name__ == '__main__':
-    PS = NAMOPolicySolver()
-    PS.train_policy(1)
+    for lr in [1e-4, 1e-3]:
+        for init_var in [0.001, 1.0]:
+            for covard in [10]:
+                for wt in [1e2, 1e3]:
+                    for klt in [1e-3]:
+                        for kl in [1e0]:
+                            for iters in [5000, 10000]:
+                                for dh in [[100], [300], [1000]]:
+                                    for hl in [5, 10]:
+                                        config = copy_dict(namo_hyperparams.config)
+                                        config['lr'] = lr
+                                        config['dim_hidden'] = dh
+                                        config['train_iterations'] = iters
+                                        config['algorithm']['init_traj_distr']['init_var'] = init_var
+                                        config['algorithm']['traj_opt']['covariance_damping'] = covard
+                                        config['opt_wt'] = wt
+                                        config['algorithm']['opt_wt'] = wt
+                                        config['algorithm']['traj_opt']['kl_threshold'] = klt
+                                        config['algorithm']['kl_step'] = kl
+                                        config['hist_len'] = hl
+                                        PS = NAMOPolicySolver()
+                                        PS.train_policy(1, config)

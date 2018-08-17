@@ -32,13 +32,13 @@ def main():
 
     s += "Init: "
     for i in range(NUM_CANS):
-        s += "(geom can%d_init_target 0.2), (value can%d_init_target %s), "%(i, i, list(coords[i]))
+        s += "(geom can%d_init_target 0.3), (value can%d_init_target %s), "%(i, i, list(coords[i]))
         s += "(value pdp_target%d undefined), "%i
         s += "(gripper pdp_target%d undefined), "%i
-        s += "(geom can%d 0.2), (pose can%d %s), "%(i, i, list(coords[i]))
-        s += "(geom can%d_end_target 0.2), (value can%d_end_target %s), "%(i, i, list(coords[i]))
+        s += "(geom can%d 0.3), (pose can%d %s), "%(i, i, list(coords[i]))
+        s += "(geom can%d_end_target 0.3), (value can%d_end_target %s), "%(i, i, list(coords[i]))
     s += "(value grasp0 undefined), "
-    s += "(geom %s 0.2), (pose %s %s), "%("pr2", "pr2", [0, 0])
+    s += "(geom %s 0.3), (pose %s %s), "%("pr2", "pr2", [0, 0])
     s += "(gripper pr2 [0.]), "
     s += "(value %s %s), "%("robot_init_pose", [0., 0.])
     s += "(value %s %s), "%("robot_end_pose", [0., 0.])

@@ -35,19 +35,31 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         Args:
             sample_lists: List of SampleList objects for each condition.
         """
-        if not len(self.cur) or self.replace_conds:
-            self.set_conditions(len(sample_lists))
+        # if not len(self.cur) or self.replace_conds:
+        #     self.set_conditions(len(sample_lists))
+        self.set_conditions(len(sample_lists))
 
         # Store the samples and evaluate the costs.
+        del_inds = []
         for m in range(len(self.cur)):
             self.cur[m].sample_list = sample_lists[m]
             if not np.any(sample_lists[m][0].get_ref_X()):
                 opt_sample = self.agent.sample_optimal_trajectory(sample_lists[m][0].get_X(t=0), sample_lists[m][0].task, sample_lists[m][0].condition)
+                if opt_sample is None:
+                    del_inds.append(m)
+                    continue
                 self.cur[m].sample_list._samples.append(opt_sample)
                 for sample in self.cur[m].sample_list:
                     sample.set_ref_X(opt_sample.get(STATE_ENUM))
                     sample.set_ref_U(opt_sample.get_U())
             self._eval_cost(m)
+
+        for i in range(len(del_inds)):
+            ind = del_inds[i]
+            del self.cur[ind - i]
+
+        if not len(self.cur):
+            return
 
         # Update dynamics linearizations.
         # self._update_dynamics()
@@ -57,7 +69,7 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
             self.new_traj_distr = [
                 self.cur[cond].traj_distr for cond in range(len(self.cur))
             ]
-            self._update_policy()
+            self._update_policy(optimal_samples)
 
         # Update policy linearizations.
         # for m in range(len(self.cur)):

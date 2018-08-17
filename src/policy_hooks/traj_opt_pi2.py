@@ -91,12 +91,12 @@ class TrajOptPI2(TrajOpt):
         traj_distr.K = prev_traj_distr.K
 
         # Optimize feedforward controls and covariances with PI2.
-        print "\nEntering PI^2 Update"
+        # print "\nEntering PI^2 Update"
         k, pS, ipS, cpS, eta = self.update_pi2(
             ffw_controls, costs, prev_traj_distr.k, prev_traj_distr.pol_covar,
             fixed_eta, use_fixed_eta
         )
-        print "Leaving PI^2 Update\n"
+        # print "Leaving PI^2 Update\n"
         traj_distr.k, traj_distr.pol_covar = k, pS
         traj_distr.inv_pol_covar, traj_distr.chol_pol_covar = ipS, cpS
 

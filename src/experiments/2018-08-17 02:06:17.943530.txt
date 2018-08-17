@@ -1,0 +1,473 @@
+{'agent': {'T': 1,
+           'action_inds': {('pr2', 'gripper'): array([2]),
+                           ('pr2', 'pose'): array([0, 1])},
+           'conditions': 10,
+           'dU': 3,
+           'dX': 5,
+           'env': RaveGetEnvironment(2),
+           'get_hl_plan': <function hl_plan_for_state at 0x7f0333b7a050>,
+           'get_plan': <function get_plan at 0x7f0333b7a140>,
+           'hist_len': 3,
+           'image_channels': 3,
+           'image_height': 140,
+           'image_width': 140,
+           'model': None,
+           'num_cans': 1,
+           'obs_include': [1,
+                           9,
+                           6],
+           'openrave_bodies': {'can0': <core.util_classes.openrave_body.OpenRAVEBody object at 0x7f0287f8be10>,
+                               'pr2': <core.util_classes.openrave_body.OpenRAVEBody object at 0x7f0287f8bdd0>},
+           'plans': {('grasp', 'can0'): <core.internal_repr.plan.Plan object at 0x7f0287f8bfd0>,
+                     ('putdown', 'can0'): <core.internal_repr.plan.Plan object at 0x7f02a6ec39d0>},
+           'sensor_dims': {0: 3,
+                           1: 5,
+                           6: 9,
+                           8: 2,
+                           9: 4},
+           'solver': <__main__.NAMOPolicySolver object at 0x7f03214f5cd0>,
+           'state_include': [1],
+           'state_inds': {('can0', 'pose'): array([3, 4]),
+                          ('can0_end_target', 'value'): array([12, 13]),
+                          ('can0_init_target', 'value'): array([10, 11]),
+                          ('grasp0', 'value'): array([5, 6]),
+                          ('middle_target', 'value'): array([14, 15]),
+                          ('pdp_target0', 'gripper'): array([21]),
+                          ('pdp_target0', 'value'): array([19, 20]),
+                          ('pr2', 'gripper'): array([2]),
+                          ('pr2', 'pose'): array([0, 1]),
+                          ('robot_end_pose', 'gripper'): array([18]),
+                          ('robot_end_pose', 'value'): array([16, 17]),
+                          ('robot_init_pose', 'gripper'): array([9]),
+                          ('robot_init_pose', 'value'): array([7, 8])},
+           'stochastic_conditions': True,
+           'symbolic_bound': 5,
+           'target_dim': 4,
+           'target_inds': {('can0_end_target', 'value'): array([0, 1]),
+                           ('middle_target', 'value'): array([2, 3])},
+           'targets': [{'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]},
+                       {'can0_end_target': [0.0,
+                                            6.0],
+                        'middle_target': [0.0,
+                                          0.0]}],
+           'task_breaks': [],
+           'task_durations': {'grasp': 20,
+                              'putdown': 20},
+           'task_encoding': {'grasp': array([ 1.,  0.]),
+                             'putdown': array([ 0.,  1.])},
+           'task_list': ['grasp',
+                         'putdown'],
+           'type': <class 'policy_hooks.namo.namo_agent.NAMOSortingAgent'>,
+           'viewer': None,
+           'x0': [array([ 0.,  0.,  0., -3.,  0.,  0.,  0.,  0.,  0.,  0., -3.,  0.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]),
+                  array([ 0.,  0.,  0.,  2.,  2.,  0.,  0.,  0.,  0.,  0.,  2.,  2.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]),
+                  array([ 0.,  0.,  0., -1.,  2.,  0.,  0.,  0.,  0.,  0., -1.,  2.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]),
+                  array([ 0.,  0.,  0., -3.,  0.,  0.,  0.,  0.,  0.,  0., -3.,  0.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]),
+                  array([ 0. ,  0. ,  0. ,  0. ,  3.5,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ,
+        3.5,  0. ,  6. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ,  0. ]),
+                  array([ 0.,  0.,  0.,  0.,  5.,  0.,  0.,  0.,  0.,  0.,  0.,  5.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]),
+                  array([ 0.,  0.,  0., -2.,  1.,  0.,  0.,  0.,  0.,  0., -2.,  1.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]),
+                  array([ 0.,  0.,  0., -2.,  1.,  0.,  0.,  0.,  0.,  0., -2.,  1.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]),
+                  array([ 0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.,  0.,  0.,  2.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]),
+                  array([ 0.,  0.,  0.,  1., -1.,  0.,  0.,  0.,  0.,  0.,  1., -1.,  0.,
+        6.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.])]},
+ 'algorithm': {'grasp': {'T': 20,
+                         'agent': <policy_hooks.namo.namo_agent.NAMOSortingAgent object at 0x7f03214fe250>,
+                         'conditions': 10,
+                         'cost': {'costs': [{'data_types': {1: {'target_state': array([[ 0.,  0.,  0.,  0.,  0.]]),
+                                                                'wp': array([ 1.,  1.,  1.,  1.,  1.]),
+                                                                'wp_final_multiplier': 1.0}},
+                                             'ramp_option': 1,
+                                             'type': <class 'policy_hooks.state_traj_cost.StateTrajCost'>},
+                                            {'data_types': {0: {'target_state': array([[ 0.,  0.,  0.]]),
+                                                                'wp': array([[ 1.,  1.,  1.]])}},
+                                             'ramp_option': 1,
+                                             'type': <class 'policy_hooks.action_traj_cost.ActionTrajCost'>}],
+                                  'type': <class 'gps.algorithm.cost.cost_sum.CostSum'>,
+                                  'weights': [1.0,
+                                              1.0]},
+                         'fit_dynamics': False,
+                         'init_traj_distr': {'T': 20,
+                                             'dQ': 3,
+                                             'dU': 3,
+                                             'dX': 5,
+                                             'dt': 1.0,
+                                             'init_var': 0.001,
+                                             'pos_gains': 0.01,
+                                             'type': <function init_pd at 0x7f0333b8e320>,
+                                             'x0': [array([ 0.,  0.,  0., -3.,  0.]),
+                                                    array([ 0.,  0.,  0.,  2.,  2.]),
+                                                    array([ 0.,  0.,  0., -1.,  2.]),
+                                                    array([ 0.,  0.,  0., -3.,  0.]),
+                                                    array([ 0. ,  0. ,  0. ,  0. ,  3.5]),
+                                                    array([ 0.,  0.,  0.,  0.,  5.]),
+                                                    array([ 0.,  0.,  0., -2.,  1.]),
+                                                    array([ 0.,  0.,  0., -2.,  1.]),
+                                                    array([ 0.,  0.,  0.,  0.,  2.]),
+                                                    array([ 0.,  0.,  0.,  1., -1.])]},
+                         'iterations': 10,
+                         'kl_step': 0.1,
+                         'max_ent_traj': 0.0,
+                         'max_step_mult': 3.0,
+                         'min_step_mult': 0.5,
+                         'opt_wt': 10000.0,
+                         'policy_opt': {'batch_size': 3000,
+                                        'distilled_network_model': <function tf_network at 0x7f034d7eb9b0>,
+                                        'distilled_network_params': {'dim_hidden': [300,
+                                                                                    300],
+                                                                     'image_channels': 3,
+                                                                     'image_height': 140,
+                                                                     'image_width': 140,
+                                                                     'n_layers': 2,
+                                                                     'num_filters': [5,
+                                                                                     10],
+                                                                     'obs_image_data': [],
+                                                                     'obs_include': [1,
+                                                                                     9,
+                                                                                     6],
+                                                                     'sensor_dims': {0: 3,
+                                                                                     1: 5,
+                                                                                     6: 9,
+                                                                                     8: 2,
+                                                                                     9: 4}},
+                                        'gpu_fraction': 0.2,
+                                        'image_channels': 3,
+                                        'image_height': 140,
+                                        'image_width': 140,
+                                        'iterations': 1000,
+                                        'lr': 0.001,
+                                        'network_model': <function tf_network at 0x7f034d7eb9b0>,
+                                        'network_params': {'dim_hidden': [20],
+                                                           'image_channels': 3,
+                                                           'image_height': 140,
+                                                           'image_width': 140,
+                                                           'n_layers': 1,
+                                                           'num_filters': [5,
+                                                                           10],
+                                                           'obs_image_data': [],
+                                                           'obs_include': [1,
+                                                                           9,
+                                                                           6],
+                                                           'sensor_dims': {0: 3,
+                                                                           1: 5,
+                                                                           6: 9,
+                                                                           8: 2,
+                                                                           9: 4}},
+                                        'prev': <policy_hooks.multi_head_policy_opt_tf.MultiHeadPolicyOptTf object at 0x7f03214c35d0>,
+                                        'primitive_network_model': <function tf_classification_network at 0x7f0333b9ec08>,
+                                        'task_list': ['grasp',
+                                                      'putdown'],
+                                        'type': <class 'policy_hooks.multi_head_policy_opt_tf.MultiHeadPolicyOptTf'>,
+                                        'weight_decay': 0.1,
+                                        'weights_file_prefix': '/home/michaelmcdonald/dependencies/tampy/src/policy_hooks//experimentspolicy'},
+                         'policy_prior': {'max_clusters': 20,
+                                          'max_samples': 20,
+                                          'min_samples_per_cluster': 40,
+                                          'type': <class 'policy_hooks.policy_prior_gmm.PolicyPriorGMM'>},
+                         'policy_sample_mode': 'add',
+                         'policy_transfer_coeff': 0.005,
+                         'sample_on_policy': True,
+                         'sample_ts_prob': 0.2,
+                         'stochastic_conditions': True,
+                         'traj_opt': {'covariance_damping': 0.01,
+                                      'kl_threshold': 0.001,
+                                      'min_temperature': 0.01,
+                                      'type': <class 'policy_hooks.traj_opt_pi2.TrajOptPI2'>},
+                         'type': <class 'policy_hooks.algorithm_pigps.AlgorithmPIGPS'>},
+               'putdown': {'T': 20,
+                           'agent': <policy_hooks.namo.namo_agent.NAMOSortingAgent object at 0x7f03214fe250>,
+                           'conditions': 10,
+                           'cost': {'costs': [{'data_types': {1: {'target_state': array([[ 0.,  0.,  0.,  0.,  0.]]),
+                                                                  'wp': array([ 1.,  1.,  1.,  1.,  1.]),
+                                                                  'wp_final_multiplier': 1.0}},
+                                               'ramp_option': 1,
+                                               'type': <class 'policy_hooks.state_traj_cost.StateTrajCost'>},
+                                              {'data_types': {0: {'target_state': array([[ 0.,  0.,  0.]]),
+                                                                  'wp': array([[ 1.,  1.,  1.]])}},
+                                               'ramp_option': 1,
+                                               'type': <class 'policy_hooks.action_traj_cost.ActionTrajCost'>}],
+                                    'type': <class 'gps.algorithm.cost.cost_sum.CostSum'>,
+                                    'weights': [1.0,
+                                                1.0]},
+                           'fit_dynamics': False,
+                           'init_traj_distr': {'T': 20,
+                                               'dQ': 3,
+                                               'dU': 3,
+                                               'dX': 5,
+                                               'dt': 1.0,
+                                               'init_var': 0.001,
+                                               'pos_gains': 0.01,
+                                               'type': <function init_pd at 0x7f0333b8e320>,
+                                               'x0': [array([ 0.,  0.,  0., -3.,  0.]),
+                                                      array([ 0.,  0.,  0.,  2.,  2.]),
+                                                      array([ 0.,  0.,  0., -1.,  2.]),
+                                                      array([ 0.,  0.,  0., -3.,  0.]),
+                                                      array([ 0. ,  0. ,  0. ,  0. ,  3.5]),
+                                                      array([ 0.,  0.,  0.,  0.,  5.]),
+                                                      array([ 0.,  0.,  0., -2.,  1.]),
+                                                      array([ 0.,  0.,  0., -2.,  1.]),
+                                                      array([ 0.,  0.,  0.,  0.,  2.]),
+                                                      array([ 0.,  0.,  0.,  1., -1.])]},
+                           'iterations': 10,
+                           'kl_step': 0.1,
+                           'max_ent_traj': 0.0,
+                           'max_step_mult': 3.0,
+                           'min_step_mult': 0.5,
+                           'opt_wt': 10000.0,
+                           'policy_opt': {'batch_size': 3000,
+                                          'distilled_network_model': <function tf_network at 0x7f034d7eb9b0>,
+                                          'distilled_network_params': {'dim_hidden': [300,
+                                                                                      300],
+                                                                       'image_channels': 3,
+                                                                       'image_height': 140,
+                                                                       'image_width': 140,
+                                                                       'n_layers': 2,
+                                                                       'num_filters': [5,
+                                                                                       10],
+                                                                       'obs_image_data': [],
+                                                                       'obs_include': [1,
+                                                                                       9,
+                                                                                       6],
+                                                                       'sensor_dims': {0: 3,
+                                                                                       1: 5,
+                                                                                       6: 9,
+                                                                                       8: 2,
+                                                                                       9: 4}},
+                                          'gpu_fraction': 0.2,
+                                          'image_channels': 3,
+                                          'image_height': 140,
+                                          'image_width': 140,
+                                          'iterations': 1000,
+                                          'lr': 0.001,
+                                          'network_model': <function tf_network at 0x7f034d7eb9b0>,
+                                          'network_params': {'dim_hidden': [20],
+                                                             'image_channels': 3,
+                                                             'image_height': 140,
+                                                             'image_width': 140,
+                                                             'n_layers': 1,
+                                                             'num_filters': [5,
+                                                                             10],
+                                                             'obs_image_data': [],
+                                                             'obs_include': [1,
+                                                                             9,
+                                                                             6],
+                                                             'sensor_dims': {0: 3,
+                                                                             1: 5,
+                                                                             6: 9,
+                                                                             8: 2,
+                                                                             9: 4}},
+                                          'prev': <policy_hooks.multi_head_policy_opt_tf.MultiHeadPolicyOptTf object at 0x7f03214c35d0>,
+                                          'primitive_network_model': <function tf_classification_network at 0x7f0333b9ec08>,
+                                          'task_list': ['grasp',
+                                                        'putdown'],
+                                          'type': <class 'policy_hooks.multi_head_policy_opt_tf.MultiHeadPolicyOptTf'>,
+                                          'weight_decay': 0.1,
+                                          'weights_file_prefix': '/home/michaelmcdonald/dependencies/tampy/src/policy_hooks//experimentspolicy'},
+                           'policy_prior': {'max_clusters': 20,
+                                            'max_samples': 20,
+                                            'min_samples_per_cluster': 40,
+                                            'type': <class 'policy_hooks.policy_prior_gmm.PolicyPriorGMM'>},
+                           'policy_sample_mode': 'add',
+                           'policy_transfer_coeff': 0.005,
+                           'sample_on_policy': True,
+                           'sample_ts_prob': 0.2,
+                           'stochastic_conditions': True,
+                           'traj_opt': {'covariance_damping': 0.01,
+                                        'kl_threshold': 0.001,
+                                        'min_temperature': 0.01,
+                                        'type': <class 'policy_hooks.traj_opt_pi2.TrajOptPI2'>},
+                           'type': <class 'policy_hooks.algorithm_pigps.AlgorithmPIGPS'>}},
+ 'batch_size': 3000,
+ 'common': {'conditions': 10,
+            'data_files_dir': '/home/michaelmcdonald/dependencies/tampy/src/policy_hooks/experiments/data_files/',
+            'experiment_dir': '/home/michaelmcdonald/dependencies/tampy/src/policy_hooks/experiments/',
+            'experiment_name': 'my_experiment_08-17-18_01-59',
+            'log_filename': '/home/michaelmcdonald/dependencies/tampy/src/policy_hooks/experiments/log.txt',
+            'target_filename': '/home/michaelmcdonald/dependencies/tampy/src/policy_hooks/experiments/target.npz'},
+ 'cost_f': <function cost_f at 0x7f0333b7a488>,
+ 'dQ': 3,
+ 'dim_hidden': [20],
+ 'goal_f': <function goal_f at 0x7f0333b7a500>,
+ 'gui_on': False,
+ 'hist_len': 3,
+ 'iterations': 10,
+ 'lr': 0.001,
+ 'max_tree_depth': 3,
+ 'mode': 'position',
+ 'n_layers': 1,
+ 'num_conds': 10,
+ 'num_distilled_samples': 0,
+ 'num_rollouts': 8,
+ 'num_samples': 15,
+ 'opt_wt': 10000.0,
+ 'plan_f': <function <lambda> at 0x7f03065bcc08>,
+ 'policy_coeff': 1.0,
+ 'sample_on_policy': True,
+ 'stochastic_conditions': True,
+ 'take_optimal_sample': True,
+ 'target_f': <function get_next_target at 0x7f0333b7a398>,
+ 'task_durations': {'grasp': 20,
+                    'putdown': 20},
+ 'task_list': ['grasp',
+               'putdown'],
+ 'train_iterations': 1000,
+ 'verbose_policy_trials': 1,
+ 'verbose_trials': 1,
+ 'weight_decay': 0.1}
+
+
+<class 'gps.algorithm.cost.cost_sum.CostSum'>
+
+STEP 0:
+[[ 0.          0.          0.         -3.          0.        ]
+ [-0.05134258  0.04822151  0.00687336 -3.          0.        ]
+ [-0.07176635  0.04720742  0.00865163 -3.          0.        ]
+ [-0.08632673  0.04669801  0.00993187 -3.          0.        ]
+ [-0.10116273  0.04617039  0.01123584 -3.          0.        ]
+ [-0.11142354  0.04571683  0.0121325  -3.          0.        ]
+ [-0.11918421  0.0453723   0.01281059 -3.          0.        ]
+ [-0.12540576  0.04509572  0.01335418 -3.          0.        ]
+ [-0.13013074  0.04488568  0.01376701 -3.          0.        ]
+ [-0.13375726  0.04472438  0.01408386 -3.          0.        ]
+ [-0.13656719  0.04459939  0.01432937 -3.          0.        ]
+ [-0.13872805  0.04450328  0.01451817 -3.          0.        ]
+ [-0.14039165  0.04442929  0.01466351 -3.          0.        ]
+ [-0.14167431  0.04437224  0.01477558 -3.          0.        ]
+ [-0.14266226  0.0443283   0.0148619  -3.          0.        ]
+ [-0.14342329  0.04429445  0.01492839 -3.          0.        ]
+ [-0.14400962  0.04426837  0.01497962 -3.          0.        ]
+ [-0.14446133  0.04424828  0.01501908 -3.          0.        ]
+ [-0.14480931  0.0442328   0.01504949 -3.          0.        ]
+ [-0.14507739  0.04422088  0.01507291 -3.          0.        ]]
+
+STEP 1:
+[[-0.14507739  0.04422088  0.01507291 -3.          0.        ]
+ [-0.14539592  0.04420662  0.01510073 -3.          0.        ]
+ [-0.14554703  0.04419997  0.01511394 -3.          0.        ]
+ [-0.14564666  0.04419556  0.01512265 -3.          0.        ]
+ [-0.14571929  0.04419234  0.01512899 -3.          0.        ]
+ [-0.14577949  0.04418965  0.01513425 -3.          0.        ]
+ [-0.14582494  0.04418764  0.01513822 -3.          0.        ]
+ [-0.1458596   0.04418609  0.01514125 -3.          0.        ]
+ [-0.1458866   0.04418489  0.01514361 -3.          0.        ]
+ [-0.14590734  0.04418397  0.01514542 -3.          0.        ]
+ [-0.14592332  0.04418326  0.01514682 -3.          0.        ]
+ [-0.14593561  0.04418271  0.01514789 -3.          0.        ]
+ [-0.1459451   0.04418229  0.01514872 -3.          0.        ]
+ [-0.1459524   0.04418197  0.01514936 -3.          0.        ]
+ [-0.14595804  0.04418171  0.01514985 -3.          0.        ]
+ [-0.14596236  0.04418152  0.01515023 -3.          0.        ]
+ [-0.1459657   0.04418137  0.01515052 -3.          0.        ]
+ [-0.14596826  0.04418126  0.01515075 -3.          0.        ]
+ [-0.14597024  0.04418117  0.01515092 -3.          0.        ]
+ [-0.14597178  0.0441811   0.01515105 -3.          0.        ]]
+
+STEP 2:
+[[-0.14597178  0.0441811   0.01515105 -3.          0.        ]
+ [-0.14597359  0.04418102  0.01515121 -3.          0.        ]
+ [-0.14597446  0.04418098  0.01515129 -3.          0.        ]
+ [-0.14597502  0.04418096  0.01515134 -3.          0.        ]
+ [-0.14597544  0.04418094  0.01515137 -3.          0.        ]
+ [-0.14597578  0.04418092  0.0151514  -3.          0.        ]
+ [-0.14597604  0.04418091  0.01515143 -3.          0.        ]
+ [-0.14597623  0.0441809   0.01515144 -3.          0.        ]
+ [-0.14597639  0.0441809   0.01515145 -3.          0.        ]
+ [-0.14597651  0.04418089  0.01515147 -3.          0.        ]
+ [-0.1459766   0.04418089  0.01515147 -3.          0.        ]
+ [-0.14597666  0.04418088  0.01515148 -3.          0.        ]
+ [-0.14597672  0.04418088  0.01515148 -3.          0.        ]
+ [-0.14597677  0.04418088  0.01515149 -3.          0.        ]
+ [-0.14597678  0.04418088  0.01515149 -3.          0.        ]
+ [-0.14597681  0.04418088  0.01515149 -3.          0.        ]
+ [-0.14597684  0.04418088  0.01515149 -3.          0.        ]
+ [-0.14597684  0.04418088  0.01515149 -3.          0.        ]
+ [-0.14597686  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597686  0.04418088  0.0151515  -3.          0.        ]]
+
+STEP 3:
+[[-0.14597686  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]]
+
+STEP 4:
+[[-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]
+ [-0.14597687  0.04418088  0.0151515  -3.          0.        ]]
+

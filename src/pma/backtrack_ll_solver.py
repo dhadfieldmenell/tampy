@@ -70,7 +70,7 @@ class BacktrackLLSolver(LLSolver):
             return True
 
         a = plan.actions[anum]
-        print "backtracking Solve on {}".format(a.name)
+        # print "backtracking Solve on {}".format(a.name)
         active_ts = a.active_timesteps
         inits = {}
         rs_param = self.get_resample_param(a)

@@ -26,6 +26,7 @@ from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeseri
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
+from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.namo.sorting_prob import *
 
 
@@ -177,10 +178,11 @@ class NAMOSortingAgent(Agent):
             U = policy.act(sample.get_X(t=t), sample.get_obs(t=t), t, noise[t])
             sample.set(ACTION_ENUM, U.copy(), t)
             if np.any(np.isnan(U)):
-                import ipdb; ipdb.set_trace()
+                U[np.isnan(U)] = 0
+                # import ipdb; ipdb.set_trace()
             
             self.traj_hist.append(U)
-            if len(self.traj_hist) > self.hist_len:
+            while len(self.traj_hist) > self.hist_len:
                 self.traj_hist.pop(0)
 
             self.run_policy_step(U, X, self.plans[task], t)
@@ -203,7 +205,7 @@ class NAMOSortingAgent(Agent):
                     radius1 = param.geom.radius
                     radius2 = plan.params['pr2'].geom.radius
                     grip_dist = radius1 + radius2
-                    if (plan.params['pr2'].gripper[0, t] > 0.5 or t == plan.horizon - 2) and np.abs(dist[0]) < 0.1 and np.abs(grip_dist + dist[1]) < 0.1:
+                    if (plan.params['pr2'].gripper[0, t] > 0.5 or t == plan.horizon - 2) and np.abs(dist[0]) < 0.05 and np.abs(grip_dist + dist[1]) < 0.05:
                         param.pose[:, t+1] = plan.params['pr2'].pose[:, t+1] + [0, grip_dist]
                     elif param._type == 'Can':
                         param.pose[:, t+1] = param.pose[:, t]
@@ -256,3 +258,25 @@ class NAMOSortingAgent(Agent):
 
     def update_targets(self, targets, condition):
         self.targets[condition] = targets
+
+
+    def get_sample_constr_cost(self, sample):
+        targets = get_next_target(self.plans.values()[0], sample.get(STATE_ENUM, t=0), sample.task, self.targets[sample.condition])
+        plan = self.plans[sample.task, targets[0].name]
+        for t in range(sample.T):
+            set_params_attrs(plan.params, plan.state_inds, sample.get(STATE_ENUM, t=t), t)
+
+        for param_name in plan.params:
+            param = plan.params[param_name]
+            if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
+                plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
+
+        for target in targets:
+            if target.name in self.targets[sample.condition]:
+                plan.params[target.name].value[:,0] = self.targets[sample.condition][target.name]
+
+        plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
+        dist = plan.params['pr2'].geom.radius + targets[0].geom.radius
+        plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
+
+        return check_constr_violation(plan)

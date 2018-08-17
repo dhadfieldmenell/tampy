@@ -100,8 +100,8 @@ class AlgorithmMDGPS(Algorithm):
             sample_lists: List of SampleList objects for each condition.
         """
         # Store the samples and evaluate the costs.
-        if not len(self.cur) or self.replace_conds:
-            self.set_conditions(len(sample_lists))
+        # if not len(self.cur) or self.replace_conds:
+        #     self.set_conditions(len(sample_lists))
         for m in range(len(sample_lists)):
             self.cur[m].sample_list = sample_lists[m]
             self._eval_cost(m)
@@ -379,21 +379,21 @@ class AlgorithmMDGPS(Algorithm):
         for m in range(len(self.prev)):
             self.prev[m].new_traj_distr = self.new_traj_distr[m]
 
-        self.cur = []
-        for m in range(self.M):
-            self.cur.append(IterationData())
-            self.cur[m].traj_info = TrajectoryInfo()
-            self.cur[m].traj_info.dynamics = copy.deepcopy(self.prev[m].traj_info.dynamics)
-            self.cur[m].step_mult = self.prev[m].step_mult
-            self.cur[m].eta = self.prev[m].eta
-            self.cur[m].traj_distr = self.new_traj_distr[m]
+        # self.cur = []
+        # for m in range(self.M):
+        #     self.cur.append(IterationData())
+        #     self.cur[m].traj_info = TrajectoryInfo()
+        #     self.cur[m].traj_info.dynamics = copy.deepcopy(self.prev[m].traj_info.dynamics)
+        #     self.cur[m].step_mult = self.prev[m].step_mult
+        #     self.cur[m].eta = self.prev[m].eta
+        #     self.cur[m].traj_distr = self.new_traj_distr[m]
         delattr(self, 'new_traj_distr')
 
 
-        for m in range(self.M):
-                self.cur[m].traj_info.last_kl_step = \
-                        self.prev[m].traj_info.last_kl_step
-                self.cur[m].pol_info = copy.deepcopy(self.prev[m].pol_info)
+        # for m in range(self.M):
+        #         self.cur[m].traj_info.last_kl_step = \
+        #                 self.prev[m].traj_info.last_kl_step
+        #         self.cur[m].pol_info = copy.deepcopy(self.prev[m].pol_info)
 
     def _stepadjust(self):
         """

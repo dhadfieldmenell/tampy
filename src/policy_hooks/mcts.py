@@ -92,8 +92,6 @@ class MCTS:
                     for sample in path:
                         sample.task_cost = opt_val
 
-            print "Value of solving HL Plan: ", opt_val, "\n"
-
         self.agent.add_task_paths(paths)
         return opt_val
 
@@ -258,7 +256,7 @@ class MCTS:
 
         self.agent.add_sample_batch(samples, task)
         cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
-        self.agent.reset_hist(lowest_cost_sample.get_U()[-3:].tolist())
+        self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
         return lowest_cost_sample, cur_state
 

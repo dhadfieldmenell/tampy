@@ -11,8 +11,9 @@ import os.path
 import sys
 import copy
 import argparse
-import threading
 from datetime import datetime
+import threading
+import pprint
 import time
 import traceback
 
@@ -104,6 +105,7 @@ class GPSMain(object):
             itr_start = self._initialize(itr_load)
 
             for itr in range(itr_start, self._hyperparams['iterations']):
+                print '\n\nITERATION ', itr
                 paths = []
                 for cond in self._train_idx:
                     rollout_policies = {}
@@ -143,11 +145,15 @@ class GPSMain(object):
                 # self._log_data(itr, traj_sample_lists, pol_sample_lists)
                 # self.agent.optimize_trajectories(self.algorithm)                
                 # self.agent.update_cost_trajectories(self.algorithm)
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
         except Exception as e:
             traceback.print_exception(*sys.exc_info())
-        finally:
-            self._end()
+        # finally:
+            # self._end()
+
+        self.print_task('grasp', 'can0')
+        self.save_task('grasp', 'can0')
+        self.policy_opt.sess.close()
 
     def update_primitives(self, samples):
         dP, dO = len(self.task_list), self.alg_map.values()[0].dO
@@ -202,7 +208,7 @@ class GPSMain(object):
             alg = self.alg_map[task]
             for m in range(len(alg.cur)):
                 samples = alg.cur[m].sample_list
-                if samples is None:
+                if samples is None or not hasattr(alg, 'new_traj_distr'):
                     print "No samples for {0} in distilled update.\n".format(task)
                     break
                 T = samples[0].T
@@ -389,7 +395,7 @@ class GPSMain(object):
         self.update_primitives(paths)
         self.update_distilled()
         for task in self.alg_map:
-            if len(sample_lists[task]):
+            if len(self.alg_map[task].cur):
                 self.alg_map[task]._advance_iteration_variables()
         if self.gui:
             self.gui.stop_display_calculating()
@@ -418,6 +424,33 @@ class GPSMain(object):
                 self.algorithm.policy_opt.policy, self._test_idx[cond],
                 save_global=True, verbose=verbose, save=False, noisy=False)
         return [SampleList(samples) for samples in pol_samples]
+
+    def print_task(self, task, target, reset_hist=True, cond=0, noisy=False):
+        if reset_hist:
+            self.agent.reset_hist()
+
+        sample = self.agent.sample_task(self.rollout_policies[task], cond, self.agent.x0[cond], [task, target], noisy=noisy)
+        print sample.get_X()
+
+    def save_task(self, task, target, reset_hist=True, cond=0, noisy=False):
+        if reset_hist:
+            self.agent.reset_hist()
+            
+        file_time = str(datetime.now())
+        with open('experiments/' + file_time + '.txt', 'w+') as f:
+            f.write(pprint.pformat(self._hyperparams, width=1))
+            f.write('\n\n\n')
+            f.write(str(self._hyperparams['algorithm'].values()[0]['cost']['type']))
+            f.write('\n\n')
+
+        state = self.agent.x0[cond]
+        for i in range(5):
+            sample = self.agent.sample_task(self.rollout_policies[task], cond, state, [task, target], noisy=noisy)
+            state = sample.get_X(t=-1)
+            with open('experiments/' + file_time + '.txt', 'a+') as f:
+                f.write('STEP {0}:\n'.format(i))
+                f.write(str(sample.get_X()))
+                f.write('\n\n')
 
     def _log_data(self, itr, traj_sample_lists, pol_sample_lists=None):
         """
