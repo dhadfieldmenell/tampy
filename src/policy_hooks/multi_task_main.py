@@ -190,8 +190,7 @@ class GPSMain(object):
             # self._end()
 
         self.print_task('grasp', 'can0')
-        self.save_task('grasp', 'can0')
-        import ipdb; ipdb.set_trace()
+        self.save_task()
         self.policy_opt.sess.close()
 
     def update_primitives(self, samples):

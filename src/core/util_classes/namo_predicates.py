@@ -390,9 +390,15 @@ class Obstructs(CollisionPredicate):
         #     import ipdb; ipdb.set_trace()
 
         disp = self.c.pose[:, time] - self.r.pose[:,time]
-        orth = np.array([1./disp[0], -1./disp[1]])
+        if disp[0] == 0:
+            orth = np.array([1, 0])
+        elif disp[1] == 0:
+            orth = np.array([0, 1])
+        else:
+            orth = np.array([1./disp[0], -1./disp[1]])
         orth *= np.random.choice([-1, 1])
-        orth *= np.random.choice([1.25, 1.5, 2, 3]) * (self.r.geom.radius + self.c.geom.radius)
+        orth /= np.linalg.norm(orth)
+        orth *= np.random.choice([1.25, 1.5, 2, 3]) * (self.held.geom.radius + self.obstr.geom.radius)
 
         new_robot_pose = self.r.pose[:, time] + orth
         add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
@@ -512,8 +518,14 @@ class ObstructsHolding(CollisionPredicate):
         res = OrderedDict()
         attr_inds = OrderedDict()
         disp = self.obstr.pose[:, time] - self.held.pose[:,time]
-        orth = np.array([1./disp[0], -1./disp[1]])
+        if disp[0] == 0:
+            orth = np.array([1, 0])
+        elif disp[1] == 0:
+            orth = np.array([0, 1])
+        else:
+            orth = np.array([1./disp[0], -1./disp[1]])
         orth *= np.random.choice([-1, 1])
+        orth /= np.linalg.norm(orth)
         orth *= np.random.choice([1.25, 1.5, 2, 3]) * (self.held.geom.radius + self.obstr.geom.radius)
         # ## assumes that self.startp, self.endp and target are all symbols
         # t_local = 0
