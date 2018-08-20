@@ -79,7 +79,7 @@ class MCTS:
                     targets.append(self.agent.plans.values()[0].params['{0}_init_target'.format(p_name)])
                 plan = self._plan_f(step[0], targets)
                 # next_sample, cur_state = self.sample(step[0], cur_state, targets, plan)
-                next_sample = self.agent.sample_optimal_trajectory(cur_state, step[0], self.condition, targets)
+                next_sample, _ = self.agent.sample_optimal_trajectory(cur_state, step[0], self.condition, targets)
                 if next_sample == None:
                     break
                 cur_sample = next_sample
@@ -296,6 +296,10 @@ class MCTS:
  
             current_node = next_node
             path.append(current_node)
+
+            # end_ts = plan.horizon - 1
+            # if self._cost_f(cur_state, task, target, self.agent.targets[self.condition], plan, active_ts=(end_ts, end_ts)) > 0:
+            #     break
 
 
         path_value = self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0])

@@ -120,8 +120,46 @@ class GPSMain(object):
                     val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies)
 
                     if val > 0:
-                        opt_hl_plan = self.agent.get_hl_plan(cond)
-                        val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], hl_plan=opt_hl_plan)
+                        failed = []
+                        new_failed = []
+                        stop = False
+                        attempt = 0
+                        cur_sample = None
+                        cur_state = self.agent.x0[cond]
+                        while not stop and attempt < 2:
+                            paths = [[]]
+                            cur_sample = None
+                            cur_state = self.agent.x0[cond]
+                            opt_hl_plan = self.agent.get_hl_plan(cond, failed)
+                            for step in opt_hl_plan:
+                                targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
+                                if len(targets) < 2:
+                                    targets.append(self.agent.plans.values()[0].params['{0}_init_target'.format(p_name)])
+                                plan = self._hyperparams['plan_f'](step[0], targets)
+                                next_sample, new_failed = self.agent.sample_optimal_trajectory(cur_state, step[0], cond, fixed_targets=targets)
+                                if not len(new_failed) and next_sample == None:
+                                    stop = True
+                                    break
+
+                                if len(new_failed):
+                                    failed.extend(new_failed)
+                                    break
+
+                                cur_sample = next_sample
+                                cur_state = cur_sample.get_X(t=cur_sample.T-1)
+                                paths[0].append(cur_sample)
+
+                            if not len(new_failed):
+                                break
+
+                            # print '\n\n', opt_hl_plan, '\n\n'
+                            attempt += 1
+
+                        if cur_sample != None: 
+                            opt_val = self._hyperparams['goal_f'](cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[cond], self.agent.plans.values()[0])
+                            for path in paths:
+                                for sample in path:
+                                    sample.task_cost = opt_val
 
                 traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
 
@@ -153,6 +191,7 @@ class GPSMain(object):
 
         self.print_task('grasp', 'can0')
         self.save_task('grasp', 'can0')
+        import ipdb; ipdb.set_trace()
         self.policy_opt.sess.close()
 
     def update_primitives(self, samples):
@@ -432,25 +471,36 @@ class GPSMain(object):
         sample = self.agent.sample_task(self.rollout_policies[task], cond, self.agent.x0[cond], [task, target], noisy=noisy)
         print sample.get_X()
 
-    def save_task(self, task, target, reset_hist=True, cond=0, noisy=False):
+    def save_task(self, reset_hist=True, cond=0, noisy=False):
         if reset_hist:
             self.agent.reset_hist()
             
         file_time = str(datetime.now())
         with open('experiments/' + file_time + '.txt', 'w+') as f:
+            f.write(file_time+'\n\n')
+
+        state = self.agent.x0[cond]
+        self.agent.reset_hist()
+        for i in range(8):
+            sample = Sample(self.agent)
+            sample.set(STATE_ENUM, state.copy(), 0)
+            sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
+            sample.set(TARGETS_ENUM, self.agent.target_vecs[cond].copy(), 0)
+            task = self.policy_opt.task_distr(sample.get_obs(t=0))
+            targets = self._hyperparams['target_f'](self.agent.plans.values()[0], state, task, self.agent.targets[0])
+
+            sample = self.agent.sample_task(self.rollout_policies[task], cond, state, [task, targets[0]], noisy=noisy)
+            state = sample.get_X(t=-1)
+            with open('experiments/' + file_time + '.txt', 'a+') as f:
+                f.write('STEP {0}: {1}\n'.format(i, task))
+                f.write(str(sample.get_X()))
+                f.write('\n\n')
+
+        with open('experiments/' + file_time + '.txt', 'a+') as f:
             f.write(pprint.pformat(self._hyperparams, width=1))
             f.write('\n\n\n')
             f.write(str(self._hyperparams['algorithm'].values()[0]['cost']['type']))
             f.write('\n\n')
-
-        state = self.agent.x0[cond]
-        for i in range(5):
-            sample = self.agent.sample_task(self.rollout_policies[task], cond, state, [task, target], noisy=noisy)
-            state = sample.get_X(t=-1)
-            with open('experiments/' + file_time + '.txt', 'a+') as f:
-                f.write('STEP {0}:\n'.format(i))
-                f.write(str(sample.get_X()))
-                f.write('\n\n')
 
     def _log_data(self, itr, traj_sample_lists, pol_sample_lists=None):
         """

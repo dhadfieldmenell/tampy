@@ -48,6 +48,7 @@ class NAMOPolicySolver(NAMOSolver):
         self.rs_coeff = 2e2
         self.trajopt_coeff = 1e0
         self.policy_pred = None
+        self.transfer_always = False
 
     # TODO: Add hooks for online policy learning
     def train_policy(self, num_cans, hyperparams=None):
@@ -67,7 +68,7 @@ class NAMOPolicySolver(NAMOSolver):
             self.config.update(hyperparams)
 
         conditions = self.config['num_conds']
-        self.task_list = get_tasks('policy_hooks/namo/sorting_task_mapping').keys()
+        self.task_list = tuple(get_tasks('policy_hooks/namo/sorting_task_mapping').keys())
         self.task_durations = get_task_durations('policy_hooks/namo/sorting_task_mapping')
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
@@ -97,10 +98,10 @@ class NAMOPolicySolver(NAMOSolver):
 
         self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], ATTRMAP, target_vector_include)
 
-        x0 = []
         for i in range(conditions):
             targets.append(get_end_targets(num_cans))
-            x0.append(get_random_initial_state_vec(num_cans, targets[i], self.dX, self.state_inds))
+        
+        x0 = get_random_initial_state_vec(num_cans, targets[i], self.dX, self.state_inds, conditions)
 
         for plan in plans.values():
             plan.state_inds = self.state_inds
@@ -197,13 +198,13 @@ class NAMOPolicySolver(NAMOSolver):
                         'type': TrajConstrCost,
                       }
 
-        self.config['algorithm']['cost'] = {
-                                                'type': CostSum,
-                                                'costs': [traj_cost, action_cost],
-                                                'weights': [1.0, 1.0],
-                                           }
+        # self.config['algorithm']['cost'] = {
+        #                                         'type': CostSum,
+        #                                         'costs': [traj_cost, action_cost],
+        #                                         'weights': [1.0, 1.0],
+        #                                    }
 
-        # self.config['algorithm']['cost'] = constr_cost
+        self.config['algorithm']['cost'] = constr_cost
 
         self.config['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
@@ -231,9 +232,9 @@ class NAMOPolicySolver(NAMOSolver):
                 'image_height': utils.IM_H,
                 'image_channels': utils.IM_C,
                 'sensor_dims': sensor_dims,
-                'n_layers': 2,
+                'n_layers': 3,
                 'num_filters': [5,10],
-                'dim_hidden': [300, 300]
+                'dim_hidden': [100, 100, 100]
             },
             'lr': self.config['lr'],
             'network_model': tf_network,
@@ -262,6 +263,113 @@ class NAMOPolicySolver(NAMOSolver):
         env.Destroy()
 
 
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5, traj_mean=[]):
+        if amax is None:
+            amax = len(plan.actions) - 1
+
+        if anum > amax:
+            return True
+
+        a = plan.actions[anum]
+        # print "backtracking Solve on {}".format(a.name)
+        active_ts = a.active_timesteps
+        inits = {}
+        rs_param = self.get_resample_param(a)
+
+        base_t = active_ts[0]
+        if len(traj_mean):
+            self.transfer_always = True
+            for t in range(1, len(traj_mean)-1):
+                for param_name, attr in plan.action_inds:
+                    param = plan.params[param_name]
+                    getattr(param, attr)[:, base_t+t] = traj_mean[t, plan.action_inds[param_name, attr]]
+        else:
+            self.transfer_always = False
+
+        def recursive_solve():
+            ## don't optimize over any params that are already set
+            old_params_free = {}
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p not in a.params: continue
+                    old_params_free[p] = p._free_attrs
+                    p._free_attrs = {}
+                    for attr in old_params_free[p].keys():
+                        p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                else:
+                    p_attrs = {}
+                    old_params_free[p] = p_attrs
+                    for attr in p._free_attrs:
+                        p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
+                        p._free_attrs[attr][:, active_ts[1]] = 0
+            self.child_solver = self.__class__()
+            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, traj_mean=traj_mean)
+
+            # reset free_attrs
+            for p in plan.params.itervalues():
+                if p.is_symbol():
+                    if p not in a.params: continue
+                    p._free_attrs = old_params_free[p]
+                else:
+                    for attr in p._free_attrs:
+                        p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
+            return success
+
+        # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
+        if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
+            ## this parameter is fixed
+            if callback is not None:
+                callback_a = lambda: callback(a)
+            else:
+                callback_a = None
+            self.child_solver = self.__class__()
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
+                                              active_ts=active_ts, verbose=verbose, force_init=True)
+            if not success:
+                ## if planning fails we're done
+                return False
+            ## no other options, so just return here
+            return recursive_solve()
+
+        ## so that this won't be optimized over
+        rs_free = rs_param._free_attrs
+        rs_param._free_attrs = {}
+        for attr in rs_free.keys():
+            rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
+
+        """
+        sampler_begin
+        """
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=3)
+
+        """
+        sampler end
+        """
+
+        if callback is not None:
+            callback_a = lambda: callback(a)
+        else:
+            callback_a = None
+
+        for rp in robot_poses:
+            for attr, val in rp.iteritems():
+                setattr(rs_param, attr, val)
+
+            success = False
+            self.child_solver = self.__class__()
+            success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
+                                              active_ts = active_ts, verbose=verbose,
+                                              force_init=True)
+            if success:
+                if recursive_solve():
+                    break
+                else:
+                    success = False
+
+        rs_param._free_attrs = rs_free
+        return success
+
+
     def optimize_against_global(self, plan, a_start=0, a_end=-1, cond=0):
         a_num = a_start
         if a_end == -1:
@@ -283,7 +391,7 @@ class NAMOPolicySolver(NAMOSolver):
         global_traj_mean = []
 
         while a_num < a_end:
-            print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
+            # print "Constraining actions {0} and {1} against the global policy.\n".format(a_num, a_num+1)
             act_1 = plan.actions[a_num]
             act_2 = plan.actions[a_num+1]
             active_ts = (act_1.active_timesteps[0], act_2.active_timesteps[1])
@@ -476,14 +584,16 @@ class NAMOPolicySolver(NAMOSolver):
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
             self._add_all_timesteps_of_actions(plan, priority=3,
-                add_nonlin=False, active_ts=active_ts)
-            self._add_policy_preds(plan, active_ts)
+                add_nonlin=True, active_ts=active_ts)
+            # self._add_policy_preds(plan, active_ts)
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
             initial_trust_region_size = 1e3
         else:
             self._bexpr_to_pred = {}
             obj_bexprs = []
+            if self.transfer_always:
+                obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
             if len(global_traj_mean):
                 obj_bexprs.extend(self._traj_policy_opt(plan, global_traj_mean, active_ts[0], active_ts[1]))
                 self._add_obj_bexprs(obj_bexprs)
@@ -491,9 +601,36 @@ class NAMOPolicySolver(NAMOSolver):
             # obj_bexprs = self._get_transfer_obj(plan, self.transfer_norm)
             # self.transfer_coeff *= 1e-1
             # self._add_obj_bexprs(obj_bexprs)
-            self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
-                                               active_ts=active_ts)
-            self._add_policy_preds(plan, active_ts)
+            # self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
+            #                                    active_ts=active_ts)
+            # self._add_policy_preds(plan, active_ts)
+
+            if priority == -2:
+                """
+                Initialize an linear trajectory while enforceing the linear constraints in the intermediate step.
+                """
+                obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
+                self._add_obj_bexprs(obj_bexprs)
+                self._add_first_and_last_timesteps_of_actions(plan,
+                    priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
+                tol = 1e-3
+                initial_trust_region_size = 1e3
+            elif priority == -1:
+                """
+                Solve the optimization problem while enforcing every constraints.
+                """
+                obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
+                self._add_obj_bexprs(obj_bexprs)
+                self._add_first_and_last_timesteps_of_actions(plan,
+                    priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
+                    add_nonlin=True)
+                tol = 1e-3
+            elif priority >= 0:
+                obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
+                self._add_obj_bexprs(obj_bexprs)
+                self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
+                                                   active_ts=active_ts, verbose=verbose)
+                tol=1e-3
 
         solv = Solver()
         solv.initial_trust_region_size = initial_trust_region_size
@@ -607,15 +744,15 @@ def copy_dict(d):
     return new_d
 
 if __name__ == '__main__':
-    for lr in [1e-4, 1e-3]:
+    for lr in [1e-4, 1e-5]:
         for init_var in [0.001, 1.0]:
-            for covard in [10]:
-                for wt in [1e2, 1e3]:
+            for covard in [1, 10]:
+                for wt in [1e4]:
                     for klt in [1e-3]:
                         for kl in [1e0]:
-                            for iters in [5000, 10000]:
-                                for dh in [[100], [300], [1000]]:
-                                    for hl in [5, 10]:
+                            for iters in [10000]:
+                                for dh in [[64, 64, 64], [50, 50, 50], [200, 200, 200]]:
+                                    for hl in [2]:
                                         config = copy_dict(namo_hyperparams.config)
                                         config['lr'] = lr
                                         config['dim_hidden'] = dh
@@ -628,4 +765,4 @@ if __name__ == '__main__':
                                         config['algorithm']['kl_step'] = kl
                                         config['hist_len'] = hl
                                         PS = NAMOPolicySolver()
-                                        PS.train_policy(1, config)
+                                        PS.train_policy(2, config)

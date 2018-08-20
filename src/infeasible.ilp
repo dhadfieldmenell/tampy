@@ -1,49 +1,14 @@
 Minimize
-  + 1852.976419156907 Constant
+  + 55.5400000667572 Constant
 Subject To
- R11: (pr2-pose-(1,_0)) = 16.31147879508469
- R16: (robot_end_pose-value-(1,_0)) = -0.4
- R42: (pr2-pose-(1,_0)) - (pr2-pose-(1,_1)) <= 0.4
- R46: (pr2-pose-(1,_1)) - (pr2-pose-(1,_2)) <= 0.4
- R50: (pr2-pose-(1,_2)) - (pr2-pose-(1,_3)) <= 0.4
- R54: (pr2-pose-(1,_3)) - (pr2-pose-(1,_4)) <= 0.4
- R58: (pr2-pose-(1,_4)) - (pr2-pose-(1,_5)) <= 0.4
- R62: (pr2-pose-(1,_5)) - (pr2-pose-(1,_6)) <= 0.4
- R66: (pr2-pose-(1,_6)) - (pr2-pose-(1,_7)) <= 0.4
- R70: (pr2-pose-(1,_7)) - (pr2-pose-(1,_8)) <= 0.4
- R74: (pr2-pose-(1,_8)) - (pr2-pose-(1,_9)) <= 0.4
- R78: (pr2-pose-(1,_9)) - (pr2-pose-(1,_10)) <= 0.4
- R82: (pr2-pose-(1,_10)) - (pr2-pose-(1,_11)) <= 0.4
- R86: (pr2-pose-(1,_11)) - (pr2-pose-(1,_12)) <= 0.4
- R90: (pr2-pose-(1,_12)) - (pr2-pose-(1,_13)) <= 0.4
- R94: (pr2-pose-(1,_13)) - (pr2-pose-(1,_14)) <= 0.4
- R98: (pr2-pose-(1,_14)) - (pr2-pose-(1,_15)) <= 0.4
- R102: (pr2-pose-(1,_15)) - (pr2-pose-(1,_16)) <= 0.4
- R106: (pr2-pose-(1,_16)) - (pr2-pose-(1,_17)) <= 0.4
- R110: (pr2-pose-(1,_17)) - (pr2-pose-(1,_18)) <= 0.4
- R114: (pr2-pose-(1,_18)) - (pr2-pose-(1,_19)) <= 0.4
- R119: (pr2-pose-(1,_19)) - (robot_end_pose-value-(1,_0)) = 0
+ R1: (can0_init_target-value-(1,_0)) = 1
+ R7: (robot_end_pose-value-(1,_0)) = 0.4000000059604645
+ R9: (grasp0-value-(1,_0)) = 0.6000000238418579
+ R32: - (grasp0-value-(1,_0)) - (can0_init_target-value-(1,_0))
+   + (robot_end_pose-value-(1,_0)) = 0
 Bounds
- (pr2-pose-(1,_0)) free
- (pr2-pose-(1,_1)) free
- (pr2-pose-(1,_2)) free
- (pr2-pose-(1,_3)) free
- (pr2-pose-(1,_4)) free
- (pr2-pose-(1,_5)) free
- (pr2-pose-(1,_6)) free
- (pr2-pose-(1,_7)) free
- (pr2-pose-(1,_8)) free
- (pr2-pose-(1,_9)) free
- (pr2-pose-(1,_10)) free
- (pr2-pose-(1,_11)) free
- (pr2-pose-(1,_12)) free
- (pr2-pose-(1,_13)) free
- (pr2-pose-(1,_14)) free
- (pr2-pose-(1,_15)) free
- (pr2-pose-(1,_16)) free
- (pr2-pose-(1,_17)) free
- (pr2-pose-(1,_18)) free
- (pr2-pose-(1,_19)) free
+ (grasp0-value-(1,_0)) free
+ (can0_init_target-value-(1,_0)) free
  (robot_end_pose-value-(1,_0)) free
  Constant = 1
 End

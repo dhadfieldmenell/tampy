@@ -1,16 +1,16 @@
 {
     'grasp': [
-        '0: GRASP PR2 {0} CAN0_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE GRASP0'
+        '0: GRASP PR2 {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE GRASP0'
     ],
 
     'putdown': [
-        '0: MOVETOHOLDING PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} GRASP0'
+        '0: PLACE PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} GRASP0'
     ],
 
 };
 
 {
-    'grasp': 20,
-    'putdown': 20,
+    'grasp': 25,
+    'putdown': 25,
 }
 

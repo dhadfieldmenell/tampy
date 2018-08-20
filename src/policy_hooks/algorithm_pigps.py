@@ -44,7 +44,8 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         for m in range(len(self.cur)):
             self.cur[m].sample_list = sample_lists[m]
             if not np.any(sample_lists[m][0].get_ref_X()):
-                opt_sample = self.agent.sample_optimal_trajectory(sample_lists[m][0].get_X(t=0), sample_lists[m][0].task, sample_lists[m][0].condition)
+                traj_mean = np.sum([sample.get_U() for sample in sample_lists[m]], axis=0) / len(sample_lists[m])
+                opt_sample, _ = self.agent.sample_optimal_trajectory(sample_lists[m][0].get_X(t=0), sample_lists[m][0].task, sample_lists[m][0].condition, traj_mean=traj_mean)
                 if opt_sample is None:
                     del_inds.append(m)
                     continue

@@ -16,6 +16,8 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         elif a.name == 'putdown':
             ## sample the end pose
             rs_param = None # a.params[4]
+        elif a.name == 'place':
+            rs_param = None
         else:
             raise NotImplemented
 

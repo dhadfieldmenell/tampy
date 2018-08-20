@@ -255,7 +255,7 @@ class BacktrackLLSolver(LLSolver):
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
 
             self._add_all_timesteps_of_actions(plan, priority=priority,
-                add_nonlin=False, active_ts= active_ts, verbose=verbose)
+                add_nonlin=True, active_ts= active_ts, verbose=verbose)
             obj_bexprs.extend(rs_obj)
             self._add_obj_bexprs(obj_bexprs)
             initial_trust_region_size = 1e3

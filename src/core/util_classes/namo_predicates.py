@@ -15,8 +15,8 @@ from pma.ll_solver import NAMOSolver
 This file implements the predicates for the 2D NAMO domain.
 """
 
-dsafe = 1e-1
-dmove = 4e-1
+dsafe = 0. # 1e-1
+dmove = 5e-1
 contact_dist = 0
 
 RS_SCALE = 0.5
@@ -33,6 +33,19 @@ ATTRMAP = {
     "Obstacle":  (("pose", np.array(range(2), dtype=np.int)),),
     "Grasp":     (("value", np.array(range(2), dtype=np.int)),),
 }
+
+def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
+    if param.is_symbol():
+        t = 0
+    for attr_name, val in attr_name_val_tuples:
+        inds = np.where(param._free_attrs[attr_name][:, t])[0]
+        getattr(param, attr_name)[inds, t] = val[inds]
+        if param in attr_inds:
+            res[param].extend(val[inds].flatten().tolist())
+            attr_inds[param].append((attr_name, inds, t))
+        else:
+            res[param] = val[inds].flatten().tolist()
+            attr_inds[param] = [(attr_name, inds, t)]
 
 class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
@@ -364,18 +377,26 @@ class Obstructs(CollisionPredicate):
 
     def resample(self, negated, time, plan):
         assert negated
-        res = []
+        res = OrderedDict()
         attr_inds = OrderedDict()
-        for param in [self.startp, self.endp]:
-            val, inds = sample_pose(plan, param, self.r, self.rs_scale)
-            if val is None:
-                continue
-            res.extend(val[inds].flatten().tolist())
-            # inds[0] returns the x values of the indices which is what we care
-            # about, because the y values correspond to time.
-            attr_inds[param] = [('value', inds[0])]
-        return np.array(res), attr_inds
+        # for param in [self.startp, self.endp]:
+        #     val, inds = sample_pose(plan, param, self.r, self.rs_scale)
+        #     if val is None:
+        #         continue
+        #     res.extend(val[inds].flatten().tolist())
+        #     # inds[0] returns the x values of the indices which is what we care
+        #     # about, because the y values correspond to time.
+        #     attr_inds[param] = [('value', inds[0])]
+        #     import ipdb; ipdb.set_trace()
 
+        disp = self.c.pose[:, time] - self.r.pose[:,time]
+        orth = np.array([1./disp[0], -1./disp[1]])
+        orth *= np.random.choice([-1, 1])
+        orth *= np.random.choice([1.25, 1.5, 2, 3]) * (self.r.geom.radius + self.c.geom.radius)
+
+        new_robot_pose = self.r.pose[:, time] + orth
+        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
+        return res, attr_inds
 
     def get_expr(self, negated):
         if negated:
@@ -487,23 +508,31 @@ class ObstructsHolding(CollisionPredicate):
         # self.priority=1
 
     def resample(self, negated, time, plan):
-
         assert negated
-        res = []
+        res = OrderedDict()
         attr_inds = OrderedDict()
-        # assumes that self.startp, self.endp and target are all symbols
-        t_local = 0
-        for param in [self.startp, self.endp]:
-            ## there should only be 1 target that satisfies this
-            ## otherwise, choose to fail here
-            val, inds = sample_pose(plan, param, self.r, self.rs_scale)
-            if val is None:
-                continue
-            res.extend(val[inds].flatten().tolist())
-            # inds[0] returns the x values of the indices which is what we care
-            # about, because the y values correspond to time.
-            attr_inds[param] = [('value', inds[0])]
-        return np.array(res), attr_inds
+        disp = self.obstr.pose[:, time] - self.held.pose[:,time]
+        orth = np.array([1./disp[0], -1./disp[1]])
+        orth *= np.random.choice([-1, 1])
+        orth *= np.random.choice([1.25, 1.5, 2, 3]) * (self.held.geom.radius + self.obstr.geom.radius)
+        # ## assumes that self.startp, self.endp and target are all symbols
+        # t_local = 0
+        # for param in [self.startp, self.endp]:
+        #     ## there should only be 1 target that satisfies this
+        #     ## otherwise, choose to fail here
+        #     val, inds = sample_pose(plan, param, self.r, self.rs_scale)
+        #     if val is None:
+        #         continue
+        #     res.extend(val[inds].flatten().tolist())
+        #     ## inds[0] returns the x values of the indices which is what we care
+        #     ## about, because the y values correspond to time.
+        #     attr_inds[param] = [('value', inds[0])]
+
+        new_robot_pose = self.r.pose[:, time] + orth
+        new_held_pose = self.held.pose[:, time] + orth
+        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
+        add_to_attr_inds_and_res(time, attr_inds, res, self.held, [('pose', new_held_pose)])
+        return res, attr_inds
 
     def get_expr(self, negated):
         if negated:

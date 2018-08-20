@@ -176,6 +176,10 @@ class NAMOSortingAgent(Agent):
             sample.condition = condition
 
             U = policy.act(sample.get_X(t=t), sample.get_obs(t=t), t, noise[t])
+            robot_start = X[plan.state_inds['pr2', 'pose']]
+            robot_vec = U[plan.action_inds['pr2', 'pose']] - robot_start
+            if np.sum(np.abs(robot_vec)) != 0 and np.linalg.norm(robot_vec) < 0.005:
+                U[plan.action_inds['pr2', 'pose']] = robot_start + 0.1 * robot_vec / np.linalg.norm(robot_vec)
             sample.set(ACTION_ENUM, U.copy(), t)
             if np.any(np.isnan(U)):
                 U[np.isnan(U)] = 0
@@ -218,25 +222,46 @@ class NAMOSortingAgent(Agent):
         plan.state_inds, plan.action_inds = self.state_inds, self.action_inds
 
 
-    def sample_optimal_trajectory(self, state, task, condition, targets=[]):
-        targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition]) if not len(targets) else targets
-        plan = self.plans[task, targets[0].name] 
-        set_params_attrs(plan.params, plan.state_inds, state, 0)
-        for param_name in plan.params:
-            param = plan.params[param_name]
-            if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
-                plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
+    def sample_optimal_trajectory(self, state, task, condition, traj_mean=[], fixed_targets=[]):
+        exclude_targets = []
+        success = False
 
-        for target in targets:
-            if target.name in self.targets[condition]:
-                plan.params[target.name].value[:,0] = self.targets[condition][target.name]
-        
-        plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        dist = plan.params['pr2'].geom.radius + targets[0].geom.radius
-        plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
-        success = self.solver._backtrack_solve(plan, n_resamples=3)
+        if len(fixed_targets):
+            targets = fixed_targets
+        else:
+            targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
+
+        failed_preds = []
+        while not success and targets[0] != None:
+            if not len(fixed_targets):
+                 targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean, exclude=exclude_targets)
+
+            plan = self.plans[task, targets[0].name] 
+            set_params_attrs(plan.params, plan.state_inds, state, 0)
+            for param_name in plan.params:
+                param = plan.params[param_name]
+                if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
+                    plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
+
+            for target in self.targets[condition]:
+                plan.params[target].value[:,0] = self.targets[condition][target]
+            
+            plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
+            dist = plan.params['pr2'].geom.radius + targets[0].geom.radius
+            plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
+            # self.env.SetViewer('qtcoin')
+            success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+
+            if not len(failed_preds):
+                failed_preds = [(pred, targets[0]) for negated, pred, t in plan.get_failed_preds(tol=1e-3)]
+            exclude_targets.append(targets[0].name)
+
+            if len(fixed_targets):
+                break
+
+
         if not success:
-            return None
+            return None, failed_preds
 
         class optimal_pol:
             def act(self, X, O, t, noise):
@@ -249,11 +274,11 @@ class NAMOSortingAgent(Agent):
 
         sample = self.sample_task(optimal_pol(), condition, state, [task, targets[0].name], noisy=False)
         self.optimal_samples[task].append(sample)
-        return sample
+        return sample, failed_preds
 
 
-    def get_hl_plan(self, condition):
-        return self._get_hl_plan(self.init_vecs[condition], self.plans.values()[0].params, self.state_inds)
+    def get_hl_plan(self, condition, failed_preds):
+        return self._get_hl_plan(self.init_vecs[condition], self.plans.values()[0].params, self.state_inds, failed_preds)
 
 
     def update_targets(self, targets, condition):
