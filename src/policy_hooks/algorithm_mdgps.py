@@ -26,11 +26,12 @@ class AlgorithmMDGPS(Algorithm):
 
         self.cur = []
         self.prev = []
+        self.dPrim = self.agent.dPrim
         self.sample_ts_prob = self._hyperparams['sample_ts_prob']
         self.replace_conds = self._hyperparams['stochastic_conditions']
         if self._hyperparams['policy_opt']['prev'] is None:
             self.policy_opt = self._hyperparams['policy_opt']['type'](
-                self._hyperparams['policy_opt'], self.dO, self.dU
+                self._hyperparams['policy_opt'], self.dO, self.dU, self.dPrim
             )
         else:
             self.policy_opt = self._hyperparams['policy_opt']['prev']

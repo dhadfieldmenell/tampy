@@ -18,6 +18,7 @@ class Sample(object):
         self.dU = agent.dU
         self.dO = agent.dO
         self.dM = agent.dM
+        self.dPrim = agent.dPrim
 
         # Dictionary containing the sample data from various sensors.
         self._data = {}
@@ -26,6 +27,8 @@ class Sample(object):
         self._X.fill(np.nan)
         self._obs = np.empty((self.T, self.dO))
         self._obs.fill(np.nan)
+        self._prim_obs = np.empty((self.T, self.dPrim))
+        self._prim_obs.fill(np.nan)
         self._meta = np.empty(self.dM)
         self._meta.fill(np.nan)
         self._ref_U = np.zeros((self.T, self.dU))
@@ -82,6 +85,20 @@ class Sample(object):
                 data = (self._data[data_type] if t is None
                         else self._data[data_type][t, :])
                 self.agent.pack_data_obs(obs, data, data_types=[data_type])
+        return obs
+
+    def get_prim_obs(self, t=None):
+        """ Get the observation. Put it together if not precomputed. """
+        obs = self._prim_obs if t is None else self._prim_obs[t, :]
+        if np.any(np.isnan(obs)):
+            for data_type in self._data:
+                if data_type not in self.agent.prim_obs_data_types:
+                    continue
+                if data_type in self.agent.meta_data_types:
+                    continue
+                data = (self._data[data_type] if t is None
+                        else self._data[data_type][t, :])
+                self.agent.pack_data_prim_obs(obs, data, data_types=[data_type])
         return obs
 
     def get_meta(self):

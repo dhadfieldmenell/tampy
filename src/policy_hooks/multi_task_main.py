@@ -22,10 +22,11 @@ sys.path.append('/'.join(str.split(__file__, '/')[:-2]))
 from gps.gui.gps_training_gui import GPSTrainingGUI
 from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
 from gps.utility.data_logger import DataLogger
+from gps.sample.sample import Sample
 from gps.sample.sample_list import SampleList
 
 from policy_hooks.mcts import MCTS
-from policy_hooks.utils.policy_solver_utils import TASK_ENUM
+from policy_hooks.utils.policy_solver_utils import *
 
 
 class LocalControl:
@@ -190,7 +191,7 @@ class GPSMain(object):
             # self._end()
 
         self.print_task('grasp', 'can0')
-        self.save_task()
+        self.save_rollout()
         self.policy_opt.sess.close()
 
     def update_primitives(self, samples):
@@ -201,7 +202,7 @@ class GPSMain(object):
         for sample in samples:
             for t in range(sample.T):
                 obs = [sample.get_obs(t=t)]
-                mu = [sample.get(TASK_ENUM, t=t)]
+                mu = [np.concatenate([sample.get(TASK_ENUM, t=t), sample.get(OBJ_ENUM, t=t), sample.get(TARG_ENUM, t=t)])]
                 prc = [np.ones((dP, dP))]
                 wt = [np.exp(-sample.task_cost)]
                 tgt_mu = np.concatenate((tgt_mu, mu))
@@ -470,7 +471,7 @@ class GPSMain(object):
         sample = self.agent.sample_task(self.rollout_policies[task], cond, self.agent.x0[cond], [task, target], noisy=noisy)
         print sample.get_X()
 
-    def save_task(self, reset_hist=True, cond=0, noisy=False):
+    def save_rollout(self, reset_hist=True, cond=0, noisy=False):
         if reset_hist:
             self.agent.reset_hist()
             
@@ -485,10 +486,11 @@ class GPSMain(object):
             sample.set(STATE_ENUM, state.copy(), 0)
             sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
             sample.set(TARGETS_ENUM, self.agent.target_vecs[cond].copy(), 0)
-            task = self.policy_opt.task_distr(sample.get_obs(t=0))
+            task_ind = np.argmax(self.policy_opt.task_distr([sample.get_obs(t=0)]))
+            task = self.task_list[task_ind]
             targets = self._hyperparams['target_f'](self.agent.plans.values()[0], state, task, self.agent.targets[0])
 
-            sample = self.agent.sample_task(self.rollout_policies[task], cond, state, [task, targets[0]], noisy=noisy)
+            sample = self.agent.sample_task(self.rollout_policies[task], cond, state, [task, targets[0].name if targets[0] is not None else 'can0'], noisy=noisy)
             state = sample.get_X(t=-1)
             with open('experiments/' + file_time + '.txt', 'a+') as f:
                 f.write('STEP {0}: {1}\n'.format(i, task))

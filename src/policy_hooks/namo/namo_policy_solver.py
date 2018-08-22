@@ -118,6 +118,8 @@ class NAMOPolicySolver(NAMOSolver):
             utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
+            utils.OBJ_ENUM: num_cans,
+            utils.TARG_ENUM: len(targets[0].keys()),
         }
 
         self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name] 
@@ -148,10 +150,17 @@ class NAMOPolicySolver(NAMOSolver):
                 'get_plan': get_plan,
                 'sensor_dims': sensor_dims,
                 'state_include': [utils.STATE_ENUM],
-                'obs_include': [utils.STATE_ENUM, utils.TARGETS_ENUM, utils.TRAJ_HIST_ENUM],
+                'obs_include': [utils.STATE_ENUM,
+                                utils.TARGETS_ENUM,
+                                utils.OBJ_ENUM,
+                                utils.TARG_ENUM,
+                                utils.TRAJ_HIST_ENUM],
+                'prim_obs_include': [utils.STATE_ENUM,
+                                     utils.TARGETS_ENUM],
                 'conditions': self.config['num_conds'],
                 'solver': self,
                 'num_cans': num_cans,
+                'obj_list': ['can{0}'.format(c) for c in range(num_cans)],
                 'stochastic_conditions': self.config['stochastic_conditions'],
                 'image_width': utils.IM_W,
                 'image_height': utils.IM_H,
@@ -744,14 +753,14 @@ def copy_dict(d):
     return new_d
 
 if __name__ == '__main__':
-    for lr in [1e-4, 1e-5]:
-        for init_var in [0.001, 1.0]:
-            for covard in [1, 10]:
+    for lr in [1e-4]:
+        for init_var in [0.01]:
+            for covard in [1]:
                 for wt in [1e4]:
                     for klt in [1e-3]:
                         for kl in [1e0]:
                             for iters in [10000]:
-                                for dh in [[64, 64, 64], [50, 50, 50], [200, 200, 200]]:
+                                for dh in [[200, 200, 200]]:
                                     for hl in [2]:
                                         config = copy_dict(namo_hyperparams.config)
                                         config['lr'] = lr

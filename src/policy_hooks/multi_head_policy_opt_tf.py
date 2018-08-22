@@ -22,7 +22,7 @@ LOGGER = logging.getLogger(__name__)
 
 class MultiHeadPolicyOptTf(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
-    def __init__(self, hyperparams, dO, dU):
+    def __init__(self, hyperparams, dO, dU, dObj, dTarg):
         tf.reset_default_graph()
         
         config = copy.deepcopy(POLICY_OPT_TF)
@@ -35,7 +35,9 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.tf_iter = 0
         self.batch_size = self._hyperparams['batch_size']
         self.task_list = self._hyperparams['task_list'] if 'task_list' in self._hyperparams else [""]
-        self._dP = len(self.task_list)
+        self._dPrim = len(self.task_list)
+        self._dObj = dObj
+        self._dTarg = dTarg
         self.task_map = {}
         self.device_string = "/cpu:0"
         if self._hyperparams['use_gpu'] == 1:
@@ -78,7 +80,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         """ Helper method to initialize the tf networks used """
         with tf.variable_scope('primitive_filter'):
             tf_map_generator = self._hyperparams['primitive_network_model']
-            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dP, batch_size=self.batch_size,
+            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dPrim+self._dObj+self._dTarg, batch_size=self.batch_size,
                                       network_config=self._hyperparams['network_params'])
             self.primitive_obs_tensor = tf_map.get_input_tensor()
             self.primitive_precision_tensor = tf_map.get_precision_tensor()
@@ -91,6 +93,22 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
             # Setup the gradients
             self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dP)]
+
+        # with tf.variable_scope('parameterization_filter'):
+        #     tf_map_generator = self._hyperparams['parameterization_network_model']
+        #     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dPar, batch_size=self.batch_size,
+        #                               network_config=self._hyperparams['network_params'])
+        #     self.parameterization_obs_tensor = tf_map.get_input_tensor()
+        #     self.parameterization_precision_tensor = tf_map.get_precision_tensor()
+        #     self.parameterization_action_tensor = tf_map.get_target_output_tensor()
+        #     self.parameterization_act_op = tf_map.get_output_op()
+        #     self.parameterization_feat_op = tf_map.get_feature_op()
+        #     self.parameterization_loss_scalar = tf_map.get_loss_op()
+        #     self.parameterization_fc_vars = fc_vars
+        #     self.parameterization_last_conv_vars = last_conv_vars
+
+        #     # Setup the gradients
+        #     self.parameterization_grads = [tf.gradients(self.parameterization_act_op[:,u], self.parameterization_obs_tensor)[0] for u in range(self._dP)]
 
         with tf.variable_scope('distilled'):
             tf_map_generator = self._hyperparams['distilled_network_model']
@@ -183,7 +201,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                          copy_param_scope=None)
 
     def task_distr(self, obs):
-        return self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs})
+        distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs}).flatten()
+        return distr[:self._dPrim], distr[self._dPrim:self._dPrim+self._dObj], distr[self._dPrim+self._dObj:self._dPrim+self._dObj+self._dTarg]
 
     def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task=""):
         """

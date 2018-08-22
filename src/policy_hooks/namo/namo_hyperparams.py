@@ -60,6 +60,7 @@ algorithm = {
     'max_step_mult': 3.0,
     'sample_ts_prob': 1.0,
     'opt_wt': 1e4,
+    'dParameterization': 4,
 }
 
 algorithm['init_traj_distr'] = {

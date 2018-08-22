@@ -51,7 +51,7 @@ class MCTS:
 
     def prob_func(self, state):
         state = state.reshape((1, -1))
-        return self._prob_func(state).flatten()
+        return self._prob_func(state)
 
     def run(self, state, num_rollouts=20, use_distilled=True, hl_plan=None, new_policies=None):
         if new_policies != None:
@@ -65,7 +65,7 @@ class MCTS:
                 next_path = self.simulate(state.copy(), use_distilled)
                 if not len(next_path):
                     continue
-                paths.append(next_path)
+                if len(next_path): paths.append(next_path)
                 end = next_path[-1]
                 opt_val = np.minimum(self._goal_f(end.get_X(t=end.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0]), opt_val)
         else:
@@ -115,7 +115,9 @@ class MCTS:
         sample.set(STATE_ENUM, state.copy(), 0)
         sample.set(TARGETS_ENUM, self.agent.target_vecs[self.condition].copy(), 0)
         sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
-        prob_distr = self.prob_func(sample.get_obs(t=0))
+        task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
+        obj = self.agent.plans.values()[0].params[self.agent.obj_list[np.argmax(obj_distr)]]
+        targ = self.agent.plans.values()[0].params[self.agent.targ_list[np.argmax(targ_distr)]]
 
         for i in range(len(prob_distr)):
             if node.children[i] != None: prob_distr[i] = 0
@@ -125,18 +127,29 @@ class MCTS:
         while np.any(prob_distr > 0):
             next_ind = np.argmax(prob_distr)
             prob_distr[next_ind] = 0
-            target = self._target_f(self.agent.plans.values()[0], state, self.tasks[next_ind], self.agent.targets[self.condition])
-            if target[0] != None:
-                self.agent.reset_hist(deepcopy(old_traj_hist))
-                next_node = MCTSNode(next_ind, 0, node, len(self.tasks))
-                cost = self.simulate_from_next(next_node, state, prev_sample, use_distilled)
-                next_node.value -= cost
-                node.children[next_ind] = next_node
-                while node != self.root:
-                    node.n_explored += 1
-                    node.value -= cost
-                    node = node.parent
-                return next_node
+            # target = self._target_f(self.agent.plans.values()[0], state, self.tasks[next_ind], self.agent.targets[self.condition])
+            # if target[0] != None:
+            #     self.agent.reset_hist(deepcopy(old_traj_hist))
+            #     next_node = MCTSNode(next_ind, 0, node, len(self.tasks))
+            #     cost = self.simulate_from_next(next_node, state, prev_sample, use_distilled)
+            #     next_node.value -= cost
+            #     node.children[next_ind] = next_node
+            #     while node != self.root:
+            #         node.n_explored += 1
+            #         node.value -= cost
+            #         node = node.parent
+            #     return next_node
+
+            self.agent.reset_hist(deepcopy(old_traj_hist))
+            next_node = MCTSNode(next_ind, 0, node, len(self.tasks))
+            cost = self.simulate_from_next(next_node, state, prev_sample, use_distilled)
+            next_node.value -= cost
+            node.children[next_ind] = next_node
+            while node != self.root:
+                node.n_explored += 1
+                node.value -= cost
+                node = node.parent
+            return next_node
 
         self.agent.reset_hist(old_traj_hist)
 
@@ -149,7 +162,10 @@ class MCTS:
         sample.set(STATE_ENUM, state.copy(), 0)
         sample.set(TARGETS_ENUM, self.agent.target_vecs[self.condition].copy(), 0)
         sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
-        prob_distr = self.prob_func(sample.get_obs(t=0))
+        task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
+
+        obj = self.agent.plans.values()[0].params[self.agent.obj_list[np.argmax(obj_distr)]]
+        targ = self.agent.plans.values()[0].params[self.agent.targ_list[np.argmax(targ_distr)]]
         
         for i in range(len(prob_distr)):
             if node.children[i] == None: prob_distr[i] = 0
@@ -157,9 +173,9 @@ class MCTS:
         while np.any(prob_distr > 0):
             next_ind = np.argmax(prob_distr)
             prob_distr[next_ind] = 0
-            target = self._target_f(self.agent.plans.values()[0], state, self.tasks[next_ind], self.agent.targets[self.condition])
-            if target[0] != None:
-                return node.children[next_ind]
+            # target = self._target_f(self.agent.plans.values()[0], state, self.tasks[next_ind], self.agent.targets[self.condition])
+            # if target[0] != None:
+            #     return node.children[next_ind]
 
         return None
 
@@ -204,12 +220,12 @@ class MCTS:
 
         for n in range(self.num_samples):
             self.agent.reset_hist(deepcopy(old_traj_hist))
-            samples.append(self.agent.sample_task(self.rollout_policy[task], self.condition, cur_state, (task, target[0].name), noisy=True))
+            samples.append(self.agent.sample_task(self.rollout_policy[task], self.condition, cur_state, (task, target[0].name, target[1].name), noisy=True))
 
         if use_distilled:
             for n in range(self.num_distilled_samples):
                 self.agent.reset_hist(deepcopy(old_traj_hist))
-                samples.append(self.agent.sample_task(self.distilled_policy, self.condition, cur_state, (task, target[0].name), noisy=True))
+                samples.append(self.agent.sample_task(self.distilled_policy, self.condition, cur_state, (task, target[0].name, target[1].name), noisy=True))
 
         sample_costs = {}
         for sample in samples:
@@ -304,15 +320,16 @@ class MCTS:
 
         path_value = self._goal_f(cur_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
         path = []
-        while current_node is not self.root:
-            path.append(prev_sample)
-            prev_sample.task_cost = path_value
-            prev_sample = current_node.parent.sample_links[prev_sample]
-            current_node.n_explored += 1
-            current_node.value -= path_value
-            current_node = current_node.parent
+        if path_value == 0:
+            while current_node is not self.root:
+                path.append(prev_sample)
+                prev_sample.task_cost = path_value
+                prev_sample = current_node.parent.sample_links[prev_sample]
+                current_node.n_explored += 1
+                current_node.value -= path_value
+                current_node = current_node.parent
 
-        path.reverse()
+            path.reverse()
         return path
 
     def simulate_from_next(self, node, state, prev_sample, use_distilled=True):
@@ -324,17 +341,22 @@ class MCTS:
     def _simulate_from_next(self, task_ind, depth, state, prob_func, samples, use_distilled=True):
         task = self.tasks[task_ind]
         new_samples = []
-        target = self._target_f(self.agent.plans.values()[0], state, task, self.agent.targets[self.condition])
-        if target[0] is None:
-            return self._goal_f(state, self.agent.targets[self.condition], self.agent.plans.values()[0]), samples
+        # target = self._target_f(self.agent.plans.values()[0], state, task, self.agent.targets[self.condition])
+        sample = Sample(self.agent)
+        sample.set(STATE_ENUM, end_state.copy(), 0)
+        sample.set(TARGETS_ENUM, self.agent.target_vecs[self.condition].copy(), 0)
+        sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
+        task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
+        obj = self.agent.plans.values()[0].params[self.agent.obj_list[np.argmax(obj_distr)]]
+        targ = self.agent.plans.values()[0].params[self.agent.targ_list[np.argmax(targ_distr)]]
 
         plan = self._plan_f(task, target)
-        if self._cost_f(state, task, target, self.agent.targets[self.condition], plan, active_ts=(0,0)) > 0:
+        if self._cost_f(state, task, [obj, targ], self.agent.targets[self.condition], plan, active_ts=(0,0)) > 0:
             return self._goal_f(state, self.agent.targets[self.condition], self.agent.plans.values()[0]), samples
         # if target[0] == None:
         #     return self._goal_f(state, self.agent.targets[self.condition], self.agent.plans[task]), samples 
 
-        next_sample, end_state = self.sample(task, state, target, plan, use_distilled)
+        next_sample, end_state = self.sample(task, state, [obj, targ], plan, use_distilled)
 
         samples.append(next_sample)
 
@@ -343,19 +365,19 @@ class MCTS:
         if path_value == 0 or depth >= self.max_depth:
             for sample in samples:
                 sample.task_cost = path_value
-            return self._goal_f(end_state, self.agent.targets[self.condition], self.agent.plans.values()[0]), samples
+            return path_value, samples
 
         
         sample = Sample(self.agent)
         sample.set(STATE_ENUM, end_state.copy(), 0)
         sample.set(TARGETS_ENUM, self.agent.target_vecs[self.condition].copy(), 0)
         sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
-        prob_distr = self.prob_func(sample.get_obs(t=0))
+        task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
         
         if np.random.sample() > self.soft_decision:
-            next_task = np.random.choice(range(len(self.tasks)), prob_distr)
+            next_task = np.random.choice(range(len(self.tasks)), task_distr)
         else:
-            next_task = np.argmax(prob_distr)
+            next_task = np.argmax(task_distr)
 
         return self._simulate_from_next(next_task, depth+1, end_state, prob_func, samples, use_distilled)
 

@@ -58,6 +58,8 @@ class NAMOSortingAgent(Agent):
             for target_name in self.targets[condition]:
                 target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
+        self.target_list = self.targets[0].keys()
+        self.obj_list = self._hyperparams['obj_list']
 
         self._get_hl_plan = self._hyperparams['get_hl_plan']
         self.env = self._hyperparams['env']
@@ -172,6 +174,13 @@ class NAMOSortingAgent(Agent):
             task_vec[self.task_list.index(task[0])] = 1.
             sample.set(TASK_ENUM, task_vec, t)
             sample.set(TARGETS_ENUM, target_vec.copy(), t)
+
+            obj_vec = np.zeros((len(self.obj_list)), dtype='float32')
+            targ_vec = np.zeros((len(self.targ_list)), dtype='float32')
+            obj_vec[self.obj_list.index(task[1])] = 1.
+            targ_vec[self.targ_list.index(task[2])] = 1.
+            sample.set(OBJ_ENUM, obj_vec, t)
+            sample.set(TARG_ENUM, targ_vec, t)
             sample.task = task[0]
             sample.condition = condition
 
@@ -209,7 +218,7 @@ class NAMOSortingAgent(Agent):
                     radius1 = param.geom.radius
                     radius2 = plan.params['pr2'].geom.radius
                     grip_dist = radius1 + radius2
-                    if (plan.params['pr2'].gripper[0, t] > 0.5 or t == plan.horizon - 2) and np.abs(dist[0]) < 0.05 and np.abs(grip_dist + dist[1]) < 0.05:
+                    if (plan.params['pr2'].gripper[0, t] > 0.2 or t == plan.horizon - 2) and np.abs(dist[0]) < 0.05 and np.abs(grip_dist + dist[1]) < 0.05:
                         param.pose[:, t+1] = plan.params['pr2'].pose[:, t+1] + [0, grip_dist]
                     elif param._type == 'Can':
                         param.pose[:, t+1] = param.pose[:, t]
@@ -229,12 +238,21 @@ class NAMOSortingAgent(Agent):
         if len(fixed_targets):
             targets = fixed_targets
         else:
-            targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
+            task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
+            obj = self.plans.values()[0].params[self.agent.obj_list[np.argmax(obj_distr)]]
+            targ = self.plans.values()[0].params[self.agent.targ_list[np.argmax(targ_distr)]]
+            targets = [obj, targ]
+            # targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
 
         failed_preds = []
+        iteration = 0
         while not success and targets[0] != None:
-            if not len(fixed_targets):
+            if iteration >0 and not len(fixed_targets):
                  targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean, exclude=exclude_targets)
+
+            iteration += 1
+            if targets[0] is None:
+                break
 
             plan = self.plans[task, targets[0].name] 
             set_params_attrs(plan.params, plan.state_inds, state, 0)
@@ -250,7 +268,12 @@ class NAMOSortingAgent(Agent):
             dist = plan.params['pr2'].geom.radius + targets[0].geom.radius
             plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
             # self.env.SetViewer('qtcoin')
-            success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+            try:
+                success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+                # self.env.SetViewer('qtcoin')
+                # import ipdb; ipdb.set_trace()
+            except:
+                success = False
 
             if not len(failed_preds):
                 failed_preds = [(pred, targets[0]) for negated, pred, t in plan.get_failed_preds(tol=1e-3)]
@@ -272,7 +295,7 @@ class NAMOSortingAgent(Agent):
                     fill_vector(plan.params, plan.action_inds, U, t)
                 return U
 
-        sample = self.sample_task(optimal_pol(), condition, state, [task, targets[0].name], noisy=False)
+        sample = self.sample_task(optimal_pol(), condition, state, [task, targets[0].name, targets[1].name], noisy=False)
         self.optimal_samples[task].append(sample)
         return sample, failed_preds
 

@@ -32,6 +32,10 @@ def softmax_loss_layer(labels, logits):
     return tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
 
 
+def sigmoid_loss_layer(labels, logits):
+    return tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=logits)
+
+
 def sotfmax_prediction_layer(logits):
     return tf.nn.softmax(logits, name="softmax_layer")
     
