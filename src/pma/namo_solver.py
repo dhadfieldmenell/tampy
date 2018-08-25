@@ -18,6 +18,8 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             rs_param = None # a.params[4]
         elif a.name == 'place':
             rs_param = None
+        elif a.name == 'movetograsp':
+            rs_param = None
         else:
             raise NotImplemented
 

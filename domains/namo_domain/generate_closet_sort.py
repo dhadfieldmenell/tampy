@@ -1,6 +1,8 @@
 import itertools
 import random
 
+from core.util_classes.namo_predicates import dsafe
+
 NUM_CANS = 2
 
 filename = "namo_probs/sort_closet_prob_{0}.prob".format(NUM_CANS)
@@ -38,7 +40,7 @@ def main():
         s += "(geom can%d 0.3), (pose can%d %s), "%(i, i, list(coords[i]))
         s += "(geom can%d_end_target 0.3), (value can%d_end_target %s), "%(i, i, list(coords[i]))
     # s += "(value grasp0 undefined), "
-    s += "(value grasp0 [0, -0.6]), "
+    s += "(value grasp0 [0, {0}]), ".format(-0.6-dsafe)
     s += "(geom %s 0.3), (pose %s %s), "%("pr2", "pr2", [0, 0])
     s += "(gripper pr2 [0.]), "
     s += "(value %s %s), "%("robot_init_pose", [0., 0.])
@@ -51,9 +53,9 @@ def main():
 
     for i in range(NUM_CANS):
         s += "(At can{} can{}_init_target), ".format(i, i)
-        s += "(Stationary can{}), ".format(i)
-        for j in range(NUM_CANS):
-            s += "(StationaryNEq can{} can{}), ".format(i, j)
+        # s += "(Stationary can{}), ".format(i)
+        # for j in range(NUM_CANS):
+        #     s += "(StationaryNEq can{} can{}), ".format(i, j)
         # s += "(InContact pr2 pdp_target{} can{}_init_target), ".format(i, i)
         # s += "(GraspValid pdp_target{} can{}_init_target grasp0), ".format(i, i)
 

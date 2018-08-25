@@ -13,7 +13,6 @@ from policy_hooks.utils.policy_solver_utils import *
 
 possible_can_locs = [(0, 6), (0, 5.5), (0, 5), (0, 4.5), (0, 4), (0, 3.5)]
 possible_can_locs.extend(list(itertools.product(range(-3, 3), range(-1, 3))))
-possible_can_locs.remove((0, 0))
 
 prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob"
 domain_file = "../domains/namo_domain/namo.domain"
@@ -48,7 +47,7 @@ def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
 
     return [np.array(X) for X in Xs.tolist()]
 
-def get_sorting_problem(can_locs, targets, failed_preds=[]):
+def get_sorting_problem(can_locs, targets, pr2, grasp, failed_preds=[]):
     hl_plan_str = "(define (problem sorting_problem)\n"
     hl_plan_str += "(:domain sorting_domain)\n"
 
@@ -61,7 +60,7 @@ def get_sorting_problem(can_locs, targets, failed_preds=[]):
 
     hl_plan_str += ")\n"
 
-    hl_plan_str += parse_initial_state(can_locs, targets, failed_preds)
+    hl_plan_str += parse_initial_state(can_locs, targets, pr2, grasp, failed_preds)
 
     goal_state = {}
     goal_str = "(:goal (and"
@@ -76,23 +75,37 @@ def get_sorting_problem(can_locs, targets, failed_preds=[]):
     hl_plan_str += "\n)"
     return hl_plan_str, goal_state
 
-def parse_initial_state(can_locs, targets, failed_preds=[]):
+def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
     hl_init_state = "(:init "
     for can in can_locs:
         loc = can_locs[can]
 
-        closest_target = np.argmin(np.sum((np.array(targets.values()) - loc)**2, axis=1))
-        closest_target_name = targets.keys()[closest_target]
+        hl_init_state += " (CanInReach {0})".format(can)
 
-        if np.sum((targets[closest_target_name] - loc)**2) < 0.001:
-            hl_init_state += " (CanAtTarget {0} {1})".format(can, closest_target_name)
+        closest_target = None
+        closest_dist = np.inf
+        for target in targets:
+            dist = np.sum((targets[target] - loc)**2)
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_target = target
+
+        if closest_dist < 0.001:
+            hl_init_state += " (CanAtTarget {0} {1})".format(can, closest_target)
+
+        if np.all(np.abs(loc - pr2 + grasp) < 0.2):
+            hl_init_state += " (CanInGripper {0})".format(can)
 
     for pred in failed_preds:
-        if pred[0].name.lower() == 'obstructs':
-            hl_init_state += " CanObstructs {0} {1}".format(pred[0].c.name, pred[1].name)
+        if pred[0].get_type().lower() == 'obstructs':
+            if " (CanObstructs {0} {1})".format(pred[0].c.name, pred[1].name) not in hl_init_state:
+                hl_init_state += " (CanObstructs {0} {1})".format(pred[0].c.name, pred[1].name)
+                hl_init_state += " (CanObstructsTarget {0} {1})".format(pred[0].c.name, pred[2].name)
 
-        if pred[0].name.lower() == 'obstructsholding':
-            hl_init_state += " CanObstructs {0} {1}".format(pred[0].obstr.name, pred[1].name)
+        if pred[0].get_type().lower() == 'obstructsholding':
+            if " (CanObstructs {0} {1})".format(pred[0].obstr.name, pred[1].name) not in hl_init_state:
+                hl_init_state += " (CanObstructs {0} {1})".format(pred[0].obstr.name, pred[1].name)
+                hl_init_state += " (CanObstructsTarget {0} {1})".format(pred[0].obstr.name, pred[2].name)
 
     hl_init_state += ")\n"
     return hl_init_state
@@ -113,22 +126,18 @@ def parse_hl_plan(hl_plan):
         plan.append((task, next_params))
     return plan
 
-def hl_plan_for_state(state, param_map, state_inds, failed_preds=[]):
+def hl_plan_for_state(state, targets, param_map, state_inds, failed_preds=[]):
     can_locs = {}
-    targets = {}
 
     for param_name in param_map:
         param = param_map[param_name]
         if param_map[param_name]._type == 'Can':
             can_locs[param.name] = state[state_inds[param.name, 'pose']]
 
-        # Don't pay attention to initial targets
-        if param_map[param_name]._type == 'Target':
-            targets[param.name] = state[state_inds[param.name, 'value']]
-
-    prob, goal = get_sorting_problem(can_locs, targets, failed_preds)
+    prob, goal = get_sorting_problem(can_locs, targets, state[state_inds['pr2', 'pose']], param_map['grasp0'].value[:,0], failed_preds)
     hl_plan = get_hl_plan(prob)
     if hl_plan == Plan.IMPOSSIBLE:
+        import ipdb; ipdb. set_trace()
         return []
     return parse_hl_plan(hl_plan)
 
@@ -292,13 +301,15 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
             if closest_can is None:
                 return None, None
 
-            return closest_can, plan.params['{0}_init_target'.format(closest_can.name)]
+            return closest_can, plan.params['{0}_end_target'.format(closest_can.name)]
 
         for param in plan.params.values():
             if param._type != 'Can' or param.name in exclude: continue
             param_pose = state[plan.state_inds[param.name, 'pose']]
             if np.sum((param_pose - target_poses['{0}_end_target'.format(param.name)])**2) > 0.01:
-                return param, plan.params['{0}_init_target'.format(param.name)]
+                return param, plan.params['{0}_end_target'.format(param.name)]
+
+        import ipdb; ipdb.set_trace()
     
     if task == 'putdown':
         target_occupied = False
@@ -376,6 +387,11 @@ def cost_f(Xs, task, params, targets, plan, active_ts=None):
 
     for t in range(active_ts[0], active_ts[1]):
         set_params_attrs(plan.params, plan.state_inds, Xs[t], t)
+
+    for param in plan.params:
+        if plan.params[param]._type == 'Can':
+            plan.params['{0}_init_target'.format(param)].value[:,0] = plan.params[param].pose[:,0]
+            plan.params['{0}_end_target'.format(param)].value[:,0] = targets['{0}_end_target'.format(param)]
 
     plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
     plan.params['robot_end_pose'].value[:,0] = plan.params['pr2'].pose[:,-1]

@@ -22,18 +22,16 @@ step    0: GRASP CAN0
         3: PUTDOWN CAN1 CAN1_END_TARGET
      
 
-time spent:    0.00 seconds instantiating 12 easy, 0 hard action templates
-               0.00 seconds reachability analysis, yielding 20 facts and 8 actions
-               0.00 seconds creating final representation with 16 relevant facts
+time spent:    0.00 seconds instantiating 8 easy, 0 hard action templates
+               0.00 seconds reachability analysis, yielding 14 facts and 8 actions
+               0.00 seconds creating final representation with 14 relevant facts
                0.00 seconds building connectivity graph
-               0.00 seconds searching, evaluating 7 states, to a max depth of 1
+               0.00 seconds searching, evaluating 6 states, to a max depth of 1
                0.00 seconds total time
 
 *** States ***
 State 
 
-NOT-CANINGRIPPER(CAN0)
-NOT-CANINGRIPPER(CAN1)
 NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
 NOT-CANATTARGET(CAN0 CAN1_END_TARGET)
 NOT-CANATTARGET(CAN0 CAN0_END_TARGET)
@@ -43,7 +41,6 @@ NOT-CANATTARGET(CAN1 CAN0_END_TARGET)
 
 State 
 
-NOT-CANINGRIPPER(CAN1)
 NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
 NOT-CANATTARGET(CAN0 CAN1_END_TARGET)
 NOT-CANATTARGET(CAN0 CAN0_END_TARGET)
@@ -54,13 +51,11 @@ CANINGRIPPER(CAN0)
 
 State 
 
-NOT-CANINGRIPPER(CAN1)
 NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
 NOT-CANATTARGET(CAN0 CAN1_END_TARGET)
 NOT-CANATTARGET(CAN1 MIDDLE_TARGET)
 NOT-CANATTARGET(CAN1 CAN1_END_TARGET)
 NOT-CANATTARGET(CAN1 CAN0_END_TARGET)
-NOT-CANINGRIPPER(CAN0)
 CANATTARGET(CAN0 CAN0_END_TARGET)
 
 State 
@@ -70,7 +65,6 @@ NOT-CANATTARGET(CAN0 CAN1_END_TARGET)
 NOT-CANATTARGET(CAN1 MIDDLE_TARGET)
 NOT-CANATTARGET(CAN1 CAN1_END_TARGET)
 NOT-CANATTARGET(CAN1 CAN0_END_TARGET)
-NOT-CANINGRIPPER(CAN0)
 CANATTARGET(CAN0 CAN0_END_TARGET)
 CANINGRIPPER(CAN1)
 
@@ -80,8 +74,6 @@ NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
 NOT-CANATTARGET(CAN0 CAN1_END_TARGET)
 NOT-CANATTARGET(CAN1 MIDDLE_TARGET)
 NOT-CANATTARGET(CAN1 CAN0_END_TARGET)
-NOT-CANINGRIPPER(CAN0)
 CANATTARGET(CAN0 CAN0_END_TARGET)
-NOT-CANINGRIPPER(CAN1)
 CANATTARGET(CAN1 CAN1_END_TARGET)
 

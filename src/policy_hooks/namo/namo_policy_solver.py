@@ -179,6 +179,9 @@ class NAMOPolicySolver(NAMOSolver):
             self.config['agent']['conditions'] += self.config['num_conds']
             self.config['agent']['x0'].extend(x0s)
 
+        self.config['algorithm']['dObj'] = sensor_dims[utils.OBJ_ENUM]
+        self.config['algorithm']['dTarg'] = sensor_dims[utils.TARG_ENUM]
+
         # action_cost_wp = np.ones((self.config['agent']['T'], self.dU), dtype='float64')
         state_cost_wp = np.ones((self.symbolic_bound), dtype='float64')
         traj_cost = {

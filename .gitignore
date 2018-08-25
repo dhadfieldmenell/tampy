@@ -4,3 +4,4 @@
 *.pyc
 *.hdf5
 *.log
+src/experiments/

@@ -12,7 +12,7 @@ import openravepy
 from openravepy import RaveCreatePhysicsEngine
 
 
-from gps.agent.agent import Agent
+# from gps.agent.agent import Agent
 from gps.agent.agent_utils import generate_noise
 from gps.agent.config import AGENT
 #from gps.sample.sample import Sample
@@ -20,9 +20,12 @@ from gps.sample.sample_list import SampleList
 
 import core.util_classes.baxter_constants as const
 import core.util_classes.items as items
+from core.util_classes.namo_predicates import dsafe
 from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 
+from policy_hooks.agent import Agent
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
@@ -58,7 +61,7 @@ class NAMOSortingAgent(Agent):
             for target_name in self.targets[condition]:
                 target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
-        self.target_list = self.targets[0].keys()
+        self.targ_list = self.targets[0].keys()
         self.obj_list = self._hyperparams['obj_list']
 
         self._get_hl_plan = self._hyperparams['get_hl_plan']
@@ -136,7 +139,7 @@ class NAMOSortingAgent(Agent):
 
     def sample_task(self, policy, condition, x0, task, save_global=False, verbose=False, use_base_t=True, noisy=True):
         task = tuple(task)
-        plan = self.plans[task]
+        plan = self.plans[task[:2]]
         for (param, attr) in self.state_inds:
             if plan.params[param].is_symbol(): continue
             getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
@@ -198,7 +201,7 @@ class NAMOSortingAgent(Agent):
             while len(self.traj_hist) > self.hist_len:
                 self.traj_hist.pop(0)
 
-            self.run_policy_step(U, X, self.plans[task], t)
+            self.run_policy_step(U, X, self.plans[task[:2]], t)
 
         return sample
 
@@ -217,9 +220,9 @@ class NAMOSortingAgent(Agent):
                     dist = plan.params['pr2'].pose[:, t] - plan.params[param.name].pose[:, t]
                     radius1 = param.geom.radius
                     radius2 = plan.params['pr2'].geom.radius
-                    grip_dist = radius1 + radius2
-                    if (plan.params['pr2'].gripper[0, t] > 0.2 or t == plan.horizon - 2) and np.abs(dist[0]) < 0.05 and np.abs(grip_dist + dist[1]) < 0.05:
-                        param.pose[:, t+1] = plan.params['pr2'].pose[:, t+1] + [0, grip_dist]
+                    grip_dist = radius1 + radius2 + dsafe
+                    if plan.params['pr2'].gripper[0, t] > 0.2 and np.abs(dist[0]) < 0.05 and np.abs(grip_dist + dist[1]) < 0.05:
+                        param.pose[:, t+1] = plan.params['pr2'].pose[:, t+1] + [0, grip_dist+dsafe]
                     elif param._type == 'Can':
                         param.pose[:, t+1] = param.pose[:, t]
 
@@ -237,17 +240,19 @@ class NAMOSortingAgent(Agent):
 
         if len(fixed_targets):
             targets = fixed_targets
+            obj = fixed_targets[0]
+            targ = fixed_targets[1]
         else:
             task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
-            obj = self.plans.values()[0].params[self.agent.obj_list[np.argmax(obj_distr)]]
-            targ = self.plans.values()[0].params[self.agent.targ_list[np.argmax(targ_distr)]]
+            obj = self.plans.values()[0].params[self.obj_list[np.argmax(obj_distr)]]
+            targ = self.plans.values()[0].params[self.targ_list[np.argmax(targ_distr)]]
             targets = [obj, targ]
             # targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
 
         failed_preds = []
         iteration = 0
         while not success and targets[0] != None:
-            if iteration >0 and not len(fixed_targets):
+            if iteration > 0 and not len(fixed_targets):
                  targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean, exclude=exclude_targets)
 
             iteration += 1
@@ -263,20 +268,35 @@ class NAMOSortingAgent(Agent):
 
             for target in self.targets[condition]:
                 plan.params[target].value[:,0] = self.targets[condition][target]
+
+            if targ.name in self.targets[condition]:
+                plan.params['{0}_end_target'.format(obj.name)].value[:,0] = self.targets[condition][targ.name]
+
+            if task == 'grasp':
+                plan.params[targ.name].value[:,0] = plan.params[obj.name].pose[:,0]
             
             plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-            dist = plan.params['pr2'].geom.radius + targets[0].geom.radius
+            dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
             plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
+            if task == 'grasp':
+                plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
             # self.env.SetViewer('qtcoin')
             try:
                 success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+                viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
+                import ipdb; ipdb.set_trace()
+                # if task == 'putdown':
+                #     import ipdb; ipdb.set_trace()
                 # self.env.SetViewer('qtcoin')
                 # import ipdb; ipdb.set_trace()
-            except:
+            except Exception as e:
+                print e
+                # self.env.SetViewer('qtcoin')
+                import ipdb; ipdb.set_trace()
                 success = False
 
             if not len(failed_preds):
-                failed_preds = [(pred, targets[0]) for negated, pred, t in plan.get_failed_preds(tol=1e-3)]
+                failed_preds = [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3)]
             exclude_targets.append(targets[0].name)
 
             if len(fixed_targets):
@@ -300,8 +320,8 @@ class NAMOSortingAgent(Agent):
         return sample, failed_preds
 
 
-    def get_hl_plan(self, condition, failed_preds):
-        return self._get_hl_plan(self.init_vecs[condition], self.plans.values()[0].params, self.state_inds, failed_preds)
+    def get_hl_plan(self, state, condition, failed_preds):
+        return self._get_hl_plan(state, self.targets[condition], self.plans.values()[0].params, self.state_inds, failed_preds)
 
 
     def update_targets(self, targets, condition):
@@ -309,7 +329,10 @@ class NAMOSortingAgent(Agent):
 
 
     def get_sample_constr_cost(self, sample):
-        targets = get_next_target(self.plans.values()[0], sample.get(STATE_ENUM, t=0), sample.task, self.targets[sample.condition])
+        obj = self.plans.values()[0].params[self.obj_list[np.argmax(sample.get(OBJ_ENUM, t=0))]]
+        targ = self.plans.values()[0].params[self.targ_list[np.argmax(sample.get(TARG_ENUM, t=0))]]
+        targets = [obj, targ]
+        # targets = get_next_target(self.plans.values()[0], sample.get(STATE_ENUM, t=0), sample.task, self.targets[sample.condition])
         plan = self.plans[sample.task, targets[0].name]
         for t in range(sample.T):
             set_params_attrs(plan.params, plan.state_inds, sample.get(STATE_ENUM, t=t), t)
@@ -324,7 +347,7 @@ class NAMOSortingAgent(Agent):
                 plan.params[target.name].value[:,0] = self.targets[sample.condition][target.name]
 
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        dist = plan.params['pr2'].geom.radius + targets[0].geom.radius
+        dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
         plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
 
         return check_constr_violation(plan)

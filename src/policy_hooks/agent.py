@@ -53,7 +53,7 @@ class Agent(object):
         self.dO = i
 
         self._prim_obs_idx, i = [], 0
-        for sensor in self.prm_obs_data_types:
+        for sensor in self.prim_obs_data_types:
             dim = self._hyperparams['sensor_dims'][sensor]
             self._prim_obs_idx.append(list(range(i, i+dim)))
             i += dim

@@ -228,7 +228,7 @@ class OpenRAVEBody(object):
         wall_color = [0.5, 0.2, 0.1]
         box_infos = []
         if wall_type == 'closet':
-            wall_endpoints = [[-1.0,-3.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-3.0],[-1.0,-3.0]]
+            wall_endpoints = [[-1.0,-4.0],[-1.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[8.0,4.0],[8.0,-4.0],[-1.0,-4.0]]
         else:
             raise NotImplemented
         for i, (start, end) in enumerate(zip(wall_endpoints[0:-1], wall_endpoints[1:])):

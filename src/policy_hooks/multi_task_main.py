@@ -22,10 +22,10 @@ sys.path.append('/'.join(str.split(__file__, '/')[:-2]))
 from gps.gui.gps_training_gui import GPSTrainingGUI
 from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
 from gps.utility.data_logger import DataLogger
-from gps.sample.sample import Sample
 from gps.sample.sample_list import SampleList
 
 from policy_hooks.mcts import MCTS
+from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 
 
@@ -88,6 +88,7 @@ class GPSMain(object):
                                   self.agent,
                                   self._hyperparams['num_samples'],
                                   self._hyperparams['num_distilled_samples'],
+                                  soft_decision=0.0,
                                   max_depth=self._hyperparams['max_tree_depth']
                                   ))
 
@@ -104,7 +105,59 @@ class GPSMain(object):
             # log_file.write("\n{0}\n".format(datetime.now().isoformat()))
             # log_file.close()
             itr_start = self._initialize(itr_load)
+            hl_plans = [[] for _ in range(len(self._train_idx))]
 
+            for cond in self._train_idx:
+                failed = []
+                new_failed = []
+                stop = False
+                attempt = 0
+                cur_sample = None
+                cur_state = self.agent.x0[cond]
+                paths = []
+                cur_path = []
+                cur_state = self.agent.x0[cond]
+                opt_hl_plan = []
+                hl_plan = self.agent.get_hl_plan(cur_state, cond, failed)
+                while not stop and attempt < 5:
+                    old_cur_state = cur_state
+                    for step in hl_plan:
+                        targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
+                        plan = self._hyperparams['plan_f'](step[0], targets)
+                        if len(targets) < 2:
+                            targets.append(plan.params['{0}_end_target'.format(targets[0].name)])
+                        next_sample, new_failed = self.agent.sample_optimal_trajectory(cur_state, step[0], cond, fixed_targets=targets)
+                        if next_sample == None:
+                            if not len(new_failed):
+                                stop = True
+                            else:
+                                hl_plan = self.agent.get_hl_plan(cur_state, cond, new_failed)
+                                failed.extend(new_failed)
+                                attempt += 1
+                                import ipdb; ipdb.set_trace()
+                            break
+
+                        cur_path.append(next_sample)
+                        cur_sample = next_sample
+                        cur_state = cur_sample.get_X(t=cur_sample.T-1)
+                        opt_hl_plan.append(step)
+                    if self._hyperparams['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans.values()[0]) == 0:
+                        break
+
+                    attempt += 1
+
+                paths.append(cur_path)
+                if cur_sample != None: 
+                    opt_val = self._hyperparams['goal_f'](cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[cond], self.agent.plans.values()[0])
+                    for path in paths:
+                        for sample in path:
+                            sample.task_cost = opt_val
+
+                    if opt_val == 0:
+                        self.agent.add_task_paths(paths)
+                        hl_plans[cond] = opt_hl_plan
+
+            import ipdb; ipdb.set_trace()
             for itr in range(itr_start, self._hyperparams['iterations']):
                 print '\n\nITERATION ', itr
                 paths = []
@@ -116,53 +169,12 @@ class GPSMain(object):
                             rollout_policies[task] = self.rollout_policies[task]
                             use_distilled = True
                         else:
-                            rollout_policies[task] = self.alg_map[task].cur[cond].traj_distr
+                            rollout_policies[task] = self.alg_map[task].cur[0].traj_distr
 
                     val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies)
 
-                    if val > 0:
-                        failed = []
-                        new_failed = []
-                        stop = False
-                        attempt = 0
-                        cur_sample = None
-                        cur_state = self.agent.x0[cond]
-                        while not stop and attempt < 2:
-                            paths = [[]]
-                            cur_sample = None
-                            cur_state = self.agent.x0[cond]
-                            opt_hl_plan = self.agent.get_hl_plan(cond, failed)
-                            for step in opt_hl_plan:
-                                targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
-                                if len(targets) < 2:
-                                    targets.append(self.agent.plans.values()[0].params['{0}_init_target'.format(p_name)])
-                                plan = self._hyperparams['plan_f'](step[0], targets)
-                                next_sample, new_failed = self.agent.sample_optimal_trajectory(cur_state, step[0], cond, fixed_targets=targets)
-                                if not len(new_failed) and next_sample == None:
-                                    stop = True
-                                    break
-
-                                if len(new_failed):
-                                    failed.extend(new_failed)
-                                    break
-
-                                cur_sample = next_sample
-                                cur_state = cur_sample.get_X(t=cur_sample.T-1)
-                                paths[0].append(cur_sample)
-
-                            if not len(new_failed):
-                                break
-
-                            # print '\n\n', opt_hl_plan, '\n\n'
-                            attempt += 1
-
-                        if cur_sample != None: 
-                            opt_val = self._hyperparams['goal_f'](cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[cond], self.agent.plans.values()[0])
-                            for path in paths:
-                                for sample in path:
-                                    sample.task_cost = opt_val
-
                 traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
+                # import ipdb; ipdb.set_trace()
 
                 # Clear agent samples.
                 self.agent.clear_samples(keep_prob=0.)
@@ -171,7 +183,7 @@ class GPSMain(object):
                 for path in self.agent.get_task_paths():
                     path_samples.extend(path)
 
-                self.agent.clear_task_paths(keep_prob=0.)
+                self.agent.clear_task_paths(keep_prob=0.5)
                 self._take_iteration(itr, traj_sample_lists, path_samples)
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 # if self.replace_conds:
@@ -190,12 +202,14 @@ class GPSMain(object):
         # finally:
             # self._end()
 
-        self.print_task('grasp', 'can0')
         self.save_rollout()
         self.policy_opt.sess.close()
 
+
     def update_primitives(self, samples):
         dP, dO = len(self.task_list), self.alg_map.values()[0].dO
+        dObj, dTarg = self.policy_opt.dObj, self.policy_opt.dTarg
+        dp += dObj + dTarg
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
@@ -210,7 +224,8 @@ class GPSMain(object):
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
 
-        self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
+        if len(tgt_mu):
+            self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def update_distilled(self, optimal_samples=[]):
         """ Compute the new distilled policy. """
@@ -277,7 +292,9 @@ class GPSMain(object):
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
-        self.policy_opt.update_distilled(obs_data, tgt_mu, tgt_prc, tgt_wt)
+
+        if len(tgt_mu):
+            self.policy_opt.update_distilled(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def test_policy(self, itr, N):
         """
@@ -486,14 +503,18 @@ class GPSMain(object):
             sample.set(STATE_ENUM, state.copy(), 0)
             sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
             sample.set(TARGETS_ENUM, self.agent.target_vecs[cond].copy(), 0)
-            task_ind = np.argmax(self.policy_opt.task_distr([sample.get_obs(t=0)]))
+            task_distr, obj_distr, targ_distr = self.policy_opt.task_distr([sample.get_prim_obs(t=0)])
+            task_ind = np.argmax(task_distr)
             task = self.task_list[task_ind]
-            targets = self._hyperparams['target_f'](self.agent.plans.values()[0], state, task, self.agent.targets[0])
+            obj = self.agent.obj_list[np.argmax(obj_distr)]
+            targ = self.agent.targ_list[np.argmax(targ_distr)]
+            # targets = self._hyperparams['target_f'](self.agent.plans.values()[0], state, task, self.agent.targets[0])
 
-            sample = self.agent.sample_task(self.rollout_policies[task], cond, state, [task, targets[0].name if targets[0] is not None else 'can0'], noisy=noisy)
+            sample = self.agent.sample_task(self.rollout_policies[task], cond, state, [task, obj, targ], noisy=noisy)
             state = sample.get_X(t=-1)
             with open('experiments/' + file_time + '.txt', 'a+') as f:
                 f.write('STEP {0}: {1}\n'.format(i, task))
+                f.write('TARGETS: {0} {1}\n'.format(obj, targ))
                 f.write(str(sample.get_X()))
                 f.write('\n\n')
 

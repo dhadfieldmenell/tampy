@@ -146,7 +146,10 @@ class OpenRAVEViewer(Viewer):
 
             self.name_to_rave_body[name].set_dof(dof_value_map)
         else:
-            rotation = obj.rotation[:, t]
+            if hasattr(obj, 'rotation'):
+                rotation = obj.rotation[:, t]
+            else:
+                rotation = [0, 0, 0]
             assert not np.any(np.isnan(rotation))
 
         self.name_to_rave_body[name].set_pose(pose, rotation)
