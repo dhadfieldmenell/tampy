@@ -283,8 +283,8 @@ class NAMOSortingAgent(Agent):
             # self.env.SetViewer('qtcoin')
             try:
                 success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
-                viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
-                import ipdb; ipdb.set_trace()
+                # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
+                # import ipdb; ipdb.set_trace()
                 # if task == 'putdown':
                 #     import ipdb; ipdb.set_trace()
                 # self.env.SetViewer('qtcoin')
@@ -292,7 +292,7 @@ class NAMOSortingAgent(Agent):
             except Exception as e:
                 print e
                 # self.env.SetViewer('qtcoin')
-                import ipdb; ipdb.set_trace()
+                # import ipdb; ipdb.set_trace()
                 success = False
 
             if not len(failed_preds):

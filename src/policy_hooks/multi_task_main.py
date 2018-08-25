@@ -134,7 +134,6 @@ class GPSMain(object):
                                 hl_plan = self.agent.get_hl_plan(cur_state, cond, new_failed)
                                 failed.extend(new_failed)
                                 attempt += 1
-                                import ipdb; ipdb.set_trace()
                             break
 
                         cur_path.append(next_sample)
@@ -157,7 +156,7 @@ class GPSMain(object):
                         self.agent.add_task_paths(paths)
                         hl_plans[cond] = opt_hl_plan
 
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
             for itr in range(itr_start, self._hyperparams['iterations']):
                 print '\n\nITERATION ', itr
                 paths = []
