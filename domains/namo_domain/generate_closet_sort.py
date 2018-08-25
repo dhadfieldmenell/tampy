@@ -30,6 +30,8 @@ def main():
     s += "RobotPose (name %s); "%"robot_init_pose"
     s += "RobotPose (name %s); "%"robot_end_pose"
     s += "Target (name %s); "%"middle_target"
+    s += "Target (name %s); "%"left_target"
+    s += "Target (name %s); "%"right_target"
     s += "Obstacle (name %s) \n\n"%"obs0"
 
     s += "Init: "
@@ -48,6 +50,8 @@ def main():
     s += "(gripper %s [0.]), "%("robot_init_pose")
     s += "(gripper %s [0.]), "%("robot_end_pose")
     s += "(value %s [0., 0.]), "%("middle_target")
+    s += "(value %s [-1., 0.]), "%("left_target")
+    s += "(value %s [1., 0.]), "%("right_target")
     s += "(pose %s [-3.5, 0]), "%"obs0"
     s += "(geom %s %s); "%("obs0", "closet")
 

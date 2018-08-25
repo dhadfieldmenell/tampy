@@ -11,7 +11,9 @@ def get_vector(num_cans):
     }
 
     target_vector_include = {
-        'middle_target': ['value']
+        'middle_target': ['value'],
+        'left_target': ['value'],
+        'right_target': ['value'],
     }
 
     for i in range(num_cans):

@@ -88,7 +88,7 @@ class GPSMain(object):
                                   self.agent,
                                   self._hyperparams['num_samples'],
                                   self._hyperparams['num_distilled_samples'],
-                                  soft_decision=0.0,
+                                  soft_decision=1.0,
                                   max_depth=self._hyperparams['max_tree_depth']
                                   ))
 
@@ -157,6 +157,8 @@ class GPSMain(object):
                         hl_plans[cond] = opt_hl_plan
 
             # import ipdb; ipdb.set_trace()
+            self.update_primitives(self.agent.get_task_paths())
+            print hl_plans
             for itr in range(itr_start, self._hyperparams['iterations']):
                 print '\n\nITERATION ', itr
                 paths = []
@@ -170,13 +172,13 @@ class GPSMain(object):
                         else:
                             rollout_policies[task] = self.alg_map[task].cur[0].traj_distr
 
-                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies)
+                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies, debug=itr>0)
 
                 traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
                 # import ipdb; ipdb.set_trace()
 
                 # Clear agent samples.
-                self.agent.clear_samples(keep_prob=0.)
+                self.agent.clear_samples(keep_prob=0.0)
 
                 path_samples = []
                 for path in self.agent.get_task_paths():
@@ -206,15 +208,15 @@ class GPSMain(object):
 
 
     def update_primitives(self, samples):
-        dP, dO = len(self.task_list), self.alg_map.values()[0].dO
-        dObj, dTarg = self.policy_opt.dObj, self.policy_opt.dTarg
-        dp += dObj + dTarg
+        dP, dO = len(self.task_list), self.alg_map.values()[0].dPrimObs
+        dObj, dTarg = self.alg_map.values()[0].dObj, self.alg_map.values()[0].dTarg
+        dP += dObj + dTarg
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         for sample in samples:
             for t in range(sample.T):
-                obs = [sample.get_obs(t=t)]
+                obs = [sample.get_prim_obs(t=t)]
                 mu = [np.concatenate([sample.get(TASK_ENUM, t=t), sample.get(OBJ_ENUM, t=t), sample.get(TARG_ENUM, t=t)])]
                 prc = [np.ones((dP, dP))]
                 wt = [np.exp(-sample.task_cost)]
@@ -444,8 +446,7 @@ class GPSMain(object):
             self.gui.set_status_text('Calculating.')
             self.gui.start_display_calculating()
         for task in self.alg_map:
-            task_num = self.agent.task_encoding[task]
-            if len(sample_lists[task]):
+            if len(sample_lists[task]) or len(self.agent.optimal_samples[task]):
                 self.alg_map[task].iteration(sample_lists[task], self.agent.optimal_samples[task])
         self.update_primitives(paths)
         self.update_distilled()

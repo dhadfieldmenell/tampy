@@ -7,12 +7,14 @@ import numpy as np
 import random
 
 from core.internal_repr.plan import Plan
+from core.util_classes.namo_predicates import dsafe
 from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 
 possible_can_locs = [(0, 6), (0, 5.5), (0, 5), (0, 4.5), (0, 4), (0, 3.5)]
 possible_can_locs.extend(list(itertools.product(range(-3, 3), range(-1, 3))))
+possible_can_locs.remove((0,0))
 
 prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob"
 domain_file = "../domains/namo_domain/namo.domain"
@@ -24,6 +26,8 @@ def get_end_targets(num_cans):
     for n in range(num_cans):
         target_map['can{0}_end_target'.format(n)] = targets[n]
     target_map['middle_target'] = [0., 0.]
+    target_map['left_target'] = [-1., 0.]
+    target_map['right_target'] = [1., 0.]
     return target_map
 
 def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
@@ -32,6 +36,9 @@ def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
 
     for i in range(num_vecs):
         can_locs = get_random_initial_can_locations(num_cans)
+        if i == 0:
+            can_locs[0] = (0, 5)
+            can_locs[1] = (0, 6)
         # while not keep:
         #     can_locs = get_random_initial_can_locations(num_cans)
         #     for i in range(num_cans):
@@ -314,6 +321,8 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
     if task == 'putdown':
         target_occupied = False
         middle_occupied = False
+        left_occupied = False
+        right_occupied = False
 
         if len(sample_traj):
             robot_init_pose = sample_traj[0, plan.state_inds['pr2', 'pose']]
@@ -341,10 +350,14 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
                         taget_occupied = target_occupied or np.sum((param_2_pose - plan.params['can{0}_end_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
  
                     middle_occupied = middle_occupied or np.sum((param_2_pose - plan.params['middle_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
+                    left_occupied = left_occupied or np.sum((param_2_pose - plan.params['left_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
+                    right_occupied = right_occupied or np.sum((param_2_pose - plan.params['right_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
  
                 if target_occupied:
-                    if middle_occupied: return None, None
-                    return closest_can, plan.params['middle_target']
+                    if not middle_occupied: return closest_can, plan.params['middle_target']
+                    if not left_occupied: return closest_can, plan.params['left_target']
+                    if not right_occupied: return closest_can, plan.params['right_target']
+                    return None, None
                 else:
                     return closest_can, plan.params['{0}_end_target'.format(closest_can.name)]
 
@@ -352,7 +365,7 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
             if param._type != 'Can' or param.name in exclude: continue
             param_pose = state[plan.state_inds[param.name, 'pose']]
  
-            if np.all(np.abs(param_pose-robot_pose-[0, param.geom.radius+plan.params['pr2'].geom.radius]) < 0.5):
+            if np.all(np.abs(param_pose-robot_pose-[0, param.geom.radius+plan.params['pr2'].geom.radius+dsafe]) < 0.7):
                 for param_2 in plan.params.values():
                     if param_2._type != 'Can': continue
  
@@ -362,10 +375,14 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
                         taget_occupied = target_occupied or np.sum((param_2_pose - plan.params['can{0}_end_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
  
                     middle_occupied = middle_occupied or np.sum((param_2_pose - plan.params['middle_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
+                    left_occupied = left_occupied or np.sum((param_2_pose - plan.params['left_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
+                    right_occupied = right_occupied or np.sum((param_2_pose - plan.params['right_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
  
                 if target_occupied:
-                    if middle_occupied: continue
-                    return param, plan.params['middle_target']
+                    if not middle_occupied: return param, plan.params['middle_target']
+                    if not left_occupied: return param, plan.params['left_target']
+                    if not right_occupied: return param, plan.params['right_target']
+                    continue
                 else:
                     return param, plan.params['can{0}_end_target'.format(param.name[-1])]
 

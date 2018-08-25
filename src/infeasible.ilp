@@ -1,14 +1,11 @@
 Minimize
-  + 73.64440301012706 Constant
+  + 8349.643419687369 Constant
 Subject To
- R4: (robot_end_pose-value-(1,_0)) = -0.8009999990463257
- R19: (can0_init_target-value-(1,_0)) = 0
- R21: (grasp0-value-(1,_0)) = -0.6010000109672546
- R34: - (grasp0-value-(1,_0)) - (can0_init_target-value-(1,_0))
-   + (robot_end_pose-value-(1,_0)) = 0
+ R14: (pr2-pose-(1,_0)) = -2.125678162307669
+ R18: (can1-pose-(1,_0)) = -1
+ R36: - (pr2-pose-(1,_0)) + (can1-pose-(1,_0)) <= 1
 Bounds
- (grasp0-value-(1,_0)) free
- (can0_init_target-value-(1,_0)) free
- (robot_end_pose-value-(1,_0)) free
+ (pr2-pose-(1,_0)) free
+ (can1-pose-(1,_0)) free
  Constant = 1
 End
