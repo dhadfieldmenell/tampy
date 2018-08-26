@@ -157,7 +157,13 @@ class GPSMain(object):
                         hl_plans[cond] = opt_hl_plan
 
             # import ipdb; ipdb.set_trace()
-            self.update_primitives(self.agent.get_task_paths())
+            path_samples = []
+            for path in self.agent.get_task_paths():
+                path_samples.extend(path)
+            self.update_primitives(path)
+            for task in self.alg_map:
+                if len(self.agent.optimal_samples[task]):
+                    self.alg_map[task].iteration([], self.agent.optimal_samples[task])
             print hl_plans
             for itr in range(itr_start, self._hyperparams['iterations']):
                 print '\n\nITERATION ', itr
@@ -166,7 +172,7 @@ class GPSMain(object):
                     rollout_policies = {}
                     use_distilled = False
                     for task in self.task_list:
-                        if self.alg_map[task].iteration_count > 0:
+                        if self.rollout_policies[task].scale is not None:
                             rollout_policies[task] = self.rollout_policies[task]
                             use_distilled = True
                         else:
@@ -219,7 +225,7 @@ class GPSMain(object):
                 obs = [sample.get_prim_obs(t=t)]
                 mu = [np.concatenate([sample.get(TASK_ENUM, t=t), sample.get(OBJ_ENUM, t=t), sample.get(TARG_ENUM, t=t)])]
                 prc = [np.ones((dP, dP))]
-                wt = [np.exp(-sample.task_cost)]
+                wt = [1] # [np.exp(-sample.task_cost)]
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))

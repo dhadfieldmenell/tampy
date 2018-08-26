@@ -31,7 +31,7 @@ from policy_hooks.traj_opt_pi2 import TrajOptPI2
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 10
+NUM_CONDS = 5
 
 
 common = {
@@ -70,7 +70,7 @@ algorithm['init_traj_distr'] = {
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
-    'kl_threshold': 2e-2,
+    'kl_threshold': 2e-1,
     'covariance_damping': 1.0,
     'min_temperature': 0.01,
 }

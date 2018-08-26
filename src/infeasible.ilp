@@ -1,11 +1,11 @@
 Minimize
-  + 8349.643419687369 Constant
+  + 3419.554431298084 Constant
 Subject To
- R14: (pr2-pose-(1,_0)) = -2.125678162307669
- R18: (can1-pose-(1,_0)) = -1
- R36: - (pr2-pose-(1,_0)) + (can1-pose-(1,_0)) <= 1
+ R22: (pr2-pose-(1,_0)) = -0.157086615664619
+ R24: (can0-pose-(1,_0)) = 1
+ R36: - (pr2-pose-(1,_0)) + (can0-pose-(1,_0)) <= 1
 Bounds
  (pr2-pose-(1,_0)) free
- (can1-pose-(1,_0)) free
+ (can0-pose-(1,_0)) free
  Constant = 1
 End

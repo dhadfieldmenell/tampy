@@ -166,7 +166,7 @@ class Plan(object):
         cnt_violations = []
         for negated, pred, t in preds:
             cnt_violations.append(np.max(pred.check_pred_violation(t, negated=negated, tol=tol)))
-            print ("{}-{}\n".format(pred.get_type(), t), cnt_violations[-1])
+            # print ("{}-{}\n".format(pred.get_type(), t), cnt_violations[-1])
 
         return cnt_violations
 

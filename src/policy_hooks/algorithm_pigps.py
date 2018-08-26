@@ -63,9 +63,6 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
             ind = del_inds[i]
             del self.cur[ind - i]
 
-        if not len(self.cur):
-            return
-
         # Update dynamics linearizations.
         # self._update_dynamics()
 

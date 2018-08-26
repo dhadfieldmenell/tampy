@@ -160,7 +160,7 @@ class NAMOSortingAgent(Agent):
         # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
 
         if noisy:
-            noise = generate_noise(self.T, self.dU, self._hyperparams)
+            noise = 1e1 * generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
 

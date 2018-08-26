@@ -764,7 +764,7 @@ if __name__ == '__main__':
                         for kl in [1e0]:
                             for iters in [10000]:
                                 for dh in [[200, 200, 200]]:
-                                    for hl in [2]:
+                                    for hl in [3]:
                                         config = copy_dict(namo_hyperparams.config)
                                         config['lr'] = lr
                                         config['dim_hidden'] = dh
