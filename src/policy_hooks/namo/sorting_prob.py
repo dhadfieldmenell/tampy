@@ -416,8 +416,6 @@ def cost_f(Xs, task, params, targets, plan, active_ts=None):
     plan.params['{0}_end_target'.format(params[0].name)].value[:,0] = targets['{0}_end_target'.format(params[0].name)]
 
     failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
-    if active_ts[1] == 0 and task == 'putdown' and len(failed_preds):
-        print "Task {0} failed: ".format(task), failed_preds, "\n\n"
 
     cost = 0
     for failed in failed_preds:

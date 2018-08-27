@@ -8,24 +8,55 @@ problem 'SORTING_PROBLEM' defined
 
 
 
-Cueing down from goal distance:    2 into depth [1]
+Cueing down from goal distance:    4 into depth [1]
+                                   3            [1]
+                                   2            [1]
                                    1            [1]
                                    0            
 
 ff: found legal plan as follows
 
-step    0: GRASP CAN1
-        1: PUTDOWN CAN1 CAN1_END_TARGET
+step    0: GRASP CAN0
+        1: PUTDOWN CAN0 CAN0_END_TARGET
+        2: GRASP CAN1
+        3: PUTDOWN CAN1 CAN1_END_TARGET
      
 
-time spent:    0.01 seconds instantiating 12 easy, 0 hard action templates
+time spent:    0.00 seconds instantiating 12 easy, 0 hard action templates
                0.00 seconds reachability analysis, yielding 22 facts and 12 actions
                0.00 seconds creating final representation with 22 relevant facts
                0.00 seconds building connectivity graph
-               0.00 seconds searching, evaluating 3 states, to a max depth of 1
-               0.01 seconds total time
+               0.00 seconds searching, evaluating 6 states, to a max depth of 1
+               0.00 seconds total time
 
 *** States ***
+State 
+
+NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
+NOT-CANATTARGET(CAN0 LEFT_TARGET)
+NOT-CANATTARGET(CAN0 CAN1_END_TARGET)
+NOT-CANATTARGET(CAN0 RIGHT_TARGET)
+NOT-CANATTARGET(CAN0 CAN0_END_TARGET)
+NOT-CANATTARGET(CAN1 MIDDLE_TARGET)
+NOT-CANATTARGET(CAN1 LEFT_TARGET)
+NOT-CANATTARGET(CAN1 CAN1_END_TARGET)
+NOT-CANATTARGET(CAN1 RIGHT_TARGET)
+NOT-CANATTARGET(CAN1 CAN0_END_TARGET)
+
+State 
+
+NOT-CANATTARGET(CAN0 MIDDLE_TARGET)
+NOT-CANATTARGET(CAN0 LEFT_TARGET)
+NOT-CANATTARGET(CAN0 CAN1_END_TARGET)
+NOT-CANATTARGET(CAN0 RIGHT_TARGET)
+NOT-CANATTARGET(CAN0 CAN0_END_TARGET)
+NOT-CANATTARGET(CAN1 MIDDLE_TARGET)
+NOT-CANATTARGET(CAN1 LEFT_TARGET)
+NOT-CANATTARGET(CAN1 CAN1_END_TARGET)
+NOT-CANATTARGET(CAN1 RIGHT_TARGET)
+NOT-CANATTARGET(CAN1 CAN0_END_TARGET)
+CANINGRIPPER(CAN0)
+
 State 
 
 NOT-CANATTARGET(CAN0 MIDDLE_TARGET)

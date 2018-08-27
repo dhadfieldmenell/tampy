@@ -178,7 +178,7 @@ class GPSMain(object):
                         else:
                             rollout_policies[task] = self.alg_map[task].cur[0].traj_distr
 
-                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies, debug=itr>0)
+                    val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies, debug=True)
 
                 traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
                 # import ipdb; ipdb.set_trace()
@@ -211,6 +211,7 @@ class GPSMain(object):
 
         self.save_rollout()
         self.policy_opt.sess.close()
+        import ipdb; ipdb.set_trace()
 
 
     def update_primitives(self, samples):
