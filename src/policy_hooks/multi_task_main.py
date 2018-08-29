@@ -82,6 +82,7 @@ class GPSMain(object):
                                   self._hyperparams['cost_f'],
                                   self._hyperparams['goal_f'],
                                   self._hyperparams['target_f'],
+                                  self._hyperparams['encode_f'],
                                   self.rollout_policies,
                                   self.policy_opt.distilled_policy,
                                   condition,
@@ -165,6 +166,7 @@ class GPSMain(object):
                 if len(self.agent.optimal_samples[task]):
                     self.alg_map[task].iteration([], self.agent.optimal_samples[task])
             print hl_plans
+            import ipdb; ipdb.set_trace()
             for itr in range(itr_start, self._hyperparams['iterations']):
                 print '\n\nITERATION ', itr
                 paths = []
@@ -234,6 +236,26 @@ class GPSMain(object):
 
         if len(tgt_mu):
             self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
+
+    def update_value_network(self, samples):
+        dV, dO = 1, self.alg_map.values()[0].dO
+
+        # Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dV))
+        tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
+        for sample in samples:
+            for t in range(sample.T):
+                obs = [sample.get_obs(t=t)]
+                mu = [sample.task_cost]
+                prc = [np.ones((dV, dV))]
+                wt = [1]
+                tgt_mu = np.concatenate((tgt_mu, mu))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                obs_data = np.concatenate((obs_data, obs))
+
+        if len(tgt_mu):
+            self.policy_opt.update_value_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
     def update_distilled(self, optimal_samples=[]):
         """ Compute the new distilled policy. """

@@ -154,7 +154,7 @@ config = {
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 5,
+    'num_rollouts': 1,
     'max_tree_depth': 8,
     'opt_wt': algorithm['opt_wt'],
 

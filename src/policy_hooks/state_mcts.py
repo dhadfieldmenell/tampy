@@ -97,6 +97,10 @@ class MCTS:
             target = self.agent.plans.values()[0].params[target_name]
             self.targets[self.agent.target_inds[target.name, 'value']] = self.agent.targets[condition][target.name]
 
+        self.Q = {}
+        self.N = {}
+        self.P = {}
+
         self._opt_cache = {}
 
     def prob_func(self, state):

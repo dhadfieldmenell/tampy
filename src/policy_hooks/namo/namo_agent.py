@@ -137,7 +137,7 @@ class NAMOSortingAgent(Agent):
         raise NotImplementedError
 
 
-    def sample_task(self, policy, condition, x0, task, save_global=False, verbose=False, use_base_t=True, noisy=True):
+    def sample_task(self, policy, condition, x0, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True):
         task = tuple(task)
         plan = self.plans[task[:2]]
         for (param, attr) in self.state_inds:
@@ -187,7 +187,12 @@ class NAMOSortingAgent(Agent):
             sample.task = task[0]
             sample.condition = condition
 
-            U = policy.act(sample.get_X(t=t), sample.get_obs(t=t), t, noise[t])
+            if use_prim_obs:
+                obs = sample.get_prim_obs(t=t)
+            else:
+                obs = sample.get_obs(t=t)
+                
+            U = policy.act(sample.get_X(t=t), obs, t, noise[t])
             robot_start = X[plan.state_inds['pr2', 'pose']]
             robot_vec = U[plan.action_inds['pr2', 'pose']] - robot_start
             if np.sum(np.abs(robot_vec)) != 0 and np.linalg.norm(robot_vec) < 0.005:

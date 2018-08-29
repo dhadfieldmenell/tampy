@@ -256,35 +256,33 @@ def get_random_initial_can_locations(num_cans):
 
     return locs
 
-def sorting_state_eval(x, state_inds, num_cans):
-    hl_state = {}
-    for can in range(num_cans):
-        can_loc = np.array(x[state_inds['can{}'.format(can), 'pose']])
-        if np.sqrt(np.sum((can_loc-targets['blue_target'])**2)) < 0.001:
-            hl_state["(CanAtTarget can{0} blue_target)".format(can)] = True
-        else:
-            hl_state["(CanAtTarget can{0} blue_target)".format(can)] = False
+def sorting_state_encode(state, plan, targets, task=(None, None, None)):
+    pred_list = []
+    for param_name in plan.params:
+        param = plan.params[param_name]
+        if param._type == 'Can':
+            for target_name in targets:
+                pred_list.append('CanAtTarget {0} {1}'.format(param_name, target_name))
+            pred_list.append('CanInGripper {0}'.format(param_name))
+    state_encoding = dict(zip(pred_list), range(len(pred_list)))
+    hl_state = np.zeros((len(pred_list)))
+    for param_name in plan.params:
+        if task[0] != 'grasp' and np.all(np.abs(state[param_name, 'pose'] - state['pr2', 'pose'] - plan.params['grasp0'].value[:,0]) < 0.1):
+            hl_state[state_encoding['CanInGripper {0}'.format(param_name)]] = 1
+        for target_name in targets:
+            if np.all(np.abs(state[param_name, 'pose'] - targets[target_name]) < 0.1):
+                hl_state[state_encoding['CanAtTarget {0} {1}'.format(param_name, target_name)]] = 1
 
-        if np.sqrt(np.sum((can_loc-targets['green_target'])**2)) < 0.001:
-            hl_state["(CanAtTarget can{0} green_target)".format(can)] = True
-        else:
-            hl_state["(CanAtTarget can{0} green_target)".format(can)] = False
+    if task[0] is not None:
+        if task[0] == 'grasp':
+            hl_state[state_encoding['CanInGripper {0}'.format(task[1])]] = 1
 
-        if np.sqrt(np.sum((can_loc-targets['yellow_target'])**2)) < 0.001:
-            hl_state["(CanAtTarget can{0} yellow_target)".format(can)] = True
-        else:
-            hl_state["(CanAtTarget can{0} yellow_target)".format(can)] = False
+        if task[0] == 'putdown':
+            for target_name in targets:
+                hl_state[state_encoding['CanAtTarget {0} {1}'.format(task[1], target_name)]] = 0
+            hl_state[state_encoding['CanAtTarget {0} {1}'.format(task[1], task[2])]] = 1
 
-        if np.sqrt(np.sum((can_loc-targets['white_target'])**2)) < 0.001:
-            hl_state["(CanAtTarget can{0} white_target)".format(can)] = True
-        else:
-            hl_state["(CanAtTarget can{0} white_target)".format(can)] = False
-
-        if np.sqrt(np.sum((x[state_inds['pr2', 'pose']] - can_loc)**2)) < 0.001:
-            hl_state["(CanInGripper can{0})".format(can)] = True
-        else:
-            hl_state["(CanInGripper can{0})".format(can)] = False
-    return hl_state
+    return tuple(hl_state)
 
 def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[]):
     state = np.array(state)

@@ -36,8 +36,30 @@ def sigmoid_loss_layer(labels, logits):
     return tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=logits)
 
 
+def multi_softmax_loss_layer(labels, logits, boundaries):
+    start = 0
+    losses = []
+    for bound in boundaries:
+        end = start + bound
+        losses.append(tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end]))
+        start = end
+    stacked_loss = tf.stack(losses, axis=0, name='softmax_loss_stack')
+    return tf.reduce_sum(stacked_loss, axis=0)
+
+
 def sotfmax_prediction_layer(logits):
     return tf.nn.softmax(logits, name="softmax_layer")
+ 
+
+def multi_sotfmax_prediction_layer(logits, boundaries):
+    start = 0
+    predictions = []
+    for i in range(len(boundaries)):
+        bound = boundaries[i]
+        end = start+bound
+        predictions.append(tf.nn.softmax(logits[:,start:end], name="softmax_layer_{0}".format(i)))
+        start = end
+    return tf.concat(predictions, axis=1, name='multi_softmax_layer')
     
 
 def get_input_layer(dim_input, dim_output):
@@ -51,7 +73,7 @@ def get_input_layer(dim_input, dim_output):
     return net_input, task, precision
 
 
-def get_mlp_layers(mlp_input, number_layers, dimension_hidden):
+def get_mlp_layers(mlp_input, number_layers, dimension_hidden, boundaries):
     """compute MLP with specified number of layers.
         math: sigma(Wx + b)
         for each layer, where sigma is by default relu"""
@@ -67,24 +89,25 @@ def get_mlp_layers(mlp_input, number_layers, dimension_hidden):
         if layer_step != number_layers-1:  # final layer has no RELU
             cur_top = tf.nn.relu(tf.matmul(cur_top, cur_weight) + cur_bias)
         else:
-            cur_top = sotfmax_prediction_layer(tf.matmul(cur_top, cur_weight) + cur_bias)
+            cur_top = multi_sotfmax_prediction_layer(tf.matmul(cur_top, cur_weight) + cur_bias, boundaries)
 
     return cur_top, weights, biases
 
 
-def get_loss_layer(mlp_out, task):
+def get_loss_layer(mlp_out, task, boundaries):
     """The loss layer used for the MLP network is obtained through this class."""
-    return softmax_loss_layer(labels=task, logits=mlp_out)
+    return multi_softmax_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries)
 
 
 def tf_classification_network(dim_input=27, dim_output=7, batch_size=25, network_config=None):
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
     dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
     dim_hidden.append(dim_output)
+    boundaries = network_config['output_boundaries']
 
     nn_input, action, precision = get_input_layer(dim_input, dim_output)
-    mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
+    mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden, boundaries)
     fc_vars = weights_FC + biases_FC
-    loss_out = get_loss_layer(mlp_out=mlp_applied, task=action)
+    loss_out = get_loss_layer(mlp_out=mlp_applied, task=action, boundaries=boundaries)
 
     return TfMap.init_from_lists([nn_input, action, precision], [mlp_applied], [loss_out]), fc_vars, []

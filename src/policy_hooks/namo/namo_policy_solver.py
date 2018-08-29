@@ -102,6 +102,7 @@ class NAMOPolicySolver(NAMOSolver):
             targets.append(get_end_targets(num_cans))
         
         x0 = get_random_initial_state_vec(num_cans, targets[i], self.dX, self.state_inds, conditions)
+        obj_list = ['can{0}'.format(c) for c in range(num_cans)]
 
         for plan in plans.values():
             plan.state_inds = self.state_inds
@@ -126,6 +127,7 @@ class NAMOPolicySolver(NAMOSolver):
         self.config['goal_f'] = goal_f
         self.config['cost_f'] = cost_f
         self.config['target_f'] = get_next_target
+        self.config['encode_f'] = sorting_state_encode
 
         self.config['task_durations'] = self.task_durations
 
@@ -152,6 +154,7 @@ class NAMOPolicySolver(NAMOSolver):
                 'state_include': [utils.STATE_ENUM],
                 'obs_include': [utils.STATE_ENUM,
                                 utils.TARGETS_ENUM,
+                                utils.TASK_ENUM,
                                 utils.OBJ_ENUM,
                                 utils.TARG_ENUM,
                                 utils.TRAJ_HIST_ENUM],
@@ -160,7 +163,7 @@ class NAMOPolicySolver(NAMOSolver):
                 'conditions': self.config['num_conds'],
                 'solver': self,
                 'num_cans': num_cans,
-                'obj_list': ['can{0}'.format(c) for c in range(num_cans)],
+                'obj_list': obj_list,
                 'stochastic_conditions': self.config['stochastic_conditions'],
                 'image_width': utils.IM_W,
                 'image_height': utils.IM_H,
@@ -248,10 +251,27 @@ class NAMOPolicySolver(NAMOSolver):
                 'num_filters': [5,10],
                 'dim_hidden': [100, 100, 100]
             },
+            'primitive_network_params': {
+                'obs_include': self.config['agent']['obs_include'],
+                # 'obs_vector_data': [utils.STATE_ENUM],
+                'obs_image_data': [],
+                'image_width': utils.IM_W,
+                'image_height': utils.IM_H,
+                'image_channels': utils.IM_C,
+                'sensor_dims': sensor_dims,
+                'n_layers': self.config['n_layers'],
+                'num_filters': [5,10],
+                'dim_hidden': self.config['dim_hidden'],
+                'output_boundaries': [len(self.task_list),
+                                      len(obj_list),
+                                      len(targets[0].keys())],
+                'output_order': ['task', 'obj', 'targ'],
+            },
             'lr': self.config['lr'],
             'network_model': tf_network,
             'distilled_network_model': tf_network,
             'primitive_network_model': tf_classification_network,
+            'value_network_model': tf_network,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
             'weight_decay': self.config['weight_decay'],
@@ -756,14 +776,14 @@ def copy_dict(d):
     return new_d
 
 if __name__ == '__main__':
-    for lr in [1e-4]:
+    for lr in [1e-3]:
         for init_var in [0.01]:
             for covard in [1]:
                 for wt in [1e4]:
                     for klt in [1e-3]:
                         for kl in [1e0]:
-                            for iters in [10000]:
-                                for dh in [[200, 200, 200]]:
+                            for iters in [100000]:
+                                for dh in [[100, 100, 100]]:
                                     for hl in [3]:
                                         config = copy_dict(namo_hyperparams.config)
                                         config['lr'] = lr
