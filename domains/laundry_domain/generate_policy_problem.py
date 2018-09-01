@@ -111,16 +111,17 @@ def main():
         s += "Robot (name baxter); "
         for i in range(NUM_CLOTH):
             s += "Cloth (name {}); ".format("cloth_{0}".format(i))
+            s += "ClothTarget (name {}); ".format("cloth_target_{0}".format(i))
+            s += "ClothTarget (name {}); ".format("cloth{0}_init_target".format(i))
 
-        for i in range(NUM_SYMBOLS):
-            s += "EEPose (name {}); ".format("cg_ee_{0}".format(i))
-            s += "EEPose (name {}); ".format("cp_ee_{0}".format(i))
-            s += "RobotPose (name {}); ".format("cloth_grasp_begin_{0}".format(i))
-            s += "RobotPose (name {}); ".format("cloth_grasp_end_{0}".format(i))
-            s += "RobotPose (name {}); ".format("cloth_putdown_begin_{0}".format(i))
-            s += "RobotPose (name {}); ".format("cloth_putdown_end_{0}".format(i))
-            s += "ClothTarget (name {}); ".format("cloth_target_begin_{0}".format(i))
-            s += "ClothTarget (name {}); ".format("cloth_target_end_{0}".format(i))
+        s += "EEPose (name {}); ".format("cg_ee".format(i))
+        s += "EEPose (name {}); ".format("cp_ee".format(i))
+        s += "RobotPose (name {}); ".format("cloth_grasp_begin".format(i))
+        s += "RobotPose (name {}); ".format("cloth_grasp_end".format(i))
+        s += "RobotPose (name {}); ".format("cloth_putdown_begin".format(i))
+        s += "RobotPose (name {}); ".format("cloth_putdown_end".format(i))
+        s += "ClothTarget (name {}); ".format("middle_target_1")
+        s += "ClothTarget (name {}); ".format("middle_target_2")
 
         s += "RobotPose (name {}); ".format("robot_init_pose")
         s += "RobotPose (name {}); ".format("robot_end_pose")
@@ -162,18 +163,26 @@ def main():
             s += "(geom cloth_{0}), ".format(i)
             s += "(pose cloth_{0} {1}), ".format(i, cloth_init_poses[i])
             s += "(rotation cloth_{0} {1}), ".format(i, CLOTH_ROT)
+            s += "(value cloth{0}_init_target [0, 0, 0], ".format(i)
+            s += "(rotation cloth{0}_init_target [0, 0, 0], ".format(i)
+            s += "(value cloth_target_{0} [0, 0, 0], ".format(i)
+            s += "(rotation cloth_target_{0} [0, 0, 0], ".format(i)
 
-        for i in range(NUM_SYMBOLS):
-            s += get_undefined_symbol('cloth_target_end_{0}'.format(i))
-            s += get_undefined_symbol('cloth_target_begin_{0}'.format(i))
+        s += "(value middle_target_1 [0, 0, 0], "
+        s += "(rotation middle_target_1 [0, 0, 0], "
+        s += "(value middle_target_2 [0, 0, 0], "
+        s += "(rotation middle_target_2 [0, 0, 0], "
 
-            s += get_undefined_symbol("cg_ee_{0}".format(i))
-            s += get_undefined_symbol("cp_ee_{0}".format(i))
+        s += get_undefined_symbol('cloth_target_end')
+        s += get_undefined_symbol('cloth_target_begin')
 
-            s += get_undefined_robot_pose_str("cloth_grasp_begin_{0}".format(i))
-            s += get_undefined_robot_pose_str("cloth_grasp_end_{0}".format(i))
-            s += get_undefined_robot_pose_str("cloth_putdown_begin_{0}".format(i))
-            s += get_undefined_robot_pose_str("cloth_putdown_end_{0}".format(i))
+        s += get_undefined_symbol("cg_ee")
+        s += get_undefined_symbol("cp_ee")
+
+        s += get_undefined_robot_pose_str("cloth_grasp_begin".format(i))
+        s += get_undefined_robot_pose_str("cloth_grasp_end".format(i))
+        s += get_undefined_robot_pose_str("cloth_putdown_begin".format(i))
+        s += get_undefined_robot_pose_str("cloth_putdown_end".format(i))
 
         s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, OPEN_GRIPPER, BAXTER_INIT_POSE)
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, OPEN_GRIPPER, BAXTER_INIT_POSE)

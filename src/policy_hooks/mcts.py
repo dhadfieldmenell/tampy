@@ -230,7 +230,7 @@ class MCTS:
                     while node != self.root:
                         node.update_value(-cost)
                         node = node.parent
-                    return next_node
+                    return None
 
 
         self.agent.reset_hist(old_traj_hist)
@@ -240,6 +240,7 @@ class MCTS:
     def _select_from_explored(self, state, node, exclude_hl=[], task=None, debug=False):
         if debug:
             print "Selecting from explored children."
+            print "State: ", state
 
         if task is None:
             children = node.get_explored_children() 
@@ -247,9 +248,9 @@ class MCTS:
         else:
             children = [node.get_child(*task)]
             assert children[0] is not None
-            children_distr = [1]
+            children_distr = np.ones(1)
 
-        while np.any(children_distr != -np.inf):
+        while np.any(children_distr > -np.inf):
             next_ind = np.argmax(children_distr)
             children_distr[next_ind] = -np.inf
             next_node = children[next_ind]
@@ -259,9 +260,16 @@ class MCTS:
             obj = self.agent.plans.values()[0].params[self.agent.obj_list[obj_ind]]
             targ = self.agent.plans.values()[0].params[self.agent.targ_list[targ_ind]]
             plan = self.agent.plans[self.tasks[task_ind], obj.name]
-            if self._cost_f(state, self.tasks[task_ind], [obj, targ], self.agent.targets[self.condition], plan, active_ts=(0,0)) == 0:
+            if self._cost_f(state, self.tasks[task_ind], [obj, targ], self.agent.targets[self.condition], plan, active_ts=(0,0), debug=debug) == 0:
+                if debug:
+                    print 'Chose explored child.'
                 return children[next_ind]
 
+        if debug:
+            if task is None:
+                print 'Preconditions violated for all explored children.'
+            else:
+                print 'Preconditions violated for {0} {1}.'.format(self.tasks[task[0]], self.agent.obj_list[task[1]])
         return None
 
     # def _default_choose_next(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, debug=False):

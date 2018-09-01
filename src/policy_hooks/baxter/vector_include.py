@@ -15,6 +15,8 @@ def get_vector(num_cans):
         'cloth_target_2': ['value'],
         'cloth_target_3': ['value'],
         'cloth_target_4': ['value'],
+        'cloth_target_5': ['value'],
+        'cloth_target_6': ['value'],
         'middle_target_1': ['value'],
         'middle_target_2': ['value'],
     }

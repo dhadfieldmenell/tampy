@@ -286,20 +286,20 @@ class NAMOSortingAgent(Agent):
             if task == 'grasp':
                 plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
             # self.env.SetViewer('qtcoin')
-            success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
-            # try:
-            #     success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
-            #     # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
-            #     # import ipdb; ipdb.set_trace()
-            #     # if task == 'putdown':
-            #     #     import ipdb; ipdb.set_trace()
-            #     # self.env.SetViewer('qtcoin')
-            #     # import ipdb; ipdb.set_trace()
-            # except Exception as e:
-            #     print e
-            #     # self.env.SetViewer('qtcoin')
-            #     # import ipdb; ipdb.set_trace()
-            #     success = False
+            # success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+            try:
+                success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+                # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
+                # import ipdb; ipdb.set_trace()
+                # if task == 'putdown':
+                #     import ipdb; ipdb.set_trace()
+                # self.env.SetViewer('qtcoin')
+                # import ipdb; ipdb.set_trace()
+            except Exception as e:
+                print e
+                # self.env.SetViewer('qtcoin')
+                # import ipdb; ipdb.set_trace()
+                success = False
 
             if not len(failed_preds):
                 failed_preds = [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3)]

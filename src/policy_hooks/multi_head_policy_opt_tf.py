@@ -247,6 +247,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         tgt_prc_orig = np.reshape(tgt_prc, [N*T, dU, dU])
 
         # Renormalize weights.
+        if np.sum(tgt_wt) == 0 or np.any(np.isnan(tgt_wt)):
+            import ipdb; ipdb.set_trace()
         tgt_wt *= (float(N * T) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
         # mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])

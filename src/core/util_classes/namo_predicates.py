@@ -205,17 +205,52 @@ class RobotAt(At):
 
 class RobotNear(At):
 
+    # RobotAt Robot Can
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = 2 * dmove * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class RobotNearGrasp(At):
+
+    # RobotAt Robot Can Grasp
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c, self.g = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = 2 * dmove * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class RobotWithinReach(At):
+
     # RobotAt Robot Target
 
     def __init__(self, name, params, expected_param_types, env=None):
         ## At Robot RobotPose
         self.r, self.t = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
-                                 (self.t, [("pose", np.array([0,1], dtype=np.int))])])
+                                 (self.t, [("value", np.array([0,1], dtype=np.int))])])
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 2 * dmove * np.ones((4, 1))
+        val = 20 * dmove * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)

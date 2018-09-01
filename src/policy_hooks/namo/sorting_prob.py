@@ -395,13 +395,16 @@ def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
 
     return plan_from_str(next_task_str, prob_file.format(num_cans), domain_file, env, openrave_bodies)
 
-def cost_f(Xs, task, params, targets, plan, active_ts=None):
+def cost_f(Xs, task, params, targets, plan, active_ts=None, debug=False):
     tol = 1e-1
+
+    if len(Xs.shape) == 1:
+        Xs = Xs.reshape(1, -1)
 
     if active_ts == None:
         active_ts = (1, plan.horizon-1)
 
-    for t in range(active_ts[0], active_ts[1]):
+    for t in range(active_ts[0], active_ts[1]+1):
         set_params_attrs(plan.params, plan.state_inds, Xs[t], t)
 
     for param in plan.params:
@@ -415,6 +418,8 @@ def cost_f(Xs, task, params, targets, plan, active_ts=None):
     plan.params['{0}_end_target'.format(params[0].name)].value[:,0] = targets['{0}_end_target'.format(params[0].name)]
 
     failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+    if debug:
+        print failed_preds
 
     cost = 0
     for failed in failed_preds:

@@ -94,6 +94,9 @@ class AlgorithmMDGPS(Algorithm):
 
             self.cur[m].pol_info = PolicyInfo(self._hyperparams)
             self.cur[m].pol_info.policy_prior = policy_prior['type'](policy_prior)
+        self.new_traj_distr = [
+            self.cur[m].traj_distr for m in range(M)
+        ]
 
     def iteration(self, sample_lists):
         """

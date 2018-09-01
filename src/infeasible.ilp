@@ -1,59 +1,22 @@
 Minimize
-  + 84852.87597635176 Constant
+  + 1146.64642396725 Constant
 Subject To
- R18: (pr2-pose-(0,_0)) = -21.84199806800139
- R21: (robot_end_pose-value-(0,_0)) = -3
- R205: - (pr2-pose-(0,_0)) + (pr2-pose-(0,_1)) <= 0.5
- R209: - (pr2-pose-(0,_1)) + (pr2-pose-(0,_2)) <= 0.5
- R213: - (pr2-pose-(0,_2)) + (pr2-pose-(0,_3)) <= 0.5
- R217: - (pr2-pose-(0,_3)) + (pr2-pose-(0,_4)) <= 0.5
- R221: - (pr2-pose-(0,_4)) + (pr2-pose-(0,_5)) <= 0.5
- R225: - (pr2-pose-(0,_5)) + (pr2-pose-(0,_6)) <= 0.5
- R229: - (pr2-pose-(0,_6)) + (pr2-pose-(0,_7)) <= 0.5
- R233: - (pr2-pose-(0,_7)) + (pr2-pose-(0,_8)) <= 0.5
- R237: - (pr2-pose-(0,_8)) + (pr2-pose-(0,_9)) <= 0.5
- R241: - (pr2-pose-(0,_9)) + (pr2-pose-(0,_10)) <= 0.5
- R245: - (pr2-pose-(0,_10)) + (pr2-pose-(0,_11)) <= 0.5
- R249: - (pr2-pose-(0,_11)) + (pr2-pose-(0,_12)) <= 0.5
- R253: - (pr2-pose-(0,_12)) + (pr2-pose-(0,_13)) <= 0.5
- R257: - (pr2-pose-(0,_13)) + (pr2-pose-(0,_14)) <= 0.5
- R261: - (pr2-pose-(0,_14)) + (pr2-pose-(0,_15)) <= 0.5
- R265: - (pr2-pose-(0,_15)) + (pr2-pose-(0,_16)) <= 0.5
- R269: - (pr2-pose-(0,_16)) + (pr2-pose-(0,_17)) <= 0.5
- R273: - (pr2-pose-(0,_17)) + (pr2-pose-(0,_18)) <= 0.5
- R277: - (pr2-pose-(0,_18)) + (pr2-pose-(0,_19)) <= 0.5
- R281: - (pr2-pose-(0,_19)) + (pr2-pose-(0,_20)) <= 0.5
- R285: - (pr2-pose-(0,_20)) + (pr2-pose-(0,_21)) <= 0.5
- R289: - (pr2-pose-(0,_21)) + (pr2-pose-(0,_22)) <= 0.5
- R293: - (pr2-pose-(0,_22)) + (pr2-pose-(0,_23)) <= 0.5
- R297: - (pr2-pose-(0,_23)) + (pr2-pose-(0,_24)) <= 0.5
- R299: (pr2-pose-(0,_24)) - (robot_end_pose-value-(0,_0)) = 0
+ R5: (can0-pose-(1,_0)) = -1
+ R11: (grasp0-value-(1,_0)) = -0.6010000109672546
+ R27: (pr2-pose-(1,_0)) = 0
+ R60: - 1000 (grasp0-value-(1,_0)) + 1000 (pr2-pose-(1,_2))
+   - 1000 (can0-pose-(1,_2)) = 0
+ R106: (can0-pose-(1,_0)) - (can0-pose-(1,_1)) = 0
+ R108: (can0-pose-(1,_1)) - (can0-pose-(1,_2)) = 0
+ R238: (pr2-pose-(1,_0)) - (pr2-pose-(1,_1)) <= 0.5
+ R242: (pr2-pose-(1,_1)) - (pr2-pose-(1,_2)) <= 0.5
 Bounds
- (pr2-pose-(0,_0)) free
- (pr2-pose-(0,_1)) free
- (pr2-pose-(0,_2)) free
- (pr2-pose-(0,_3)) free
- (pr2-pose-(0,_4)) free
- (pr2-pose-(0,_5)) free
- (pr2-pose-(0,_6)) free
- (pr2-pose-(0,_7)) free
- (pr2-pose-(0,_8)) free
- (pr2-pose-(0,_9)) free
- (pr2-pose-(0,_10)) free
- (pr2-pose-(0,_11)) free
- (pr2-pose-(0,_12)) free
- (pr2-pose-(0,_13)) free
- (pr2-pose-(0,_14)) free
- (pr2-pose-(0,_15)) free
- (pr2-pose-(0,_16)) free
- (pr2-pose-(0,_17)) free
- (pr2-pose-(0,_18)) free
- (pr2-pose-(0,_19)) free
- (pr2-pose-(0,_20)) free
- (pr2-pose-(0,_21)) free
- (pr2-pose-(0,_22)) free
- (pr2-pose-(0,_23)) free
- (pr2-pose-(0,_24)) free
- (robot_end_pose-value-(0,_0)) free
+ (grasp0-value-(1,_0)) free
+ (pr2-pose-(1,_0)) free
+ (pr2-pose-(1,_1)) free
+ (pr2-pose-(1,_2)) free
+ (can0-pose-(1,_0)) free
+ (can0-pose-(1,_1)) free
+ (can0-pose-(1,_2)) free
  Constant = 1
 End
