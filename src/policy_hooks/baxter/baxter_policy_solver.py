@@ -33,7 +33,6 @@ from policy_hooks.state_traj_cost import StateTrajCost
 from policy_hooks.action_traj_cost import ActionTrajCost
 from policy_hooks.traj_constr_cost import TrajConstrCost
 from policy_hooks.cost_product import CostProduct
-from policy_hooks.sample import Sample
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + '/experiments'
@@ -48,12 +47,10 @@ class NAMOPolicySolver(NAMOSolver):
         self.config = None
         self.gps = None
         self.transfer_coeff = 1e0
-        self.weak_transfer_coeff = 1e-2
         self.rs_coeff = 2e2
         self.trajopt_coeff = 1e0
         self.policy_pred = None
         self.transfer_always = False
-        self.policy_fs = {}
 
     # TODO: Add hooks for online policy learning
     def train_policy(self, num_cans, hyperparams=None):
@@ -73,8 +70,8 @@ class NAMOPolicySolver(NAMOSolver):
             self.config.update(hyperparams)
 
         conditions = self.config['num_conds']
-        self.task_list = tuple(get_tasks('policy_hooks/namo/sorting_task_mapping').keys())
-        self.task_durations = get_task_durations('policy_hooks/namo/sorting_task_mapping')
+        self.task_list = tuple(get_tasks('policy_hooks/baxter/sorting_task_mapping').keys())
+        self.task_durations = get_task_durations('policy_hooks/baxter/sorting_task_mapping')
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
 
@@ -96,14 +93,14 @@ class NAMOPolicySolver(NAMOSolver):
 
         state_vector_include, action_vector_include, target_vector_include = get_vector(num_cans)
 
-        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], 'pr2', ATTRMAP, state_vector_include, action_vector_include)
+        self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], 'baxter', ATTRMAP, state_vector_include, action_vector_include)
 
         self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], ATTRMAP, target_vector_include)
 
         for i in range(conditions):
             targets.append(get_end_targets(num_cans))
         
-        x0 = get_random_initial_state_vec(num_cans, targets, self.dX, self.state_inds, conditions)
+        x0 = get_random_initial_state_vec(num_cans, targets[i], self.dX, self.state_inds, conditions)
         obj_list = ['can{0}'.format(c) for c in range(num_cans)]
 
         for plan in plans.values():
@@ -133,8 +130,7 @@ class NAMOPolicySolver(NAMOSolver):
 
         self.config['task_durations'] = self.task_durations
 
-        self.policy_traj_coeff = self.config['algorithm']['policy_traj_coeff']
-        self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
+        self.policy_transfer_coeff = self.config['algorithm']['policy_transfer_coeff']
         if is_first_run:
             self.config['agent'] = {
                 'type': NAMOSortingAgent,
@@ -263,9 +259,9 @@ class NAMOPolicySolver(NAMOSolver):
                 'image_height': utils.IM_H,
                 'image_channels': utils.IM_C,
                 'sensor_dims': sensor_dims,
-                'n_layers': 2,
+                'n_layers': self.config['n_layers'],
                 'num_filters': [5,10],
-                'dim_hidden': [40, 40],
+                'dim_hidden': self.config['dim_hidden'],
                 'output_boundaries': [len(self.task_list),
                                       len(obj_list),
                                       len(targets[0].keys())],
@@ -279,9 +275,9 @@ class NAMOPolicySolver(NAMOSolver):
                 'image_height': utils.IM_H,
                 'image_channels': utils.IM_C,
                 'sensor_dims': sensor_dims,
-                'n_layers': 1,
+                'n_layers': 2,
                 'num_filters': [5,10],
-                'dim_hidden': [50]
+                'dim_hidden': [40, 40]
             },
             'lr': self.config['lr'],
             'network_model': tf_network,
@@ -306,8 +302,8 @@ class NAMOPolicySolver(NAMOSolver):
 
         self.config['algorithm'] = alg_map
 
-        gps = GPSMain(self.config)
-        self.set_gps(gps)
+        self.gps = GPSMain(self.config)
+        self.agent = self.gps.agent
         for p in self.agent.plans:
             task_ind = self.task_list.index(p[0])
             obj_ind = self.agent.obj_list.index(p[1])
@@ -317,7 +313,7 @@ class NAMOPolicySolver(NAMOSolver):
         env.Destroy()
 
 
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, traj_mean=[], task=None):
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, traj_mean=[]):
         if amax is None:
             amax = len(plan.actions) - 1
 
@@ -357,7 +353,7 @@ class NAMOPolicySolver(NAMOSolver):
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                         p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = self.__class__()
-            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, traj_mean=traj_mean, task=task)
+            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, traj_mean=traj_mean)
 
             # reset free_attrs
             for p in plan.params.itervalues():
@@ -383,10 +379,9 @@ class NAMOPolicySolver(NAMOSolver):
             self.child_solver.state_inds = self.state_inds
             self.child_solver.action_inds = self.action_inds
             self.child_solver.agent = self.agent
-            self.child_solver.policy_traj_coeff = self.policy_traj_coeff
+            self.child_solver.policy_transfer_coeff = self.policy_transfer_coeff
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
-                                              active_ts=active_ts, verbose=verbose, force_init=True, 
-                                              traj_mean=traj_mean, task=task)
+                                              active_ts=active_ts, verbose=verbose, force_init=True, traj_mean=traj_mean)
             if not success:
                 ## if planning fails we're done
                 return False
@@ -421,7 +416,7 @@ class NAMOPolicySolver(NAMOSolver):
             self.child_solver = self.__class__()
             success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                               active_ts = active_ts, verbose=verbose,
-                                              force_init=True, traj_mean=traj_mean, task=task)
+                                              force_init=True)
             if success:
                 if recursive_solve():
                     break
@@ -433,7 +428,7 @@ class NAMOPolicySolver(NAMOSolver):
 
 
     def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
-              verbose=False, force_init=False, traj_mean=[], task=None):
+              verbose=False, force_init=False, traj_mean=[]):
         success = False
         if callback is not None:
             viewer = callback()
@@ -451,8 +446,7 @@ class NAMOPolicySolver(NAMOSolver):
             for attempt in range(n_resamples):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
-                                callback=callback, active_ts=active_ts, verbose=verbose, 
-                                traj_mean=traj_mean, task=task)
+                                callback=callback, active_ts=active_ts, verbose=verbose, traj_mean=traj_mean)
 
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts=active_ts, priority=priority, tol=1e-3)
@@ -461,8 +455,7 @@ class NAMOPolicySolver(NAMOSolver):
                 if success:
                     break
 
-                self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, 
-                        verbose=verbose, resample=True, traj_mean=traj_mean, task=task)
+                self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample=True, traj_mean=traj_mean)
 
                 # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                 #     break
@@ -555,7 +548,6 @@ class NAMOPolicySolver(NAMOSolver):
             success = self._solve_policy_opt_prob(plan, global_traj_mean, active_ts=active_ts, resample=True)
         return success
 
-
     def _traj_policy_opt(self, plan, traj_mean, start_t, end_t):
         transfer_objs = []
         for param_name, attr_name in self.action_inds:
@@ -577,11 +569,11 @@ class NAMOPolicySolver(NAMOSolver):
             cur_val = attr_val.reshape((KT, 1), order='F')
             A = -2 * cur_val.T.dot(Q)
             b = cur_val.T.dot(Q.dot(cur_val))
-            policy_traj_coeff = self.policy_traj_coeff / T
+            policy_transfer_coeff = self.policy_transfer_coeff
 
             # QuadExpr is 0.5*x^Tx + Ax + b
-            quad_expr = QuadExpr(2*policy_traj_coeff*Q,
-                                 policy_traj_coeff*A, policy_traj_coeff*b)
+            quad_expr = QuadExpr(2*policy_transfer_coeff*Q,
+                                 policy_transfer_coeff*A, policy_transfer_coeff*b)
             ll_attr_val = getattr(param_ll, attr_name)
             param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
             sco_var = self.create_variable(param_ll_grb_vars, cur_val)
@@ -589,91 +581,12 @@ class NAMOPolicySolver(NAMOSolver):
             transfer_objs.append(bexpr)
         return transfer_objs
 
-
-    def _policy_output_opt(self, plan, (i, j, k), start_t, end_t):
-        transfer_objs = []
-        if not hasattr(self, 'agent'):
-            return []
-
-        T = end_t-start_t+1
-        pol_f = self.policy_fs[(i, j, k)]
-        pol_out = np.zeros((T, self.dU))
-        self.agent.T = T
-        sample = Sample(self.agent)
-        state = np.zeros((T, self.symbolic_bound))
-        act = np.zeros((T, self.dU))
-        for p_name, a_name in self.state_inds:
-            p = plan.params[p_name]
-            if p.is_symbol(): continue
-            state[:, self.state_inds[p_name, attr_name]] = getattr(p, a_name)[:, start_t:end_t+1]
-        for p_name, a_name in self.action_inds:
-            p = plan.params[p_name]
-            if p.is_symbol(): continue
-            act[:, self.action_inds[p_name, attr_name]] = getattr(p, a_name)[:, start_t:end_t+1]
-        hist_len = self.agent.hist_len
-        target_vec = np.zeros(self.agent.target_vecs[0].shape)
-        for p_name, a_name in self.target_inds:
-            param = plan.params[p_name]
-            target_vec[self.target_inds[p_name, a_name]] = getattr(param, a_name).flatten()
-        for t in range(start_t, end_t+1):
-            sample.set(STATE_ENUM, state[t], t-start_t)
-            task_vec = np.zeros((len(self.agent.task_list)))
-            task_vec[i] = 1
-            obj_vec = np.zeros((len(self.agent.obj_list)))
-            obj_vec[j] = 1
-            targ_vec = np.zeros((len(self.agent.targ_list)))
-            targ_vec[k] = 1
-            traj_hist = np.zeros((hist_len, self.dU))
-            for sub_t in range(t-hist_len, t):
-                if sub_t < 0:
-                    continue
-                traj_hist[sub_t-t-hist_len, :] = act[sub_t]
-            sample.set(TASK_ENUM, task_vec, t-start_t)
-            sample.set(OBJ_ENUM, obj_vec, t-start_t)
-            sample.set(TARG_ENUM, targ_vec, t-start_t)
-            sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
-            sample.set(TARGETS_ENUM, target_vec, t-start_t)
-            sample.set(ACTION_ENUM, act[t-start_t], t-start_t)
-            pol_out[t-start_t] = pol_f(sample)
-
-        for param_name, attr_name in self.action_inds:
-            param = plan.params[param_name]
-            attr_type = param.get_attr_type(attr_name)
-            param_ll = self._param_to_ll[param]
-            T = end_t - start_t + 1
-            attr_val = pol_out[:, self.action_inds[(param_name, attr_name)]].T
-            K = attr_type.dim
-
-            KT = K*T
-            v = -1 * np.ones((KT - K, 1))
-            d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-            # [:,0] allows numpy to see v and d as one-dimensional so
-            # that numpy will create a diagonal matrix with v and d as a diagonal
-            P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-            # P = np.eye(KT)
-            Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-            cur_val = attr_val.reshape((KT, 1), order='F')
-            A = -2 * cur_val.T.dot(Q)
-            b = cur_val.T.dot(Q.dot(cur_val))
-            policy_out_coeff = self.policy_out_coeff / T
-
-            # QuadExpr is 0.5*x^Tx + Ax + b
-            quad_expr = QuadExpr(2*policy_out_coeff*Q,
-                                 policy_out_coeff*A, policy_out_coeff*b)
-            ll_attr_val = getattr(param_ll, attr_name)
-            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-            sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-            bexpr = BoundExpr(quad_expr, sco_var)
-            transfer_objs.append(bexpr)
-        return transfer_objs
-
-
-    def _policy_func(self, sample, task):
+    def _policy_func(self, sample):
+        task = self.task_list[np.argmax(sample.get(TASK_ENUM, t=0))]
         if self.gps.rollout_policies[task].scale is None:
             return sample.get_U(t=0)
         obs = sample.get_obs(t=0)
-        return self.gps.rollout_policies[task].act(obs).flatten()
-
+        return self.gps.rollout_policies[task].act(obs)
 
     def _add_policy_constraints_to_plan(self, plan, task_ind, obj_ind, targ_ind):
         for action in plan.actions:
@@ -684,22 +597,7 @@ class NAMOPolicySolver(NAMOSolver):
             action.preds.append(pred_dict)
 
 
-    def set_gps(self, gps):
-        self.gps = gps
-        self.agent = gps.agent
-        self._store_policy_fs()
-
-
-    def _store_policy_fs(self):
-        if hasattr(self, 'agent'):
-            for i in range(len(self.agent.task_list)):
-                for j in range(len(self.agent.obj_list)):
-                    for k in range(len(self.agent.targ_list)):
-                        pol_f = lambda s: self._policy_func(s, self.agent.task_list[i])
-                        self.policy_fs[(i, j, k)] = pol_f
-
-
-    def _solve_opt_prob(self, plan, active_ts, priority, traj_mean=[], task=None, resample=False, callback=None, verbose=False):
+    def _solve_opt_prob(self, plan, active_ts, priority, traj_mean=[], resample=False, callback=None, verbose=False):
         self.plan = plan
         plan.save_free_attrs()
         model = grb.Model()
@@ -712,8 +610,8 @@ class NAMOPolicySolver(NAMOSolver):
 
         if resample:
             obj_bexprs = []
-            # if len(traj_mean):
-            #     obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
+            if len(traj_mean):
+                obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
             failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
@@ -721,17 +619,15 @@ class NAMOPolicySolver(NAMOSolver):
                 add_nonlin=True, active_ts=active_ts)
             # self._add_policy_preds(plan, active_ts)
             obj_bexprs.extend(rs_obj)
-            if task is not None and task in self.policy_fs:
-                obj_bexprs.extend(self._policy_output_opt(plan, task, active_ts[0], active_ts[1]))
             self._add_obj_bexprs(obj_bexprs)
             initial_trust_region_size = 1e3
         else:
             self._bexpr_to_pred = {}
             obj_bexprs = []
             if self.transfer_always:
-                obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm, coeff=self.weak_transfer_coeff))
-            # if priority >= 0 and len(traj_mean):
-            #     obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
+                obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+            if len(traj_mean):
+                obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
             # self.transfer_coeff *= 1e1
             # obj_bexprs = self._get_transfer_obj(plan, self.transfer_norm)
             # self.transfer_coeff *= 1e-1
@@ -762,8 +658,6 @@ class NAMOPolicySolver(NAMOSolver):
                 tol = 1e-3
             elif priority >= 0:
                 obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-                if task is not None and task in self.policy_fs:
-                    obj_bexprs.extend(self._policy_output_opt(plan, task, active_ts[0], active_ts[1]))
                 self._add_obj_bexprs(obj_bexprs)
                 self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
                                                    active_ts=active_ts, verbose=verbose)
@@ -861,12 +755,12 @@ def copy_dict(d):
 if __name__ == '__main__':
     for lr in [1e-3]:
         for init_var in [0.001]:
-            for covard in [2]:
-                for wt in [1e2]:
-                    for klt in [1e-2]:
-                        for kl in [1e-1]:
+            for covard in [1]:
+                for wt in [1e1]:
+                    for klt in [1e-3]:
+                        for kl in [1e0]:
                             for iters in [100000]:
-                                for dh in [[50, 50]]:
+                                for dh in [[100, 100, 100]]:
                                     for hl in [3]:
                                         config = copy_dict(namo_hyperparams.config)
                                         config['lr'] = lr

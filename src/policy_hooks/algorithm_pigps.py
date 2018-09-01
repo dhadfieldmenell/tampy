@@ -26,6 +26,7 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
         config = copy.deepcopy(ALG_PIGPS)
         config.update(hyperparams)
         self.task = task
+        self.fail_value = hyperparams['fail_value']
         AlgorithmMDGPS.__init__(self, config)
 
     def iteration(self, sample_lists, optimal_samples):
@@ -49,8 +50,10 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
                 targ = s.agent.plans.values()[0].params[s.agent.targ_list[np.argmax(s.get(TARG_ENUM, t=0))]]
 
                 traj_mean = np.sum([sample.get_U() for sample in sample_lists[m]], axis=0) / len(sample_lists[m])
-                opt_sample, _ = s.agent.sample_optimal_trajectory(sample_lists[m][0].get_X(t=0), sample_lists[m][0].task, sample_lists[m][0].condition, traj_mean=traj_mean, fixed_targets=[obj, targ])
-                if opt_sample is None:
+                opt_sample, _, success = s.agent.sample_optimal_trajectory(sample_lists[m][0].get_X(t=0), sample_lists[m][0].task, sample_lists[m][0].condition, traj_mean=traj_mean, fixed_targets=[obj, targ])
+                if not success:
+                    for sample in sample_lists[m]:
+                        sample.task_cost = self.fail_value
                     del_inds.append(m)
                     continue
                 self.cur[m].sample_list._samples.append(opt_sample)

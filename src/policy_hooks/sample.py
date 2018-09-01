@@ -35,6 +35,7 @@ class Sample(object):
         self._ref_X = np.zeros((self.T, self.agent.symbolic_bound))
 
         self.task_cost = np.inf
+        self.removable = True
 
     def set(self, sensor_name, sensor_data, t=None):
         """ Set trajectory data for a particular sensor. """

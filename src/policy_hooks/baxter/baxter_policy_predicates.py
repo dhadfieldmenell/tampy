@@ -9,7 +9,7 @@ import numpy as np
 
 from collections import OrderedDict
 
-class NAMOPolicyPredicate(ExprPredicate):   
+class BaxterPolicyPredicate(ExprPredicate):   
     def __init__(self, name, plan, policy_func, coeff, agent, task_ind, obj_ind, targ_ind, grad_coeff=0.1):
         self.handle = []
         self.policy_func = policy_func
@@ -36,7 +36,7 @@ class NAMOPolicyPredicate(ExprPredicate):
         pos_expr, val = Expr(f, grad), np.zeros((self.dU,1))
         e = EqExpr(pos_expr, val)
 
-        super(NAMOPolicyPredicate, self).__init__(name, e, self.attr_inds, [], expected_param_types, tol=1e-2, active_range=(-agent.hist_len, 1), priority=4)
+        super(BaxterPolicyPredicate, self).__init__(name, e, self.attr_inds, [], expected_param_types, tol=1e-2, active_range=(-agent.hist_len, 1), priority=4)
 
 
     def replace_policy_func(self, new_func):
@@ -79,7 +79,9 @@ class NAMOPolicyPredicate(ExprPredicate):
     def error_grad(self, x):
         active_len = self.active_range[1] - self.active_range[0] + 1
         jac = np.zeros((self.dU, active_len*self.dU))
-        jac[self.action_inds[('pr2', 'pose')], self.action_inds[('pr2', 'pose')] + (active_len - 1)*self.dU] = -1.0
-        jac[self.action_inds[('pr2', 'gripper')], self.action_inds[('pr2', 'gripper')] + (active_len - 1)*self.dU] = -1.0
+        jac[self.action_inds[('baxter', 'lArmPose')], self.action_inds[('baxter', 'lArmPose')] + (active_len - 1)*self.dU] = -1.0
+        jac[self.action_inds[('baxter', 'lGripper')], self.action_inds[('baxter', 'gripper')] + (active_len - 1)*self.dU] = -1.0
+        jac[self.action_inds[('baxter', 'rArmPose')], self.action_inds[('baxter', 'rArmPose')] + (active_len - 1)*self.dU] = -1.0
+        jac[self.action_inds[('baxter', 'rGripper')], self.action_inds[('baxter', 'rGripper')] + (active_len - 1)*self.dU] = -1.0
 
         return jac

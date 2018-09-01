@@ -193,10 +193,6 @@ class NAMOSortingAgent(Agent):
                 obs = sample.get_obs(t=t)
 
             U = policy.act(sample.get_X(t=t), obs, t, noise[t])
-            robot_start = X[plan.state_inds['pr2', 'pose']]
-            robot_vec = U[plan.action_inds['pr2', 'pose']] - robot_start
-            if np.sum(np.abs(robot_vec)) != 0 and np.linalg.norm(robot_vec) < 0.005:
-                U[plan.action_inds['pr2', 'pose']] = robot_start + 0.1 * robot_vec / np.linalg.norm(robot_vec)
             sample.set(ACTION_ENUM, U.copy(), t)
             if np.any(np.isnan(U)):
                 U[np.isnan(U)] = 0
@@ -216,18 +212,30 @@ class NAMOSortingAgent(Agent):
         x_inds = self.state_inds
         in_gripper = False
 
+        
         if t < plan.horizon - 1:
             for param, attr in u_inds:
                 getattr(plan.params[param], attr)[:, t+1] = u[u_inds[param, attr]]
 
+            plan.params['baxter'].set_dof({
+                'lArmPose': plan.params['baxter'].lArmPose[:, t],
+                'lGripper': plan.params['baxter'].lGripper[:, t],
+                'rArmPose': plan.params['baxter'].rArmPose[:, t],
+                'rGripper': plan.params['baxter'].rGripper[:, t],
+            })
+            l_pose = plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransfromPose[4:]
+            r_pose = plan.params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransfromPose[4:]
+
             for param in plan.params.values():
                 if param._type == 'Can':
-                    dist = plan.params['pr2'].pose[:, t] - plan.params[param.name].pose[:, t]
-                    radius1 = param.geom.radius
-                    radius2 = plan.params['pr2'].geom.radius
-                    grip_dist = radius1 + radius2 + dsafe
-                    if plan.params['pr2'].gripper[0, t] > 0.2 and np.abs(dist[0]) < 0.05 and np.abs(grip_dist + dist[1]) < 0.05:
-                        param.pose[:, t+1] = plan.params['pr2'].pose[:, t+1] + [0, grip_dist+dsafe]
+                    l_pose = plan.params['baxter'].openrave_body.env_body.Get
+                    l_dist = l_pose - plan.params[param.name].pose[:, t]
+                    r_dist = r_pose - plan.params[param.name].pose[:, t]
+
+                    if plan.params['baxter'].lGripper[0, t] < 0.01 and np.all(np.abs(l_dist) < 0.02):
+                        param.pose[:, t+1] = l_pose
+                    elif plan.params['baxter'].rGripper[0, t] < 0.01 and np.all(np.abs(r_dist) < 0.02):
+                        param.pose[:, t+1] = r_pose
                     elif param._type == 'Can':
                         param.pose[:, t+1] = param.pose[:, t]
 
@@ -280,11 +288,16 @@ class NAMOSortingAgent(Agent):
             if task == 'grasp':
                 plan.params[targ.name].value[:,0] = plan.params[obj.name].pose[:,0]
             
-            plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-            dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
-            plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
-            if task == 'grasp':
-                plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
+            plan.params['robot_init_pose'].lArmPose[:,0] = plan.params['baxter'].lArmPose[:,0]
+            plan.params['robot_init_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,0]
+            plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rAmrPose[:,0]
+            plan.params['robot_init_pose'].rGripper[:,0] = plan.params['baxter'].rGripper[:,0]
+            # plan.params['robot_end_pose'].lArmPose[:,0] = plan.params['baxter'].lArmPose[:,-1]
+            # plan.params['robot_end_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,-1]
+            # plan.params['robot_end_pose'].rArmPose[:,0] = plan.params['baxter'].rAmrPose[:,-1]
+            # plan.params['robot_end_pose'].rGripper[:,0] = plan.params['baxter'].rGripper[:,-1]
+            # if task == 'grasp':
+            #     plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
             # self.env.SetViewer('qtcoin')
             success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
             # try:
@@ -344,8 +357,6 @@ class NAMOSortingAgent(Agent):
 
         sample = self.sample_task(optimal_pol(), condition, state, [task, targets[0].name, targets[1].name], noisy=False)
         self.optimal_samples[task].append(sample)
-        sample.set_ref_X(sample.get(STATE_ENUM))
-        sample.set_ref_U(sample.get_U())
         return sample, failed_preds, success
 
 
@@ -368,32 +379,16 @@ class NAMOSortingAgent(Agent):
 
         for param_name in plan.params:
             param = plan.params[param_name]
-            if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
+            if param._type == 'Cloth' and '{0}_init_target'.format(param_name) in plan.params:
                 plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
 
         for target in targets:
             if target.name in self.targets[sample.condition]:
                 plan.params[target.name].value[:,0] = self.targets[sample.condition][target.name]
 
-        plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
-        plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
+        plan.params['robot_init_pose'].lArmPose[:,0] = plan.params['baxter'].lArmPose[:,0]
+        plan.params['robot_init_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,0]
+        plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rAmrPose[:,0]
+        plan.params['robot_init_pose'].rGripper[:,0] = plan.params['baxter'].rGripper[:,0]
 
-        return check_constr_violation(plan)
-
-
-    def replace_conditions(self, conditions, keep=(0.2, 0.5)):
-        self.targets = []
-        for i in range(conditions):
-            self.targets.append(get_end_targets(self.num_cans))
-        self.init_vecs = get_random_initial_state_vec(self.num_cans, self.targets, self.dX, self.state_inds, conditions)
-        self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
-        self.target_vecs = []
-        for condition in range(len(self.x0)):
-            target_vec = np.zeros((self.target_dim,))
-            for target_name in self.targets[condition]:
-                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-            self.target_vecs.append(target_vec)
-
-        if keep != (1., 1.):
-            self.clear_samples(*keep)
+        return check_constr_violation(plan, exclude=['BaxterRobotAt'])

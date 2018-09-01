@@ -74,6 +74,14 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             else:
                 self.x_idx = self.x_idx + list(range(i, i+dim))
             i += dim
+        self.prim_x_idx, self.prim_img_idx, i = [], [], 0
+        for sensor in self._hyperparams['network_params']['prim_obs_include']:
+            dim = self._hyperparams['network_params']['sensor_dims'][sensor]
+            if sensor in self._hyperparams['network_params']['obs_image_data']:
+                self.prim_img_idx = self.prim_img_idx + list(range(i, i+dim))
+            else:
+                self.prim_x_idx = self.prim_x_idx + list(range(i, i+dim))
+            i += dim
         init_op = tf.initialize_all_variables()
         self.sess.run(init_op)
 
@@ -153,7 +161,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                            base_lr=self._hyperparams['lr'],
                                            lr_policy=self._hyperparams['lr_policy'],
                                            momentum=self._hyperparams['momentum'],
-                                           weight_decay=self._hyperparams['weight_decay'],
+                                           weight_decay=0.,
                                            fc_vars=self.primitive_fc_vars,
                                            last_conv_vars=self.primitive_last_conv_vars,
                                            vars_to_opt=vars_to_opt)
@@ -163,7 +171,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                        base_lr=self._hyperparams['lr'],
                                        lr_policy=self._hyperparams['lr_policy'],
                                        momentum=self._hyperparams['momentum'],
-                                       weight_decay=self._hyperparams['weight_decay'],
+                                       weight_decay=0.,
                                        fc_vars=self.value_fc_vars,
                                        last_conv_vars=self.value_last_conv_vars,
                                        vars_to_opt=vars_to_opt)
@@ -346,6 +354,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
+        print 'Updating primitive network...'
         N = obs.shape[0]
         dP, dO = self._dPrim+self._dObj+self._dTarg, self._dPrimObs
 
@@ -420,6 +429,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         num_values = obs.shape[0]
         if self.primitive_feat_op is not None:
             self.primitive_feat_vals = self.primitive_solver.get_var_values(self.sess, self.primitive_feat_op, feed_dict, num_values, self.batch_size)
+        print 'Updated primitive network.\n'
 
 
     def update_value(self, obs, tgt_mu, tgt_prc, tgt_wt):
@@ -433,8 +443,9 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
+        print 'Updating value network...'
         N = obs.shape[0]
-        dP, dO = 1, self._dPrimObs
+        dP, dO = 1, self._dO
 
         # TODO - Make sure all weights are nonzero?
 
@@ -507,6 +518,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         num_values = obs.shape[0]
         if self.value_feat_op is not None:
             self.value_feat_vals = self.value_solver.get_var_values(self.sess, self.value_feat_op, feed_dict, num_values, self.batch_size)
+        print 'Updated value network.'
+
 
     def update_distilled(self, obs, tgt_mu, tgt_prc, tgt_wt):
         """
@@ -520,7 +533,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             A tensorflow object with updated weights.
         """
         N, _ = obs.shape[:2]
-        dU, dO = self._dU, self._dO
+        dU, dO = self._dU, self._dPrimObs
 
         # TODO - Make sure all weights are nonzero?
 
@@ -549,14 +562,14 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
         # Normalize obs, but only compute normalzation at the beginning.
         if self.distilled_policy.scale is None or self.distilled_policy.bias is None:
-            self.distilled_policy.x_idx = self.x_idx
+            self.distilled_policy.x_idx = self.prim_x_idx
             # 1e-3 to avoid infs if some state dimensions don't change in the
             # first batch of samples
             self.distilled_policy.scale = np.diag(
-                1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-3))
+                1.0 / np.maximum(np.std(obs[:, self.prim_x_idx], axis=0), 1e-3))
             self.distilled_policy.bias = - np.mean(
-                obs[:, self.x_idx].dot(self.distilled_policy.scale), axis=0)
-        obs[:, self.x_idx] = obs[:, self.x_idx].dot(self.distilled_policy.scale) + self.distilled_policy.bias
+                obs[:, self.prim_x_idx].dot(self.distilled_policy.scale), axis=0)
+        obs[:, self.prim_x_idx] = obs[:, self.prim_x_idx].dot(self.distilled_policy.scale) + self.distilled_policy.bias
 
         # Assuming that N >= self.batch_size.
         batches_per_epoch = np.maximum(np.floor(N / self.batch_size), 1)
