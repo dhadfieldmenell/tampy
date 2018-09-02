@@ -20,6 +20,7 @@ from policy_hooks.multi_task_main import GPSMain
 from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
+from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.task_net import tf_classification_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
@@ -128,6 +129,8 @@ def get_base_solver(parent_class):
                 self.child_solver.gps = self.gps
                 self.child_solver.policy_fs = self.policy_fs
                 self.child_solver.policy_inf_fs = self.policy_inf_fs
+                self.child_solver.target_inds = self.target_inds
+                self.child_solver.target_dim = self.target_dim
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts=active_ts, verbose=verbose, force_init=True, 
                                                   traj_mean=traj_mean, task=task)
@@ -349,11 +352,11 @@ def get_base_solver(parent_class):
             for p_name, a_name in self.state_inds:
                 p = plan.params[p_name]
                 if p.is_symbol(): continue
-                state[:, self.state_inds[p_name, attr_name]] = getattr(p, a_name)[:, start_t:end_t+1]
+                state[:, self.state_inds[p_name, a_name]] = getattr(p, a_name)[:, start_t:end_t+1]
             for p_name, a_name in self.action_inds:
                 p = plan.params[p_name]
                 if p.is_symbol(): continue
-                act[:, self.action_inds[p_name, attr_name]] = getattr(p, a_name)[:, start_t:end_t+1]
+                act[:, self.action_inds[p_name, a_name]] = getattr(p, a_name)[:, start_t:end_t+1]
             hist_len = self.agent.hist_len
             target_vec = np.zeros(self.agent.target_vecs[0].shape)
             for p_name, a_name in self.target_inds:
@@ -418,28 +421,28 @@ def get_base_solver(parent_class):
                 return []
 
             T = end_t-start_t+1
-            pol_f = self.policy_fs[(i, j, k)]
+            pol_f = self.policy_inf_fs[(i, j, k)]
             pol_out = np.zeros((T, self.dU))
             pol_prec = np.zeros((T))
             self.agent.T = T
             sample = Sample(self.agent)
-            state = np.zeros((T, self.symbolic_bound))
-            act = np.zeros((T, self.dU))
+            state = np.zeros((self.symbolic_bound, T))
+            act = np.zeros((self.dU, T))
             for p_name, a_name in self.state_inds:
                 p = plan.params[p_name]
                 if p.is_symbol(): continue
-                state[:, self.state_inds[p_name, attr_name]] = getattr(p, a_name)[:, start_t:end_t+1]
+                state[self.state_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
             for p_name, a_name in self.action_inds:
                 p = plan.params[p_name]
                 if p.is_symbol(): continue
-                act[:, self.action_inds[p_name, attr_name]] = getattr(p, a_name)[:, start_t:end_t+1]
+                act[self.action_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
             hist_len = self.agent.hist_len
             target_vec = np.zeros(self.agent.target_vecs[0].shape)
             for p_name, a_name in self.target_inds:
                 param = plan.params[p_name]
                 target_vec[self.target_inds[p_name, a_name]] = getattr(param, a_name).flatten()
             for t in range(start_t, end_t+1):
-                sample.set(STATE_ENUM, state[t], t-start_t)
+                sample.set(STATE_ENUM, state[:, t], t-start_t)
                 task_vec = np.zeros((len(self.agent.task_list)))
                 task_vec[i] = 1
                 obj_vec = np.zeros((len(self.agent.obj_list)))
@@ -448,18 +451,20 @@ def get_base_solver(parent_class):
                 targ_vec[k] = 1
                 traj_hist = np.zeros((hist_len, self.dU))
                 for sub_t in range(t-hist_len, t):
-                    if sub_t < 0:
+                    if sub_t < start_t:
                         continue
-                    traj_hist[sub_t-t-hist_len, :] = act[sub_t]
+                    traj_hist[sub_t-t+hist_len, :] = act[:, sub_t-start_t]
                 sample.set(TASK_ENUM, task_vec, t-start_t)
                 sample.set(OBJ_ENUM, obj_vec, t-start_t)
                 sample.set(TARG_ENUM, targ_vec, t-start_t)
                 sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
                 sample.set(TARGETS_ENUM, target_vec, t-start_t)
-                sample.set(ACTION_ENUM, act[t-start_t], t-start_t)
-                pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample)
-                pol_out[t-start_t] = pol_mu.flatten()
-                pol_prec[t-start_t] = 1. / pol_sig.flatten()
+                sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)
+            pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample)
+            # pol_out[t-start_t] = pol_mu.flatten()
+            # pol_prec[t-start_t] = 1. / pol_sig.flatten()
+            pol_out[:,:] = pol_mu
+            pol_prec = 1./ pol_sig
 
             pol_prec = np.tile(pol_prec, T)
 
@@ -480,7 +485,7 @@ def get_base_solver(parent_class):
                 # P = np.eye(KT)
                 # Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
                 Q = np.eye(KT)
-                Q *= prec
+                Q *= pol_prec
                 cur_val = attr_val.reshape((KT, 1), order='F')
                 A = -2 * cur_val.T.dot(Q)
                 b = cur_val.T.dot(Q.dot(cur_val))
@@ -501,14 +506,12 @@ def get_base_solver(parent_class):
             if self.gps.rollout_policies[task].scale is None:
                 return sample.get_U(t=0)
             obs = sample.get_obs(t=0)
-            return self.gps.rollout_policies[task].act(obs).flatten()
+            return self.gps.rollout_policies[task].act(np.array([obs])).flatten()
 
 
         def _policy_inf_func(self, sample, task):
-            if self.gps.rollout_policies[task].scale is None:
-                return sample.get_U(t=0)
-            obs = sample.get_obs(t=0)
-            return self.gps.policy_opt.prob(obs, task)
+            obs = sample.get_obs()
+            return self.gps.policy_opt.prob(np.array([obs]), task)
 
 
         def set_gps(self, gps):
