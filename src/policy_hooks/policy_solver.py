@@ -125,7 +125,8 @@ def get_base_solver(parent_class):
                 self.child_solver.state_inds = self.state_inds
                 self.child_solver.action_inds = self.action_inds
                 self.child_solver.agent = self.agent
-                self.child_solver.policy_traj_coeff = self.policy_traj_coeff
+                self.child_solver.policy_out_coeff = self.policy_out_coeff
+                self.child_solver.policy_inf_coeff = self.policy_inf_coeff
                 self.child_solver.gps = self.gps
                 self.child_solver.policy_fs = self.policy_fs
                 self.child_solver.policy_inf_fs = self.policy_inf_fs
@@ -422,8 +423,6 @@ def get_base_solver(parent_class):
 
             T = end_t-start_t+1
             pol_f = self.policy_inf_fs[(i, j, k)]
-            pol_out = np.zeros((T, self.dU))
-            pol_prec = np.zeros((T))
             self.agent.T = T
             sample = Sample(self.agent)
             state = np.zeros((self.symbolic_bound, T))
@@ -461,19 +460,14 @@ def get_base_solver(parent_class):
                 sample.set(TARGETS_ENUM, target_vec, t-start_t)
                 sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)
             pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample)
-            # pol_out[t-start_t] = pol_mu.flatten()
-            # pol_prec[t-start_t] = 1. / pol_sig.flatten()
-            pol_out[:,:] = pol_mu
-            pol_prec = 1./ pol_sig
-
-            pol_prec = np.tile(pol_prec, T)
 
             for param_name, attr_name in self.action_inds:
                 param = plan.params[param_name]
                 attr_type = param.get_attr_type(attr_name)
                 param_ll = self._param_to_ll[param]
                 T = end_t - start_t + 1
-                attr_val = pol_out[:, self.action_inds[(param_name, attr_name)]].T
+                act_inds = self.action_inds[(param_name, attr_name)]
+                attr_val = pol_mu[0, :, act_inds]
                 K = attr_type.dim
 
                 KT = K*T
@@ -485,15 +479,18 @@ def get_base_solver(parent_class):
                 # P = np.eye(KT)
                 # Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
                 Q = np.eye(KT)
-                Q *= pol_prec
+                prec = np.zeros(KT)
+                for i in range(len(pol_sig[0])):
+                    prec[i*K:(i+1)*K] = 1. / pol_sig[0, i, act_inds, act_inds]
+                Q *= prec
                 cur_val = attr_val.reshape((KT, 1), order='F')
                 A = -2 * cur_val.T.dot(Q)
                 b = cur_val.T.dot(Q.dot(cur_val))
-                policy_out_coeff = self.policy_out_coeff / T
+                policy_inf_coeff = self.policy_inf_coeff / T
 
                 # QuadExpr is 0.5*x^Tx + Ax + b
-                quad_expr = QuadExpr(2*policy_out_coeff*Q,
-                                     policy_out_coeff*A, policy_out_coeff*b)
+                quad_expr = QuadExpr(2*policy_inf_coeff*Q,
+                                     policy_inf_coeff*A, policy_inf_coeff*b)
                 ll_attr_val = getattr(param_ll, attr_name)
                 param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
                 sco_var = self.create_variable(param_ll_grb_vars, cur_val)

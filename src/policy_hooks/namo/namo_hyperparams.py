@@ -54,7 +54,7 @@ algorithm = {
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
-    'policy_traj_coeff': 1e1,
+    'policy_inf_coeff': 1e1,
     'policy_out_coeff': 1e1,
     'kl_step': 1.0,
     'min_step_mult': 0.5,

@@ -124,7 +124,7 @@ class NAMOPolicySolver(BASE_CLASS):
 
         self.config['task_durations'] = self.task_durations
 
-        self.policy_traj_coeff = self.config['algorithm']['policy_traj_coeff']
+        self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
         self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
         if is_first_run:
             self.config['agent'] = {
