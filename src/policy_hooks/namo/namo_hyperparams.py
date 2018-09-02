@@ -54,8 +54,8 @@ algorithm = {
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
-    'policy_traj_coeff': 1e0,
-    'policy_out_coeff': 1e0,
+    'policy_traj_coeff': 1e1,
+    'policy_out_coeff': 1e1,
     'kl_step': 1.0,
     'min_step_mult': 0.5,
     'max_step_mult': 2.0,
@@ -74,7 +74,7 @@ algorithm['traj_opt'] = {
     'type': TrajOptPI2,
     'kl_threshold': 5e-1,
     'covariance_damping': 0.0,
-    'min_temperature': 0.0001,
+    'min_temperature': 0.01,
 }
 
 # algorithm['policy_prior'] = {

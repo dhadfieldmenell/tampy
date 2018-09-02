@@ -47,6 +47,8 @@ def get_base_solver(parent_class):
             self.trajopt_coeff = 1e0
             self.policy_pred = None
             self.transfer_always = False
+            self.gps = None
+            self.agent = None
             self.policy_fs = {}
             self.policy_inf_fs = {}
 
@@ -123,6 +125,9 @@ def get_base_solver(parent_class):
                 self.child_solver.action_inds = self.action_inds
                 self.child_solver.agent = self.agent
                 self.child_solver.policy_traj_coeff = self.policy_traj_coeff
+                self.child_solver.gps = self.gps
+                self.child_solver.policy_fs = self.policy_fs
+                self.child_solver.policy_inf_fs = self.policy_inf_fs
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts=active_ts, verbose=verbose, force_init=True, 
                                                   traj_mean=traj_mean, task=task)
@@ -178,7 +183,7 @@ def get_base_solver(parent_class):
                 viewer = callback()
             if force_init or not plan.initialized:
                 self._solve_opt_prob(plan, priority=-2, callback=callback,
-                    active_ts=active_ts, verbose=verbose, task=task)
+                    active_ts=active_ts, traj_mean=traj_mean, verbose=verbose, task=task)
                 # self._solve_opt_prob(plan, priority=-1, callback=callback,
                 #     active_ts=active_ts, verbose=verbose)
                 plan.initialized=True
@@ -415,7 +420,7 @@ def get_base_solver(parent_class):
             T = end_t-start_t+1
             pol_f = self.policy_fs[(i, j, k)]
             pol_out = np.zeros((T, self.dU))
-            pol_var = np.zeros((T))
+            pol_prec = np.zeros((T))
             self.agent.T = T
             sample = Sample(self.agent)
             state = np.zeros((T, self.symbolic_bound))
@@ -454,9 +459,9 @@ def get_base_solver(parent_class):
                 sample.set(ACTION_ENUM, act[t-start_t], t-start_t)
                 pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample)
                 pol_out[t-start_t] = pol_mu.flatten()
-                pol_var[t-start_t] = 1. / pol_sig.flatten()
+                pol_prec[t-start_t] = 1. / pol_sig.flatten()
 
-            pol_var = np.tile(pol_var, T)
+            pol_prec = np.tile(pol_prec, T)
 
             for param_name, attr_name in self.action_inds:
                 param = plan.params[param_name]
@@ -471,15 +476,15 @@ def get_base_solver(parent_class):
                 d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
                 # [:,0] allows numpy to see v and d as one-dimensional so
                 # that numpy will create a diagonal matrix with v and d as a diagonal
-                P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+                # P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
                 # P = np.eye(KT)
-                Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-                Q *= pol_var
+                # Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
+                Q = np.eye(KT)
+                Q *= prec
                 cur_val = attr_val.reshape((KT, 1), order='F')
                 A = -2 * cur_val.T.dot(Q)
                 b = cur_val.T.dot(Q.dot(cur_val))
                 policy_out_coeff = self.policy_out_coeff / T
-                import ipdb; ipdb.set_trace()
 
                 # QuadExpr is 0.5*x^Tx + Ax + b
                 quad_expr = QuadExpr(2*policy_out_coeff*Q,
@@ -556,6 +561,8 @@ def get_base_solver(parent_class):
                 obj_bexprs = []
                 if self.transfer_always:
                     obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm, coeff=self.weak_transfer_coeff))
+                if task is not None and task in self.policy_inf_fs:
+                        obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
                 # if priority >= 0 and len(traj_mean):
                 #     obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
                 # self.transfer_coeff *= 1e1
@@ -588,8 +595,6 @@ def get_base_solver(parent_class):
                     tol = 1e-3
                 elif priority >= 0:
                     obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-                    if task is not None and task in self.policy_inf_fs:
-                        obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
                     self._add_obj_bexprs(obj_bexprs)
                     self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
                                                        active_ts=active_ts, verbose=verbose)
