@@ -1,22 +1,11 @@
 Minimize
-  + 1146.64642396725 Constant
+  + 20583.23094694906 Constant
 Subject To
- R5: (can0-pose-(1,_0)) = -1
- R11: (grasp0-value-(1,_0)) = -0.6010000109672546
- R27: (pr2-pose-(1,_0)) = 0
- R60: - 1000 (grasp0-value-(1,_0)) + 1000 (pr2-pose-(1,_2))
-   - 1000 (can0-pose-(1,_2)) = 0
- R106: (can0-pose-(1,_0)) - (can0-pose-(1,_1)) = 0
- R108: (can0-pose-(1,_1)) - (can0-pose-(1,_2)) = 0
- R238: (pr2-pose-(1,_0)) - (pr2-pose-(1,_1)) <= 0.5
- R242: (pr2-pose-(1,_1)) - (pr2-pose-(1,_2)) <= 0.5
+ R7: (can0_init_target-value-(1,_0)) = 1
+ R10: (pr2-pose-(1,_0)) = 11.0291132237584
+ R34: - (can0_init_target-value-(1,_0)) + (pr2-pose-(1,_0)) <= 10
 Bounds
- (grasp0-value-(1,_0)) free
+ (can0_init_target-value-(1,_0)) free
  (pr2-pose-(1,_0)) free
- (pr2-pose-(1,_1)) free
- (pr2-pose-(1,_2)) free
- (can0-pose-(1,_0)) free
- (can0-pose-(1,_1)) free
- (can0-pose-(1,_2)) free
  Constant = 1
 End

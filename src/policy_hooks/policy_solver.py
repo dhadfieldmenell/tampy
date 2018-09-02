@@ -178,7 +178,7 @@ def get_base_solver(parent_class):
                 viewer = callback()
             if force_init or not plan.initialized:
                 self._solve_opt_prob(plan, priority=-2, callback=callback,
-                    active_ts=active_ts, verbose=verbose)
+                    active_ts=active_ts, verbose=verbose, task=task)
                 # self._solve_opt_prob(plan, priority=-1, callback=callback,
                 #     active_ts=active_ts, verbose=verbose)
                 plan.initialized=True
@@ -454,7 +454,7 @@ def get_base_solver(parent_class):
                 sample.set(ACTION_ENUM, act[t-start_t], t-start_t)
                 pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample)
                 pol_out[t-start_t] = pol_mu.flatten()
-                pol_var[t-start_t] = pol_sig.flatten() / np.linalg.norm(pol_sig)
+                pol_var[t-start_t] = 1. / pol_sig.flatten()
 
             pol_var = np.tile(pol_var, T)
 
@@ -479,6 +479,7 @@ def get_base_solver(parent_class):
                 A = -2 * cur_val.T.dot(Q)
                 b = cur_val.T.dot(Q.dot(cur_val))
                 policy_out_coeff = self.policy_out_coeff / T
+                import ipdb; ipdb.set_trace()
 
                 # QuadExpr is 0.5*x^Tx + Ax + b
                 quad_expr = QuadExpr(2*policy_out_coeff*Q,
@@ -587,7 +588,7 @@ def get_base_solver(parent_class):
                     tol = 1e-3
                 elif priority >= 0:
                     obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-                    if task is not None and task in self.policy_fs:
+                    if task is not None and task in self.policy_inf_fs:
                         obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
                     self._add_obj_bexprs(obj_bexprs)
                     self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,

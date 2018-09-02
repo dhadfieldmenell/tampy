@@ -288,7 +288,7 @@ class NAMOSortingAgent(Agent):
             # self.env.SetViewer('qtcoin')
             # success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
             try:
-                success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+                success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
                 # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
                 # import ipdb; ipdb.set_trace()
                 # if task == 'putdown':

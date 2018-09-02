@@ -77,8 +77,8 @@ class AlgorithmPIGPS(AlgorithmMDGPS):
             self._update_policy(optimal_samples)
 
         # Update policy linearizations.
-        # for m in range(len(self.cur)):
-        #     self._update_policy_fit(m)
+        for m in range(len(self.cur)):
+            self._update_policy_fit(m)
 
         # C-step        
         self._update_trajectories()

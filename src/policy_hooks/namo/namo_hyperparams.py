@@ -67,14 +67,14 @@ algorithm = {
 algorithm['init_traj_distr'] = {
     'type': init_pd,
     'init_var': 0.01,
-    'pos_gains': 0.01,
+    'pos_gains': 0.0,
 }
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
-    'kl_threshold': 2e-1,
-    'covariance_damping': 1.0,
-    'min_temperature': 0.001,
+    'kl_threshold': 5e-1,
+    'covariance_damping': 0.0,
+    'min_temperature': 0.0001,
 }
 
 # algorithm['policy_prior'] = {

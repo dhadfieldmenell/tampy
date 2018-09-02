@@ -207,13 +207,13 @@ class NAMOPolicySolver(BASE_CLASS):
                         'type': TrajConstrCost,
                       }
 
-        # self.config['algorithm']['cost'] = {
-        #                                         'type': CostSum,
-        #                                         'costs': [traj_cost, action_cost],
-        #                                         'weights': [1.0, 1.0],
-        #                                    }
+        self.config['algorithm']['cost'] = {
+                                                'type': CostSum,
+                                                'costs': [traj_cost, action_cost],
+                                                'weights': [1.0, 1.0],
+                                           }
 
-        self.config['algorithm']['cost'] = constr_cost
+        # self.config['algorithm']['cost'] = constr_cost
 
         self.config['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
