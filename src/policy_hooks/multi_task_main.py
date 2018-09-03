@@ -95,7 +95,8 @@ class GPSMain(object):
                                   self._hyperparams['branching_factor'],
                                   self._hyperparams['num_samples'],
                                   self._hyperparams['num_distilled_samples'],
-                                  soft_decision=1.0,
+                                  soft_decision=0.0,
+                                  C=5.,
                                   max_depth=self._hyperparams['max_tree_depth']
                                   ))
 
@@ -198,7 +199,7 @@ class GPSMain(object):
                 # import ipdb; ipdb.set_trace()
 
                 # Clear agent samples.
-                self.agent.clear_samples(keep_prob=0.0)
+                self.agent.clear_samples(keep_prob=0.2)
 
                 path_samples = []
                 for path in self.agent.get_task_paths():
@@ -206,6 +207,9 @@ class GPSMain(object):
 
                 # self.agent.clear_task_paths(keep_prob=0.5)
                 self._take_iteration(itr, traj_sample_lists, path_samples)
+                self.agent.reset_sample_refs()
+                next_x = self.print_cond('grasp', 'can0', 'can0_end_target')
+
                 # self.data_logger.pickle(self._data_files_dir + ('policy_%d_trajopt_%d_itr_%02d_%s.pkl' % (on_policy, "multi_task", itr, datetime.now().isoformat())), copy.copy(self.algorithm))
                 # if self.replace_conds:
                 #     self.agent.replace_all_conds()
@@ -496,6 +500,7 @@ class GPSMain(object):
         for task in self.agent.optimal_samples:
             value_samples.extend(self.agent.optimal_samples[task])
         self.update_value_network(value_samples)
+        self.agent.reset_sample_refs()
         for task in self.alg_map:
             if len(self.alg_map[task].cur):
                 self.alg_map[task]._advance_iteration_variables()
@@ -533,6 +538,7 @@ class GPSMain(object):
 
         sample = self.agent.sample_task(self.rollout_policies[task], cond, self.agent.x0[cond], [task, obj, targ], noisy=noisy)
         print sample.get_X()
+        return sample.get_X(t=sample.T-1)
 
     def predict_condition(self, cond):
         sample = Sample(self.agent)

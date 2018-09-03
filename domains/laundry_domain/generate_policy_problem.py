@@ -18,8 +18,8 @@ GOAL = "(BaxterRobotAt baxter robot_end_pose)"
 # init Baxter pose
 BAXTER_INIT_POSE = [0]
 BAXTER_END_POSE = [0]
-R_ARM_INIT = [0, -0.8436, -0.09, 0.91, 0.043, 1.5, -0.05] # [ 0.1, -1.36681967, -0.23718529, 1.45825713, 0.04779009, 1.48501637, -0.92194262]
-L_ARM_INIT = [-0.6, -1.2513685 , -0.63979997, 1.41307933, -2.9520384, -1.4709618, 2.69274026]
+R_ARM_INIT = [0, 0, 0, 0, 0, 0, 0] # [0, -0.8436, -0.09, 0.91, 0.043, 1.5, -0.05] # [ 0.1, -1.36681967, -0.23718529, 1.45825713, 0.04779009, 1.48501637, -0.92194262]
+L_ARM_INIT = [0, 0, 0, 0, 0, 0, 0] # [-0.6, -1.2513685 , -0.63979997, 1.41307933, -2.9520384, -1.4709618, 2.69274026]
 OPEN_GRIPPER = [0.02]
 CLOSE_GRIPPER = [0.015]
 
@@ -106,7 +106,7 @@ def main():
 
         s += "# The values after each attribute name are the values that get passed into the __init__ method for that attribute's class defined in the domain configuration.\n"
         s += "Objects: "
-        s += "Basket (name {}); ".format("basket")
+        # s += "Basket (name {}); ".format("basket")
 
         s += "Robot (name baxter); "
         for i in range(NUM_CLOTH):
@@ -148,16 +148,12 @@ def main():
         # s += "Washer (name {}); ".format("washer")
         s += "Obstacle (name {}); ".format("table")
         s += "BasketTarget (name {}); ".format("basket_init_target")
-        s += "BasketTarget (name {}); ".format("basket_end_target")
-        s += "Rotation (name {}); ".format("region1")
-        s += "Rotation (name {}); ".format("region2")
-        s += "Rotation (name {}); ".format("region3")
-        s += "Rotation (name {}) \n\n".format("region4")
+        s += "BasketTarget (name {}) \n\n".format("basket_end_target")
 
         s += "Init: "
-        s += "(geom basket), "
-        s += "(pose basket {}), ".format(BASKET_INIT_POS)
-        s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
+        # s += "(geom basket), "
+        # s += "(pose basket {}), ".format(BASKET_INIT_POS)
+        # s += "(rotation basket {}), ".format(BASKET_INIT_ROT)
 
         for i in range(NUM_CLOTH):
             s += "(geom cloth_{0}), ".format(i)
@@ -215,11 +211,6 @@ def main():
         # s += "(value washer_close_pose {0}), ".format(WASHER_INIT_POS)
         # s += "(rotation washer_close_pose {0}), ".format(WASHER_INIT_ROT)
         # s += "(door washer_close_pose {0}), ".format(WASHER_CLOSE_DOOR)
-
-        s += "(value region1 {}), ".format(REGION1)
-        s += "(value region2 {}), ".format(REGION2)
-        s += "(value region3 {}), ".format(REGION3)
-        s += "(value region4 {}), ".format(REGION4)
 
         # s += "(geom washer {}), ".format(WASHER_CONFIG)
         # s += "(pose washer {}), ".format(WASHER_INIT_POS)

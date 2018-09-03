@@ -110,6 +110,14 @@ class NAMOSortingAgent(Agent):
             self.optimal_samples[task] = random.sample(self.optimal_samples[task], n_opt_keep)
 
 
+    def reset_sample_refs(self):
+        for task in self.task_list:
+            for batch in self._samples[task]:
+                for sample in batch:
+                    sample.set_ref_X(np.zeros((sample.T, self.symbolic_bound)))
+                    sample.set_ref_U(np.zeros((sample.T, self.dU)))
+
+
     def add_task_paths(self, paths):
         self.task_paths.extend(paths)
 

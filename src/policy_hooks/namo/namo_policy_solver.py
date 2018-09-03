@@ -190,7 +190,7 @@ class NAMOPolicySolver(BASE_CLASS):
                                 'wp_final_multiplier': 1.0,
                             }
                         },
-                        'ramp_option': RAMP_CONSTANT
+                        'ramp_option': RAMP_REVERSE_LINEAR
                     }
         action_cost = {
                         'type': ActionTrajCost,
@@ -200,7 +200,7 @@ class NAMOPolicySolver(BASE_CLASS):
                                 'target_state': np.zeros((1, self.dU)),
                             }
                         },
-                        'ramp_option': RAMP_CONSTANT
+                        'ramp_option': RAMP_REVERSE_LINEAR
                      }
 
         constr_cost = {
@@ -314,12 +314,12 @@ def copy_dict(d):
 
 if __name__ == '__main__':
     for lr in [1e-3]:
-        for init_var in [0.001]:
-            for covard in [2]:
-                for wt in [1e2]:
-                    for klt in [1e-2]:
-                        for kl in [1e-1]:
-                            for iters in [100000]:
+        for init_var in [0.0016]:
+            for covard in [0]:
+                for wt in [1e0]:
+                    for klt in [1e0]:
+                        for kl in [5e-4]:
+                            for iters in [30000]:
                                 for dh in [[50, 50]]:
                                     for hl in [3]:
                                         config = copy_dict(namo_hyperparams.config)

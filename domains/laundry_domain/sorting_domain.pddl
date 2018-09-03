@@ -14,7 +14,8 @@
         :precondition (and (ClothInLeftRegion ?cloth)
                            (forall (?c - Cloth) (not (ClothAtTarget ?c ?target))))
         :effect (and (ClothAtTarget ?cloth ?target)
-                     (not (ClothInMiddle ?cloth)))
+                     (not (ClothInMiddle ?cloth))
+                     (not (ClothInRightRegion ?cloth)))
     )
 
     (:action move_cloth_to_right_target
@@ -22,7 +23,8 @@
         :precondition (and (ClothInRightRegion ?cloth)
                            (forall (?c - Cloth) (not (ClothAtTarget ?c ?target))))
         :effect (and (ClothAtTarget ?cloth ?target)
-                     (not (ClothInMiddle ?cloth)))
+                     (not (ClothInMiddle ?cloth))
+                     (not (ClothInLeftRegion ?cloth)))
     )
 
     (:action move_cloth_to_left_region

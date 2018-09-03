@@ -31,7 +31,7 @@ from policy_hooks.traj_opt_pi2 import TrajOptPI2
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 10
+NUM_CONDS = 2#10
 
 
 common = {
@@ -54,11 +54,11 @@ algorithm = {
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
-    'policy_inf_coeff': 1e1,
+    'policy_inf_coeff': 1e3,
     'policy_out_coeff': 1e1,
     'kl_step': 1.0,
     'min_step_mult': 0.5,
-    'max_step_mult': 2.0,
+    'max_step_mult': 5.0,
     'sample_ts_prob': 1.0,
     'opt_wt': 1e1,
     'fail_value': 100,
@@ -72,9 +72,9 @@ algorithm['init_traj_distr'] = {
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
-    'kl_threshold': 5e-1,
-    'covariance_damping': 0.0,
-    'min_temperature': 0.01,
+    'kl_threshold': 1e-1,
+    'covariance_damping': 0.01,
+    'min_temperature': 0.001,
 }
 
 # algorithm['policy_prior'] = {
@@ -147,8 +147,8 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 15,
-    'num_distilled_samples': 0,
+    'num_samples': 20,
+    'num_distilled_samples': 5,
     'num_conds': NUM_CONDS,
     'mode': 'position',
     'stochastic_conditions': algorithm['stochastic_conditions'],
@@ -163,7 +163,7 @@ config = {
     'fail_value': algorithm['fail_value'],
 
     'train_iterations': 100000,
-    'weight_decay': 0.005,
+    'weight_decay': 0.0005,
     'batch_size': 1000,
     'n_layers': 3,
     'dim_hidden': [40, 40, 40],

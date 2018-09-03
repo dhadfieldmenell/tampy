@@ -110,6 +110,7 @@ class MCTS:
         return self._value_f(obs)
 
     def node_check_f(self, task_ind, obj_ind, targ_ind, state, parent):
+        child = parent.get_child(task_ind, obj_ind, targ_ind)
         sample = Sample(self.agent)
         sample.set(STATE_ENUM, state.copy(), 0)
         sample.set(TARGETS_ENUM, self.agent.target_vecs[self.condition].copy(), 0)
@@ -125,10 +126,9 @@ class MCTS:
         sample.set(TASK_ENUM, task_vec, 0)
         obs = sample.get_obs(t=0)
         prim_obs = sample.get_prim_obs(t=0)
-        q_value = self.value_func(obs)
+        q_value = self.value_func(obs) if child is None else child.value
         policy_distr = self.prob_func(prim_obs)
         prob = policy_distr[0][task_ind] * policy_distr[1][obj_ind] * policy_distr[2][targ_ind]
-        child = parent.get_child(task_ind, obj_ind, targ_ind)
         child_explored = child.n_explored if child is not None else 0
         return q_value + self.C * prob * np.sqrt(parent.n_explored) / (1 + child_explored)
 
@@ -224,7 +224,7 @@ class MCTS:
                                          len(self.tasks), 
                                          len(self.agent.obj_list), 
                                          len(self.agent.targ_list))
-                    cost, _ = self.simulate_from_next(next_node, state, prev_sample, num_samples=5, use_distilled=use_distilled, exclude_hl=exclude_hl, debug=debug)
+                    cost, _ = self.simulate_from_next(next_node, state, prev_sample, num_samples=5, use_distilled=use_distilled, save=True, exclude_hl=exclude_hl, debug=debug)
                     next_node.update_value(-cost)
                     node.add_child(next_node)
                     while node != self.root:
