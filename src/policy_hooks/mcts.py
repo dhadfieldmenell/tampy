@@ -97,7 +97,8 @@ class MCTS:
         self.targets = np.zeros((self.agent.target_dim))
         for target_name in self.agent.targets[self.condition]:
             target = self.agent.plans.values()[0].params[target_name]
-            self.targets[self.agent.target_inds[target.name, 'value']] = self.agent.targets[condition][target.name]
+            if (target.name, 'value') in self.agent.target_inds:
+                self.targets[self.agent.target_inds[target.name, 'value']] = self.agent.targets[condition][target.name]
 
         self._opt_cache = {}
 

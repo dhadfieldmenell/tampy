@@ -74,7 +74,8 @@ class GPSMain(object):
 
         self.policy_opt = policy_opt
         saver = tf.train.Saver()
-        saver.restore(self.policy_opt.sess, 'tf_saved/831model.ckpt')
+        # saver.restore(self.policy_opt.sess, 'tf_saved/831model.ckpt')
+        saver.restore(self.policy_opt.sess, 'tf_saved/baxter902.ckpt')
 
         self.mcts = []
         self.rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}

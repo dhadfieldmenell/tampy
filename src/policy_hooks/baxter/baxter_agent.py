@@ -30,10 +30,10 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
-from policy_hooks.namo.sorting_prob import *
+from policy_hooks.baxter.sorting_prob import *
 
 
-class NAMOSortingAgent(Agent):
+class BaxterSortingAgent(Agent):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
         # Note: All plans should contain identical sets of parameters
@@ -59,7 +59,8 @@ class NAMOSortingAgent(Agent):
         for condition in range(len(self.x0)):
             target_vec = np.zeros((self.target_dim,))
             for target_name in self.targets[condition]:
-                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
+                if (target_name, 'value') in self.target_inds:
+                    target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
         self.targ_list = self.targets[0].keys()
         self.obj_list = self._hyperparams['obj_list']
@@ -110,6 +111,14 @@ class NAMOSortingAgent(Agent):
             self.optimal_samples[task] = random.sample(self.optimal_samples[task], n_opt_keep)
 
 
+    def reset_sample_refs(self):
+        for task in self.task_list:
+            for batch in self._samples[task]:
+                for sample in batch:
+                    sample.set_ref_X(np.zeros((sample.T, self.symbolic_bound)))
+                    sample.set_ref_U(np.zeros((sample.T, self.dU)))
+
+
     def add_task_paths(self, paths):
         self.task_paths.extend(paths)
 
@@ -155,7 +164,8 @@ class NAMOSortingAgent(Agent):
         for target_name in self.targets[condition]:
             target = plan.params[target_name]
             target.value[:,0] = self.targets[condition][target.name]
-            target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
+            if (target.name, 'value') in self.target_inds:
+                target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
 
         # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
 
@@ -214,17 +224,18 @@ class NAMOSortingAgent(Agent):
 
         
         if t < plan.horizon - 1:
+            self._clip_joint_angles(u, plan)
             for param, attr in u_inds:
                 getattr(plan.params[param], attr)[:, t+1] = u[u_inds[param, attr]]
 
-            plan.params['baxter'].set_dof({
+            plan.params['baxter'].openrave_body.set_dof({
                 'lArmPose': plan.params['baxter'].lArmPose[:, t],
                 'lGripper': plan.params['baxter'].lGripper[:, t],
                 'rArmPose': plan.params['baxter'].rArmPose[:, t],
                 'rGripper': plan.params['baxter'].rGripper[:, t],
             })
-            l_pose = plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransfromPose[4:]
-            r_pose = plan.params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransfromPose[4:]
+            l_pose = plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransformPose()[4:]
+            r_pose = plan.params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransformPose()[4:]
 
             for param in plan.params.values():
                 if param._type == 'Can':
@@ -240,6 +251,41 @@ class NAMOSortingAgent(Agent):
                         param.pose[:, t+1] = param.pose[:, t]
 
         return True
+
+
+    def _clip_joint_angles(self, u, plan):
+        DOF_limits = plan.params['baxter'].openrave_body.env_body.GetDOFLimits()
+        left_DOF_limits = (DOF_limits[0][2:9]+0.000001, DOF_limits[1][2:9]-0.000001)
+        right_DOF_limits = (DOF_limits[0][10:17]+0.000001, DOF_limits[1][10:17]-0.00001)
+        left_joints = u[plan.action_inds['baxter', 'lArmPose']]
+        left_grip = u[plan.action_inds['baxter', 'lGripper']]
+        right_joints = u[plan.action_inds['baxter', 'rArmPose']]
+        right_grip = u[plan.action_inds['baxter', 'rGripper']]
+
+        if left_grip[0] < 0:
+            left_grip[0] = 0.015
+        elif left_grip[0] > 0.02:
+            left_grip[0] = 0.02
+
+        if right_grip[0] < 0:
+            right_grip[0] = 0.015
+        elif right_grip[0] > 0.02:
+            right_grip[0] = 0.02
+
+        for i in range(7):
+            if left_joints[i] < left_DOF_limits[0][i]:
+                left_joints[i] = left_DOF_limits[0][i]
+            if left_joints[i] > left_DOF_limits[1][i]:
+                left_joints[i] = left_DOF_limits[1][i]
+            if right_joints[i] < right_DOF_limits[0][i]:
+                right_joints[i] = right_DOF_limits[0][i]
+            if right_joints[i] > right_DOF_limits[1][i]:
+                right_joints[i] = right_DOF_limits[1][i]
+
+        u[plan.action_inds['baxter', 'lArmPose']] = left_joints
+        u[plan.action_inds['baxter', 'lGripper']] = left_grip
+        u[plan.action_inds['baxter', 'rArmPose']] = right_joints
+        u[plan.action_inds['baxter', 'rGripper']] = right_grip
 
 
     def set_nonopt_attrs(self, plan, task):
@@ -290,11 +336,11 @@ class NAMOSortingAgent(Agent):
             
             plan.params['robot_init_pose'].lArmPose[:,0] = plan.params['baxter'].lArmPose[:,0]
             plan.params['robot_init_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,0]
-            plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rAmrPose[:,0]
+            plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rArmPose[:,0]
             plan.params['robot_init_pose'].rGripper[:,0] = plan.params['baxter'].rGripper[:,0]
             # plan.params['robot_end_pose'].lArmPose[:,0] = plan.params['baxter'].lArmPose[:,-1]
             # plan.params['robot_end_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,-1]
-            # plan.params['robot_end_pose'].rArmPose[:,0] = plan.params['baxter'].rAmrPose[:,-1]
+            # plan.params['robot_end_pose'].rArmPose[:,0] = plan.params['baxter'].rArmPose[:,-1]
             # plan.params['robot_end_pose'].rGripper[:,0] = plan.params['baxter'].rGripper[:,-1]
             # if task == 'grasp':
             #     plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
@@ -388,7 +434,26 @@ class NAMOSortingAgent(Agent):
 
         plan.params['robot_init_pose'].lArmPose[:,0] = plan.params['baxter'].lArmPose[:,0]
         plan.params['robot_init_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,0]
-        plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rAmrPose[:,0]
+        plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rArmPose[:,0]
         plan.params['robot_init_pose'].rGripper[:,0] = plan.params['baxter'].rGripper[:,0]
 
         return check_constr_violation(plan, exclude=['BaxterRobotAt'])
+
+
+    def replace_conditions(self, conditions, keep=(0.2, 0.5)):
+        self.targets = []
+        for i in range(conditions):
+            self.targets.append(get_end_targets(self.num_cans))
+        self.init_vecs = get_random_initial_state_vec(self.num_cans, self.targets, self.dX, self.state_inds, conditions)
+        self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
+        self.target_vecs = []
+        for condition in range(len(self.x0)):
+            target_vec = np.zeros((self.target_dim,))
+            for target_name in self.targets[condition]:
+                if (target_name, 'value') in self.target_inds:
+                    target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
+            self.target_vecs.append(target_vec)
+
+        if keep != (1., 1.):
+            self.clear_samples(*keep)
+

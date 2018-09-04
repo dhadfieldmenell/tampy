@@ -16,17 +16,16 @@ from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.algorithm.cost.cost_sum import CostSum
 from gps.algorithm.cost.cost_utils import *
 
-from core.util_classes.namo_predicates import ATTRMAP
-from pma.namo_solver import NAMOSolver
+from core.util_classes.baxter_predicates import ATTRMAP
+from pma.robot_ll_solver import RobotLLSolver
 from policy_hooks.multi_task_main import GPSMain
-from policy_hooks.namo.vector_include import *
+from policy_hooks.baxter.vector_include import *
 from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
-from policy_hooks.namo.namo_agent import NAMOSortingAgent
-import policy_hooks.namo.namo_hyperparams as namo_hyperparams
-from policy_hooks.namo.namo_policy_predicates import NAMOPolicyPredicate
+from policy_hooks.baxter.baxter_agent import BaxterSortingAgent
+import policy_hooks.baxter.baxter_hyperparams as baxter_hyperparams
 import policy_hooks.utils.policy_solver_utils as utils
-from policy_hooks.namo.sorting_prob import *
+from policy_hooks.baxter.sorting_prob import *
 from policy_hooks.task_net import tf_classification_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
@@ -34,7 +33,7 @@ from policy_hooks.action_traj_cost import ActionTrajCost
 from policy_hooks.traj_constr_cost import TrajConstrCost
 from policy_hooks.cost_product import CostProduct
 from policy_hooks.sample import Sample
-from policy_hooks.policY_solver import get_base_solver
+from policy_hooks.policy_solver import get_base_solver
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + '/experiments'
@@ -80,7 +79,7 @@ class BaxterPolicySolver(BASE_CLASS):
         openrave_bodies = {}
         for task in self.task_list:
             for c in range(num_cans):
-                plans[task, 'cloth{0}'.format(c)] = get_plan_for_task(task, ['cloth{0}'.format(c)], num_cans, env, openrave_bodies)
+                plans[task, 'cloth{0}'.format(c)] = get_plan_for_task(task, ['cloth{0}'.format(c), 'cloth{0}_end_target'.format(c)], num_cans, env, openrave_bodies)
                 if env is None:
                     env = plans[task, 'cloth{0}'.format(c)].env
                     for param in plans[task, 'cloth{0}'.format(c)].params.values():
@@ -95,8 +94,14 @@ class BaxterPolicySolver(BASE_CLASS):
 
         for i in range(conditions):
             targets.append(get_end_targets(num_cans))
-        
+
         x0 = get_random_initial_state_vec(num_cans, targets, self.dX, self.state_inds, conditions)
+
+        for cond in range(conditions):
+            order = np.random.permutation(num_cans)
+            for i in range(num_cans):
+                targets[cond]['cloth{0}_end_target'.format(i)] = x0[cond][self.state_inds['cloth{0}'.format(order[i]), 'pose']]
+
         obj_list = ['cloth{0}'.format(c) for c in range(num_cans)]
 
         for plan in plans.values():
@@ -126,11 +131,11 @@ class BaxterPolicySolver(BASE_CLASS):
 
         self.config['task_durations'] = self.task_durations
 
-        self.policy_traj_coeff = self.config['algorithm']['policy_traj_coeff']
+        self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
         self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
         if is_first_run:
             self.config['agent'] = {
-                'type': NAMOSortingAgent,
+                'type': BaxterSortingAgent,
                 'x0': x0,
                 'targets': targets,
                 'task_list': self.task_list,
@@ -209,13 +214,13 @@ class BaxterPolicySolver(BASE_CLASS):
                         'type': TrajConstrCost,
                       }
 
-        # self.config['algorithm']['cost'] = {
-        #                                         'type': CostSum,
-        #                                         'costs': [traj_cost, action_cost],
-        #                                         'weights': [1.0, 1.0],
-        #                                    }
+        self.config['algorithm']['cost'] = {
+                                                'type': CostSum,
+                                                'costs': [traj_cost, action_cost],
+                                                'weights': [1.0, 1.0],
+                                           }
 
-        self.config['algorithm']['cost'] = constr_cost
+        # self.config['algorithm']['cost'] = constr_cost
 
         self.config['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
@@ -317,12 +322,12 @@ def copy_dict(d):
 if __name__ == '__main__':
     for lr in [1e-3]:
         for init_var in [0.001]:
-            for covard in [2]:
-                for wt in [1e2]:
+            for covard in [0]:
+                for wt in [1e1]:
                     for klt in [1e-2]:
-                        for kl in [1e-1]:
+                        for kl in [1e-3]:
                             for iters in [100000]:
-                                for dh in [[50, 50]]:
+                                for dh in [[100, 100]]:
                                     for hl in [3]:
                                         config = copy_dict(baxter_hyperparams.config)
                                         config['lr'] = lr
@@ -337,4 +342,4 @@ if __name__ == '__main__':
                                         config['algorithm']['kl_step'] = kl
                                         config['hist_len'] = hl
                                         PS = BaxterPolicySolver()
-                                        PS.train_policy(2, config)
+                                        PS.train_policy(4, config)

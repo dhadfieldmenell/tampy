@@ -77,22 +77,7 @@ class RobotLLSolver(LLSolver):
         return success
 
     #@profile
-    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5):
-        # if anum == 2:
-        #     import ipdb; ipdb.set_trace()
-        if amax is None:
-            amax = len(plan.actions) - 1
-
-        if anum > amax:
-            return True
-
-        a = plan.actions[anum]
-        if baxter_constants.PRODUCTION:
-            print "Here's the action I'm trying to do now: {0}\n".format(a.name)
-        else:
-            print "backtracking Solve on {}".format(a.name)
-        active_ts = a.active_timesteps
-        inits = {}
+    def get_resample_param(self, a):
         if a.name == 'moveto':
             ## find possible values for the final robot_pose
             rs_param = a.params[2]
@@ -186,8 +171,26 @@ class RobotLLSolver(LLSolver):
         elif a.name == 'both_move_cloth_to':
             rs_param = a.params[-1]
         else:
-            import ipdb; ipdb.set_trace()
             raise NotImplemented
+        return rs_param
+
+    def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax = None, n_resamples=5):
+        # if anum == 2:
+        #     import ipdb; ipdb.set_trace()
+        if amax is None:
+            amax = len(plan.actions) - 1
+
+        if anum > amax:
+            return True
+
+        a = plan.actions[anum]
+        if baxter_constants.PRODUCTION:
+            print "Here's the action I'm trying to do now: {0}\n".format(a.name)
+        else:
+            print "backtracking Solve on {}".format(a.name)
+        active_ts = a.active_timesteps
+        inits = {}
+        rs_param = self.get_resample_param(a)
 
         def recursive_solve():
             # import ipdb; ipdb.set_trace()

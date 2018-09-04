@@ -215,7 +215,7 @@ def get_base_solver(parent_class):
                     # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                     #     break
 
-                    # print "resample attempt: {}".format(attempt)
+                    print "resample attempt: {}".format(attempt)
 
                     try:
                         if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
@@ -546,6 +546,7 @@ def get_base_solver(parent_class):
                 # if len(traj_mean):
                 #     obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
                 failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
+                print failed_preds
                 rs_obj = self._resample(plan, failed_preds, sample_all = True)
                 obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
                 self._add_all_timesteps_of_actions(plan, priority=3,

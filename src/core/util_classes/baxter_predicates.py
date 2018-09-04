@@ -294,6 +294,9 @@ class BaxterStationary(robot_predicates.Stationary):
 class BaxterStationaryCloth(robot_predicates.Stationary):
     pass
 
+class BaxterStationaryNeqCloth(robot_predicates.StationaryNEq):
+    pass
+
 class BaxterStationaryEdge(robot_predicates.Stationary):
     pass
 

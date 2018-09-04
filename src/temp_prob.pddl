@@ -1,7 +1,7 @@
 (define (problem sorting_problem)
 (:domain sorting_domain)
-(:objects can0 - Can can1 - Can middle_target - Target left_target - Target can1_end_target - Target right_target - Target can0_end_target - Target)
-(:init  (CanInReach can0) (CanAtTarget can0 middle_target) (CanInGripper can0) (CanInReach can1) (CanAtTarget can1 can1_end_target) (CanObstructs can1 can0) (CanObstructsTarget can1 can0_end_target))
-(:goal (and (CanAtTarget can0 can0_end_target) (CanAtTarget can1 can1_end_target)))
+(:objects cloth2 - Cloth cloth3 - Cloth cloth0 - Cloth cloth1 - Cloth cloth1_end_target - RightTarget cloth3_end_target - RightTarget right_mid_target - RightTarget cloth2_end_target - LeftTarget cloth0_end_target - LeftTarget left_mid_target - LeftTarget)
+(:init  (ClothInLeftRegion cloth2) (ClothInLeftRegion cloth3) (ClothInLeftRegion cloth0) (ClothInLeftRegion cloth1))
+(:goal (and (ClothAtLeftTarget cloth0 cloth0_end_target) (ClothAtRightTarget cloth1 cloth1_end_target) (ClothAtLeftTarget cloth2 cloth2_end_target) (ClothAtRightTarget cloth3 cloth3_end_target)))
 
 )
