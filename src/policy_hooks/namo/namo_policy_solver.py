@@ -18,7 +18,7 @@ from gps.algorithm.cost.cost_utils import *
 
 from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
-from policy_hooks.multi_task_main import GPSMain
+from policy_hooks.namo.multi_task_main import GPSMain
 from policy_hooks.namo.vector_include import *
 from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
@@ -335,4 +335,4 @@ if __name__ == '__main__':
                                         config['algorithm']['kl_step'] = kl
                                         config['hist_len'] = hl
                                         PS = NAMOPolicySolver()
-                                        PS.train_policy(2, config)
+                                        PS.train_policy(4, config)

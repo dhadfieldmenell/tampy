@@ -75,10 +75,10 @@ def get_base_solver(parent_class):
             base_t = active_ts[0]
             if len(traj_mean):
                 self.transfer_always = True
-                for t in range(1, len(traj_mean)-1):
+                for t in range(base_t, active_ts[1]):
                     for param_name, attr in plan.action_inds:
                         param = plan.params[param_name]
-                        getattr(param, attr)[:, base_t+t] = traj_mean[t, plan.action_inds[param_name, attr]]
+                        getattr(param, attr)[:, base_t+1] = traj_mean[t, plan.action_inds[param_name, attr]]
             else:
                 self.transfer_always = False
 
@@ -161,6 +161,7 @@ def get_base_solver(parent_class):
             else:
                 callback_a = None
 
+            success = False
             for rp in robot_poses:
                 for attr, val in rp.iteritems():
                     setattr(rs_param, attr, val)
@@ -546,7 +547,6 @@ def get_base_solver(parent_class):
                 # if len(traj_mean):
                 #     obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
                 failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
-                print failed_preds
                 rs_obj = self._resample(plan, failed_preds, sample_all = True)
                 obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
                 self._add_all_timesteps_of_actions(plan, priority=3,

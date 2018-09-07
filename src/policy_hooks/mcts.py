@@ -236,6 +236,9 @@ class MCTS:
 
         self.agent.reset_hist(old_traj_hist)
 
+        if debug:
+            print 'Rejected all unexplored child nodes.'
+
         return None
 
     def _select_from_explored(self, state, node, exclude_hl=[], task=None, debug=False):
@@ -322,7 +325,7 @@ class MCTS:
             self.agent.reset_hist(deepcopy(old_traj_hist))
             samples.append(self.agent.sample_task(self.rollout_policy[task], self.condition, cur_state, (task, target[0].name, target[1].name), noisy=True))
 
-        if use_distilled:
+        if use_distilled and self.distilled_policy.scale is not None:
             for n in range(self.num_distilled_samples):
                 self.agent.reset_hist(deepcopy(old_traj_hist))
                 samples.append(self.agent.sample_task(self.distilled_policy, self.condition, cur_state, (task, target[0].name, target[1].name), use_prim_obs=True, noisy=True))

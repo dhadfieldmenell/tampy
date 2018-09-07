@@ -644,7 +644,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         N, T = obs.shape[:2]
 
         # Normalize obs.
-        policy = self.task_map[task]['policy']
+        if task in self.task_map:
+            policy = self.task_map[task]['policy']
+        else:
+            policy = getattr(self, '{0}_policy'.format(task))
         if policy.scale is not None:
             # TODO: Should prob be called before update?
             for n in range(N):
@@ -656,13 +659,26 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         for i in range(N):
             for t in range(T):
                 # Feed in data.
-                feed_dict = {self.task_map[task]['obs_tensor']: np.expand_dims(obs[i, t], axis=0)}
+                if task in self.task_map:
+                    obs_tensor = self.task_map[task]['obs_tensor']
+                    act_op = self.task_map[task]['act_op']
+                else:
+                    obs_tensor = getattr(self, '{0}_obs_tensor'.format(task))
+                    act_op = getattr(self, '{0}_act_op'.format(task))
+                feed_dict = {obs_tensor: np.expand_dims(obs[i, t], axis=0)}
                 with tf.device(self.device_string):
-                    output[i, t, :] = self.sess.run(self.task_map[task]['act_op'], feed_dict=feed_dict)
+                    output[i, t, :] = self.sess.run(act_op, feed_dict=feed_dict)
 
-        pol_sigma = np.tile(np.diag(self.var[task]), [N, T, 1, 1])
-        pol_prec = np.tile(np.diag(1.0 / self.var[task]), [N, T, 1, 1])
-        pol_det_sigma = np.tile(np.prod(self.var[task]), [N, T])
+        if task in self.var:
+            pol_sigma = np.tile(np.diag(self.var[task]), [N, T, 1, 1])
+            pol_prec = np.tile(np.diag(1.0 / self.var[task]), [N, T, 1, 1])
+            pol_det_sigma = np.tile(np.prod(self.var[task]), [N, T])
+        else:
+            var = getattr(self, '{0}_var'.format(task))
+            pol_sigma = np.tile(np.diag(var), [N, T, 1, 1])
+            pol_prec = np.tile(np.diag(1.0 / var), [N, T, 1, 1])
+            pol_det_sigma = np.tile(np.prod(var), [N, T])
+
 
         return output, pol_sigma, pol_prec, pol_det_sigma
 

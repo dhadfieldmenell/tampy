@@ -3,7 +3,7 @@ import random
 
 from core.util_classes.namo_predicates import dsafe
 
-NUM_CANS = 2
+NUM_CANS = 4
 
 filename = "namo_probs/sort_closet_prob_{0}.prob".format(NUM_CANS)
 

@@ -250,7 +250,7 @@ class RobotLLSolver(LLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=3)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=3)[:2]
         if not robot_poses:
             success = False
             # print "Using Random Poses"
@@ -645,7 +645,7 @@ class RobotLLSolver(LLSolver):
 
                     l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
                     if not len(l_arm_pose):
-                        import ipdb; ipdb.set_trace()
+                        # import ipdb; ipdb.set_trace()
                         continue
 
                 l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
@@ -681,7 +681,7 @@ class RobotLLSolver(LLSolver):
 
                     r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, np.pi/2, 0], "right_arm")
                     if not len(r_arm_pose):
-                        import ipdb; ipdb.set_trace()
+                        # import ipdb; ipdb.set_trace()
                         continue
 
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
@@ -753,7 +753,7 @@ class RobotLLSolver(LLSolver):
 
                     r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
                     if not len(r_arm_pose):
-                        import ipdb; ipdb.set_trace()
+                        # import ipdb; ipdb.set_trace()
                         continue
 
                 r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))

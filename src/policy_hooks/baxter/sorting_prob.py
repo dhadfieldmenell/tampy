@@ -416,17 +416,23 @@ def cost_f(Xs, task, params, targets, plan, active_ts=None):
     plan.params['{0}_init_target'.format(params[0].name)].value[:,0] = plan.params[params[0].name].pose[:,0]
     plan.params['{0}_end_target'.format(params[0].name)].value[:,0] = targets['{0}_end_target'.format(params[0].name)]
 
-    failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+    # failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+    try:
+        failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+    except:
+        import ipdb; ipdb.set_trace()
 
     cost = 0
     for failed in failed_preds:
-        if failed.get_type == 'BaxterRobotAt': continue
+        if failed[1].get_type() == 'BaxterRobotAt': continue
         for t in range(active_ts[0], active_ts[1]+1):
             if t + failed[1].active_range[1] > active_ts[1]:
                 break
 
             try:
-                cost += np.max(failed[1].check_pred_violation(t, negated=failed[0], tol=tol))
+                viol = np.max(failed[1].check_pred_violation(t, negated=failed[0], tol=tol))
+                if viol is not None:
+                    cost += viol
             except:
                 import ipdb; ipdb.set_trace()
 

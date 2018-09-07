@@ -304,7 +304,7 @@ class FFSolver(HLSolver):
 
 
 
-    def _run_planner(self, abs_domain, abs_prob):
+    def _run_planner(self, abs_domain, abs_prob, label=''):
         """
         Argument:
             abs_domain: translated domain in .PDDL recognizable by HLSolver (String)
@@ -314,13 +314,13 @@ class FFSolver(HLSolver):
         Note:
             High level planner gets called here.
         """
-        with open("%sdom.pddl"%FFSolver.FILE_PREFIX, "w") as f:
+        with open("%sdom.pddl"%(label+'_'+FFSolver.FILE_PREFIX), "w") as f:
             f.write(abs_domain)
-        with open("%sprob.pddl"%FFSolver.FILE_PREFIX, "w") as f:
+        with open("%sprob.pddl"%(label+'_'+FFSolver.FILE_PREFIX), "w") as f:
             f.write(abs_prob)
-        with open("%sprob.output"%FFSolver.FILE_PREFIX, "w") as f:
-            subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%FFSolver.FILE_PREFIX, "-f", "%sprob.pddl"%FFSolver.FILE_PREFIX], stdout=f)
-        with open("%sprob.output"%FFSolver.FILE_PREFIX, "r") as f:
+        with open("%sprob.output"%(label+'_'+FFSolver.FILE_PREFIX), "w") as f:
+            subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%(label+'_'+FFSolver.FILE_PREFIX), "-f", "%sprob.pddl"%(label+'_'+FFSolver.FILE_PREFIX)], stdout=f)
+        with open("%sprob.output"%(label+'_'+FFSolver.FILE_PREFIX), "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
             # import ipdb; ipdb.set_trace()

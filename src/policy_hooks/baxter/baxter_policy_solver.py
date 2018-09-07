@@ -18,14 +18,14 @@ from gps.algorithm.cost.cost_utils import *
 
 from core.util_classes.baxter_predicates import ATTRMAP
 from pma.robot_ll_solver import RobotLLSolver
-from policy_hooks.multi_task_main import GPSMain
+from policy_hooks.baxter.multi_task_main import GPSMain
 from policy_hooks.baxter.vector_include import *
 from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 from policy_hooks.baxter.baxter_agent import BaxterSortingAgent
 import policy_hooks.baxter.baxter_hyperparams as baxter_hyperparams
 import policy_hooks.utils.policy_solver_utils as utils
-from policy_hooks.baxter.sorting_prob import *
+from policy_hooks.baxter.pick_place_prob import *
 from policy_hooks.task_net import tf_classification_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
@@ -65,8 +65,8 @@ class BaxterPolicySolver(BASE_CLASS):
             self.config.update(hyperparams)
 
         conditions = self.config['num_conds']
-        self.task_list = tuple(get_tasks('policy_hooks/baxter/sorting_task_mapping').keys())
-        self.task_durations = get_task_durations('policy_hooks/baxter/sorting_task_mapping')
+        self.task_list = tuple(get_tasks('policy_hooks/baxter/pick_place_task_mapping').keys())
+        self.task_durations = get_task_durations('policy_hooks/baxter/pick_place_task_mapping')
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
 
@@ -279,7 +279,7 @@ class BaxterPolicySolver(BASE_CLASS):
                 'sensor_dims': sensor_dims,
                 'n_layers': 1,
                 'num_filters': [5,10],
-                'dim_hidden': [50]
+                'dim_hidden': [20]
             },
             'lr': self.config['lr'],
             'network_model': tf_network,
@@ -321,12 +321,12 @@ def copy_dict(d):
 
 if __name__ == '__main__':
     for lr in [1e-3]:
-        for init_var in [0.001]:
+        for init_var in [0.0001]:
             for covard in [0]:
                 for wt in [1e1]:
-                    for klt in [1e-2]:
-                        for kl in [1e-3]:
-                            for iters in [100000]:
+                    for klt in [1e-1]:
+                        for kl in [1e-4]:
+                            for iters in [30000]:
                                 for dh in [[100, 100]]:
                                     for hl in [3]:
                                         config = copy_dict(baxter_hyperparams.config)

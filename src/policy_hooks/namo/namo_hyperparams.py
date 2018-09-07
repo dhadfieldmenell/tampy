@@ -31,7 +31,7 @@ from policy_hooks.traj_opt_pi2 import TrajOptPI2
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 2#10
+NUM_CONDS = 20
 
 
 common = {
@@ -61,7 +61,7 @@ algorithm = {
     'max_step_mult': 5.0,
     'sample_ts_prob': 1.0,
     'opt_wt': 1e1,
-    'fail_value': 100,
+    'fail_value': 50,
 }
 
 algorithm['init_traj_distr'] = {
@@ -156,8 +156,8 @@ config = {
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 1,
-    'max_tree_depth': 8,
+    'num_rollouts': 2,
+    'max_tree_depth': 15,
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],

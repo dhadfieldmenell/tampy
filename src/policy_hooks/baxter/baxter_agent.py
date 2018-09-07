@@ -30,7 +30,7 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
-from policy_hooks.baxter.sorting_prob import *
+from policy_hooks.baxter.pick_place_prob import *
 
 
 class BaxterSortingAgent(Agent):
@@ -238,17 +238,20 @@ class BaxterSortingAgent(Agent):
             r_pose = plan.params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransformPose()[4:]
 
             for param in plan.params.values():
-                if param._type == 'Can':
-                    l_pose = plan.params['baxter'].openrave_body.env_body.Get
+                if param._type == 'Cloth':
                     l_dist = l_pose - plan.params[param.name].pose[:, t]
                     r_dist = r_pose - plan.params[param.name].pose[:, t]
 
-                    if plan.params['baxter'].lGripper[0, t] < 0.01 and np.all(np.abs(l_dist) < 0.02):
+                    if plan.params['baxter'].lGripper[0, t] <= 0.015 and np.all(np.abs(l_dist) < 0.02):
                         param.pose[:, t+1] = l_pose
-                    elif plan.params['baxter'].rGripper[0, t] < 0.01 and np.all(np.abs(r_dist) < 0.02):
+                    elif plan.params['baxter'].rGripper[0, t] <= 0.015 and np.all(np.abs(r_dist) < 0.02):
                         param.pose[:, t+1] = r_pose
-                    elif param._type == 'Can':
+                    else:
                         param.pose[:, t+1] = param.pose[:, t]
+                    param.rotation[:, t+1] = param.rotation[:, t]
+            plan.params['baxter'].pose[:, t+1] = plan.params['baxter'].pose[:, t]
+            plan.params['table'].pose[:, t+1] = plan.params['table'].pose[:, t]
+            plan.params['table'].rotation[:, t+1] = plan.params['table'].rotation[:, t]
 
         return True
 
@@ -360,10 +363,13 @@ class BaxterSortingAgent(Agent):
             #     # import ipdb; ipdb.set_trace()
             #     success = False
 
-            if not len(failed_preds):
-                failed_preds = [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3)]
-            exclude_targets.append(targets[0].name)
-
+            try:
+                exclude_targets.append(targets[0].name)
+                if not len(failed_preds):
+                    for action in plan.actions:
+                        failed_preds += [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
+            except:
+                pass
             if len(fixed_targets):
                 break
 
@@ -379,7 +385,8 @@ class BaxterSortingAgent(Agent):
             for target_name in self.targets[condition]:
                 target = plan.params[target_name]
                 target.value[:,0] = self.targets[condition][target.name]
-                target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
+                if (target.name, 'value') in self.target_inds:
+                    target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
 
             sample = Sample(self)
             sample.set(STATE_ENUM, state.copy(), 0)
