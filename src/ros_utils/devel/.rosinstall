@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/michaelmcdonald/dependencies/tampy/src/ros_utils/devel/setup.sh

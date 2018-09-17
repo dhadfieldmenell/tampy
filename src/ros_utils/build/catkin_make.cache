@@ -1,0 +1,2 @@
+tamp_ros
+-DCATKIN_DEVEL_PREFIX=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/devel -DCMAKE_INSTALL_PREFIX=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install -G Unix Makefiles

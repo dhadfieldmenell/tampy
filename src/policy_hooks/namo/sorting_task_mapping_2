@@ -1,0 +1,11 @@
+{
+    'move_can': [
+        '0: MOVETOGRASP PR2 {0} {0}_INIT_TARGET ROBOT_INIT_POSE GRASP_END_POSE GRASP0 {1}',
+        '1: PLACE_AT PR2 GRASP_END_POSE ROBOT_END_POSE {0} {1} GRASP0'
+    ],
+
+};
+
+{
+    'move_can': 49,
+}
