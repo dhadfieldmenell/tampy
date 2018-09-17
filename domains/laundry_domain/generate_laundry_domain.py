@@ -318,7 +318,7 @@ class MoveHoldingCloth(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
-            ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
+            ('(BaxterCloseGrippers ?robot)', '1:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
             )', '0:{}'.format(end)),
@@ -342,7 +342,7 @@ class MoveHoldingCloth(Action):
             ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
         ]
         self.eff = [\
-            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(0, end)),
+            ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(1, end)),
             ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
         ]
@@ -393,7 +393,7 @@ class MoveHoldingClothRight(Action):
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
             # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
-            ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
+            ('(BaxterCloseGrippers ?robot)', '1:{}'.format(end)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructsHoldingCloth ?robot ?start ?end ?obj ?cloth))\
             )', '0:{}'.format(end)),
@@ -417,7 +417,7 @@ class MoveHoldingClothRight(Action):
             ('(forall (?obs - Obstacle) (not (BaxterRCollides ?robot ?obs)))', '0:{}'.format(end))
         ]
         self.eff = [\
-            ('(BaxterClothInGripperRight ?robot ?cloth)', '{}:{}'.format(0, end)),
+            ('(BaxterClothInGripperRight ?robot ?cloth)', '{}:{}'.format(1, end)),
             ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end))
         ]

@@ -26,6 +26,7 @@ from gps.utility.data_logger import DataLogger
 from gps.sample.sample_list import SampleList
 
 from policy_hooks.mcts import MCTS
+from policy_hooks.state_mcts import StateMCTS
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 
@@ -76,14 +77,38 @@ class GPSMain(object):
         self.weight_file = self._hyperparams['weight_file'] if 'weight_file' in self._hyperparams else None
         self.saver = tf.train.Saver()
         if self.weight_file is not None:
-            self.saver.restore(policy_opt.sess, self.weight_file)
+            # self.saver.restore(policy_opt.sess, self.weight_file)
             self.pretrain = False
         else:
             self.pretrain = True
+        self.traj_opt_steps = self._hyperparams['traj_opt_steps']
+        self.num_samples = self._hyperparams['num_samples']
+
         self.log_file = str(datetime.now()) + '_namo.txt'
 
-        self.mcts = []
         self.rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
+        self.mcts = []
+        self.state_mcts = StateMCTS(
+                                  self.task_list,
+                                  self.policy_opt.task_distr,
+                                  self._hyperparams['plan_f'],
+                                  self._hyperparams['cost_f'],
+                                  self._hyperparams['goal_f'],
+                                  self._hyperparams['target_f'],
+                                  self._hyperparams['encode_f'],
+                                  self.policy_opt.value,
+                                  self.rollout_policies,
+                                  self.policy_opt.distilled_policy,
+                                  self.agent,
+                                  self._hyperparams['branching_factor'],
+                                  self._hyperparams['num_samples'],
+                                  self._hyperparams['num_distilled_samples'],
+                                  soft_decision=1.0,
+                                  C=2.,
+                                  max_depth=self._hyperparams['max_tree_depth'],
+                                  always_opt=False
+                          )
+
         for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
                                   self.task_list,
@@ -101,9 +126,10 @@ class GPSMain(object):
                                   self._hyperparams['branching_factor'],
                                   self._hyperparams['num_samples'],
                                   self._hyperparams['num_distilled_samples'],
-                                  soft_decision=0.0,
-                                  C=1.,
-                                  max_depth=self._hyperparams['max_tree_depth']
+                                  soft_decision=1.0,
+                                  C=2.,
+                                  max_depth=self._hyperparams['max_tree_depth'],
+                                  always_opt=False
                                   ))
 
     def run(self, itr_load=None):
@@ -120,78 +146,103 @@ class GPSMain(object):
             # log_file.close()
             itr_start = self._initialize(itr_load)
 
-            all_init_samples = []
+            init_samples = []
             if self.pretrain:
-                steps = 5
-            else:
-                steps = 0
-            for pretrain_step in range(steps):
-                hl_plans = [[] for _ in range(len(self._train_idx))]
-
-                for cond in self._train_idx:
-                    failed = []
-                    new_failed = []
-                    stop = False
-                    attempt = 0
-                    cur_sample = None
-                    cur_state = self.agent.x0[cond]
+                for pretrain_step in range(3):
+                    self.agent.replace_conditions(len(self.agent.x0), keep=(1., 1.))
+                    hl_plans = [[] for _ in range(len(self._train_idx))]
                     paths = []
-                    cur_path = []
-                    cur_state = self.agent.x0[cond]
-                    opt_hl_plan = []
-                    hl_plan = self.agent.get_hl_plan(cur_state, cond, failed)
-                    while not stop and attempt < 8:
-                        old_cur_state = cur_state
-                        for step in hl_plan:
-                            targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
-                            plan = self._hyperparams['plan_f'](step[0], targets)
-                            if len(targets) < 2:
-                                targets.append(plan.params['{0}_end_target'.format(targets[0].name)])
-                            next_sample, new_failed, success = self.agent.sample_optimal_trajectory(cur_state, step[0], cond, fixed_targets=targets)
-                            all_init_samples.append(next_sample)
-                            if not success:
-                                next_sample.task_cost = self.fail_value
-                                if not len(new_failed):
-                                    stop = True
-                                    if not len(hl_plan):
-                                        print 'NAMO COULD NOT FIND HL PLAN FOR {0}'.format(cur_state)
-                                else:
-                                    hl_plan = self.agent.get_hl_plan(cur_state, cond, new_failed)
-                                    failed.extend(new_failed)
-                                    attempt += 1
+
+                    for cond in self._train_idx:
+                        failed = []
+                        new_failed = []
+                        stop = False
+                        attempt = 0
+                        cur_sample = None
+                        cur_path = []
+                        cur_state = self.agent.x0[cond].copy()
+                        opt_hl_plan = []
+                        try:
+                            hl_plan = self.agent.get_hl_plan(cur_state, cond, failed)
+                        except:
+                            hl_plan = []
+                        last_reset = 0
+                        while not stop and attempt < 30:
+                            last_reset += 1
+                            old_cur_state = cur_state
+                            for step in hl_plan:
+                                targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
+                                plan = self._hyperparams['plan_f'](step[0], targets)
+                                if len(targets) < 2:
+                                    targets.append(plan.params['{0}_end_target'.format(targets[0].name)])
+                                next_sample, new_failed, success = self.agent.sample_optimal_trajectory(cur_state, step[0], cond, fixed_targets=targets)
+                                init_samples.append(next_sample)
+                                next_sample.success = FAIL_LABEL
+                                if not success:
+                                    if last_reset > 5:
+                                        failed = []
+                                        last_reset = 0
+                                    next_sample.task_cost = self.fail_value
+                                    next_sample.success = FAIL_LABEL
+                                    if not len(new_failed):
+                                        stop = True
+                                        if not len(hl_plan):
+                                            print 'NAMO COULD NOT FIND HL PLAN FOR {0}'.format(cur_state)
+                                    else:
+                                        failed.extend(new_failed)
+                                        try:
+                                            hl_plan = self.agent.get_hl_plan(cur_state, cond, failed)
+                                        except:
+                                            hl_plan = []
+                                        attempt += 1
+                                    break
+
+                                cur_path.append(next_sample)
+                                cur_sample = next_sample
+                                cur_state = cur_sample.get_X(t=cur_sample.T-1).copy()
+                                opt_hl_plan.append(step)
+                            if self._hyperparams['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans.values()[0]) == 0:
+                                self.agent.add_task_paths([cur_path])
+                                hl_plans[cond] = opt_hl_plan
+                                for sample in cur_path:
+                                    sample.success = SUCCESS_LABEL
                                 break
 
-                            cur_path.append(next_sample)
-                            cur_sample = next_sample
-                            cur_state = cur_sample.get_X(t=cur_sample.T-1)
-                            opt_hl_plan.append(step)
-                        if self._hyperparams['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans.values()[0]) == 0:
-                            break
+                            attempt += 1
 
-                        attempt += 1
+                        paths.append(cur_path)
 
-                    paths.append(cur_path)
-                    if cur_sample != None: 
+                    for path in paths:
+                        if not len(path): continue
+                        cur_sample = path[-1]
                         opt_val = self._hyperparams['goal_f'](cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[cond], self.agent.plans.values()[0])
-                        for path in paths:
-                            for sample in path:
-                                sample.task_cost = opt_val
+                        for sample in path:
+                            sample.task_cost = opt_val
 
-                        if opt_val == 0:
-                            self.agent.add_task_paths(paths)
-                            hl_plans[cond] = opt_hl_plan
+                    print hl_plans
 
-                # import ipdb; ipdb.set_trace()
-                self.agent.replace_conditions(len(self.agent.x0), keep=(1., 1.))
-            for task in self.alg_map:
-                if len(self.agent.optimal_samples[task]):
-                    self.alg_map[task].iteration([], self.agent.optimal_samples[task])
-            path_samples = []
-            for path in self.agent.get_task_paths():
-                path_samples.extend(path)
-            self.update_primitives(path)
-            self.update_value_network(all_init_samples)
-            self.saver.save(self.policy_opt.sess, str(datetime.now())+'_namo_{0}.ckpt'.format(self.agent.num_cans))
+                for task in self.alg_map:
+                    n_samples = len(self.agent.optimal_samples[task])
+                    for i in range(5):
+                        print '\nIterating on initial samples (iter {0})'.format(i)
+                        policy = self.rollout_policies[task]
+                        if policy.scale is None:
+                            print 'Using lin gauss'
+                            policy = self.alg_map[task].cur[0].traj_distr
+                        samples = self.agent.resample(self.agent.optimal_samples[task][-n_samples:], policy, self.num_samples)
+                        self.alg_map[task].iteration(samples, self.agent.optimal_samples[task])
+                        self.agent.clear_samples()
+                        self.agent.add_sample_batch(samples, task)
+
+                path_samples = []
+                for path in self.agent.get_task_paths():
+                    path_samples.extend(path)
+
+                self.update_primitives(path_samples)
+                self.update_value_network(init_samples, first_ts_only=True)
+                self.saver.save(self.policy_opt.sess, 'tf_saved/'+str(datetime.now())+'_namo_{0}.ckpt'.format(self.agent.num_cans))
+                print hl_plans
+
             # import ipdb; ipdb.set_trace()
             for itr in range(itr_start, self._hyperparams['iterations']):
                 print '\n\nITERATION ', itr
@@ -200,6 +251,7 @@ class GPSMain(object):
                     rollout_policies = {}
                     use_distilled = False
                     for task in self.task_list:
+                        self.alg_map[task].set_conditions(1)
                         if self.rollout_policies[task].scale is not None:
                             rollout_policies[task] = self.rollout_policies[task]
                             use_distilled = True
@@ -207,24 +259,33 @@ class GPSMain(object):
                             rollout_policies[task] = self.alg_map[task].cur[0].traj_distr
 
                     val = self.mcts[cond].run(self.agent.x0[cond], self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies, debug=True)
+                    # val = self.state_mcts.run(self.agent.x0[cond], cond, self._hyperparams['num_rollouts'], use_distilled, new_policies=rollout_policies, debug=True)
 
                 traj_sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
 
-                self.agent.clear_samples(keep_prob=0.2)
+                self.agent.clear_samples(keep_prob=0.2, keep_opt_prob=0.5)
 
                 path_samples = []
                 for path in self.agent.get_task_paths():
                     path_samples.extend(path)
 
                 # self.agent.clear_task_paths(keep_prob=0.5)
-                self._take_iteration(itr, traj_sample_lists, path_samples)
+                self._take_iteration(itr, traj_sample_lists, path_samples, traj_opt_steps=self.traj_opt_steps)
                 self.agent.reset_sample_refs()
-                # next_x = self.print_cond('grasp', 'can0', 'can0_end_target')
+
+                next_x = self.agent.x0[0].copy()
+                self.agent.reset_hist()
+                for _ in range(5):
+                    task, obj_name, targ_name = self.predict_condition(0, next_x)
+                    print task, obj_name, targ_name
+                    next_x = self.print_cond(task, obj_name, targ_name, state=next_x, reset_hist=False)
+                # self.mcts[0].print_run(self.agent.x0[0], use_distilled=False)
 
             import ipdb; ipdb.set_trace()
             for itr in range(itr_start, self._hyperparams['iterations']):
                 print '\n\nITERATION ', itr
-                self.agent.replace_conditions(len(self._train_idx))
+                if itr % 3 == 0:
+                    self.agent.replace_conditions(len(self._train_idx), (0.5, 0.3))
                 paths = []
                 for cond in self._train_idx:
                     rollout_policies = {}
@@ -247,7 +308,7 @@ class GPSMain(object):
                     path_samples.extend(path)
 
                 # self.agent.clear_task_paths(keep_prob=0.5)
-                self._take_iteration(itr, traj_sample_lists, path_samples)
+                self._take_iteration(itr, traj_sample_lists, path_samples, traj_opt_steps=self.traj_opt_steps)
                 self.agent.reset_sample_refs()
 
         except Exception as e:
@@ -259,6 +320,15 @@ class GPSMain(object):
         import ipdb; ipdb.set_trace()
         self.policy_opt.sess.close()
 
+    def get_value_samples(self):
+        rollouts = []
+        for cond in self._train_idx:
+            x0 = self.agent.x0[cond].copy()
+            old_n_samples = self.state_mcts.num_samples
+            self.state_mcts.num_samples = 1
+            path = self.state_mcts.simulate(x0, False)
+            rollouts.extend(path)
+        return rollouts
 
     def update_primitives(self, samples):
         dP, dO = len(self.task_list), self.alg_map.values()[0].dPrimObs
@@ -271,8 +341,8 @@ class GPSMain(object):
             for t in range(sample.T):
                 obs = [sample.get_prim_obs(t=t)]
                 mu = [np.concatenate([sample.get(TASK_ENUM, t=t), sample.get(OBJ_ENUM, t=t), sample.get(TARG_ENUM, t=t)])]
-                prc = [np.ones((dP, dP))]
-                wt = [1] # [np.exp(-sample.task_cost)]
+                prc = [np.eye(dP)]
+                wt = [1. / (t+1)] # [np.exp(-sample.task_cost)]
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
@@ -281,21 +351,23 @@ class GPSMain(object):
         if len(tgt_mu):
             self.policy_opt.update_primitive_filter(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
-    def update_value_network(self, samples):
-        dV, dO = 1, self.alg_map.values()[0].dO
+    def update_value_network(self, samples, first_ts_only=False):
+        dV, dO = 2, self.alg_map.values()[0].dO
 
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dV))
         tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
         for sample in samples:
+            if not hasattr(sample, 'success'): continue
             for t in range(sample.T):
                 obs = [sample.get_obs(t=t)]
-                mu = [[-sample.task_cost]]
-                prc = [np.ones((dV, dV))]
-                wt = [1]
+                mu = [sample.success]
+                prc = [np.eye(dV)]
+                wt = [10. / (t+1)]
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
+                if first_ts_only: break
 
         if len(tgt_mu):
             self.policy_opt.update_value(obs_data, tgt_mu, tgt_prc, tgt_wt)
@@ -507,7 +579,7 @@ class GPSMain(object):
                 verbose=(i < self._hyperparams['verbose_trials'])
             )
 
-    def _take_iteration(self, itr, sample_lists, paths):
+    def _take_iteration(self, itr, sample_lists, paths, traj_opt_steps=1):
         """
         Take an iteration of the algorithm.
         Args:
@@ -517,18 +589,30 @@ class GPSMain(object):
         if self.gui:
             self.gui.set_status_text('Calculating.')
             self.gui.start_display_calculating()
-        for task in self.alg_map:
-            if len(sample_lists[task]) or len(self.agent.optimal_samples[task]):
-                self.alg_map[task].iteration(sample_lists[task], self.agent.optimal_samples[task])
+        # val_samples = self.get_value_samples()
+        for step in range(traj_opt_steps):
+            for task in self.alg_map:
+                if len(sample_lists[task]) or len(self.agent.optimal_samples[task]):
+                    try:
+                        sample_lists[task] = self.alg_map[task].iteration(sample_lists[task], self.agent.optimal_samples[task], reset=not step)
+                        if len(sample_lists[task]) and step < traj_opt_steps - 1:
+                            sample_lists[task] = self.agent.resample(sample_lists[task], self.rollout_policies[task], self._hyperparams['num_samples'])
+                        self.agent._samples[task] = sample_lists[task]
+                    except:
+                        traceback.print_exception(*sys.exc_info())
+
+            self.agent.reset_sample_refs()
+                
         self.update_primitives(paths)
-        self.update_distilled()
-        value_samples = []
-        for task in sample_lists:
-            for samples in sample_lists[task]:
-                value_samples.extend(samples)
-        for task in self.agent.optimal_samples:
-            value_samples.extend(self.agent.optimal_samples[task])
-        self.update_value_network(value_samples)
+        # self.update_distilled()
+
+        all_samples = []
+        for task in self.task_list:
+            sample_lists = self.agent.get_samples(task)
+            for slist in sample_lists:
+                all_samples.extend(slist._samples)
+
+        self.update_value_network(all_samples)
         self.agent.reset_sample_refs()
         for task in self.alg_map:
             if len(self.alg_map[task].cur):
@@ -561,19 +645,26 @@ class GPSMain(object):
                 save_global=True, verbose=verbose, save=False, noisy=False)
         return [SampleList(samples) for samples in pol_samples]
 
-    def print_cond(self, task, obj, targ, reset_hist=True, cond=0, noisy=False):
+    def print_cond(self, task, obj, targ, state=None, reset_hist=True, cond=0, noisy=False):
         if reset_hist:
             self.agent.reset_hist()
 
-        sample = self.agent.sample_task(self.rollout_policies[task], cond, self.agent.x0[cond], [task, obj, targ], noisy=noisy)
+        state = self.agent.x0[cond] if state is None else state
+
+        sample = self.agent.sample_task(self.rollout_policies[task], cond, state, [task, obj, targ], noisy=noisy)
         print sample.get_X()
         return sample.get_X(t=sample.T-1)
 
-    def predict_condition(self, cond):
+    def predict_condition(self, cond, state=None):
         sample = Sample(self.agent)
+        state = self.agent.x0[cond].copy() if state is None else state
         sample.set(STATE_ENUM, self.agent.x0[cond].copy(), t=0)
         sample.set(TARGETS_ENUM, self.agent.target_vecs[cond].copy(), t=0)
-        print self.policy_opt.task_distr([sample.get_prim_obs()])
+        distr = self.policy_opt.task_distr([sample.get_prim_obs(t=sample.T-1)])
+        task = self.task_list[np.argmax(distr[0])]
+        obj = self.agent.obj_list[np.argmax(distr[1])]
+        targ = self.agent.targ_list[np.argmax(distr[2])]
+        return task, obj, targ
 
     def save_rollout(self, reset_hist=True, cond=0, noisy=False):
         if reset_hist:

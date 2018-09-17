@@ -19,7 +19,11 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         elif a.name == 'place':
             rs_param = None
         elif a.name == 'movetograsp':
-            rs_param = None
+            rs_param = a.params[4]
+            # rs_param = None
+        elif a.name == 'place_at':
+            # rs_param = None
+            rs_param = a.params[2]
         else:
             raise NotImplemented
 
@@ -45,6 +49,16 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = next_act.params[2]
                 target_pos = target.value - [[0], [0.]]
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[0.]]) if next_act.name == 'putdown' else np.array([[1.]])})
+            elif act.name == 'movetograsp':
+                target = act.params[2]
+                grasp = act.params[5]
+                target_pos = target.value + grasp.value + [[np.random.normal(0, 0.05)], [-np.random.uniform(0.1, 0.3)]]
+                robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
+            elif act.name == 'place_at':
+                target = act.params[4]
+                grasp = act.params[5]
+                target_pos = target.value + grasp.value
+                robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
             elif act.name == 'grasp' or act.name == 'putdown':
                 target = act.params[2]
                 radius1 = act.params[0].geom.radius

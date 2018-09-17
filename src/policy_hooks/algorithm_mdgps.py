@@ -156,7 +156,7 @@ class AlgorithmMDGPS(Algorithm):
             ts.sort()
             for t in range(data_len):
                 prc[0,t] = 1e0 * np.eye(dU)
-                wt[:,t] = self._hyperparams['opt_wt']
+                wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
 
             for i in range(data_len):
                 t = ts[i]
@@ -188,13 +188,16 @@ class AlgorithmMDGPS(Algorithm):
                                           [N, 1, 1])
                 for i in range(N):
                     mu[i, j, :] = (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])
-                wt[:, j].fill(pol_info.pol_wt[t])
+                wt[:, j].fill(pol_info.pol_wt[t] * sample.use_ts[t])
                 obs[:, j, :] = full_obs[:, t, :]
             tgt_mu = np.concatenate((tgt_mu, mu))
             tgt_prc = np.concatenate((tgt_prc, prc))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
-        self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
+        if len(tgt_mu):
+            self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
+        else:
+            print 'Update called with no data.'
 
     # def _update_policy(self):
     #     """ Compute the new policy. """
@@ -385,21 +388,21 @@ class AlgorithmMDGPS(Algorithm):
         for m in range(len(self.prev)):
             self.prev[m].new_traj_distr = self.new_traj_distr[m]
 
-        # self.cur = []
-        # for m in range(self.M):
-        #     self.cur.append(IterationData())
-        #     self.cur[m].traj_info = TrajectoryInfo()
-        #     self.cur[m].traj_info.dynamics = copy.deepcopy(self.prev[m].traj_info.dynamics)
-        #     self.cur[m].step_mult = self.prev[m].step_mult
-        #     self.cur[m].eta = self.prev[m].eta
-        #     self.cur[m].traj_distr = self.new_traj_distr[m]
+        self.cur = []
+        for m in range(len(self.prev)):
+            self.cur.append(IterationData())
+            self.cur[m].traj_info = TrajectoryInfo()
+            self.cur[m].traj_info.dynamics = copy.deepcopy(self.prev[m].traj_info.dynamics)
+            self.cur[m].step_mult = self.prev[m].step_mult
+            self.cur[m].eta = self.prev[m].eta
+            self.cur[m].traj_distr = self.new_traj_distr[m]
         delattr(self, 'new_traj_distr')
 
 
-        # for m in range(self.M):
-        #         self.cur[m].traj_info.last_kl_step = \
-        #                 self.prev[m].traj_info.last_kl_step
-        #         self.cur[m].pol_info = copy.deepcopy(self.prev[m].pol_info)
+        for m in range(len(self.cur)):
+            self.cur[m].traj_info.last_kl_step = \
+                    self.prev[m].traj_info.last_kl_step
+            self.cur[m].pol_info = copy.deepcopy(self.prev[m].pol_info)
 
     def _stepadjust(self):
         """

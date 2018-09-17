@@ -100,6 +100,12 @@ class TrajOptPI2(TrajOpt):
         traj_distr.k, traj_distr.pol_covar = k, pS
         traj_distr.inv_pol_covar, traj_distr.chol_pol_covar = ipS, cpS
 
+        # print cur_data[0].task, cur_data[0].obj_ind, cur_data[0].targ_ind
+        # print cur_data[0].agent.state_inds
+        # print cur_data[0].agent.obj_list, cur_data[0].agent.targ_list
+        # print X[0]
+        # print traj_distr.k
+
         return traj_distr, eta
 
     def update_pi2(self, samples, costs, mean_old, cov_old,

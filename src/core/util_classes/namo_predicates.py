@@ -220,6 +220,22 @@ class RobotNear(At):
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+class RobotWithinBounds(At):
+
+    # RobotAt Robot Can
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.eye(2), -np.eye(2)]
+        b = np.zeros((4, 1))
+        val = 2.5e1 * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
 class RobotNearGrasp(At):
 
     # RobotAt Robot Can Grasp
@@ -445,6 +461,14 @@ class Obstructs(CollisionPredicate):
         #     # about, because the y values correspond to time.
         #     attr_inds[param] = [('value', inds[0])]
         #     import ipdb; ipdb.set_trace()
+        a = 0
+        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+            a += 1
+
+        if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
+            return None, None
+            
+        act = plan.actions[a]
 
         disp = self.c.pose[:, time] - self.r.pose[:,time]
         if disp[0] == 0:
@@ -458,8 +482,8 @@ class Obstructs(CollisionPredicate):
         orth *= 1.5 * (self.c.geom.radius + self.r.geom.radius)
 
         new_robot_pose = self.r.pose[:, time] + orth
-        st = max(time-3,0)
-        et = min(time+3, plan.horizon-1)
+        st = max(max(time-3,0), act.active_timesteps[0])
+        et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
@@ -586,6 +610,15 @@ class ObstructsHolding(CollisionPredicate):
 
     def resample(self, negated, time, plan):
         assert negated
+
+        a = 0
+        while a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+            a += 1
+
+        if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
+            return None, None
+        act = plan.actions[a]
+
         res = OrderedDict()
         attr_inds = OrderedDict()
         disp = self.obstr.pose[:, time] - self.held.pose[:,time]
@@ -613,10 +646,10 @@ class ObstructsHolding(CollisionPredicate):
 
         new_robot_pose = self.r.pose[:, time] + orth
         new_held_pose = self.held.pose[:, time] + orth
-        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
-        add_to_attr_inds_and_res(time, attr_inds, res, self.held, [('pose', new_held_pose)])
-        st = max(time-3,0)
-        et = min(time+3, plan.horizon-1)
+        # add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
+        # add_to_attr_inds_and_res(time, attr_inds, res, self.held, [('pose', new_held_pose)])
+        st = max(max(time-3,0), act.active_timesteps[0])
+        et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         for i in range(st, et):
             dist = float(np.abs(i - time))
             if i <= time:
@@ -688,7 +721,7 @@ class InGripper(ExprPredicate):
                                  (self.grasp, [("value", np.array([0, 1], dtype=np.int))])
                                 ])
         # want x0 - x2 = x4, x1 - x3 = x5
-        A = 1e3 * np.array([[1, 0, -1, 0, -1, 0],
+        A = 1e1 * np.array([[1, 0, -1, 0, -1, 0],
                       [0, 1, 0, -1, 0, -1]])
         b = np.zeros((2, 1))
 

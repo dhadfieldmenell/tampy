@@ -73,7 +73,7 @@ def get_input_layer(dim_input, dim_output):
     return net_input, task, precision
 
 
-def get_mlp_layers(mlp_input, number_layers, dimension_hidden, boundaries):
+def get_mlp_layers(mlp_input, number_layers, dimension_hidden):
     """compute MLP with specified number of layers.
         math: sigma(Wx + b)
         for each layer, where sigma is by default relu"""
@@ -89,9 +89,13 @@ def get_mlp_layers(mlp_input, number_layers, dimension_hidden, boundaries):
         if layer_step != number_layers-1:  # final layer has no RELU
             cur_top = tf.nn.relu(tf.matmul(cur_top, cur_weight) + cur_bias)
         else:
-            cur_top = multi_sotfmax_prediction_layer(tf.matmul(cur_top, cur_weight) + cur_bias, boundaries)
+            cur_top = tf.matmul(cur_top, cur_weight) + cur_bias
 
     return cur_top, weights, biases
+
+
+def get_sigmoid_loss_layer(mlp_out, labels):
+    return tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=mlp_out, name='sigmoid_loss')
 
 
 def get_loss_layer(mlp_out, task, boundaries):
@@ -99,15 +103,30 @@ def get_loss_layer(mlp_out, task, boundaries):
     return multi_softmax_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries)
 
 
-def tf_classification_network(dim_input=27, dim_output=7, batch_size=25, network_config=None):
+def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None):
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
     dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
     dim_hidden.append(dim_output)
     boundaries = network_config['output_boundaries']
 
     nn_input, action, precision = get_input_layer(dim_input, dim_output)
-    mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden, boundaries)
+    mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
+    prediction = multi_sotfmax_prediction_layer(mlp_applied, boundaries)
     fc_vars = weights_FC + biases_FC
     loss_out = get_loss_layer(mlp_out=mlp_applied, task=action, boundaries=boundaries)
 
     return TfMap.init_from_lists([nn_input, action, precision], [mlp_applied], [loss_out]), fc_vars, []
+
+
+def tf_binary_network(dim_input=27, dim_output=2, batch_size=25, network_config=None):
+    n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
+    dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
+    dim_hidden.append(2)
+
+    nn_input, action, precision = get_input_layer(dim_input, 2)
+    mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
+    prediction = tf.sigmoid(mlp_applied, 'sigmoid_activation')
+    fc_vars = weights_FC + biases_FC
+    loss_out = get_sigmoid_loss_layer(mlp_out=mlp_applied, labels=action)
+
+    return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, []

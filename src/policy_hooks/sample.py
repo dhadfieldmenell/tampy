@@ -31,11 +31,12 @@ class Sample(object):
         self._prim_obs.fill(np.nan)
         self._meta = np.empty(self.dM)
         self._meta.fill(np.nan)
-        self._ref_U = np.zeros((self.T, self.dU))
-        self._ref_X = np.zeros((self.T, self.agent.symbolic_bound))
+        self._ref_U = np.zeros((self.T, self.dU), dtype='float32')
+        self._ref_X = np.zeros((self.T, self.agent.symbolic_bound), dtype='float32')
 
-        self.task_cost = np.inf
+        self.task_cost = np.nan
         self.removable = True
+        self.use_ts = np.ones(self.T)
 
     def set(self, sensor_name, sensor_data, t=None):
         """ Set trajectory data for a particular sensor. """

@@ -87,137 +87,144 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
     def init_network(self):
         """ Helper method to initialize the tf networks used """
-        with tf.variable_scope('primitive_filter'):
-            tf_map_generator = self._hyperparams['primitive_network_model']
-            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim+self._dObj+self._dTarg, batch_size=self.batch_size,
-                                      network_config=self._hyperparams['primitive_network_params'])
-            self.primitive_obs_tensor = tf_map.get_input_tensor()
-            self.primitive_precision_tensor = tf_map.get_precision_tensor()
-            self.primitive_action_tensor = tf_map.get_target_output_tensor()
-            self.primitive_act_op = tf_map.get_output_op()
-            self.primitive_feat_op = tf_map.get_feature_op()
-            self.primitive_loss_scalar = tf_map.get_loss_op()
-            self.primitive_fc_vars = fc_vars
-            self.primitive_last_conv_vars = last_conv_vars
-
-            # Setup the gradients
-            self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim+self._dObj+self._dTarg)]
-
-        with tf.variable_scope('value_filter'):
-            tf_map_generator = self._hyperparams['value_network_model']
-            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=1, batch_size=self.batch_size,
-                                      network_config=self._hyperparams['network_params'])
-            self.value_obs_tensor = tf_map.get_input_tensor()
-            self.value_precision_tensor = tf_map.get_precision_tensor()
-            self.value_action_tensor = tf_map.get_target_output_tensor()
-            self.value_act_op = tf_map.get_output_op()
-            self.value_feat_op = tf_map.get_feature_op()
-            self.value_loss_scalar = tf_map.get_loss_op()
-            self.value_fc_vars = fc_vars
-            self.value_last_conv_vars = last_conv_vars
-
-            # Setup the gradients
-            self.value_grads = [tf.gradients(self.value_act_op[:,u], self.value_obs_tensor)[0] for u in range(1)]
-
-        with tf.variable_scope('distilled'):
-            tf_map_generator = self._hyperparams['distilled_network_model']
-            tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dU, batch_size=self.batch_size,
-                                      network_config=self._hyperparams['distilled_network_params'])
-            self.distilled_obs_tensor = tf_map.get_input_tensor()
-            self.distilled_precision_tensor = tf_map.get_precision_tensor()
-            self.distilled_action_tensor = tf_map.get_target_output_tensor()
-            self.distilled_act_op = tf_map.get_output_op()
-            self.distilled_feat_op = tf_map.get_feature_op()
-            self.distilled_loss_scalar = tf_map.get_loss_op()
-            self.distilled_fc_vars = fc_vars
-            self.distilled_last_conv_vars = last_conv_vars
-
-            # Setup the gradients
-            self.distilled_grads = [tf.gradients(self.distilled_act_op[:,u], self.distilled_obs_tensor)[0] for u in range(self._dU)]
-
-        for task in self.task_list:
-            with tf.variable_scope(task):
-                self.task_map[task] = {}
-                tf_map_generator = self._hyperparams['network_model']
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dU, batch_size=self.batch_size,
-                                          network_config=self._hyperparams['network_params'])
-                self.task_map[task]['obs_tensor'] = tf_map.get_input_tensor()
-                self.task_map[task]['precision_tensor'] = tf_map.get_precision_tensor()
-                self.task_map[task]['action_tensor'] = tf_map.get_target_output_tensor()
-                self.task_map[task]['act_op'] = tf_map.get_output_op()
-                self.task_map[task]['feat_op'] = tf_map.get_feature_op()
-                self.task_map[task]['loss_scalar'] = tf_map.get_loss_op()
-                self.task_map[task]['fc_vars'] = fc_vars
-                self.task_map[task]['last_conv_vars'] = last_conv_vars
+        if 'scope' not in self.hyperparams or 'primitive' == self.hyperparams['scope']:
+            with tf.variable_scope('primitive_filter'):
+                tf_map_generator = self._hyperparams['primitive_network_model']
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim+self._dObj+self._dTarg, batch_size=self.batch_size,
+                                          network_config=self._hyperparams['primitive_network_params'])
+                self.primitive_obs_tensor = tf_map.get_input_tensor()
+                self.primitive_precision_tensor = tf_map.get_precision_tensor()
+                self.primitive_action_tensor = tf_map.get_target_output_tensor()
+                self.primitive_act_op = tf_map.get_output_op()
+                self.primitive_feat_op = tf_map.get_feature_op()
+                self.primitive_loss_scalar = tf_map.get_loss_op()
+                self.primitive_fc_vars = fc_vars
+                self.primitive_last_conv_vars = last_conv_vars
 
                 # Setup the gradients
-                self.task_map[task]['grads'] = [tf.gradients(self.task_map[task]['act_op'][:,u], self.task_map[task]['obs_tensor'])[0] for u in range(self._dU)]
+                self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim+self._dObj+self._dTarg)]
+
+        if 'scope' not in self.hyperparams or 'value' == self.hyperparams['scope']:
+            with tf.variable_scope('value_filter'):
+                tf_map_generator = self._hyperparams['value_network_model']
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=1, batch_size=self.batch_size,
+                                          network_config=self._hyperparams['network_params'])
+                self.value_obs_tensor = tf_map.get_input_tensor()
+                self.value_precision_tensor = tf_map.get_precision_tensor()
+                self.value_action_tensor = tf_map.get_target_output_tensor()
+                self.value_act_op = tf_map.get_output_op()
+                self.value_feat_op = tf_map.get_feature_op()
+                self.value_loss_scalar = tf_map.get_loss_op()
+                self.value_fc_vars = fc_vars
+                self.value_last_conv_vars = last_conv_vars
+
+                # Setup the gradients
+                self.value_grads = [tf.gradients(self.value_act_op[:,u], self.value_obs_tensor)[0] for u in range(1)]
+
+        # with tf.variable_scope('distilled'):
+        #     tf_map_generator = self._hyperparams['distilled_network_model']
+        #     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dU, batch_size=self.batch_size,
+        #                               network_config=self._hyperparams['distilled_network_params'])
+        #     self.distilled_obs_tensor = tf_map.get_input_tensor()
+        #     self.distilled_precision_tensor = tf_map.get_precision_tensor()
+        #     self.distilled_action_tensor = tf_map.get_target_output_tensor()
+        #     self.distilled_act_op = tf_map.get_output_op()
+        #     self.distilled_feat_op = tf_map.get_feature_op()
+        #     self.distilled_loss_scalar = tf_map.get_loss_op()
+        #     self.distilled_fc_vars = fc_vars
+        #     self.distilled_last_conv_vars = last_conv_vars
+
+        #     # Setup the gradients
+        #     self.distilled_grads = [tf.gradients(self.distilled_act_op[:,u], self.distilled_obs_tensor)[0] for u in range(self._dU)]
+
+        for task in self.task_list:
+            if 'scope' not in self.hyperparams or task == self.hyperparams['scope']:
+                with tf.variable_scope(task):
+                    self.task_map[task] = {}
+                    tf_map_generator = self._hyperparams['network_model']
+                    tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dU, batch_size=self.batch_size,
+                                              network_config=self._hyperparams['network_params'])
+                    self.task_map[task]['obs_tensor'] = tf_map.get_input_tensor()
+                    self.task_map[task]['precision_tensor'] = tf_map.get_precision_tensor()
+                    self.task_map[task]['action_tensor'] = tf_map.get_target_output_tensor()
+                    self.task_map[task]['act_op'] = tf_map.get_output_op()
+                    self.task_map[task]['feat_op'] = tf_map.get_feature_op()
+                    self.task_map[task]['loss_scalar'] = tf_map.get_loss_op()
+                    self.task_map[task]['fc_vars'] = fc_vars
+                    self.task_map[task]['last_conv_vars'] = last_conv_vars
+
+                    # Setup the gradients
+                    self.task_map[task]['grads'] = [tf.gradients(self.task_map[task]['act_op'][:,u], self.task_map[task]['obs_tensor'])[0] for u in range(self._dU)]
 
     def init_solver(self):
         """ Helper method to initialize the solver. """
-        vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive_filter')
-        self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
+        if 'scope' not in self.hyperparams or 'primitive' == self.hyperparams['scope']:
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive_filter')
+            self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
+                                               solver_name=self._hyperparams['solver_type'],
+                                               base_lr=self._hyperparams['lr'],
+                                               lr_policy=self._hyperparams['lr_policy'],
+                                               momentum=self._hyperparams['momentum'],
+                                               weight_decay=0.,
+                                               fc_vars=self.primitive_fc_vars,
+                                               last_conv_vars=self.primitive_last_conv_vars,
+                                               vars_to_opt=vars_to_opt)
+
+        if 'scope' not in self.hyperparams or 'value' == self.hyperparams['scope']:
+            self.value_solver = TfSolver(loss_scalar=self.value_loss_scalar,
                                            solver_name=self._hyperparams['solver_type'],
                                            base_lr=self._hyperparams['lr'],
                                            lr_policy=self._hyperparams['lr_policy'],
                                            momentum=self._hyperparams['momentum'],
                                            weight_decay=0.,
-                                           fc_vars=self.primitive_fc_vars,
-                                           last_conv_vars=self.primitive_last_conv_vars,
+                                           fc_vars=self.value_fc_vars,
+                                           last_conv_vars=self.value_last_conv_vars,
                                            vars_to_opt=vars_to_opt)
 
-        self.value_solver = TfSolver(loss_scalar=self.value_loss_scalar,
-                                       solver_name=self._hyperparams['solver_type'],
-                                       base_lr=self._hyperparams['lr'],
-                                       lr_policy=self._hyperparams['lr_policy'],
-                                       momentum=self._hyperparams['momentum'],
-                                       weight_decay=0.,
-                                       fc_vars=self.value_fc_vars,
-                                       last_conv_vars=self.value_last_conv_vars,
-                                       vars_to_opt=vars_to_opt)
-
-        vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='distilled')
-        self.distilled_solver = TfSolver(loss_scalar=self.distilled_loss_scalar,
-                                           solver_name=self._hyperparams['solver_type'],
-                                           base_lr=self._hyperparams['lr'],
-                                           lr_policy=self._hyperparams['lr_policy'],
-                                           momentum=self._hyperparams['momentum'],
-                                           weight_decay=self._hyperparams['weight_decay'],
-                                           fc_vars=self.distilled_fc_vars,
-                                           last_conv_vars=self.distilled_last_conv_vars,
-                                           vars_to_opt=vars_to_opt)
+        # vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='distilled')
+        # self.distilled_solver = TfSolver(loss_scalar=self.distilled_loss_scalar,
+        #                                    solver_name=self._hyperparams['solver_type'],
+        #                                    base_lr=self._hyperparams['lr'],
+        #                                    lr_policy=self._hyperparams['lr_policy'],
+        #                                    momentum=self._hyperparams['momentum'],
+        #                                    weight_decay=self._hyperparams['weight_decay'],
+        #                                    fc_vars=self.distilled_fc_vars,
+        #                                    last_conv_vars=self.distilled_last_conv_vars,
+        #                                    vars_to_opt=vars_to_opt)
 
         for task in self.task_list:
-            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
-            self.task_map[task]['solver'] = TfSolver(loss_scalar=self.task_map[task]['loss_scalar'],
-                                                   solver_name=self._hyperparams['solver_type'],
-                                                   base_lr=self._hyperparams['lr'],
-                                                   lr_policy=self._hyperparams['lr_policy'],
-                                                   momentum=self._hyperparams['momentum'],
-                                                   weight_decay=self._hyperparams['weight_decay'],
-                                                   fc_vars=self.task_map[task]['fc_vars'],
-                                                   last_conv_vars=self.task_map[task]['last_conv_vars'],
-                                                   vars_to_opt=vars_to_opt)
+            if 'scope' not in self.hyperparams or task == self.hyperparams['scope']:
+                vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
+                self.task_map[task]['solver'] = TfSolver(loss_scalar=self.task_map[task]['loss_scalar'],
+                                                       solver_name=self._hyperparams['solver_type'],
+                                                       base_lr=self._hyperparams['lr'],
+                                                       lr_policy=self._hyperparams['lr_policy'],
+                                                       momentum=self._hyperparams['momentum'],
+                                                       weight_decay=self._hyperparams['weight_decay'],
+                                                       fc_vars=self.task_map[task]['fc_vars'],
+                                                       last_conv_vars=self.task_map[task]['last_conv_vars'],
+                                                       vars_to_opt=vars_to_opt)
         self.saver = tf.train.Saver()
 
     def init_policies(self, dU):
         for task in self.task_list:
-            self.task_map[task]['policy'] = TfPolicy(dU, 
-                                                    self.task_map[task]['obs_tensor'], 
-                                                    self.task_map[task]['act_op'], 
-                                                    self.task_map[task]['feat_op'],
-                                                    np.zeros(dU), 
-                                                    self.sess, 
-                                                    self.device_string, 
-                                                    copy_param_scope=None)
-        self.distilled_policy = TfPolicy(dU,
-                                         self.distilled_obs_tensor,
-                                         self.distilled_act_op,
-                                         self.distilled_feat_op,
-                                         np.zeros(dU),
-                                         self.sess,
-                                         self.device_string,
-                                         copy_param_scope=None)
+            if 'scope' not in self.hyperparams or task == self.hyperparams['scope']:
+                self.task_map[task]['policy'] = TfPolicy(dU, 
+                                                        self.task_map[task]['obs_tensor'], 
+                                                        self.task_map[task]['act_op'], 
+                                                        self.task_map[task]['feat_op'],
+                                                        np.zeros(dU), 
+                                                        self.sess, 
+                                                        self.device_string, 
+                                                        copy_param_scope=None)
+        # self.distilled_policy = TfPolicy(dU,
+        #                                  self.distilled_obs_tensor,
+        #                                  self.distilled_act_op,
+        #                                  self.distilled_feat_op,
+        #                                  np.zeros(dU),
+        #                                  self.sess,
+        #                                  self.device_string,
+        #                                  copy_param_scope=None)
 
     def task_distr(self, obs):
         distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs}).flatten()
@@ -225,7 +232,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
     def value(self, obs):
         value = self.sess.run(self.value_act_op, feed_dict={self.value_obs_tensor:obs}).flatten()
-        return value[0]
+        return value.flatten()
 
     def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task=""):
         """
@@ -238,6 +245,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
+        if np.any(np.isnan(tgt_mu)) or np.any(np.abs(tgt_mu) == np.inf):
+            import ipdb; ipdb.set_trace()
         N, T = obs.shape[:2]
         dU, dO = self._dU, self._dO
 
@@ -276,8 +285,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             policy.x_idx = self.x_idx
             # 1e-3 to avoid infs if some state dimensions don't change in the
             # first batch of samples
+            # policy.scale = np.diag(
+            #     1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-3))
             policy.scale = np.diag(
-                1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-3))
+                1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-1))
             policy.bias = - np.mean(
                 obs[:, self.x_idx].dot(policy.scale), axis=0)
         obs[:, self.x_idx] = obs[:, self.x_idx].dot(policy.scale) + policy.bias
@@ -447,7 +458,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         """
         print 'Updating value network...'
         N = obs.shape[0]
-        dP, dO = 1, self._dO
+        dP, dO = 2, self._dO
 
         # TODO - Make sure all weights are nonzero?
 

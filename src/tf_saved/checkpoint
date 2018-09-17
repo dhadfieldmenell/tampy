@@ -1,2 +1,2 @@
-model_checkpoint_path: "baxter902.ckpt"
-all_model_checkpoint_paths: "baxter902.ckpt"
+model_checkpoint_path: "2018-09-16 16:23:20.980034_namo_5.ckpt"
+all_model_checkpoint_paths: "2018-09-16 16:23:20.980034_namo_5.ckpt"

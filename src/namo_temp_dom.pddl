@@ -5,26 +5,27 @@
                  (CanObstructs ?can1 - Can ?can2 - Can)
                  (CanObstructsTarget ?can - Can ?target - Target)
                  (CanInReach ?can - Can)
+                 (NearCan ?can - Can)
+                 (WaitingOnCan ?waiter - Can ?obstr - Can)
+                 (WaitingOnTarget ?waiter - Can ?obstr - Target)
     )
 
     (:types Can Target)
 
-    (:action grasp
-        :parameters (?can - Can)
-        :precondition (forall (?c - Can) (not (CanObstructs ?c ?can)))
-        :effect (and (CanInGripper ?can)
-                     (forall (?c - Can) (when (not (= ?c ?can)) (not (CanInGripper ?c)))))
-    )
-
-    (:action putdown
+    (:action move_can
         :parameters (?can - Can ?target - Target)
-        :precondition (and (CanInGripper ?can)
+        :precondition (and (forall (?c - Can) (not (CanObstructs ?c ?can)))
                            (forall (?c - Can) (not (CanAtTarget ?c ?target)))
-                           (forall (?c - Can) (not (CanObstructsTarget ?c ?target))))
-        :effect (and (not (CanInGripper ?can))
-                     (CanAtTarget ?can ?target)
+                           (forall (?c - Can) (not (WaitingOnCan ?can ?c)))
+                           (forall (?t - Target) (not (WaitingOnTarget ?can ?t))))
+        :effect (and (CanAtTarget ?can ?target)
+                     (forall (?c - Can) (when (CanObstructs ?can ?c) (WaitingOnCan ?can ?c)))
+                     (forall (?t - Target) (when (CanObstructsTarget ?can ?t) (WaitingOnTarget ?can ?t)))
                      (forall (?c - Can) (not (CanObstructs ?can ?c)))
+                     (forall (?c - Can) (not (WaitingOnCan ?c ?can)))
+                     (forall (?c - Can) (not (WaitingOnTarget ?c ?target)))
                      (forall (?t - Target) (when (not (= ?t ?target)) (not (CanAtTarget ?can ?t))))
                      (forall (?t - Target) (when (not (= ?t ?target)) (not (CanObstructsTarget ?can ?t)))))
     )
+
 )

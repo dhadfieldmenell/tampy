@@ -1,4 +1,6 @@
 import copy
+import sys
+import traceback
 
 import cPickle as pickle
 
@@ -195,6 +197,8 @@ class BaxterSortingAgent(Agent):
             sample.set(OBJ_ENUM, obj_vec, t)
             sample.set(TARG_ENUM, targ_vec, t)
             sample.task = task[0]
+            sample.obj = task[1]
+            sample.targ = task[2]
             sample.condition = condition
 
             if use_prim_obs:
@@ -203,9 +207,9 @@ class BaxterSortingAgent(Agent):
                 obs = sample.get_obs(t=t)
 
             U = policy.act(sample.get_X(t=t), obs, t, noise[t])
-            sample.set(ACTION_ENUM, U.copy(), t)
             if np.any(np.isnan(U)):
                 U[np.isnan(U)] = 0
+            sample.set(ACTION_ENUM, U.copy(), t)
                 # import ipdb; ipdb.set_trace()
             
             self.traj_hist.append(U)
@@ -215,6 +219,17 @@ class BaxterSortingAgent(Agent):
             self.run_policy_step(U, X, self.plans[task[:2]], t)
 
         return sample
+
+
+    def resample(self, sample_lists, policy, num_samples):
+        samples = []
+        for slist in sample_lists:
+            s = slist[0]
+            samples.append([])
+            for i in range(num_samples):
+                samples[-1].append(self.sample_task(policy, s.condition, s.get_X(t=0), (s.task, s.obj, s.targ)))
+            samples[-1] = SampleList(samples[-1])
+        return samples
 
 
     def run_policy_step(self, u, x, plan, t):
@@ -348,20 +363,34 @@ class BaxterSortingAgent(Agent):
             # if task == 'grasp':
             #     plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
             # self.env.SetViewer('qtcoin')
-            success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
-            # try:
-            #     success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
-            #     # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
-            #     # import ipdb; ipdb.set_trace()
-            #     # if task == 'putdown':
-            #     #     import ipdb; ipdb.set_trace()
-            #     # self.env.SetViewer('qtcoin')
-            #     # import ipdb; ipdb.set_trace()
-            # except Exception as e:
-            #     print e
-            #     # self.env.SetViewer('qtcoin')
-            #     # import ipdb; ipdb.set_trace()
-            #     success = False
+            # success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+            # print success
+            # if not success:
+            #     print plan.get_failed_preds(tol=1e-3, active_ts=(0,19))
+            try:
+                success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean)
+                # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
+                # import ipdb; ipdb.set_trace()
+                # if task == 'putdown':
+                #     import ipdb; ipdb.set_trace()
+                # self.env.SetViewer('qtcoin')
+                # import ipdb; ipdb.set_trace()
+            except Exception as e:
+                traceback.print_exception(*sys.exc_info())
+                # self.env.SetViewer('qtcoin')
+                # import ipdb; ipdb.set_trace()
+                success = False
+
+            if not success:
+                print state
+                print plan.actions
+                print plan.state_inds
+                for action in plan.actions:
+                    try:
+                        print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
+                    except:
+                        pass
+                print '\n\n'
 
             try:
                 exclude_targets.append(targets[0].name)

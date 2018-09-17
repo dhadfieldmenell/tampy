@@ -38,6 +38,8 @@ class StateTrajCost(Cost):
             config = self._hyperparams['data_types'][data_type]
             wp = config['wp']
             tgt = sample.get_ref_X().copy()
+            if np.any(np.isnan(tgt)):
+                import ipdb; ipdb.set_trace()
             x = sample.get(STATE_ENUM)
             _, dim_sensor = x.shape
 

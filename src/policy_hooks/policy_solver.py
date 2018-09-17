@@ -45,7 +45,7 @@ def get_base_solver(parent_class):
             self.transfer_coeff = 1e0
             self.weak_transfer_coeff = 1e-2
             self.rs_coeff = 2e2
-            self.trajopt_coeff = 1e0
+            self.trajopt_coeff = 1e2
             self.policy_pred = None
             self.transfer_always = False
             self.gps = None
@@ -99,7 +99,20 @@ def get_base_solver(parent_class):
                             p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                             p._free_attrs[attr][:, active_ts[1]] = 0
                 self.child_solver = self.__class__()
-                success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, traj_mean=traj_mean, task=task)
+                self.child_solver.dX = self.dX
+                self.child_solver.dU = self.dU
+                self.child_solver.symbolic_bound = self.symbolic_bound
+                self.child_solver.state_inds = self.state_inds
+                self.child_solver.action_inds = self.action_inds
+                self.child_solver.agent = self.agent
+                self.child_solver.policy_out_coeff = self.policy_out_coeff
+                self.child_solver.policy_inf_coeff = self.policy_inf_coeff
+                self.child_solver.gps = self.gps
+                self.child_solver.policy_fs = self.policy_fs
+                self.child_solver.policy_inf_fs = self.policy_inf_fs
+                self.child_solver.target_inds = self.target_inds
+                self.child_solver.target_dim = self.target_dim
+                success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, n_resamples=n_resamples, traj_mean=traj_mean, task=task)
 
                 # reset free_attrs
                 for p in plan.params.itervalues():
@@ -150,7 +163,7 @@ def get_base_solver(parent_class):
             """
             sampler_begin
             """
-            robot_poses = self.obj_pose_suggester(plan, anum, resample_size=3)
+            robot_poses = self.obj_pose_suggester(plan, anum, resample_size=1)
 
             """
             sampler end
@@ -168,6 +181,19 @@ def get_base_solver(parent_class):
 
                 success = False
                 self.child_solver = self.__class__()
+                self.child_solver.dX = self.dX
+                self.child_solver.dU = self.dU
+                self.child_solver.symbolic_bound = self.symbolic_bound
+                self.child_solver.state_inds = self.state_inds
+                self.child_solver.action_inds = self.action_inds
+                self.child_solver.agent = self.agent
+                self.child_solver.policy_out_coeff = self.policy_out_coeff
+                self.child_solver.policy_inf_coeff = self.policy_inf_coeff
+                self.child_solver.gps = self.gps
+                self.child_solver.policy_fs = self.policy_fs
+                self.child_solver.policy_inf_fs = self.policy_inf_fs
+                self.child_solver.target_inds = self.target_inds
+                self.child_solver.target_dim = self.target_dim
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts = active_ts, verbose=verbose,
                                                   force_init=True, traj_mean=traj_mean, task=task)
@@ -193,7 +219,7 @@ def get_base_solver(parent_class):
                 #     active_ts=active_ts, verbose=verbose)
                 plan.initialized=True
 
-            if success or len(plan.get_failed_preds(active_ts=active_ts)) == 0:
+            if success or len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0:
                 return True
 
             for priority in self.solve_priorities:
@@ -380,6 +406,8 @@ def get_base_solver(parent_class):
                 sample.set(TASK_ENUM, task_vec, t-start_t)
                 sample.set(OBJ_ENUM, obj_vec, t-start_t)
                 sample.set(TARG_ENUM, targ_vec, t-start_t)
+                sample.set(OBJ_POSE_ENUM, state[t][plan.state_inds[self.agent.obj_list[j], 'pose']], t-start_t)
+                sample.set(TARG_POSE_ENUM, plan.params[self.agent.targ_list[k]].value[:,0].copy(), t-start_t)
                 sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
                 sample.set(TARGETS_ENUM, target_vec, t-start_t)
                 sample.set(ACTION_ENUM, act[t-start_t], t-start_t)
@@ -442,7 +470,7 @@ def get_base_solver(parent_class):
                 param = plan.params[p_name]
                 target_vec[self.target_inds[p_name, a_name]] = getattr(param, a_name).flatten()
             for t in range(start_t, end_t+1):
-                sample.set(STATE_ENUM, state[:, t], t-start_t)
+                sample.set(STATE_ENUM, state[:, t-start_t], t-start_t)
                 task_vec = np.zeros((len(self.agent.task_list)))
                 task_vec[i] = 1
                 obj_vec = np.zeros((len(self.agent.obj_list)))
@@ -457,6 +485,8 @@ def get_base_solver(parent_class):
                 sample.set(TASK_ENUM, task_vec, t-start_t)
                 sample.set(OBJ_ENUM, obj_vec, t-start_t)
                 sample.set(TARG_ENUM, targ_vec, t-start_t)
+                sample.set(OBJ_POSE_ENUM, state[:, t-start_t][plan.state_inds[self.agent.obj_list[j], 'pose']], t-start_t)
+                sample.set(TARG_POSE_ENUM, plan.params[self.agent.targ_list[k]].value[:,0].copy(), t-start_t)
                 sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
                 sample.set(TARGETS_ENUM, target_vec, t-start_t)
                 sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)
@@ -562,8 +592,11 @@ def get_base_solver(parent_class):
                 obj_bexprs = []
                 if self.transfer_always:
                     obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm, coeff=self.weak_transfer_coeff))
+                else:
+                    obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
+
                 if task is not None and task in self.policy_inf_fs:
-                        obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
+                    obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
                 # if priority >= 0 and len(traj_mean):
                 #     obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
                 # self.transfer_coeff *= 1e1
@@ -578,7 +611,6 @@ def get_base_solver(parent_class):
                     """
                     Initialize an linear trajectory while enforceing the linear constraints in the intermediate step.
                     """
-                    obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                     self._add_obj_bexprs(obj_bexprs)
                     self._add_first_and_last_timesteps_of_actions(plan,
                         priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
@@ -588,14 +620,12 @@ def get_base_solver(parent_class):
                     """
                     Solve the optimization problem while enforcing every constraints.
                     """
-                    obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                     self._add_obj_bexprs(obj_bexprs)
                     self._add_first_and_last_timesteps_of_actions(plan,
                         priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
                         add_nonlin=True)
                     tol = 1e-3
                 elif priority >= 0:
-                    obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                     self._add_obj_bexprs(obj_bexprs)
                     self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
                                                        active_ts=active_ts, verbose=verbose)
@@ -609,19 +639,21 @@ def get_base_solver(parent_class):
             solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
             success = solv.solve(self._prob, method='penalty_sqp', tol=tol)
+            if priority == MAX_PRIORITY:
+                success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
             self._update_ll_params()
 
-            if resample:
-                if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
-                    reward = 0
-                    if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
-                        reward = len(plan.actions)
-                    else:
-                        failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
-                        for i in range(len(plan.actions)):
-                            if failed_t > plan.actions[i].active_timesteps[1]:
-                                reward += 1
-                    plan.sampling_trace[-1]['reward'] = reward
+            # if resample:
+            #     if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
+            #         reward = 0
+            #         if len(plan.get_failed_preds(active_ts = active_ts, priority=priority)) == 0:
+            #             reward = len(plan.actions)
+            #         else:
+            #             failed_t = plan.get_failed_pred(active_ts=(0,active_ts[1]), priority=priority)[2]
+            #             for i in range(len(plan.actions)):
+            #                 if failed_t > plan.actions[i].active_timesteps[1]:
+            #                     reward += 1
+            #         plan.sampling_trace[-1]['reward'] = reward
             ##Restore free_attrs values
             plan.restore_free_attrs()
 

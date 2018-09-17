@@ -128,6 +128,7 @@ class BaxterPolicySolver(BASE_CLASS):
         self.config['cost_f'] = cost_f
         self.config['target_f'] = get_next_target
         self.config['encode_f'] = sorting_state_encode
+        self.config['weight_file'] = 'tf_saved/2018-09-07 17:55:16.847326_baxter_4.ckpt'
 
         self.config['task_durations'] = self.task_durations
 

@@ -122,550 +122,547 @@ Minimize
    + 0 C972 + 0 C973 + 0 C974 + 0 C975 + 0 C976 + 0 C977 + 0 C978 + 0 C979
    + 0 C980 + 0 C981 + 0 C982 + 0 C983 + 0 C984 + 0 C985 + 0 C986 + 0 C987
    + 0 C988 + 0 C989 + 0 C990 + 0 C991 + 0 C992 + 0 C993 + 0 C994 + 0 C995
-   + 0 C996 + 0 C997 + 0 C998 + 0 C999
-   - 358.5504494350125 (robot_init_pose-value-(0,_0))
-   - 555.6222119010955 (robot_init_pose-value-(1,_0))
-   + 2 (can0_init_target-value-(1,_0))
-   + 28.57656400724827 (pr2-gripper-(0,_0))
-   + 11.34276272607207 (pr2-gripper-(0,_1))
-   + 16.97171439833433 (pr2-gripper-(0,_2))
-   + 21.16070137342013 (pr2-gripper-(0,_3))
-   + 22.14146179501218 (pr2-gripper-(0,_4))
-   + 20.05021030921066 (pr2-gripper-(0,_5))
-   + 17.81042283192978 (pr2-gripper-(0,_6))
-   + 17.3414353391843 (pr2-gripper-(0,_7))
-   + 18.0822047715393 (pr2-gripper-(0,_8))
-   + 17.61365834207597 (pr2-gripper-(0,_9))
-   + 15.46390516110563 (pr2-gripper-(0,_10))
-   + 12.55791946566799 (pr2-gripper-(0,_11))
-   + 11.21395880262193 (pr2-gripper-(0,_12))
-   + 11.99406623060482 (pr2-gripper-(0,_13))
-   + 13.42922834919746 (pr2-gripper-(0,_14))
-   + 13.86416916069188 (pr2-gripper-(0,_15))
-   + 12.7682275851642 (pr2-gripper-(0,_16))
-   + 10.17883498587967 (pr2-gripper-(0,_17))
-   + 5.785136572587898 (pr2-gripper-(0,_18))
-   + 0.6582171048923783 (pr2-gripper-(0,_19))
-   - 2.844433973146596 (pr2-gripper-(0,_20))
-   - 2.458555025735309 (pr2-gripper-(0,_21))
-   + 1.605631268891443 (pr2-gripper-(0,_22))
-   + 7.191844994490364 (pr2-gripper-(0,_23))
-   - 1075.651348305038 (pr2-pose-(0,_0))
-   + 49.54047796694805 (pr2-pose-(0,_1))
-   - 383.3600435584953 (pr2-pose-(0,_2))
-   - 1061.409022636549 (pr2-pose-(0,_3))
-   - 1824.843174331631 (pr2-pose-(0,_4))
-   - 1910.113218630608 (pr2-pose-(0,_5))
-   - 1115.066691080751 (pr2-pose-(0,_6))
-   - 211.6038241491653 (pr2-pose-(0,_7))
-   + 79.28726058498756 (pr2-pose-(0,_8))
-   - 349.5551465737544 (pr2-pose-(0,_9))
-   - 749.6738443499478 (pr2-pose-(0,_10))
-   - 1103.628435909944 (pr2-pose-(0,_11))
-   - 1268.554144019872 (pr2-pose-(0,_12))
-   - 934.0389864507298 (pr2-pose-(0,_13))
-   - 404.0899347197451 (pr2-pose-(0,_14))
-   + 36.74516516044118 (pr2-pose-(0,_15))
-   - 2.055063064578698 (pr2-pose-(0,_16))
-   - 330.6285651149013 (pr2-pose-(0,_17))
-   - 629.0415071112756 (pr2-pose-(0,_18))
-   - 663.168201044955 (pr2-pose-(0,_19))
-   - 566.10332730587 (pr2-pose-(0,_20))
-   - 210.0079033673432 (pr2-pose-(0,_21))
-   - 58.88014789419867 (pr2-pose-(0,_22))
-   + 90.57928091156937 (pr2-pose-(0,_23))
-   - 1666.866635703287 (pr2-pose-(1,_0))
-   - 4818.664268211851 (pr2-pose-(1,_1))
-   - 4507.426207936011 (pr2-pose-(1,_2))
-   - 4735.299157687566 (pr2-pose-(1,_3))
-   - 4922.611441573792 (pr2-pose-(1,_4))
-   - 6262.822830533238 (pr2-pose-(1,_5))
-   - 8134.854573344679 (pr2-pose-(1,_6))
-   - 9281.61771054404 (pr2-pose-(1,_7))
-   - 9094.424829338177 (pr2-pose-(1,_8))
-   - 8106.116973245589 (pr2-pose-(1,_9))
-   - 7123.23526770149 (pr2-pose-(1,_10))
-   - 6258.551609537505 (pr2-pose-(1,_11))
-   - 6269.927996301009 (pr2-pose-(1,_12))
-   - 7213.825955862445 (pr2-pose-(1,_13))
-   - 8058.491864086514 (pr2-pose-(1,_14))
-   - 8033.267088692877 (pr2-pose-(1,_15))
-   - 7355.999081141741 (pr2-pose-(1,_16))
-   - 6878.547335133228 (pr2-pose-(1,_17))
-   - 6163.0293201048 (pr2-pose-(1,_18))
-   - 5813.940573833053 (pr2-pose-(1,_19))
-   - 5822.16399942313 (pr2-pose-(1,_20))
-   - 6059.094270105706 (pr2-pose-(1,_21))
-   - 6170.187569662541 (pr2-pose-(1,_22))
-   - 5995.127380242127 (pr2-pose-(1,_23))
-   + 14.40799999237061 (pr2-pose-(1,_24)) + 14 (obs0-pose-(0,_0))
-   + 21 (obs0-pose-(0,_1)) + 21 (obs0-pose-(0,_2)) + 21 (obs0-pose-(0,_3))
-   + 21 (obs0-pose-(0,_4)) + 21 (obs0-pose-(0,_5)) + 21 (obs0-pose-(0,_6))
-   + 21 (obs0-pose-(0,_7)) + 21 (obs0-pose-(0,_8)) + 21 (obs0-pose-(0,_9))
-   + 21 (obs0-pose-(0,_10)) + 21 (obs0-pose-(0,_11))
-   + 21 (obs0-pose-(0,_12)) + 21 (obs0-pose-(0,_13))
-   + 21 (obs0-pose-(0,_14)) + 21 (obs0-pose-(0,_15))
-   + 21 (obs0-pose-(0,_16)) + 21 (obs0-pose-(0,_17))
-   + 21 (obs0-pose-(0,_18)) + 21 (obs0-pose-(0,_19))
-   + 21 (obs0-pose-(0,_20)) + 21 (obs0-pose-(0,_21))
-   + 21 (obs0-pose-(0,_22)) + 21 (obs0-pose-(0,_23))
-   + 14 (obs0-pose-(0,_24)) + 6 (can0-pose-(1,_0)) + 6 (can0-pose-(1,_1))
-   + 6 (can0-pose-(1,_2)) + 6 (can0-pose-(1,_3)) + 6 (can0-pose-(1,_4))
-   + 6 (can0-pose-(1,_5)) + 6 (can0-pose-(1,_6)) + 6 (can0-pose-(1,_7))
-   + 6 (can0-pose-(1,_8)) + 6 (can0-pose-(1,_9)) + 6 (can0-pose-(1,_10))
-   + 6 (can0-pose-(1,_11)) + 6 (can0-pose-(1,_12)) + 6 (can0-pose-(1,_13))
-   + 6 (can0-pose-(1,_14)) + 6 (can0-pose-(1,_15)) + 6 (can0-pose-(1,_16))
-   + 6 (can0-pose-(1,_17)) + 6 (can0-pose-(1,_18)) + 6 (can0-pose-(1,_19))
-   + 6 (can0-pose-(1,_20)) + 6 (can0-pose-(1,_21)) + 6 (can0-pose-(1,_22))
-   + 6 (can0-pose-(1,_23)) + 6 (can0-pose-(1,_24)) - 4 (can1-pose-(0,_0))
-   - 6 (can1-pose-(0,_1)) - 6 (can1-pose-(0,_2)) - 6 (can1-pose-(0,_3))
-   - 6 (can1-pose-(0,_4)) - 6 (can1-pose-(0,_5)) - 6 (can1-pose-(0,_6))
-   - 6 (can1-pose-(0,_7)) - 6 (can1-pose-(0,_8)) - 6 (can1-pose-(0,_9))
-   - 6 (can1-pose-(0,_10)) - 6 (can1-pose-(0,_11)) - 6 (can1-pose-(0,_12))
-   - 6 (can1-pose-(0,_13)) - 6 (can1-pose-(0,_14)) - 6 (can1-pose-(0,_15))
-   - 6 (can1-pose-(0,_16)) - 6 (can1-pose-(0,_17)) - 6 (can1-pose-(0,_18))
-   - 6 (can1-pose-(0,_19)) - 6 (can1-pose-(0,_20)) - 6 (can1-pose-(0,_21))
-   - 6 (can1-pose-(0,_22)) - 6 (can1-pose-(0,_23)) - 4 (can1-pose-(0,_24))
-   + 3.602 (robot_end_pose-value-(1,_0)) + 0 (pdp_target1-gripper-(0,_0))
+   + 0 C996 + 0 C997 + 0 C998 + 0 C999 + 0 (pdp_target3-gripper-(0,_0))
+   + 0 (pdp_target3-value-(0,_0)) + 0 (pdp_target3-value-(1,_0))
+   + 0 (pdp_target2-gripper-(0,_0)) + 0 (pdp_target2-value-(0,_0))
+   + 0 (pdp_target2-value-(1,_0)) + 0 (pdp_target1-gripper-(0,_0))
    + 0 (pdp_target1-value-(0,_0)) + 0 (pdp_target1-value-(1,_0))
    + 0 (pdp_target0-gripper-(0,_0)) + 0 (pdp_target0-value-(0,_0))
-   + 0 (pdp_target0-value-(1,_0)) + 8.99509190527495e+07 Constant + [
-   2 (robot_init_pose-value-(0,_0)) ^2
-   + 2 (robot_init_pose-value-(1,_0)) ^2
-   + 2 (can0_init_target-value-(0,_0)) ^2
-   + 2 (can0_init_target-value-(1,_0)) ^2 + 2 (pr2-gripper-(0,_0)) ^2
-   + 4 (pr2-gripper-(0,_1)) ^2 + 4 (pr2-gripper-(0,_2)) ^2
-   + 4 (pr2-gripper-(0,_3)) ^2 + 4 (pr2-gripper-(0,_4)) ^2
-   + 4 (pr2-gripper-(0,_5)) ^2 + 4 (pr2-gripper-(0,_6)) ^2
-   + 4 (pr2-gripper-(0,_7)) ^2 + 4 (pr2-gripper-(0,_8)) ^2
-   + 4 (pr2-gripper-(0,_9)) ^2 + 4 (pr2-gripper-(0,_10)) ^2
-   + 4 (pr2-gripper-(0,_11)) ^2 + 4 (pr2-gripper-(0,_12)) ^2
-   + 4 (pr2-gripper-(0,_13)) ^2 + 4 (pr2-gripper-(0,_14)) ^2
-   + 4 (pr2-gripper-(0,_15)) ^2 + 4 (pr2-gripper-(0,_16)) ^2
-   + 4 (pr2-gripper-(0,_17)) ^2 + 4 (pr2-gripper-(0,_18)) ^2
-   + 4 (pr2-gripper-(0,_19)) ^2 + 4 (pr2-gripper-(0,_20)) ^2
-   + 4 (pr2-gripper-(0,_21)) ^2 + 4 (pr2-gripper-(0,_22)) ^2
-   + 4 (pr2-gripper-(0,_23)) ^2 + 4 (pr2-gripper-(0,_24)) ^2
-   + 6 (pr2-pose-(0,_0)) ^2 + 6 (pr2-pose-(0,_1)) ^2
-   + 6 (pr2-pose-(0,_2)) ^2 + 6 (pr2-pose-(0,_3)) ^2
-   + 6 (pr2-pose-(0,_4)) ^2 + 6 (pr2-pose-(0,_5)) ^2
-   + 6 (pr2-pose-(0,_6)) ^2 + 6 (pr2-pose-(0,_7)) ^2
-   + 6 (pr2-pose-(0,_8)) ^2 + 6 (pr2-pose-(0,_9)) ^2
-   + 6 (pr2-pose-(0,_10)) ^2 + 6 (pr2-pose-(0,_11)) ^2
-   + 6 (pr2-pose-(0,_12)) ^2 + 6 (pr2-pose-(0,_13)) ^2
-   + 6 (pr2-pose-(0,_14)) ^2 + 6 (pr2-pose-(0,_15)) ^2
-   + 6 (pr2-pose-(0,_16)) ^2 + 6 (pr2-pose-(0,_17)) ^2
-   + 6 (pr2-pose-(0,_18)) ^2 + 6 (pr2-pose-(0,_19)) ^2
-   + 6 (pr2-pose-(0,_20)) ^2 + 6 (pr2-pose-(0,_21)) ^2
-   + 6 (pr2-pose-(0,_22)) ^2 + 6 (pr2-pose-(0,_23)) ^2
-   + 8 (pr2-pose-(0,_24)) ^2 + 6 (pr2-pose-(1,_0)) ^2
-   + 6 (pr2-pose-(1,_1)) ^2 + 6 (pr2-pose-(1,_2)) ^2
-   + 6 (pr2-pose-(1,_3)) ^2 + 6 (pr2-pose-(1,_4)) ^2
-   + 6 (pr2-pose-(1,_5)) ^2 + 6 (pr2-pose-(1,_6)) ^2
-   + 6 (pr2-pose-(1,_7)) ^2 + 6 (pr2-pose-(1,_8)) ^2
-   + 6 (pr2-pose-(1,_9)) ^2 + 6 (pr2-pose-(1,_10)) ^2
-   + 6 (pr2-pose-(1,_11)) ^2 + 6 (pr2-pose-(1,_12)) ^2
-   + 6 (pr2-pose-(1,_13)) ^2 + 6 (pr2-pose-(1,_14)) ^2
-   + 6 (pr2-pose-(1,_15)) ^2 + 6 (pr2-pose-(1,_16)) ^2
-   + 6 (pr2-pose-(1,_17)) ^2 + 6 (pr2-pose-(1,_18)) ^2
-   + 6 (pr2-pose-(1,_19)) ^2 + 6 (pr2-pose-(1,_20)) ^2
-   + 6 (pr2-pose-(1,_21)) ^2 + 6 (pr2-pose-(1,_22)) ^2
-   + 6 (pr2-pose-(1,_23)) ^2 + 8 (pr2-pose-(1,_24)) ^2
-   + 4 (obs0-pose-(0,_0)) ^2 + 6 (obs0-pose-(0,_1)) ^2
-   + 6 (obs0-pose-(0,_2)) ^2 + 6 (obs0-pose-(0,_3)) ^2
-   + 6 (obs0-pose-(0,_4)) ^2 + 6 (obs0-pose-(0,_5)) ^2
-   + 6 (obs0-pose-(0,_6)) ^2 + 6 (obs0-pose-(0,_7)) ^2
-   + 6 (obs0-pose-(0,_8)) ^2 + 6 (obs0-pose-(0,_9)) ^2
-   + 6 (obs0-pose-(0,_10)) ^2 + 6 (obs0-pose-(0,_11)) ^2
-   + 6 (obs0-pose-(0,_12)) ^2 + 6 (obs0-pose-(0,_13)) ^2
-   + 6 (obs0-pose-(0,_14)) ^2 + 6 (obs0-pose-(0,_15)) ^2
-   + 6 (obs0-pose-(0,_16)) ^2 + 6 (obs0-pose-(0,_17)) ^2
-   + 6 (obs0-pose-(0,_18)) ^2 + 6 (obs0-pose-(0,_19)) ^2
-   + 6 (obs0-pose-(0,_20)) ^2 + 6 (obs0-pose-(0,_21)) ^2
-   + 6 (obs0-pose-(0,_22)) ^2 + 6 (obs0-pose-(0,_23)) ^2
-   + 4 (obs0-pose-(0,_24)) ^2 + 4 (obs0-pose-(1,_0)) ^2
-   + 6 (obs0-pose-(1,_1)) ^2 + 6 (obs0-pose-(1,_2)) ^2
-   + 6 (obs0-pose-(1,_3)) ^2 + 6 (obs0-pose-(1,_4)) ^2
-   + 6 (obs0-pose-(1,_5)) ^2 + 6 (obs0-pose-(1,_6)) ^2
-   + 6 (obs0-pose-(1,_7)) ^2 + 6 (obs0-pose-(1,_8)) ^2
-   + 6 (obs0-pose-(1,_9)) ^2 + 6 (obs0-pose-(1,_10)) ^2
-   + 6 (obs0-pose-(1,_11)) ^2 + 6 (obs0-pose-(1,_12)) ^2
-   + 6 (obs0-pose-(1,_13)) ^2 + 6 (obs0-pose-(1,_14)) ^2
-   + 6 (obs0-pose-(1,_15)) ^2 + 6 (obs0-pose-(1,_16)) ^2
-   + 6 (obs0-pose-(1,_17)) ^2 + 6 (obs0-pose-(1,_18)) ^2
-   + 6 (obs0-pose-(1,_19)) ^2 + 6 (obs0-pose-(1,_20)) ^2
-   + 6 (obs0-pose-(1,_21)) ^2 + 6 (obs0-pose-(1,_22)) ^2
-   + 6 (obs0-pose-(1,_23)) ^2 + 4 (obs0-pose-(1,_24)) ^2
-   + 6 (can0-pose-(0,_0)) ^2 + 6 (can0-pose-(0,_1)) ^2
-   + 6 (can0-pose-(0,_2)) ^2 + 6 (can0-pose-(0,_3)) ^2
-   + 6 (can0-pose-(0,_4)) ^2 + 6 (can0-pose-(0,_5)) ^2
-   + 6 (can0-pose-(0,_6)) ^2 + 6 (can0-pose-(0,_7)) ^2
-   + 6 (can0-pose-(0,_8)) ^2 + 6 (can0-pose-(0,_9)) ^2
-   + 6 (can0-pose-(0,_10)) ^2 + 6 (can0-pose-(0,_11)) ^2
-   + 6 (can0-pose-(0,_12)) ^2 + 6 (can0-pose-(0,_13)) ^2
-   + 6 (can0-pose-(0,_14)) ^2 + 6 (can0-pose-(0,_15)) ^2
-   + 6 (can0-pose-(0,_16)) ^2 + 6 (can0-pose-(0,_17)) ^2
-   + 6 (can0-pose-(0,_18)) ^2 + 6 (can0-pose-(0,_19)) ^2
-   + 6 (can0-pose-(0,_20)) ^2 + 6 (can0-pose-(0,_21)) ^2
-   + 6 (can0-pose-(0,_22)) ^2 + 6 (can0-pose-(0,_23)) ^2
-   + 6 (can0-pose-(0,_24)) ^2 + 6 (can0-pose-(1,_0)) ^2
-   + 6 (can0-pose-(1,_1)) ^2 + 6 (can0-pose-(1,_2)) ^2
-   + 6 (can0-pose-(1,_3)) ^2 + 6 (can0-pose-(1,_4)) ^2
-   + 6 (can0-pose-(1,_5)) ^2 + 6 (can0-pose-(1,_6)) ^2
-   + 6 (can0-pose-(1,_7)) ^2 + 6 (can0-pose-(1,_8)) ^2
-   + 6 (can0-pose-(1,_9)) ^2 + 6 (can0-pose-(1,_10)) ^2
-   + 6 (can0-pose-(1,_11)) ^2 + 6 (can0-pose-(1,_12)) ^2
-   + 6 (can0-pose-(1,_13)) ^2 + 6 (can0-pose-(1,_14)) ^2
-   + 6 (can0-pose-(1,_15)) ^2 + 6 (can0-pose-(1,_16)) ^2
-   + 6 (can0-pose-(1,_17)) ^2 + 6 (can0-pose-(1,_18)) ^2
-   + 6 (can0-pose-(1,_19)) ^2 + 6 (can0-pose-(1,_20)) ^2
-   + 6 (can0-pose-(1,_21)) ^2 + 6 (can0-pose-(1,_22)) ^2
-   + 6 (can0-pose-(1,_23)) ^2 + 6 (can0-pose-(1,_24)) ^2
-   + 4 (can1-pose-(0,_0)) ^2 + 6 (can1-pose-(0,_1)) ^2
-   + 6 (can1-pose-(0,_2)) ^2 + 6 (can1-pose-(0,_3)) ^2
-   + 6 (can1-pose-(0,_4)) ^2 + 6 (can1-pose-(0,_5)) ^2
-   + 6 (can1-pose-(0,_6)) ^2 + 6 (can1-pose-(0,_7)) ^2
-   + 6 (can1-pose-(0,_8)) ^2 + 6 (can1-pose-(0,_9)) ^2
-   + 6 (can1-pose-(0,_10)) ^2 + 6 (can1-pose-(0,_11)) ^2
-   + 6 (can1-pose-(0,_12)) ^2 + 6 (can1-pose-(0,_13)) ^2
-   + 6 (can1-pose-(0,_14)) ^2 + 6 (can1-pose-(0,_15)) ^2
-   + 6 (can1-pose-(0,_16)) ^2 + 6 (can1-pose-(0,_17)) ^2
-   + 6 (can1-pose-(0,_18)) ^2 + 6 (can1-pose-(0,_19)) ^2
-   + 6 (can1-pose-(0,_20)) ^2 + 6 (can1-pose-(0,_21)) ^2
-   + 6 (can1-pose-(0,_22)) ^2 + 6 (can1-pose-(0,_23)) ^2
-   + 4 (can1-pose-(0,_24)) ^2 + 4 (can1-pose-(1,_0)) ^2
-   + 6 (can1-pose-(1,_1)) ^2 + 6 (can1-pose-(1,_2)) ^2
-   + 6 (can1-pose-(1,_3)) ^2 + 6 (can1-pose-(1,_4)) ^2
-   + 6 (can1-pose-(1,_5)) ^2 + 6 (can1-pose-(1,_6)) ^2
-   + 6 (can1-pose-(1,_7)) ^2 + 6 (can1-pose-(1,_8)) ^2
-   + 6 (can1-pose-(1,_9)) ^2 + 6 (can1-pose-(1,_10)) ^2
-   + 6 (can1-pose-(1,_11)) ^2 + 6 (can1-pose-(1,_12)) ^2
-   + 6 (can1-pose-(1,_13)) ^2 + 6 (can1-pose-(1,_14)) ^2
-   + 6 (can1-pose-(1,_15)) ^2 + 6 (can1-pose-(1,_16)) ^2
-   + 6 (can1-pose-(1,_17)) ^2 + 6 (can1-pose-(1,_18)) ^2
-   + 6 (can1-pose-(1,_19)) ^2 + 6 (can1-pose-(1,_20)) ^2
-   + 6 (can1-pose-(1,_21)) ^2 + 6 (can1-pose-(1,_22)) ^2
-   + 6 (can1-pose-(1,_23)) ^2 + 4 (can1-pose-(1,_24)) ^2
-   + 2 (robot_end_pose-value-(0,_0)) ^2
-   + 2 (robot_end_pose-value-(1,_0)) ^2 ] / 2 
+   + 0 (pdp_target0-value-(1,_0)) + 220.4488656286827 Constant
 Subject To
- R0: (middle_target-value-(0,_0)) = 0
- R1: (middle_target-value-(1,_0)) = 0
- R2: (robot_init_pose-gripper-(0,_0)) = 0
- R3: (robot_init_pose-value-(0,_0)) = 179.2752247175063
- R4: (robot_init_pose-value-(1,_0)) = 277.8111059505478
- R5: (can1_init_target-value-(0,_0)) = 1
- R6: (can1_init_target-value-(1,_0)) = 0
- R7: (grasp0-value-(0,_0)) = 0
- R8: (grasp0-value-(1,_0)) = -0.6010000109672546
+ R0: (can2_init_target-value-(0,_0)) = 2
+ R1: (can2_init_target-value-(1,_0)) = 0.4000000059604645
+ R2: (robot_end_pose-gripper-(0,_0)) = 0
+ R3: (robot_end_pose-value-(0,_0)) = 0
+ R4: (robot_end_pose-value-(1,_0)) = 5.39900016784668
+ R5: (obs0-pose-(0,_0)) = -3.5
+ R6: (obs0-pose-(1,_0)) = 0
+ R7: (can1_end_target-value-(0,_0)) = 0
+ R8: (can1_end_target-value-(1,_0)) = 5
  R9: (right_target-value-(0,_0)) = 1
  R10: (right_target-value-(1,_0)) = 0
- R11: (can1_end_target-value-(0,_0)) = 0
- R12: (can1_end_target-value-(1,_0)) = 5
- R13: (can0_end_target-value-(0,_0)) = 0
- R14: (can0_end_target-value-(1,_0)) = -1
- R15: (can0_init_target-value-(0,_0)) = 0
- R16: (can0_init_target-value-(1,_0)) = -1
- R17: (pr2-gripper-(0,_0)) = -14.28828200362414
- R18: (pr2-pose-(0,_0)) = 179.2752247175063
- R19: (pr2-pose-(1,_0)) = 277.8111059505478
- R20: (robot_end_pose-gripper-(0,_0)) = 0
- R21: (robot_end_pose-value-(0,_0)) = 0
- R22: (robot_end_pose-value-(1,_0)) = -1.801
- R23: (can0-pose-(0,_0)) = 0
- R24: (can0-pose-(1,_0)) = -1
- R25: (can1-pose-(0,_0)) = 1
- R26: (can1-pose-(1,_0)) = 0
- R27: (obs0-pose-(0,_0)) = -3.5
- R28: (obs0-pose-(1,_0)) = 0
- R29: (left_target-value-(0,_0)) = -1
- R30: (left_target-value-(1,_0)) = 0
- R31: - (can0_init_target-value-(0,_0)) + (can0-pose-(0,_0)) = 0
- R32: - (can0_init_target-value-(1,_0)) + (can0-pose-(1,_0)) = 0
- R33: - (robot_init_pose-value-(0,_0)) + (pr2-pose-(0,_0)) = 0
- R34: - (robot_init_pose-value-(1,_0)) + (pr2-pose-(1,_0)) = 0
- R35: (pr2-gripper-(0,_24)) = 0
- R36: (can0-pose-(0,_0)) - (can0-pose-(0,_1)) = 0
- R37: (can0-pose-(1,_0)) - (can0-pose-(1,_1)) = 0
- R38: (can1-pose-(0,_0)) - (can1-pose-(0,_1)) = 0
- R39: (can1-pose-(1,_0)) - (can1-pose-(1,_1)) = 0
- R40: (obs0-pose-(0,_0)) - (obs0-pose-(0,_1)) = 0
- R41: (obs0-pose-(1,_0)) - (obs0-pose-(1,_1)) = 0
- R42: (pr2-pose-(0,_0)) - (pr2-pose-(0,_1)) <= 0.5
- R43: (pr2-pose-(1,_0)) - (pr2-pose-(1,_1)) <= 0.5
- R44: - (pr2-pose-(0,_0)) + (pr2-pose-(0,_1)) <= 0.5
- R45: - (pr2-pose-(1,_0)) + (pr2-pose-(1,_1)) <= 0.5
- R46: (pr2-pose-(0,_24)) - (robot_end_pose-value-(0,_0)) = 0
- R47: (pr2-pose-(1,_24)) - (robot_end_pose-value-(1,_0)) = 0
- R48: (pr2-pose-(0,_24)) - (can0-pose-(0,_24)) <= 1
- R49: (pr2-pose-(1,_24)) - (can0-pose-(1,_24)) <= 1
- R50: - (pr2-pose-(0,_24)) + (can0-pose-(0,_24)) <= 1
- R51: - (pr2-pose-(1,_24)) + (can0-pose-(1,_24)) <= 1
- R52: (pr2-gripper-(0,_1)) = 0
- R53: (pr2-gripper-(0,_2)) = 0
- R54: (pr2-gripper-(0,_3)) = 0
- R55: (pr2-gripper-(0,_4)) = 0
- R56: (pr2-gripper-(0,_5)) = 0
- R57: (pr2-gripper-(0,_6)) = 0
- R58: (pr2-gripper-(0,_7)) = 0
- R59: (pr2-gripper-(0,_8)) = 0
- R60: (pr2-gripper-(0,_9)) = 0
- R61: (pr2-gripper-(0,_10)) = 0
- R62: (pr2-gripper-(0,_11)) = 0
- R63: (pr2-gripper-(0,_12)) = 0
- R64: (pr2-gripper-(0,_13)) = 0
- R65: (pr2-gripper-(0,_14)) = 0
- R66: (pr2-gripper-(0,_15)) = 0
- R67: (pr2-gripper-(0,_16)) = 0
- R68: (pr2-gripper-(0,_17)) = 0
- R69: (pr2-gripper-(0,_18)) = 0
- R70: (pr2-gripper-(0,_19)) = 0
- R71: (pr2-gripper-(0,_20)) = 0
- R72: (pr2-gripper-(0,_21)) = 0
- R73: (pr2-gripper-(0,_22)) = 0
- R74: (pr2-gripper-(0,_23)) = 0
- R75: (can0-pose-(0,_1)) - (can0-pose-(0,_2)) = 0
- R76: (can0-pose-(1,_1)) - (can0-pose-(1,_2)) = 0
- R77: (can0-pose-(0,_2)) - (can0-pose-(0,_3)) = 0
- R78: (can0-pose-(1,_2)) - (can0-pose-(1,_3)) = 0
- R79: (can0-pose-(0,_3)) - (can0-pose-(0,_4)) = 0
- R80: (can0-pose-(1,_3)) - (can0-pose-(1,_4)) = 0
- R81: (can0-pose-(0,_4)) - (can0-pose-(0,_5)) = 0
- R82: (can0-pose-(1,_4)) - (can0-pose-(1,_5)) = 0
- R83: (can0-pose-(0,_5)) - (can0-pose-(0,_6)) = 0
- R84: (can0-pose-(1,_5)) - (can0-pose-(1,_6)) = 0
- R85: (can0-pose-(0,_6)) - (can0-pose-(0,_7)) = 0
- R86: (can0-pose-(1,_6)) - (can0-pose-(1,_7)) = 0
- R87: (can0-pose-(0,_7)) - (can0-pose-(0,_8)) = 0
- R88: (can0-pose-(1,_7)) - (can0-pose-(1,_8)) = 0
- R89: (can0-pose-(0,_8)) - (can0-pose-(0,_9)) = 0
- R90: (can0-pose-(1,_8)) - (can0-pose-(1,_9)) = 0
- R91: (can0-pose-(0,_9)) - (can0-pose-(0,_10)) = 0
- R92: (can0-pose-(1,_9)) - (can0-pose-(1,_10)) = 0
- R93: (can0-pose-(0,_10)) - (can0-pose-(0,_11)) = 0
- R94: (can0-pose-(1,_10)) - (can0-pose-(1,_11)) = 0
- R95: (can0-pose-(0,_11)) - (can0-pose-(0,_12)) = 0
- R96: (can0-pose-(1,_11)) - (can0-pose-(1,_12)) = 0
- R97: (can0-pose-(0,_12)) - (can0-pose-(0,_13)) = 0
- R98: (can0-pose-(1,_12)) - (can0-pose-(1,_13)) = 0
- R99: (can0-pose-(0,_13)) - (can0-pose-(0,_14)) = 0
- R100: (can0-pose-(1,_13)) - (can0-pose-(1,_14)) = 0
- R101: (can0-pose-(0,_14)) - (can0-pose-(0,_15)) = 0
- R102: (can0-pose-(1,_14)) - (can0-pose-(1,_15)) = 0
- R103: (can0-pose-(0,_15)) - (can0-pose-(0,_16)) = 0
- R104: (can0-pose-(1,_15)) - (can0-pose-(1,_16)) = 0
- R105: (can0-pose-(0,_16)) - (can0-pose-(0,_17)) = 0
- R106: (can0-pose-(1,_16)) - (can0-pose-(1,_17)) = 0
- R107: (can0-pose-(0,_17)) - (can0-pose-(0,_18)) = 0
- R108: (can0-pose-(1,_17)) - (can0-pose-(1,_18)) = 0
- R109: (can0-pose-(0,_18)) - (can0-pose-(0,_19)) = 0
- R110: (can0-pose-(1,_18)) - (can0-pose-(1,_19)) = 0
- R111: (can0-pose-(0,_19)) - (can0-pose-(0,_20)) = 0
- R112: (can0-pose-(1,_19)) - (can0-pose-(1,_20)) = 0
- R113: (can0-pose-(0,_20)) - (can0-pose-(0,_21)) = 0
- R114: (can0-pose-(1,_20)) - (can0-pose-(1,_21)) = 0
- R115: (can0-pose-(0,_21)) - (can0-pose-(0,_22)) = 0
- R116: (can0-pose-(1,_21)) - (can0-pose-(1,_22)) = 0
- R117: (can0-pose-(0,_22)) - (can0-pose-(0,_23)) = 0
- R118: (can0-pose-(1,_22)) - (can0-pose-(1,_23)) = 0
- R119: (can0-pose-(0,_23)) - (can0-pose-(0,_24)) = 0
- R120: (can0-pose-(1,_23)) - (can0-pose-(1,_24)) = 0
- R121: (can1-pose-(0,_1)) - (can1-pose-(0,_2)) = 0
- R122: (can1-pose-(1,_1)) - (can1-pose-(1,_2)) = 0
- R123: (can1-pose-(0,_2)) - (can1-pose-(0,_3)) = 0
- R124: (can1-pose-(1,_2)) - (can1-pose-(1,_3)) = 0
- R125: (can1-pose-(0,_3)) - (can1-pose-(0,_4)) = 0
- R126: (can1-pose-(1,_3)) - (can1-pose-(1,_4)) = 0
- R127: (can1-pose-(0,_4)) - (can1-pose-(0,_5)) = 0
- R128: (can1-pose-(1,_4)) - (can1-pose-(1,_5)) = 0
- R129: (can1-pose-(0,_5)) - (can1-pose-(0,_6)) = 0
- R130: (can1-pose-(1,_5)) - (can1-pose-(1,_6)) = 0
- R131: (can1-pose-(0,_6)) - (can1-pose-(0,_7)) = 0
- R132: (can1-pose-(1,_6)) - (can1-pose-(1,_7)) = 0
- R133: (can1-pose-(0,_7)) - (can1-pose-(0,_8)) = 0
- R134: (can1-pose-(1,_7)) - (can1-pose-(1,_8)) = 0
- R135: (can1-pose-(0,_8)) - (can1-pose-(0,_9)) = 0
- R136: (can1-pose-(1,_8)) - (can1-pose-(1,_9)) = 0
- R137: (can1-pose-(0,_9)) - (can1-pose-(0,_10)) = 0
- R138: (can1-pose-(1,_9)) - (can1-pose-(1,_10)) = 0
- R139: (can1-pose-(0,_10)) - (can1-pose-(0,_11)) = 0
- R140: (can1-pose-(1,_10)) - (can1-pose-(1,_11)) = 0
- R141: (can1-pose-(0,_11)) - (can1-pose-(0,_12)) = 0
- R142: (can1-pose-(1,_11)) - (can1-pose-(1,_12)) = 0
- R143: (can1-pose-(0,_12)) - (can1-pose-(0,_13)) = 0
- R144: (can1-pose-(1,_12)) - (can1-pose-(1,_13)) = 0
- R145: (can1-pose-(0,_13)) - (can1-pose-(0,_14)) = 0
- R146: (can1-pose-(1,_13)) - (can1-pose-(1,_14)) = 0
- R147: (can1-pose-(0,_14)) - (can1-pose-(0,_15)) = 0
- R148: (can1-pose-(1,_14)) - (can1-pose-(1,_15)) = 0
- R149: (can1-pose-(0,_15)) - (can1-pose-(0,_16)) = 0
- R150: (can1-pose-(1,_15)) - (can1-pose-(1,_16)) = 0
- R151: (can1-pose-(0,_16)) - (can1-pose-(0,_17)) = 0
- R152: (can1-pose-(1,_16)) - (can1-pose-(1,_17)) = 0
- R153: (can1-pose-(0,_17)) - (can1-pose-(0,_18)) = 0
- R154: (can1-pose-(1,_17)) - (can1-pose-(1,_18)) = 0
- R155: (can1-pose-(0,_18)) - (can1-pose-(0,_19)) = 0
- R156: (can1-pose-(1,_18)) - (can1-pose-(1,_19)) = 0
- R157: (can1-pose-(0,_19)) - (can1-pose-(0,_20)) = 0
- R158: (can1-pose-(1,_19)) - (can1-pose-(1,_20)) = 0
- R159: (can1-pose-(0,_20)) - (can1-pose-(0,_21)) = 0
- R160: (can1-pose-(1,_20)) - (can1-pose-(1,_21)) = 0
- R161: (can1-pose-(0,_21)) - (can1-pose-(0,_22)) = 0
- R162: (can1-pose-(1,_21)) - (can1-pose-(1,_22)) = 0
- R163: (can1-pose-(0,_22)) - (can1-pose-(0,_23)) = 0
- R164: (can1-pose-(1,_22)) - (can1-pose-(1,_23)) = 0
- R165: (can1-pose-(0,_23)) - (can1-pose-(0,_24)) = 0
- R166: (can1-pose-(1,_23)) - (can1-pose-(1,_24)) = 0
- R167: (obs0-pose-(0,_1)) - (obs0-pose-(0,_2)) = 0
- R168: (obs0-pose-(1,_1)) - (obs0-pose-(1,_2)) = 0
- R169: (obs0-pose-(0,_2)) - (obs0-pose-(0,_3)) = 0
- R170: (obs0-pose-(1,_2)) - (obs0-pose-(1,_3)) = 0
- R171: (obs0-pose-(0,_3)) - (obs0-pose-(0,_4)) = 0
- R172: (obs0-pose-(1,_3)) - (obs0-pose-(1,_4)) = 0
- R173: (obs0-pose-(0,_4)) - (obs0-pose-(0,_5)) = 0
- R174: (obs0-pose-(1,_4)) - (obs0-pose-(1,_5)) = 0
- R175: (obs0-pose-(0,_5)) - (obs0-pose-(0,_6)) = 0
- R176: (obs0-pose-(1,_5)) - (obs0-pose-(1,_6)) = 0
- R177: (obs0-pose-(0,_6)) - (obs0-pose-(0,_7)) = 0
- R178: (obs0-pose-(1,_6)) - (obs0-pose-(1,_7)) = 0
- R179: (obs0-pose-(0,_7)) - (obs0-pose-(0,_8)) = 0
- R180: (obs0-pose-(1,_7)) - (obs0-pose-(1,_8)) = 0
- R181: (obs0-pose-(0,_8)) - (obs0-pose-(0,_9)) = 0
- R182: (obs0-pose-(1,_8)) - (obs0-pose-(1,_9)) = 0
- R183: (obs0-pose-(0,_9)) - (obs0-pose-(0,_10)) = 0
- R184: (obs0-pose-(1,_9)) - (obs0-pose-(1,_10)) = 0
- R185: (obs0-pose-(0,_10)) - (obs0-pose-(0,_11)) = 0
- R186: (obs0-pose-(1,_10)) - (obs0-pose-(1,_11)) = 0
- R187: (obs0-pose-(0,_11)) - (obs0-pose-(0,_12)) = 0
- R188: (obs0-pose-(1,_11)) - (obs0-pose-(1,_12)) = 0
- R189: (obs0-pose-(0,_12)) - (obs0-pose-(0,_13)) = 0
- R190: (obs0-pose-(1,_12)) - (obs0-pose-(1,_13)) = 0
- R191: (obs0-pose-(0,_13)) - (obs0-pose-(0,_14)) = 0
- R192: (obs0-pose-(1,_13)) - (obs0-pose-(1,_14)) = 0
- R193: (obs0-pose-(0,_14)) - (obs0-pose-(0,_15)) = 0
- R194: (obs0-pose-(1,_14)) - (obs0-pose-(1,_15)) = 0
- R195: (obs0-pose-(0,_15)) - (obs0-pose-(0,_16)) = 0
- R196: (obs0-pose-(1,_15)) - (obs0-pose-(1,_16)) = 0
- R197: (obs0-pose-(0,_16)) - (obs0-pose-(0,_17)) = 0
- R198: (obs0-pose-(1,_16)) - (obs0-pose-(1,_17)) = 0
- R199: (obs0-pose-(0,_17)) - (obs0-pose-(0,_18)) = 0
- R200: (obs0-pose-(1,_17)) - (obs0-pose-(1,_18)) = 0
- R201: (obs0-pose-(0,_18)) - (obs0-pose-(0,_19)) = 0
- R202: (obs0-pose-(1,_18)) - (obs0-pose-(1,_19)) = 0
- R203: (obs0-pose-(0,_19)) - (obs0-pose-(0,_20)) = 0
- R204: (obs0-pose-(1,_19)) - (obs0-pose-(1,_20)) = 0
- R205: (obs0-pose-(0,_20)) - (obs0-pose-(0,_21)) = 0
- R206: (obs0-pose-(1,_20)) - (obs0-pose-(1,_21)) = 0
- R207: (obs0-pose-(0,_21)) - (obs0-pose-(0,_22)) = 0
- R208: (obs0-pose-(1,_21)) - (obs0-pose-(1,_22)) = 0
- R209: (obs0-pose-(0,_22)) - (obs0-pose-(0,_23)) = 0
- R210: (obs0-pose-(1,_22)) - (obs0-pose-(1,_23)) = 0
- R211: (obs0-pose-(0,_23)) - (obs0-pose-(0,_24)) = 0
- R212: (obs0-pose-(1,_23)) - (obs0-pose-(1,_24)) = 0
- R213: (pr2-pose-(0,_1)) - (pr2-pose-(0,_2)) <= 0.5
- R214: (pr2-pose-(1,_1)) - (pr2-pose-(1,_2)) <= 0.5
- R215: - (pr2-pose-(0,_1)) + (pr2-pose-(0,_2)) <= 0.5
- R216: - (pr2-pose-(1,_1)) + (pr2-pose-(1,_2)) <= 0.5
- R217: (pr2-pose-(0,_2)) - (pr2-pose-(0,_3)) <= 0.5
- R218: (pr2-pose-(1,_2)) - (pr2-pose-(1,_3)) <= 0.5
- R219: - (pr2-pose-(0,_2)) + (pr2-pose-(0,_3)) <= 0.5
- R220: - (pr2-pose-(1,_2)) + (pr2-pose-(1,_3)) <= 0.5
- R221: (pr2-pose-(0,_3)) - (pr2-pose-(0,_4)) <= 0.5
- R222: (pr2-pose-(1,_3)) - (pr2-pose-(1,_4)) <= 0.5
- R223: - (pr2-pose-(0,_3)) + (pr2-pose-(0,_4)) <= 0.5
- R224: - (pr2-pose-(1,_3)) + (pr2-pose-(1,_4)) <= 0.5
- R225: (pr2-pose-(0,_4)) - (pr2-pose-(0,_5)) <= 0.5
- R226: (pr2-pose-(1,_4)) - (pr2-pose-(1,_5)) <= 0.5
- R227: - (pr2-pose-(0,_4)) + (pr2-pose-(0,_5)) <= 0.5
- R228: - (pr2-pose-(1,_4)) + (pr2-pose-(1,_5)) <= 0.5
- R229: (pr2-pose-(0,_5)) - (pr2-pose-(0,_6)) <= 0.5
- R230: (pr2-pose-(1,_5)) - (pr2-pose-(1,_6)) <= 0.5
- R231: - (pr2-pose-(0,_5)) + (pr2-pose-(0,_6)) <= 0.5
- R232: - (pr2-pose-(1,_5)) + (pr2-pose-(1,_6)) <= 0.5
- R233: (pr2-pose-(0,_6)) - (pr2-pose-(0,_7)) <= 0.5
- R234: (pr2-pose-(1,_6)) - (pr2-pose-(1,_7)) <= 0.5
- R235: - (pr2-pose-(0,_6)) + (pr2-pose-(0,_7)) <= 0.5
- R236: - (pr2-pose-(1,_6)) + (pr2-pose-(1,_7)) <= 0.5
- R237: (pr2-pose-(0,_7)) - (pr2-pose-(0,_8)) <= 0.5
- R238: (pr2-pose-(1,_7)) - (pr2-pose-(1,_8)) <= 0.5
- R239: - (pr2-pose-(0,_7)) + (pr2-pose-(0,_8)) <= 0.5
- R240: - (pr2-pose-(1,_7)) + (pr2-pose-(1,_8)) <= 0.5
- R241: (pr2-pose-(0,_8)) - (pr2-pose-(0,_9)) <= 0.5
- R242: (pr2-pose-(1,_8)) - (pr2-pose-(1,_9)) <= 0.5
- R243: - (pr2-pose-(0,_8)) + (pr2-pose-(0,_9)) <= 0.5
- R244: - (pr2-pose-(1,_8)) + (pr2-pose-(1,_9)) <= 0.5
- R245: (pr2-pose-(0,_9)) - (pr2-pose-(0,_10)) <= 0.5
- R246: (pr2-pose-(1,_9)) - (pr2-pose-(1,_10)) <= 0.5
- R247: - (pr2-pose-(0,_9)) + (pr2-pose-(0,_10)) <= 0.5
- R248: - (pr2-pose-(1,_9)) + (pr2-pose-(1,_10)) <= 0.5
- R249: (pr2-pose-(0,_10)) - (pr2-pose-(0,_11)) <= 0.5
- R250: (pr2-pose-(1,_10)) - (pr2-pose-(1,_11)) <= 0.5
- R251: - (pr2-pose-(0,_10)) + (pr2-pose-(0,_11)) <= 0.5
- R252: - (pr2-pose-(1,_10)) + (pr2-pose-(1,_11)) <= 0.5
- R253: (pr2-pose-(0,_11)) - (pr2-pose-(0,_12)) <= 0.5
- R254: (pr2-pose-(1,_11)) - (pr2-pose-(1,_12)) <= 0.5
- R255: - (pr2-pose-(0,_11)) + (pr2-pose-(0,_12)) <= 0.5
- R256: - (pr2-pose-(1,_11)) + (pr2-pose-(1,_12)) <= 0.5
- R257: (pr2-pose-(0,_12)) - (pr2-pose-(0,_13)) <= 0.5
- R258: (pr2-pose-(1,_12)) - (pr2-pose-(1,_13)) <= 0.5
- R259: - (pr2-pose-(0,_12)) + (pr2-pose-(0,_13)) <= 0.5
- R260: - (pr2-pose-(1,_12)) + (pr2-pose-(1,_13)) <= 0.5
- R261: (pr2-pose-(0,_13)) - (pr2-pose-(0,_14)) <= 0.5
- R262: (pr2-pose-(1,_13)) - (pr2-pose-(1,_14)) <= 0.5
- R263: - (pr2-pose-(0,_13)) + (pr2-pose-(0,_14)) <= 0.5
- R264: - (pr2-pose-(1,_13)) + (pr2-pose-(1,_14)) <= 0.5
- R265: (pr2-pose-(0,_14)) - (pr2-pose-(0,_15)) <= 0.5
- R266: (pr2-pose-(1,_14)) - (pr2-pose-(1,_15)) <= 0.5
- R267: - (pr2-pose-(0,_14)) + (pr2-pose-(0,_15)) <= 0.5
- R268: - (pr2-pose-(1,_14)) + (pr2-pose-(1,_15)) <= 0.5
- R269: (pr2-pose-(0,_15)) - (pr2-pose-(0,_16)) <= 0.5
- R270: (pr2-pose-(1,_15)) - (pr2-pose-(1,_16)) <= 0.5
- R271: - (pr2-pose-(0,_15)) + (pr2-pose-(0,_16)) <= 0.5
- R272: - (pr2-pose-(1,_15)) + (pr2-pose-(1,_16)) <= 0.5
- R273: (pr2-pose-(0,_16)) - (pr2-pose-(0,_17)) <= 0.5
- R274: (pr2-pose-(1,_16)) - (pr2-pose-(1,_17)) <= 0.5
- R275: - (pr2-pose-(0,_16)) + (pr2-pose-(0,_17)) <= 0.5
- R276: - (pr2-pose-(1,_16)) + (pr2-pose-(1,_17)) <= 0.5
- R277: (pr2-pose-(0,_17)) - (pr2-pose-(0,_18)) <= 0.5
- R278: (pr2-pose-(1,_17)) - (pr2-pose-(1,_18)) <= 0.5
- R279: - (pr2-pose-(0,_17)) + (pr2-pose-(0,_18)) <= 0.5
- R280: - (pr2-pose-(1,_17)) + (pr2-pose-(1,_18)) <= 0.5
- R281: (pr2-pose-(0,_18)) - (pr2-pose-(0,_19)) <= 0.5
- R282: (pr2-pose-(1,_18)) - (pr2-pose-(1,_19)) <= 0.5
- R283: - (pr2-pose-(0,_18)) + (pr2-pose-(0,_19)) <= 0.5
- R284: - (pr2-pose-(1,_18)) + (pr2-pose-(1,_19)) <= 0.5
- R285: (pr2-pose-(0,_19)) - (pr2-pose-(0,_20)) <= 0.5
- R286: (pr2-pose-(1,_19)) - (pr2-pose-(1,_20)) <= 0.5
- R287: - (pr2-pose-(0,_19)) + (pr2-pose-(0,_20)) <= 0.5
- R288: - (pr2-pose-(1,_19)) + (pr2-pose-(1,_20)) <= 0.5
- R289: (pr2-pose-(0,_20)) - (pr2-pose-(0,_21)) <= 0.5
- R290: (pr2-pose-(1,_20)) - (pr2-pose-(1,_21)) <= 0.5
- R291: - (pr2-pose-(0,_20)) + (pr2-pose-(0,_21)) <= 0.5
- R292: - (pr2-pose-(1,_20)) + (pr2-pose-(1,_21)) <= 0.5
- R293: (pr2-pose-(0,_21)) - (pr2-pose-(0,_22)) <= 0.5
- R294: (pr2-pose-(1,_21)) - (pr2-pose-(1,_22)) <= 0.5
- R295: - (pr2-pose-(0,_21)) + (pr2-pose-(0,_22)) <= 0.5
- R296: - (pr2-pose-(1,_21)) + (pr2-pose-(1,_22)) <= 0.5
- R297: (pr2-pose-(0,_22)) - (pr2-pose-(0,_23)) <= 0.5
- R298: (pr2-pose-(1,_22)) - (pr2-pose-(1,_23)) <= 0.5
- R299: - (pr2-pose-(0,_22)) + (pr2-pose-(0,_23)) <= 0.5
- R300: - (pr2-pose-(1,_22)) + (pr2-pose-(1,_23)) <= 0.5
- R301: (pr2-pose-(0,_23)) - (pr2-pose-(0,_24)) <= 0.5
- R302: (pr2-pose-(1,_23)) - (pr2-pose-(1,_24)) <= 0.5
- R303: - (pr2-pose-(0,_23)) + (pr2-pose-(0,_24)) <= 0.5
- R304: - (pr2-pose-(1,_23)) + (pr2-pose-(1,_24)) <= 0.5
+ R11: (can0_init_target-value-(0,_0)) = -2.200000047683716
+ R12: (can0_init_target-value-(1,_0)) = 1.700000047683716
+ R13: (can3_end_target-value-(0,_0)) = 0
+ R14: (can3_end_target-value-(1,_0)) = -2
+ R15: (grasp0-value-(0,_0)) = 0
+ R16: (grasp0-value-(1,_0)) = -0.6010000109672546
+ R17: (can2-pose-(0,_0)) = 2
+ R18: (can2-pose-(1,_0)) = 0.4000000059604645
+ R19: (can3-pose-(0,_0)) = -0.300000011920929
+ R20: (can3-pose-(1,_0)) = 2.299999952316284
+ R21: (can0-pose-(0,_0)) = -2.200000047683716
+ R22: (can0-pose-(1,_0)) = 1.700000047683716
+ R23: (can1-pose-(0,_0)) = 1.399999976158142
+ R24: (can1-pose-(1,_0)) = -0.4000000059604645
+ R25: (can3_init_target-value-(0,_0)) = -0.300000011920929
+ R26: (can3_init_target-value-(1,_0)) = 2.299999952316284
+ R27: (robot_init_pose-gripper-(0,_0)) = 0
+ R28: (robot_init_pose-value-(0,_0)) = 0
+ R29: (robot_init_pose-value-(1,_0)) = 0
+ R30: (grasp_end_pose-gripper-(0,_0)) = 1
+ R31: (grasp_end_pose-value-(0,_0)) = -2.167115951829182
+ R32: (grasp_end_pose-value-(1,_0)) = 0.8559928948040566
+ R33: (can0_end_target-value-(0,_0)) = 0
+ R34: (can0_end_target-value-(1,_0)) = 6
+ R35: (can1_init_target-value-(0,_0)) = 1.399999976158142
+ R36: (can1_init_target-value-(1,_0)) = -0.4000000059604645
+ R37: (left_target-value-(0,_0)) = -1
+ R38: (left_target-value-(1,_0)) = 0
+ R39: (pr2-gripper-(0,_0)) = 0
+ R40: (pr2-pose-(0,_0)) = -2.167115951829182
+ R41: (pr2-pose-(1,_0)) = 0.8559928948040566
+ R42: (middle_target-value-(0,_0)) = 0
+ R43: (middle_target-value-(1,_0)) = 0
+ R44: (can2_end_target-value-(0,_0)) = 0
+ R45: (can2_end_target-value-(1,_0)) = 4
+ R46: (pr2-gripper-(0,_0)) = 0
+ R47: - (grasp_end_pose-value-(0,_0)) + (pr2-pose-(0,_0)) = 0
+ R48: - (grasp_end_pose-value-(1,_0)) + (pr2-pose-(1,_0)) = 0
+ R49: (pr2-pose-(0,_0)) - (can0-pose-(0,_0)) <= 1
+ R50: (pr2-pose-(1,_0)) - (can0-pose-(1,_0)) <= 1
+ R51: - (pr2-pose-(0,_0)) + (can0-pose-(0,_0)) <= 1
+ R52: - (pr2-pose-(1,_0)) + (can0-pose-(1,_0)) <= 1
+ R53: - (grasp_end_pose-value-(0,_0)) + (pr2-pose-(0,_0)) = 0
+ R54: - (grasp_end_pose-value-(1,_0)) + (pr2-pose-(1,_0)) = 0
+ R55: - (grasp0-value-(0,_0)) + (pr2-pose-(0,_0)) - (can0-pose-(0,_0))
+   <= 1
+ R56: - (grasp0-value-(1,_0)) + (pr2-pose-(1,_0)) - (can0-pose-(1,_0))
+   <= 1
+ R57: (grasp0-value-(0,_0)) - (pr2-pose-(0,_0)) + (can0-pose-(0,_0)) <= 1
+ R58: (grasp0-value-(1,_0)) - (pr2-pose-(1,_0)) + (can0-pose-(1,_0)) <= 1
+ R59: (pr2-gripper-(0,_0)) = 0
+ R60: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_24))
+   - 10 (can0-pose-(0,_24)) = 0
+ R61: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_24))
+   - 10 (can0-pose-(1,_24)) = 0
+ R62: (can2-pose-(0,_0)) - (can2-pose-(0,_1)) = 0
+ R63: (can2-pose-(1,_0)) - (can2-pose-(1,_1)) = 0
+ R64: (can3-pose-(0,_0)) - (can3-pose-(0,_1)) = 0
+ R65: (can3-pose-(1,_0)) - (can3-pose-(1,_1)) = 0
+ R66: (can0-pose-(0,_0)) - (can0-pose-(0,_1)) = 0
+ R67: (can0-pose-(1,_0)) - (can0-pose-(1,_1)) = 0
+ R68: (can1-pose-(0,_0)) - (can1-pose-(0,_1)) = 0
+ R69: (can1-pose-(1,_0)) - (can1-pose-(1,_1)) = 0
+ R70: (can2-pose-(0,_0)) - (can2-pose-(0,_1)) = 0
+ R71: (can2-pose-(1,_0)) - (can2-pose-(1,_1)) = 0
+ R72: (can3-pose-(0,_0)) - (can3-pose-(0,_1)) = 0
+ R73: (can3-pose-(1,_0)) - (can3-pose-(1,_1)) = 0
+ R74: = 0
+ R75: (can1-pose-(0,_0)) - (can1-pose-(0,_1)) = 0
+ R76: (can1-pose-(1,_0)) - (can1-pose-(1,_1)) = 0
+ R77: (obs0-pose-(0,_0)) - (obs0-pose-(0,_1)) = 0
+ R78: (obs0-pose-(1,_0)) - (obs0-pose-(1,_1)) = 0
+ R79: (pr2-pose-(0,_0)) - (pr2-pose-(0,_1)) <= 0.5
+ R80: (pr2-pose-(1,_0)) - (pr2-pose-(1,_1)) <= 0.5
+ R81: - (pr2-pose-(0,_0)) + (pr2-pose-(0,_1)) <= 0.5
+ R82: - (pr2-pose-(1,_0)) + (pr2-pose-(1,_1)) <= 0.5
+ R83: - (robot_end_pose-value-(0,_0)) + (pr2-pose-(0,_24)) = 0
+ R84: - (robot_end_pose-value-(1,_0)) + (pr2-pose-(1,_24)) = 0
+ R85: (pr2-gripper-(0,_24)) = 0
+ R86: (can0-pose-(0,_24)) - (can0_end_target-value-(0,_0)) = 0
+ R87: (can0-pose-(1,_24)) - (can0_end_target-value-(1,_0)) = 0
+ R88: (pr2-gripper-(0,_1)) = 0
+ R89: (pr2-gripper-(0,_2)) = 0
+ R90: (pr2-gripper-(0,_3)) = 1
+ R91: (pr2-gripper-(0,_4)) = 1
+ R92: (pr2-gripper-(0,_5)) = 1
+ R93: (pr2-gripper-(0,_6)) = 1
+ R94: (pr2-gripper-(0,_7)) = 1
+ R95: (pr2-gripper-(0,_8)) = 1
+ R96: (pr2-gripper-(0,_9)) = 1
+ R97: (pr2-gripper-(0,_10)) = 1
+ R98: (pr2-gripper-(0,_11)) = 1
+ R99: (pr2-gripper-(0,_12)) = 1
+ R100: (pr2-gripper-(0,_13)) = 1
+ R101: (pr2-gripper-(0,_14)) = 1
+ R102: (pr2-gripper-(0,_15)) = 1
+ R103: (pr2-gripper-(0,_16)) = 1
+ R104: (pr2-gripper-(0,_17)) = 1
+ R105: (pr2-gripper-(0,_18)) = 1
+ R106: (pr2-gripper-(0,_19)) = 1
+ R107: (pr2-gripper-(0,_20)) = 1
+ R108: (pr2-gripper-(0,_21)) = 1
+ R109: (pr2-gripper-(0,_22)) = 1
+ R110: (pr2-gripper-(0,_23)) = 1
+ R111: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_3))
+   - 10 (can0-pose-(0,_3)) = 0
+ R112: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_3))
+   - 10 (can0-pose-(1,_3)) = 0
+ R113: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_4))
+   - 10 (can0-pose-(0,_4)) = 0
+ R114: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_4))
+   - 10 (can0-pose-(1,_4)) = 0
+ R115: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_5))
+   - 10 (can0-pose-(0,_5)) = 0
+ R116: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_5))
+   - 10 (can0-pose-(1,_5)) = 0
+ R117: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_6))
+   - 10 (can0-pose-(0,_6)) = 0
+ R118: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_6))
+   - 10 (can0-pose-(1,_6)) = 0
+ R119: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_7))
+   - 10 (can0-pose-(0,_7)) = 0
+ R120: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_7))
+   - 10 (can0-pose-(1,_7)) = 0
+ R121: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_8))
+   - 10 (can0-pose-(0,_8)) = 0
+ R122: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_8))
+   - 10 (can0-pose-(1,_8)) = 0
+ R123: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_9))
+   - 10 (can0-pose-(0,_9)) = 0
+ R124: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_9))
+   - 10 (can0-pose-(1,_9)) = 0
+ R125: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_10))
+   - 10 (can0-pose-(0,_10)) = 0
+ R126: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_10))
+   - 10 (can0-pose-(1,_10)) = 0
+ R127: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_11))
+   - 10 (can0-pose-(0,_11)) = 0
+ R128: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_11))
+   - 10 (can0-pose-(1,_11)) = 0
+ R129: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_12))
+   - 10 (can0-pose-(0,_12)) = 0
+ R130: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_12))
+   - 10 (can0-pose-(1,_12)) = 0
+ R131: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_13))
+   - 10 (can0-pose-(0,_13)) = 0
+ R132: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_13))
+   - 10 (can0-pose-(1,_13)) = 0
+ R133: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_14))
+   - 10 (can0-pose-(0,_14)) = 0
+ R134: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_14))
+   - 10 (can0-pose-(1,_14)) = 0
+ R135: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_15))
+   - 10 (can0-pose-(0,_15)) = 0
+ R136: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_15))
+   - 10 (can0-pose-(1,_15)) = 0
+ R137: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_16))
+   - 10 (can0-pose-(0,_16)) = 0
+ R138: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_16))
+   - 10 (can0-pose-(1,_16)) = 0
+ R139: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_17))
+   - 10 (can0-pose-(0,_17)) = 0
+ R140: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_17))
+   - 10 (can0-pose-(1,_17)) = 0
+ R141: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_18))
+   - 10 (can0-pose-(0,_18)) = 0
+ R142: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_18))
+   - 10 (can0-pose-(1,_18)) = 0
+ R143: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_19))
+   - 10 (can0-pose-(0,_19)) = 0
+ R144: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_19))
+   - 10 (can0-pose-(1,_19)) = 0
+ R145: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_20))
+   - 10 (can0-pose-(0,_20)) = 0
+ R146: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_20))
+   - 10 (can0-pose-(1,_20)) = 0
+ R147: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_21))
+   - 10 (can0-pose-(0,_21)) = 0
+ R148: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_21))
+   - 10 (can0-pose-(1,_21)) = 0
+ R149: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_22))
+   - 10 (can0-pose-(0,_22)) = 0
+ R150: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_22))
+   - 10 (can0-pose-(1,_22)) = 0
+ R151: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_23))
+   - 10 (can0-pose-(0,_23)) = 0
+ R152: - 10 (grasp0-value-(1,_0)) + 10 (pr2-pose-(1,_23))
+   - 10 (can0-pose-(1,_23)) = 0
+ R153: (can2-pose-(0,_1)) - (can2-pose-(0,_2)) = 0
+ R154: (can2-pose-(1,_1)) - (can2-pose-(1,_2)) = 0
+ R155: (can2-pose-(0,_2)) - (can2-pose-(0,_3)) = 0
+ R156: (can2-pose-(1,_2)) - (can2-pose-(1,_3)) = 0
+ R157: (can2-pose-(0,_3)) - (can2-pose-(0,_4)) = 0
+ R158: (can2-pose-(1,_3)) - (can2-pose-(1,_4)) = 0
+ R159: (can3-pose-(0,_1)) - (can3-pose-(0,_2)) = 0
+ R160: (can3-pose-(1,_1)) - (can3-pose-(1,_2)) = 0
+ R161: (can3-pose-(0,_2)) - (can3-pose-(0,_3)) = 0
+ R162: (can3-pose-(1,_2)) - (can3-pose-(1,_3)) = 0
+ R163: (can3-pose-(0,_3)) - (can3-pose-(0,_4)) = 0
+ R164: (can3-pose-(1,_3)) - (can3-pose-(1,_4)) = 0
+ R165: (can0-pose-(0,_1)) - (can0-pose-(0,_2)) = 0
+ R166: (can0-pose-(1,_1)) - (can0-pose-(1,_2)) = 0
+ R167: (can0-pose-(0,_2)) - (can0-pose-(0,_3)) = 0
+ R168: (can0-pose-(1,_2)) - (can0-pose-(1,_3)) = 0
+ R169: (can0-pose-(0,_3)) - (can0-pose-(0,_4)) = 0
+ R170: (can0-pose-(1,_3)) - (can0-pose-(1,_4)) = 0
+ R171: (can1-pose-(0,_1)) - (can1-pose-(0,_2)) = 0
+ R172: (can1-pose-(1,_1)) - (can1-pose-(1,_2)) = 0
+ R173: (can1-pose-(0,_2)) - (can1-pose-(0,_3)) = 0
+ R174: (can1-pose-(1,_2)) - (can1-pose-(1,_3)) = 0
+ R175: (can1-pose-(0,_3)) - (can1-pose-(0,_4)) = 0
+ R176: (can1-pose-(1,_3)) - (can1-pose-(1,_4)) = 0
+ R177: (can2-pose-(0,_1)) - (can2-pose-(0,_2)) = 0
+ R178: (can2-pose-(1,_1)) - (can2-pose-(1,_2)) = 0
+ R179: (can2-pose-(0,_2)) - (can2-pose-(0,_3)) = 0
+ R180: (can2-pose-(1,_2)) - (can2-pose-(1,_3)) = 0
+ R181: (can2-pose-(0,_3)) - (can2-pose-(0,_4)) = 0
+ R182: (can2-pose-(1,_3)) - (can2-pose-(1,_4)) = 0
+ R183: (can2-pose-(0,_4)) - (can2-pose-(0,_5)) = 0
+ R184: (can2-pose-(1,_4)) - (can2-pose-(1,_5)) = 0
+ R185: (can2-pose-(0,_5)) - (can2-pose-(0,_6)) = 0
+ R186: (can2-pose-(1,_5)) - (can2-pose-(1,_6)) = 0
+ R187: (can2-pose-(0,_6)) - (can2-pose-(0,_7)) = 0
+ R188: (can2-pose-(1,_6)) - (can2-pose-(1,_7)) = 0
+ R189: (can2-pose-(0,_7)) - (can2-pose-(0,_8)) = 0
+ R190: (can2-pose-(1,_7)) - (can2-pose-(1,_8)) = 0
+ R191: (can2-pose-(0,_8)) - (can2-pose-(0,_9)) = 0
+ R192: (can2-pose-(1,_8)) - (can2-pose-(1,_9)) = 0
+ R193: (can2-pose-(0,_9)) - (can2-pose-(0,_10)) = 0
+ R194: (can2-pose-(1,_9)) - (can2-pose-(1,_10)) = 0
+ R195: (can2-pose-(0,_10)) - (can2-pose-(0,_11)) = 0
+ R196: (can2-pose-(1,_10)) - (can2-pose-(1,_11)) = 0
+ R197: (can2-pose-(0,_11)) - (can2-pose-(0,_12)) = 0
+ R198: (can2-pose-(1,_11)) - (can2-pose-(1,_12)) = 0
+ R199: (can2-pose-(0,_12)) - (can2-pose-(0,_13)) = 0
+ R200: (can2-pose-(1,_12)) - (can2-pose-(1,_13)) = 0
+ R201: (can2-pose-(0,_13)) - (can2-pose-(0,_14)) = 0
+ R202: (can2-pose-(1,_13)) - (can2-pose-(1,_14)) = 0
+ R203: (can2-pose-(0,_14)) - (can2-pose-(0,_15)) = 0
+ R204: (can2-pose-(1,_14)) - (can2-pose-(1,_15)) = 0
+ R205: (can2-pose-(0,_15)) - (can2-pose-(0,_16)) = 0
+ R206: (can2-pose-(1,_15)) - (can2-pose-(1,_16)) = 0
+ R207: (can2-pose-(0,_16)) - (can2-pose-(0,_17)) = 0
+ R208: (can2-pose-(1,_16)) - (can2-pose-(1,_17)) = 0
+ R209: (can2-pose-(0,_17)) - (can2-pose-(0,_18)) = 0
+ R210: (can2-pose-(1,_17)) - (can2-pose-(1,_18)) = 0
+ R211: (can2-pose-(0,_18)) - (can2-pose-(0,_19)) = 0
+ R212: (can2-pose-(1,_18)) - (can2-pose-(1,_19)) = 0
+ R213: (can2-pose-(0,_19)) - (can2-pose-(0,_20)) = 0
+ R214: (can2-pose-(1,_19)) - (can2-pose-(1,_20)) = 0
+ R215: (can2-pose-(0,_20)) - (can2-pose-(0,_21)) = 0
+ R216: (can2-pose-(1,_20)) - (can2-pose-(1,_21)) = 0
+ R217: (can2-pose-(0,_21)) - (can2-pose-(0,_22)) = 0
+ R218: (can2-pose-(1,_21)) - (can2-pose-(1,_22)) = 0
+ R219: (can2-pose-(0,_22)) - (can2-pose-(0,_23)) = 0
+ R220: (can2-pose-(1,_22)) - (can2-pose-(1,_23)) = 0
+ R221: (can2-pose-(0,_23)) - (can2-pose-(0,_24)) = 0
+ R222: (can2-pose-(1,_23)) - (can2-pose-(1,_24)) = 0
+ R223: (can3-pose-(0,_1)) - (can3-pose-(0,_2)) = 0
+ R224: (can3-pose-(1,_1)) - (can3-pose-(1,_2)) = 0
+ R225: (can3-pose-(0,_2)) - (can3-pose-(0,_3)) = 0
+ R226: (can3-pose-(1,_2)) - (can3-pose-(1,_3)) = 0
+ R227: (can3-pose-(0,_3)) - (can3-pose-(0,_4)) = 0
+ R228: (can3-pose-(1,_3)) - (can3-pose-(1,_4)) = 0
+ R229: (can3-pose-(0,_4)) - (can3-pose-(0,_5)) = 0
+ R230: (can3-pose-(1,_4)) - (can3-pose-(1,_5)) = 0
+ R231: (can3-pose-(0,_5)) - (can3-pose-(0,_6)) = 0
+ R232: (can3-pose-(1,_5)) - (can3-pose-(1,_6)) = 0
+ R233: (can3-pose-(0,_6)) - (can3-pose-(0,_7)) = 0
+ R234: (can3-pose-(1,_6)) - (can3-pose-(1,_7)) = 0
+ R235: (can3-pose-(0,_7)) - (can3-pose-(0,_8)) = 0
+ R236: (can3-pose-(1,_7)) - (can3-pose-(1,_8)) = 0
+ R237: (can3-pose-(0,_8)) - (can3-pose-(0,_9)) = 0
+ R238: (can3-pose-(1,_8)) - (can3-pose-(1,_9)) = 0
+ R239: (can3-pose-(0,_9)) - (can3-pose-(0,_10)) = 0
+ R240: (can3-pose-(1,_9)) - (can3-pose-(1,_10)) = 0
+ R241: (can3-pose-(0,_10)) - (can3-pose-(0,_11)) = 0
+ R242: (can3-pose-(1,_10)) - (can3-pose-(1,_11)) = 0
+ R243: (can3-pose-(0,_11)) - (can3-pose-(0,_12)) = 0
+ R244: (can3-pose-(1,_11)) - (can3-pose-(1,_12)) = 0
+ R245: (can3-pose-(0,_12)) - (can3-pose-(0,_13)) = 0
+ R246: (can3-pose-(1,_12)) - (can3-pose-(1,_13)) = 0
+ R247: (can3-pose-(0,_13)) - (can3-pose-(0,_14)) = 0
+ R248: (can3-pose-(1,_13)) - (can3-pose-(1,_14)) = 0
+ R249: (can3-pose-(0,_14)) - (can3-pose-(0,_15)) = 0
+ R250: (can3-pose-(1,_14)) - (can3-pose-(1,_15)) = 0
+ R251: (can3-pose-(0,_15)) - (can3-pose-(0,_16)) = 0
+ R252: (can3-pose-(1,_15)) - (can3-pose-(1,_16)) = 0
+ R253: (can3-pose-(0,_16)) - (can3-pose-(0,_17)) = 0
+ R254: (can3-pose-(1,_16)) - (can3-pose-(1,_17)) = 0
+ R255: (can3-pose-(0,_17)) - (can3-pose-(0,_18)) = 0
+ R256: (can3-pose-(1,_17)) - (can3-pose-(1,_18)) = 0
+ R257: (can3-pose-(0,_18)) - (can3-pose-(0,_19)) = 0
+ R258: (can3-pose-(1,_18)) - (can3-pose-(1,_19)) = 0
+ R259: (can3-pose-(0,_19)) - (can3-pose-(0,_20)) = 0
+ R260: (can3-pose-(1,_19)) - (can3-pose-(1,_20)) = 0
+ R261: (can3-pose-(0,_20)) - (can3-pose-(0,_21)) = 0
+ R262: (can3-pose-(1,_20)) - (can3-pose-(1,_21)) = 0
+ R263: (can3-pose-(0,_21)) - (can3-pose-(0,_22)) = 0
+ R264: (can3-pose-(1,_21)) - (can3-pose-(1,_22)) = 0
+ R265: (can3-pose-(0,_22)) - (can3-pose-(0,_23)) = 0
+ R266: (can3-pose-(1,_22)) - (can3-pose-(1,_23)) = 0
+ R267: (can3-pose-(0,_23)) - (can3-pose-(0,_24)) = 0
+ R268: (can3-pose-(1,_23)) - (can3-pose-(1,_24)) = 0
+ R269: = 0
+ R270: = 0
+ R271: = 0
+ R272: = 0
+ R273: = 0
+ R274: = 0
+ R275: = 0
+ R276: = 0
+ R277: = 0
+ R278: = 0
+ R279: = 0
+ R280: = 0
+ R281: = 0
+ R282: = 0
+ R283: = 0
+ R284: = 0
+ R285: = 0
+ R286: = 0
+ R287: = 0
+ R288: = 0
+ R289: = 0
+ R290: = 0
+ R291: = 0
+ R292: (can1-pose-(0,_1)) - (can1-pose-(0,_2)) = 0
+ R293: (can1-pose-(1,_1)) - (can1-pose-(1,_2)) = 0
+ R294: (can1-pose-(0,_2)) - (can1-pose-(0,_3)) = 0
+ R295: (can1-pose-(1,_2)) - (can1-pose-(1,_3)) = 0
+ R296: (can1-pose-(0,_3)) - (can1-pose-(0,_4)) = 0
+ R297: (can1-pose-(1,_3)) - (can1-pose-(1,_4)) = 0
+ R298: (can1-pose-(0,_4)) - (can1-pose-(0,_5)) = 0
+ R299: (can1-pose-(1,_4)) - (can1-pose-(1,_5)) = 0
+ R300: (can1-pose-(0,_5)) - (can1-pose-(0,_6)) = 0
+ R301: (can1-pose-(1,_5)) - (can1-pose-(1,_6)) = 0
+ R302: (can1-pose-(0,_6)) - (can1-pose-(0,_7)) = 0
+ R303: (can1-pose-(1,_6)) - (can1-pose-(1,_7)) = 0
+ R304: (can1-pose-(0,_7)) - (can1-pose-(0,_8)) = 0
+ R305: (can1-pose-(1,_7)) - (can1-pose-(1,_8)) = 0
+ R306: (can1-pose-(0,_8)) - (can1-pose-(0,_9)) = 0
+ R307: (can1-pose-(1,_8)) - (can1-pose-(1,_9)) = 0
+ R308: (can1-pose-(0,_9)) - (can1-pose-(0,_10)) = 0
+ R309: (can1-pose-(1,_9)) - (can1-pose-(1,_10)) = 0
+ R310: (can1-pose-(0,_10)) - (can1-pose-(0,_11)) = 0
+ R311: (can1-pose-(1,_10)) - (can1-pose-(1,_11)) = 0
+ R312: (can1-pose-(0,_11)) - (can1-pose-(0,_12)) = 0
+ R313: (can1-pose-(1,_11)) - (can1-pose-(1,_12)) = 0
+ R314: (can1-pose-(0,_12)) - (can1-pose-(0,_13)) = 0
+ R315: (can1-pose-(1,_12)) - (can1-pose-(1,_13)) = 0
+ R316: (can1-pose-(0,_13)) - (can1-pose-(0,_14)) = 0
+ R317: (can1-pose-(1,_13)) - (can1-pose-(1,_14)) = 0
+ R318: (can1-pose-(0,_14)) - (can1-pose-(0,_15)) = 0
+ R319: (can1-pose-(1,_14)) - (can1-pose-(1,_15)) = 0
+ R320: (can1-pose-(0,_15)) - (can1-pose-(0,_16)) = 0
+ R321: (can1-pose-(1,_15)) - (can1-pose-(1,_16)) = 0
+ R322: (can1-pose-(0,_16)) - (can1-pose-(0,_17)) = 0
+ R323: (can1-pose-(1,_16)) - (can1-pose-(1,_17)) = 0
+ R324: (can1-pose-(0,_17)) - (can1-pose-(0,_18)) = 0
+ R325: (can1-pose-(1,_17)) - (can1-pose-(1,_18)) = 0
+ R326: (can1-pose-(0,_18)) - (can1-pose-(0,_19)) = 0
+ R327: (can1-pose-(1,_18)) - (can1-pose-(1,_19)) = 0
+ R328: (can1-pose-(0,_19)) - (can1-pose-(0,_20)) = 0
+ R329: (can1-pose-(1,_19)) - (can1-pose-(1,_20)) = 0
+ R330: (can1-pose-(0,_20)) - (can1-pose-(0,_21)) = 0
+ R331: (can1-pose-(1,_20)) - (can1-pose-(1,_21)) = 0
+ R332: (can1-pose-(0,_21)) - (can1-pose-(0,_22)) = 0
+ R333: (can1-pose-(1,_21)) - (can1-pose-(1,_22)) = 0
+ R334: (can1-pose-(0,_22)) - (can1-pose-(0,_23)) = 0
+ R335: (can1-pose-(1,_22)) - (can1-pose-(1,_23)) = 0
+ R336: (can1-pose-(0,_23)) - (can1-pose-(0,_24)) = 0
+ R337: (can1-pose-(1,_23)) - (can1-pose-(1,_24)) = 0
+ R338: (obs0-pose-(0,_1)) - (obs0-pose-(0,_2)) = 0
+ R339: (obs0-pose-(1,_1)) - (obs0-pose-(1,_2)) = 0
+ R340: (obs0-pose-(0,_2)) - (obs0-pose-(0,_3)) = 0
+ R341: (obs0-pose-(1,_2)) - (obs0-pose-(1,_3)) = 0
+ R342: (obs0-pose-(0,_3)) - (obs0-pose-(0,_4)) = 0
+ R343: (obs0-pose-(1,_3)) - (obs0-pose-(1,_4)) = 0
+ R344: (obs0-pose-(0,_4)) - (obs0-pose-(0,_5)) = 0
+ R345: (obs0-pose-(1,_4)) - (obs0-pose-(1,_5)) = 0
+ R346: (obs0-pose-(0,_5)) - (obs0-pose-(0,_6)) = 0
+ R347: (obs0-pose-(1,_5)) - (obs0-pose-(1,_6)) = 0
+ R348: (obs0-pose-(0,_6)) - (obs0-pose-(0,_7)) = 0
+ R349: (obs0-pose-(1,_6)) - (obs0-pose-(1,_7)) = 0
+ R350: (obs0-pose-(0,_7)) - (obs0-pose-(0,_8)) = 0
+ R351: (obs0-pose-(1,_7)) - (obs0-pose-(1,_8)) = 0
+ R352: (obs0-pose-(0,_8)) - (obs0-pose-(0,_9)) = 0
+ R353: (obs0-pose-(1,_8)) - (obs0-pose-(1,_9)) = 0
+ R354: (obs0-pose-(0,_9)) - (obs0-pose-(0,_10)) = 0
+ R355: (obs0-pose-(1,_9)) - (obs0-pose-(1,_10)) = 0
+ R356: (obs0-pose-(0,_10)) - (obs0-pose-(0,_11)) = 0
+ R357: (obs0-pose-(1,_10)) - (obs0-pose-(1,_11)) = 0
+ R358: (obs0-pose-(0,_11)) - (obs0-pose-(0,_12)) = 0
+ R359: (obs0-pose-(1,_11)) - (obs0-pose-(1,_12)) = 0
+ R360: (obs0-pose-(0,_12)) - (obs0-pose-(0,_13)) = 0
+ R361: (obs0-pose-(1,_12)) - (obs0-pose-(1,_13)) = 0
+ R362: (obs0-pose-(0,_13)) - (obs0-pose-(0,_14)) = 0
+ R363: (obs0-pose-(1,_13)) - (obs0-pose-(1,_14)) = 0
+ R364: (obs0-pose-(0,_14)) - (obs0-pose-(0,_15)) = 0
+ R365: (obs0-pose-(1,_14)) - (obs0-pose-(1,_15)) = 0
+ R366: (obs0-pose-(0,_15)) - (obs0-pose-(0,_16)) = 0
+ R367: (obs0-pose-(1,_15)) - (obs0-pose-(1,_16)) = 0
+ R368: (obs0-pose-(0,_16)) - (obs0-pose-(0,_17)) = 0
+ R369: (obs0-pose-(1,_16)) - (obs0-pose-(1,_17)) = 0
+ R370: (obs0-pose-(0,_17)) - (obs0-pose-(0,_18)) = 0
+ R371: (obs0-pose-(1,_17)) - (obs0-pose-(1,_18)) = 0
+ R372: (obs0-pose-(0,_18)) - (obs0-pose-(0,_19)) = 0
+ R373: (obs0-pose-(1,_18)) - (obs0-pose-(1,_19)) = 0
+ R374: (obs0-pose-(0,_19)) - (obs0-pose-(0,_20)) = 0
+ R375: (obs0-pose-(1,_19)) - (obs0-pose-(1,_20)) = 0
+ R376: (obs0-pose-(0,_20)) - (obs0-pose-(0,_21)) = 0
+ R377: (obs0-pose-(1,_20)) - (obs0-pose-(1,_21)) = 0
+ R378: (obs0-pose-(0,_21)) - (obs0-pose-(0,_22)) = 0
+ R379: (obs0-pose-(1,_21)) - (obs0-pose-(1,_22)) = 0
+ R380: (obs0-pose-(0,_22)) - (obs0-pose-(0,_23)) = 0
+ R381: (obs0-pose-(1,_22)) - (obs0-pose-(1,_23)) = 0
+ R382: (obs0-pose-(0,_23)) - (obs0-pose-(0,_24)) = 0
+ R383: (obs0-pose-(1,_23)) - (obs0-pose-(1,_24)) = 0
+ R384: (pr2-pose-(0,_1)) - (pr2-pose-(0,_2)) <= 0.5
+ R385: (pr2-pose-(1,_1)) - (pr2-pose-(1,_2)) <= 0.5
+ R386: - (pr2-pose-(0,_1)) + (pr2-pose-(0,_2)) <= 0.5
+ R387: - (pr2-pose-(1,_1)) + (pr2-pose-(1,_2)) <= 0.5
+ R388: (pr2-pose-(0,_2)) - (pr2-pose-(0,_3)) <= 0.5
+ R389: (pr2-pose-(1,_2)) - (pr2-pose-(1,_3)) <= 0.5
+ R390: - (pr2-pose-(0,_2)) + (pr2-pose-(0,_3)) <= 0.5
+ R391: - (pr2-pose-(1,_2)) + (pr2-pose-(1,_3)) <= 0.5
+ R392: (pr2-pose-(0,_3)) - (pr2-pose-(0,_4)) <= 0.5
+ R393: (pr2-pose-(1,_3)) - (pr2-pose-(1,_4)) <= 0.5
+ R394: - (pr2-pose-(0,_3)) + (pr2-pose-(0,_4)) <= 0.5
+ R395: - (pr2-pose-(1,_3)) + (pr2-pose-(1,_4)) <= 0.5
+ R396: (pr2-pose-(0,_4)) - (pr2-pose-(0,_5)) <= 0.5
+ R397: (pr2-pose-(1,_4)) - (pr2-pose-(1,_5)) <= 0.5
+ R398: - (pr2-pose-(0,_4)) + (pr2-pose-(0,_5)) <= 0.5
+ R399: - (pr2-pose-(1,_4)) + (pr2-pose-(1,_5)) <= 0.5
+ R400: (pr2-pose-(0,_5)) - (pr2-pose-(0,_6)) <= 0.5
+ R401: (pr2-pose-(1,_5)) - (pr2-pose-(1,_6)) <= 0.5
+ R402: - (pr2-pose-(0,_5)) + (pr2-pose-(0,_6)) <= 0.5
+ R403: - (pr2-pose-(1,_5)) + (pr2-pose-(1,_6)) <= 0.5
+ R404: (pr2-pose-(0,_6)) - (pr2-pose-(0,_7)) <= 0.5
+ R405: (pr2-pose-(1,_6)) - (pr2-pose-(1,_7)) <= 0.5
+ R406: - (pr2-pose-(0,_6)) + (pr2-pose-(0,_7)) <= 0.5
+ R407: - (pr2-pose-(1,_6)) + (pr2-pose-(1,_7)) <= 0.5
+ R408: (pr2-pose-(0,_7)) - (pr2-pose-(0,_8)) <= 0.5
+ R409: (pr2-pose-(1,_7)) - (pr2-pose-(1,_8)) <= 0.5
+ R410: - (pr2-pose-(0,_7)) + (pr2-pose-(0,_8)) <= 0.5
+ R411: - (pr2-pose-(1,_7)) + (pr2-pose-(1,_8)) <= 0.5
+ R412: (pr2-pose-(0,_8)) - (pr2-pose-(0,_9)) <= 0.5
+ R413: (pr2-pose-(1,_8)) - (pr2-pose-(1,_9)) <= 0.5
+ R414: - (pr2-pose-(0,_8)) + (pr2-pose-(0,_9)) <= 0.5
+ R415: - (pr2-pose-(1,_8)) + (pr2-pose-(1,_9)) <= 0.5
+ R416: (pr2-pose-(0,_9)) - (pr2-pose-(0,_10)) <= 0.5
+ R417: (pr2-pose-(1,_9)) - (pr2-pose-(1,_10)) <= 0.5
+ R418: - (pr2-pose-(0,_9)) + (pr2-pose-(0,_10)) <= 0.5
+ R419: - (pr2-pose-(1,_9)) + (pr2-pose-(1,_10)) <= 0.5
+ R420: (pr2-pose-(0,_10)) - (pr2-pose-(0,_11)) <= 0.5
+ R421: (pr2-pose-(1,_10)) - (pr2-pose-(1,_11)) <= 0.5
+ R422: - (pr2-pose-(0,_10)) + (pr2-pose-(0,_11)) <= 0.5
+ R423: - (pr2-pose-(1,_10)) + (pr2-pose-(1,_11)) <= 0.5
+ R424: (pr2-pose-(0,_11)) - (pr2-pose-(0,_12)) <= 0.5
+ R425: (pr2-pose-(1,_11)) - (pr2-pose-(1,_12)) <= 0.5
+ R426: - (pr2-pose-(0,_11)) + (pr2-pose-(0,_12)) <= 0.5
+ R427: - (pr2-pose-(1,_11)) + (pr2-pose-(1,_12)) <= 0.5
+ R428: (pr2-pose-(0,_12)) - (pr2-pose-(0,_13)) <= 0.5
+ R429: (pr2-pose-(1,_12)) - (pr2-pose-(1,_13)) <= 0.5
+ R430: - (pr2-pose-(0,_12)) + (pr2-pose-(0,_13)) <= 0.5
+ R431: - (pr2-pose-(1,_12)) + (pr2-pose-(1,_13)) <= 0.5
+ R432: (pr2-pose-(0,_13)) - (pr2-pose-(0,_14)) <= 0.5
+ R433: (pr2-pose-(1,_13)) - (pr2-pose-(1,_14)) <= 0.5
+ R434: - (pr2-pose-(0,_13)) + (pr2-pose-(0,_14)) <= 0.5
+ R435: - (pr2-pose-(1,_13)) + (pr2-pose-(1,_14)) <= 0.5
+ R436: (pr2-pose-(0,_14)) - (pr2-pose-(0,_15)) <= 0.5
+ R437: (pr2-pose-(1,_14)) - (pr2-pose-(1,_15)) <= 0.5
+ R438: - (pr2-pose-(0,_14)) + (pr2-pose-(0,_15)) <= 0.5
+ R439: - (pr2-pose-(1,_14)) + (pr2-pose-(1,_15)) <= 0.5
+ R440: (pr2-pose-(0,_15)) - (pr2-pose-(0,_16)) <= 0.5
+ R441: (pr2-pose-(1,_15)) - (pr2-pose-(1,_16)) <= 0.5
+ R442: - (pr2-pose-(0,_15)) + (pr2-pose-(0,_16)) <= 0.5
+ R443: - (pr2-pose-(1,_15)) + (pr2-pose-(1,_16)) <= 0.5
+ R444: (pr2-pose-(0,_16)) - (pr2-pose-(0,_17)) <= 0.5
+ R445: (pr2-pose-(1,_16)) - (pr2-pose-(1,_17)) <= 0.5
+ R446: - (pr2-pose-(0,_16)) + (pr2-pose-(0,_17)) <= 0.5
+ R447: - (pr2-pose-(1,_16)) + (pr2-pose-(1,_17)) <= 0.5
+ R448: (pr2-pose-(0,_17)) - (pr2-pose-(0,_18)) <= 0.5
+ R449: (pr2-pose-(1,_17)) - (pr2-pose-(1,_18)) <= 0.5
+ R450: - (pr2-pose-(0,_17)) + (pr2-pose-(0,_18)) <= 0.5
+ R451: - (pr2-pose-(1,_17)) + (pr2-pose-(1,_18)) <= 0.5
+ R452: (pr2-pose-(0,_18)) - (pr2-pose-(0,_19)) <= 0.5
+ R453: (pr2-pose-(1,_18)) - (pr2-pose-(1,_19)) <= 0.5
+ R454: - (pr2-pose-(0,_18)) + (pr2-pose-(0,_19)) <= 0.5
+ R455: - (pr2-pose-(1,_18)) + (pr2-pose-(1,_19)) <= 0.5
+ R456: (pr2-pose-(0,_19)) - (pr2-pose-(0,_20)) <= 0.5
+ R457: (pr2-pose-(1,_19)) - (pr2-pose-(1,_20)) <= 0.5
+ R458: - (pr2-pose-(0,_19)) + (pr2-pose-(0,_20)) <= 0.5
+ R459: - (pr2-pose-(1,_19)) + (pr2-pose-(1,_20)) <= 0.5
+ R460: (pr2-pose-(0,_20)) - (pr2-pose-(0,_21)) <= 0.5
+ R461: (pr2-pose-(1,_20)) - (pr2-pose-(1,_21)) <= 0.5
+ R462: - (pr2-pose-(0,_20)) + (pr2-pose-(0,_21)) <= 0.5
+ R463: - (pr2-pose-(1,_20)) + (pr2-pose-(1,_21)) <= 0.5
+ R464: (pr2-pose-(0,_21)) - (pr2-pose-(0,_22)) <= 0.5
+ R465: (pr2-pose-(1,_21)) - (pr2-pose-(1,_22)) <= 0.5
+ R466: - (pr2-pose-(0,_21)) + (pr2-pose-(0,_22)) <= 0.5
+ R467: - (pr2-pose-(1,_21)) + (pr2-pose-(1,_22)) <= 0.5
+ R468: (pr2-pose-(0,_22)) - (pr2-pose-(0,_23)) <= 0.5
+ R469: (pr2-pose-(1,_22)) - (pr2-pose-(1,_23)) <= 0.5
+ R470: - (pr2-pose-(0,_22)) + (pr2-pose-(0,_23)) <= 0.5
+ R471: - (pr2-pose-(1,_22)) + (pr2-pose-(1,_23)) <= 0.5
+ R472: (pr2-pose-(0,_23)) - (pr2-pose-(0,_24)) <= 0.5
+ R473: (pr2-pose-(1,_23)) - (pr2-pose-(1,_24)) <= 0.5
+ R474: - (pr2-pose-(0,_23)) + (pr2-pose-(0,_24)) <= 0.5
+ R475: - (pr2-pose-(1,_23)) + (pr2-pose-(1,_24)) <= 0.5
 Bounds
+ (can3_end_target-value-(0,_0)) free
+ (can3_end_target-value-(1,_0)) free
  (grasp0-value-(0,_0)) free
  (grasp0-value-(1,_0)) free
- (right_target-value-(0,_0)) free
- (right_target-value-(1,_0)) free
- (robot_init_pose-gripper-(0,_0)) free
- (robot_init_pose-value-(0,_0)) free
- (robot_init_pose-value-(1,_0)) free
- (can0_init_target-value-(0,_0)) free
- (can0_init_target-value-(1,_0)) free
- (can0_end_target-value-(0,_0)) free
- (can0_end_target-value-(1,_0)) free
+ (robot_end_pose-gripper-(0,_0)) free
+ (robot_end_pose-value-(0,_0)) free
+ (robot_end_pose-value-(1,_0)) free
+ (grasp_end_pose-gripper-(0,_0)) free
+ (grasp_end_pose-value-(0,_0)) free
+ (grasp_end_pose-value-(1,_0)) free
  (pr2-gripper-(0,_0)) free
  (pr2-gripper-(0,_1)) free
  (pr2-gripper-(0,_2)) free
@@ -741,6 +738,24 @@ Bounds
  (pr2-pose-(1,_22)) free
  (pr2-pose-(1,_23)) free
  (pr2-pose-(1,_24)) free
+ (can1_init_target-value-(0,_0)) free
+ (can1_init_target-value-(1,_0)) free
+ (left_target-value-(0,_0)) free
+ (left_target-value-(1,_0)) free
+ (middle_target-value-(0,_0)) free
+ (middle_target-value-(1,_0)) free
+ (can2_end_target-value-(0,_0)) free
+ (can2_end_target-value-(1,_0)) free
+ (can2_init_target-value-(0,_0)) free
+ (can2_init_target-value-(1,_0)) free
+ (can3_init_target-value-(0,_0)) free
+ (can3_init_target-value-(1,_0)) free
+ (can1_end_target-value-(0,_0)) free
+ (can1_end_target-value-(1,_0)) free
+ (right_target-value-(0,_0)) free
+ (right_target-value-(1,_0)) free
+ (can0_init_target-value-(0,_0)) free
+ (can0_init_target-value-(1,_0)) free
  (obs0-pose-(0,_0)) free
  (obs0-pose-(0,_1)) free
  (obs0-pose-(0,_2)) free
@@ -791,10 +806,106 @@ Bounds
  (obs0-pose-(1,_22)) free
  (obs0-pose-(1,_23)) free
  (obs0-pose-(1,_24)) free
- (can1_init_target-value-(0,_0)) free
- (can1_init_target-value-(1,_0)) free
- (left_target-value-(0,_0)) free
- (left_target-value-(1,_0)) free
+ (can2-pose-(0,_0)) free
+ (can2-pose-(0,_1)) free
+ (can2-pose-(0,_2)) free
+ (can2-pose-(0,_3)) free
+ (can2-pose-(0,_4)) free
+ (can2-pose-(0,_5)) free
+ (can2-pose-(0,_6)) free
+ (can2-pose-(0,_7)) free
+ (can2-pose-(0,_8)) free
+ (can2-pose-(0,_9)) free
+ (can2-pose-(0,_10)) free
+ (can2-pose-(0,_11)) free
+ (can2-pose-(0,_12)) free
+ (can2-pose-(0,_13)) free
+ (can2-pose-(0,_14)) free
+ (can2-pose-(0,_15)) free
+ (can2-pose-(0,_16)) free
+ (can2-pose-(0,_17)) free
+ (can2-pose-(0,_18)) free
+ (can2-pose-(0,_19)) free
+ (can2-pose-(0,_20)) free
+ (can2-pose-(0,_21)) free
+ (can2-pose-(0,_22)) free
+ (can2-pose-(0,_23)) free
+ (can2-pose-(0,_24)) free
+ (can2-pose-(1,_0)) free
+ (can2-pose-(1,_1)) free
+ (can2-pose-(1,_2)) free
+ (can2-pose-(1,_3)) free
+ (can2-pose-(1,_4)) free
+ (can2-pose-(1,_5)) free
+ (can2-pose-(1,_6)) free
+ (can2-pose-(1,_7)) free
+ (can2-pose-(1,_8)) free
+ (can2-pose-(1,_9)) free
+ (can2-pose-(1,_10)) free
+ (can2-pose-(1,_11)) free
+ (can2-pose-(1,_12)) free
+ (can2-pose-(1,_13)) free
+ (can2-pose-(1,_14)) free
+ (can2-pose-(1,_15)) free
+ (can2-pose-(1,_16)) free
+ (can2-pose-(1,_17)) free
+ (can2-pose-(1,_18)) free
+ (can2-pose-(1,_19)) free
+ (can2-pose-(1,_20)) free
+ (can2-pose-(1,_21)) free
+ (can2-pose-(1,_22)) free
+ (can2-pose-(1,_23)) free
+ (can2-pose-(1,_24)) free
+ (can3-pose-(0,_0)) free
+ (can3-pose-(0,_1)) free
+ (can3-pose-(0,_2)) free
+ (can3-pose-(0,_3)) free
+ (can3-pose-(0,_4)) free
+ (can3-pose-(0,_5)) free
+ (can3-pose-(0,_6)) free
+ (can3-pose-(0,_7)) free
+ (can3-pose-(0,_8)) free
+ (can3-pose-(0,_9)) free
+ (can3-pose-(0,_10)) free
+ (can3-pose-(0,_11)) free
+ (can3-pose-(0,_12)) free
+ (can3-pose-(0,_13)) free
+ (can3-pose-(0,_14)) free
+ (can3-pose-(0,_15)) free
+ (can3-pose-(0,_16)) free
+ (can3-pose-(0,_17)) free
+ (can3-pose-(0,_18)) free
+ (can3-pose-(0,_19)) free
+ (can3-pose-(0,_20)) free
+ (can3-pose-(0,_21)) free
+ (can3-pose-(0,_22)) free
+ (can3-pose-(0,_23)) free
+ (can3-pose-(0,_24)) free
+ (can3-pose-(1,_0)) free
+ (can3-pose-(1,_1)) free
+ (can3-pose-(1,_2)) free
+ (can3-pose-(1,_3)) free
+ (can3-pose-(1,_4)) free
+ (can3-pose-(1,_5)) free
+ (can3-pose-(1,_6)) free
+ (can3-pose-(1,_7)) free
+ (can3-pose-(1,_8)) free
+ (can3-pose-(1,_9)) free
+ (can3-pose-(1,_10)) free
+ (can3-pose-(1,_11)) free
+ (can3-pose-(1,_12)) free
+ (can3-pose-(1,_13)) free
+ (can3-pose-(1,_14)) free
+ (can3-pose-(1,_15)) free
+ (can3-pose-(1,_16)) free
+ (can3-pose-(1,_17)) free
+ (can3-pose-(1,_18)) free
+ (can3-pose-(1,_19)) free
+ (can3-pose-(1,_20)) free
+ (can3-pose-(1,_21)) free
+ (can3-pose-(1,_22)) free
+ (can3-pose-(1,_23)) free
+ (can3-pose-(1,_24)) free
  (can0-pose-(0,_0)) free
  (can0-pose-(0,_1)) free
  (can0-pose-(0,_2)) free
@@ -895,18 +1006,22 @@ Bounds
  (can1-pose-(1,_22)) free
  (can1-pose-(1,_23)) free
  (can1-pose-(1,_24)) free
- (middle_target-value-(0,_0)) free
- (middle_target-value-(1,_0)) free
- (robot_end_pose-gripper-(0,_0)) free
- (robot_end_pose-value-(0,_0)) free
- (robot_end_pose-value-(1,_0)) free
- (can1_end_target-value-(0,_0)) free
- (can1_end_target-value-(1,_0)) free
+ (pdp_target3-gripper-(0,_0)) free
+ (pdp_target3-value-(0,_0)) free
+ (pdp_target3-value-(1,_0)) free
+ (pdp_target2-gripper-(0,_0)) free
+ (pdp_target2-value-(0,_0)) free
+ (pdp_target2-value-(1,_0)) free
  (pdp_target1-gripper-(0,_0)) free
  (pdp_target1-value-(0,_0)) free
  (pdp_target1-value-(1,_0)) free
  (pdp_target0-gripper-(0,_0)) free
  (pdp_target0-value-(0,_0)) free
  (pdp_target0-value-(1,_0)) free
+ (robot_init_pose-gripper-(0,_0)) free
+ (robot_init_pose-value-(0,_0)) free
+ (robot_init_pose-value-(1,_0)) free
+ (can0_end_target-value-(0,_0)) free
+ (can0_end_target-value-(1,_0)) free
  Constant = 1
 End

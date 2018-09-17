@@ -12,22 +12,32 @@ from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 
-possible_can_locs = [(0, 6), (0, 5), (0, 4.5), (0, 4), (0, 3.5)]
-possible_can_locs.extend(list(itertools.product(range(-3, 3), range(-1, 3))))
-possible_can_locs.remove((0,0))
+possible_can_locs = [(0, 60), (0, 50), (0, 45), (0, 40), (0, 35)]
+possible_can_locs.extend(list(itertools.product(range(-25, 25), range(-10, 25))))
+for i in range(-10, 10):
+    for j in range(-10, 10):
+        if (i, j) in possible_can_locs:
+            possible_can_locs.remove((i, j))
+for i in range(len(possible_can_locs)):
+    loc = list(possible_can_locs[i])
+    loc[0] *= 0.1
+    loc[1] *= 0.1
+    possible_can_locs[i] = tuple(loc)
 
 prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob"
 domain_file = "../domains/namo_domain/namo.domain"
+mapping_file = "policy_hooks/namo/sorting_task_mapping"
+pddl_file = "../domains/namo_domain/sorting_domain.pddl"
 
 targets = [[0., 6.], [0., 5.], [0., 4.], [0., -2.], [0., 2.]]
 
 def get_end_targets(num_cans):
     target_map = {}
     for n in range(num_cans):
-        target_map['can{0}_end_target'.format(n)] = targets[n]
-    target_map['middle_target'] = [0., 0.]
-    target_map['left_target'] = [-1., 0.]
-    target_map['right_target'] = [1., 0.]
+        target_map['can{0}_end_target'.format(n)] = np.array(targets[n])
+    target_map['middle_target'] = np.array([0., 0.])
+    target_map['left_target'] = np.array([-1., 0.])
+    target_map['right_target'] = np.array([1., 0.])
     return target_map
 
 def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
@@ -47,6 +57,8 @@ def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
         #     for i in range(num_cans):
         #         if can_locs[i][0] != targets['can{0}_end_target'.format(i)][0] or can_locs[i][1] != targets['can{0}_end_target'.format(i)][1]:
         #             keep = True
+
+        # robot_loc = np.array(random.choice(itertools.product(range(-3, 3), range(-3, 1))))
 
         for n in range(num_cans):
             Xs[i, state_inds['can{0}'.format(n), 'pose']] = can_locs[n]
@@ -105,6 +117,9 @@ def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
         if np.all(np.abs(loc - pr2 + grasp) < 0.2):
             hl_init_state += " (CanInGripper {0})".format(can)
 
+        if np.all(np.abs(loc - pr2 + grasp) < 1.0):
+            hl_init_state += " (NearCan {0})".format(can)
+
     for pred in failed_preds:
         if pred[0].get_type().lower() == 'obstructs':
             if " (CanObstructsTarget {0} {1})".format(pred[0].c.name, pred[2].name) not in hl_init_state:
@@ -118,11 +133,12 @@ def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
                     hl_init_state += " (CanObstructs {0} {1})".format(pred[0].obstr.name, pred[1].name)
                 hl_init_state += " (CanObstructsTarget {0} {1})".format(pred[0].obstr.name, pred[2].name)
 
+
     hl_init_state += ")\n"
     return hl_init_state
 
 def get_hl_plan(prob):
-    with open('../domains/namo_domain/sorting_domain.pddl', 'r+') as f:
+    with open(pddl_file, 'r+') as f:
         domain = f.read()
     hl_solver = FFSolver(abs_domain=domain)
     return hl_solver._run_planner(domain, prob, 'namo')
@@ -153,7 +169,7 @@ def hl_plan_for_state(state, targets, param_map, state_inds, failed_preds=[]):
     return parse_hl_plan(hl_plan)
 
 def get_ll_plan_str(hl_plan, num_cans):
-    tasks = get_tasks('policy_hooks/namo/sorting_task_mapping')
+    tasks = get_tasks(mapping_file)
     ll_plan_str = []
     actions_per_task = []
     last_pose = "ROBOT_INIT_POSE"
@@ -392,7 +408,7 @@ def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[])
     return None, None
 
 def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
-    tasks = get_tasks('policy_hooks/namo/sorting_task_mapping')
+    tasks = get_tasks(mapping_file)
     next_task_str = copy.deepcopy(tasks[task])
     for j in range(len(next_task_str)):
         next_task_str[j]= next_task_str[j].format(*targets)
@@ -400,7 +416,7 @@ def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
     return plan_from_str(next_task_str, prob_file.format(num_cans), domain_file, env, openrave_bodies)
 
 def cost_f(Xs, task, params, targets, plan, active_ts=None, debug=False):
-    tol = 1e-1
+    tol = 1e-3
 
     if len(Xs.shape) == 1:
         Xs = Xs.reshape(1, -1)

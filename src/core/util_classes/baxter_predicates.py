@@ -2197,13 +2197,6 @@ class BaxterClothInGripperRight(BaxterInGripper):
         self.eval_dim = 3
         super(BaxterClothInGripperRight, self).__init__(name, params, expected_param_types, env, debug)
 
-    def resample(self, negated, t, plan):
-        if const.PRODUCTION:
-            print "I need to think about where I'm going to put my gripper."
-        else:
-            print "resample {}".format(self.get_type())
-        return baxter_sampling.resample_cloth_in_gripper(self, negated, t, plan)
-
     def stacked_f(self, x):
         return self.coeff * self.pos_check_f(x)
 

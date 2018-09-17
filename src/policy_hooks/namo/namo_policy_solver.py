@@ -24,10 +24,11 @@ from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 import policy_hooks.namo.namo_hyperparams as namo_hyperparams
+# import policy_hooks.namo.namo_optgps_hyperparams as namo_hyperparams
 from policy_hooks.namo.namo_policy_predicates import NAMOPolicyPredicate
 import policy_hooks.utils.policy_solver_utils as utils
-from policy_hooks.namo.sorting_prob import *
-from policy_hooks.task_net import tf_classification_network
+from policy_hooks.namo.sorting_prob_2 import *
+from policy_hooks.task_net import tf_binary_network, tf_classification_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
 from policy_hooks.action_traj_cost import ActionTrajCost
@@ -64,8 +65,8 @@ class NAMOPolicySolver(BASE_CLASS):
             self.config.update(hyperparams)
 
         conditions = self.config['num_conds']
-        self.task_list = tuple(get_tasks('policy_hooks/namo/sorting_task_mapping').keys())
-        self.task_durations = get_task_durations('policy_hooks/namo/sorting_task_mapping')
+        self.task_list = tuple(get_tasks('policy_hooks/namo/sorting_task_mapping_2').keys())
+        self.task_durations = get_task_durations('policy_hooks/namo/sorting_task_mapping_2')
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
 
@@ -78,7 +79,7 @@ class NAMOPolicySolver(BASE_CLASS):
         openrave_bodies = {}
         for task in self.task_list:
             for c in range(num_cans):
-                plans[task, 'can{0}'.format(c)] = get_plan_for_task(task, ['can{0}'.format(c)], num_cans, env, openrave_bodies)
+                plans[task, 'can{0}'.format(c)] = get_plan_for_task(task, ['can{0}'.format(c), 'can{0}_end_target'.format(c)], num_cans, env, openrave_bodies)
                 if env is None:
                     env = plans[task, 'can{0}'.format(c)].env
                     for param in plans[task, 'can{0}'.format(c)].params.values():
@@ -114,6 +115,8 @@ class NAMOPolicySolver(BASE_CLASS):
             utils.TARGETS_ENUM: self.target_dim,
             utils.OBJ_ENUM: num_cans,
             utils.TARG_ENUM: len(targets[0].keys()),
+            utils.OBJ_POSE_ENUM: 2,
+            utils.TARG_POSE_ENUM: 2,
         }
 
         self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name] 
@@ -121,6 +124,7 @@ class NAMOPolicySolver(BASE_CLASS):
         self.config['cost_f'] = cost_f
         self.config['target_f'] = get_next_target
         self.config['encode_f'] = sorting_state_encode
+        # self.config['weight_file'] = 'tf_saved/2018-09-12 23:43:45.748906_namo_5.ckpt'
 
         self.config['task_durations'] = self.task_durations
 
@@ -149,9 +153,8 @@ class NAMOPolicySolver(BASE_CLASS):
                 'obs_include': [utils.STATE_ENUM,
                                 utils.TARGETS_ENUM,
                                 utils.TASK_ENUM,
-                                utils.OBJ_ENUM,
-                                utils.TARG_ENUM,
-                                utils.TRAJ_HIST_ENUM],
+                                utils.OBJ_POSE_ENUM,
+                                utils.TARG_POSE_ENUM],
                 'prim_obs_include': [utils.STATE_ENUM,
                                      utils.TARGETS_ENUM],
                 'conditions': self.config['num_conds'],
@@ -190,7 +193,7 @@ class NAMOPolicySolver(BASE_CLASS):
                                 'wp_final_multiplier': 1.0,
                             }
                         },
-                        'ramp_option': RAMP_REVERSE_LINEAR
+                        'ramp_option': RAMP_CONSTANT
                     }
         action_cost = {
                         'type': ActionTrajCost,
@@ -200,12 +203,12 @@ class NAMOPolicySolver(BASE_CLASS):
                                 'target_state': np.zeros((1, self.dU)),
                             }
                         },
-                        'ramp_option': RAMP_REVERSE_LINEAR
+                        'ramp_option': RAMP_CONSTANT
                      }
 
-        constr_cost = {
-                        'type': TrajConstrCost,
-                      }
+        # constr_cost = {
+        #                 'type': TrajConstrCost,
+        #               }
 
         self.config['algorithm']['cost'] = {
                                                 'type': CostSum,
@@ -272,13 +275,13 @@ class NAMOPolicySolver(BASE_CLASS):
                 'sensor_dims': sensor_dims,
                 'n_layers': 1,
                 'num_filters': [5,10],
-                'dim_hidden': [50]
+                'dim_hidden': [40]
             },
             'lr': self.config['lr'],
             'network_model': tf_network,
             'distilled_network_model': tf_network,
             'primitive_network_model': tf_classification_network,
-            'value_network_model': tf_network,
+            'value_network_model': tf_binary_network,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
             'weight_decay': self.config['weight_decay'],
@@ -313,26 +316,22 @@ def copy_dict(d):
     return new_d
 
 if __name__ == '__main__':
-    for lr in [1e-3]:
-        for init_var in [0.0016]:
-            for covard in [0]:
-                for wt in [1e0]:
-                    for klt in [1e0]:
-                        for kl in [5e-4]:
-                            for iters in [30000]:
-                                for dh in [[50, 50]]:
-                                    for hl in [3]:
-                                        config = copy_dict(namo_hyperparams.config)
-                                        config['lr'] = lr
-                                        config['dim_hidden'] = dh
-                                        config['n_layers'] = len(dh)
-                                        config['train_iterations'] = iters
-                                        config['algorithm']['init_traj_distr']['init_var'] = init_var
-                                        config['algorithm']['traj_opt']['covariance_damping'] = covard
-                                        config['opt_wt'] = wt
-                                        config['algorithm']['opt_wt'] = wt
-                                        config['algorithm']['traj_opt']['kl_threshold'] = klt
-                                        config['algorithm']['kl_step'] = kl
-                                        config['hist_len'] = hl
-                                        PS = NAMOPolicySolver()
-                                        PS.train_policy(4, config)
+    for lr in [1e-4]:
+        for covard in [0]:
+            for wt in [1e0]:
+                for klt in [1e0]:
+                    for kl in [1e-3]:
+                        for iters in [100000]:
+                            for dh in [[50, 50]]:
+                                config = copy_dict(namo_hyperparams.config)
+                                config['lr'] = lr
+                                config['dim_hidden'] = dh
+                                config['n_layers'] = len(dh)
+                                config['train_iterations'] = iters
+                                config['algorithm']['traj_opt']['covariance_damping'] = covard
+                                config['opt_wt'] = wt
+                                config['algorithm']['opt_wt'] = wt
+                                config['algorithm']['traj_opt']['kl_threshold'] = klt
+                                config['algorithm']['kl_step'] = kl
+                                PS = NAMOPolicySolver()
+                                PS.train_policy(5, config)

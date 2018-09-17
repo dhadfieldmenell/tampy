@@ -225,24 +225,32 @@ def get_random_initial_can_locations(num_cans):
 
 def sorting_state_encode(state, plan, targets, task=(None, None, None)):
     pred_list = []
+    for target_name in targets:
+        pred_list.append('TargetIsOnLeft {0}'.format(target_name))
+        pred_list.append('TargetIsOnRight {0}'.format(target_name))
     for param_name in plan.params:
         param = plan.params[param_name]
         if param._type == 'Cloth':
             for target_name in targets:
                 pred_list.append('ClothAtTarget {0} {1}'.format(param_name, target_name))
-            pred_list.append('ClothInMiddle {0}'.format(param_name))
-            pred_list.append('ClothInLeftRegion {0}'.format(param_name))
-            pred_list.append('ClothInRightRegion {0}'.format(param_name))
+            pred_list.append('ClothIsOnLeft {0}'.format(param_name))
+            pred_list.append('ClothIsOnRight {0}'.format(param_name))
+            pred_list.append('ClothInGripperLeft {0}'.format(param_name))
+            pred_list.append('ClothInGripperRight {0}'.format(param_name))
+            pred_list.append('')
     state_encoding = dict(zip(pred_list, range(len(pred_list))))
     hl_state = np.zeros((len(pred_list)))
 
+    hl_init_state = ""
     for target_name in targets:
-        if np.all(np.abs(state[plan.state_inds[param_name, 'pose']] - targets[target_name]) < 0.1):
-            hl_state[state_encoding['ClothAtTarget {0} {1}'.format(param_name, target_name)]] = 1
-        if targets[target_name][1] < 0.1:
-            hl_init_state += " (TargetIsOnRight {0})".format(target_name)
-        if targets[target_name][1] > -0.1:
-            hl_init_state += " (TargetIsOnLeft {0})".format(target_name)
+        for param_name in plan.params:
+            if plan.params[param_name]._type != 'Cloth': continue
+            if np.all(np.abs(state[plan.state_inds[param_name, 'pose']] - targets[target_name]) < 0.1):
+                hl_state[state_encoding['ClothAtTarget {0} {1}'.format(param_name, target_name)]] = 1
+            if targets[target_name][1] < 0.1:
+                hl_init_state += " (TargetIsOnRight {0})".format(target_name)
+            if targets[target_name][1] > -0.1:
+                hl_init_state += " (TargetIsOnLeft {0})".format(target_name)
     for param_name in plan.params:
         if plan.params[param_name]._type != 'Cloth': continue
         if state[plan.state_inds[param_name, 'pose']][1] < 0.1:
@@ -250,7 +258,7 @@ def sorting_state_encode(state, plan, targets, task=(None, None, None)):
         if state[plan.state_inds[param_name, 'pose']][1] > -0.1:
             hl_init_state += " (ClothIsOnLeft {0})".format(param_name)
 
-        if 'putdown' in task[0] and param_name == task[1]: continue
+        if task[0] is not None and 'putdown' in task[0] and param_name == task[1]: continue
         for target_name in targets:
             if np.all(np.abs(state[plan.state_inds[param_name, 'pose']] - targets[target_name]) < 0.0001):
                 hl_state[state_encoding['ClothAtTarget {0} {1}'.format(param_name, target_name)]] = 1
@@ -258,7 +266,7 @@ def sorting_state_encode(state, plan, targets, task=(None, None, None)):
     if task[0] != 'putdown_left' and task[0] != 'grasp_left':
         larm = state[plan.state_inds['baxter', 'lArmPose']]
         lgrip = state[plan.state_inds['baxter', 'lGripper']]
-        plan.params['baxter'].set_dof({'lArmPose':larm, 'lGripper':lgrip})
+        plan.params['baxter'].openrave_body.set_dof({'lArmPose':larm, 'lGripper':lgrip})
         l_pose = plan.params['baxter'].openrave_body.env_body.GetLink('left_gripper').GetTransform()[:3,3]
         for param_name in plan.params:
             param = plan.params[param_name]
@@ -275,7 +283,7 @@ def sorting_state_encode(state, plan, targets, task=(None, None, None)):
     if task[0] != 'putdown_right' and task[0] != 'grasp_right':
         rarm = state[plan.state_inds['baxter', 'rArmPose']]
         rgrip = state[plan.state_inds['baxter', 'rGripper']]
-        plan.params['baxter'].set_dof({'rArmPose':rarm, 'rGripper':rgrip})
+        plan.params['baxter'].openrave_body.set_dof({'rArmPose':rarm, 'rGripper':rgrip})
         r_pose = plan.params['baxter'].openrave_body.env_body.GetLink('right_gripper').GetTransform()[:3,3]
         for param_name in plan.params:
             param = plan.params[param_name]
@@ -406,7 +414,7 @@ def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
             param.openrave_body = OpenRAVEBody(plan.env, param.name, param.geom)
     return plan
 
-def cost_f(Xs, task, params, targets, plan, active_ts=None):
+def cost_f(Xs, task, params, targets, plan, active_ts=None, debug=False):
     tol = 1e-1
 
     if active_ts == None:

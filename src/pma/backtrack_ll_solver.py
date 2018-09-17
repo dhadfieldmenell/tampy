@@ -44,6 +44,7 @@ class BacktrackLLSolver(LLSolver):
         self.var_list = []
         self._grb_to_var_ind = {}
         self.tol = 1e-3
+        self.saved_params_free = {}
 
     def _solve_helper(self, plan, callback, active_ts, verbose):
         # certain constraints should be solved first
@@ -54,6 +55,21 @@ class BacktrackLLSolver(LLSolver):
                             verbose=verbose)
 
         return success
+
+    def save_free(self, plan):
+        old_params_free = {}
+        for p in plan.params.itervalues():
+            p_attrs = {}
+            old_params_free[p.name] = p_attrs
+            for attr in p._free_attrs:
+                p_attrs[attr] = p._free_attrs[attr].copy()
+        self.saved_params_free[plan] = old_params_free
+
+
+    def restore_free(self, plan):
+        for p in self.saved_params_free[plan]:
+            for attr in self.saved_params_free[plan][p]:
+                plan.params[p]._free_attrs[attr] = self.saved_params_free[plan][p][attr].copy()
 
     def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=5):
         plan.save_free_attrs()
@@ -80,7 +96,7 @@ class BacktrackLLSolver(LLSolver):
             old_params_free = {}
             for p in plan.params.itervalues():
                 if p.is_symbol():
-                    if p not in a.params: continue
+                    # if p not in a.params: continue
                     old_params_free[p] = p._free_attrs
                     p._free_attrs = {}
                     for attr in old_params_free[p].keys():
@@ -171,7 +187,7 @@ class BacktrackLLSolver(LLSolver):
             #     active_ts=active_ts, verbose=verbose)
             plan.initialized=True
 
-        if success or len(plan.get_failed_preds(active_ts = active_ts)) == 0:
+        if success or len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0:
             return True
 
 
@@ -598,18 +614,20 @@ class BacktrackLLSolver(LLSolver):
                     n_vals, i = 0, 0
                     grb_vars = []
                     for attr, ind_arr, t in attr_inds[p]:
-                        for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t-ll_p.active_ts[0]].flatten()):
-                            Q = np.eye(1)
-                            A = -2*val[p][i+j]*np.ones((1, 1))
-                            b = np.ones((1, 1))*np.power(val[p][i+j], 2)
-                            resample_coeff = self.rs_coeff/float(plan.horizon)
-                            # QuadExpr is 0.5*x^Tx + Ax + b
-                            quad_expr = QuadExpr(2*Q*resample_coeff, A*resample_coeff, b*resample_coeff)
-                            v_arr = np.array([grb_var]).reshape((1, 1), order='F')
-                            init_val = np.ones((1, 1))*val[p][i+j]
-                            sco_var = self.create_variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1)), save = True)
-                            bexpr = BoundExpr(quad_expr, sco_var)
-                            bexprs.append(bexpr)
+                        if t-ll_p.active_ts[0] > ll_p.active_ts[1]-ll_p.active_ts[0]: continue
+                        if t-ll_p.active_ts[0] >= 0:
+                            for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t-ll_p.active_ts[0]].flatten()):
+                                Q = np.eye(1)
+                                A = -2*val[p][i+j]*np.ones((1, 1))
+                                b = np.ones((1, 1))*np.power(val[p][i+j], 2)
+                                resample_coeff = self.rs_coeff/float(plan.horizon)
+                                # QuadExpr is 0.5*x^Tx + Ax + b
+                                quad_expr = QuadExpr(2*Q*resample_coeff, A*resample_coeff, b*resample_coeff)
+                                v_arr = np.array([grb_var]).reshape((1, 1), order='F')
+                                init_val = np.ones((1, 1))*val[p][i+j]
+                                sco_var = self.create_variable(v_arr, np.array([val[p][i+j]]).reshape((1, 1)), save = True)
+                                bexpr = BoundExpr(quad_expr, sco_var)
+                                bexprs.append(bexpr)
                         i += len(ind_arr)
                 if not sample_all:
                     break
