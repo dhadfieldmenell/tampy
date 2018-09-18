@@ -1,0 +1,12 @@
+float32[] state
+string task
+string obj
+string targ
+int32 condition
+Float32MultiArray traj_mean
+
+---
+
+Float32MultiArray[] traj
+string failed
+bool succes

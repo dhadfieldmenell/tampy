@@ -3,4 +3,3 @@ string task
 string object
 string target
 float32[] state
-

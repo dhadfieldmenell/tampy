@@ -5,6 +5,7 @@ import os
 import tempfile
 
 import numpy as np
+import tensorflow as tf
 
 # NOTE: Order of these imports matters for some reason.
 # Changing it can lead to segmentation faults on some machines.
@@ -57,10 +58,12 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.var = {task: self._hyperparams['init_var'] * np.ones(dU) for task in self.task_map}
         self.var[""] = self._hyperparams['init_var'] * np.ones(dU)
         self.distilled_var = self._hyperparams['init_var'] * np.ones(dU)
+        self.weight_dir = self._hyperparams['weight_dir']
 
         self.gpu_fraction = self._hyperparams['gpu_fraction']
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
         self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        self.saver = tf.Saver()
 
         self.init_policies(dU)
         # List of indices for state (vector) data and image (tensor) data in observation.
@@ -84,6 +87,38 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             i += dim
         init_op = tf.initialize_all_variables()
         self.sess.run(init_op)
+
+        self.update_count = 0
+        self.update_size = self._hyperparams['update_size']
+        self.mu = {}
+        self.obs = {}
+        self.prc = {}
+        self.wt = {}
+
+    def update_weights(self, scope):
+        self.saver.restore(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
+
+    def store_weights(self, scope):
+        self.saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
+
+    def store(self, mu, obs, prc, wt, task):
+        if task not in self.mu:
+            self.mu[task] = {}
+            self.mu[task] = np.array(mu)
+            self.obs[task] = np.array(obs)
+            self.prc[task] = np.array(prc)
+            self.wt[task] = np.array(wt)
+        else:
+            self.mu[task] = np.concatenate([self.mu[task], np.array(mu)])
+            self.obs[task] = np.concatenate([self.obs[task], np.array(obs)])
+            self.prc[task] = np.concatenate([self.prc[task], np.array(prc)])
+            self.wt[task] = np.concatenate([self.wt[task], np.array(wt)])
+
+        self.update_count += len(mu)
+        if self.update_count > self.update_size:
+            self.update(self.mu[task], self.obs[task], self.prc[task], self.wt[task], task)
+            self.update_count = 0
+
 
     def init_network(self):
         """ Helper method to initialize the tf networks used """

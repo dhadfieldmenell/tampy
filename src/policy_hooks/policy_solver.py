@@ -530,20 +530,12 @@ def get_base_solver(parent_class):
             return transfer_objs
 
 
-        def _policy_func(self, sample, task):
-            if self.gps.rollout_policies[task].scale is None:
-                return sample.get_U(t=0)
-            obs = sample.get_obs(t=0)
-            return self.gps.rollout_policies[task].act(np.array([obs])).flatten()
-
-
         def _policy_inf_func(self, sample, task):
             obs = sample.get_obs()
-            return self.gps.policy_opt.prob(np.array([obs]), task)
+            return self.policy_opt.prob(np.array([obs]), task)
 
 
         def set_gps(self, gps):
-            self.gps = gps
             self.agent = gps.agent
             self._store_policy_fs()
 
@@ -553,9 +545,7 @@ def get_base_solver(parent_class):
                 for i in range(len(self.agent.task_list)):
                     for j in range(len(self.agent.obj_list)):
                         for k in range(len(self.agent.targ_list)):
-                            pol_f = lambda s: self._policy_func(s, self.agent.task_list[i])
                             pol_inf_f = lambda s: self._policy_inf_func(s, self.agent.task_list[i])
-                            self.policy_fs[(i, j, k)] = pol_f
                             self.policy_inf_fs[(i, j, k)] = pol_inf_f
             else:
                 print '{0} has no attribute agent; not setting policy functions.'.format(self.__class__)

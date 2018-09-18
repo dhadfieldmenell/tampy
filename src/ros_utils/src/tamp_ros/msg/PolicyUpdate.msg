@@ -1,5 +1,9 @@
-Float32MultiArray[] obs
-Float32MultiArray[] prim_obs
-Float32MultiArray[] mu
-Float32MultiArray[] prc
-Float32MultiArray[] wt
+float32[] obs
+float32[] mu
+float32[] prc
+float32[] wt
+
+int32 dO
+int32 dU
+int32 n
+int32 rollout_len
