@@ -53,15 +53,17 @@ add_message_files(
   FloatArray.msg
   PlanProb.msg
   PlanResult.msg
+  PolicyUpdate.msg
 #   Message2.msg
 )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  MotionPlan.srv
+  PolicyAct.srv
+  PolicyProb.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(

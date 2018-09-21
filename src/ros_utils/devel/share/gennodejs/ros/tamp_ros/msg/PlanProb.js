@@ -61,7 +61,7 @@ class PlanProb {
   static serialize(obj, buffer, bufferOffset) {
     // Serializes a message object of type PlanProb
     // Serialize message field [prob_id]
-    bufferOffset = _serializer.int64(obj.prob_id, buffer, bufferOffset);
+    bufferOffset = _serializer.int32(obj.prob_id, buffer, bufferOffset);
     // Serialize message field [task]
     bufferOffset = _serializer.string(obj.task, buffer, bufferOffset);
     // Serialize message field [object]
@@ -78,7 +78,7 @@ class PlanProb {
     let len;
     let data = new PlanProb(null);
     // Deserialize message field [prob_id]
-    data.prob_id = _deserializer.int64(buffer, bufferOffset);
+    data.prob_id = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [task]
     data.task = _deserializer.string(buffer, bufferOffset);
     // Deserialize message field [object]
@@ -96,7 +96,7 @@ class PlanProb {
     length += object.object.length;
     length += object.target.length;
     length += 4 * object.state.length;
-    return length + 24;
+    return length + 20;
   }
 
   static datatype() {
@@ -106,18 +106,17 @@ class PlanProb {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '369ed158e8d2588c37ffb84457472de6';
+    return 'bacbc44c2a384d436608cc453c774b3b';
   }
 
   static messageDefinition() {
     // Returns full string definition for message
     return `
-    int64 prob_id
+    int32 prob_id
     string task
     string object
     string target
     float32[] state
-    
     
     `;
   }

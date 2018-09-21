@@ -90,7 +90,7 @@ class MCTS:
         self.soft_decision = soft_decision
         self.C = C
         self.branch_factor = branch_factor
-        self.num_samples = num_samples
+        self.num_samples = 1
         self.num_distilled_samples = num_distilled_samples
         self._choose_next = choose_next if choose_next != None else self._default_choose_next
         self._plan_f = plan_f

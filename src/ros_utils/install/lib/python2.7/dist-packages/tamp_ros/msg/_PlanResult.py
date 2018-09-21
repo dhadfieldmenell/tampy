@@ -5,24 +5,63 @@ python3 = True if sys.hexversion > 0x03000000 else False
 import genpy
 import struct
 
-import tamp_ros.msg
+import std_msgs.msg
 
 class PlanResult(genpy.Message):
-  _md5sum = "d4f5f1c50852a30db764ffda62f46133"
+  _md5sum = "ae51689fbae1e267fe431f05c617a25e"
   _type = "tamp_ros/PlanResult"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """int64 prob_id
-FloatArray[] trajectory
+std_msgs/Float32MultiArray[] trajectory
 bool success
-string[] failed_preds
+string failed_preds
 
 
 ================================================================================
-MSG: tamp_ros/FloatArray
-float32[] data
-"""
+MSG: std_msgs/Float32MultiArray
+# Please look at the MultiArrayLayout message definition for
+# documentation on all multiarrays.
+
+MultiArrayLayout  layout        # specification of data layout
+float32[]         data          # array of data
+
+
+================================================================================
+MSG: std_msgs/MultiArrayLayout
+# The multiarray declares a generic multi-dimensional array of a
+# particular data type.  Dimensions are ordered from outer most
+# to inner most.
+
+MultiArrayDimension[] dim # Array of dimension properties
+uint32 data_offset        # padding elements at front of data
+
+# Accessors should ALWAYS be written in terms of dimension stride
+# and specified outer-most dimension first.
+# 
+# multiarray(i,j,k) = data[data_offset + dim_stride[1]*i + dim_stride[2]*j + k]
+#
+# A standard, 3-channel 640x480 image with interleaved color channels
+# would be specified as:
+#
+# dim[0].label  = "height"
+# dim[0].size   = 480
+# dim[0].stride = 3*640*480 = 921600  (note dim[0] stride is just size of image)
+# dim[1].label  = "width"
+# dim[1].size   = 640
+# dim[1].stride = 3*640 = 1920
+# dim[2].label  = "channel"
+# dim[2].size   = 3
+# dim[2].stride = 3
+#
+# multiarray(i,j,k) refers to the ith row, jth column, and kth channel.
+
+================================================================================
+MSG: std_msgs/MultiArrayDimension
+string label   # label of given dimension
+uint32 size    # size of given dimension (in type units)
+uint32 stride  # stride of given dimension"""
   __slots__ = ['prob_id','trajectory','success','failed_preds']
-  _slot_types = ['int64','tamp_ros/FloatArray[]','bool','string[]']
+  _slot_types = ['int64','std_msgs/Float32MultiArray[]','bool','string']
 
   def __init__(self, *args, **kwds):
     """
@@ -48,12 +87,12 @@ float32[] data
       if self.success is None:
         self.success = False
       if self.failed_preds is None:
-        self.failed_preds = []
+        self.failed_preds = ''
     else:
       self.prob_id = 0
       self.trajectory = []
       self.success = False
-      self.failed_preds = []
+      self.failed_preds = ''
 
   def _get_types(self):
     """
@@ -71,19 +110,30 @@ float32[] data
       length = len(self.trajectory)
       buff.write(_struct_I.pack(length))
       for val1 in self.trajectory:
+        _v1 = val1.layout
+        length = len(_v1.dim)
+        buff.write(_struct_I.pack(length))
+        for val3 in _v1.dim:
+          _x = val3.label
+          length = len(_x)
+          if python3 or type(_x) == unicode:
+            _x = _x.encode('utf-8')
+            length = len(_x)
+          buff.write(struct.pack('<I%ss'%length, length, _x))
+          _x = val3
+          buff.write(_get_struct_2I().pack(_x.size, _x.stride))
+        buff.write(_get_struct_I().pack(_v1.data_offset))
         length = len(val1.data)
         buff.write(_struct_I.pack(length))
         pattern = '<%sf'%length
         buff.write(struct.pack(pattern, *val1.data))
       buff.write(_get_struct_B().pack(self.success))
-      length = len(self.failed_preds)
-      buff.write(_struct_I.pack(length))
-      for val1 in self.failed_preds:
-        length = len(val1)
-        if python3 or type(val1) == unicode:
-          val1 = val1.encode('utf-8')
-          length = len(val1)
-        buff.write(struct.pack('<I%ss'%length, length, val1))
+      _x = self.failed_preds
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -104,7 +154,31 @@ float32[] data
       (length,) = _struct_I.unpack(str[start:end])
       self.trajectory = []
       for i in range(0, length):
-        val1 = tamp_ros.msg.FloatArray()
+        val1 = std_msgs.msg.Float32MultiArray()
+        _v2 = val1.layout
+        start = end
+        end += 4
+        (length,) = _struct_I.unpack(str[start:end])
+        _v2.dim = []
+        for i in range(0, length):
+          val3 = std_msgs.msg.MultiArrayDimension()
+          start = end
+          end += 4
+          (length,) = _struct_I.unpack(str[start:end])
+          start = end
+          end += length
+          if python3:
+            val3.label = str[start:end].decode('utf-8')
+          else:
+            val3.label = str[start:end]
+          _x = val3
+          start = end
+          end += 8
+          (_x.size, _x.stride,) = _get_struct_2I().unpack(str[start:end])
+          _v2.dim.append(val3)
+        start = end
+        end += 4
+        (_v2.data_offset,) = _get_struct_I().unpack(str[start:end])
         start = end
         end += 4
         (length,) = _struct_I.unpack(str[start:end])
@@ -120,18 +194,12 @@ float32[] data
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
-      self.failed_preds = []
-      for i in range(0, length):
-        start = end
-        end += 4
-        (length,) = _struct_I.unpack(str[start:end])
-        start = end
-        end += length
-        if python3:
-          val1 = str[start:end].decode('utf-8')
-        else:
-          val1 = str[start:end]
-        self.failed_preds.append(val1)
+      start = end
+      end += length
+      if python3:
+        self.failed_preds = str[start:end].decode('utf-8')
+      else:
+        self.failed_preds = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -148,19 +216,30 @@ float32[] data
       length = len(self.trajectory)
       buff.write(_struct_I.pack(length))
       for val1 in self.trajectory:
+        _v3 = val1.layout
+        length = len(_v3.dim)
+        buff.write(_struct_I.pack(length))
+        for val3 in _v3.dim:
+          _x = val3.label
+          length = len(_x)
+          if python3 or type(_x) == unicode:
+            _x = _x.encode('utf-8')
+            length = len(_x)
+          buff.write(struct.pack('<I%ss'%length, length, _x))
+          _x = val3
+          buff.write(_get_struct_2I().pack(_x.size, _x.stride))
+        buff.write(_get_struct_I().pack(_v3.data_offset))
         length = len(val1.data)
         buff.write(_struct_I.pack(length))
         pattern = '<%sf'%length
         buff.write(val1.data.tostring())
       buff.write(_get_struct_B().pack(self.success))
-      length = len(self.failed_preds)
-      buff.write(_struct_I.pack(length))
-      for val1 in self.failed_preds:
-        length = len(val1)
-        if python3 or type(val1) == unicode:
-          val1 = val1.encode('utf-8')
-          length = len(val1)
-        buff.write(struct.pack('<I%ss'%length, length, val1))
+      _x = self.failed_preds
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -182,7 +261,31 @@ float32[] data
       (length,) = _struct_I.unpack(str[start:end])
       self.trajectory = []
       for i in range(0, length):
-        val1 = tamp_ros.msg.FloatArray()
+        val1 = std_msgs.msg.Float32MultiArray()
+        _v4 = val1.layout
+        start = end
+        end += 4
+        (length,) = _struct_I.unpack(str[start:end])
+        _v4.dim = []
+        for i in range(0, length):
+          val3 = std_msgs.msg.MultiArrayDimension()
+          start = end
+          end += 4
+          (length,) = _struct_I.unpack(str[start:end])
+          start = end
+          end += length
+          if python3:
+            val3.label = str[start:end].decode('utf-8')
+          else:
+            val3.label = str[start:end]
+          _x = val3
+          start = end
+          end += 8
+          (_x.size, _x.stride,) = _get_struct_2I().unpack(str[start:end])
+          _v4.dim.append(val3)
+        start = end
+        end += 4
+        (_v4.data_offset,) = _get_struct_I().unpack(str[start:end])
         start = end
         end += 4
         (length,) = _struct_I.unpack(str[start:end])
@@ -198,18 +301,12 @@ float32[] data
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
-      self.failed_preds = []
-      for i in range(0, length):
-        start = end
-        end += 4
-        (length,) = _struct_I.unpack(str[start:end])
-        start = end
-        end += length
-        if python3:
-          val1 = str[start:end].decode('utf-8')
-        else:
-          val1 = str[start:end]
-        self.failed_preds.append(val1)
+      start = end
+      end += length
+      if python3:
+        self.failed_preds = str[start:end].decode('utf-8')
+      else:
+        self.failed_preds = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -230,3 +327,9 @@ def _get_struct_B():
     if _struct_B is None:
         _struct_B = struct.Struct("<B")
     return _struct_B
+_struct_2I = None
+def _get_struct_2I():
+    global _struct_2I
+    if _struct_2I is None:
+        _struct_2I = struct.Struct("<2I")
+    return _struct_2I

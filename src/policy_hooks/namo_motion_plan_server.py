@@ -2,39 +2,15 @@ import copy
 import sys
 import traceback
 
-import cPickle as pickle
-
-import ctypes
-
 import numpy as np
 import tensorflow as tf
 
-import xml.etree.ElementTree as xml
-
-import openravepy
-from openravepy import RaveCreatePhysicsEngine
-
 import rospy
+from std_msgs.msg impor t*
 
 
-# from gps.agent.agent import Agent
-from gps.agent.agent_utils import generate_noise
-from gps.agent.config import AGENT
-#from gps.sample.sample import Sample
-from gps.sample.sample_list import SampleList
-
-import core.util_classes.baxter_constants as const
-import core.util_classes.items as items
-from core.util_classes.namo_predicates import dsafe
-from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.viewer import OpenRAVEViewer
-from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
-
-from policy_hooks.agent import Agent
-from policy_hooks.multi_head_policy_opt import MultiHeadPolicyOptTf
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
-import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.namo.sorting_prob_2 import *
 from policy.namo.namo_polic_solver import NAMOPolicySolver
@@ -43,10 +19,11 @@ from tamp_ros.msg import *
 from tamp_ros.srv import *
 
 
-MAX_SAMPLELISTS = 1000
-MAX_TASK_PATHS = 100
+class DummyPolicyOpt(object):
+    def __init__(self, prob):
+        self.prob = prob
 
-class NamoMotionPlanServer():
+class NamoMotionPlanServer(object):
     def __init__(self, hyperparams):
         self.id =  hyperparams['id']
         self.solver = NAMOPolicySolver()
@@ -61,8 +38,9 @@ class NamoMotionPlanServer():
                     for param in plans[task, 'can{0}'.format(c)].params.values():
                         if not param.is_symbol():
                             openrave_bodies[param.name] = param.openrave_body
-        self.policy_opt = hyperparams['policy_opt']
-        self.solver.poliy_opt = self.policy_opt
+        # self.policy_opt = hyperparams['policy_opt']
+        # self.solver.policy_opt = self.policy_opt
+        self.solver.policy_opt = DummyPolicyOpt(self.prob)
         self.solver.agent = hyperparams['agent']
         self.weight_dir = hyperparams['weight_dir']
         self.solver.policy_inf_fs = {}
@@ -70,6 +48,21 @@ class NamoMotionPlanServer():
             self.solver.policy_inf_fs[task] = lambda s: self.prob(s, task)
 
         self.mp_service = rospy.Service('motion_planner_'+self.id, MotionPlan, self.serve_motion_plan)
+        self.stopped = False
+        self.mp_publisher = rospy.Publisher('motion_plan_result', MotionPlanResult, queue_size=50)
+        self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan)
+        self.stop = rospy.Subscriber('terminate', str, self.end)
+        rospy.spin()
+
+
+    def run(self):
+        while not self.stopped:
+            rospy.sleep(0.01)
+
+
+    def end(self, msg):
+        self.stopped = True
+        rospy.signal_shutdown('Received notice to terminate.')
 
 
     def prob(self, sample, task):
@@ -80,8 +73,27 @@ class NamoMotionPlanServer():
             next_line = Float32MultiArray()
             next_line.data = s_obs[i]
             obs.append(next_line)
-        resp = proxy_call(obs, task)
+        req = PolicyProbRequest()
+        req.obs = obs
+        req.task = task
+        resp = proxy_call(req)
         return np.array([resp.mu[i].data for i in range(len(resp.mu))]), np.array([resp.sigma[i].data for i in range(len(resp.sigma))]), [], []
+
+
+    def publish_motion_plan(self, msg):
+        state = msg.state
+        task = msg.task
+        cond = msg.cond
+        mean = [msg.traj_mean[i].data for i in range(len(msg.traj_mean))]
+        targets = msg.obj, msg.targ
+        out, failed, success = self.sample_optimal_trajectory(state, task, cond, mean, targets)
+        failed = str(failed)
+        resp = MotionPlanResult()
+        resp.traj = out
+        resp.failed = failed
+        resp.success = success
+        resp.id = msg.id
+        self.mp_publisher.publish(resp)
 
 
     def serve_motion_plan(self, req):

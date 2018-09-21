@@ -8,4 +8,3 @@
 
 # modified environment variables
 export PWD="/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build"
-export PYTHONPATH="/home/michaelmcdonald/dependencies/tampy/src/ros_utils/devel/lib/python2.7/dist-packages:$PYTHONPATH"

@@ -2,15 +2,38 @@ import rospy
 
 from std_msgs import Float32MultiArray
 
+from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTF
+
+from tamp_ros.msg import *
+from tamp_ros.srv import *
+
+
 class PolicyServer(object):
-    def __init__(self, policy_opt, task):
+    def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
         rospy.init_node(task+'_update_server')
-        self.policy_opt = policy_opt
-        self.policy_opt.hyperparams['scope'] = task
-        self.task = task
+        self.policy_opt = hyperparams['policy_opt']['type'](
+            hyperparams['policy_opt'], dO, dU, dObj, dTarg, dPrimObs
+        )
+        # self.policy_opt = policy_opt
+        # self.policy_opt.hyperparams['scope'] = task
+        self.task = hyperparams['scope']
         self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
         self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
         self.update_listener = rospy.Subscriber(self.task+'_update', PolicyUpdate, self.update)
+        self.stop = rospy.Subscriber('terminate', str, self.end)
+        self.stoped = True
+        rospy.spin()
+
+
+    def run(self):
+        while not self.stopped:
+            rospy.sleep(0.01)
+
+
+    def end(self, msg):
+        self.stopped = True
+        rospy.signal_shutdown('Received notice to terminate.')
+
 
     def upate(self, msg):
         mu = np.array(msg.mu)

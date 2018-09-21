@@ -59,11 +59,27 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.var[""] = self._hyperparams['init_var'] * np.ones(dU)
         self.distilled_var = self._hyperparams['init_var'] * np.ones(dU)
         self.weight_dir = self._hyperparams['weight_dir']
+        self.scope = self._hyperparams['scope'] if 'scope' in self._hyperparams else None
 
         self.gpu_fraction = self._hyperparams['gpu_fraction']
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
-        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-        self.saver = tf.Saver()
+        # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
+        # self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        self.sess = tf.Session(config=tf.ConfigProto(allow_growth=True))
+        if self.scope is not None:
+            variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+            self.saver = tf.train.Saver(variables)
+            try:
+                self.saver.restore(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
+            except Exception as e:
+                print 'Could not load previous weights.'
+
+        else:
+            self.saver = tf.train.Saver()
+            try:
+                self.saver.restore(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'.ckpt')
+            except Exception as e:
+                print 'Could not load previous weights.'
+        
 
         self.init_policies(dU)
         # List of indices for state (vector) data and image (tensor) data in observation.
@@ -95,15 +111,16 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.prc = {}
         self.wt = {}
 
+
     def update_weights(self, scope):
         self.saver.restore(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
 
     def store_weights(self, scope):
         self.saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
 
+
     def store(self, mu, obs, prc, wt, task):
         if task not in self.mu:
-            self.mu[task] = {}
             self.mu[task] = np.array(mu)
             self.obs[task] = np.array(obs)
             self.prc[task] = np.array(prc)
@@ -118,12 +135,15 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         if self.update_count > self.update_size:
             self.update(self.mu[task], self.obs[task], self.prc[task], self.wt[task], task)
             self.update_count = 0
-
+            del self.mu[task]
+            del self.obs[task]
+            del self.prc[task]
+            del self.wt[task]
 
     def init_network(self):
         """ Helper method to initialize the tf networks used """
-        if 'scope' not in self.hyperparams or 'primitive' == self.hyperparams['scope']:
-            with tf.variable_scope('primitive_filter'):
+        if self.scope is None or 'primitive' == self.scope:
+            with tf.variable_scope('primitive'):
                 tf_map_generator = self._hyperparams['primitive_network_model']
                 tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim+self._dObj+self._dTarg, batch_size=self.batch_size,
                                           network_config=self._hyperparams['primitive_network_params'])
@@ -139,8 +159,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 # Setup the gradients
                 self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim+self._dObj+self._dTarg)]
 
-        if 'scope' not in self.hyperparams or 'value' == self.hyperparams['scope']:
-            with tf.variable_scope('value_filter'):
+        if self.scope is None or 'value' == self.scope:
+            with tf.variable_scope('value'):
                 tf_map_generator = self._hyperparams['value_network_model']
                 tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=1, batch_size=self.batch_size,
                                           network_config=self._hyperparams['network_params'])
@@ -173,7 +193,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         #     self.distilled_grads = [tf.gradients(self.distilled_act_op[:,u], self.distilled_obs_tensor)[0] for u in range(self._dU)]
 
         for task in self.task_list:
-            if 'scope' not in self.hyperparams or task == self.hyperparams['scope']:
+            if self.scope is None or task == self.scope:
                 with tf.variable_scope(task):
                     self.task_map[task] = {}
                     tf_map_generator = self._hyperparams['network_model']
@@ -193,7 +213,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
     def init_solver(self):
         """ Helper method to initialize the solver. """
-        if 'scope' not in self.hyperparams or 'primitive' == self.hyperparams['scope']:
+        if self.scope is None or 'primitive' == self.scope:
             vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive_filter')
             self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
                                                solver_name=self._hyperparams['solver_type'],
@@ -205,7 +225,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                                last_conv_vars=self.primitive_last_conv_vars,
                                                vars_to_opt=vars_to_opt)
 
-        if 'scope' not in self.hyperparams or 'value' == self.hyperparams['scope']:
+        if self.scope is None or 'value' == self.scope:
             self.value_solver = TfSolver(loss_scalar=self.value_loss_scalar,
                                            solver_name=self._hyperparams['solver_type'],
                                            base_lr=self._hyperparams['lr'],
@@ -228,7 +248,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         #                                    vars_to_opt=vars_to_opt)
 
         for task in self.task_list:
-            if 'scope' not in self.hyperparams or task == self.hyperparams['scope']:
+            if self.scope is None or task == self.scope:
                 vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
                 self.task_map[task]['solver'] = TfSolver(loss_scalar=self.task_map[task]['loss_scalar'],
                                                        solver_name=self._hyperparams['solver_type'],
@@ -243,7 +263,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
     def init_policies(self, dU):
         for task in self.task_list:
-            if 'scope' not in self.hyperparams or task == self.hyperparams['scope']:
+            if self.scope is None or task == self.scope:
                 self.task_map[task]['policy'] = TfPolicy(dU, 
                                                         self.task_map[task]['obs_tensor'], 
                                                         self.task_map[task]['act_op'], 
@@ -280,6 +300,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
+        if task == 'primitive':
+            return self.update_primitive_filter(obs, tgt_mu, tgt_prc, tgt_wt)
+        if task == 'value':
+            return self.update_value(obs, tgt_mu, tgt_prc, tgt_wt)
         if np.any(np.isnan(tgt_mu)) or np.any(np.abs(tgt_mu) == np.inf):
             import ipdb; ipdb.set_trace()
         N, T = obs.shape[:2]

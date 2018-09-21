@@ -1,4 +1,4 @@
-Float32MultiArray[] obs
+std_msgs/Float32MultiArray[] obs
 bool noisy
 float32[] scale
 float32[] bias

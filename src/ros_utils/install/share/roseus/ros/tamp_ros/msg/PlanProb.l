@@ -50,8 +50,8 @@
   (:serialization-length
    ()
    (+
-    ;; int64 _prob_id
-    8
+    ;; int32 _prob_id
+    4
     ;; string _task
     4 (length _task)
     ;; string _object
@@ -65,18 +65,8 @@
    (&optional strm)
    (let ((s (if strm strm
               (make-string-output-stream (send self :serialization-length)))))
-     ;; int64 _prob_id
-#+(or :alpha :irix6 :x86_64)
-       (progn (sys::poke _prob_id (send s :buffer) (send s :count) :long) (incf (stream-count s) 8))
-#-(or :alpha :irix6 :x86_64)
-       (cond ((and (class _prob_id) (= (length (_prob_id . bv)) 2)) ;; bignum
-              (write-long (ash (elt (_prob_id . bv) 0) 0) s)
-              (write-long (ash (elt (_prob_id . bv) 1) -1) s))
-             ((and (class _prob_id) (= (length (_prob_id . bv)) 1)) ;; big1
-              (write-long (elt (_prob_id . bv) 0) s)
-              (write-long (if (>= _prob_id 0) 0 #xffffffff) s))
-             (t                                         ;; integer
-              (write-long _prob_id s)(write-long (if (>= _prob_id 0) 0 #xffffffff) s)))
+     ;; int32 _prob_id
+       (write-long _prob_id s)
      ;; string _task
        (write-long (length _task) s) (princ _task s)
      ;; string _object
@@ -92,18 +82,8 @@
      (if (null strm) (get-output-stream-string s))))
   (:deserialize
    (buf &optional (ptr- 0))
-   ;; int64 _prob_id
-#+(or :alpha :irix6 :x86_64)
-      (setf _prob_id (prog1 (sys::peek buf ptr- :long) (incf ptr- 8)))
-#-(or :alpha :irix6 :x86_64)
-      (setf _prob_id (let ((b0 (prog1 (sys::peek buf ptr- :integer) (incf ptr- 4)))
-                  (b1 (prog1 (sys::peek buf ptr- :integer) (incf ptr- 4))))
-              (cond ((= b1 -1) b0)
-                     ((and (= b1  0)
-                           (<= lisp::most-negative-fixnum b0 lisp::most-positive-fixnum))
-                      b0)
-                    ((= b1  0) (make-instance bignum :size 1 :bv (integer-vector b0)))
-                    (t (make-instance bignum :size 2 :bv (integer-vector b0 (ash b1 1)))))))
+   ;; int32 _prob_id
+     (setq _prob_id (sys::peek buf ptr- :integer)) (incf ptr- 4)
    ;; string _task
      (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _task (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
    ;; string _object
@@ -121,20 +101,19 @@
    self)
   )
 
-(setf (get tamp_ros::PlanProb :md5sum-) "369ed158e8d2588c37ffb84457472de6")
+(setf (get tamp_ros::PlanProb :md5sum-) "bacbc44c2a384d436608cc453c774b3b")
 (setf (get tamp_ros::PlanProb :datatype-) "tamp_ros/PlanProb")
 (setf (get tamp_ros::PlanProb :definition-)
-      "int64 prob_id
+      "int32 prob_id
 string task
 string object
 string target
 float32[] state
 
-
 ")
 
 
 
-(provide :tamp_ros/PlanProb "369ed158e8d2588c37ffb84457472de6")
+(provide :tamp_ros/PlanProb "bacbc44c2a384d436608cc453c774b3b")
 
 

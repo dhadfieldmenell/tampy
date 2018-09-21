@@ -68,15 +68,11 @@
   (state m))
 (cl:defmethod roslisp-msg-protocol:serialize ((msg <PlanProb>) ostream)
   "Serializes a message object of type '<PlanProb>"
-  (cl:let* ((signed (cl:slot-value msg 'prob_id)) (unsigned (cl:if (cl:< signed 0) (cl:+ signed 18446744073709551616) signed)))
+  (cl:let* ((signed (cl:slot-value msg 'prob_id)) (unsigned (cl:if (cl:< signed 0) (cl:+ signed 4294967296) signed)))
     (cl:write-byte (cl:ldb (cl:byte 8 0) unsigned) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) unsigned) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 16) unsigned) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 24) unsigned) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 32) unsigned) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 40) unsigned) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 48) unsigned) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 56) unsigned) ostream)
     )
   (cl:let ((__ros_str_len (cl:length (cl:slot-value msg 'task))))
     (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_str_len) ostream)
@@ -115,11 +111,7 @@
       (cl:setf (cl:ldb (cl:byte 8 8) unsigned) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 16) unsigned) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 24) unsigned) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 32) unsigned) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 40) unsigned) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 48) unsigned) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 56) unsigned) (cl:read-byte istream))
-      (cl:setf (cl:slot-value msg 'prob_id) (cl:if (cl:< unsigned 9223372036854775808) unsigned (cl:- unsigned 18446744073709551616))))
+      (cl:setf (cl:slot-value msg 'prob_id) (cl:if (cl:< unsigned 2147483648) unsigned (cl:- unsigned 4294967296))))
     (cl:let ((__ros_str_len 0))
       (cl:setf (cl:ldb (cl:byte 8 0) __ros_str_len) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 8) __ros_str_len) (cl:read-byte istream))
@@ -168,19 +160,19 @@
   "tamp_ros/PlanProb")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<PlanProb>)))
   "Returns md5sum for a message object of type '<PlanProb>"
-  "369ed158e8d2588c37ffb84457472de6")
+  "bacbc44c2a384d436608cc453c774b3b")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'PlanProb)))
   "Returns md5sum for a message object of type 'PlanProb"
-  "369ed158e8d2588c37ffb84457472de6")
+  "bacbc44c2a384d436608cc453c774b3b")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<PlanProb>)))
   "Returns full string definition for message of type '<PlanProb>"
-  (cl:format cl:nil "int64 prob_id~%string task~%string object~%string target~%float32[] state~%~%~%~%"))
+  (cl:format cl:nil "int32 prob_id~%string task~%string object~%string target~%float32[] state~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'PlanProb)))
   "Returns full string definition for message of type 'PlanProb"
-  (cl:format cl:nil "int64 prob_id~%string task~%string object~%string target~%float32[] state~%~%~%~%"))
+  (cl:format cl:nil "int32 prob_id~%string task~%string object~%string target~%float32[] state~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <PlanProb>))
   (cl:+ 0
-     8
+     4
      4 (cl:length (cl:slot-value msg 'task))
      4 (cl:length (cl:slot-value msg 'object))
      4 (cl:length (cl:slot-value msg 'target))

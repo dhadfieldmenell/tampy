@@ -441,6 +441,12 @@ class GPSMain(object):
         if len(tgt_mu):
             self.policy_opt.update_distilled(obs_data, tgt_mu, tgt_prc, tgt_wt)
 
+    def save_weights(self):
+        for task in self.task_list + ['value', 'primitive']:
+            variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
+            saver = tf.train.Saver(variables)
+            saver.save(self.policy_opt.sess, 'tf_saved/namo/{0}.ckpt'.format(task))
+
     def test_policy(self, itr, N):
         """
         Take N policy samples of the algorithm state at iteration itr,

@@ -15,7 +15,7 @@
 #include <ros/builtin_message_traits.h>
 #include <ros/message_operations.h>
 
-#include <tamp_ros/FloatArray.h>
+#include <std_msgs/Float32MultiArray.h>
 
 namespace tamp_ros
 {
@@ -43,13 +43,13 @@ struct PlanResult_
    typedef int64_t _prob_id_type;
   _prob_id_type prob_id;
 
-   typedef std::vector< ::tamp_ros::FloatArray_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::tamp_ros::FloatArray_<ContainerAllocator> >::other >  _trajectory_type;
+   typedef std::vector< ::std_msgs::Float32MultiArray_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::std_msgs::Float32MultiArray_<ContainerAllocator> >::other >  _trajectory_type;
   _trajectory_type trajectory;
 
    typedef uint8_t _success_type;
   _success_type success;
 
-   typedef std::vector<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > , typename ContainerAllocator::template rebind<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::other >  _failed_preds_type;
+   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _failed_preds_type;
   _failed_preds_type failed_preds;
 
 
@@ -130,12 +130,12 @@ struct MD5Sum< ::tamp_ros::PlanResult_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "d4f5f1c50852a30db764ffda62f46133";
+    return "ae51689fbae1e267fe431f05c617a25e";
   }
 
   static const char* value(const ::tamp_ros::PlanResult_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0xd4f5f1c50852a30dULL;
-  static const uint64_t static_value2 = 0xb764ffda62f46133ULL;
+  static const uint64_t static_value1 = 0xae51689fbae1e267ULL;
+  static const uint64_t static_value2 = 0xfe431f05c617a25eULL;
 };
 
 template<class ContainerAllocator>
@@ -155,14 +155,54 @@ struct Definition< ::tamp_ros::PlanResult_<ContainerAllocator> >
   static const char* value()
   {
     return "int64 prob_id\n\
-FloatArray[] trajectory\n\
+std_msgs/Float32MultiArray[] trajectory\n\
 bool success\n\
-string[] failed_preds\n\
+string failed_preds\n\
 \n\
 \n\
 ================================================================================\n\
-MSG: tamp_ros/FloatArray\n\
-float32[] data\n\
+MSG: std_msgs/Float32MultiArray\n\
+# Please look at the MultiArrayLayout message definition for\n\
+# documentation on all multiarrays.\n\
+\n\
+MultiArrayLayout  layout        # specification of data layout\n\
+float32[]         data          # array of data\n\
+\n\
+\n\
+================================================================================\n\
+MSG: std_msgs/MultiArrayLayout\n\
+# The multiarray declares a generic multi-dimensional array of a\n\
+# particular data type.  Dimensions are ordered from outer most\n\
+# to inner most.\n\
+\n\
+MultiArrayDimension[] dim # Array of dimension properties\n\
+uint32 data_offset        # padding elements at front of data\n\
+\n\
+# Accessors should ALWAYS be written in terms of dimension stride\n\
+# and specified outer-most dimension first.\n\
+# \n\
+# multiarray(i,j,k) = data[data_offset + dim_stride[1]*i + dim_stride[2]*j + k]\n\
+#\n\
+# A standard, 3-channel 640x480 image with interleaved color channels\n\
+# would be specified as:\n\
+#\n\
+# dim[0].label  = \"height\"\n\
+# dim[0].size   = 480\n\
+# dim[0].stride = 3*640*480 = 921600  (note dim[0] stride is just size of image)\n\
+# dim[1].label  = \"width\"\n\
+# dim[1].size   = 640\n\
+# dim[1].stride = 3*640 = 1920\n\
+# dim[2].label  = \"channel\"\n\
+# dim[2].size   = 3\n\
+# dim[2].stride = 3\n\
+#\n\
+# multiarray(i,j,k) refers to the ith row, jth column, and kth channel.\n\
+\n\
+================================================================================\n\
+MSG: std_msgs/MultiArrayDimension\n\
+string label   # label of given dimension\n\
+uint32 size    # size of given dimension (in type units)\n\
+uint32 stride  # stride of given dimension\n\
 ";
   }
 
@@ -211,16 +251,12 @@ struct Printer< ::tamp_ros::PlanResult_<ContainerAllocator> >
       s << indent << "  trajectory[" << i << "]: ";
       s << std::endl;
       s << indent;
-      Printer< ::tamp_ros::FloatArray_<ContainerAllocator> >::stream(s, indent + "    ", v.trajectory[i]);
+      Printer< ::std_msgs::Float32MultiArray_<ContainerAllocator> >::stream(s, indent + "    ", v.trajectory[i]);
     }
     s << indent << "success: ";
     Printer<uint8_t>::stream(s, indent + "  ", v.success);
-    s << indent << "failed_preds[]" << std::endl;
-    for (size_t i = 0; i < v.failed_preds.size(); ++i)
-    {
-      s << indent << "  failed_preds[" << i << "]: ";
-      Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.failed_preds[i]);
-    }
+    s << indent << "failed_preds: ";
+    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.failed_preds);
   }
 };
 

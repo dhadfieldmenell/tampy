@@ -41,7 +41,7 @@ struct PlanProb_
 
 
 
-   typedef int64_t _prob_id_type;
+   typedef int32_t _prob_id_type;
   _prob_id_type prob_id;
 
    typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _task_type;
@@ -134,12 +134,12 @@ struct MD5Sum< ::tamp_ros::PlanProb_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "369ed158e8d2588c37ffb84457472de6";
+    return "bacbc44c2a384d436608cc453c774b3b";
   }
 
   static const char* value(const ::tamp_ros::PlanProb_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x369ed158e8d2588cULL;
-  static const uint64_t static_value2 = 0x37ffb84457472de6ULL;
+  static const uint64_t static_value1 = 0xbacbc44c2a384d43ULL;
+  static const uint64_t static_value2 = 0x6608cc453c774b3bULL;
 };
 
 template<class ContainerAllocator>
@@ -158,12 +158,11 @@ struct Definition< ::tamp_ros::PlanProb_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "int64 prob_id\n\
+    return "int32 prob_id\n\
 string task\n\
 string object\n\
 string target\n\
 float32[] state\n\
-\n\
 ";
   }
 
@@ -206,7 +205,7 @@ struct Printer< ::tamp_ros::PlanProb_<ContainerAllocator> >
   template<typename Stream> static void stream(Stream& s, const std::string& indent, const ::tamp_ros::PlanProb_<ContainerAllocator>& v)
   {
     s << indent << "prob_id: ";
-    Printer<int64_t>::stream(s, indent + "  ", v.prob_id);
+    Printer<int32_t>::stream(s, indent + "  ", v.prob_id);
     s << indent << "task: ";
     Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.task);
     s << indent << "object: ";

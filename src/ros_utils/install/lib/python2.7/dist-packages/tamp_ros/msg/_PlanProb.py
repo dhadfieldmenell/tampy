@@ -7,18 +7,17 @@ import struct
 
 
 class PlanProb(genpy.Message):
-  _md5sum = "369ed158e8d2588c37ffb84457472de6"
+  _md5sum = "bacbc44c2a384d436608cc453c774b3b"
   _type = "tamp_ros/PlanProb"
   _has_header = False #flag to mark the presence of a Header object
-  _full_text = """int64 prob_id
+  _full_text = """int32 prob_id
 string task
 string object
 string target
 float32[] state
-
 """
   __slots__ = ['prob_id','task','object','target','state']
-  _slot_types = ['int64','string','string','string','float32[]']
+  _slot_types = ['int32','string','string','string','float32[]']
 
   def __init__(self, *args, **kwds):
     """
@@ -66,7 +65,7 @@ float32[] state
     :param buff: buffer, ``StringIO``
     """
     try:
-      buff.write(_get_struct_q().pack(self.prob_id))
+      buff.write(_get_struct_i().pack(self.prob_id))
       _x = self.task
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -100,8 +99,8 @@ float32[] state
     try:
       end = 0
       start = end
-      end += 8
-      (self.prob_id,) = _get_struct_q().unpack(str[start:end])
+      end += 4
+      (self.prob_id,) = _get_struct_i().unpack(str[start:end])
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -148,7 +147,7 @@ float32[] state
     :param numpy: numpy python module
     """
     try:
-      buff.write(_get_struct_q().pack(self.prob_id))
+      buff.write(_get_struct_i().pack(self.prob_id))
       _x = self.task
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -183,8 +182,8 @@ float32[] state
     try:
       end = 0
       start = end
-      end += 8
-      (self.prob_id,) = _get_struct_q().unpack(str[start:end])
+      end += 4
+      (self.prob_id,) = _get_struct_i().unpack(str[start:end])
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -227,9 +226,9 @@ _struct_I = genpy.struct_I
 def _get_struct_I():
     global _struct_I
     return _struct_I
-_struct_q = None
-def _get_struct_q():
-    global _struct_q
-    if _struct_q is None:
-        _struct_q = struct.Struct("<q")
-    return _struct_q
+_struct_i = None
+def _get_struct_i():
+    global _struct_i
+    if _struct_i is None:
+        _struct_i = struct.Struct("<i")
+    return _struct_i

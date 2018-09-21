@@ -303,9 +303,8 @@ class NAMOSortingAgent(Agent):
         plan.state_inds, plan.action_inds = self.state_inds, self.action_inds
 
 
-    def sample_optimal_trajectory(self, state, task, condition, traj_mean=[], fixed_targets=[]):
+    def sample_optimal_trajectory(self, state, task, condition, opt_traj, traj_mean=[], fixed_targets=[]):
         exclude_targets = []
-        success = False
 
         if len(fixed_targets):
             targets = fixed_targets
@@ -318,113 +317,15 @@ class NAMOSortingAgent(Agent):
             targets = [obj, targ]
             # targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
 
-        failed_preds = []
-        iteration = 0
-        while not success and targets[0] != None:
-            if iteration > 0 and not len(fixed_targets):
-                 targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean, exclude=exclude_targets)
-
-            iteration += 1
-            if targets[0] is None:
-                break
-
-            plan = self.plans[task, targets[0].name] 
-            set_params_attrs(plan.params, plan.state_inds, state, 0)
-            for param_name in plan.params:
-                param = plan.params[param_name]
-                if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
-                    plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
-
-            for target in self.targets[condition]:
-                plan.params[target].value[:,0] = self.targets[condition][target]
-
-            if targ.name in self.targets[condition]:
-                plan.params['{0}_end_target'.format(obj.name)].value[:,0] = self.targets[condition][targ.name]
-
-            if task == 'grasp':
-                plan.params[targ.name].value[:,0] = plan.params[obj.name].pose[:,0]
-            
-            plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-            dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
-            if task == 'putdown':
-                plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
-            if task == 'grasp':
-                plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
-            # self.env.SetViewer('qtcoin')
-            # success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
-            try:
-                self.solver.save_free(plan)
-                success = self.solver._backtrack_solve(plan, n_resamples=3, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
-                # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
-                # if task == 'putdown':
-                #     import ipdb; ipdb.set_trace()
-                # self.env.SetViewer('qtcoin')
-                # import ipdb; ipdb.set_trace()
-            except Exception as e:
-                traceback.print_exception(*sys.exc_info())
-                self.solver.restore_free(plan)
-                # self.env.SetViewer('qtcoin')
-                # import ipdb; ipdb.set_trace()
-                success = False
-
-            failed_preds = []
-            for action in plan.actions:
-                try:
-                    failed_preds += [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
-                except:
-                    pass
-            exclude_targets.append(targets[0].name)
-
-            if len(fixed_targets):
-                break
-
-        if len(failed_preds):
-            success = False
-        else:
-            success = True
-
-        if not success:
-            # import ipdb; ipdb.set_trace()
-            task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
-            task_vec[self.task_list.index(task)] = 1.
-            obj_vec = np.zeros((len(self.obj_list)), dtype='float32')
-            targ_vec = np.zeros((len(self.targ_list)), dtype='float32')
-            obj_vec[self.obj_list.index(targets[0].name)] = 1.
-            targ_vec[self.targ_list.index(targets[1].name)] = 1.
-            target_vec = np.zeros((self.target_dim,))
-            set_params_attrs(plan.params, plan.state_inds, state, 0)
-            for target_name in self.targets[condition]:
-                target = plan.params[target_name]
-                target.value[:,0] = self.targets[condition][target.name]
-                target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
-
-            sample = Sample(self)
-            sample.set(STATE_ENUM, state.copy(), 0)
-            sample.set(TASK_ENUM, task_vec, 0)
-            sample.set(OBJ_ENUM, obj_vec, 0)
-            sample.set(TARG_ENUM, targ_vec, 0)
-            sample.set(OBJ_POSE_ENUM, self.state_inds[targets[0].name, 'pose'], 0)
-            sample.set(TARG_POSE_ENUM, self.targets[condition][targets[1].name], 0)
-            sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), 0)
-            sample.set(TARGETS_ENUM, target_vec, 0)
-            sample.condition = condition
-            sample.task = task
-            return sample, failed_preds, success
-
         class optimal_pol:
             def act(self, X, O, t, noise):
-                U = np.zeros((plan.dU), dtype=np.float32)
-                if t < plan.horizon - 1:
-                    fill_vector(plan.params, plan.action_inds, U, t+1)
-                else:
-                    fill_vector(plan.params, plan.action_inds, U, t)
-                return U
+                return opt_traj[t].copy()
 
         sample = self.sample_task(optimal_pol(), condition, state, [task, targets[0].name, targets[1].name], noisy=False, fixed_obj=True)
         self.optimal_samples[task].append(sample)
         sample.set_ref_X(sample.get(STATE_ENUM))
         sample.set_ref_U(sample.get_U())
-        return sample, failed_preds, success
+        return sample
 
 
     def get_hl_plan(self, state, condition, failed_preds):
