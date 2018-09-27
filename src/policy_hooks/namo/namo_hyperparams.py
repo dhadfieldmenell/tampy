@@ -27,6 +27,12 @@ from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
+from core.util_classes.namo_predicates import ATTRMAP
+from pma.namo_solver import NAMOSolver
+from policy_hooks.namo.vector_include import *
+from policy_hooks.namo.namo_agent import NAMOSortingAgent
+import policy_hooks.namo.sorting_prob_2 as prob
+from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
@@ -170,6 +176,23 @@ config = {
     'n_layers': 3,
     'dim_hidden': [40, 40, 40],
     'traj_opt_steps': 1,
+
+    # New for multiprocess, transfer to sequential version as well.
+
+    'n_optimizers': 5,
+    'weight_dir': 'namo',
+    'policy_out_coeff': algorithm['policy_out_coeff'],
+    'policy_inf_coeff': algorithm['policy_inf_coeff'],
+    'max_sample_queue': 1e3,
+    'max_opt_sample_queue': 1e3,
+    'hl_plan_for_state': hl_plan_for_state,
+    'task_map_file': 'policy_hooks/namo/sorting_task_mapping_2',
+    'prob': prob,
+    'get_vector': get_vector,
+    'robot_name': 'pr2',
+    'attr_map': ATTRMAP,
+    'agent_type': NAMOSortingAgent,
+    'opt_server_type': NAMOMotionPlanServer,
 
 }
 

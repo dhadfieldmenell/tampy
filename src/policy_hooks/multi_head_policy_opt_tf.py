@@ -115,16 +115,23 @@ class MultiHeadPolicyOptTf(PolicyOpt):
     def update_weights(self, scope):
         self.saver.restore(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
 
-    def store_weights(self, scope):
-        variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
-        saver = tf.train.Saver(variables)
-        saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
+    def store_weights(self, scopes):
+        for scope in scopes:
+            variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+            saver = tf.train.Saver(variables)
+            saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
 
     def store_all_weights(self):
         for task in self.task_list + ['value', 'primitive']:
             variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
             saver = tf.train.Saver(variables)
-            saver.save(self.policy_opt.sess, 'tf_saved/namo/{0}.ckpt'.format(task))
+            saver.save(self.policy_opt.sess, 'tf_saved/'self.weight_dir+'/'+task+'.ckpt')
+
+    def store_weights(self):
+        assert self.scope is not None
+        variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+        saver = tf.train.Saver(variables)
+        saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+self.scope+'.ckpt')
 
     def store(self, mu, obs, prc, wt, task):
         if task not in self.mu:
@@ -141,6 +148,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.update_count += len(mu)
         if self.update_count > self.update_size:
             self.update(self.mu[task], self.obs[task], self.prc[task], self.wt[task], task)
+            self.store_weights(scopes=[task])
             self.update_count = 0
             del self.mu[task]
             del self.obs[task]
@@ -386,7 +394,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             average_loss = 0
 
         # actual training.
-        print "\nEntering Tensorflow Training Loop"
+        # print "\nEntering Tensorflow Training Loop"
         for i in range(self._hyperparams['iterations']):
             # Load in data for this batch.
             start_idx = int(i * self.batch_size %
@@ -402,7 +410,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 LOGGER.info('tensorflow iteration %d, average loss %f',
                              i+1, average_loss / 50)
                 average_loss = 0
-        print "Leaving Tensorflow Training Loop\n"
+        # print "Leaving Tensorflow Training Loop\n"
 
         feed_dict = {self.obs_tensor: obs}
         num_values = obs.shape[0]
@@ -433,7 +441,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
-        print 'Updating primitive network...'
+        # print 'Updating primitive network...'
         N = obs.shape[0]
         dP, dO = self._dPrim+self._dObj+self._dTarg, self._dPrimObs
 
@@ -508,7 +516,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         num_values = obs.shape[0]
         if self.primitive_feat_op is not None:
             self.primitive_feat_vals = self.primitive_solver.get_var_values(self.sess, self.primitive_feat_op, feed_dict, num_values, self.batch_size)
-        print 'Updated primitive network.\n'
+        # print 'Updated primitive network.\n'
 
 
     def update_value(self, obs, tgt_mu, tgt_prc, tgt_wt):
@@ -522,7 +530,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
-        print 'Updating value network...'
+        # print 'Updating value network...'
         N = obs.shape[0]
         dP, dO = 2, self._dO
 
@@ -597,7 +605,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         num_values = obs.shape[0]
         if self.value_feat_op is not None:
             self.value_feat_vals = self.value_solver.get_var_values(self.sess, self.value_feat_op, feed_dict, num_values, self.batch_size)
-        print 'Updated value network.'
+        # print 'Updated value network.'
 
 
     def update_distilled(self, obs, tgt_mu, tgt_prc, tgt_wt):

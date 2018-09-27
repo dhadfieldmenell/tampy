@@ -26,6 +26,7 @@ class RolloutServer(object):
         self.mcts = hyperparams['mcts']
         self.alg_map = hyperparams['algs']
         self.agent = self.mcts[0].agent
+        self.task_list = self.agent.task_list
         self.traj_opt_steps = hyperparams['traj_opt_steps']
         self.n_samples = ['n_samples']
         self.stopped = False
@@ -148,11 +149,13 @@ class RolloutServer(object):
 
         sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
         self.agent.clear_samples(keep_prob=0.1, keep_opt_prob=0.2)
+        all_samples = []
 
         for s_list in sample_lists:
+            all_samples.extend(s_list._samples)
             next_sample = s_list[0]
             state = next_sample.get(STATE_ENUM, t=0)
-            task = next_sample.task_list
+            task = next_sample.task
             cond = next_sample.condition
             X = next_sample.get(STATE_ENUM)
             traj_mean = []
@@ -174,6 +177,13 @@ class RolloutServer(object):
             self.store_for_opt(s_list)
             self.async_plan_publisher.publish(prob)
 
+        path_samples = []
+        for path in self.agent.get_task_paths():
+            path_samples.extend(path)
+
+        self.update_primitive(path_samples)
+        self.update_qvalue(all_samples)
+
         for step in range(self.traj_opt_steps-1):
             for task in self.agent.task_list:
                 try:
@@ -190,3 +200,45 @@ class RolloutServer(object):
     def run(self):
         while not self.stopped:
             self.step()
+
+    def update_qvalue(self, samples, first_ts_only=False):
+        dV, dO = 2, self.alg_map.values()[0].dO
+
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dV))
+        tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
+        for sample in samples:
+            if not hasattr(sample, 'success'): continue
+            for t in range(sample.T):
+                obs = [sample.get_obs(t=t)]
+                mu = [sample.success]
+                prc = [np.eye(dV)]
+                wt = [10. / (t+1)]
+                tgt_mu = np.concatenate((tgt_mu, mu))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                obs_data = np.concatenate((obs_data, obs))
+                if first_ts_only: break
+
+        if len(tgt_mu):
+            self.update(tgt_mu, obs_data, tgt_prc, tgt_wt, 'value')
+
+    def update_primitive(self, samples):
+        dP, dO = len(self.task_list), self.alg_map.values()[0].dPrimObs
+        dObj, dTarg = self.alg_map.values()[0].dObj, self.alg_map.values()[0].dTarg
+        dP += dObj + dTarg
+        # Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
+        tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
+        for sample in samples:
+            for t in range(sample.T):
+                obs = [sample.get_prim_obs(t=t)]
+                mu = [np.concatenate([sample.get(TASK_ENUM, t=t), sample.get(OBJ_ENUM, t=t), sample.get(TARG_ENUM, t=t)])]
+                prc = [np.eye(dP)]
+                wt = [1. / (t+1)] # [np.exp(-sample.task_cost)]
+                tgt_mu = np.concatenate((tgt_mu, mu))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                obs_data = np.concatenate((obs_data, obs))
+
+        if len(tgt_mu):
+            self.update(tgt_mu, obs_data, tgt_prc, tgt_wt, 'primitive')

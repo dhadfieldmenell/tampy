@@ -253,7 +253,7 @@ def get_base_solver(parent_class):
                     # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                     #     break
 
-                    print "resample attempt: {}".format(attempt)
+                    # print "resample attempt: {}".format(attempt)
 
                     try:
                         if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
