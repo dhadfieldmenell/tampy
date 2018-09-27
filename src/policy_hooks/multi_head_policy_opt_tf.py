@@ -116,8 +116,15 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.saver.restore(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
 
     def store_weights(self, scope):
-        self.saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
+        variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
+        saver = tf.train.Saver(variables)
+        saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
 
+    def store_all_weights(self):
+        for task in self.task_list + ['value', 'primitive']:
+            variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
+            saver = tf.train.Saver(variables)
+            saver.save(self.policy_opt.sess, 'tf_saved/namo/{0}.ckpt'.format(task))
 
     def store(self, mu, obs, prc, wt, task):
         if task not in self.mu:

@@ -26,7 +26,7 @@ class DummyPolicyOpt(object):
 class NamoMotionPlanServer(object):
     def __init__(self, hyperparams):
         self.id =  hyperparams['id']
-        self.solver = NAMOPolicySolver()
+        self.solver = NAMOPolicySolver(hyperparams)
         plans = {}
         env = None
         openrave_bodies = {}
@@ -52,12 +52,12 @@ class NamoMotionPlanServer(object):
         self.mp_publisher = rospy.Publisher('motion_plan_result', MotionPlanResult, queue_size=50)
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan)
         self.stop = rospy.Subscriber('terminate', str, self.end)
-        rospy.spin()
 
 
     def run(self):
-        while not self.stopped:
-            rospy.sleep(0.01)
+        rospy.spin()
+        # while not self.stopped:
+        #     rospy.sleep(0.01)
 
 
     def end(self, msg):
@@ -66,6 +66,7 @@ class NamoMotionPlanServer(object):
 
 
     def prob(self, sample, task):
+        rospy.wait_for_service(task+'_policy_prob', timeout=10)
         proxy_call = rospy.ServiceProxy(task+'_policy_prob', PolicyProb)
         obs = []
         s_obs = sample.get_obs()
@@ -81,6 +82,7 @@ class NamoMotionPlanServer(object):
 
 
     def publish_motion_plan(self, msg):
+        if msg.solver_id != self.id: return
         state = msg.state
         task = msg.task
         cond = msg.cond
@@ -92,7 +94,7 @@ class NamoMotionPlanServer(object):
         resp.traj = out
         resp.failed = failed
         resp.success = success
-        resp.id = msg.id
+        resp.plan_id = msg.prob_id
         self.mp_publisher.publish(resp)
 
 

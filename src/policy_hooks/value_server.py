@@ -7,11 +7,16 @@ from tamp_ros.srv import *
 
 
 class ValueServer(object):
-    def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
+    def __init__(self, hyperparams):
         rospy.init_node('value_update_server')
         hyperparams['scope'] = 'value'
         self.policy_opt = hyperparams['policy_opt']['type'](
-            hyperparams['policy_opt'], dO, dU, dObj, dTarg, dPrimObs
+            hyperparams['policy_opt'], 
+            hyperparams['dO'],
+            hyperparams['dU'],
+            hyperparams['dObj'],
+            hyperparams['dTarg'],
+            hyperparams['dPrimObs']
         )
         self.task = 'value'
         self.value_service = rospy.Service('qvalue', QValue, self.value)

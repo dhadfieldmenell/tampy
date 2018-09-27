@@ -9,10 +9,15 @@ from tamp_ros.srv import *
 
 
 class PolicyServer(object):
-    def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
+    def __init__(self, hyperparams):
         rospy.init_node(task+'_update_server')
         self.policy_opt = hyperparams['policy_opt']['type'](
-            hyperparams['policy_opt'], dO, dU, dObj, dTarg, dPrimObs
+            hyperparams['policy_opt'], 
+            hyperparams['dO'],
+            hyperparams['dU'],
+            hyperparams['dObj'],
+            hyperparams['dTarg'],
+            hyperparams['dPrimObs']
         )
         # self.policy_opt = policy_opt
         # self.policy_opt.hyperparams['scope'] = task
@@ -74,7 +79,7 @@ class PolicyServer(object):
         noise = req.noise
         policy = self.policy_opt.task_map[self.task].policy
         if policy.scale is None:
-            policy.scale = 1
+            policy.scale = 0.01
             policy.bias = 0
             act = policy.act([], obs, 0, noise)
             policy.scale = None

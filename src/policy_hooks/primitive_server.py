@@ -7,11 +7,16 @@ from tamp_ros.srv import *
 
 
 class PrimitiveServer(object):
-    def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
+    def __init__(self, hyperparams):
         rospy.init_node('primitive_update_server')
         hyperparams['scope'] = 'primitive'
         self.policy_opt = hyperparams['policy_opt']['type'](
-            hyperparams['policy_opt'], dO, dU, dObj, dTarg, dPrimObs
+            hyperparams['policy_opt'], 
+            hyperparams['dO'],
+            hyperparams['dU'],
+            hyperparams['dObj'],
+            hyperparams['dTarg'],
+            hyperparams['dPrimObs']
         )
         self.task = 'primitive'
         self.primitive_service = rospy.Service('primitive', Primitive, self.primitive)

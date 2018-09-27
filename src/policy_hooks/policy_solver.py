@@ -38,7 +38,7 @@ DEBUG=False
 
 def get_base_solver(parent_class):
     class PolicySolver(parent_class):
-        def __init__(self, early_converge=False, transfer_norm='min-vel'):
+        def __init__(self, hyperparams=None, early_converge=False, transfer_norm='min-vel'):
             super(PolicySolver, self).__init__(early_converge, transfer_norm)
             self.config = None
             self.gps = None
@@ -52,6 +52,17 @@ def get_base_solver(parent_class):
             self.agent = None
             self.policy_fs = {}
             self.policy_inf_fs = {}
+
+            if hyperparams != None:
+                self.dX = hyperparams['dX']
+                self.dU = self.dU
+                self.symbolic_bound = hyperparams['symbolic_bound']
+                self.state_inds = hyperparams['state_inds']
+                self.action_inds = hyperparams['action_inds']
+                self.policy_out_coeff = hyperparams['policy_out_coeff']
+                self.policy_inf_coeff = hyperparams['policy_inf_coeff']
+                self.target_inds = hyperparams['target_inds']
+                self.target_dim = hyperparams['target_dim']
 
 
         # TODO: Add hooks for online policy learning

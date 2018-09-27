@@ -53,19 +53,23 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         if self.traj_centers >= len(sample_lists[0]):
             success= False
             all_opt_samples = []
-            for m in range(len(self.cur)):
-                opt_samples = []
-                for sample in sample_lists[m]:
-                    agent = sample.agent
-                    obj = agent.plans.values()[0].params[sample.obj]
-                    targ = agent.plans.values()[0].params[sample.targ]
-                    opt_sample, _, success = agent.sample_optimal_trajectory(sample.get_X(t=0), sample.task, sample.condition, traj_mean=sample.get(STATE_ENUM), fixed_targets=[obj, targ])
-                    if success:
-                        opt_samples.append(opt_sample)
-                    else:
-                        break
-                if len(opt_samples):
-                    all_opt_samples.append(SampleList(opt_samples))
+            if len(optimal_samples):
+                for opt_s, s_list in opt_samples:
+                    all_opt_samples.append(SampleList([opt_s]))
+            else:
+                for m in range(len(self.cur)):
+                    opt_samples = []
+                    for sample in sample_lists[m]:
+                        agent = sample.agent
+                        obj = agent.plans.values()[0].params[sample.obj]
+                        targ = agent.plans.values()[0].params[sample.targ]
+                        opt_sample, _, success = agent.sample_optimal_trajectory(sample.get_X(t=0), sample.task, sample.condition, traj_mean=sample.get(STATE_ENUM), fixed_targets=[obj, targ])
+                        if success:
+                            opt_samples.append(opt_sample)
+                        else:
+                            break
+                    if len(opt_samples):
+                        all_opt_samples.append(SampleList(opt_samples))
 
             self.set_conditions(len(all_opt_samples))
             for m in range(len(self.cur)):

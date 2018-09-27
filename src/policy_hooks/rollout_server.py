@@ -1,11 +1,15 @@
 import sys
 
+from numba import cuda
+
 import rospy
 
 from std_msgs import String
 
 from tamp_ros.msg import *
 from tamp_ros.srv import *
+
+from policy_hooks.policy_solver_utils import *
 
 
 class dummy_policy:
@@ -18,12 +22,12 @@ class dummy_policy:
 
 
 class RolloutServer(object):
-    def __init__(self, mcts, algs, traj_opt_steps, n_samples, n_optimizers, max_sample_queue, max_opt_sample_queue):
-        self.mcts = mcts
-        self.alg_map = algs
-        self.agent = mcts[0].agent
-        self.traj_opt_steps = traj_opt_steps
-        self.n_samples = n_samples
+    def __init__(self, hyperparams):
+        self.mcts = hyperparams['mcts']
+        self.alg_map = hyperparams['algs']
+        self.agent = self.mcts[0].agent
+        self.traj_opt_steps = hyperparams['traj_opt_steps']
+        self.n_samples = ['n_samples']
         self.stopped = False
         self.updaters = {task: rospy.Publisher(task+'_update', PolicyUpdate, queue_size=50) for task in self.alg_map}
         self.updaters['value'] = rospy.Publisher('value_update', PolicyUpdate, queue_size=50)
@@ -33,13 +37,16 @@ class RolloutServer(object):
         self.stop = rospy.Subscriber('terminate', String, self.end)
         for task in self.alg_map:
             self.alg_map[task].policy_opt.update = self.update
-        self.n_optimizers = n_optimizers
+            if not self.alg_map[task].policy_opt.sess._closed:
+                self.alg_map[task].policy_opt.sess.close()
+        cuda.close()
+        self.n_optimizers = hyperparams['n_optimizers']
         self.waiting_for_opt = {}
         self.sample_queue = []
         self.current_id = 0
         self.optimized = {}
-        self.max_sample_queue = max_sample_queue
-        self.max_opt_sample_queue = max_opt_sample_queue
+        self.max_sample_queue = hyperparams['max_sample_queue']
+        self.max_opt_sample_queue = hyperparams['max_opt_sample_queue']
 
     def end(self, msg):
         self.stopped = True
@@ -58,16 +65,19 @@ class RolloutServer(object):
         self.updaters[task].publish(msg)
 
     def policy_call(self, x, obs, t, noise, task):
+        rospy.wait_for_service(task+'_policy_act', timeout=10)
         proxy = rospy.ServiceProxy(task+'_policy_act', PolicyAct)
         resp = proxy(obs, noise, task)
         return resp.act
 
     def value_call(self, obs):
+        rospy.wait_for_service('qvalue', timeout=10)
         proxy = rospy.ServiceProxy('qvalue', QValue)
         resp = proxy(obs)
         return resp.act
 
     def primitive_call(self, prim_obs):
+        rospy.wait_for_service('primitive', timeout=10)
         proxy = rospy.ServiceProxy('primitive', Primitive)
         resp = proxy(prim_obs)
         return resp.task_distr, resp.obj_distr, resp.obj_distr
@@ -105,7 +115,7 @@ class RolloutServer(object):
             del sample_queue[0]
 
 
-    def store_opt_smaple(self, sample, plan_id):
+    def store_opt_sample(self, sample, plan_id):
         if plan_id in self.waiting_for_opt:
             samples = self.waiting_for_opt[plan_id]
         else:
@@ -139,10 +149,35 @@ class RolloutServer(object):
         sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
         self.agent.clear_samples(keep_prob=0.1, keep_opt_prob=0.2)
 
+        for s_list in sample_lists:
+            next_sample = s_list[0]
+            state = next_sample.get(STATE_ENUM, t=0)
+            task = next_sample.task_list
+            cond = next_sample.condition
+            X = next_sample.get(STATE_ENUM)
+            traj_mean = []
+            for t in range(next_sample.T):
+                next_line = Float32MultiArray()
+                next_line.data = X[t]
+                traj_mean.append(next_line)
+            obj = next_sample.obj
+            targ = next_sample.targ
+            prob = MotionPlanProblem()
+            prob.state = state
+            prob.task = task
+            prob.cond = cond
+            prob.traj_mean = traj_mean
+            prob.obj = obj
+            prob.targ = targ
+            prob.prob_id = self.current_id
+            prob.solver_id = np.random.randint(0, self.n_optimizers)
+            self.store_for_opt(s_list)
+            self.async_plan_publisher.publish(prob)
+
         for step in range(self.traj_opt_steps-1):
             for task in self.agent.task_list:
                 try:
-                    sample_lists[task] = self.alg_map[task].iteration(sample_lists[task], self.agent.optimal_samples[task], reset=not step)
+                    sample_lists[task] = self.alg_map[task].iteration(sample_lists[task], self.optimal_samples, reset=not step)
                     if len(sample_lists[task]):
                         sample_lists[task] = self.agent.resample(sample_lists[task], rollout_policies[task], self.n_samples)
                     else:
