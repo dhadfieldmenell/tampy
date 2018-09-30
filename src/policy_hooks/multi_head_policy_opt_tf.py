@@ -24,6 +24,7 @@ LOGGER = logging.getLogger(__name__)
 class MultiHeadPolicyOptTf(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
     def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
+        self.scope = hyperparams['scope']
         tf.reset_default_graph()
         
         config = copy.deepcopy(POLICY_OPT_TF)
@@ -59,14 +60,16 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.var[""] = self._hyperparams['init_var'] * np.ones(dU)
         self.distilled_var = self._hyperparams['init_var'] * np.ones(dU)
         self.weight_dir = self._hyperparams['weight_dir']
-        self.scope = self._hyperparams['scope'] if 'scope' in self._hyperparams else None
+        self.scope = self._hyperparams['scope'] if 'scope' in self._hyperparams else None 
 
         self.gpu_fraction = self._hyperparams['gpu_fraction']
         # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
-        # self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-        self.sess = tf.Session(config=tf.ConfigProto(allow_growth=True))
+        gpu_options = tf.GPUOptions(allow_growth=True)
+        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        init_op = tf.initialize_all_variables()
+        self.sess.run(init_op)
         if self.scope is not None:
-            variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
             self.saver = tf.train.Saver(variables)
             try:
                 self.saver.restore(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
@@ -101,8 +104,6 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             else:
                 self.prim_x_idx = self.prim_x_idx + list(range(i, i+dim))
             i += dim
-        init_op = tf.initialize_all_variables()
-        self.sess.run(init_op)
 
         self.update_count = 0
         self.update_size = self._hyperparams['update_size']
@@ -113,25 +114,25 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
 
     def update_weights(self, scope):
-        self.saver.restore(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
+        self.saver.restore(self.session, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
 
     def store_weights(self, scopes):
         for scope in scopes:
-            variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
             saver = tf.train.Saver(variables)
-            saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+scope+'.ckpt')
+            saver.save(self.session, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
 
     def store_all_weights(self):
         for task in self.task_list + ['value', 'primitive']:
-            variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
+            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
             saver = tf.train.Saver(variables)
-            saver.save(self.policy_opt.sess, 'tf_saved/'self.weight_dir+'/'+task+'.ckpt')
+            saver.save(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'/'+task+'.ckpt')
 
     def store_weights(self):
         assert self.scope is not None
-        variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
         saver = tf.train.Saver(variables)
-        saver.save(self.session, 'tf_saved/'self.weight_dir+'/'+self.scope+'.ckpt')
+        saver.save(self.session, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
 
     def store(self, mu, obs, prc, wt, task):
         if task not in self.mu:
@@ -241,6 +242,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                                vars_to_opt=vars_to_opt)
 
         if self.scope is None or 'value' == self.scope:
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive_filter')
             self.value_solver = TfSolver(loss_scalar=self.value_loss_scalar,
                                            solver_name=self._hyperparams['solver_type'],
                                            base_lr=self._hyperparams['lr'],
@@ -274,7 +276,6 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                                        fc_vars=self.task_map[task]['fc_vars'],
                                                        last_conv_vars=self.task_map[task]['last_conv_vars'],
                                                        vars_to_opt=vars_to_opt)
-        self.saver = tf.train.Saver()
 
     def init_policies(self, dU):
         for task in self.task_list:

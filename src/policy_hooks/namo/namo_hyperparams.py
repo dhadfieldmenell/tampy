@@ -169,6 +169,7 @@ config = {
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
+    'lr': 1e-3,
 
     'train_iterations': 100000,
     'weight_decay': 0.00001,
@@ -180,19 +181,22 @@ config = {
     # New for multiprocess, transfer to sequential version as well.
 
     'n_optimizers': 5,
+    'n_rollout_servers': 1,
     'weight_dir': 'namo',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
     'max_sample_queue': 1e3,
     'max_opt_sample_queue': 1e3,
-    'hl_plan_for_state': hl_plan_for_state,
+    'hl_plan_for_state': prob.hl_plan_for_state,
     'task_map_file': 'policy_hooks/namo/sorting_task_mapping_2',
     'prob': prob,
     'get_vector': get_vector,
     'robot_name': 'pr2',
+    'obj_type': 'can',
+    'num_objs': 5,
     'attr_map': ATTRMAP,
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
+    'update_size': 1000,
 
 }
-

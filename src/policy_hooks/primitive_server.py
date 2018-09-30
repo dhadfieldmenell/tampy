@@ -1,6 +1,6 @@
 import rospy
 
-from std_msgs import Float32MultiArray
+from std_msgs.msg import Float32MultiArray
 
 from tamp_ros.msg import *
 from tamp_ros.srv import *
@@ -9,7 +9,7 @@ from tamp_ros.srv import *
 class PrimitiveServer(object):
     def __init__(self, hyperparams):
         rospy.init_node('primitive_update_server')
-        hyperparams['scope'] = 'primitive'
+        hyperparams['policy_opt']['scope'] = 'primitive'
         self.policy_opt = hyperparams['policy_opt']['type'](
             hyperparams['policy_opt'], 
             hyperparams['dO'],

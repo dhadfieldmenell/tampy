@@ -1,8 +1,8 @@
 import rospy
 
-from std_msgs import Float32MultiArray
+from std_msgs.msg import Float32MultiArray
 
-from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTF
+from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 
 from tamp_ros.msg import *
 from tamp_ros.srv import *
@@ -10,7 +10,9 @@ from tamp_ros.srv import *
 
 class PolicyServer(object):
     def __init__(self, hyperparams):
-        rospy.init_node(task+'_update_server')
+        self.task = hyperparams['task']
+        hyperparams['policy_opt']['scope'] = self.task
+        rospy.init_node(self.task+'_update_server')
         self.policy_opt = hyperparams['policy_opt']['type'](
             hyperparams['policy_opt'], 
             hyperparams['dO'],
@@ -21,7 +23,6 @@ class PolicyServer(object):
         )
         # self.policy_opt = policy_opt
         # self.policy_opt.hyperparams['scope'] = task
-        self.task = hyperparams['scope']
         self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
         self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
         self.update_listener = rospy.Subscriber(self.task+'_update', PolicyUpdate, self.update)

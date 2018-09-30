@@ -4,12 +4,12 @@ from numba import cuda
 
 import rospy
 
-from std_msgs import String
+from std_msgs.msg import String
 
 from tamp_ros.msg import *
 from tamp_ros.srv import *
 
-from policy_hooks.policy_solver_utils import *
+from policy_hooks.utils.policy_solver_utils import *
 
 
 class dummy_policy:
@@ -23,7 +23,11 @@ class dummy_policy:
 
 class RolloutServer(object):
     def __init__(self, hyperparams):
+        self.id = hyperparams['id']
         self.mcts = hyperparams['mcts']
+        for m in self.mcts:
+            m.value_func = self.value_call
+            m.prob_func = self.primitive_call
         self.alg_map = hyperparams['algs']
         self.agent = self.mcts[0].agent
         self.task_list = self.agent.task_list
@@ -33,14 +37,20 @@ class RolloutServer(object):
         self.updaters = {task: rospy.Publisher(task+'_update', PolicyUpdate, queue_size=50) for task in self.alg_map}
         self.updaters['value'] = rospy.Publisher('value_update', PolicyUpdate, queue_size=50)
         self.updaters['primitive'] = rospy.Publisher('primitive_update', PolicyUpdate, queue_size=50)
-        self.mp_subcriber = rospy.Subscriber('motion_plan_result', MotionPlanResult, self.sample_mp)
+        self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+self.id, MotionPlanResult, self.sample_mp)
         self.async_plan_publisher = rospy.Publisher('motion_plan_prob', MotionPlanProblem, queue_size=50)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         for task in self.alg_map:
             self.alg_map[task].policy_opt.update = self.update
-            if not self.alg_map[task].policy_opt.sess._closed:
-                self.alg_map[task].policy_opt.sess.close()
-        cuda.close()
+            if self.alg_map[task].policy_opt.sess is not None:
+                if not self.alg_map[task].policy_opt.sess._closed:
+                    self.alg_map[task].policy_opt.sess.close()
+                self.alg_map[task].policy_opt.sess = None
+                close_cuda = True
+
+        if close_cuda:
+            cuda.close()
+
         self.n_optimizers = hyperparams['n_optimizers']
         self.waiting_for_opt = {}
         self.sample_queue = []
@@ -96,7 +106,7 @@ class RolloutServer(object):
         req.task = task
         req.obj = targets[0].name
         req.targ = targets[1].name
-        req.condition condition
+        req.condition = condition
         req.mean = mean
 
         proxy = rospy.ServiceProxy('motion_planner_'+mp_id, MotionPlan)
@@ -174,6 +184,7 @@ class RolloutServer(object):
             prob.targ = targ
             prob.prob_id = self.current_id
             prob.solver_id = np.random.randint(0, self.n_optimizers)
+            prob.server_id = self.id
             self.store_for_opt(s_list)
             self.async_plan_publisher.publish(prob)
 
