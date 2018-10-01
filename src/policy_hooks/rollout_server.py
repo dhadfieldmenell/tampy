@@ -24,6 +24,7 @@ class dummy_policy:
 class RolloutServer(object):
     def __init__(self, hyperparams):
         self.id = hyperparams['id']
+        rospy.init_node('rollout_server_'+str(self.id))
         self.mcts = hyperparams['mcts']
         for m in self.mcts:
             m.value_func = self.value_call

@@ -1,6 +1,6 @@
 import rospy
 
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32MultiArray, String
 
 from tamp_ros.msg import *
 from tamp_ros.srv import *
@@ -8,6 +8,7 @@ from tamp_ros.srv import *
 
 class ValueServer(object):
     def __init__(self, hyperparams):
+        import tensorflow as tf
         rospy.init_node('value_update_server')
         hyperparams['policy_opt']['scope'] = 'value'
         self.policy_opt = hyperparams['policy_opt']['type'](
@@ -21,8 +22,8 @@ class ValueServer(object):
         self.task = 'value'
         self.value_service = rospy.Service('qvalue', QValue, self.value)
         self.updater = rospy.Subscriber('value_update', PolicyUpdate, self.update)
-        self.stop = rospy.Subscriber('terminate', str, self.end)
-        self.stoped = True
+        self.stop = rospy.Subscriber('terminate', String, self.end)
+        self.stopped = True
         rospy.spin()
 
 
@@ -36,7 +37,7 @@ class ValueServer(object):
         rospy.signal_shutdown('Received notice to terminate.')
 
 
-    def upate(self, msg):
+    def update(self, msg):
         mu = np.array(msg.mu)
         mu_dims = (msg.n, msg.rollout_len, msg.dU)
         mu = mu.reshape(mu_dims)

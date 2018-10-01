@@ -1,7 +1,7 @@
 # generated from genmsg/cmake/pkg-genmsg.context.in
 
-messages_str = "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg"
-services_str = "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/MotionPlan.srv;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv"
+messages_str = "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg"
+services_str = "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/MotionPlan.srv;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv;/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv"
 pkg_name = "tamp_ros"
 dependencies_str = "std_msgs"
 langs = "gencpp;geneus;genlisp;gennodejs;genpy"

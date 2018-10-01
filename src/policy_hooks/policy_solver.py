@@ -55,7 +55,7 @@ def get_base_solver(parent_class):
 
             if hyperparams != None:
                 self.dX = hyperparams['dX']
-                self.dU = self.dU
+                self.dU = hyperparams['dU']
                 self.symbolic_bound = hyperparams['symbolic_bound']
                 self.state_inds = hyperparams['state_inds']
                 self.action_inds = hyperparams['action_inds']
@@ -63,6 +63,7 @@ def get_base_solver(parent_class):
                 self.policy_inf_coeff = hyperparams['policy_inf_coeff']
                 self.target_inds = hyperparams['target_inds']
                 self.target_dim = hyperparams['target_dim']
+                self.task_list = hyperparams['task_list']
 
 
         # TODO: Add hooks for online policy learning

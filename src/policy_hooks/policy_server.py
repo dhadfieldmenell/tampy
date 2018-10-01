@@ -1,6 +1,6 @@
 import rospy
 
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32MultiArray, String
 
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 
@@ -10,7 +10,8 @@ from tamp_ros.srv import *
 
 class PolicyServer(object):
     def __init__(self, hyperparams):
-        self.task = hyperparams['task']
+        import tensorflow as tf
+        self.task = hyperparams['scope']
         hyperparams['policy_opt']['scope'] = self.task
         rospy.init_node(self.task+'_update_server')
         self.policy_opt = hyperparams['policy_opt']['type'](
@@ -26,8 +27,8 @@ class PolicyServer(object):
         self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
         self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
         self.update_listener = rospy.Subscriber(self.task+'_update', PolicyUpdate, self.update)
-        self.stop = rospy.Subscriber('terminate', str, self.end)
-        self.stoped = True
+        self.stop = rospy.Subscriber('terminate', String, self.end)
+        self.stopped = True
         rospy.spin()
 
 
@@ -41,7 +42,7 @@ class PolicyServer(object):
         rospy.signal_shutdown('Received notice to terminate.')
 
 
-    def upate(self, msg):
+    def update(self, msg):
         mu = np.array(msg.mu)
         mu_dims = (msg.n, msg.rollout_len, msg.dU)
         mu = mu.reshape(mu_dims)

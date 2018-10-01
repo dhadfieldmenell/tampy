@@ -26,16 +26,18 @@ class DummyPolicyOpt(object):
 class NAMOMotionPlanServer(object):
     def __init__(self, hyperparams):
         self.id =  hyperparams['id']
+        rospy.init_node('namo_mp_solver_'+str(self.id))
         self.solver = NAMOPolicySolver(hyperparams)
+        self.task_list = hyperparams['task_list']
         plans = {}
         env = None
         openrave_bodies = {}
         for task in self.task_list:
-            for c in range(num_cans):
-                plans[task, 'can{0}'.format(c)] = get_plan_for_task(task, ['can{0}'.format(c), 'can{0}_end_target'.format(c)], num_cans, env, openrave_bodies)
+            for c in range(hyperparams['num_objs']):
+                plans[task, '{0}{1}'.format(hyperparams['obj_type'], c)] = get_plan_for_task(task, ['{0}{1}'.format(hyperparams['obj_type'], c), '{0}{1}_end_target'.format(hyperparams['obj_type'], c)], hyperparams['num_objs'], env, openrave_bodies)
                 if env is None:
-                    env = plans[task, 'can{0}'.format(c)].env
-                    for param in plans[task, 'can{0}'.format(c)].params.values():
+                    env = plans[task, '{0}{1}'.format(hyperparams['obj_type'], c)].env
+                    for param in plans[task, '{0}{1}'.format(hyperparams['obj_type'], c)].params.values():
                         if not param.is_symbol():
                             openrave_bodies[param.name] = param.openrave_body
         # self.policy_opt = hyperparams['policy_opt']
@@ -47,11 +49,11 @@ class NAMOMotionPlanServer(object):
         for task in self.solver.agent.task_list:
             self.solver.policy_inf_fs[task] = lambda s: self.prob(s, task)
 
-        self.mp_service = rospy.Service('motion_planner_'+self.id, MotionPlan, self.serve_motion_plan)
+        self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
-        self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+i, MotionPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servs'])}
+        self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan)
-        self.stop = rospy.Subscriber('terminate', str, self.end)
+        self.stop = rospy.Subscriber('terminate', String, self.end)
 
 
     def run(self):

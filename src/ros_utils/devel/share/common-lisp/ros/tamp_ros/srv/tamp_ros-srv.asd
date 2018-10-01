@@ -13,4 +13,8 @@
     (:file "_package_PolicyForward" :depends-on ("_package"))
     (:file "PolicyProb" :depends-on ("_package_PolicyProb"))
     (:file "_package_PolicyProb" :depends-on ("_package"))
+    (:file "Primitive" :depends-on ("_package_Primitive"))
+    (:file "_package_Primitive" :depends-on ("_package"))
+    (:file "QValue" :depends-on ("_package_QValue"))
+    (:file "_package_QValue" :depends-on ("_package"))
   ))

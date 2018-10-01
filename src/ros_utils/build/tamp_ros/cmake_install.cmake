@@ -34,10 +34,11 @@ endif()
 
 if(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspecified")
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/tamp_ros/msg" TYPE FILE FILES
-    "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg"
     "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg"
     "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg"
     "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg"
+    "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg"
+    "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg"
     )
 endif()
 
@@ -46,6 +47,8 @@ if(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspeci
     "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/MotionPlan.srv"
     "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv"
     "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv"
+    "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv"
+    "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv"
     )
 endif()
 

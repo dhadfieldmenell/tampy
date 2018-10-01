@@ -1,6 +1,6 @@
 # generated from genmsg/cmake/pkg-genmsg.cmake.em
 
-message(STATUS "tamp_ros: 4 messages, 3 services")
+message(STATUS "tamp_ros: 5 messages, 5 services")
 
 set(MSG_I_FLAGS "-Itamp_ros:/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg;-Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg")
 
@@ -17,14 +17,29 @@ add_custom_target(tamp_ros_generate_messages ALL)
 
 
 
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg" NAME_WE)
+add_custom_target(_tamp_ros_generate_messages_check_deps_${_filename}
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg" "std_msgs/Float32MultiArray:std_msgs/MultiArrayDimension:std_msgs/MultiArrayLayout"
+)
+
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv" NAME_WE)
 add_custom_target(_tamp_ros_generate_messages_check_deps_${_filename}
   COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv" ""
 )
 
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv" NAME_WE)
 add_custom_target(_tamp_ros_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" "std_msgs/Float32MultiArray:std_msgs/MultiArrayDimension:std_msgs/MultiArrayLayout"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv" ""
+)
+
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+add_custom_target(_tamp_ros_generate_messages_check_deps_${_filename}
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" "std_msgs/Float32MultiArray:std_msgs/MultiArrayDimension:std_msgs/MultiArrayLayout"
+)
+
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg" NAME_WE)
+add_custom_target(_tamp_ros_generate_messages_check_deps_${_filename}
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg" "std_msgs/Float32MultiArray:std_msgs/MultiArrayDimension:std_msgs/MultiArrayLayout"
 )
 
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg" NAME_WE)
@@ -32,14 +47,14 @@ add_custom_target(_tamp_ros_generate_messages_check_deps_${_filename}
   COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg" ""
 )
 
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv" NAME_WE)
 add_custom_target(_tamp_ros_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg" ""
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv" ""
 )
 
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
 add_custom_target(_tamp_ros_generate_messages_check_deps_${_filename}
-  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" "std_msgs/Float32MultiArray:std_msgs/MultiArrayDimension:std_msgs/MultiArrayLayout"
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "tamp_ros" "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" "std_msgs/Float32MultiArray:std_msgs/MultiArrayDimension:std_msgs/MultiArrayLayout"
 )
 
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg" NAME_WE)
@@ -71,9 +86,15 @@ _generate_msg_cpp(tamp_ros
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_cpp(tamp_ros
-  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg"
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg"
   "${MSG_I_FLAGS}"
-  ""
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
+  ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/tamp_ros
+)
+_generate_msg_cpp(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_cpp(tamp_ros
@@ -102,6 +123,18 @@ _generate_srv_cpp(tamp_ros
   ""
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/tamp_ros
 )
+_generate_srv_cpp(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/tamp_ros
+)
+_generate_srv_cpp(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/tamp_ros
+)
 
 ### Generating Module File
 _generate_module_cpp(tamp_ros
@@ -115,15 +148,21 @@ add_custom_target(tamp_ros_generate_messages_cpp
 add_dependencies(tamp_ros_generate_messages tamp_ros_generate_messages_cpp)
 
 # add dependencies to all check dependencies targets
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_cpp _tamp_ros_generate_messages_check_deps_${_filename})
@@ -152,9 +191,15 @@ _generate_msg_eus(tamp_ros
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_eus(tamp_ros
-  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg"
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg"
   "${MSG_I_FLAGS}"
-  ""
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
+  ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/tamp_ros
+)
+_generate_msg_eus(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_eus(tamp_ros
@@ -183,6 +228,18 @@ _generate_srv_eus(tamp_ros
   ""
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/tamp_ros
 )
+_generate_srv_eus(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/tamp_ros
+)
+_generate_srv_eus(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/tamp_ros
+)
 
 ### Generating Module File
 _generate_module_eus(tamp_ros
@@ -196,15 +253,21 @@ add_custom_target(tamp_ros_generate_messages_eus
 add_dependencies(tamp_ros_generate_messages tamp_ros_generate_messages_eus)
 
 # add dependencies to all check dependencies targets
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_eus _tamp_ros_generate_messages_check_deps_${_filename})
@@ -233,9 +296,15 @@ _generate_msg_lisp(tamp_ros
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_lisp(tamp_ros
-  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg"
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg"
   "${MSG_I_FLAGS}"
-  ""
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
+  ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/tamp_ros
+)
+_generate_msg_lisp(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_lisp(tamp_ros
@@ -264,6 +333,18 @@ _generate_srv_lisp(tamp_ros
   ""
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/tamp_ros
 )
+_generate_srv_lisp(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/tamp_ros
+)
+_generate_srv_lisp(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/tamp_ros
+)
 
 ### Generating Module File
 _generate_module_lisp(tamp_ros
@@ -277,15 +358,21 @@ add_custom_target(tamp_ros_generate_messages_lisp
 add_dependencies(tamp_ros_generate_messages tamp_ros_generate_messages_lisp)
 
 # add dependencies to all check dependencies targets
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_lisp _tamp_ros_generate_messages_check_deps_${_filename})
@@ -314,9 +401,15 @@ _generate_msg_nodejs(tamp_ros
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_nodejs(tamp_ros
-  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg"
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg"
   "${MSG_I_FLAGS}"
-  ""
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
+  ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/tamp_ros
+)
+_generate_msg_nodejs(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_nodejs(tamp_ros
@@ -345,6 +438,18 @@ _generate_srv_nodejs(tamp_ros
   ""
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/tamp_ros
 )
+_generate_srv_nodejs(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/tamp_ros
+)
+_generate_srv_nodejs(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/tamp_ros
+)
 
 ### Generating Module File
 _generate_module_nodejs(tamp_ros
@@ -358,15 +463,21 @@ add_custom_target(tamp_ros_generate_messages_nodejs
 add_dependencies(tamp_ros_generate_messages tamp_ros_generate_messages_nodejs)
 
 # add dependencies to all check dependencies targets
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_nodejs _tamp_ros_generate_messages_check_deps_${_filename})
@@ -395,9 +506,15 @@ _generate_msg_py(tamp_ros
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_py(tamp_ros
-  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg"
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg"
   "${MSG_I_FLAGS}"
-  ""
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
+  ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/tamp_ros
+)
+_generate_msg_py(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/kinetic/share/std_msgs/cmake/../msg/Float32MultiArray.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayDimension.msg;/opt/ros/kinetic/share/std_msgs/cmake/../msg/MultiArrayLayout.msg"
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/tamp_ros
 )
 _generate_msg_py(tamp_ros
@@ -426,6 +543,18 @@ _generate_srv_py(tamp_ros
   ""
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/tamp_ros
 )
+_generate_srv_py(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/tamp_ros
+)
+_generate_srv_py(tamp_ros
+  "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv"
+  "${MSG_I_FLAGS}"
+  ""
+  ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/tamp_ros
+)
 
 ### Generating Module File
 _generate_module_py(tamp_ros
@@ -439,15 +568,21 @@ add_custom_target(tamp_ros_generate_messages_py
 add_dependencies(tamp_ros_generate_messages tamp_ros_generate_messages_py)
 
 # add dependencies to all check dependencies targets
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanProblem.msg" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PolicyUpdate.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/FloatArray.msg" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})
-get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv" NAME_WE)
+get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanResult.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg/PlanProb.msg" NAME_WE)
 add_dependencies(tamp_ros_generate_messages_py _tamp_ros_generate_messages_check_deps_${_filename})

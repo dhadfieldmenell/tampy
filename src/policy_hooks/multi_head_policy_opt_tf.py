@@ -7,9 +7,6 @@ import tempfile
 import numpy as np
 import tensorflow as tf
 
-# NOTE: Order of these imports matters for some reason.
-# Changing it can lead to segmentation faults on some machines.
-
 from gps.algorithm.policy_opt.config import POLICY_OPT_TF
 import tensorflow as tf
 
@@ -24,6 +21,7 @@ LOGGER = logging.getLogger(__name__)
 class MultiHeadPolicyOptTf(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
     def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
+        import tensorflow as tf
         self.scope = hyperparams['scope']
         tf.reset_default_graph()
         

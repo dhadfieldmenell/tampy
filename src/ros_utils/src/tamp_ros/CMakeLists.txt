@@ -50,10 +50,11 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  FloatArray.msg
   PlanProb.msg
   PlanResult.msg
   PolicyUpdate.msg
+  MotionPlanProblem.msg
+  MotionPlanResult.msg
 #   Message2.msg
 )
 
@@ -63,6 +64,8 @@ add_service_files(
   MotionPlan.srv
   PolicyAct.srv
   PolicyProb.srv
+  Primitive.srv
+  QValue.srv
 )
 
 ## Generate actions in the 'action' folder
