@@ -177,6 +177,8 @@ config = {
     'n_layers': 3,
     'dim_hidden': [40, 40, 40],
     'traj_opt_steps': 1,
+    'pretrain_steps': 5,
+    'n_pretrain_processes': 4,
 
     # New for multiprocess, transfer to sequential version as well.
 

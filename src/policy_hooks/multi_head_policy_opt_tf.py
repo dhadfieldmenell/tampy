@@ -22,7 +22,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
     def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
         import tensorflow as tf
-        self.scope = hyperparams['scope']
+        self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
         tf.reset_default_graph()
         
         config = copy.deepcopy(POLICY_OPT_TF)
@@ -66,23 +66,30 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
         init_op = tf.initialize_all_variables()
         self.sess.run(init_op)
+        self.init_policies(dU)
         if self.scope is not None:
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
             self.saver = tf.train.Saver(variables)
             try:
                 self.saver.restore(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
+                if self.scope in self.task_list:
+                    self.task_map[task]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_scale.npy')
+                    self.task_map[task]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_bias.npy')
             except Exception as e:
                 print 'Could not load previous weights.'
 
         else:
-            self.saver = tf.train.Saver()
-            try:
-                self.saver.restore(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'.ckpt')
-            except Exception as e:
-                print 'Could not load previous weights.'
+            for scope in self.task_list + ('value', 'primitive'):
+                variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+                self.saver = tf.train.Saver(variables)
+                try:
+                    self.saver.restore(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
+                    if scope in self.task_list:
+                        self.task_map[task]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale.npy')
+                        self.task_map[task]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias.npy')
+                except Exception as e:
+                    print 'Could not load previous weights for', scope
         
-
-        self.init_policies(dU)
         # List of indices for state (vector) data and image (tensor) data in observation.
         self.x_idx, self.img_idx, i = [], [], 0
         if 'obs_image_data' not in self._hyperparams['network_params']:
@@ -114,23 +121,17 @@ class MultiHeadPolicyOptTf(PolicyOpt):
     def update_weights(self, scope):
         self.saver.restore(self.session, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
 
-    def store_weights(self, scopes):
+    def store_scope_weights(self, scopes):
         for scope in scopes:
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
             saver = tf.train.Saver(variables)
             saver.save(self.session, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
 
-    def store_all_weights(self):
-        for task in self.task_list + ['value', 'primitive']:
-            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=task)
-            saver = tf.train.Saver(variables)
-            saver.save(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'/'+task+'.ckpt')
-
     def store_weights(self):
-        assert self.scope is not None
-        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
-        saver = tf.train.Saver(variables)
-        saver.save(self.session, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
+        if self.scope is None:
+            self.store_scope_weights(self.task_list+['value', 'primitive'])
+        else:
+            self.store_scope_weights([self.scope])
 
     def store(self, mu, obs, prc, wt, task):
         if task not in self.mu:
@@ -286,6 +287,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                                         self.sess, 
                                                         self.device_string, 
                                                         copy_param_scope=None)
+
         # self.distilled_policy = TfPolicy(dU,
         #                                  self.distilled_obs_tensor,
         #                                  self.distilled_act_op,
@@ -364,6 +366,9 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-1))
             policy.bias = - np.mean(
                 obs[:, self.x_idx].dot(policy.scale), axis=0)
+
+            np.save('tf_saved/'+self.weight_dir+'/'+task+'_scale', policy.scale)
+            np.save('tf_saved/'+self.weight_dir+'/'+task+'_bias', policy.bias)
         obs[:, self.x_idx] = obs[:, self.x_idx].dot(policy.scale) + policy.bias
 
         # Assuming that N*T >= self.batch_size.
