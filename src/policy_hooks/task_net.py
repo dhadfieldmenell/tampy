@@ -115,7 +115,7 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
     fc_vars = weights_FC + biases_FC
     loss_out = get_loss_layer(mlp_out=mlp_applied, task=action, boundaries=boundaries)
 
-    return TfMap.init_from_lists([nn_input, action, precision], [mlp_applied], [loss_out]), fc_vars, []
+    return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, []
 
 
 def tf_binary_network(dim_input=27, dim_output=2, batch_size=25, network_config=None):

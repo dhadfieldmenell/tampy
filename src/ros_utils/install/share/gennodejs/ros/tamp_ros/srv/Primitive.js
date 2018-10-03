@@ -28,7 +28,7 @@ class PrimitiveRequest {
         this.prim_obs = initObj.prim_obs
       }
       else {
-        this.prim_obs = 0.0;
+        this.prim_obs = [];
       }
     }
   }
@@ -36,7 +36,7 @@ class PrimitiveRequest {
   static serialize(obj, buffer, bufferOffset) {
     // Serializes a message object of type PrimitiveRequest
     // Serialize message field [prim_obs]
-    bufferOffset = _serializer.float32(obj.prim_obs, buffer, bufferOffset);
+    bufferOffset = _arraySerializer.float32(obj.prim_obs, buffer, bufferOffset, null);
     return bufferOffset;
   }
 
@@ -45,12 +45,14 @@ class PrimitiveRequest {
     let len;
     let data = new PrimitiveRequest(null);
     // Deserialize message field [prim_obs]
-    data.prim_obs = _deserializer.float32(buffer, bufferOffset);
+    data.prim_obs = _arrayDeserializer.float32(buffer, bufferOffset, null)
     return data;
   }
 
   static getMessageSize(object) {
-    return 4;
+    let length = 0;
+    length += 4 * object.prim_obs.length;
+    return length + 4;
   }
 
   static datatype() {
@@ -60,13 +62,13 @@ class PrimitiveRequest {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '1014880aa631514a1032e57a819edaa3';
+    return '54454e5de4cab21b3253a7303e1de1f3';
   }
 
   static messageDefinition() {
     // Returns full string definition for message
     return `
-    float32 prim_obs
+    float32[] prim_obs
     
     
     `;
@@ -82,7 +84,7 @@ class PrimitiveRequest {
       resolved.prim_obs = msg.prim_obs;
     }
     else {
-      resolved.prim_obs = 0.0
+      resolved.prim_obs = []
     }
 
     return resolved;
@@ -207,6 +209,6 @@ class PrimitiveResponse {
 module.exports = {
   Request: PrimitiveRequest,
   Response: PrimitiveResponse,
-  md5sum() { return 'ec8948c09b640bcf5ec37fe64f2d51b1'; },
+  md5sum() { return '9134bb2ed63e6fef2528209c971536b1'; },
   datatype() { return 'tamp_ros/Primitive'; }
 };

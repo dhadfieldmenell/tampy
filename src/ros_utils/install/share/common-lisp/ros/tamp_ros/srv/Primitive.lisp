@@ -10,8 +10,8 @@
   ((prim_obs
     :reader prim_obs
     :initarg :prim_obs
-    :type cl:float
-    :initform 0.0))
+    :type (cl:vector cl:float)
+   :initform (cl:make-array 0 :element-type 'cl:float :initial-element 0.0)))
 )
 
 (cl:defclass Primitive-request (<Primitive-request>)
@@ -28,20 +28,34 @@
   (prim_obs m))
 (cl:defmethod roslisp-msg-protocol:serialize ((msg <Primitive-request>) ostream)
   "Serializes a message object of type '<Primitive-request>"
-  (cl:let ((bits (roslisp-utils:encode-single-float-bits (cl:slot-value msg 'prim_obs))))
+  (cl:let ((__ros_arr_len (cl:length (cl:slot-value msg 'prim_obs))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_arr_len) ostream))
+  (cl:map cl:nil #'(cl:lambda (ele) (cl:let ((bits (roslisp-utils:encode-single-float-bits ele)))
     (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream))
+    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream)))
+   (cl:slot-value msg 'prim_obs))
 )
 (cl:defmethod roslisp-msg-protocol:deserialize ((msg <Primitive-request>) istream)
   "Deserializes a message object of type '<Primitive-request>"
+  (cl:let ((__ros_arr_len 0))
+    (cl:setf (cl:ldb (cl:byte 8 0) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 8) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 16) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 24) __ros_arr_len) (cl:read-byte istream))
+  (cl:setf (cl:slot-value msg 'prim_obs) (cl:make-array __ros_arr_len))
+  (cl:let ((vals (cl:slot-value msg 'prim_obs)))
+    (cl:dotimes (i __ros_arr_len)
     (cl:let ((bits 0))
       (cl:setf (cl:ldb (cl:byte 8 0) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 8) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
-    (cl:setf (cl:slot-value msg 'prim_obs) (roslisp-utils:decode-single-float-bits bits)))
+    (cl:setf (cl:aref vals i) (roslisp-utils:decode-single-float-bits bits))))))
   msg
 )
 (cl:defmethod roslisp-msg-protocol:ros-datatype ((msg (cl:eql '<Primitive-request>)))
@@ -52,19 +66,19 @@
   "tamp_ros/PrimitiveRequest")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<Primitive-request>)))
   "Returns md5sum for a message object of type '<Primitive-request>"
-  "ec8948c09b640bcf5ec37fe64f2d51b1")
+  "9134bb2ed63e6fef2528209c971536b1")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'Primitive-request)))
   "Returns md5sum for a message object of type 'Primitive-request"
-  "ec8948c09b640bcf5ec37fe64f2d51b1")
+  "9134bb2ed63e6fef2528209c971536b1")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<Primitive-request>)))
   "Returns full string definition for message of type '<Primitive-request>"
-  (cl:format cl:nil "float32 prim_obs~%~%~%~%"))
+  (cl:format cl:nil "float32[] prim_obs~%~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'Primitive-request)))
   "Returns full string definition for message of type 'Primitive-request"
-  (cl:format cl:nil "float32 prim_obs~%~%~%~%"))
+  (cl:format cl:nil "float32[] prim_obs~%~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <Primitive-request>))
   (cl:+ 0
-     4
+     4 (cl:reduce #'cl:+ (cl:slot-value msg 'prim_obs) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 4)))
 ))
 (cl:defmethod roslisp-msg-protocol:ros-message-to-list ((msg <Primitive-request>))
   "Converts a ROS message object to a list"
@@ -203,10 +217,10 @@
   "tamp_ros/PrimitiveResponse")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<Primitive-response>)))
   "Returns md5sum for a message object of type '<Primitive-response>"
-  "ec8948c09b640bcf5ec37fe64f2d51b1")
+  "9134bb2ed63e6fef2528209c971536b1")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'Primitive-response)))
   "Returns md5sum for a message object of type 'Primitive-response"
-  "ec8948c09b640bcf5ec37fe64f2d51b1")
+  "9134bb2ed63e6fef2528209c971536b1")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<Primitive-response>)))
   "Returns full string definition for message of type '<Primitive-response>"
   (cl:format cl:nil "~%float32[] task_distr~%float32[] obj_distr~%float32[] targ_distr~%~%~%~%"))

@@ -55,6 +55,8 @@ class NAMOMotionPlanServer(object):
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan)
         self.stop = rospy.Subscriber('terminate', String, self.end)
 
+        self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
+
 
     def run(self):
         rospy.spin()
@@ -69,7 +71,6 @@ class NAMOMotionPlanServer(object):
 
     def prob(self, sample, task):
         rospy.wait_for_service(task+'_policy_prob', timeout=10)
-        proxy_call = rospy.ServiceProxy(task+'_policy_prob', PolicyProb)
         obs = []
         s_obs = sample.get_obs()
         for i in range(len(s_obs)):
@@ -79,12 +80,13 @@ class NAMOMotionPlanServer(object):
         req = PolicyProbRequest()
         req.obs = obs
         req.task = task
-        resp = proxy_call(req)
+        resp = self.prob_proxy(req)
         return np.array([resp.mu[i].data for i in range(len(resp.mu))]), np.array([resp.sigma[i].data for i in range(len(resp.sigma))]), [], []
 
 
     def publish_motion_plan(self, msg):
         if msg.solver_id != self.id: return
+        print 'Server {0} solving motion plan for rollout server {1}.'.format(self.id, msg.server_id)
         state = msg.state
         task = msg.task
         cond = msg.cond

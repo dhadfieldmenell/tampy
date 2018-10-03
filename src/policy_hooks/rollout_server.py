@@ -1,10 +1,11 @@
+from datetime import datetime
 import sys
 
 from numba import cuda
 
 import rospy
 
-from std_msgs.msg import String
+from std_msgs.msg import Float32MultiArray, String
 
 from tamp_ros.msg import *
 from tamp_ros.srv import *
@@ -12,13 +13,19 @@ from tamp_ros.srv import *
 from policy_hooks.utils.policy_solver_utils import *
 
 
-class dummy_policy:
+class DummyPolicy:
     def __init__(self, task, policy_call):
         self.task = task
         self.policy_call = policy_call
 
     def act(self, x, obs, t, noise):
         return self.policy_call(x, obs, t, noise, self.task)
+
+
+class DummyPolicyOpt:
+    def __init__(self, update, prob):
+        self.update = update
+        self.prob = prob
 
 
 class RolloutServer(object):
@@ -29,28 +36,33 @@ class RolloutServer(object):
         for m in self.mcts:
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
-        self.alg_map = hyperparams['algs']
+        self.alg_map = hyperparams['alg_map']
         self.agent = self.mcts[0].agent
         self.task_list = self.agent.task_list
         self.traj_opt_steps = hyperparams['traj_opt_steps']
-        self.n_samples = ['n_samples']
+        self.num_samples = hyperparams['num_samples']
+        for mcts in self.mcts:
+            mcts.num_samples = self.num_samples
+        self.num_rollouts = hyperparams['num_rollouts']
         self.stopped = False
         self.updaters = {task: rospy.Publisher(task+'_update', PolicyUpdate, queue_size=50) for task in self.alg_map}
         self.updaters['value'] = rospy.Publisher('value_update', PolicyUpdate, queue_size=50)
         self.updaters['primitive'] = rospy.Publisher('primitive_update', PolicyUpdate, queue_size=50)
-        self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+self.id, MotionPlanResult, self.sample_mp)
+        self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp)
         self.async_plan_publisher = rospy.Publisher('motion_plan_prob', MotionPlanProblem, queue_size=50)
         self.stop = rospy.Subscriber('terminate', String, self.end)
-        for task in self.alg_map:
-            self.alg_map[task].policy_opt.update = self.update
-            if self.alg_map[task].policy_opt.sess is not None:
-                if not self.alg_map[task].policy_opt.sess._closed:
-                    self.alg_map[task].policy_opt.sess.close()
-                self.alg_map[task].policy_opt.sess = None
-                close_cuda = True
+        for alg in self.alg_map.values():
+            alg.policy_opt = DummyPolicy(self.update, self.prob)
+        # for task in self.alg_map:
+        #     self.alg_map[task].policy_opt.update = self.update
+        #     if self.alg_map[task].policy_opt.sess is not None:
+        #         if not self.alg_map[task].policy_opt.sess._closed:
+        #             self.alg_map[task].policy_opt.sess.close()
+        #         self.alg_map[task].policy_opt.sess = None
+        #         close_cuda = True
 
-        if close_cuda:
-            cuda.close()
+        # if close_cuda:
+        #     cuda.close()
 
         self.n_optimizers = hyperparams['n_optimizers']
         self.waiting_for_opt = {}
@@ -59,6 +71,13 @@ class RolloutServer(object):
         self.optimized = {}
         self.max_sample_queue = hyperparams['max_sample_queue']
         self.max_opt_sample_queue = hyperparams['max_opt_sample_queue']
+
+        self.policy_proxies = {task: rospy.ServiceProxy(task+'_policy_act', PolicyAct, persistent=True) for task in self.task_list}
+        self.value_proxy = rospy.ServiceProxy('qvalue', QValue, persistent=True)
+        self.primitive_proxy = rospy.ServiceProxy('primitive', Primitive, persistent=True)
+        self.prob_proxies = {task: rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True) for task in self.task_list}
+        self.mp_proxies = {mp_id: rospy.ServiceProxy('motion_planner_'+str(mp_id), MotionPlan, persistent=True) for mp_id in range(self.n_optimizers)}
+
 
     def end(self, msg):
         self.stopped = True
@@ -77,22 +96,49 @@ class RolloutServer(object):
         self.updaters[task].publish(msg)
 
     def policy_call(self, x, obs, t, noise, task):
+        # print 'Entering policy call:', datetime.now()
         rospy.wait_for_service(task+'_policy_act', timeout=10)
-        proxy = rospy.ServiceProxy(task+'_policy_act', PolicyAct)
-        resp = proxy(obs, noise, task)
-        return resp.act
+        req = PolicyActRequest()
+        req.obs = obs
+        req.noise = noise
+        req.task = task
+        resp = self.policy_proxies[task](req)
+        # print 'Leaving policy call:', datetime.now()
+        return np.array(resp.act)
 
     def value_call(self, obs):
+        # print 'Entering value call:', datetime.now()
         rospy.wait_for_service('qvalue', timeout=10)
-        proxy = rospy.ServiceProxy('qvalue', QValue)
-        resp = proxy(obs)
-        return resp.act
+        req = QValueRequest()
+        req.obs = obs
+        resp = self.value_proxy(req)
+        # print 'Leaving value call:', datetime.now()
+        return np.array(resp.value)
 
     def primitive_call(self, prim_obs):
+        # print 'Entering primitive call:', datetime.now()
         rospy.wait_for_service('primitive', timeout=10)
-        proxy = rospy.ServiceProxy('primitive', Primitive)
-        resp = proxy(prim_obs)
-        return resp.task_distr, resp.obj_distr, resp.obj_distr
+        req = PrimitiveRequest()
+        req.prim_obs = prim_obs
+        resp = self.primitive_proxy(req)
+        # print 'Leaving primitive call:', datetime.now()
+        return np.array(resp.task_distr), np.array(resp.obj_distr), np.array(resp.targ_distr)
+
+    def prob(self, sample, task):
+        # print 'Entering prob call:', datetime.now()
+        rospy.wait_for_service(task+'_policy_prob', timeout=10)
+        obs = []
+        s_obs = sample.get_obs()
+        for i in range(len(s_obs)):
+            next_line = Float32MultiArray()
+            next_line.data = s_obs[i]
+            obs.append(next_line)
+        req = PolicyProbRequest()
+        req.obs = obs
+        req.task = task
+        resp = self.prob_proxies[task](req)
+        # print 'Leaving prob call:', datetime.now()
+        return np.array([resp.mu[i].data for i in range(len(resp.mu))]), np.array([resp.sigma[i].data for i in range(len(resp.sigma))]), [], []
 
     def motion_plan(self, x, task, condition, traj_mean, targets):
         mp_id = np.random.randint(0, self.n_optimizers)
@@ -110,9 +156,7 @@ class RolloutServer(object):
         req.condition = condition
         req.mean = mean
 
-        proxy = rospy.ServiceProxy('motion_planner_'+mp_id, MotionPlan)
-
-        resp = proxy(req)
+        resp = self.mp_proxies[mp_id](req)
         failed = eval(resp.failed)
         success = resp.success
         traj = np.array([resp.traj[i].data for i in range(len(resp.traj))])
@@ -139,6 +183,7 @@ class RolloutServer(object):
 
 
     def sample_mp(self, msg):
+        print 'Sampling optimal trajectory for rollout server {0}.'.format(self.id)
         plan_id = msg.id
         traj = np.array([msg.traj[i].data for i in range(len(msg.traj))])
         success = msg.success
@@ -153,41 +198,44 @@ class RolloutServer(object):
 
 
     def step(self):
-        rollout_policies = {task: dummy_policy(task, self.policy_call) for task in self.agent.task_list}
+        print 'Taking rollout step.'
+        rollout_policies = {task: DummyPolicy(task, self.policy_call) for task in self.agent.task_list}
 
         for mcts in self.mcts:
-            mcts.run(self.agent.x0[mcts.condition], self.n_samples, False, new_policies=rollout_policies, debug=True)
+            mcts.run(self.agent.x0[mcts.condition], self.num_rollouts,  use_distilled=False, new_policies=rollout_policies, debug=True)
 
         sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
         self.agent.clear_samples(keep_prob=0.1, keep_opt_prob=0.2)
         all_samples = []
 
-        for s_list in sample_lists:
-            all_samples.extend(s_list._samples)
-            next_sample = s_list[0]
-            state = next_sample.get(STATE_ENUM, t=0)
-            task = next_sample.task
-            cond = next_sample.condition
-            X = next_sample.get(STATE_ENUM)
-            traj_mean = []
-            for t in range(next_sample.T):
-                next_line = Float32MultiArray()
-                next_line.data = X[t]
-                traj_mean.append(next_line)
-            obj = next_sample.obj
-            targ = next_sample.targ
-            prob = MotionPlanProblem()
-            prob.state = state
-            prob.task = task
-            prob.cond = cond
-            prob.traj_mean = traj_mean
-            prob.obj = obj
-            prob.targ = targ
-            prob.prob_id = self.current_id
-            prob.solver_id = np.random.randint(0, self.n_optimizers)
-            prob.server_id = self.id
-            self.store_for_opt(s_list)
-            self.async_plan_publisher.publish(prob)
+        for task in sample_lists:
+            for s_list in sample_lists[task]:
+                all_samples.extend(s_list._samples)
+                next_sample = s_list[0]
+                state = next_sample.get(STATE_ENUM, t=0)
+                task = next_sample.task
+                cond = next_sample.condition
+                X = next_sample.get(STATE_ENUM)
+                traj_mean = []
+                for t in range(next_sample.T):
+                    next_line = Float32MultiArray()
+                    next_line.data = X[t]
+                    traj_mean.append(next_line)
+                obj = next_sample.obj
+                targ = next_sample.targ
+                prob = MotionPlanProblem()
+                prob.state = state
+                prob.task = task
+                prob.cond = cond
+                prob.traj_mean = traj_mean
+                prob.obj = obj
+                prob.targ = targ
+                prob.prob_id = self.current_id
+                prob.solver_id = np.random.randint(0, self.n_optimizers)
+                prob.server_id = self.id
+                self.store_for_opt(s_list)
+                print 'Sending motion plan problem to server {0}.'.format(prob.solver_id)
+                self.async_plan_publisher.publish(prob)
 
         path_samples = []
         for path in self.agent.get_task_paths():

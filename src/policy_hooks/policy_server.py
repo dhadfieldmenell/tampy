@@ -1,3 +1,4 @@
+import numpy as np
 import rospy
 
 from std_msgs.msg import Float32MultiArray, String
@@ -61,7 +62,7 @@ class PolicyServer(object):
 
 
     def prob(self, req):
-        obs = [req.obs[i].data for i in range(len(req.obs))]
+        obs = np.array([req.obs[i].data for i in range(len(req.obs))])
         mu_out, sigma_out, _, _ = self.policy_opt.prob(np.array([obs]), task)
         mu, sigma = [], []
         for i in range(len(mu_out[0])):
@@ -77,9 +78,9 @@ class PolicyServer(object):
 
     def act(self, req):
         # Assume time invariant policy
-        obs = req.obs
-        noise = req.noise
-        policy = self.policy_opt.task_map[self.task].policy
+        obs = np.array(req.obs)
+        noise = np.array(req.noise)
+        policy = self.policy_opt.task_map[self.task]['policy']
         if policy.scale is None:
             policy.scale = 0.01
             policy.bias = 0

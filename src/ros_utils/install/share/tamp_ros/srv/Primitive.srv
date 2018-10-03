@@ -1,4 +1,4 @@
-float32 prim_obs
+float32[] prim_obs
 
 ---
 

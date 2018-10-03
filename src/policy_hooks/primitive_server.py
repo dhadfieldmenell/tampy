@@ -1,3 +1,4 @@
+import numpy as np
 import rospy
 
 from std_msgs.msg import Float32MultiArray, String
@@ -56,5 +57,5 @@ class PrimitiveServer(object):
 
 
     def primitive(self, req):
-        task_distr, obj_distr, targ_distr = self.policy_opt.value([req.prim_obs])
+        task_distr, obj_distr, targ_distr = self.policy_opt.task_distr(np.array([req.prim_obs]))
         return PrimitiveResponse(task_distr.tolist(), obj_distr.tolist(), targ_distr.tolist())

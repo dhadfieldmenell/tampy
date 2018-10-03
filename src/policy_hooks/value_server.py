@@ -1,3 +1,4 @@
+import numpy as np
 import rospy
 
 from std_msgs.msg import Float32MultiArray, String
@@ -56,5 +57,5 @@ class ValueServer(object):
 
 
     def value(self, req):
-        value = self.policy_opt.value([req.obs])
+        value = self.policy_opt.value(np.array([req.obs]))
         return QValueResponse(value)

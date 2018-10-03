@@ -25,10 +25,10 @@
 (defmethod tamp_ros::PrimitiveRequest
   (:init
    (&key
-    ((:prim_obs __prim_obs) 0.0)
+    ((:prim_obs __prim_obs) (make-array 0 :initial-element 0.0 :element-type :float))
     )
    (send-super :init)
-   (setq _prim_obs (float __prim_obs))
+   (setq _prim_obs __prim_obs)
    self)
   (:prim_obs
    (&optional __prim_obs)
@@ -36,21 +36,29 @@
   (:serialization-length
    ()
    (+
-    ;; float32 _prim_obs
-    4
+    ;; float32[] _prim_obs
+    (* 4    (length _prim_obs)) 4
     ))
   (:serialize
    (&optional strm)
    (let ((s (if strm strm
               (make-string-output-stream (send self :serialization-length)))))
-     ;; float32 _prim_obs
-       (sys::poke _prim_obs (send s :buffer) (send s :count) :float) (incf (stream-count s) 4)
+     ;; float32[] _prim_obs
+     (write-long (length _prim_obs) s)
+     (dotimes (i (length _prim_obs))
+       (sys::poke (elt _prim_obs i) (send s :buffer) (send s :count) :float) (incf (stream-count s) 4)
+       )
      ;;
      (if (null strm) (get-output-stream-string s))))
   (:deserialize
    (buf &optional (ptr- 0))
-   ;; float32 _prim_obs
-     (setq _prim_obs (sys::peek buf ptr- :float)) (incf ptr- 4)
+   ;; float32[] _prim_obs
+   (let (n)
+     (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4)
+     (setq _prim_obs (instantiate float-vector n))
+     (dotimes (i n)
+     (setf (elt _prim_obs i) (sys::peek buf ptr- :float)) (incf ptr- 4)
+     ))
    ;;
    self)
   )
@@ -142,7 +150,7 @@
   :super ros::object
   :slots ())
 
-(setf (get tamp_ros::Primitive :md5sum-) "ec8948c09b640bcf5ec37fe64f2d51b1")
+(setf (get tamp_ros::Primitive :md5sum-) "9134bb2ed63e6fef2528209c971536b1")
 (setf (get tamp_ros::Primitive :datatype-) "tamp_ros/Primitive")
 (setf (get tamp_ros::Primitive :request) tamp_ros::PrimitiveRequest)
 (setf (get tamp_ros::Primitive :response) tamp_ros::PrimitiveResponse)
@@ -150,10 +158,10 @@
 (defmethod tamp_ros::PrimitiveRequest
   (:response () (instance tamp_ros::PrimitiveResponse :init)))
 
-(setf (get tamp_ros::PrimitiveRequest :md5sum-) "ec8948c09b640bcf5ec37fe64f2d51b1")
+(setf (get tamp_ros::PrimitiveRequest :md5sum-) "9134bb2ed63e6fef2528209c971536b1")
 (setf (get tamp_ros::PrimitiveRequest :datatype-) "tamp_ros/PrimitiveRequest")
 (setf (get tamp_ros::PrimitiveRequest :definition-)
-      "float32 prim_obs
+      "float32[] prim_obs
 
 ---
 
@@ -163,10 +171,10 @@ float32[] targ_distr
 
 ")
 
-(setf (get tamp_ros::PrimitiveResponse :md5sum-) "ec8948c09b640bcf5ec37fe64f2d51b1")
+(setf (get tamp_ros::PrimitiveResponse :md5sum-) "9134bb2ed63e6fef2528209c971536b1")
 (setf (get tamp_ros::PrimitiveResponse :datatype-) "tamp_ros/PrimitiveResponse")
 (setf (get tamp_ros::PrimitiveResponse :definition-)
-      "float32 prim_obs
+      "float32[] prim_obs
 
 ---
 
@@ -178,6 +186,6 @@ float32[] targ_distr
 
 
 
-(provide :tamp_ros/Primitive "ec8948c09b640bcf5ec37fe64f2d51b1")
+(provide :tamp_ros/Primitive "9134bb2ed63e6fef2528209c971536b1")
 
 

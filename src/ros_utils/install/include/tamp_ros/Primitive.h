@@ -40,7 +40,7 @@ template<>
 struct MD5Sum< ::tamp_ros::Primitive > {
   static const char* value()
   {
-    return "ec8948c09b640bcf5ec37fe64f2d51b1";
+    return "9134bb2ed63e6fef2528209c971536b1";
   }
 
   static const char* value(const ::tamp_ros::Primitive&) { return value(); }

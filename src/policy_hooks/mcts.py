@@ -1,4 +1,5 @@
 from copy import copy, deepcopy
+from datetime import datetime
 import numpy as np
 
 from policy_hooks.sample import Sample
@@ -163,6 +164,7 @@ class MCTS:
                 self.agent.reset_hist()
                 print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
                 next_path = self.simulate(state.copy(), use_distilled, debug=debug)
+                print "Finished Rollout {0} for condition {1}.\n".format(n, self.condition)
                 if len(next_path):
                     end = next_path[-1]
                     new_opt_value = self._goal_f(end.get_X(t=end.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0])
@@ -351,13 +353,14 @@ class MCTS:
                 self.agent.reset_hist(deepcopy(old_traj_hist))
                 samples.append(self.agent.sample_task(self.distilled_policy, self.condition, cur_state, (task, target[0].name, target[1].name), use_prim_obs=True, noisy=True))
 
-        sample_costs = {}
-        for sample in samples:
-            sample_costs[sample] = self._cost_f(sample.get_X(), task, target, self.agent.targets[self.condition], plan)
-            sample.plan = plan
+        # sample_costs = {}
+        # for sample in samples:
+        #     sample_costs[sample] = self._cost_f(sample.get_X(), task, target, self.agent.targets[self.condition], plan)
+        #     sample.plan = plan
 
-        lowest_cost_ind = np.argmin(sample_costs.values())
-        lowest_cost_sample = sample_costs.keys()[lowest_cost_ind]
+        # lowest_cost_ind = np.argmin(sample_costs.values())
+        # lowest_cost_sample = sample_costs.keys()[lowest_cost_ind]
+        lowest_cost_sample = samples[0] # Too time expsenive to run cost check
 
         opt_fail = False
 
@@ -445,6 +448,7 @@ class MCTS:
         return cost, samples[0]
 
     def _simulate_from_next(self, task_ind, obj_ind, targ_ind, depth, state, prob_func, samples, num_samples=1, save=False, exclude_hl=[], use_distilled=True, exclude=[], debug=False):
+        # print 'Entering simulate call:', datetime.now()
         task = self.tasks[task_ind]
         new_samples = []
 
@@ -507,4 +511,5 @@ class MCTS:
         else:
             next_targ_ind = np.argmax(targ_distr)
 
+        # print 'Leaving simulate call:', datetime.now()
         return self._simulate_from_next(next_task_ind, next_obj_ind, next_targ_ind, depth+1, end_state, prob_func, samples, num_samples=num_samples, save=False, use_distilled=use_distilled, debug=debug)

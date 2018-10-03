@@ -5,3 +5,4 @@
 *.hdf5
 *.log
 src/experiments/
+src/tf_saved/

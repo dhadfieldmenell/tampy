@@ -167,7 +167,7 @@ config = {
     'hist_len': 3,
     'take_optimal_sample': True,
     'num_rollouts': 2,
-    'max_tree_depth': 25,
+    'max_tree_depth': 15,
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],

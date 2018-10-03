@@ -91,6 +91,8 @@ class NAMOSortingAgent(Agent):
         self.get_plan = self._hyperparams['get_plan']
         self.move_limit = 1e-3
 
+        self.n_policy_calls = {}
+
 
     def get_samples(self, task):
         samples = []
@@ -258,6 +260,12 @@ class NAMOSortingAgent(Agent):
             self.run_policy_step(U, X, self.plans[task[:2]], t, obj)
             if np.any(np.abs(U) > 1e10):
                 import ipdb; ipdb.set_trace()
+
+        if policy not in self.n_policy_calls:
+            self.n_policy_calls[policy] = 1
+        else:
+            self.n_policy_calls[policy] += 1
+        # print 'Called policy {0} times.'.format(self.n_policy_calls[policy])
 
         return sample
 

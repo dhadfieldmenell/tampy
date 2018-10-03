@@ -302,12 +302,13 @@ class MultiProcessMain(object):
             self.config['algorithm'][task]['agent'] = self.agent
             self.config['algorithm'][task]['init_traj_distr']['T'] = self.task_durations[task]
             self.alg_map[task] = self.config['algorithm'][task]['type'](self.config['algorithm'][task], task)
-            # self.policy_opt = self.alg_map[task].policy_opt
+            self.policy_opt = self.alg_map[task].policy_opt
             self.alg_map[task].set_conditions(len(self.agent.x0))
             self.alg_map[task].agent = self.agent
 
         for task in self.task_list:
             self.config['algorithm'][task]['policy_opt']['prev'] = None
+        self.config['alg_map'] = self.alg_map
 
         # self.policy_opt.sess.close()
         # self.policy_opt.sess = None
@@ -366,7 +367,7 @@ class MultiProcessMain(object):
         self.processes = []
         self.create_mp_servers(config)
         self.create_pol_servers(config)
-        # self.create_rollout_servers(config)
+        self.create_rollout_servers(config)
 
     def start_servers(self):
         for p in self.processes:

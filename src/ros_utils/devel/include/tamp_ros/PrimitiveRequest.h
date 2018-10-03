@@ -24,16 +24,16 @@ struct PrimitiveRequest_
   typedef PrimitiveRequest_<ContainerAllocator> Type;
 
   PrimitiveRequest_()
-    : prim_obs(0.0)  {
+    : prim_obs()  {
     }
   PrimitiveRequest_(const ContainerAllocator& _alloc)
-    : prim_obs(0.0)  {
+    : prim_obs(_alloc)  {
   (void)_alloc;
     }
 
 
 
-   typedef float _prim_obs_type;
+   typedef std::vector<float, typename ContainerAllocator::template rebind<float>::other >  _prim_obs_type;
   _prim_obs_type prim_obs;
 
 
@@ -70,7 +70,7 @@ namespace message_traits
 
 
 
-// BOOLTRAITS {'IsFixedSize': True, 'IsMessage': True, 'HasHeader': False}
+// BOOLTRAITS {'IsFixedSize': False, 'IsMessage': True, 'HasHeader': False}
 // {'tamp_ros': ['/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
 
 // !!!!!!!!!!! ['__class__', '__delattr__', '__dict__', '__doc__', '__eq__', '__format__', '__getattribute__', '__hash__', '__init__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_parsed_fields', 'constants', 'fields', 'full_name', 'has_header', 'header_present', 'names', 'package', 'parsed_fields', 'short_name', 'text', 'types']
@@ -80,12 +80,12 @@ namespace message_traits
 
 template <class ContainerAllocator>
 struct IsFixedSize< ::tamp_ros::PrimitiveRequest_<ContainerAllocator> >
-  : TrueType
+  : FalseType
   { };
 
 template <class ContainerAllocator>
 struct IsFixedSize< ::tamp_ros::PrimitiveRequest_<ContainerAllocator> const>
-  : TrueType
+  : FalseType
   { };
 
 template <class ContainerAllocator>
@@ -114,12 +114,12 @@ struct MD5Sum< ::tamp_ros::PrimitiveRequest_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "1014880aa631514a1032e57a819edaa3";
+    return "54454e5de4cab21b3253a7303e1de1f3";
   }
 
   static const char* value(const ::tamp_ros::PrimitiveRequest_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x1014880aa631514aULL;
-  static const uint64_t static_value2 = 0x1032e57a819edaa3ULL;
+  static const uint64_t static_value1 = 0x54454e5de4cab21bULL;
+  static const uint64_t static_value2 = 0x3253a7303e1de1f3ULL;
 };
 
 template<class ContainerAllocator>
@@ -138,7 +138,7 @@ struct Definition< ::tamp_ros::PrimitiveRequest_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "float32 prim_obs\n\
+    return "float32[] prim_obs\n\
 \n\
 ";
   }
@@ -177,8 +177,12 @@ struct Printer< ::tamp_ros::PrimitiveRequest_<ContainerAllocator> >
 {
   template<typename Stream> static void stream(Stream& s, const std::string& indent, const ::tamp_ros::PrimitiveRequest_<ContainerAllocator>& v)
   {
-    s << indent << "prim_obs: ";
-    Printer<float>::stream(s, indent + "  ", v.prim_obs);
+    s << indent << "prim_obs[]" << std::endl;
+    for (size_t i = 0; i < v.prim_obs.size(); ++i)
+    {
+      s << indent << "  prim_obs[" << i << "]: ";
+      Printer<float>::stream(s, indent + "  ", v.prim_obs[i]);
+    }
   }
 };
 
