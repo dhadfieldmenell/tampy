@@ -455,8 +455,8 @@ class NAMOSortingAgent(Agent):
         return sample, failed_preds, success
 
 
-    def get_hl_plan(self, state, condition, failed_preds):
-        return self._get_hl_plan(state, self.targets[condition], self.plans.values()[0].params, self.state_inds, failed_preds)
+    def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
+        return self._get_hl_plan(state, self.targets[condition], '{0}{1}'.format(condition, plan_id), self.plans.values()[0].params, self.state_inds, failed_preds)
 
 
     def update_targets(self, targets, condition):

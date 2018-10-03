@@ -71,24 +71,24 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
             self.saver = tf.train.Saver(variables)
             try:
-                self.saver.restore(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
+                self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
                 if self.scope in self.task_list:
-                    self.task_map[task]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_scale.npy')
-                    self.task_map[task]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_bias.npy')
+                    self.task_map[self.scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_scale.npy')
+                    self.task_map[self.scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_bias.npy')
             except Exception as e:
-                print 'Could not load previous weights.'
+                print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir)
 
         else:
             for scope in self.task_list + ('value', 'primitive'):
-                variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+                variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
                 self.saver = tf.train.Saver(variables)
                 try:
-                    self.saver.restore(self.policy_opt.sess, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
+                    self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
                     if scope in self.task_list:
-                        self.task_map[task]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale.npy')
-                        self.task_map[task]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias.npy')
+                        self.task_map[scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale.npy')
+                        self.task_map[scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias.npy')
                 except Exception as e:
-                    print 'Could not load previous weights for', scope
+                    print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir)
         
         # List of indices for state (vector) data and image (tensor) data in observation.
         self.x_idx, self.img_idx, i = [], [], 0
@@ -119,17 +119,17 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
 
     def update_weights(self, scope):
-        self.saver.restore(self.session, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
+        self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
 
     def store_scope_weights(self, scopes):
         for scope in scopes:
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
             saver = tf.train.Saver(variables)
-            saver.save(self.session, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
+            saver.save(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
 
     def store_weights(self):
         if self.scope is None:
-            self.store_scope_weights(self.task_list+['value', 'primitive'])
+            self.store_scope_weights(self.task_list+('value', 'primitive'))
         else:
             self.store_scope_weights([self.scope])
 

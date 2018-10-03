@@ -36,6 +36,7 @@ from policy_hooks.sample import Sample
 from policy_hooks.policy_solver import get_base_solver
 from policy_hooks.state_mcts import StateMCTS
 from policy_hooks.utils.policy_solver_utils import *
+from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
 
 
 def solve_condition(trainer, cond, paths=[], init_samples=[]):
@@ -46,8 +47,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
     cur_sample = None
     cur_state = trainer.agent.x0[cond].copy()
     opt_hl_plan = []
-    paths.append([])
-    cur_path = paths[-1]
+    cur_path = []
 
     try:
         hl_plan = trainer.agent.get_hl_plan(cur_state, cond, failed)
@@ -59,6 +59,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
         last_reset += 1
         old_cur_state = cur_state
         for step in hl_plan:
+            print 'Current hl plan for '+str(cond)+ ': ', opt_hl_plan
             targets = [trainer.agent.plans.values()[0].params[p_name] for p_name in step[1]]
             plan = trainer.config['plan_f'](step[0], targets)
             if len(targets) < 2:
@@ -80,6 +81,8 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
                     failed.extend(new_failed)
                     try:
                         hl_plan = trainer.agent.get_hl_plan(cur_state, cond, failed)
+                        if not len(hl_plan):
+                            print '\nCould not solve hl for condition '+ str(cond)
                     except:
                         hl_plan = []
                     attempt += 1
@@ -97,6 +100,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
 
         attempt += 1
 
+    paths.append(cur_path)
     return [cur_path, init_samples]
 
 
@@ -346,6 +350,23 @@ class MultiProcessPretrainMain(object):
         self.config['algorithm'] = alg_map
 
         self.agent = config['agent']['type'](config['agent'])
+        self.config['dX'] = self.dX
+        self.config['dU'] = self.dU
+        self.config['symbolic_bound'] = self.symbolic_bound
+        self.config['dO'] = self.agent.dO
+        self.config['dPrimObs'] = self.agent.dPrim
+        self.config['dObj'] = self.config['algorithm'].values()[0]['dObj'] 
+        self.config['dTarg'] = self.config['algorithm'].values()[0]['dTarg'] 
+        self.config['state_inds'] = self.state_inds
+        self.config['action_inds'] = self.action_inds
+        self.config['policy_out_coeff'] = self.policy_out_coeff
+        self.config['policy_inf_coeff'] = self.policy_inf_coeff
+        self.config['target_inds'] = self.target_inds
+        self.config['target_dim'] = self.target_dim
+        self.config['task_list'] = self.task_list
+        self.solver = NAMOPolicySolver(self.config)
+        self.agent.solver = self.solver
+
         self._train_idx = range(config['num_conds'])
         self.fail_value = config['fail_value']
         self.alg_map = {}
@@ -390,6 +411,7 @@ class MultiProcessPretrainMain(object):
                 process = Process(target=solve_condition, args=(self, cond, sample_paths, all_samples))
                 process.daemon = True
                 process.start()
+                processes.append(process)
 
             for process in processes:
                 process.join()
@@ -398,6 +420,7 @@ class MultiProcessPretrainMain(object):
         opt_samples = {task: [] for task in self.task_list}
         for path in sample_paths:
             for sample in path:
+                sample.agent = self.agent
                 opt_samples[sample.task].append(sample)
 
         for task in self.alg_map:
@@ -417,10 +440,12 @@ class MultiProcessPretrainMain(object):
 
         path_samples = []
         for path in sample_paths:
-            path_samples.append(path)
+            for sample in path:
+                path_samples.append(sample)
 
         self.update_primitives(path_samples)
         self.update_value_network(all_samples, first_ts_only=True)
+        self.policy_opt.store_weights()
 
 
     def update_primitives(self, samples):
@@ -431,6 +456,7 @@ class MultiProcessPretrainMain(object):
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         for sample in samples:
+            sample.agent = self.agent
             for t in range(sample.T):
                 obs = [sample.get_prim_obs(t=t)]
                 mu = [np.concatenate([sample.get(TASK_ENUM, t=t), sample.get(OBJ_ENUM, t=t), sample.get(TARG_ENUM, t=t)])]
@@ -452,6 +478,7 @@ class MultiProcessPretrainMain(object):
         tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
         for sample in samples:
             if not hasattr(sample, 'success'): continue
+            sample.agent = self.agent
             for t in range(sample.T):
                 obs = [sample.get_obs(t=t)]
                 mu = [sample.success]

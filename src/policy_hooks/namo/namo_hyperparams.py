@@ -37,7 +37,9 @@ from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 5
+NUM_CONDS = 10
+NUM_PRETRAIN_STEPS = 5
+NUM_TRAJ_OPT_STEPS = 1
 
 
 common = {
@@ -176,9 +178,8 @@ config = {
     'batch_size': 1000,
     'n_layers': 3,
     'dim_hidden': [40, 40, 40],
-    'traj_opt_steps': 1,
-    'pretrain_steps': 5,
-    'n_pretrain_processes': 4,
+    'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
+    'pretrain_steps': NUM_PRETRAIN_STEPS,
 
     # New for multiprocess, transfer to sequential version as well.
 

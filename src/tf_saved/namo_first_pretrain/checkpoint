@@ -1,0 +1,2 @@
+model_checkpoint_path: "primitive.ckpt"
+all_model_checkpoint_paths: "primitive.ckpt"

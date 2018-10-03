@@ -135,13 +135,14 @@ def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
 
 
     hl_init_state += ")\n"
+    print hl_init_state
     return hl_init_state
 
-def get_hl_plan(prob):
+def get_hl_plan(prob, plan_id):
     with open(pddl_file, 'r+') as f:
         domain = f.read()
     hl_solver = FFSolver(abs_domain=domain)
-    return hl_solver._run_planner(domain, prob, 'namo')
+    return hl_solver._run_planner(domain, prob, 'namo_{0}'.format(plan_id))
 
 def parse_hl_plan(hl_plan):
     plan = []
@@ -153,7 +154,7 @@ def parse_hl_plan(hl_plan):
         plan.append((task, next_params))
     return plan
 
-def hl_plan_for_state(state, targets, param_map, state_inds, failed_preds=[]):
+def hl_plan_for_state(state, targets, plan_id, param_map, state_inds, failed_preds=[]):
     can_locs = {}
 
     for param_name in param_map:
@@ -162,9 +163,9 @@ def hl_plan_for_state(state, targets, param_map, state_inds, failed_preds=[]):
             can_locs[param.name] = state[state_inds[param.name, 'pose']]
 
     prob, goal = get_sorting_problem(can_locs, targets, state[state_inds['pr2', 'pose']], param_map['grasp0'].value[:,0], failed_preds)
-    hl_plan = get_hl_plan(prob)
+    hl_plan = get_hl_plan(prob, plan_id)
     if hl_plan == Plan.IMPOSSIBLE:
-        print 'Impossible HL plan for {0}'.format(prob)
+        # print 'Impossible HL plan for {0}'.format(prob)
         return []
     return parse_hl_plan(hl_plan)
 

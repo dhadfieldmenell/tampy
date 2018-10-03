@@ -1,4 +1,5 @@
 from multiprocessing import Process, Pool
+import atexit
 import subprocess
 import logging
 import imp
@@ -15,6 +16,8 @@ import traceback
 
 import numpy as np
 import tensorflow as tf
+
+from roslaunch.parent import ROSLaunchParent
 
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
@@ -414,7 +417,9 @@ class MultiProcessMain(object):
             time.sleep(1)
 
     def start(self, kill_all=False):
-        roscore = subprocess.Popen('roscore')
+        self.roscore = ROSLaunchParent('train_roscore', [], is_core=True)
+        self.roscore.start()
         time.sleep(1)
         self.start_servers()
         self.watch_processes(kill_all)
+        self.roscore.shutdown()
