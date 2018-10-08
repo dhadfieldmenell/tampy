@@ -28,13 +28,21 @@ struct MotionPlanResult_
     : traj()
     , failed()
     , success(false)
-    , plan_id(0)  {
+    , plan_id(0)
+    , cond(0)
+    , task()
+    , obj()
+    , targ()  {
     }
   MotionPlanResult_(const ContainerAllocator& _alloc)
     : traj(_alloc)
     , failed(_alloc)
     , success(false)
-    , plan_id(0)  {
+    , plan_id(0)
+    , cond(0)
+    , task(_alloc)
+    , obj(_alloc)
+    , targ(_alloc)  {
   (void)_alloc;
     }
 
@@ -51,6 +59,18 @@ struct MotionPlanResult_
 
    typedef int32_t _plan_id_type;
   _plan_id_type plan_id;
+
+   typedef int32_t _cond_type;
+  _cond_type cond;
+
+   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _task_type;
+  _task_type task;
+
+   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _obj_type;
+  _obj_type obj;
+
+   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _targ_type;
+  _targ_type targ;
 
 
 
@@ -130,12 +150,12 @@ struct MD5Sum< ::tamp_ros::MotionPlanResult_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "0656126ee68f988e9fc58fdf7103300c";
+    return "326cd4f386f413012deeafd4217bb17d";
   }
 
   static const char* value(const ::tamp_ros::MotionPlanResult_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x0656126ee68f988eULL;
-  static const uint64_t static_value2 = 0x9fc58fdf7103300cULL;
+  static const uint64_t static_value1 = 0x326cd4f386f41301ULL;
+  static const uint64_t static_value2 = 0x2deeafd4217bb17dULL;
 };
 
 template<class ContainerAllocator>
@@ -158,6 +178,10 @@ struct Definition< ::tamp_ros::MotionPlanResult_<ContainerAllocator> >
 string failed\n\
 bool success\n\
 int32 plan_id\n\
+int32 cond\n\
+string task\n\
+string obj\n\
+string targ\n\
 \n\
 ================================================================================\n\
 MSG: std_msgs/Float32MultiArray\n\
@@ -224,6 +248,10 @@ namespace serialization
       stream.next(m.failed);
       stream.next(m.success);
       stream.next(m.plan_id);
+      stream.next(m.cond);
+      stream.next(m.task);
+      stream.next(m.obj);
+      stream.next(m.targ);
     }
 
     ROS_DECLARE_ALLINONE_SERIALIZER
@@ -256,6 +284,14 @@ struct Printer< ::tamp_ros::MotionPlanResult_<ContainerAllocator> >
     Printer<uint8_t>::stream(s, indent + "  ", v.success);
     s << indent << "plan_id: ";
     Printer<int32_t>::stream(s, indent + "  ", v.plan_id);
+    s << indent << "cond: ";
+    Printer<int32_t>::stream(s, indent + "  ", v.cond);
+    s << indent << "task: ";
+    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.task);
+    s << indent << "obj: ";
+    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.obj);
+    s << indent << "targ: ";
+    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.targ);
   }
 };
 

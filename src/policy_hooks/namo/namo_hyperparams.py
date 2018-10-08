@@ -21,8 +21,8 @@ from gps.algorithm.policy.policy_prior import PolicyPrior
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.gui.config import generate_experiment_info
 
-from policy_hooks.algorithm_pigps import AlgorithmPIGPS
-from policy_hooks.algorithm_tamp_gps import AlgorithmTAMPGPS
+# from policy_hooks.algorithm_pigps import AlgorithmPIGPS
+from policy_hooks.algorithm_impgps import AlgorithmIMPGPS
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 import policy_hooks.utils.policy_solver_utils as utils
@@ -37,9 +37,12 @@ from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_CONDS = 10
+NUM_OBJS = 2
+NUM_CONDS = 2
 NUM_PRETRAIN_STEPS = 5
 NUM_TRAJ_OPT_STEPS = 1
+N_SAMPLES = 15
+N_TRAJ_CENTERS = N_SAMPLES
 
 
 common = {
@@ -53,8 +56,7 @@ common = {
 }
 
 algorithm = {
-    # 'type': AlgorithmTAMPGPS,
-    'type': AlgorithmPIGPS,
+    'type': AlgorithmIMPGPS,
     'conditions': common['conditions'],
     'policy_sample_mode': 'add',
     'sample_on_policy': True,
@@ -71,7 +73,8 @@ algorithm = {
     'opt_wt': 1e1,
     'fail_value': 50,
     'use_centroids': True,
-    'n_traj_centers': 1,
+    'n_traj_centers': N_TRAJ_CENTERS,
+    'num_samples': N_SAMPLES,
 }
 
 algorithm['init_traj_distr'] = {
@@ -157,7 +160,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 15,
+    'num_samples': algorithm['num_samples'],
     'num_distilled_samples': 0,
     'num_conds': NUM_CONDS,
     'mode': 'position',
@@ -185,7 +188,7 @@ config = {
 
     'n_optimizers': 5,
     'n_rollout_servers': 1,
-    'weight_dir': 'namo',
+    'weight_dir': 'namo_'+str(NUM_OBJS),
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
     'max_sample_queue': 1e3,
@@ -196,10 +199,11 @@ config = {
     'get_vector': get_vector,
     'robot_name': 'pr2',
     'obj_type': 'can',
-    'num_objs': 5,
+    'num_objs': NUM_OBJS,
     'attr_map': ATTRMAP,
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
-    'update_size': 1000,
+    'update_size': 100,
+    'use_local': True,
 
 }

@@ -7,7 +7,7 @@ import struct
 
 
 class PolicyUpdate(genpy.Message):
-  _md5sum = "032132b109003055974804eb81265bc9"
+  _md5sum = "74d9a9ad258b0d5854987033dafe686d"
   _type = "tamp_ros/PolicyUpdate"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """float32[] obs
@@ -16,12 +16,13 @@ float32[] prc
 float32[] wt
 
 int32 dO
+int32 dPrimObs
 int32 dU
 int32 n
 int32 rollout_len
 """
-  __slots__ = ['obs','mu','prc','wt','dO','dU','n','rollout_len']
-  _slot_types = ['float32[]','float32[]','float32[]','float32[]','int32','int32','int32','int32']
+  __slots__ = ['obs','mu','prc','wt','dO','dPrimObs','dU','n','rollout_len']
+  _slot_types = ['float32[]','float32[]','float32[]','float32[]','int32','int32','int32','int32','int32']
 
   def __init__(self, *args, **kwds):
     """
@@ -31,7 +32,7 @@ int32 rollout_len
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       obs,mu,prc,wt,dO,dU,n,rollout_len
+       obs,mu,prc,wt,dO,dPrimObs,dU,n,rollout_len
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -50,6 +51,8 @@ int32 rollout_len
         self.wt = []
       if self.dO is None:
         self.dO = 0
+      if self.dPrimObs is None:
+        self.dPrimObs = 0
       if self.dU is None:
         self.dU = 0
       if self.n is None:
@@ -62,6 +65,7 @@ int32 rollout_len
       self.prc = []
       self.wt = []
       self.dO = 0
+      self.dPrimObs = 0
       self.dU = 0
       self.n = 0
       self.rollout_len = 0
@@ -95,7 +99,7 @@ int32 rollout_len
       pattern = '<%sf'%length
       buff.write(struct.pack(pattern, *self.wt))
       _x = self
-      buff.write(_get_struct_4i().pack(_x.dO, _x.dU, _x.n, _x.rollout_len))
+      buff.write(_get_struct_5i().pack(_x.dO, _x.dPrimObs, _x.dU, _x.n, _x.rollout_len))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -136,8 +140,8 @@ int32 rollout_len
       self.wt = struct.unpack(pattern, str[start:end])
       _x = self
       start = end
-      end += 16
-      (_x.dO, _x.dU, _x.n, _x.rollout_len,) = _get_struct_4i().unpack(str[start:end])
+      end += 20
+      (_x.dO, _x.dPrimObs, _x.dU, _x.n, _x.rollout_len,) = _get_struct_5i().unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -167,7 +171,7 @@ int32 rollout_len
       pattern = '<%sf'%length
       buff.write(self.wt.tostring())
       _x = self
-      buff.write(_get_struct_4i().pack(_x.dO, _x.dU, _x.n, _x.rollout_len))
+      buff.write(_get_struct_5i().pack(_x.dO, _x.dPrimObs, _x.dU, _x.n, _x.rollout_len))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -209,8 +213,8 @@ int32 rollout_len
       self.wt = numpy.frombuffer(str[start:end], dtype=numpy.float32, count=length)
       _x = self
       start = end
-      end += 16
-      (_x.dO, _x.dU, _x.n, _x.rollout_len,) = _get_struct_4i().unpack(str[start:end])
+      end += 20
+      (_x.dO, _x.dPrimObs, _x.dU, _x.n, _x.rollout_len,) = _get_struct_5i().unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -219,9 +223,9 @@ _struct_I = genpy.struct_I
 def _get_struct_I():
     global _struct_I
     return _struct_I
-_struct_4i = None
-def _get_struct_4i():
-    global _struct_4i
-    if _struct_4i is None:
-        _struct_4i = struct.Struct("<4i")
-    return _struct_4i
+_struct_5i = None
+def _get_struct_5i():
+    global _struct_5i
+    if _struct_5i is None:
+        _struct_5i = struct.Struct("<5i")
+    return _struct_5i

@@ -14,7 +14,7 @@
 
 (defclass tamp_ros::PolicyUpdate
   :super ros::object
-  :slots (_obs _mu _prc _wt _dO _dU _n _rollout_len ))
+  :slots (_obs _mu _prc _wt _dO _dPrimObs _dU _n _rollout_len ))
 
 (defmethod tamp_ros::PolicyUpdate
   (:init
@@ -24,6 +24,7 @@
     ((:prc __prc) (make-array 0 :initial-element 0.0 :element-type :float))
     ((:wt __wt) (make-array 0 :initial-element 0.0 :element-type :float))
     ((:dO __dO) 0)
+    ((:dPrimObs __dPrimObs) 0)
     ((:dU __dU) 0)
     ((:n __n) 0)
     ((:rollout_len __rollout_len) 0)
@@ -34,6 +35,7 @@
    (setq _prc __prc)
    (setq _wt __wt)
    (setq _dO (round __dO))
+   (setq _dPrimObs (round __dPrimObs))
    (setq _dU (round __dU))
    (setq _n (round __n))
    (setq _rollout_len (round __rollout_len))
@@ -53,6 +55,9 @@
   (:dO
    (&optional __dO)
    (if __dO (setq _dO __dO)) _dO)
+  (:dPrimObs
+   (&optional __dPrimObs)
+   (if __dPrimObs (setq _dPrimObs __dPrimObs)) _dPrimObs)
   (:dU
    (&optional __dU)
    (if __dU (setq _dU __dU)) _dU)
@@ -74,6 +79,8 @@
     ;; float32[] _wt
     (* 4    (length _wt)) 4
     ;; int32 _dO
+    4
+    ;; int32 _dPrimObs
     4
     ;; int32 _dU
     4
@@ -108,6 +115,8 @@
        )
      ;; int32 _dO
        (write-long _dO s)
+     ;; int32 _dPrimObs
+       (write-long _dPrimObs s)
      ;; int32 _dU
        (write-long _dU s)
      ;; int32 _n
@@ -148,6 +157,8 @@
      ))
    ;; int32 _dO
      (setq _dO (sys::peek buf ptr- :integer)) (incf ptr- 4)
+   ;; int32 _dPrimObs
+     (setq _dPrimObs (sys::peek buf ptr- :integer)) (incf ptr- 4)
    ;; int32 _dU
      (setq _dU (sys::peek buf ptr- :integer)) (incf ptr- 4)
    ;; int32 _n
@@ -158,7 +169,7 @@
    self)
   )
 
-(setf (get tamp_ros::PolicyUpdate :md5sum-) "032132b109003055974804eb81265bc9")
+(setf (get tamp_ros::PolicyUpdate :md5sum-) "74d9a9ad258b0d5854987033dafe686d")
 (setf (get tamp_ros::PolicyUpdate :datatype-) "tamp_ros/PolicyUpdate")
 (setf (get tamp_ros::PolicyUpdate :definition-)
       "float32[] obs
@@ -167,6 +178,7 @@ float32[] prc
 float32[] wt
 
 int32 dO
+int32 dPrimObs
 int32 dU
 int32 n
 int32 rollout_len
@@ -175,6 +187,6 @@ int32 rollout_len
 
 
 
-(provide :tamp_ros/PolicyUpdate "032132b109003055974804eb81265bc9")
+(provide :tamp_ros/PolicyUpdate "74d9a9ad258b0d5854987033dafe686d")
 
 

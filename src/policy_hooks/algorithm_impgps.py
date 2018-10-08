@@ -9,9 +9,10 @@ import logging
 
 import numpy as np
 
-import scipy.cluser.vq.kmeans2 as kmeans
+from scipy.cluster.vq import kmeans2 as kmeans
 
 from gps.algorithm.config import ALG_PIGPS
+from gps.sample.sample_list import SampleList
 
 from policy_hooks.algorithm_mdgps import AlgorithmMDGPS
 from policy_hooks.utils.policy_solver_utils import OBJ_ENUM, STATE_ENUM, TARG_ENUM
@@ -28,13 +29,10 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
     def __init__(self, hyperparams):
         config = copy.deepcopy(ALG_PIGPS)
         config.update(hyperparams)
-        self.task = hyperparams[task]
+        self.task = hyperparams['task']
         self.fail_value = hyperparams['fail_value']
         self.traj_centers = hyperparams['n_traj_centers']
         self.use_centroids = hyperparams['use_centroids']
-        self.alternate = hyperparams['alternate_method']
-        if hyperparams['new_node']:
-            self.sample_queue = []
 
         AlgorithmMDGPS.__init__(self, config)
 
@@ -47,14 +45,15 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         """
         # if not len(self.cur) or self.replace_conds:
         #     self.set_conditions(len(sample_lists))
+        print 'Algorithm for {0} updating on {1} rollouts and {2} optimal samples'.format(self.task, len(sample_lists), len(optimal_samples))
         if reset:
             self.set_conditions(len(sample_lists))
 
-        if self.traj_centers >= len(sample_lists[0]):
+        if True: # self.traj_centers >= len(sample_lists[0]):
             success= False
             all_opt_samples = []
             if len(optimal_samples):
-                for opt_s, s_list in opt_samples:
+                for opt_s, s_list in optimal_samples:
                     all_opt_samples.append(SampleList([opt_s]))
             else:
                 for m in range(len(self.cur)):

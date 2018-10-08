@@ -28,6 +28,7 @@ class PolicyServer(object):
         self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
         self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
         self.update_listener = rospy.Subscriber(self.task+'_update', PolicyUpdate, self.update)
+        self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = True
         rospy.spin()
@@ -56,9 +57,12 @@ class PolicyServer(object):
         prc_dims = (msg.n, msg.rollout_len, msg.dU, msg.dU)
         prc = prc.reshape(prc_dims)
 
-        wt = msg.wt
+        wt_dims = (msg.n, msg.rollout_len) if msg.rollout_len > 1 else (msg.n,)
+        wt = np.array(msg.wt).reshape(wt_dims)
 
-        self.policy_opt.store(obs, mu, prc, wt, self.task)
+        update = self.policy_opt.store(obs, mu, prc, wt, self.task)
+        if update:
+            self.weight_publisher.publish(self.policy_opt.serialize_weights([self.task]))
 
 
     def prob(self, req):
@@ -86,7 +90,7 @@ class PolicyServer(object):
             policy.bias = 0
             act = policy.act([], obs, 0, noise)
             policy.scale = None
-            polcy.bias = None
+            policy.bias = None
         else:
             act = policy.act([], obs, 0, noise)
         return PolicyActResponse(act)

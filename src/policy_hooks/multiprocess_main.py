@@ -301,7 +301,8 @@ class MultiProcessMain(object):
             self.config['algorithm'][task]['policy_opt']['prev'] = 'skip'
             self.config['algorithm'][task]['agent'] = self.agent
             self.config['algorithm'][task]['init_traj_distr']['T'] = self.task_durations[task]
-            self.alg_map[task] = self.config['algorithm'][task]['type'](self.config['algorithm'][task], task)
+            self.config['algorithm'][task]['task'] = task
+            self.alg_map[task] = self.config['algorithm'][task]['type'](self.config['algorithm'][task])
             self.policy_opt = self.alg_map[task].policy_opt
             self.alg_map[task].set_conditions(len(self.agent.x0))
             self.alg_map[task].agent = self.agent

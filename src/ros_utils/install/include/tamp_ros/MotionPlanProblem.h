@@ -25,7 +25,9 @@ struct MotionPlanProblem_
   typedef MotionPlanProblem_<ContainerAllocator> Type;
 
   MotionPlanProblem_()
-    : prob_id(0)
+    : solver_id(0)
+    , prob_id(0)
+    , server_id(0)
     , task()
     , obj()
     , targ()
@@ -34,7 +36,9 @@ struct MotionPlanProblem_
     , traj_mean()  {
     }
   MotionPlanProblem_(const ContainerAllocator& _alloc)
-    : prob_id(0)
+    : solver_id(0)
+    , prob_id(0)
+    , server_id(0)
     , task(_alloc)
     , obj(_alloc)
     , targ(_alloc)
@@ -46,8 +50,14 @@ struct MotionPlanProblem_
 
 
 
+   typedef int32_t _solver_id_type;
+  _solver_id_type solver_id;
+
    typedef int32_t _prob_id_type;
   _prob_id_type prob_id;
+
+   typedef int32_t _server_id_type;
+  _server_id_type server_id;
 
    typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _task_type;
   _task_type task;
@@ -145,12 +155,12 @@ struct MD5Sum< ::tamp_ros::MotionPlanProblem_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "fd42f7570f643f3f3f8d1c5e9bc3c462";
+    return "16d7918adaf19fd881d0994f4c74a8b4";
   }
 
   static const char* value(const ::tamp_ros::MotionPlanProblem_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0xfd42f7570f643f3fULL;
-  static const uint64_t static_value2 = 0x3f8d1c5e9bc3c462ULL;
+  static const uint64_t static_value1 = 0x16d7918adaf19fd8ULL;
+  static const uint64_t static_value2 = 0x81d0994f4c74a8b4ULL;
 };
 
 template<class ContainerAllocator>
@@ -169,7 +179,9 @@ struct Definition< ::tamp_ros::MotionPlanProblem_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "int32 prob_id\n\
+    return "int32 solver_id\n\
+int32 prob_id\n\
+int32 server_id\n\
 string task\n\
 string obj\n\
 string targ\n\
@@ -238,7 +250,9 @@ namespace serialization
   {
     template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
     {
+      stream.next(m.solver_id);
       stream.next(m.prob_id);
+      stream.next(m.server_id);
       stream.next(m.task);
       stream.next(m.obj);
       stream.next(m.targ);
@@ -263,8 +277,12 @@ struct Printer< ::tamp_ros::MotionPlanProblem_<ContainerAllocator> >
 {
   template<typename Stream> static void stream(Stream& s, const std::string& indent, const ::tamp_ros::MotionPlanProblem_<ContainerAllocator>& v)
   {
+    s << indent << "solver_id: ";
+    Printer<int32_t>::stream(s, indent + "  ", v.solver_id);
     s << indent << "prob_id: ";
     Printer<int32_t>::stream(s, indent + "  ", v.prob_id);
+    s << indent << "server_id: ";
+    Printer<int32_t>::stream(s, indent + "  ", v.server_id);
     s << indent << "task: ";
     Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.task);
     s << indent << "obj: ";

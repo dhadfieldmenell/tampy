@@ -16,12 +16,14 @@
 
 (defclass tamp_ros::MotionPlanProblem
   :super ros::object
-  :slots (_prob_id _task _obj _targ _state _cond _traj_mean ))
+  :slots (_solver_id _prob_id _server_id _task _obj _targ _state _cond _traj_mean ))
 
 (defmethod tamp_ros::MotionPlanProblem
   (:init
    (&key
+    ((:solver_id __solver_id) 0)
     ((:prob_id __prob_id) 0)
+    ((:server_id __server_id) 0)
     ((:task __task) "")
     ((:obj __obj) "")
     ((:targ __targ) "")
@@ -30,7 +32,9 @@
     ((:traj_mean __traj_mean) (let (r) (dotimes (i 0) (push (instance std_msgs::Float32MultiArray :init) r)) r))
     )
    (send-super :init)
+   (setq _solver_id (round __solver_id))
    (setq _prob_id (round __prob_id))
+   (setq _server_id (round __server_id))
    (setq _task (string __task))
    (setq _obj (string __obj))
    (setq _targ (string __targ))
@@ -38,9 +42,15 @@
    (setq _cond (round __cond))
    (setq _traj_mean __traj_mean)
    self)
+  (:solver_id
+   (&optional __solver_id)
+   (if __solver_id (setq _solver_id __solver_id)) _solver_id)
   (:prob_id
    (&optional __prob_id)
    (if __prob_id (setq _prob_id __prob_id)) _prob_id)
+  (:server_id
+   (&optional __server_id)
+   (if __server_id (setq _server_id __server_id)) _server_id)
   (:task
    (&optional __task)
    (if __task (setq _task __task)) _task)
@@ -66,7 +76,11 @@
   (:serialization-length
    ()
    (+
+    ;; int32 _solver_id
+    4
     ;; int32 _prob_id
+    4
+    ;; int32 _server_id
     4
     ;; string _task
     4 (length _task)
@@ -85,8 +99,12 @@
    (&optional strm)
    (let ((s (if strm strm
               (make-string-output-stream (send self :serialization-length)))))
+     ;; int32 _solver_id
+       (write-long _solver_id s)
      ;; int32 _prob_id
        (write-long _prob_id s)
+     ;; int32 _server_id
+       (write-long _server_id s)
      ;; string _task
        (write-long (length _task) s) (princ _task s)
      ;; string _obj
@@ -109,8 +127,12 @@
      (if (null strm) (get-output-stream-string s))))
   (:deserialize
    (buf &optional (ptr- 0))
+   ;; int32 _solver_id
+     (setq _solver_id (sys::peek buf ptr- :integer)) (incf ptr- 4)
    ;; int32 _prob_id
      (setq _prob_id (sys::peek buf ptr- :integer)) (incf ptr- 4)
+   ;; int32 _server_id
+     (setq _server_id (sys::peek buf ptr- :integer)) (incf ptr- 4)
    ;; string _task
      (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _task (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
    ;; string _obj
@@ -137,10 +159,12 @@
    self)
   )
 
-(setf (get tamp_ros::MotionPlanProblem :md5sum-) "fd42f7570f643f3f3f8d1c5e9bc3c462")
+(setf (get tamp_ros::MotionPlanProblem :md5sum-) "16d7918adaf19fd881d0994f4c74a8b4")
 (setf (get tamp_ros::MotionPlanProblem :datatype-) "tamp_ros/MotionPlanProblem")
 (setf (get tamp_ros::MotionPlanProblem :definition-)
-      "int32 prob_id
+      "int32 solver_id
+int32 prob_id
+int32 server_id
 string task
 string obj
 string targ
@@ -195,6 +219,6 @@ uint32 stride  # stride of given dimension
 
 
 
-(provide :tamp_ros/MotionPlanProblem "fd42f7570f643f3f3f8d1c5e9bc3c462")
+(provide :tamp_ros/MotionPlanProblem "16d7918adaf19fd881d0994f4c74a8b4")
 
 

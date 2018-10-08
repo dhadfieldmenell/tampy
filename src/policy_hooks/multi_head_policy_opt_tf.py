@@ -1,5 +1,6 @@
 """ This file defines policy optimization for a tensorflow policy. """
 import copy
+import json
 import logging
 import os
 import tempfile
@@ -15,15 +16,12 @@ from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
 
-LOGGER = logging.getLogger(__name__)
-
-
 class MultiHeadPolicyOptTf(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
     def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
         import tensorflow as tf
         self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
-        tf.reset_default_graph()
+        # tf.reset_default_graph()
         
         config = copy.deepcopy(POLICY_OPT_TF)
         config.update(hyperparams)
@@ -63,7 +61,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.gpu_fraction = self._hyperparams['gpu_fraction']
         # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
         gpu_options = tf.GPUOptions(allow_growth=True)
-        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True))
         init_op = tf.initialize_all_variables()
         self.sess.run(init_op)
         self.init_policies(dU)
@@ -76,7 +74,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                     self.task_map[self.scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_scale.npy')
                     self.task_map[self.scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_bias.npy')
             except Exception as e:
-                print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir)
+                print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
 
         else:
             for scope in self.task_list + ('value', 'primitive'):
@@ -117,21 +115,58 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.prc = {}
         self.wt = {}
 
+    def serialize_weights(self, scopes=None):
+        if scopes is None:
+            scopes = self.task_list + ('value', 'primitive')
 
-    def update_weights(self, scope):
-        self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
-
-    def store_scope_weights(self, scopes):
+        print 'Serializing', scopes
+        var_to_val = {}
         for scope in scopes:
-            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-            saver = tf.train.Saver(variables)
-            saver.save(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
+            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+            for v in variables:
+                var_to_val[v.name] = self.sess.run(v).tolist()
 
-    def store_weights(self):
+        scales = {task:self.task_map[task]['policy'].scale.tolist() for task in scopes if task in self.task_list}
+        biases = {task:self.task_map[task]['policy'].bias.tolist() for task in scopes if task in self.task_list}
+        variances = {task:self.var[task].tolist() for task in scopes if task in self.task_list}
+        scales[''] = []
+        biases[''] = []
+        variances[''] = []
+        return json.dumps([scopes, var_to_val, scales, biases, variances])
+
+    def deserialize_weights(self, json_wts):
+        scopes, var_to_val, scales, biases, variances = json.loads(json_wts)
+
+        print 'Deserializing', scopes
+        for scope in scopes:
+            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+            for var in variables:
+                var.load(var_to_val[var.name], session=self.sess)
+        self.store_scope_weights(scopes=scopes)
+        for task in scales:
+            if task in self.task_map:
+                self.task_map[task]['policy'].scale = np.array(scales[task])
+                self.task_map[task]['policy'].bias = np.array(biases[task])
+                self.var[task] = variances[task]
+
+    def update_weights(self, scope, weight_dir=None):
+        if weight_dir is None:
+            weight_dir = self.weight_dir
+        self.saver.restore(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
+
+    def store_scope_weights(self, scopes, weight_dir=None):
+        if weight_dir is None:
+            weight_dir = self.weight_dir
+        for scope in scopes:
+            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+            saver = tf.train.Saver(variables)
+            saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
+
+    def store_weights(self, weight_dir=None):
         if self.scope is None:
-            self.store_scope_weights(self.task_list+('value', 'primitive'))
+            self.store_scope_weights(self.task_list+('value', 'primitive'), weight_dir)
         else:
-            self.store_scope_weights([self.scope])
+            self.store_scope_weights([self.scope], weight_dir)
 
     def store(self, mu, obs, prc, wt, task):
         print 'Storing samples for ', task
@@ -150,12 +185,15 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         if self.update_count > self.update_size:
             print 'Updating ', task
             self.update(self.mu[task], self.obs[task], self.prc[task], self.wt[task], task)
-            self.store_weights(scopes=[task])
+            self.store_scope_weights(scopes=[task])
             self.update_count = 0
             del self.mu[task]
             del self.obs[task]
             del self.prc[task]
             del self.wt[task]
+            return True
+
+        return False
 
     def init_network(self):
         """ Helper method to initialize the tf networks used """
@@ -300,10 +338,14 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         #                                  copy_param_scope=None)
 
     def task_distr(self, obs):
+        if len(obs.shape) < 2:
+            obs = obs.reshape(1, -1)
         distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs}).flatten()
         return distr[:self._dPrim], distr[self._dPrim:self._dPrim+self._dObj], distr[self._dPrim+self._dObj:self._dPrim+self._dObj+self._dTarg]
 
     def value(self, obs):
+        if len(obs.shape) < 2:
+            obs = obs.reshape(1, -1)
         value = self.sess.run(self.value_act_op, feed_dict={self.value_obs_tensor:obs}).flatten()
         return value.flatten()
 
@@ -393,10 +435,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 train_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
                 average_loss += train_loss
 
-                if (i+1) % 500 == 0:
-                    LOGGER.info('tensorflow iteration %d, average loss %f',
-                                    i+1, average_loss / 500)
-                    average_loss = 0
+                # if (i+1) % 500 == 0:
+                #     LOGGER.info('tensorflow iteration %d, average loss %f',
+                #                     i+1, average_loss / 500)
+                #     average_loss = 0
             average_loss = 0
 
         # actual training.
@@ -412,10 +454,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             train_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string)
 
             average_loss += train_loss
-            if (i+1) % 50 == 0:
-                LOGGER.info('tensorflow iteration %d, average loss %f',
-                             i+1, average_loss / 50)
-                average_loss = 0
+            # if (i+1) % 50 == 0:
+            #     LOGGER.info('tensorflow iteration %d, average loss %f',
+            #                  i+1, average_loss / 50)
+            #     average_loss = 0
         # print "Leaving Tensorflow Training Loop\n"
 
         feed_dict = {self.obs_tensor: obs}
@@ -495,10 +537,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
                 average_loss += train_loss
 
-                if (i+1) % 500 == 0:
-                    LOGGER.info('tensorflow iteration %d, average loss %f',
-                                    i+1, average_loss / 500)
-                    average_loss = 0
+                # if (i+1) % 500 == 0:
+                #     LOGGER.info('tensorflow iteration %d, average loss %f',
+                #                     i+1, average_loss / 500)
+                #     average_loss = 0
             average_loss = 0
 
         # actual training.
@@ -584,10 +626,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 train_loss = self.value_solver(feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
                 average_loss += train_loss
 
-                if (i+1) % 500 == 0:
-                    LOGGER.info('tensorflow iteration %d, average loss %f',
-                                    i+1, average_loss / 500)
-                    average_loss = 0
+                # if (i+1) % 500 == 0:
+                #     LOGGER.info('tensorflow iteration %d, average loss %f',
+                #                     i+1, average_loss / 500)
+                #     average_loss = 0
             average_loss = 0
 
         # actual training.
@@ -684,10 +726,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 train_loss = self.distilled_solver(feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
                 average_loss += train_loss
 
-                if (i+1) % 500 == 0:
-                    LOGGER.info('tensorflow iteration %d, average loss %f',
-                                    i+1, average_loss / 500)
-                    average_loss = 0
+                # if (i+1) % 500 == 0:
+                #     LOGGER.info('tensorflow iteration %d, average loss %f',
+                #                     i+1, average_loss / 500)
+                #     average_loss = 0
             average_loss = 0
 
         # actual training.
@@ -702,10 +744,10 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             train_loss = self.distilled_solver(feed_dict, self.sess, device_string=self.device_string)
 
             average_loss += train_loss
-            if (i+1) % 50 == 0:
+            # if (i+1) % 50 == 0:
                 # LOGGER.info('tensorflow iteration %d, average loss %f',
                 #              i+1, average_loss / 50)
-                average_loss = 0
+                # average_loss = 0
 
         feed_dict = {self.obs_tensor: obs}
         num_values = obs.shape[0]
@@ -731,6 +773,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         Args:
             obs: Numpy array of observations that is N x T x dO.
         """
+        if len(obs.shape) < 3:
+            obs = obs.reshape((1, obs.shape[0], obs.shape[1]))
         dU = self._dU
         N, T = obs.shape[:2]
 
@@ -757,8 +801,9 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                     obs_tensor = getattr(self, '{0}_obs_tensor'.format(task))
                     act_op = getattr(self, '{0}_act_op'.format(task))
                 feed_dict = {obs_tensor: np.expand_dims(obs[i, t], axis=0)}
-                with tf.device(self.device_string):
-                    output[i, t, :] = self.sess.run(act_op, feed_dict=feed_dict)
+                # with tf.device(self.device_string):
+                #     output[i, t, :] = self.sess.run(act_op, feed_dict=feed_dict)
+                output[i, t, :] = self.sess.run(act_op, feed_dict=feed_dict)
 
         if task in self.var:
             pol_sigma = np.tile(np.diag(self.var[task]), [N, T, 1, 1])
@@ -778,12 +823,12 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self._hyperparams['ent_reg'] = ent_reg
 
     def save_model(self, fname):
-        LOGGER.debug('Saving model to: %s', fname)
+        # LOGGER.debug('Saving model to: %s', fname)
         self.saver.save(self.sess, fname, write_meta_graph=False)
 
     def restore_model(self, fname):
         self.saver.restore(self.sess, fname)
-        LOGGER.debug('Restoring model from: %s', fname)
+        # LOGGER.debug('Restoring model from: %s', fname)
 
     # For pickling.
     def __getstate__(self):

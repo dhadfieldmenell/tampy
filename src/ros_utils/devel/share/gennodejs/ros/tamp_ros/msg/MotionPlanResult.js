@@ -23,6 +23,10 @@ class MotionPlanResult {
       this.failed = null;
       this.success = null;
       this.plan_id = null;
+      this.cond = null;
+      this.task = null;
+      this.obj = null;
+      this.targ = null;
     }
     else {
       if (initObj.hasOwnProperty('traj')) {
@@ -49,6 +53,30 @@ class MotionPlanResult {
       else {
         this.plan_id = 0;
       }
+      if (initObj.hasOwnProperty('cond')) {
+        this.cond = initObj.cond
+      }
+      else {
+        this.cond = 0;
+      }
+      if (initObj.hasOwnProperty('task')) {
+        this.task = initObj.task
+      }
+      else {
+        this.task = '';
+      }
+      if (initObj.hasOwnProperty('obj')) {
+        this.obj = initObj.obj
+      }
+      else {
+        this.obj = '';
+      }
+      if (initObj.hasOwnProperty('targ')) {
+        this.targ = initObj.targ
+      }
+      else {
+        this.targ = '';
+      }
     }
   }
 
@@ -66,6 +94,14 @@ class MotionPlanResult {
     bufferOffset = _serializer.bool(obj.success, buffer, bufferOffset);
     // Serialize message field [plan_id]
     bufferOffset = _serializer.int32(obj.plan_id, buffer, bufferOffset);
+    // Serialize message field [cond]
+    bufferOffset = _serializer.int32(obj.cond, buffer, bufferOffset);
+    // Serialize message field [task]
+    bufferOffset = _serializer.string(obj.task, buffer, bufferOffset);
+    // Serialize message field [obj]
+    bufferOffset = _serializer.string(obj.obj, buffer, bufferOffset);
+    // Serialize message field [targ]
+    bufferOffset = _serializer.string(obj.targ, buffer, bufferOffset);
     return bufferOffset;
   }
 
@@ -86,6 +122,14 @@ class MotionPlanResult {
     data.success = _deserializer.bool(buffer, bufferOffset);
     // Deserialize message field [plan_id]
     data.plan_id = _deserializer.int32(buffer, bufferOffset);
+    // Deserialize message field [cond]
+    data.cond = _deserializer.int32(buffer, bufferOffset);
+    // Deserialize message field [task]
+    data.task = _deserializer.string(buffer, bufferOffset);
+    // Deserialize message field [obj]
+    data.obj = _deserializer.string(buffer, bufferOffset);
+    // Deserialize message field [targ]
+    data.targ = _deserializer.string(buffer, bufferOffset);
     return data;
   }
 
@@ -95,7 +139,10 @@ class MotionPlanResult {
       length += std_msgs.msg.Float32MultiArray.getMessageSize(val);
     });
     length += object.failed.length;
-    return length + 13;
+    length += object.task.length;
+    length += object.obj.length;
+    length += object.targ.length;
+    return length + 29;
   }
 
   static datatype() {
@@ -105,7 +152,7 @@ class MotionPlanResult {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '0656126ee68f988e9fc58fdf7103300c';
+    return '326cd4f386f413012deeafd4217bb17d';
   }
 
   static messageDefinition() {
@@ -115,6 +162,10 @@ class MotionPlanResult {
     string failed
     bool success
     int32 plan_id
+    int32 cond
+    string task
+    string obj
+    string targ
     
     ================================================================================
     MSG: std_msgs/Float32MultiArray
@@ -197,6 +248,34 @@ class MotionPlanResult {
     }
     else {
       resolved.plan_id = 0
+    }
+
+    if (msg.cond !== undefined) {
+      resolved.cond = msg.cond;
+    }
+    else {
+      resolved.cond = 0
+    }
+
+    if (msg.task !== undefined) {
+      resolved.task = msg.task;
+    }
+    else {
+      resolved.task = ''
+    }
+
+    if (msg.obj !== undefined) {
+      resolved.obj = msg.obj;
+    }
+    else {
+      resolved.obj = ''
+    }
+
+    if (msg.targ !== undefined) {
+      resolved.targ = msg.targ;
+    }
+    else {
+      resolved.targ = ''
     }
 
     return resolved;

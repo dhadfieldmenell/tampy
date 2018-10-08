@@ -23,6 +23,7 @@ class PrimitiveServer(object):
         self.task = 'primitive'
         self.primitive_service = rospy.Service('primitive', Primitive, self.primitive)
         self.updater = rospy.Subscriber('primitive_update', PolicyUpdate, self.update)
+        self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = True
         rospy.spin()
@@ -44,7 +45,7 @@ class PrimitiveServer(object):
         mu = mu.reshape(mu_dims)
 
         obs = np.array(msg.obs)
-        obs_dims = (msg.n, msg.rollout_len, msg.dO)
+        obs_dims = (msg.n, msg.rollout_len, msg.dPrimObs)
         obs = obs.reshape(obs_dims)
 
         prc = np.array(msg.prc)
@@ -53,7 +54,9 @@ class PrimitiveServer(object):
 
         wt = msg.wt
 
-        self.policy_opt.store(obs, mu, prc, wt, 'primitive')
+        update = self.policy_opt.store(obs, mu, prc, wt, 'primitive')
+        if update:
+            self.weight_publisher.publish(self.policy_opt.serialize_weights(['primitive']))
 
 
     def primitive(self, req):

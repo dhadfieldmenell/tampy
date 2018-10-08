@@ -19,7 +19,9 @@ class MotionPlanProblem {
   constructor(initObj={}) {
     if (initObj === null) {
       // initObj === null is a special case for deserialization where we don't initialize fields
+      this.solver_id = null;
       this.prob_id = null;
+      this.server_id = null;
       this.task = null;
       this.obj = null;
       this.targ = null;
@@ -28,11 +30,23 @@ class MotionPlanProblem {
       this.traj_mean = null;
     }
     else {
+      if (initObj.hasOwnProperty('solver_id')) {
+        this.solver_id = initObj.solver_id
+      }
+      else {
+        this.solver_id = 0;
+      }
       if (initObj.hasOwnProperty('prob_id')) {
         this.prob_id = initObj.prob_id
       }
       else {
         this.prob_id = 0;
+      }
+      if (initObj.hasOwnProperty('server_id')) {
+        this.server_id = initObj.server_id
+      }
+      else {
+        this.server_id = 0;
       }
       if (initObj.hasOwnProperty('task')) {
         this.task = initObj.task
@@ -75,8 +89,12 @@ class MotionPlanProblem {
 
   static serialize(obj, buffer, bufferOffset) {
     // Serializes a message object of type MotionPlanProblem
+    // Serialize message field [solver_id]
+    bufferOffset = _serializer.int32(obj.solver_id, buffer, bufferOffset);
     // Serialize message field [prob_id]
     bufferOffset = _serializer.int32(obj.prob_id, buffer, bufferOffset);
+    // Serialize message field [server_id]
+    bufferOffset = _serializer.int32(obj.server_id, buffer, bufferOffset);
     // Serialize message field [task]
     bufferOffset = _serializer.string(obj.task, buffer, bufferOffset);
     // Serialize message field [obj]
@@ -100,8 +118,12 @@ class MotionPlanProblem {
     //deserializes a message object of type MotionPlanProblem
     let len;
     let data = new MotionPlanProblem(null);
+    // Deserialize message field [solver_id]
+    data.solver_id = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [prob_id]
     data.prob_id = _deserializer.int32(buffer, bufferOffset);
+    // Deserialize message field [server_id]
+    data.server_id = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [task]
     data.task = _deserializer.string(buffer, bufferOffset);
     // Deserialize message field [obj]
@@ -131,7 +153,7 @@ class MotionPlanProblem {
     object.traj_mean.forEach((val) => {
       length += std_msgs.msg.Float32MultiArray.getMessageSize(val);
     });
-    return length + 28;
+    return length + 36;
   }
 
   static datatype() {
@@ -141,13 +163,15 @@ class MotionPlanProblem {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return 'fd42f7570f643f3f3f8d1c5e9bc3c462';
+    return '16d7918adaf19fd881d0994f4c74a8b4';
   }
 
   static messageDefinition() {
     // Returns full string definition for message
     return `
+    int32 solver_id
     int32 prob_id
+    int32 server_id
     string task
     string obj
     string targ
@@ -207,11 +231,25 @@ class MotionPlanProblem {
       msg = {};
     }
     const resolved = new MotionPlanProblem(null);
+    if (msg.solver_id !== undefined) {
+      resolved.solver_id = msg.solver_id;
+    }
+    else {
+      resolved.solver_id = 0
+    }
+
     if (msg.prob_id !== undefined) {
       resolved.prob_id = msg.prob_id;
     }
     else {
       resolved.prob_id = 0
+    }
+
+    if (msg.server_id !== undefined) {
+      resolved.server_id = msg.server_id;
+    }
+    else {
+      resolved.server_id = 0
     }
 
     if (msg.task !== undefined) {

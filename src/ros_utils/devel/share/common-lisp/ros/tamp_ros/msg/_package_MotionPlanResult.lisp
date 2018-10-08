@@ -7,4 +7,12 @@
           SUCCESS
           PLAN_ID-VAL
           PLAN_ID
+          COND-VAL
+          COND
+          TASK-VAL
+          TASK
+          OBJ-VAL
+          OBJ
+          TARG-VAL
+          TARG
 ))

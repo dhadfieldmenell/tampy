@@ -378,7 +378,8 @@ class MultiProcessPretrainMain(object):
             config['algorithm'][task]['policy_opt']['weight_dir'] = self.config['weight_dir']
             config['algorithm'][task]['agent'] = self.agent
             config['algorithm'][task]['init_traj_distr']['T'] = self.task_durations[task]
-            self.alg_map[task] = config['algorithm'][task]['type'](config['algorithm'][task], task)
+            self.config['algorithm'][task]['task'] = task
+            self.alg_map[task] = self.config['algorithm'][task]['type'](self.config['algorithm'][task])
             policy_opt = self.alg_map[task].policy_opt
             self.alg_map[task].set_conditions(len(self.agent.x0))
             self.alg_map[task].agent = self.agent
@@ -446,6 +447,7 @@ class MultiProcessPretrainMain(object):
         self.update_primitives(path_samples)
         self.update_value_network(all_samples, first_ts_only=True)
         self.policy_opt.store_weights()
+        self.policy_opt.store_weights(self.policy_opt.weight_dir+'_trained')
 
 
     def update_primitives(self, samples):

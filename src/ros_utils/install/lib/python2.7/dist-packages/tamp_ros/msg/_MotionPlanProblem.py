@@ -8,10 +8,12 @@ import struct
 import std_msgs.msg
 
 class MotionPlanProblem(genpy.Message):
-  _md5sum = "fd42f7570f643f3f3f8d1c5e9bc3c462"
+  _md5sum = "16d7918adaf19fd881d0994f4c74a8b4"
   _type = "tamp_ros/MotionPlanProblem"
   _has_header = False #flag to mark the presence of a Header object
-  _full_text = """int32 prob_id
+  _full_text = """int32 solver_id
+int32 prob_id
+int32 server_id
 string task
 string obj
 string targ
@@ -62,8 +64,8 @@ MSG: std_msgs/MultiArrayDimension
 string label   # label of given dimension
 uint32 size    # size of given dimension (in type units)
 uint32 stride  # stride of given dimension"""
-  __slots__ = ['prob_id','task','obj','targ','state','cond','traj_mean']
-  _slot_types = ['int32','string','string','string','float32[]','int32','std_msgs/Float32MultiArray[]']
+  __slots__ = ['solver_id','prob_id','server_id','task','obj','targ','state','cond','traj_mean']
+  _slot_types = ['int32','int32','int32','string','string','string','float32[]','int32','std_msgs/Float32MultiArray[]']
 
   def __init__(self, *args, **kwds):
     """
@@ -73,7 +75,7 @@ uint32 stride  # stride of given dimension"""
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       prob_id,task,obj,targ,state,cond,traj_mean
+       solver_id,prob_id,server_id,task,obj,targ,state,cond,traj_mean
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -82,8 +84,12 @@ uint32 stride  # stride of given dimension"""
     if args or kwds:
       super(MotionPlanProblem, self).__init__(*args, **kwds)
       #message fields cannot be None, assign default values for those that are
+      if self.solver_id is None:
+        self.solver_id = 0
       if self.prob_id is None:
         self.prob_id = 0
+      if self.server_id is None:
+        self.server_id = 0
       if self.task is None:
         self.task = ''
       if self.obj is None:
@@ -97,7 +103,9 @@ uint32 stride  # stride of given dimension"""
       if self.traj_mean is None:
         self.traj_mean = []
     else:
+      self.solver_id = 0
       self.prob_id = 0
+      self.server_id = 0
       self.task = ''
       self.obj = ''
       self.targ = ''
@@ -117,7 +125,8 @@ uint32 stride  # stride of given dimension"""
     :param buff: buffer, ``StringIO``
     """
     try:
-      buff.write(_get_struct_i().pack(self.prob_id))
+      _x = self
+      buff.write(_get_struct_3i().pack(_x.solver_id, _x.prob_id, _x.server_id))
       _x = self.task
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -173,9 +182,10 @@ uint32 stride  # stride of given dimension"""
       if self.traj_mean is None:
         self.traj_mean = None
       end = 0
+      _x = self
       start = end
-      end += 4
-      (self.prob_id,) = _get_struct_i().unpack(str[start:end])
+      end += 12
+      (_x.solver_id, _x.prob_id, _x.server_id,) = _get_struct_3i().unpack(str[start:end])
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -263,7 +273,8 @@ uint32 stride  # stride of given dimension"""
     :param numpy: numpy python module
     """
     try:
-      buff.write(_get_struct_i().pack(self.prob_id))
+      _x = self
+      buff.write(_get_struct_3i().pack(_x.solver_id, _x.prob_id, _x.server_id))
       _x = self.task
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -320,9 +331,10 @@ uint32 stride  # stride of given dimension"""
       if self.traj_mean is None:
         self.traj_mean = None
       end = 0
+      _x = self
       start = end
-      end += 4
-      (self.prob_id,) = _get_struct_i().unpack(str[start:end])
+      end += 12
+      (_x.solver_id, _x.prob_id, _x.server_id,) = _get_struct_3i().unpack(str[start:end])
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -412,6 +424,12 @@ def _get_struct_i():
     if _struct_i is None:
         _struct_i = struct.Struct("<i")
     return _struct_i
+_struct_3i = None
+def _get_struct_3i():
+    global _struct_3i
+    if _struct_3i is None:
+        _struct_3i = struct.Struct("<3i")
+    return _struct_3i
 _struct_2I = None
 def _get_struct_2I():
     global _struct_2I

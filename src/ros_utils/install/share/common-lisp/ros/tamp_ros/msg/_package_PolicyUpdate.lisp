@@ -9,6 +9,8 @@
           WT
           DO-VAL
           DO
+          DPRIMOBS-VAL
+          DPRIMOBS
           DU-VAL
           DU
           N-VAL

@@ -8,13 +8,17 @@ import struct
 import std_msgs.msg
 
 class MotionPlanResult(genpy.Message):
-  _md5sum = "0656126ee68f988e9fc58fdf7103300c"
+  _md5sum = "326cd4f386f413012deeafd4217bb17d"
   _type = "tamp_ros/MotionPlanResult"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """std_msgs/Float32MultiArray[] traj
 string failed
 bool success
 int32 plan_id
+int32 cond
+string task
+string obj
+string targ
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -59,8 +63,8 @@ MSG: std_msgs/MultiArrayDimension
 string label   # label of given dimension
 uint32 size    # size of given dimension (in type units)
 uint32 stride  # stride of given dimension"""
-  __slots__ = ['traj','failed','success','plan_id']
-  _slot_types = ['std_msgs/Float32MultiArray[]','string','bool','int32']
+  __slots__ = ['traj','failed','success','plan_id','cond','task','obj','targ']
+  _slot_types = ['std_msgs/Float32MultiArray[]','string','bool','int32','int32','string','string','string']
 
   def __init__(self, *args, **kwds):
     """
@@ -70,7 +74,7 @@ uint32 stride  # stride of given dimension"""
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       traj,failed,success,plan_id
+       traj,failed,success,plan_id,cond,task,obj,targ
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -87,11 +91,23 @@ uint32 stride  # stride of given dimension"""
         self.success = False
       if self.plan_id is None:
         self.plan_id = 0
+      if self.cond is None:
+        self.cond = 0
+      if self.task is None:
+        self.task = ''
+      if self.obj is None:
+        self.obj = ''
+      if self.targ is None:
+        self.targ = ''
     else:
       self.traj = []
       self.failed = ''
       self.success = False
       self.plan_id = 0
+      self.cond = 0
+      self.task = ''
+      self.obj = ''
+      self.targ = ''
 
   def _get_types(self):
     """
@@ -132,7 +148,25 @@ uint32 stride  # stride of given dimension"""
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self
-      buff.write(_get_struct_Bi().pack(_x.success, _x.plan_id))
+      buff.write(_get_struct_B2i().pack(_x.success, _x.plan_id, _x.cond))
+      _x = self.task
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self.obj
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self.targ
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -194,9 +228,36 @@ uint32 stride  # stride of given dimension"""
         self.failed = str[start:end]
       _x = self
       start = end
-      end += 5
-      (_x.success, _x.plan_id,) = _get_struct_Bi().unpack(str[start:end])
+      end += 9
+      (_x.success, _x.plan_id, _x.cond,) = _get_struct_B2i().unpack(str[start:end])
       self.success = bool(self.success)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.task = str[start:end].decode('utf-8')
+      else:
+        self.task = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.obj = str[start:end].decode('utf-8')
+      else:
+        self.obj = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.targ = str[start:end].decode('utf-8')
+      else:
+        self.targ = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -236,7 +297,25 @@ uint32 stride  # stride of given dimension"""
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self
-      buff.write(_get_struct_Bi().pack(_x.success, _x.plan_id))
+      buff.write(_get_struct_B2i().pack(_x.success, _x.plan_id, _x.cond))
+      _x = self.task
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self.obj
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self.targ
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -299,9 +378,36 @@ uint32 stride  # stride of given dimension"""
         self.failed = str[start:end]
       _x = self
       start = end
-      end += 5
-      (_x.success, _x.plan_id,) = _get_struct_Bi().unpack(str[start:end])
+      end += 9
+      (_x.success, _x.plan_id, _x.cond,) = _get_struct_B2i().unpack(str[start:end])
       self.success = bool(self.success)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.task = str[start:end].decode('utf-8')
+      else:
+        self.task = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.obj = str[start:end].decode('utf-8')
+      else:
+        self.obj = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.targ = str[start:end].decode('utf-8')
+      else:
+        self.targ = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -316,9 +422,9 @@ def _get_struct_2I():
     if _struct_2I is None:
         _struct_2I = struct.Struct("<2I")
     return _struct_2I
-_struct_Bi = None
-def _get_struct_Bi():
-    global _struct_Bi
-    if _struct_Bi is None:
-        _struct_Bi = struct.Struct("<Bi")
-    return _struct_Bi
+_struct_B2i = None
+def _get_struct_B2i():
+    global _struct_B2i
+    if _struct_B2i is None:
+        _struct_B2i = struct.Struct("<B2i")
+    return _struct_B2i

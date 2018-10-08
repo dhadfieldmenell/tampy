@@ -43,7 +43,8 @@ class NAMOMotionPlanServer(object):
         # self.policy_opt = hyperparams['policy_opt']
         # self.solver.policy_opt = self.policy_opt
         self.solver.policy_opt = DummyPolicyOpt(self.prob)
-        self.solver.agent = hyperparams['agent']
+        self.agent = hyperparams['agent']
+        self.solver.agent = self.agent
         self.weight_dir = hyperparams['weight_dir']
         self.solver.policy_inf_fs = {}
         for task in self.solver.agent.task_list:
@@ -56,6 +57,18 @@ class NAMOMotionPlanServer(object):
         self.stop = rospy.Subscriber('terminate', String, self.end)
 
         self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
+        self.use_local = hyperparams['use_local']
+        if self.use_local:
+            hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] + '_trained'
+            hyperparams['policy_opt']['scope'] = None
+            self.policy_opt = hyperparams['policy_opt']['type'](
+                hyperparams['policy_opt'], 
+                hyperparams['dO'],
+                hyperparams['dU'],
+                hyperparams['dObj'],
+                hyperparams['dTarg'],
+                hyperparams['dPrimObs']
+            )
 
 
     def run(self):
@@ -69,36 +82,46 @@ class NAMOMotionPlanServer(object):
         rospy.signal_shutdown('Received notice to terminate.')
 
 
-    def prob(self, sample, task):
+    def prob(self, obs, task):
+        if self.use_local:
+            return self.policy_opt.prob(obs, task)
+
         rospy.wait_for_service(task+'_policy_prob', timeout=10)
-        obs = []
-        s_obs = sample.get_obs()
-        for i in range(len(s_obs)):
+        req_obs = []
+        for i in range(len(obs)):
             next_line = Float32MultiArray()
-            next_line.data = s_obs[i]
-            obs.append(next_line)
+            next_line.data = obs[i]
+            req_obs.append(next_line)
         req = PolicyProbRequest()
-        req.obs = obs
+        req.obs = req_obs
         req.task = task
-        resp = self.prob_proxy(req)
+        resp = self.prob_proxies[task](req)
         return np.array([resp.mu[i].data for i in range(len(resp.mu))]), np.array([resp.sigma[i].data for i in range(len(resp.sigma))]), [], []
 
 
     def publish_motion_plan(self, msg):
         if msg.solver_id != self.id: return
         print 'Server {0} solving motion plan for rollout server {1}.'.format(self.id, msg.server_id)
-        state = msg.state
+        state = np.array(msg.state)
         task = msg.task
         cond = msg.cond
-        mean = [msg.traj_mean[i].data for i in range(len(msg.traj_mean))]
-        targets = msg.obj, msg.targ
+        mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
+        targets = [msg.obj, msg.targ]
         out, failed, success = self.sample_optimal_trajectory(state, task, cond, mean, targets)
         failed = str(failed)
         resp = MotionPlanResult()
-        resp.traj = out
+        resp.traj = []
+        for t in range(len(out)):
+            next_line = Float32MultiArray()
+            next_line.data = out[t]
+            resp.traj.append(next_line)
         resp.failed = failed
         resp.success = success
         resp.plan_id = msg.prob_id
+        resp.cond = msg.cond
+        resp.task = msg.task
+        resp.obj = msg.obj
+        resp.targ = msg.targ
         self.mp_publishers[msg.server_id].publish(resp)
 
 
@@ -106,8 +129,8 @@ class NAMOMotionPlanServer(object):
         state = req.state
         task = req.task
         cond = req.condition
-        mean = [req.traj_mean[i].data for i in range(len(req.traj_mean))]
-        targets = reg.obj, req.targ
+        mean = np.array([req.traj_mean[i].data for i in range(len(req.traj_mean))])
+        targets = [reg.obj, req.targ]
         out, failed, success = self.sample_optimal_trajectory(state, task, cond, mean, targets)
         failed = str(failed)
         resp = MotionPlanResponse()
@@ -130,15 +153,15 @@ class NAMOMotionPlanServer(object):
         success = False
 
         targets = fixed_targets
-        obj = fixed_targets[0]
-        targ = fixed_targets[1]
+        obj = targets[0]
+        targ = targets[1]
 
         failed_preds = []
         iteration = 0
         while not success:
             iteration += 1
 
-            plan = self.plans[task, targets[0]] 
+            plan = self.agent.plans[task, targets[0]] 
             targets[0] = plan.params[targets[0]]
             targets[1] = plan.params[targets[1]]
             obj, targ = targets

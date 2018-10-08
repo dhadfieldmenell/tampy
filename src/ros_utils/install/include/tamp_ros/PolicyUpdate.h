@@ -29,6 +29,7 @@ struct PolicyUpdate_
     , prc()
     , wt()
     , dO(0)
+    , dPrimObs(0)
     , dU(0)
     , n(0)
     , rollout_len(0)  {
@@ -39,6 +40,7 @@ struct PolicyUpdate_
     , prc(_alloc)
     , wt(_alloc)
     , dO(0)
+    , dPrimObs(0)
     , dU(0)
     , n(0)
     , rollout_len(0)  {
@@ -61,6 +63,9 @@ struct PolicyUpdate_
 
    typedef int32_t _dO_type;
   _dO_type dO;
+
+   typedef int32_t _dPrimObs_type;
+  _dPrimObs_type dPrimObs;
 
    typedef int32_t _dU_type;
   _dU_type dU;
@@ -149,12 +154,12 @@ struct MD5Sum< ::tamp_ros::PolicyUpdate_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "032132b109003055974804eb81265bc9";
+    return "74d9a9ad258b0d5854987033dafe686d";
   }
 
   static const char* value(const ::tamp_ros::PolicyUpdate_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x032132b109003055ULL;
-  static const uint64_t static_value2 = 0x974804eb81265bc9ULL;
+  static const uint64_t static_value1 = 0x74d9a9ad258b0d58ULL;
+  static const uint64_t static_value2 = 0x54987033dafe686dULL;
 };
 
 template<class ContainerAllocator>
@@ -179,6 +184,7 @@ float32[] prc\n\
 float32[] wt\n\
 \n\
 int32 dO\n\
+int32 dPrimObs\n\
 int32 dU\n\
 int32 n\n\
 int32 rollout_len\n\
@@ -205,6 +211,7 @@ namespace serialization
       stream.next(m.prc);
       stream.next(m.wt);
       stream.next(m.dO);
+      stream.next(m.dPrimObs);
       stream.next(m.dU);
       stream.next(m.n);
       stream.next(m.rollout_len);
@@ -252,6 +259,8 @@ struct Printer< ::tamp_ros::PolicyUpdate_<ContainerAllocator> >
     }
     s << indent << "dO: ";
     Printer<int32_t>::stream(s, indent + "  ", v.dO);
+    s << indent << "dPrimObs: ";
+    Printer<int32_t>::stream(s, indent + "  ", v.dPrimObs);
     s << indent << "dU: ";
     Printer<int32_t>::stream(s, indent + "  ", v.dU);
     s << indent << "n: ";

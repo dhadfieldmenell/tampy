@@ -502,7 +502,7 @@ def get_base_solver(parent_class):
                 sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
                 sample.set(TARGETS_ENUM, target_vec, t-start_t)
                 sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)
-            pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample)
+            pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample.get_obs())
 
             for param_name, attr_name in self.action_inds:
                 param = plan.params[param_name]
@@ -542,8 +542,7 @@ def get_base_solver(parent_class):
             return transfer_objs
 
 
-        def _policy_inf_func(self, sample, task):
-            obs = sample.get_obs()
+        def _policy_inf_func(self, obs, task):
             return self.policy_opt.prob(np.array([obs]), task)
 
 
@@ -557,7 +556,7 @@ def get_base_solver(parent_class):
                 for i in range(len(self.agent.task_list)):
                     for j in range(len(self.agent.obj_list)):
                         for k in range(len(self.agent.targ_list)):
-                            pol_inf_f = lambda s: self._policy_inf_func(s, self.agent.task_list[i])
+                            pol_inf_f = lambda o: self._policy_inf_func(o, self.agent.task_list[i])
                             self.policy_inf_fs[(i, j, k)] = pol_inf_f
             else:
                 print '{0} has no attribute agent; not setting policy functions.'.format(self.__class__)

@@ -1,6 +1,10 @@
 (cl:in-package tamp_ros-msg)
-(cl:export '(PROB_ID-VAL
+(cl:export '(SOLVER_ID-VAL
+          SOLVER_ID
+          PROB_ID-VAL
           PROB_ID
+          SERVER_ID-VAL
+          SERVER_ID
           TASK-VAL
           TASK
           OBJ-VAL

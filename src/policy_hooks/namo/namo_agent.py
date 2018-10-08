@@ -38,6 +38,21 @@ from policy_hooks.namo.sorting_prob_2 import *
 MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 
+
+class optimal_pol:
+    def __init__(self, dU, action_inds, state_inds, opt_traj):
+        self.dU = dU
+        self.action_inds = action_inds
+        self.state_inds = state_inds
+        self.opt_traj = opt_traj
+
+    def act(self, X, O, t, noise):
+        u = np.zeros(self.dU)
+        for param, attr in self.action_inds:
+            u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
+        return u
+
+
 class NAMOSortingAgent(Agent):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
@@ -161,6 +176,23 @@ class NAMOSortingAgent(Agent):
         return copy.deepcopy(self.traj_hist)
 
 
+
+    def save_free(self, plan):
+        old_params_free = {}
+        for p in plan.params.itervalues():
+            p_attrs = {}
+            old_params_free[p.name] = p_attrs
+            for attr in p._free_attrs:
+                p_attrs[attr] = p._free_attrs[attr].copy()
+        self.saved_params_free = old_params_free
+
+
+    def restore_free(self, plan):
+        for p in self.saved_params_free:
+            for attr in self.saved_params_free[p]:
+                plan.params[p]._free_attrs[attr] = self.saved_params_free[p][attr].copy()
+
+
     def sample(self, policy, condition, save_global=False, verbose=False, noisy=False):
         raise NotImplementedError
 
@@ -200,7 +232,7 @@ class NAMOSortingAgent(Agent):
             if OBS_ENUM in self._hyperparams['obs_include']:
                 sample.set(OBS_ENUM, im.copy(), t)
             sample.set(NOISE_ENUM, noise[t], t)
-            sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
+            # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
             task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
             task_vec[self.task_list.index(task[0])] = 1.
             sample.task_ind = self.task_list.index(task[0])
@@ -228,17 +260,17 @@ class NAMOSortingAgent(Agent):
                 obs = sample.get_obs(t=t)
 
             U = policy.act(sample.get_X(t=t).copy(), obs.copy(), t, noise[t])
-            for param_name, attr in self.action_inds:
-                if (param_name, attr) in self.state_inds:
-                    inds1 = self.action_inds[param_name, attr]
-                    inds2 = self.state_inds[param_name, attr]
-                    for i in range(len(inds1)):
-                        if U[inds1[i]] - X[inds2[i]] > 1:
-                            U[inds1[i]] = X[inds2[i]] + 1
-                        elif U[inds1[i]] - X[inds2[i]] < -1:
-                            U[inds1[i]] = X[inds2[i]] - 1
-            if np.all(np.abs(U - self.traj_hist[-1]) < self.move_limit):
-                sample.use_ts[t] = 0
+            # for param_name, attr in self.action_inds:
+            #     if (param_name, attr) in self.state_inds:
+            #         inds1 = self.action_inds[param_name, attr]
+            #         inds2 = self.state_inds[param_name, attr]
+            #         for i in range(len(inds1)):
+            #             if U[inds1[i]] - X[inds2[i]] > 1:
+            #                 U[inds1[i]] = X[inds2[i]] + 1
+            #             elif U[inds1[i]] - X[inds2[i]] < -1:
+            #                 U[inds1[i]] = X[inds2[i]] - 1
+            # if np.all(np.abs(U - self.traj_hist[-1]) < self.move_limit):
+            #     sample.use_ts[t] = 0
 
             if np.any(np.isnan(U)):
                 U[np.isnan(U)] = 0
@@ -251,9 +283,9 @@ class NAMOSortingAgent(Agent):
             sample.set(ACTION_ENUM, U.copy(), t)
                 # import ipdb; ipdb.set_trace()
             
-            self.traj_hist.append(U)
-            while len(self.traj_hist) > self.hist_len:
-                self.traj_hist.pop(0)
+            # self.traj_hist.append(U)
+            # while len(self.traj_hist) > self.hist_len:
+            #     self.traj_hist.pop(0)
 
             obj = task[1] if fixed_obj else None
 
@@ -277,7 +309,7 @@ class NAMOSortingAgent(Agent):
             samples.append([])
             for i in range(num_samples):
                 s = slist[0] if hasattr(slist, '__getitem__') else slist
-                self.reset_hist(s.get(TRAJ_HIST_ENUM, t=0).reshape((self.hist_len, 3)).tolist())
+                # self.reset_hist(s.get(TRAJ_HIST_ENUM, t=0).reshape((self.hist_len, 3)).tolist())
                 samples[-1].append(self.sample_task(policy, s.condition, s.get_X(t=0), (s.task, s.obj, s.targ), noisy=True))
             samples[-1] = SampleList(samples[-1])
         return samples
@@ -290,7 +322,7 @@ class NAMOSortingAgent(Agent):
 
         if t < plan.horizon - 1:
             for param, attr in u_inds:
-                getattr(plan.params[param], attr)[:, t+1] = u[u_inds[param, attr]]
+                getattr(plan.params[param], attr)[:, t+1] = x[x_inds[param, attr]] + u[u_inds[param, attr]]
 
             for param in plan.params.values():
                 if param._type == 'Can':
@@ -316,6 +348,9 @@ class NAMOSortingAgent(Agent):
             return self.solve_sample_opt_traj(state, task, condition, traj_mean, fixed_targets)
 
         exclude_targets = []
+        opt_disp_traj = np.zeros_like(opt_traj)
+        for t in range(0, len(opt_traj)-1):
+            opt_disp_traj[t] = opt_traj[t+1] - opt_traj[t]
 
         if len(fixed_targets):
             targets = fixed_targets
@@ -328,11 +363,7 @@ class NAMOSortingAgent(Agent):
             targets = [obj, targ]
             # targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
 
-        class optimal_pol:
-            def act(self, X, O, t, noise):
-                return opt_traj[t].copy()
-
-        sample = self.sample_task(optimal_pol(), condition, state, [task, targets[0].name, targets[1].name], noisy=False, fixed_obj=True)
+        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_disp_traj), condition, state, [task, targets[0].name, targets[1].name], noisy=False, fixed_obj=True)
         self.optimal_samples[task].append(sample)
         sample.set_ref_X(sample.get(STATE_ENUM))
         sample.set_ref_U(sample.get_U())
@@ -389,7 +420,7 @@ class NAMOSortingAgent(Agent):
             # self.env.SetViewer('qtcoin')
             # success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
             try:
-                self.solver.save_free(plan)
+                self.save_free(plan)
                 success = self.solver._backtrack_solve(plan, n_resamples=3, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
                 # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
                 # if task == 'putdown':
@@ -398,7 +429,7 @@ class NAMOSortingAgent(Agent):
                 # import ipdb; ipdb.set_trace()
             except Exception as e:
                 traceback.print_exception(*sys.exc_info())
-                self.solver.restore_free(plan)
+                self.restore_free(plan)
                 # self.env.SetViewer('qtcoin')
                 # import ipdb; ipdb.set_trace()
                 success = False

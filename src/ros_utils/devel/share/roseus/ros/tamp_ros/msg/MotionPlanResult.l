@@ -16,7 +16,7 @@
 
 (defclass tamp_ros::MotionPlanResult
   :super ros::object
-  :slots (_traj _failed _success _plan_id ))
+  :slots (_traj _failed _success _plan_id _cond _task _obj _targ ))
 
 (defmethod tamp_ros::MotionPlanResult
   (:init
@@ -25,12 +25,20 @@
     ((:failed __failed) "")
     ((:success __success) nil)
     ((:plan_id __plan_id) 0)
+    ((:cond __cond) 0)
+    ((:task __task) "")
+    ((:obj __obj) "")
+    ((:targ __targ) "")
     )
    (send-super :init)
    (setq _traj __traj)
    (setq _failed (string __failed))
    (setq _success __success)
    (setq _plan_id (round __plan_id))
+   (setq _cond (round __cond))
+   (setq _task (string __task))
+   (setq _obj (string __obj))
+   (setq _targ (string __targ))
    self)
   (:traj
    (&rest __traj)
@@ -48,6 +56,18 @@
   (:plan_id
    (&optional __plan_id)
    (if __plan_id (setq _plan_id __plan_id)) _plan_id)
+  (:cond
+   (&optional __cond)
+   (if __cond (setq _cond __cond)) _cond)
+  (:task
+   (&optional __task)
+   (if __task (setq _task __task)) _task)
+  (:obj
+   (&optional __obj)
+   (if __obj (setq _obj __obj)) _obj)
+  (:targ
+   (&optional __targ)
+   (if __targ (setq _targ __targ)) _targ)
   (:serialization-length
    ()
    (+
@@ -59,6 +79,14 @@
     1
     ;; int32 _plan_id
     4
+    ;; int32 _cond
+    4
+    ;; string _task
+    4 (length _task)
+    ;; string _obj
+    4 (length _obj)
+    ;; string _targ
+    4 (length _targ)
     ))
   (:serialize
    (&optional strm)
@@ -75,6 +103,14 @@
        (if _success (write-byte -1 s) (write-byte 0 s))
      ;; int32 _plan_id
        (write-long _plan_id s)
+     ;; int32 _cond
+       (write-long _cond s)
+     ;; string _task
+       (write-long (length _task) s) (princ _task s)
+     ;; string _obj
+       (write-long (length _obj) s) (princ _obj s)
+     ;; string _targ
+       (write-long (length _targ) s) (princ _targ s)
      ;;
      (if (null strm) (get-output-stream-string s))))
   (:deserialize
@@ -92,17 +128,29 @@
      (setq _success (not (= 0 (sys::peek buf ptr- :char)))) (incf ptr- 1)
    ;; int32 _plan_id
      (setq _plan_id (sys::peek buf ptr- :integer)) (incf ptr- 4)
+   ;; int32 _cond
+     (setq _cond (sys::peek buf ptr- :integer)) (incf ptr- 4)
+   ;; string _task
+     (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _task (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
+   ;; string _obj
+     (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _obj (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
+   ;; string _targ
+     (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _targ (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
    ;;
    self)
   )
 
-(setf (get tamp_ros::MotionPlanResult :md5sum-) "0656126ee68f988e9fc58fdf7103300c")
+(setf (get tamp_ros::MotionPlanResult :md5sum-) "326cd4f386f413012deeafd4217bb17d")
 (setf (get tamp_ros::MotionPlanResult :datatype-) "tamp_ros/MotionPlanResult")
 (setf (get tamp_ros::MotionPlanResult :definition-)
       "std_msgs/Float32MultiArray[] traj
 string failed
 bool success
 int32 plan_id
+int32 cond
+string task
+string obj
+string targ
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -151,6 +199,6 @@ uint32 stride  # stride of given dimension
 
 
 
-(provide :tamp_ros/MotionPlanResult "0656126ee68f988e9fc58fdf7103300c")
+(provide :tamp_ros/MotionPlanResult "326cd4f386f413012deeafd4217bb17d")
 
 

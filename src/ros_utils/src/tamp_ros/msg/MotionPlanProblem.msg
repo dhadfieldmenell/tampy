@@ -1,4 +1,6 @@
+int32 solver_id
 int32 prob_id
+int32 server_id
 string task
 string obj
 string targ
