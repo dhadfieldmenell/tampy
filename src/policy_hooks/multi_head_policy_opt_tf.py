@@ -145,9 +145,12 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.store_scope_weights(scopes=scopes)
         for task in scales:
             if task in self.task_map:
+                np.save('tf_saved/'+self.weight_dir+'/'+task+'_scale', scales[task])
+                np.save('tf_saved/'+self.weight_dir+'/'+task+'_bias', biases[task])
                 self.task_map[task]['policy'].scale = np.array(scales[task])
                 self.task_map[task]['policy'].bias = np.array(biases[task])
                 self.var[task] = variances[task]
+        print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
 
     def update_weights(self, scope, weight_dir=None):
         if weight_dir is None:
