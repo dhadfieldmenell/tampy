@@ -37,11 +37,12 @@ from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_OBJS = 2
-NUM_CONDS = 2
-NUM_PRETRAIN_STEPS = 5
+NUM_OBJS = 4
+NUM_CONDS = 10
+NUM_PRETRAIN_STEPS = 20
+NUM_PRETRAIN_TRAJ_OPT_STEPS = 5
 NUM_TRAJ_OPT_STEPS = 1
-N_SAMPLES = 15
+N_SAMPLES = 20
 N_TRAJ_CENTERS = N_SAMPLES
 
 
@@ -60,7 +61,7 @@ algorithm = {
     'conditions': common['conditions'],
     'policy_sample_mode': 'add',
     'sample_on_policy': True,
-    'iterations': 20,
+    'iterations': 1e5,
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
@@ -183,12 +184,13 @@ config = {
     'dim_hidden': [40, 40, 40],
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
+    'pretrain_trja_opt_steps': NUM_PRETRAIN_TRAJ_OPT_STEPS,
 
     # New for multiprocess, transfer to sequential version as well.
 
     'n_optimizers': 5,
     'n_rollout_servers': 1,
-    'weight_dir': 'namo_'+str(NUM_OBJS),
+    'base_weight_dir': 'namo_',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
     'max_sample_queue': 1e3,

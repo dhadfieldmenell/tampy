@@ -300,6 +300,8 @@ class MCTS:
         return None
 
     def _default_choose_next(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, debug=False):
+        if debug:
+            print 'Choosing next node.'
         parameterizations, values = [], []
         for i in range(node.num_tasks):
             for j in range(node.num_objs):
@@ -307,6 +309,7 @@ class MCTS:
                     parameterizations.append((i, j, k))
                     values.append(self.node_check_f(i, j, k, state, node))
 
+        values = np.array(values)
         p = parameterizations[np.argmax(values)]
         values[np.argmax(values)] = -np.inf
         obj = self.agent.plans.values()[0].params[self.agent.obj_list[p[1]]]
@@ -334,24 +337,24 @@ class MCTS:
         samples = []
         old_traj_hist = self.agent.get_hist()
 
-        if self.always_opt:
-            self.agent.reset_hist(deepcopy(old_traj_hist))
-            sample, failed, success = self.agent.sample_optimal_trajectory(cur_state, task, self.condition, fixed_targets=target)
-            if success:
-                self.agent.add_sample_batch([sample], task)
-                self.agent.reset_hist(deepcopy(old_traj_hist))
-                return sample, sample.get_X(sample.T-1)
-            else:
-                return None, cur_state
+        # if self.always_opt:
+        #     self.agent.reset_hist(deepcopy(old_traj_hist))
+        #     sample, failed, success = self.agent.sample_optimal_trajectory(cur_state, task, self.condition, fixed_targets=target)
+        #     if success:
+        #         self.agent.add_sample_batch([sample], task)
+        #         self.agent.reset_hist(deepcopy(old_traj_hist))
+        #         return sample, sample.get_X(sample.T-1)
+        #     else:
+        #         return None, cur_state
 
         for n in range(self.num_samples):
             self.agent.reset_hist(deepcopy(old_traj_hist))
             samples.append(self.agent.sample_task(self.rollout_policy[task], self.condition, cur_state, (task, target[0].name, target[1].name), noisy=True))
 
-        if use_distilled and self.distilled_policy.scale is not None:
-            for n in range(self.num_distilled_samples):
-                self.agent.reset_hist(deepcopy(old_traj_hist))
-                samples.append(self.agent.sample_task(self.distilled_policy, self.condition, cur_state, (task, target[0].name, target[1].name), use_prim_obs=True, noisy=True))
+        # if use_distilled and self.distilled_policy.scale is not None:
+        #     for n in range(self.num_distilled_samples):
+        #         self.agent.reset_hist(deepcopy(old_traj_hist))
+        #         samples.append(self.agent.sample_task(self.distilled_policy, self.condition, cur_state, (task, target[0].name, target[1].name), use_prim_obs=True, noisy=True))
 
         # sample_costs = {}
         # for sample in samples:
@@ -431,7 +434,7 @@ class MCTS:
             current_node.update_value(-path_value)
             current_node = current_node.parent
 
-            path.reverse()
+        path.reverse()
         return path
 
     def simulate_from_next(self, node, state, prev_sample, num_samples=1, save=False, exclude_hl=[], use_distilled=True, debug=False):

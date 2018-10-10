@@ -217,4 +217,3 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
         else:
             print 'Update no cost called with no data.'
-

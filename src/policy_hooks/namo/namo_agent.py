@@ -478,16 +478,14 @@ class NAMOSortingAgent(Agent):
             sample.task = task
             return sample, failed_preds, success
 
-        class optimal_pol:
-            def act(self, X, O, t, noise):
-                U = np.zeros((plan.dU), dtype=np.float32)
-                if t < plan.horizon - 1:
-                    fill_vector(plan.params, plan.action_inds, U, t+1)
-                else:
-                    fill_vector(plan.params, plan.action_inds, U, t)
-                return U
+        traj = np.zeros((plan.horizon, self.dU))
+        disp_traj = np.zeros((plan.horizon, self.dU))
+        for t in range(plan.horizon):
+            fill_vector(plan.params, plan.action_inds, traj[t], t)
+            if t > 0:
+                disp_traj[t-1] = traj[t] - traj[t-1]
 
-        sample = self.sample_task(optimal_pol(), condition, state, [task, targets[0].name, targets[1].name], noisy=False, fixed_obj=True)
+        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, disp_traj), condition, state, [task, targets[0].name, targets[1].name], noisy=False, fixed_obj=True)
         self.optimal_samples[task].append(sample)
         sample.set_ref_X(sample.get(STATE_ENUM))
         sample.set_ref_U(sample.get_U())

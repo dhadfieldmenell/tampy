@@ -171,9 +171,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         else:
             self.store_scope_weights([self.scope], weight_dir)
 
-    def store(self, mu, obs, prc, wt, task):
-        print 'Storing samples for ', task
-        if task not in self.mu:
+    def store(self, obs, mu, prc, wt, task):
+        if task not in self.mu or task not in self.obs or task not in self.prc or task not in self.wt:
             self.mu[task] = np.array(mu)
             self.obs[task] = np.array(obs)
             self.prc[task] = np.array(prc)
@@ -186,8 +185,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
         self.update_count += len(mu)
         if self.update_count > self.update_size:
-            print 'Updating ', task
-            self.update(self.mu[task], self.obs[task], self.prc[task], self.wt[task], task)
+            print 'Updating', task
+            self.update(self.obs[task].copy(), self.mu[task].copy(), self.prc[task].copy(), self.wt[task].copy(), task)
             self.store_scope_weights(scopes=[task])
             self.update_count = 0
             del self.mu[task]

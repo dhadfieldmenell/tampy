@@ -389,6 +389,7 @@ class MultiProcessPretrainMain(object):
         self.num_samples = self.config['num_samples']
 
         self.rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
+        self.time_log = 'tf_saved/'+self.config['weight_dir']+'/pretrain_timing_info.txt'
 
 
     def run(self, itr_load=None):
@@ -397,16 +398,21 @@ class MultiProcessPretrainMain(object):
 
 
     def pretrain(self):
-
         manager = Manager()
         sample_paths = manager.list()
         all_samples = manager.list()
+        cpu_times = []
+
+        if self.config['log_timing']:
+            with open(self.time_log, 'w+') as f:
+                f.write('Pretraining data:\n')
 
         for pretrain_step in range(self.config['pretrain_steps']):
             self.agent.replace_conditions(len(self.agent.x0), keep=(1., 1.))
             hl_plans = [[] for _ in range(len(self._train_idx))]
             paths = []
 
+            start_time = time.time()
             processes = []
             for cond in self._train_idx:
                 process = Process(target=solve_condition, args=(self, cond, sample_paths, all_samples))
@@ -416,6 +422,15 @@ class MultiProcessPretrainMain(object):
 
             for process in processes:
                 process.join()
+            end_time = time.time()
+            cpu_times.append(end_time-start_time)
+
+        if self.config['log_timing']:
+            with open(self.time_log, 'a') as f:
+                f.write('Average time to solve and motion plan for {0} hl problems: '.format(len(self.agent.x0)))
+                f.write(str(np.average(cpu_times)))
+                f.write('\n')
+
 
         task_to_samples = {task: [] for task in self.task_list}       
         opt_samples = {task: [] for task in self.task_list}
@@ -424,8 +439,10 @@ class MultiProcessPretrainMain(object):
                 sample.agent = self.agent
                 opt_samples[sample.task].append(sample)
 
+        cpu_times = []
         for task in self.alg_map:
-            for i in range(5):
+            for i in range(self.config['pretrain_traj_opt_steps']):
+                start_time = time.time()
                 print '\nIterating on initial samples (iter {0})'.format(i)
                 policy = self.rollout_policies[task]
                 if policy.scale is None:
@@ -439,15 +456,33 @@ class MultiProcessPretrainMain(object):
                 except:
                     traceback.print_exception(*sys.exc_info())
 
+                end_time = time.time()
+                cpu_times.append(end_time-start_time)
+
+        if self.config['log_timing']:
+            with open(self.time_log, 'a') as f:
+                f.write('Average time to perform algorithm update with resample for a single task: ')
+                f.write(str(np.average(cpu_times)))
+                f.write('\n')
+
         path_samples = []
         for path in sample_paths:
             for sample in path:
                 path_samples.append(sample)
 
+        start_time = time.time()
         self.update_primitives(path_samples)
         self.update_value_network(all_samples, first_ts_only=True)
         self.policy_opt.store_weights()
         self.policy_opt.store_weights(self.policy_opt.weight_dir+'_trained')
+        end_time = time.time()
+
+        if self.config['log_timing']:
+            with open(self.time_log, 'a') as f:
+                f.write('Time to update value and primitive network and store weights: ')
+                f.write(str(end_time-start_time))
+                f.close()
+
 
 
     def update_primitives(self, samples):

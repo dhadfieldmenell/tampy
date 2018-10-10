@@ -417,9 +417,10 @@ class MultiProcessMain(object):
                     print 'Process died. ' + message
                     if kill_all: return
             time.sleep(1)
+            sys.stdout.flush()
 
     def start(self, kill_all=False):
-        self.roscore = ROSLaunchParent('train_roscore', [], is_core=True)
+        self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
         self.roscore.start()
         time.sleep(1)
         self.start_servers()

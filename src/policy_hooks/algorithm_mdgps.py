@@ -139,6 +139,7 @@ class AlgorithmMDGPS(Algorithm):
 
     def _update_policy(self, optimal_samples=[]):
         """ Compute the new policy. """
+        print 'Updating policy'
         dU, dO, T = self.dU, self.dO, self.T
         data_len = int(self.sample_ts_prob * T)
         # Compute target mean, cov, and weight for each sample.

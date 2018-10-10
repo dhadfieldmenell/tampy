@@ -22,7 +22,7 @@ class PrimitiveServer(object):
         )
         self.task = 'primitive'
         self.primitive_service = rospy.Service('primitive', Primitive, self.primitive)
-        self.updater = rospy.Subscriber('primitive_update', PolicyUpdate, self.update)
+        self.updater = rospy.Subscriber('primitive_update', PolicyUpdate, self.update, queue_size=2)
         self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = True
@@ -55,6 +55,7 @@ class PrimitiveServer(object):
         wt = msg.wt
 
         update = self.policy_opt.store(obs, mu, prc, wt, 'primitive')
+        print 'Weights updated:', update, 'primitive'
         if update:
             self.weight_publisher.publish(self.policy_opt.serialize_weights(['primitive']))
 

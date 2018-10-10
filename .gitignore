@@ -6,3 +6,4 @@
 *.log
 src/experiments/
 src/tf_saved/
+temp/*

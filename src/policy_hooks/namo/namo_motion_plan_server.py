@@ -54,6 +54,7 @@ class NAMOMotionPlanServer(object):
         self.stopped = False
         self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan)
+        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**20)
         self.stop = rospy.Subscriber('terminate', String, self.end)
 
         self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
@@ -80,6 +81,11 @@ class NAMOMotionPlanServer(object):
     def end(self, msg):
         self.stopped = True
         rospy.signal_shutdown('Received notice to terminate.')
+
+
+    def store_weights(self, msg):
+        if self.use_local:
+            self.policy_opt.deserialize_weights(msg.data)
 
 
     def prob(self, obs, task):

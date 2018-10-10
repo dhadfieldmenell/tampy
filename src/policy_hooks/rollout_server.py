@@ -50,7 +50,7 @@ class RolloutServer(object):
         self.updaters['primitive'] = rospy.Publisher('primitive_update', PolicyUpdate, queue_size=50)
         self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp)
         self.async_plan_publisher = rospy.Publisher('motion_plan_prob', MotionPlanProblem, queue_size=5)
-        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights)
+        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**20)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         for alg in self.alg_map.values():
             alg.policy_opt = DummyPolicyOpt(self.update, self.prob)
@@ -102,7 +102,6 @@ class RolloutServer(object):
     def store_weights(self, msg):
         if self.use_local:
             self.policy_opt.deserialize_weights(msg.data)
-            self.policy_opt.store_weights()
 
     def policy_call(self, x, obs, t, noise, task):
         # print 'Entering policy call:', datetime.now()
@@ -220,7 +219,7 @@ class RolloutServer(object):
 
 
     def step(self):
-        print 'Taking rollout step.'
+        print '\n\nTaking tree search step.\n\n'
         rollout_policies = {task: DummyPolicy(task, self.policy_call) for task in self.agent.task_list}
 
         for mcts in self.mcts:
@@ -283,6 +282,8 @@ class RolloutServer(object):
                 except:
                     traceback.print_exception(*sys.exc_info())
         self.agent.reset_sample_refs()
+
+        print '\n\nFinished tree search step.\n\n'
 
     def run(self):
         while not self.stopped:

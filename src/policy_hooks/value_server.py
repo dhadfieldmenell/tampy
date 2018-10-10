@@ -22,7 +22,7 @@ class ValueServer(object):
         )
         self.task = 'value'
         self.value_service = rospy.Service('qvalue', QValue, self.value)
-        self.updater = rospy.Subscriber('value_update', PolicyUpdate, self.update)
+        self.updater = rospy.Subscriber('value_update', PolicyUpdate, self.update, queue_size=2)
         self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = True
@@ -55,6 +55,7 @@ class ValueServer(object):
         wt = msg.wt
 
         update = self.policy_opt.store(obs, mu, prc, wt, 'value')
+        print 'Weights updated:', update, 'value'
         if update:
             self.weight_publisher.publish(self.policy_opt.serialize_weights(['value']))
 
