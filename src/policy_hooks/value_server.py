@@ -1,5 +1,6 @@
 import numpy as np
 import rospy
+import time
 
 from std_msgs.msg import Float32MultiArray, String
 
@@ -26,6 +27,9 @@ class ValueServer(object):
         self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = True
+        self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
+        self.log_timing = hyperparams['log_timing']
+
         rospy.spin()
 
 
@@ -54,7 +58,14 @@ class ValueServer(object):
 
         wt = msg.wt
 
+        start_time = time.time()
         update = self.policy_opt.store(obs, mu, prc, wt, 'value')
+        end_time = time.time()
+
+        if update and self.log_timing:
+            with open(self.time_log, 'a+') as f:
+                f.write('Time to update value neural net on {0} data points: {1}\n'.format(self.policy_opt.update_size, end_time, start_time))
+
         print 'Weights updated:', update, 'value'
         if update:
             self.weight_publisher.publish(self.policy_opt.serialize_weights(['value']))

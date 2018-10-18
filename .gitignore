@@ -6,4 +6,5 @@
 *.log
 src/experiments/
 src/tf_saved/
-temp/*
+src/temp/*
+!src/temp/.gitkeep

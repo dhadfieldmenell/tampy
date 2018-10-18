@@ -1,11 +1,11 @@
 Minimize
-  + 60152.21774898379 Constant
+  + 52224.87456518626 Constant
 Subject To
- R6: (can1_init_target-value-(1,_0)) = 0.699999988079071
- R11: (pr2-pose-(1,_0)) = 99.27469062060118
- R46: (pr2-pose-(1,_0)) - (can1_init_target-value-(1,_0)) <= 10
+ R13: (can1_init_target-value-(1,_0)) = 0.5
+ R16: (pr2-pose-(1,_0)) = -9.500201225280762
+ R36: (can1_init_target-value-(1,_0)) - (pr2-pose-(1,_0)) <= 10
 Bounds
- (pr2-pose-(1,_0)) free
  (can1_init_target-value-(1,_0)) free
+ (pr2-pose-(1,_0)) free
  Constant = 1
 End

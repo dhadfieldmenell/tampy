@@ -149,7 +149,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 np.save('tf_saved/'+self.weight_dir+'/'+task+'_bias', biases[task])
                 self.task_map[task]['policy'].scale = np.array(scales[task])
                 self.task_map[task]['policy'].bias = np.array(biases[task])
-                self.var[task] = variances[task]
+                self.var[task] = np.array(variances[task])
         print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
 
     def update_weights(self, scope, weight_dir=None):
@@ -768,6 +768,12 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self.distilled_policy.chol_pol_covar = np.diag(np.sqrt(self.distilled_var))
 
         return self.distilled_policy
+
+    def traj_prob(self, obs, task=""):
+        assert len(obs.shape) == 2 or obs.shape[0] == 1
+        mu, sig, prec, det_sig = self.prob(obs, task)
+        traj = np.tri(mu.shape[1]).dot(mu[0])
+        return np.array([traj]), sig, prec, det_sig
 
     def prob(self, obs, task=""):
         """

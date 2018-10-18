@@ -1,5 +1,6 @@
 import copy
 import sys
+import time
 import traceback
 
 import numpy as np
@@ -21,7 +22,7 @@ from tamp_ros.srv import *
 
 class DummyPolicyOpt(object):
     def __init__(self, prob):
-        self.prob = prob
+        self.traj_prob = prob
 
 class NAMOMotionPlanServer(object):
     def __init__(self, hyperparams):
@@ -47,8 +48,11 @@ class NAMOMotionPlanServer(object):
         self.solver.agent = self.agent
         self.weight_dir = hyperparams['weight_dir']
         self.solver.policy_inf_fs = {}
-        for task in self.solver.agent.task_list:
-            self.solver.policy_inf_fs[task] = lambda s: self.prob(s, task)
+        for i in range(len(self.task_list)):
+            task = self.task_list[i]
+            for j in range(len(self.agent.obj_list)):
+                for k in range(len(self.agent.targ_list)):
+                    self.solver.policy_inf_fs[(i,j,k)] = lambda o, s: self.prob(o, s, task)
 
         self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
@@ -71,6 +75,11 @@ class NAMOMotionPlanServer(object):
                 hyperparams['dPrimObs']
             )
 
+        self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
+        self.log_timing = hyperparams['log_timing']
+        self.n_time_samples_per_log = 10 if 'n_time_samples_per_log' not in hyperparams else hyperparams['n_time_samples_per_log']
+        self.time_samples = []
+
 
     def run(self):
         rospy.spin()
@@ -88,21 +97,34 @@ class NAMOMotionPlanServer(object):
             self.policy_opt.deserialize_weights(msg.data)
 
 
-    def prob(self, obs, task):
+    def prob(self, obs, init_state, task):
         if self.use_local:
-            return self.policy_opt.prob(obs, task)
+            mu, sig, prec, det_sig = self.policy_opt.traj_prob(obs, task)
+            for p_name, a_name in self.solver.action_inds:
+                mu[0, :, self.solver.action_inds[p_name, a_name]] += init_state[self.solver.state_inds[p_name, a_name]].reshape(-1,1)
+            return mu, sig, prec, det_sig
 
-        rospy.wait_for_service(task+'_policy_prob', timeout=10)
-        req_obs = []
-        for i in range(len(obs)):
-            next_line = Float32MultiArray()
-            next_line.data = obs[i]
-            req_obs.append(next_line)
-        req = PolicyProbRequest()
-        req.obs = req_obs
-        req.task = task
-        resp = self.prob_proxies[task](req)
-        return np.array([resp.mu[i].data for i in range(len(resp.mu))]), np.array([resp.sigma[i].data for i in range(len(resp.sigma))]), [], []
+        raise NotImplementedError()
+        # rospy.wait_for_service(task+'_policy_prob', timeout=10)
+        # req_obs = []
+        # for i in range(len(obs)):
+        #     next_line = Float32MultiArray()
+        #     next_line.data = obs[i]
+        #     req_obs.append(next_line)
+        # req = PolicyProbRequest()
+        # req.obs = req_obs
+        # req.task = task
+        # resp = self.prob_proxies[task](req)
+        # return np.array([resp.mu[i].data for i in range(len(resp.mu))]), np.array([resp.sigma[i].data for i in range(len(resp.sigma))]), [], []
+
+
+    def update_timing_info(self, time):
+        if self.log_timing:
+            self.time_samples.append(time)
+            if len(self.time_samples) >= self.n_time_samples_per_log:
+                with open(self.time_log, 'a+') as f:
+                    f.write('Average time to motion plan for {0} problems: {1}\n\n'.format(len(self.time_samples), np.mean(self.time_samples)))
+                self.time_samples = []
 
 
     def publish_motion_plan(self, msg):
@@ -110,10 +132,11 @@ class NAMOMotionPlanServer(object):
         print 'Server {0} solving motion plan for rollout server {1}.'.format(self.id, msg.server_id)
         state = np.array(msg.state)
         task = msg.task
+        task_tuple = (self.task_list.index(task), self.agent.obj_list.index(msg.obj), self.agent.targ_list.index(msg.targ))
         cond = msg.cond
         mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
         targets = [msg.obj, msg.targ]
-        out, failed, success = self.sample_optimal_trajectory(state, task, cond, mean, targets)
+        out, failed, success = self.sample_optimal_trajectory(state, task_tuple, cond, mean, targets)
         failed = str(failed)
         resp = MotionPlanResult()
         resp.traj = []
@@ -154,9 +177,10 @@ class NAMOMotionPlanServer(object):
         saver.restore(self.policy_opt.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
 
 
-    def sample_optimal_trajectory(self, state, task, condition, traj_mean=[], fixed_targets=[]):
+    def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[], fixed_targets=[]):
         exclude_targets = []
         success = False
+        task = self.task_list[task_tuple[0]]
 
         targets = fixed_targets
         obj = targets[0]
@@ -164,6 +188,8 @@ class NAMOMotionPlanServer(object):
 
         failed_preds = []
         iteration = 0
+
+        start_time = time.time()
         while not success:
             iteration += 1
 
@@ -197,7 +223,7 @@ class NAMOMotionPlanServer(object):
             # success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
             try:
                 self.solver.save_free(plan)
-                success = self.solver._backtrack_solve(plan, n_resamples=3, traj_mean=traj_mean, task=(self.agent.task_list.index(task), self.agent.obj_list.index(obj.name), self.agent.targ_list.index(targ.name)))
+                success = self.solver._backtrack_solve(plan, n_resamples=3, traj_mean=traj_mean, task=task_tuple)
                 # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
                 # if task == 'putdown':
                 #     import ipdb; ipdb.set_trace()
@@ -229,5 +255,9 @@ class NAMOMotionPlanServer(object):
         output_traj = np.zeros((plan.horizon, self.agent.dX))
         for t in range(plan.horizon):
             fill_vector(plan.params, self.agent.state_inds, output_traj[t], t)
+
+        end_time = time.time()
+        if self.log_timing:
+            self.update_timing_info(start_time-end_time)
 
         return output_traj[:,:self.agent.symbolic_bound], failed_preds, success

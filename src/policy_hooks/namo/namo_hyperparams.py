@@ -38,7 +38,7 @@ BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
 NUM_OBJS = 4
-NUM_CONDS = 10
+NUM_CONDS = 20
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 5
 NUM_TRAJ_OPT_STEPS = 1
@@ -67,7 +67,7 @@ algorithm = {
     'stochastic_conditions': True,
     'policy_inf_coeff': 1e3,
     'policy_out_coeff': 1e3,
-    'kl_step': 1.0,
+    'kl_step': 1e-4,
     'min_step_mult': 0.5,
     'max_step_mult': 5.0,
     'sample_ts_prob': 1.0,
@@ -86,9 +86,9 @@ algorithm['init_traj_distr'] = {
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
-    'kl_threshold': 1e-1,
-    'covariance_damping': 0.01,
-    'min_temperature': 0.001,
+    'kl_threshold': 1e0,
+    'covariance_damping': 0.001,
+    'min_temperature': 0.0001,
 }
 
 # algorithm['policy_prior'] = {
@@ -182,9 +182,10 @@ config = {
     'batch_size': 1000,
     'n_layers': 3,
     'dim_hidden': [40, 40, 40],
+    'n_traj_centers': algorithm['n_traj_centers'],
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
-    'pretrain_trja_opt_steps': NUM_PRETRAIN_TRAJ_OPT_STEPS,
+    'pretrain_traj_opt_steps': NUM_PRETRAIN_TRAJ_OPT_STEPS,
 
     # New for multiprocess, transfer to sequential version as well.
 

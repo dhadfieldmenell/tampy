@@ -55,7 +55,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
         hl_plan = []
 
     last_reset = 0
-    while not stop and attempt < 30:
+    while not stop and attempt < 4 * trainer.config['num_objs']:
         last_reset += 1
         old_cur_state = cur_state
         for step in hl_plan:
@@ -85,7 +85,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
                             print '\nCould not solve hl for condition '+ str(cond)
                     except:
                         hl_plan = []
-                    attempt += 1
+                    # attempt += 1
                 break
 
             cur_path.append(next_sample)
@@ -390,6 +390,7 @@ class MultiProcessPretrainMain(object):
 
         self.rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
         self.time_log = 'tf_saved/'+self.config['weight_dir']+'/pretrain_timing_info.txt'
+        self.pretrain_timeout = self.config['pretrain_timeout']
 
 
     def run(self, itr_load=None):
@@ -404,10 +405,11 @@ class MultiProcessPretrainMain(object):
         cpu_times = []
 
         if self.config['log_timing']:
-            with open(self.time_log, 'w+') as f:
-                f.write('Pretraining data:\n')
+            with open(self.time_log, 'a+') as f:
+                f.write('\n\nPretraining data for {0}:\n'.formate(datetime.now()))
 
         for pretrain_step in range(self.config['pretrain_steps']):
+            print '\n\nPretrain step {0}\n\n'.format(pretrain_step)
             self.agent.replace_conditions(len(self.agent.x0), keep=(1., 1.))
             hl_plans = [[] for _ in range(len(self._train_idx))]
             paths = []
@@ -420,8 +422,26 @@ class MultiProcessPretrainMain(object):
                 process.start()
                 processes.append(process)
 
-            for process in processes:
-                process.join()
+            # for process in processes:
+            #     process.join(self.pretrain_timeout)
+
+            # for process in processes:
+            #     if process.is_alive():
+            #         process.terminate()
+
+            base_t = time.time()
+            while time.time() - base_t < self.pretrain_timeout:
+                if any(p.is_alive() for p in processes):
+                    time.sleep(0.1)
+                else:
+                    break
+            else:
+                print '\n\nTerminating pretrain step early.'
+                print 'Active processes: {0}\n\n'.format([p.pid for p in processes if p.is_alive()])
+                for p in processes:
+                    p.terminate()
+                    p.join()
+
             end_time = time.time()
             cpu_times.append(end_time-start_time)
 
@@ -431,17 +451,18 @@ class MultiProcessPretrainMain(object):
                 f.write(str(np.average(cpu_times)))
                 f.write('\n')
 
-
+        print 'Collected pretraining data. Moving to supervised learning step.'
         task_to_samples = {task: [] for task in self.task_list}       
         opt_samples = {task: [] for task in self.task_list}
         for path in sample_paths:
             for sample in path:
                 sample.agent = self.agent
-                opt_samples[sample.task].append(sample)
+                opt_samples[sample.task].append((sample, []))
 
         cpu_times = []
+        traj_opt_steps = self.config['pretrain_traj_opt_steps']
         for task in self.alg_map:
-            for i in range(self.config['pretrain_traj_opt_steps']):
+            for i in range(traj_opt_steps):
                 start_time = time.time()
                 print '\nIterating on initial samples (iter {0})'.format(i)
                 policy = self.rollout_policies[task]
@@ -451,7 +472,7 @@ class MultiProcessPretrainMain(object):
 
                 try:
                     task_to_samples[task] = self.alg_map[task].iteration(task_to_samples[task], opt_samples[task], reset=not i)
-                    if len(task_to_samples[task]) and step < traj_opt_steps - 1:
+                    if len(task_to_samples[task]) and i < traj_opt_steps - 1:
                         task_to_samples[task] = self.agent.resample(task_to_samples[task], policy, self._hyperparams['num_samples'])
                 except:
                     traceback.print_exception(*sys.exc_info())
@@ -482,7 +503,6 @@ class MultiProcessPretrainMain(object):
                 f.write('Time to update value and primitive network and store weights: ')
                 f.write(str(end_time-start_time))
                 f.close()
-
 
 
     def update_primitives(self, samples):

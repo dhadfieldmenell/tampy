@@ -17,6 +17,7 @@ import traceback
 import numpy as np
 import tensorflow as tf
 
+from roslaunch.core import RLException
 from roslaunch.parent import ROSLaunchParent
 
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
@@ -361,14 +362,18 @@ class MultiProcessMain(object):
         self.config['target_inds'] = self.target_inds
         self.config['target_dim'] = self.target_dim
         self.config['task_list'] = self.task_list
+        self.config['time_log'] = 'tf_saved/'+self.config['weight_dir']+'/timing_info.txt'
 
         self.spawn_servers(self.config)
 
     def spawn_servers(self, config):
         self.processes = []
-        self.create_mp_servers(config)
-        self.create_pol_servers(config)
-        self.create_rollout_servers(config)
+        if self.config['mp_server']:
+            self.create_mp_servers(config)
+        if self.config['pol_server']:
+            self.create_pol_servers(config)
+        if self.config['mcts_server']:
+            self.create_rollout_servers(config)
 
     def start_servers(self):
         for p in self.processes:
@@ -409,20 +414,30 @@ class MultiProcessMain(object):
             self.create_server(RolloutServer, new_hyperparams)
 
     def watch_processes(self, kill_all=False):
-        while(True):
+        exit = False
+        while not exit and len(self.processes):
             for n in range(len(self.processes)):
                 p = self.processes[n]
                 if not p.is_alive():
                     message = 'Killing All.' if kill_all else 'Restarting Dead Process.'
                     print 'Process died. ' + message
-                    if kill_all: return
+                    exit = kill_all
+                    if exit: break
             time.sleep(1)
-            sys.stdout.flush()
+
+        for p in self.processes:
+            if p.is_alive(): p.terminate()
 
     def start(self, kill_all=False):
-        self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
-        self.roscore.start()
+        if self.config['log_timing']:
+            with open(self.config['time_log'], 'a+') as f:
+                f.write('\n\n\n\n\nTiming info for {0}:'.format(datetime.now()))
+        try:
+            self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
+            self.roscore.start()
+        except RLException as e:
+            self.roscore = None
         time.sleep(1)
         self.start_servers()
         self.watch_processes(kill_all)
-        self.roscore.shutdown()
+        if self.roscore is not None: self.roscore.shutdown()

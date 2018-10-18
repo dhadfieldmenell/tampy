@@ -502,7 +502,7 @@ def get_base_solver(parent_class):
                 sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
                 sample.set(TARGETS_ENUM, target_vec, t-start_t)
                 sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)
-            pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample.get_obs())
+            pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample.get_obs(), sample.get(STATE_ENUM, t=0))
 
             for param_name, attr_name in self.action_inds:
                 param = plan.params[param_name]
@@ -542,8 +542,11 @@ def get_base_solver(parent_class):
             return transfer_objs
 
 
-        def _policy_inf_func(self, obs, task):
-            return self.policy_opt.prob(np.array([obs]), task)
+        def _policy_inf_func(self, obs, x0, task):
+            mu, sig, prec, det_sig = self.policy_opt.traj_prob(np.array([obs]), task)
+            for p_name, a_name in self.action_inds:
+                mu[:, self.action_inds[p_name, a_name]] += x0[self.state_inds[p_name, a_name]]
+            return mu, sig, prec, det_sig
 
 
         def set_gps(self, gps):
@@ -556,7 +559,7 @@ def get_base_solver(parent_class):
                 for i in range(len(self.agent.task_list)):
                     for j in range(len(self.agent.obj_list)):
                         for k in range(len(self.agent.targ_list)):
-                            pol_inf_f = lambda o: self._policy_inf_func(o, self.agent.task_list[i])
+                            pol_inf_f = lambda o, x: self._policy_inf_func(o, x, self.agent.task_list[i])
                             self.policy_inf_fs[(i, j, k)] = pol_inf_f
             else:
                 print '{0} has no attribute agent; not setting policy functions.'.format(self.__class__)
@@ -584,7 +587,7 @@ def get_base_solver(parent_class):
                     add_nonlin=True, active_ts=active_ts)
                 # self._add_policy_preds(plan, active_ts)
                 obj_bexprs.extend(rs_obj)
-                if task is not None and task in self.policy_fs:
+                if task is not None and task in self.policy_inf_fs:
                     obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
                 self._add_obj_bexprs(obj_bexprs)
                 initial_trust_region_size = 1e3

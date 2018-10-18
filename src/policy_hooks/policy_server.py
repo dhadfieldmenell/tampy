@@ -1,4 +1,5 @@
 import threading
+import time
 
 import numpy as np
 import rospy
@@ -33,6 +34,9 @@ class PolicyServer(object):
         self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = True
+        self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
+        self.log_timing = hyperparams['log_timing']
+
         rospy.spin()
 
 
@@ -62,7 +66,14 @@ class PolicyServer(object):
         wt_dims = (msg.n, msg.rollout_len) if msg.rollout_len > 1 else (msg.n,)
         wt = np.array(msg.wt).reshape(wt_dims)
 
+        start_time = time.time()
         update = self.policy_opt.store(obs, mu, prc, wt, self.task)
+        end_time = time.time()
+
+        if update and self.log_timing:
+            with open(self.time_log, 'a+') as f:
+                f.write('Time to update {0} neural net on {1} data points: {2}\n'.format(self.task, self.policy_opt.update_size, end_time-start_time))
+
         rospy.sleep(0.01)
         print 'Weights updated:', update, self.task
         if update:

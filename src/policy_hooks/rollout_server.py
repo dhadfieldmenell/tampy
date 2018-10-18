@@ -1,11 +1,13 @@
 from datetime import datetime
 import sys
+import time
 
 from numba import cuda
-
 import rospy
-
+from scipy.cluster.vq import kmeans2 as kmeans
 from std_msgs.msg import Float32MultiArray, String
+
+from gps.sample.sample_list import SampleList
 
 from tamp_ros.msg import *
 from tamp_ros.srv import *
@@ -80,6 +82,11 @@ class RolloutServer(object):
                 hyperparams['dTarg'],
                 hyperparams['dPrimObs']
             )
+
+        self.traj_centers = hyperparams['n_traj_centers']
+
+        self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
+        self.log_timing = hyperparams['log_timing']
 
 
     def end(self, msg):
@@ -218,46 +225,85 @@ class RolloutServer(object):
             self.store_opt_sample(opt_sample, plan_id)
 
 
+    def choose_mp_problems(self, samples):
+        Xs = samples.get_X()
+        flat_Xs = Xs.reshape((Xs.shape[0], np.prod(Xs.shape[1:])))
+        centroids, labels = kmeans(flat_Xs, k=self.traj_centers, minit='points')
+        probs = []
+        for c in range(len(centroids)):
+            centroid = centroids[c]
+            traj_mean = centroid.reshape(Xs.shape[1:])
+            probs.append([traj_mean, []])
+
+        for i in range(len(samples)):
+            probs[labels[i]][1].append(samples[i])
+
+        probs = filter(lambda p: len(p[1]), probs)
+
+        for p in probs:
+            p[1] = SampleList(p[1])
+
+
+        return probs
+
+
+    def send_mp_problem(self, centroid, s_list):
+        next_sample = s_list[0]
+        state = next_sample.get(STATE_ENUM, t=0)
+        task = next_sample.task
+        cond = next_sample.condition
+        traj_mean = []
+        for t in range(next_sample.T):
+            next_line = Float32MultiArray()
+            next_line.data = centroid[t]
+            traj_mean.append(next_line)
+        obj = next_sample.obj
+        targ = next_sample.targ
+        prob = MotionPlanProblem()
+        prob.state = state
+        prob.task = task
+        prob.cond = cond
+        prob.traj_mean = traj_mean
+        prob.obj = obj
+        prob.targ = targ
+        prob.prob_id = self.current_id
+        prob.solver_id = np.random.randint(0, self.n_optimizers)
+        prob.server_id = self.id
+        self.current_id += 1
+        self.store_for_opt(s_list)
+        print 'Sending motion plan problem to server {0}.'.format(prob.solver_id)
+        self.async_plan_publisher.publish(prob)
+
+
     def step(self):
         print '\n\nTaking tree search step.\n\n'
         rollout_policies = {task: DummyPolicy(task, self.policy_call) for task in self.agent.task_list}
 
+        start_time = time.time()
         for mcts in self.mcts:
             mcts.run(self.agent.x0[mcts.condition], self.num_rollouts,  use_distilled=False, new_policies=rollout_policies, debug=True)
+        end_time = time.time()
 
         sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
         self.agent.clear_samples(keep_prob=0.1, keep_opt_prob=0.2)
         all_samples = []
 
+        n_probs = 0
+        start_time_2 = time.time()
         for task in sample_lists:
             for s_list in sample_lists[task]:
                 all_samples.extend(s_list._samples)
-                next_sample = s_list[0]
-                state = next_sample.get(STATE_ENUM, t=0)
-                task = next_sample.task
-                cond = next_sample.condition
-                X = next_sample.get(STATE_ENUM)
-                traj_mean = []
-                for t in range(next_sample.T):
-                    next_line = Float32MultiArray()
-                    next_line.data = X[t]
-                    traj_mean.append(next_line)
-                obj = next_sample.obj
-                targ = next_sample.targ
-                prob = MotionPlanProblem()
-                prob.state = state
-                prob.task = task
-                prob.cond = cond
-                prob.traj_mean = traj_mean
-                prob.obj = obj
-                prob.targ = targ
-                prob.prob_id = self.current_id
-                prob.solver_id = np.random.randint(0, self.n_optimizers)
-                prob.server_id = self.id
-                self.current_id += 1
-                self.store_for_opt(s_list)
-                print 'Sending motion plan problem to server {0}.'.format(prob.solver_id)
-                self.async_plan_publisher.publish(prob)
+                probs = self.choose_mp_problems(s_list)
+                n_probs += len(probs)
+                for p in probs:
+                    self.send_mp_problem(*p)
+        end_time_2 = time.time()
+
+        if self.log_timing:
+            with open(self.time_log, 'a+') as f:
+                f.write('Generated {0} problems from {1} conditions with {2} rollouts per condition.\n'.format(n_probs, len(self.mcts), self.num_rollouts))
+                f.write('Time to complete: {0}\n'.format(end_time-start_time))
+                f.write('Time to select problems through kmeans and send to supervised learner: {0}\n\n'.format(end_time_2-start_time_2))
 
         path_samples = []
         for path in self.agent.get_task_paths():
@@ -266,6 +312,7 @@ class RolloutServer(object):
         self.update_primitive(path_samples)
         self.update_qvalue(all_samples)
 
+        start_time = time.time()
         for task in self.agent.task_list:
             if len(self.opt_samples[task]):
                 sample_lists[task] = self.alg_map[task].iteration([], self.opt_samples[task], reset=False)
@@ -282,6 +329,10 @@ class RolloutServer(object):
                 except:
                     traceback.print_exception(*sys.exc_info())
         self.agent.reset_sample_refs()
+        end_time = time.time()
+        if self.log_timing:
+            with open(self.time_log, 'a+') as f:
+                f.write('Time to update algorithms for {0} iterations on data: {1}\n\n'.format(self.traj_opt_steps, end_time-start_time))
 
         print '\n\nFinished tree search step.\n\n'
 
