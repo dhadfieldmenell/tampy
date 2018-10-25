@@ -4,7 +4,7 @@ import numpy as np
 # Don't change these
 ACTION_ENUM = 0
 STATE_ENUM = 1
-OBS_ENUM = 2
+IM_ENUM = 2
 NOISE_ENUM = 3
 EE_ENUM = 4
 GRIPPER_ENUM = 5
@@ -16,6 +16,8 @@ OBJ_ENUM = 10
 TARG_ENUM = 11
 OBJ_POSE_ENUM = 12
 TARG_POSE_ENUM = 13
+LIDAR_ENUM = 14
+EE_ENUM = 15
 
 IM_H = 140
 IM_W = 140

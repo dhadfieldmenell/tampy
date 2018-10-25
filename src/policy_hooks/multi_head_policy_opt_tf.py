@@ -165,6 +165,11 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             saver = tf.train.Saver(variables)
             saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
 
+            if scope in self.task_map:
+                policy = self.task_map[scope]['policy']
+                np.save('tf_saved/'+weight_dir+'/'+scope+'_scale', policy.scale)
+                np.save('tf_saved/'+weight_dir+'/'+scope+'_bias', policy.bias)
+
     def store_weights(self, weight_dir=None):
         if self.scope is None:
             self.store_scope_weights(self.task_list+('value', 'primitive'), weight_dir)

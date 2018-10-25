@@ -13,6 +13,8 @@ import xml.etree.ElementTree as xml
 import openravepy
 from openravepy import RaveCreatePhysicsEngine
 
+import ctrajoptpy
+
 
 # from gps.agent.agent import Agent
 from gps.agent.agent_utils import generate_noise
@@ -33,6 +35,7 @@ from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.namo.sorting_prob_2 import *
+from policy_hooks.tamp_agent import TAMPAgent
 
 
 MAX_SAMPLELISTS = 1000
@@ -53,150 +56,7 @@ class optimal_pol:
         return u
 
 
-class NAMOSortingAgent(Agent):
-    def __init__(self, hyperparams):
-        Agent.__init__(self, hyperparams)
-        # Note: All plans should contain identical sets of parameters
-        self.plans = self._hyperparams['plans']
-        self.task_list = self._hyperparams['task_list']
-        self.task_durations = self._hyperparams['task_durations']
-        self.task_encoding = self._hyperparams['task_encoding']
-        # self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
-        self._samples = {task: [] for task in self.task_list}
-        self.state_inds = self._hyperparams['state_inds']
-        self.action_inds = self._hyperparams['action_inds']
-        self.dX = self._hyperparams['dX']
-        self.dU = self._hyperparams['dU']
-        self.symbolic_bound = self._hyperparams['symbolic_bound']
-        self.solver = self._hyperparams['solver']
-        self.num_cans = self._hyperparams['num_cans']
-        self.init_vecs = self._hyperparams['x0']
-        self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
-        self.targets = self._hyperparams['targets']
-        self.target_dim = self._hyperparams['target_dim']
-        self.target_inds = self._hyperparams['target_inds']
-        self.target_vecs = []
-        for condition in range(len(self.x0)):
-            target_vec = np.zeros((self.target_dim,))
-            for target_name in self.targets[condition]:
-                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-            self.target_vecs.append(target_vec)
-        self.targ_list = self.targets[0].keys()
-        self.obj_list = self._hyperparams['obj_list']
-
-        self._get_hl_plan = self._hyperparams['get_hl_plan']
-        self.env = self._hyperparams['env']
-        self.openrave_bodies = self._hyperparams['openrave_bodies']
-
-        self.current_cond = 0
-        self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
-        self.initial_opt = True
-        self.stochastic_conditions = self._hyperparams['stochastic_conditions']
-
-        self.hist_len = self._hyperparams['hist_len']
-        self.traj_hist = None
-        self.reset_hist()
-
-        self.optimal_samples = {task: [] for task in self.task_list}
-        self.optimal_state_traj = [[] for _ in range(len(self.plans))]
-        self.optimal_act_traj = [[] for _ in range(len(self.plans))]
-
-        self.task_paths = []
-
-        self.get_plan = self._hyperparams['get_plan']
-        self.move_limit = 1e-3
-
-        self.n_policy_calls = {}
-
-
-    def get_samples(self, task):
-        samples = []
-        for batch in self._samples[task]:
-            samples.append(batch)
-
-        return samples
-        
-
-    def add_sample_batch(self, samples, task):
-        if not hasattr(samples[0], '__getitem__'):
-            if not isinstance(samples, SampleList):
-                samples = SampleList(samples)
-            self._samples[task].append(samples)
-        else:
-            for batch in samples:
-                if not isinstance(batch, SampleList):
-                    batch = SampleList(batch)
-                self._samples[task].append(batch)
-        while len(self._samples[task]) > MAX_SAMPLELISTS:
-            del self._samples[task][0]
-
-
-    def clear_samples(self, keep_prob=0., keep_opt_prob=1.):
-        for task in self.task_list:
-            n_keep = int(keep_prob * len(self._samples[task]))
-            self._samples[task] = random.sample(self._samples[task], n_keep)
-
-            n_opt_keep = int(keep_opt_prob * len(self.optimal_samples[task]))
-            self.optimal_samples[task] = random.sample(self.optimal_samples[task], n_opt_keep)
-        print 'Cleared samples. Remaining per task:'
-        for task in self.task_list:
-            print '    ', task, ': ', len(self._samples[task]), ' standard; ', len(self.optimal_samples[task]), 'optimal'
-
-
-    def reset_sample_refs(self):
-        for task in self.task_list:
-            for batch in self._samples[task]:
-                for sample in batch:
-                    sample.set_ref_X(np.zeros((sample.T, self.symbolic_bound)))
-                    sample.set_ref_U(np.zeros((sample.T, self.dU)))
-
-
-    def add_task_paths(self, paths):
-        self.task_paths.extend(paths)
-        while len(self.task_paths) > MAX_TASK_PATHS:
-            del self.task_paths[0]
-
-
-    def get_task_paths(self):
-        return copy.copy(self.task_paths)
-
-
-    def clear_task_paths(self, keep_prob=0.):
-        n_keep = int(keep_prob * len(self.task_paths))
-        self.task_paths = random.sample(self.task_paths, n_keep)
-
-
-    def reset_hist(self, hist=[]):
-        if not len(hist):
-            hist = np.zeros((self.hist_len, self.dU)).tolist()
-        self.traj_hist = hist
-
-
-    def get_hist(self):
-        return copy.deepcopy(self.traj_hist)
-
-
-
-    def save_free(self, plan):
-        old_params_free = {}
-        for p in plan.params.itervalues():
-            p_attrs = {}
-            old_params_free[p.name] = p_attrs
-            for attr in p._free_attrs:
-                p_attrs[attr] = p._free_attrs[attr].copy()
-        self.saved_params_free = old_params_free
-
-
-    def restore_free(self, plan):
-        for p in self.saved_params_free:
-            for attr in self.saved_params_free[p]:
-                plan.params[p]._free_attrs[attr] = self.saved_params_free[p][attr].copy()
-
-
-    def sample(self, policy, condition, save_global=False, verbose=False, noisy=False):
-        raise NotImplementedError
-
-
+class NAMOSortingAgent(TAMPAgent):
     def sample_task(self, policy, condition, x0, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True):
         task = tuple(task)
         plan = self.plans[task[:2]]
@@ -205,7 +65,7 @@ class NAMOSortingAgent(Agent):
             getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
 
         base_t = 0
-        self.T = plan.horizon
+        self.T = plan.horizon - 1
         sample = Sample(self)
         sample.init_t = 0
 
@@ -229,8 +89,9 @@ class NAMOSortingAgent(Agent):
             fill_vector(plan.params, plan.state_inds, X, t)
 
             sample.set(STATE_ENUM, X.copy(), t)
-            if OBS_ENUM in self._hyperparams['obs_include']:
-                sample.set(OBS_ENUM, im.copy(), t)
+            if LIDAR_ENUM in self._hyperparams['obs_include']:
+                lidar = self.dist_obs(plan, t)
+                sample.set(LIDAR_ENUM, lidar.flatten(), t)
             sample.set(NOISE_ENUM, noise[t], t)
             # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
             task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
@@ -247,8 +108,9 @@ class NAMOSortingAgent(Agent):
             sample.targ_ind = self.targ_list.index(task[2])
             sample.set(OBJ_ENUM, obj_vec, t)
             sample.set(TARG_ENUM, targ_vec, t)
-            sample.set(OBJ_POSE_ENUM, self.state_inds[task[1], 'pose'], t)
+            sample.set(OBJ_POSE_ENUM, X[self.state_inds[task[1], 'pose']].copy(), t)
             sample.set(TARG_POSE_ENUM, self.targets[condition][task[2]].copy(), t)
+            sample.set(EE_ENUM, X[self.state_inds['pr2', 'pose']], t)
             sample.task = task[0]
             sample.obj = task[1]
             sample.targ = task[2]
@@ -299,20 +161,50 @@ class NAMOSortingAgent(Agent):
             self.n_policy_calls[policy] += 1
         # print 'Called policy {0} times.'.format(self.n_policy_calls[policy])
 
+        X = np.zeros((plan.symbolic_bound))
+        fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
+        sample.end_state = X
         return sample
 
 
-    def resample(self, sample_lists, policy, num_samples):
-        samples = []
-        for slist in sample_lists:
-            if hasattr(slist, '__len__') and not len(slist): continue
-            samples.append([])
-            for i in range(num_samples):
-                s = slist[0] if hasattr(slist, '__getitem__') else slist
-                # self.reset_hist(s.get(TRAJ_HIST_ENUM, t=0).reshape((self.hist_len, 3)).tolist())
-                samples[-1].append(self.sample_task(policy, s.condition, s.get_X(t=0), (s.task, s.obj, s.targ), noisy=True))
-            samples[-1] = SampleList(samples[-1])
-        return samples
+    def dist_obs(self, plan, t):
+        pr2 = plan.params['pr2']
+        n_dirs = self.n_dirs
+        obs = 1e1*np.ones(n_dirs)
+        angles = 2 * np.array(range(n_dirs), dtype='float32') / n_dirs
+        pr2.openrave_body.set_pose(pr2.pose[:,t])
+
+        for p_name in plan.params:
+            p = plan.params[p_name]
+            if p.is_symbol() or p is pr2: continue
+            p.openrave_body.set_pose(p.pose[:,t])
+            collisions = self._cc.BodyVsBody(pr2.openrave_body.env_body, 
+                                             p.openrave_body.env_body)
+            for i, c in enumerate(collisions):
+                linkA = c.GetLinkAParentName()
+                linkB = c.GetLinkBParentName()
+
+                if linkA == 'pr2' and linkB == p.name:
+                    pt0 = c.GetPtA()
+                    pt1 = c.GetPtB()
+                elif linkB == 'pr2' and linkA == p.name:
+                    pt0 = c.GetPtB()
+                    pt1 = c.GetPtA()
+                else:
+                    continue
+
+                distance = c.GetDistance()
+                normal = c.GetNormal()
+
+                # assert np.abs(np.linalg.norm(normal) - 1) < 1e-3
+                angle = np.arccos(normal[0])
+                if normal[1] < 0:
+                    angle = 2*np.pi - angle
+                closest_angle = np.argmin(np.abs(angles - angle))
+                if distance < obs[closest_angle]:
+                    obs[closest_angle] = distance
+
+        return obs
 
 
     def run_policy_step(self, u, x, plan, t, obj):
@@ -336,38 +228,6 @@ class NAMOSortingAgent(Agent):
                         param.pose[:, t+1] = param.pose[:, t]
 
         return True
-
-
-    def set_nonopt_attrs(self, plan, task):
-        plan.dX, plan.dU, plan.symbolic_bound = self.dX, self.dU, self.symbolic_bound
-        plan.state_inds, plan.action_inds = self.state_inds, self.action_inds
-
-
-    def sample_optimal_trajectory(self, state, task, condition, opt_traj=[], traj_mean=[], fixed_targets=[]):
-        if not len(opt_traj):
-            return self.solve_sample_opt_traj(state, task, condition, traj_mean, fixed_targets)
-
-        exclude_targets = []
-        opt_disp_traj = np.zeros_like(opt_traj)
-        for t in range(0, len(opt_traj)-1):
-            opt_disp_traj[t] = opt_traj[t+1] - opt_traj[t]
-
-        if len(fixed_targets):
-            targets = fixed_targets
-            obj = fixed_targets[0]
-            targ = fixed_targets[1]
-        else:
-            task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
-            obj = self.plans.values()[0].params[self.obj_list[np.argmax(obj_distr)]]
-            targ = self.plans.values()[0].params[self.targ_list[np.argmax(targ_distr)]]
-            targets = [obj, targ]
-            # targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
-
-        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_disp_traj), condition, state, [task, targets[0].name, targets[1].name], noisy=False, fixed_obj=True)
-        self.optimal_samples[task].append(sample)
-        sample.set_ref_X(sample.get(STATE_ENUM))
-        sample.set_ref_U(sample.get_U())
-        return sample
 
 
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], fixed_targets=[]):
@@ -492,14 +352,6 @@ class NAMOSortingAgent(Agent):
         return sample, failed_preds, success
 
 
-    def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
-        return self._get_hl_plan(state, self.targets[condition], '{0}{1}'.format(condition, plan_id), self.plans.values()[0].params, self.state_inds, failed_preds)
-
-
-    def update_targets(self, targets, condition):
-        self.targets[condition] = targets
-
-
     def get_sample_constr_cost(self, sample):
         obj = self.plans.values()[0].params[self.obj_list[np.argmax(sample.get(OBJ_ENUM, t=0))]]
         targ = self.plans.values()[0].params[self.targ_list[np.argmax(sample.get(TARG_ENUM, t=0))]]
@@ -523,20 +375,3 @@ class NAMOSortingAgent(Agent):
         plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
 
         return check_constr_violation(plan)
-
-
-    def replace_conditions(self, conditions, keep=(0.2, 0.5)):
-        self.targets = []
-        for i in range(conditions):
-            self.targets.append(get_end_targets(self.num_cans))
-        self.init_vecs = get_random_initial_state_vec(self.num_cans, self.targets, self.dX, self.state_inds, conditions)
-        self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
-        self.target_vecs = []
-        for condition in range(len(self.x0)):
-            target_vec = np.zeros((self.target_dim,))
-            for target_name in self.targets[condition]:
-                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-            self.target_vecs.append(target_vec)
-
-        if keep != (1., 1.):
-            self.clear_samples(*keep)

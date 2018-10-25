@@ -150,11 +150,14 @@ class OpenRAVEBody(object):
             dof_value_map: A dict that maps robot attribute name to a list of corresponding values
         """
         # make sure only sets dof for robot
-        assert isinstance(self._geom, Robot)
+        # assert isinstance(self._geom, Robot)
+        if not isinstance(self._geom, Robot): return
+
         # Get current dof value for each joint
         dof_val = self.env_body.GetActiveDOFValues()
 
         for k, v in dof_value_map.iteritems():
+            if k not in self._geom.dof_map[k]: continue
             inds = self._geom.dof_map[k]
             dof_val[inds] = v
         # Set new DOF value to the robot
@@ -255,7 +258,7 @@ class OpenRAVEBody(object):
             box_info = OpenRAVEBody.create_body_info(component_type, dims, wall_color)
             box_info._t = transform
             box_infos.append(box_info)
-        wall = RaveCreateRobot(env, '')
+        wall = RaveCreateKinBody(env, '')
         wall.InitFromGeometries(box_infos)
         return wall
 

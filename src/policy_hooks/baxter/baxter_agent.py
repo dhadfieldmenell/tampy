@@ -33,121 +33,10 @@ from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.baxter.pick_place_prob import *
+from policy_hooks.tam_agent import TAMPAgent
 
 
-class BaxterSortingAgent(Agent):
-    def __init__(self, hyperparams):
-        Agent.__init__(self, hyperparams)
-        # Note: All plans should contain identical sets of parameters
-        self.plans = self._hyperparams['plans']
-        self.task_list = self._hyperparams['task_list']
-        self.task_durations = self._hyperparams['task_durations']
-        self.task_encoding = self._hyperparams['task_encoding']
-        # self._samples = [{task:[] for task in self.task_encoding.keys()} for _ in range(self._hyperparams['conditions'])]
-        self._samples = {task: [] for task in self.task_list}
-        self.state_inds = self._hyperparams['state_inds']
-        self.action_inds = self._hyperparams['action_inds']
-        self.dX = self._hyperparams['dX']
-        self.dU = self._hyperparams['dU']
-        self.symbolic_bound = self._hyperparams['symbolic_bound']
-        self.solver = self._hyperparams['solver']
-        self.num_cans = self._hyperparams['num_cans']
-        self.init_vecs = self._hyperparams['x0']
-        self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
-        self.targets = self._hyperparams['targets']
-        self.target_dim = self._hyperparams['target_dim']
-        self.target_inds = self._hyperparams['target_inds']
-        self.target_vecs = []
-        for condition in range(len(self.x0)):
-            target_vec = np.zeros((self.target_dim,))
-            for target_name in self.targets[condition]:
-                if (target_name, 'value') in self.target_inds:
-                    target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-            self.target_vecs.append(target_vec)
-        self.targ_list = self.targets[0].keys()
-        self.obj_list = self._hyperparams['obj_list']
-
-        self._get_hl_plan = self._hyperparams['get_hl_plan']
-        self.env = self._hyperparams['env']
-        self.openrave_bodies = self._hyperparams['openrave_bodies']
-
-        self.current_cond = 0
-        self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
-        self.initial_opt = True
-        self.stochastic_conditions = self._hyperparams['stochastic_conditions']
-
-        self.hist_len = self._hyperparams['hist_len']
-        self.traj_hist = None
-        self.reset_hist()
-
-        self.optimal_samples = {task: [] for task in self.task_list}
-        self.optimal_state_traj = [[] for _ in range(len(self.plans))]
-        self.optimal_act_traj = [[] for _ in range(len(self.plans))]
-
-        self.task_paths = []
-
-        self.get_plan = self._hyperparams['get_plan']
-
-        self.in_left_grip = -1
-        self.in_right_grip = -1
-
-
-    def get_samples(self, task):
-        samples = []
-        for batch in self._samples[task]:
-            samples.append(SampleList(batch))
-
-        return samples
-        
-
-    def add_sample_batch(self, samples, task):
-        self._samples[task].append(samples)
-
-
-    def clear_samples(self, keep_prob=0., keep_opt_prob=1.):
-        for task in self.task_list:
-            n_keep = int(keep_prob * len(self._samples[task]))
-            self._samples[task] = random.sample(self._samples[task], n_keep)
-
-            n_opt_keep = int(keep_opt_prob * len(self.optimal_samples[task]))
-            self.optimal_samples[task] = random.sample(self.optimal_samples[task], n_opt_keep)
-
-
-    def reset_sample_refs(self):
-        for task in self.task_list:
-            for batch in self._samples[task]:
-                for sample in batch:
-                    sample.set_ref_X(np.zeros((sample.T, self.symbolic_bound)))
-                    sample.set_ref_U(np.zeros((sample.T, self.dU)))
-
-
-    def add_task_paths(self, paths):
-        self.task_paths.extend(paths)
-
-
-    def get_task_paths(self):
-        return copy.copy(self.task_paths)
-
-
-    def clear_task_paths(self, keep_prob=0.):
-        n_keep = int(keep_prob * len(self.task_paths))
-        self.task_paths = random.sample(self.task_paths, n_keep)
-
-
-    def reset_hist(self, hist=[]):
-        if not len(hist):
-            hist = np.zeros((self.hist_len, self.dU)).tolist()
-        self.traj_hist = hist
-
-
-    def get_hist(self):
-        return copy.deepcopy(self.traj_hist)
-
-
-    def sample(self, policy, condition, save_global=False, verbose=False, noisy=False):
-        raise NotImplementedError
-
-
+class BaxterSortingAgent(TAMPAgent):
     def sample_task(self, policy, condition, x0, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True):
         task = tuple(task)
         plan = self.plans[task[:2]]
@@ -218,18 +107,10 @@ class BaxterSortingAgent(Agent):
 
             self.run_policy_step(U, X, self.plans[task[:2]], t)
 
+        X = np.zeros((plan.symbolic_bound))
+        fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
+        sample.end_state = X
         return sample
-
-
-    def resample(self, sample_lists, policy, num_samples):
-        samples = []
-        for slist in sample_lists:
-            s = slist[0]
-            samples.append([])
-            for i in range(num_samples):
-                samples[-1].append(self.sample_task(policy, s.condition, s.get_X(t=0), (s.task, s.obj, s.targ)))
-            samples[-1] = SampleList(samples[-1])
-        return samples
 
 
     def run_policy_step(self, u, x, plan, t):
@@ -311,7 +192,7 @@ class BaxterSortingAgent(Agent):
         plan.state_inds, plan.action_inds = self.state_inds, self.action_inds
 
 
-    def sample_optimal_trajectory(self, state, task, condition, traj_mean=[], fixed_targets=[]):
+    def solve_sample_optimal_traj(self, state, task, condition, traj_mean=[], fixed_targets=[]):
         exclude_targets = []
         success = False
 
@@ -440,14 +321,6 @@ class BaxterSortingAgent(Agent):
         sample = self.sample_task(optimal_pol(), condition, state, [task, targets[0].name, targets[1].name], noisy=False)
         self.optimal_samples[task].append(sample)
         return sample, failed_preds, success
-
-
-    def get_hl_plan(self, state, condition, failed_preds):
-        return self._get_hl_plan(state, self.targets[condition], self.plans.values()[0].params, self.state_inds, failed_preds)
-
-
-    def update_targets(self, targets, condition):
-        self.targets[condition] = targets
 
 
     def get_sample_constr_cost(self, sample):

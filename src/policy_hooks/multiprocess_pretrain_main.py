@@ -23,6 +23,7 @@ from gps.algorithm.cost.cost_sum import CostSum
 
 from gps.algorithm.cost.cost_utils import *
 
+from core.util_classes.viewer import OpenRAVEViewer
 from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
@@ -57,7 +58,6 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
     last_reset = 0
     while not stop and attempt < 4 * trainer.config['num_objs']:
         last_reset += 1
-        old_cur_state = cur_state
         for step in hl_plan:
             print 'Current hl plan for '+str(cond)+ ': ', opt_hl_plan
             targets = [trainer.agent.plans.values()[0].params[p_name] for p_name in step[1]]
@@ -90,7 +90,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
 
             cur_path.append(next_sample)
             cur_sample = next_sample
-            cur_state = cur_sample.get_X(t=cur_sample.T-1).copy()
+            cur_state = cur_sample.end_state.copy()
             opt_hl_plan.append(step)
 
         if trainer.config['goal_f'](cur_state, trainer.agent.targets[cond], trainer.agent.plans.values()[0]) == 0:
@@ -101,6 +101,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
         attempt += 1
 
     paths.append(cur_path)
+    print 'Final hl plan for '+str(cond)+ ': ', opt_hl_plan
     return [cur_path, init_samples]
 
 
@@ -171,6 +172,8 @@ class MultiProcessPretrainMain(object):
             utils.TARG_ENUM: len(targets[0].keys()),
             utils.OBJ_POSE_ENUM: 2,
             utils.TARG_POSE_ENUM: 2,
+            utils.LIDAR_ENUM: self.config['n_dirs'],
+            utils.EE_ENUM: 2,
         }
 
         self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name] 
@@ -202,14 +205,9 @@ class MultiProcessPretrainMain(object):
             'target_dim': self.target_dim,
             'get_plan': prob.get_plan,
             'sensor_dims': sensor_dims,
-            'state_include': [utils.STATE_ENUM],
-            'obs_include': [utils.STATE_ENUM,
-                            utils.TARGETS_ENUM,
-                            utils.TASK_ENUM,
-                            utils.OBJ_POSE_ENUM,
-                            utils.TARG_POSE_ENUM],
-            'prim_obs_include': [utils.STATE_ENUM,
-                                 utils.TARGETS_ENUM],
+            'state_include': self.config['state_include'],
+            'obs_include': self.config['obs_include'],
+            'prim_obs_include': self.config['prim_obs_include'],
             'conditions': self.config['num_conds'],
             'solver': None,
             'num_cans': num_objs,
@@ -220,11 +218,14 @@ class MultiProcessPretrainMain(object):
             'image_channels': utils.IM_C,
             'hist_len': self.config['hist_len'],
             'T': 1,
-            'viewer': None,
+            'viewer': config['viewer'],
             'model': None,
             'get_hl_plan': prob.hl_plan_for_state,
             'env': env,
             'openrave_bodies': openrave_bodies,
+            'n_dirs': self.config['n_dirs'],
+            'prob': prob,
+            'attr_map': self.config['attr_map'],
         }
 
         self.config['algorithm']['dObj'] = sensor_dims[utils.OBJ_ENUM]
@@ -394,8 +395,16 @@ class MultiProcessPretrainMain(object):
 
 
     def run(self, itr_load=None):
+        self.check_dirs()
         self.pretrain()
         self.policy_opt.sess.close()
+
+
+    def check_dirs(self):
+        if not os.path.exists('tf_saved/'+self.config['weight_dir']):
+            os.makedirs('tf_saved/'+self.config['weight_dir'])
+        if not os.path.exists('tf_saved/'+self.config['weight_dir']+'_trained'):
+            os.makedirs('tf_saved/'+self.config['weight_dir']+'_trained')
 
 
     def pretrain(self):
@@ -406,7 +415,7 @@ class MultiProcessPretrainMain(object):
 
         if self.config['log_timing']:
             with open(self.time_log, 'a+') as f:
-                f.write('\n\nPretraining data for {0}:\n'.formate(datetime.now()))
+                f.write('\n\nPretraining data for {0}:\n'.format(datetime.now()))
 
         for pretrain_step in range(self.config['pretrain_steps']):
             print '\n\nPretrain step {0}\n\n'.format(pretrain_step)

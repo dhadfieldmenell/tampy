@@ -73,7 +73,8 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             self.set_conditions(len(all_opt_samples))
             for m in range(len(self.cur)):
                 self.cur[m].sample_list = all_opt_samples[m]
-
+                
+            self.T = all_opt_samples[0][0].T
             self._update_policy_no_cost()
             return all_opt_samples
 

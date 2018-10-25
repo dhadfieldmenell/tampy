@@ -20,7 +20,7 @@ dmove = 5e-1
 contact_dist = 1e-2
 
 RS_SCALE = 0.5
-N_DIGS = 3
+N_DIGS = 5
 
 
 ATTRMAP = {
@@ -69,7 +69,8 @@ class CollisionPredicate(ExprPredicate):
         if time < 0:
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
-            return self.neg_expr.eval(self.get_param_vector(time), tol=tol, negated = (not negated))
+            result = self.neg_expr.eval(self.get_param_vector(time), tol=tol, negated = (not negated))
+            return result
         except IndexError:
             ## this happens with an invalid time
             raise PredicateException("Out of range time for predicate '%s'."%self)
@@ -85,8 +86,8 @@ class CollisionPredicate(ExprPredicate):
     # @profile
     def distance_from_obj(self, x):
         flattened = tuple(x.round(N_DIGS).flatten())
-        if flattened in self._cache and self._debug is False:
-            return self._cache[flattened]
+        # if flattened in self._cache and self._debug is False:
+        #     return self._cache[flattened]
         self._cc.SetContactDistance(np.Inf)
         p0 = self.params[self.ind0]
         p1 = self.params[self.ind1]
@@ -101,11 +102,14 @@ class CollisionPredicate(ExprPredicate):
 
         collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
 
+        # if p1.name == 'obs0':
+        #     print b1.env_body.GetLinks()[0].GetCollisionData().vertices
+
         col_val, jac01 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
         # val = np.array([col_val])
         val = col_val
         jac = jac01
-        self._cache[flattened] = (val.copy(), jac.copy())
+        # self._cache[flattened] = (val.copy(), jac.copy())
         return val, jac
 
 
@@ -376,7 +380,7 @@ class RCollides(CollisionPredicate):
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e-1
+        neg_coeff = 1e2
         neg_grad_coeff = 1e-3
 
         ## so we have an expr for the negated predicate
@@ -429,7 +433,7 @@ class Obstructs(CollisionPredicate):
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e-1
+        neg_coeff = 1e2
         neg_grad_coeff = 1e-3
         ## so we have an expr for the negated predicate
         f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
@@ -589,9 +593,11 @@ class ObstructsHolding(CollisionPredicate):
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
 
+        neg_coeff = 1e2
+        neg_grad_coeff = 1e-3
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.distance_from_obj(x)[0]
-        grad_neg = lambda x: self.distance_from_obj(x)[1]
+        f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
+        grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))

@@ -43,7 +43,7 @@ def get_base_solver(parent_class):
             self.config = None
             self.gps = None
             self.transfer_coeff = 1e0
-            self.weak_transfer_coeff = 1e-2
+            self.strong_transfer_coeff = 1e2
             self.rs_coeff = 2e2
             self.trajopt_coeff = 1e2
             self.policy_pred = None
@@ -377,86 +377,6 @@ def get_base_solver(parent_class):
             return transfer_objs
 
 
-        def _policy_output_opt(self, plan, (i, j, k), start_t, end_t):
-            transfer_objs = []
-            if not hasattr(self, 'agent'):
-                return []
-
-            T = end_t-start_t+1
-            pol_f = self.policy_fs[(i, j, k)]
-            pol_out = np.zeros((T, self.dU))
-            self.agent.T = T
-            sample = Sample(self.agent)
-            state = np.zeros((T, self.symbolic_bound))
-            act = np.zeros((T, self.dU))
-            for p_name, a_name in self.state_inds:
-                p = plan.params[p_name]
-                if p.is_symbol(): continue
-                state[:, self.state_inds[p_name, a_name]] = getattr(p, a_name)[:, start_t:end_t+1]
-            for p_name, a_name in self.action_inds:
-                p = plan.params[p_name]
-                if p.is_symbol(): continue
-                act[:, self.action_inds[p_name, a_name]] = getattr(p, a_name)[:, start_t:end_t+1]
-            hist_len = self.agent.hist_len
-            target_vec = np.zeros(self.agent.target_vecs[0].shape)
-            for p_name, a_name in self.target_inds:
-                param = plan.params[p_name]
-                target_vec[self.target_inds[p_name, a_name]] = getattr(param, a_name).flatten()
-            for t in range(start_t, end_t+1):
-                sample.set(STATE_ENUM, state[t], t-start_t)
-                task_vec = np.zeros((len(self.agent.task_list)))
-                task_vec[i] = 1
-                obj_vec = np.zeros((len(self.agent.obj_list)))
-                obj_vec[j] = 1
-                targ_vec = np.zeros((len(self.agent.targ_list)))
-                targ_vec[k] = 1
-                traj_hist = np.zeros((hist_len, self.dU))
-                for sub_t in range(t-hist_len, t):
-                    if sub_t < 0:
-                        continue
-                    traj_hist[sub_t-t-hist_len, :] = act[sub_t]
-                sample.set(TASK_ENUM, task_vec, t-start_t)
-                sample.set(OBJ_ENUM, obj_vec, t-start_t)
-                sample.set(TARG_ENUM, targ_vec, t-start_t)
-                sample.set(OBJ_POSE_ENUM, state[t][plan.state_inds[self.agent.obj_list[j], 'pose']], t-start_t)
-                sample.set(TARG_POSE_ENUM, plan.params[self.agent.targ_list[k]].value[:,0].copy(), t-start_t)
-                sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
-                sample.set(TARGETS_ENUM, target_vec, t-start_t)
-                sample.set(ACTION_ENUM, act[t-start_t], t-start_t)
-                pol_out[t-start_t] = pol_f(sample)
-
-            for param_name, attr_name in self.action_inds:
-                param = plan.params[param_name]
-                attr_type = param.get_attr_type(attr_name)
-                param_ll = self._param_to_ll[param]
-                T = end_t - start_t + 1
-                attr_val = pol_out[:, self.action_inds[(param_name, attr_name)]].T
-                K = attr_type.dim
-
-                KT = K*T
-                v = -1 * np.ones((KT - K, 1))
-                d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-                # [:,0] allows numpy to see v and d as one-dimensional so
-                # that numpy will create a diagonal matrix with v and d as a diagonal
-                P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-                # P = np.eye(KT)
-                Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-                cur_val = attr_val.reshape((KT, 1), order='F')
-                A = -2 * cur_val.T.dot(Q)
-                b = cur_val.T.dot(Q.dot(cur_val))
-                policy_out_coeff = self.policy_out_coeff / T
-
-                # QuadExpr is 0.5*x^Tx + Ax + b
-                quad_expr = QuadExpr(2*policy_out_coeff*Q,
-                                     policy_out_coeff*A, policy_out_coeff*b)
-                ll_attr_val = getattr(param_ll, attr_name)
-                param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-                sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-                bexpr = BoundExpr(quad_expr, sco_var)
-                transfer_objs.append(bexpr)
-            return transfer_objs
-
-
         def _policy_inference_obj(self, plan, (i, j, k), start_t, end_t):
             transfer_objs = []
             if not hasattr(self, 'gps'):
@@ -502,7 +422,11 @@ def get_base_solver(parent_class):
                 sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
                 sample.set(TARGETS_ENUM, target_vec, t-start_t)
                 sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)
-            pol_mu, pol_sig, pol_cov, pol_det_sig  = pol_f(sample.get_obs(), sample.get(STATE_ENUM, t=0))
+                if LIDAR_ENUM in self.agent._hyperparams['obs_include']:
+                    lidar = self.agent.dist_obs(plan, t)
+                    sample.set(LIDAR_ENUM, lidar.flatten(), t-start_t)
+
+            pol_mu, pol_sig, pol_cov, pol_det_sig = pol_f(sample.get_obs(), sample.get(STATE_ENUM, t=0))
 
             for param_name, attr_name in self.action_inds:
                 param = plan.params[param_name]
@@ -595,7 +519,7 @@ def get_base_solver(parent_class):
                 self._bexpr_to_pred = {}
                 obj_bexprs = []
                 if self.transfer_always:
-                    obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm, coeff=self.weak_transfer_coeff))
+                    obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm, coeff=self.strong_transfer_coeff))
                 else:
                     obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
 

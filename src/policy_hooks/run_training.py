@@ -25,6 +25,8 @@ def load_config(args, reload_module=None):
     config['mcts_server'] = args.mcts_server or args.all_servers
     config['mp_server'] = args.mp_server or args.all_servers
     config['pol_server'] = args.policy_server or args.all_servers
+    config['pretrain_steps'] = args.pretrain_steps if args.pretrain_steps > 0 else config['pretrain_steps']
+    config['viewer'] = args.viewer
 
     return config, config_module
 
@@ -44,6 +46,8 @@ def main():
     parser.add_argument('-mp', '--mp_server', action='store_true', default=False)
     parser.add_argument('-pol', '--policy_server', action='store_true', default=False)
     parser.add_argument('-all', '--all_servers', action='store_true', default=False)
+    parser.add_argument('-ps', '--pretrain_steps', type=int, default=0)
+    parser.add_argument('-v', '--viewer', action='store_true', default=False)
 
     args = parser.parse_args()
     config, config_module = load_config(args)

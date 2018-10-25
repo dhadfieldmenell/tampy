@@ -111,6 +111,8 @@ class MultiProcessMain(object):
             utils.TARG_ENUM: len(targets[0].keys()),
             utils.OBJ_POSE_ENUM: 2,
             utils.TARG_POSE_ENUM: 2,
+            utils.LIDAR_ENUM: self.config['n_dirs'],
+            utils.EE_ENUM: 2,
         }
 
         self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name] 
@@ -142,14 +144,9 @@ class MultiProcessMain(object):
             'target_dim': self.target_dim,
             'get_plan': prob.get_plan,
             'sensor_dims': sensor_dims,
-            'state_include': [utils.STATE_ENUM],
-            'obs_include': [utils.STATE_ENUM,
-                            utils.TARGETS_ENUM,
-                            utils.TASK_ENUM,
-                            utils.OBJ_POSE_ENUM,
-                            utils.TARG_POSE_ENUM],
-            'prim_obs_include': [utils.STATE_ENUM,
-                                 utils.TARGETS_ENUM],
+            'state_include': self.config['state_include'],
+            'obs_include': self.config['obs_include'],
+            'prim_obs_include': self.config['prim_obs_include'],
             'conditions': self.config['num_conds'],
             'solver': None,
             'num_cans': num_objs,
@@ -160,11 +157,14 @@ class MultiProcessMain(object):
             'image_channels': utils.IM_C,
             'hist_len': self.config['hist_len'],
             'T': 1,
-            'viewer': None,
+            'viewer': config['viewer'],
             'model': None,
             'get_hl_plan': prob.hl_plan_for_state,
             'env': env,
             'openrave_bodies': openrave_bodies,
+            'n_dirs': self.config['n_dirs'],
+            'prob': prob,
+            'attr_map': self.config['attr_map'],
         }
 
         self.config['algorithm']['dObj'] = sensor_dims[utils.OBJ_ENUM]
@@ -428,7 +428,14 @@ class MultiProcessMain(object):
         for p in self.processes:
             if p.is_alive(): p.terminate()
 
+    def check_dirs(self):
+        if not os.path.exists('tf_saved/'+self.config['weight_dir']):
+            os.makedirs('tf_saved/'+self.config['weight_dir'])
+        if not os.path.exists('tf_saved/'+self.config['weight_dir']+'_trained'):
+            os.makedirs('tf_saved/'+self.config['weight_dir']+'_trained')
+
     def start(self, kill_all=False):
+        self.check_dirs()
         if self.config['log_timing']:
             with open(self.config['time_log'], 'a+') as f:
                 f.write('\n\n\n\n\nTiming info for {0}:'.format(datetime.now()))
