@@ -177,7 +177,7 @@ class MCTS:
                 print "Finished Rollout {0} for condition {1}.\n".format(n, self.condition)
                 if len(next_path):
                     end = next_path[-1]
-                    new_opt_value = self._goal_f(end.get_X(t=end.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0])
+                    new_opt_value = self._goal_f(end.end_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
                     if new_opt_value == 0: paths.append(next_path)
                     opt_val = np.minimum(new_opt_value, opt_val)
         else:
@@ -195,11 +195,11 @@ class MCTS:
                 if next_sample == None:
                     break
                 cur_sample = next_sample
-                cur_state = cur_sample.get_X(t=cur_sample.T-1)
+                cur_state = cur_sample.end_state
                 paths[0].append(cur_sample)
 
             if cur_sample != None: 
-                opt_val = self._goal_f(cur_sample.get_X(t=cur_sample.T-1), self.agent.targets[self.condition], self.agent.plans.values()[0])
+                opt_val = self._goal_f(cur_sample.end_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
                 for path in paths:
                     for sample in path:
                         sample.task_cost = opt_val
@@ -379,7 +379,7 @@ class MCTS:
 
         if save:
             self.agent.add_sample_batch(samples, task)
-        cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
+        cur_state = lowest_cost_sample.end_state
         self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
         return lowest_cost_sample, cur_state

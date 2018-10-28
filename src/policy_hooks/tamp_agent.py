@@ -97,6 +97,8 @@ class TAMPAgent(Agent):
         self.openrave_bodies = self._hyperparams['openrave_bodies']
         if self._hyperparams['viewer']:
             self.viewer = OpenRAVEViewer(self.env)
+        else:
+            self.viewer = None
 
         self.current_cond = 0
         self.cond_global_pol_sample = [None for _ in  range(len(self.x0))] # Samples from the current global policy for each condition
@@ -119,6 +121,10 @@ class TAMPAgent(Agent):
         self.n_policy_calls = {}
         self._cc = ctrajoptpy.GetCollisionChecker(self.plans.values()[0].env)
         self.n_dirs = self._hyperparams['n_dirs']
+
+
+    def add_viewer(self):
+        self.viewer = OpenRAVEViewer(self.env)
 
 
     def get_samples(self, task):
@@ -268,7 +274,7 @@ class TAMPAgent(Agent):
             for i in range(num_samples):
                 s = slist[0] if hasattr(slist, '__getitem__') else slist
                 # self.reset_hist(s.get(TRAJ_HIST_ENUM, t=0).reshape((self.hist_len, 3)).tolist())
-                samples[-1].append(self.sample_task(policy, s.condition, s.get_X(t=0), (s.task, s.obj, s.targ), noisy=True))
+                samples[-1].append(self.sample_task(policy, s.condition, s.get(STATE_ENUM, t=0), (s.task, s.obj, s.targ), noisy=True))
             samples[-1] = SampleList(samples[-1])
         return samples
 
@@ -320,6 +326,22 @@ class TAMPAgent(Agent):
         raise NotImplementedError
 
 
+    def perturb_solve(self, sample, perturb_var=0.02):
+        x0 = sample.get(STATE_ENUM, t=0)
+        cond = sample.condition
+        for obj in self.obj_list:
+            obj_p = self.plans.values()[0].params[obj]
+            if obj_p._type == 'Robot': continue
+            x0[self.state_inds[obj, 'pose']] += np.random.normal(0, perturb_var, obj_p.pose.shape[0])
+        old_targets = sample.get(TARGETS_ENUM, t=0)
+        for target_name in self.targets[cond]:
+            old_value = old_targets[self.target_inds[target_name, 'value']]
+            self.targets[cond][target_name] = old_value + np.random.normal(0, perturb_var, old_value.shape)
+            self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
+        target_params = [self.plans.values()[0].params[sample.obj], self.plans.values()[0].params[sample.targ]]
+        return self.solve_sample_opt_traj(x0, sample.task, sample.condition, sample.get_U(), target_params)
+
+
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
         return self._get_hl_plan(state, self.targets[condition], '{0}{1}'.format(condition, plan_id), self.plans.values()[0].params, self.state_inds, failed_preds)
 
@@ -348,3 +370,25 @@ class TAMPAgent(Agent):
 
         if keep != (1., 1.):
             self.clear_samples(*keep)
+
+
+    def perturb_conditions(self, perturb_var=0.02):
+        self.perturb_init_states(perturb_var)
+        self.perturb_targets(perturb_var)
+
+
+    def perturb_init_states(self, perturb_var=0.02):
+        for c in range(len(self.x0)):
+            x0 = self.x0[c]
+            for obj in self.obj_list:
+                obj_p = self.plans.values()[0].params[obj]
+                if obj.is_symbol() or obj._type == 'Robot': continue
+                x0[self.state_inds[obj, 'pose']] += np.random.normal(0, perturb_var, obj_p.pose.shape[0])
+
+
+    def perturb_targets(self, perturb_var=0.02):
+        for c in range(len(self.x0)):
+            for target_name in self.targets[c]:
+                target_p = self.plans.values()[0].params[target_name]
+                self.targets[c][target_name] += np.random.normal(0, perturb_var, target_p.value.shape[0])
+                self.target_vecs[c][self.target_inds[target_name, 'value']] = self.targets[c][target_name]

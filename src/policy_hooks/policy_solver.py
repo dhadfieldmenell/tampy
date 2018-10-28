@@ -9,14 +9,12 @@ from sco.prob import Prob
 from sco.solver import Solver
 from sco.variable import Variable
 
-# from gps.gps_main import GPSMain
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 # from gps.algorithm.cost.cost_state import CostState
 from gps.algorithm.cost.cost_sum import CostSum
 from gps.algorithm.cost.cost_utils import *
 
-from policy_hooks.multi_task_main import GPSMain
 from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils

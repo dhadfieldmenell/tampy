@@ -135,9 +135,13 @@ class NAMOSortingAgent(TAMPAgent):
             #     sample.use_ts[t] = 0
 
             if np.any(np.isnan(U)):
-                U[np.isnan(U)] = 0
+                print 'Replacing nan in action.'
+                U[np.isnan(U)] = 0.0
             if np.any(np.abs(U) == np.inf):
-                U[np.abs(U) == np.inf] = 0
+                print 'Replacing inf in action.'
+                U[np.abs(U) == np.inf] = 0.0
+            if np.all(np.abs(U) < 0.001):
+                sample.use_ts[t] = 0
             # robot_start = X[plan.state_inds['pr2', 'pose']]
             # robot_vec = U[plan.action_inds['pr2', 'pose']] - robot_start
             # if np.sum(np.abs(robot_vec)) != 0 and np.linalg.norm(robot_vec) < 0.005:
@@ -177,7 +181,10 @@ class NAMOSortingAgent(TAMPAgent):
         for p_name in plan.params:
             p = plan.params[p_name]
             if p.is_symbol() or p is pr2: continue
-            p.openrave_body.set_pose(p.pose[:,t])
+            if (p_name, 'pose') in self.state_inds:
+                p.openrave_body.set_pose(p.pose[:,t])
+            else:
+                p.openrave_body.set_pose(p.pose[:,0])
             collisions = self._cc.BodyVsBody(pr2.openrave_body.env_body, 
                                              p.openrave_body.env_body)
             for i, c in enumerate(collisions):

@@ -19,6 +19,7 @@ import tensorflow as tf
 
 from roslaunch.core import RLException
 from roslaunch.parent import ROSLaunchParent
+import rospy
 
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy_opt.tf_model_example import tf_network
@@ -45,6 +46,7 @@ from policy_hooks.value_server import ValueServer
 from policy_hooks.primitive_server import PrimitiveServer
 from policy_hooks.policy_server import PolicyServer
 from policy_hooks.rollout_server import RolloutServer
+from policy_hooks.view_server import ViewServer
 
 
 def spawn_server(cls, hyperparams):
@@ -374,6 +376,8 @@ class MultiProcessMain(object):
             self.create_pol_servers(config)
         if self.config['mcts_server']:
             self.create_rollout_servers(config)
+        if self.config['view_server']:
+            self.create_view_server(config)
 
     def start_servers(self):
         for p in self.processes:
@@ -412,6 +416,17 @@ class MultiProcessMain(object):
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['id'] = n
             self.create_server(RolloutServer, new_hyperparams)
+
+    def create_view_server(self, hyperparams):
+        new_hyperparams = copy.copy(hyperparams)
+        try:
+            self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
+            self.roscore.start()
+        except RLException as e:
+            self.roscore = None
+        time.sleep(1)
+        spawn_server(ViewServer, new_hyperparams)
+        if self.roscore is not None: self.roscore.shutdown()
 
     def watch_processes(self, kill_all=False):
         exit = False

@@ -40,7 +40,7 @@ EXP_DIR = BASE_DIR + 'experiments/'
 NUM_OBJS = 4
 NUM_CONDS = 20
 NUM_PRETRAIN_STEPS = 20
-NUM_PRETRAIN_TRAJ_OPT_STEPS = 5
+NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
 N_SAMPLES = 20
 N_TRAJ_CENTERS = N_SAMPLES
@@ -180,8 +180,8 @@ config = {
     'train_iterations': 100000,
     'weight_decay': 0.00001,
     'batch_size': 1000,
-    'n_layers': 3,
-    'dim_hidden': [40, 40, 40],
+    'n_layers': 2,
+    'dim_hidden': [40, 40],
     'n_traj_centers': algorithm['n_traj_centers'],
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,

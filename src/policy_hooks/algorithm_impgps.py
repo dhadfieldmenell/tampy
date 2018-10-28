@@ -62,7 +62,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                         agent = sample.agent
                         obj = agent.plans.values()[0].params[sample.obj]
                         targ = agent.plans.values()[0].params[sample.targ]
-                        opt_sample, _, success = agent.sample_optimal_trajectory(sample.get_X(t=0), sample.task, sample.condition, traj_mean=sample.get(STATE_ENUM), fixed_targets=[obj, targ])
+                        opt_sample, _, success = agent.sample_optimal_trajectory(sample.get(STATE_ENUM, t=0), sample.task, sample.condition, traj_mean=sample.get(STATE_ENUM), fixed_targets=[obj, targ])
                         if success:
                             opt_samples.append(opt_sample)
                         else:
@@ -73,7 +73,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             self.set_conditions(len(all_opt_samples))
             for m in range(len(self.cur)):
                 self.cur[m].sample_list = all_opt_samples[m]
-                
+
             self.T = all_opt_samples[0][0].T
             self._update_policy_no_cost()
             return all_opt_samples

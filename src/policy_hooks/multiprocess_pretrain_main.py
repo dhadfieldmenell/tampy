@@ -40,7 +40,7 @@ from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
 
 
-def solve_condition(trainer, cond, paths=[], init_samples=[]):
+def solve_condition(trainer, cond, paths=[], all_samples=[], all_successful_samples=[]):
     failed = []
     new_failed = []
     stop = False
@@ -65,7 +65,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
             if len(targets) < 2:
                 targets.append(plan.params['{0}_end_target'.format(targets[0].name)])
             next_sample, new_failed, success = trainer.agent.sample_optimal_trajectory(cur_state, step[0], cond, fixed_targets=targets)
-            init_samples.append(next_sample)
+            all_samples.append(next_sample)
             next_sample.success = FAIL_LABEL
             if not success:
                 if last_reset > 5:
@@ -89,6 +89,7 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
                 break
 
             cur_path.append(next_sample)
+            all_successful_samples.append(next_sample)
             cur_sample = next_sample
             cur_state = cur_sample.end_state.copy()
             opt_hl_plan.append(step)
@@ -102,7 +103,16 @@ def solve_condition(trainer, cond, paths=[], init_samples=[]):
 
     paths.append(cur_path)
     print 'Final hl plan for '+str(cond)+ ': ', opt_hl_plan
-    return [cur_path, init_samples]
+    return [cur_path, all_samples, all_successful_samples]
+
+
+def resolve(sample, all_samples, trainer, n=1):
+    new_samples = []
+    for _ in range(n):
+        new_sample, _, success = trainer.agent.perturb_solve(sample)
+        if success: all_samples.append(new_sample)
+        new_samples.append(new_sample)
+    return new_samples
 
 
 class MultiProcessPretrainMain(object):
@@ -411,6 +421,7 @@ class MultiProcessPretrainMain(object):
         manager = Manager()
         sample_paths = manager.list()
         all_samples = manager.list()
+        all_successful_samples = manager.list()
         cpu_times = []
 
         if self.config['log_timing']:
@@ -420,23 +431,15 @@ class MultiProcessPretrainMain(object):
         for pretrain_step in range(self.config['pretrain_steps']):
             print '\n\nPretrain step {0}\n\n'.format(pretrain_step)
             self.agent.replace_conditions(len(self.agent.x0), keep=(1., 1.))
-            hl_plans = [[] for _ in range(len(self._train_idx))]
-            paths = []
+            start_len = len(all_successful_samples)
 
             start_time = time.time()
             processes = []
             for cond in self._train_idx:
-                process = Process(target=solve_condition, args=(self, cond, sample_paths, all_samples))
+                process = Process(target=solve_condition, args=(self, cond, sample_paths, all_samples, all_successful_samples))
                 process.daemon = True
                 process.start()
                 processes.append(process)
-
-            # for process in processes:
-            #     process.join(self.pretrain_timeout)
-
-            # for process in processes:
-            #     if process.is_alive():
-            #         process.terminate()
 
             base_t = time.time()
             while time.time() - base_t < self.pretrain_timeout:
@@ -451,8 +454,36 @@ class MultiProcessPretrainMain(object):
                     p.terminate()
                     p.join()
 
-            end_time = time.time()
-            cpu_times.append(end_time-start_time)
+            end_len = len(all_successful_samples)
+
+            # Resolve with perturbations
+            iters = max(min((end_len-start_len) / 16, 5), 1)
+            n_perturbs = 5
+            for _ in range(iters):
+                processes = []
+                n_samples = min(len(all_successful_samples[start_len:end_len]), 16)
+                to_resolve = np.random.choice(all_successful_samples[start_len:], n_samples, replace=False)
+                for sample in to_resolve:
+                    process = Process(target=resolve, args=(sample, all_successful_samples, self, n_perturbs))
+                    process.daemon = True
+                    process.start()
+                    processes.append(process)
+
+                base_t = time.time()
+                while time.time() - base_t < self.pretrain_timeout:
+                    if any(p.is_alive() for p in processes):
+                        time.sleep(0.1)
+                    else:
+                        break
+                else:
+                    print '\n\nTerminating perturb step early.'
+                    print 'Active processes: {0}\n\n'.format([p.pid for p in processes if p.is_alive()])
+                    for p in processes:
+                        p.terminate()
+                        p.join()
+
+                end_time = time.time()
+                cpu_times.append(end_time-start_time)
 
         if self.config['log_timing']:
             with open(self.time_log, 'a') as f:
@@ -463,10 +494,9 @@ class MultiProcessPretrainMain(object):
         print 'Collected pretraining data. Moving to supervised learning step.'
         task_to_samples = {task: [] for task in self.task_list}       
         opt_samples = {task: [] for task in self.task_list}
-        for path in sample_paths:
-            for sample in path:
-                sample.agent = self.agent
-                opt_samples[sample.task].append((sample, []))
+        for sample in all_successful_samples:
+            sample.agent = self.agent
+            opt_samples[sample.task].append((sample, []))
 
         cpu_times = []
         traj_opt_steps = self.config['pretrain_traj_opt_steps']
@@ -482,7 +512,8 @@ class MultiProcessPretrainMain(object):
                 try:
                     task_to_samples[task] = self.alg_map[task].iteration(task_to_samples[task], opt_samples[task], reset=not i)
                     if len(task_to_samples[task]) and i < traj_opt_steps - 1:
-                        task_to_samples[task] = self.agent.resample(task_to_samples[task], policy, self._hyperparams['num_samples'])
+                        task_to_samples[task] = self.agent.resample(task_to_samples[task], policy, self.config['num_samples'])
+                        opt_samples[task] = []
                 except:
                     traceback.print_exception(*sys.exc_info())
 
@@ -512,6 +543,8 @@ class MultiProcessPretrainMain(object):
                 f.write('Time to update value and primitive network and store weights: ')
                 f.write(str(end_time-start_time))
                 f.close()
+
+        import ipdb; ipdb.set_trace()
 
 
     def update_primitives(self, samples):
@@ -558,3 +591,32 @@ class MultiProcessPretrainMain(object):
 
         if len(tgt_mu):
             self.policy_opt.update_value(obs_data, tgt_mu, tgt_prc, tgt_wt)
+
+
+    def sample_current_policies(self, state, cond=0, task=None):
+        if task is None:
+            sample = Sample(self.agent)
+            sample.set(STATE_ENUM, state.copy(), 0)
+            sample.set(TARGETS_ENUM, self.agent.target_vecs[cond].copy(), 0)
+            obs = sample.get_prim_obs(t=0)
+            task_distr, obj_distr, targ_distr = self.policy_opt.task_distr(obs)
+            task_ind, obj_ind, targ_ind = np.argmax(task_distr), np.argmax(obj_distr), np.argmax(targ_distr)
+        else:
+            task_ind, obj_ind, targ_ind = task
+
+        task = self.agent.task_list[task_ind]
+        obj = self.agent.obj_list[obj_ind]
+        targ = self.agent.targ_list[targ_ind]
+        print 'Executing {0} on {1} to {2}'.format(task, obj, targ)
+
+        policy = self.rollout_policies[task]
+        sample = self.agent.sample_task(policy, cond, state, (task, obj, targ), noisy=False)
+        return sample
+
+
+    def run_condition(self, cond, steps=5):
+        state = self.agent.x0[cond]
+        for _ in range(steps):
+            sample = self.sample_current_policies(state, cond)
+            self.agent.animate_sample(sample)
+            state = sample.end_state
