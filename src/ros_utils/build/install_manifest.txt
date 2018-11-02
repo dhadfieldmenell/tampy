@@ -9,6 +9,8 @@
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/tamp_ros/msg/PolicyUpdate.msg
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/tamp_ros/msg/MotionPlanProblem.msg
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/tamp_ros/msg/MotionPlanResult.msg
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/tamp_ros/msg/HLProblem.msg
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/tamp_ros/msg/HLPlanResult.msg
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/tamp_ros/srv/MotionPlan.srv
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/tamp_ros/srv/PolicyAct.srv
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/tamp_ros/srv/PolicyProb.srv
@@ -34,10 +36,14 @@
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/include/tamp_ros/PolicyProbResponse.h
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/include/tamp_ros/QValueRequest.h
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/include/tamp_ros/PlanResult.h
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/include/tamp_ros/HLPlanResult.h
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/include/tamp_ros/HLProblem.h
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/include/tamp_ros/PrimitiveRequest.h
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/include/tamp_ros/Primitive.h
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/msg/PlanProb.l
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/msg/HLPlanResult.l
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/msg/FloatArray.l
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/msg/HLProblem.l
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/msg/MotionPlanResult.l
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/msg/MotionPlanProblem.l
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/msg/PolicyUpdate.l
@@ -49,8 +55,10 @@
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/srv/QValue.l
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/roseus/ros/tamp_ros/srv/PolicyAct.l
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/_package_MotionPlanProblem.lisp
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/_package_HLPlanResult.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/_package_MotionPlanResult.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/_package_PlanResult.lisp
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/HLPlanResult.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/MotionPlanResult.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/FloatArray.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/PlanResult.lisp
@@ -60,6 +68,8 @@
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/PlanProb.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/_package_PolicyUpdate.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/_package_PlanProb.lisp
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/_package_HLProblem.lisp
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/HLProblem.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/tamp_ros-msg.asd
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/msg/_package_FloatArray.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/srv/PolicyProb.lisp
@@ -75,11 +85,13 @@
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/srv/_package_MotionPlan.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/common-lisp/ros/tamp_ros/srv/_package_Primitive.lisp
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/MotionPlanResult.js
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/HLProblem.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/FloatArray.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/PlanProb.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/PolicyUpdate.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/MotionPlanProblem.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/PlanResult.js
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/HLPlanResult.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/msg/_index.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/srv/PolicyAct.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/srv/PolicyProb.js
@@ -90,7 +102,10 @@
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/share/gennodejs/ros/tamp_ros/_index.js
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/__init__.pyc
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_PlanProb.py
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_HLProblem.pyc
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_HLProblem.py
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/__init__.pyc
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_HLPlanResult.py
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_FloatArray.py
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanResult.py
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_PlanProb.pyc
@@ -100,6 +115,7 @@
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyUpdate.py
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_PlanResult.pyc
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanProblem.pyc
+/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_HLPlanResult.pyc
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_FloatArray.pyc
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanProblem.py
 /home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyUpdate.pyc

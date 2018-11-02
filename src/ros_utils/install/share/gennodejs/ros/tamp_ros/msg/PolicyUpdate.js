@@ -24,6 +24,7 @@ class PolicyUpdate {
       this.wt = null;
       this.dO = null;
       this.dPrimObs = null;
+      this.dValObs = null;
       this.dU = null;
       this.n = null;
       this.rollout_len = null;
@@ -65,6 +66,12 @@ class PolicyUpdate {
       else {
         this.dPrimObs = 0;
       }
+      if (initObj.hasOwnProperty('dValObs')) {
+        this.dValObs = initObj.dValObs
+      }
+      else {
+        this.dValObs = 0;
+      }
       if (initObj.hasOwnProperty('dU')) {
         this.dU = initObj.dU
       }
@@ -100,6 +107,8 @@ class PolicyUpdate {
     bufferOffset = _serializer.int32(obj.dO, buffer, bufferOffset);
     // Serialize message field [dPrimObs]
     bufferOffset = _serializer.int32(obj.dPrimObs, buffer, bufferOffset);
+    // Serialize message field [dValObs]
+    bufferOffset = _serializer.int32(obj.dValObs, buffer, bufferOffset);
     // Serialize message field [dU]
     bufferOffset = _serializer.int32(obj.dU, buffer, bufferOffset);
     // Serialize message field [n]
@@ -125,6 +134,8 @@ class PolicyUpdate {
     data.dO = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [dPrimObs]
     data.dPrimObs = _deserializer.int32(buffer, bufferOffset);
+    // Deserialize message field [dValObs]
+    data.dValObs = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [dU]
     data.dU = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [n]
@@ -140,7 +151,7 @@ class PolicyUpdate {
     length += 4 * object.mu.length;
     length += 4 * object.prc.length;
     length += 4 * object.wt.length;
-    return length + 36;
+    return length + 40;
   }
 
   static datatype() {
@@ -150,7 +161,7 @@ class PolicyUpdate {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '74d9a9ad258b0d5854987033dafe686d';
+    return '1688550284fb9359a8dfabdfd917a70f';
   }
 
   static messageDefinition() {
@@ -163,6 +174,7 @@ class PolicyUpdate {
     
     int32 dO
     int32 dPrimObs
+    int32 dValObs
     int32 dU
     int32 n
     int32 rollout_len
@@ -216,6 +228,13 @@ class PolicyUpdate {
     }
     else {
       resolved.dPrimObs = 0
+    }
+
+    if (msg.dValObs !== undefined) {
+      resolved.dValObs = msg.dValObs;
+    }
+    else {
+      resolved.dValObs = 0
     }
 
     if (msg.dU !== undefined) {

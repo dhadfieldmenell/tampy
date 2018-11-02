@@ -5,6 +5,7 @@ float32[] wt
 
 int32 dO
 int32 dPrimObs
+int32 dValObs
 int32 dU
 int32 n
 int32 rollout_len

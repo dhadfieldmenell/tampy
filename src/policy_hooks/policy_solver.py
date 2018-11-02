@@ -85,7 +85,7 @@ def get_base_solver(parent_class):
             base_t = active_ts[0]
             if len(traj_mean):
                 self.transfer_always = True
-                for t in range(base_t, active_ts[1]):
+                for t in range(base_t, min(active_ts[1], len(traj_mean))):
                     for param_name, attr in plan.action_inds:
                         param = plan.params[param_name]
                         getattr(param, attr)[:, base_t+1] = traj_mean[t, plan.action_inds[param_name, attr]]

@@ -18,7 +18,7 @@ from gps.algorithm.policy_opt.tf_utils import TfSolver
 
 class MultiHeadPolicyOptTf(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
-    def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs):
+    def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs, dValObs):
         import tensorflow as tf
         self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
         # tf.reset_default_graph()
@@ -37,6 +37,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         self._dObj = dObj
         self._dTarg = dTarg
         self._dPrimObs = dPrimObs
+        self._dValObs = dValObs
         self.task_map = {}
         self.device_string = "/cpu:0"
         if self._hyperparams['use_gpu'] == 1:
@@ -99,6 +100,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
             else:
                 self.x_idx = self.x_idx + list(range(i, i+dim))
             i += dim
+
         self.prim_x_idx, self.prim_img_idx, i = [], [], 0
         for sensor in self._hyperparams['network_params']['prim_obs_include']:
             dim = self._hyperparams['network_params']['sensor_dims'][sensor]
@@ -106,6 +108,15 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 self.prim_img_idx = self.prim_img_idx + list(range(i, i+dim))
             else:
                 self.prim_x_idx = self.prim_x_idx + list(range(i, i+dim))
+            i += dim
+
+        self.val_x_idx, self.val_img_idx, i = [], [], 0
+        for sensor in self._hyperparams['network_params']['val_obs_include']:
+            dim = self._hyperparams['network_params']['sensor_dims'][sensor]
+            if sensor in self._hyperparams['network_params']['obs_image_data']:
+                self.val_img_idx = self.val_img_idx + list(range(i, i+dim))
+            else:
+                self.val_x_idx = self.val_x_idx + list(range(i, i+dim))
             i += dim
 
         self.update_count = 0
@@ -224,7 +235,8 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         if self.scope is None or 'value' == self.scope:
             with tf.variable_scope('value'):
                 tf_map_generator = self._hyperparams['value_network_model']
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=1, batch_size=self.batch_size,
+                dValObs = self._dValObs
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=dValObs, dim_output=1, batch_size=self.batch_size,
                                           network_config=self._hyperparams['network_params'])
                 self.value_obs_tensor = tf_map.get_input_tensor()
                 self.value_precision_tensor = tf_map.get_precision_tensor()
@@ -587,7 +599,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         """
         # print 'Updating value network...'
         N = obs.shape[0]
-        dP, dO = 2, self._dO
+        dP, dO = 2, self._dValObs
 
         # TODO - Make sure all weights are nonzero?
 

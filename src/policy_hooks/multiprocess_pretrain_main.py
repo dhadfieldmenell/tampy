@@ -7,6 +7,7 @@ import os
 import os.path
 import sys
 import copy
+import cPickle as pickle
 import argparse
 from datetime import datetime
 import threading
@@ -218,6 +219,7 @@ class MultiProcessPretrainMain(object):
             'state_include': self.config['state_include'],
             'obs_include': self.config['obs_include'],
             'prim_obs_include': self.config['prim_obs_include'],
+            'val_obs_include': self.config['val_obs_include'],
             'conditions': self.config['num_conds'],
             'solver': None,
             'num_cans': num_objs,
@@ -286,6 +288,7 @@ class MultiProcessPretrainMain(object):
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
                 'prim_obs_include': self.config['agent']['prim_obs_include'],
+                'val_obs_include': self.config['agent']['val_obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
                 'obs_image_data': [],
                 'image_width': utils.IM_W,
@@ -366,6 +369,7 @@ class MultiProcessPretrainMain(object):
         self.config['symbolic_bound'] = self.symbolic_bound
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
+        self.config['dValObs'] = self.agent.dVal
         self.config['dObj'] = self.config['algorithm'].values()[0]['dObj'] 
         self.config['dTarg'] = self.config['algorithm'].values()[0]['dTarg'] 
         self.config['state_inds'] = self.state_inds
@@ -544,6 +548,11 @@ class MultiProcessPretrainMain(object):
                 f.write(str(end_time-start_time))
                 f.close()
 
+        with open('tf_saved/'+self.config['weight_dir']+'/pretrain_path_samples.sl', 'w+') as f:
+            pickle.dump(path_samples, f)
+        with open('tf_saved/'+self.config['weight_dir']+'/pretrain_samples.sl', 'w+') as f:
+            pickle.dump(all_successful_samples, f)
+
         import ipdb; ipdb.set_trace()
 
 
@@ -571,7 +580,7 @@ class MultiProcessPretrainMain(object):
 
 
     def update_value_network(self, samples, first_ts_only=False):
-        dV, dO = 2, self.alg_map.values()[0].dO
+        dV, dO = 2, self.agent.dVal
 
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dV))
         tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
@@ -579,7 +588,7 @@ class MultiProcessPretrainMain(object):
             if not hasattr(sample, 'success'): continue
             sample.agent = self.agent
             for t in range(sample.T):
-                obs = [sample.get_obs(t=t)]
+                obs = [sample.get_val_obs(t=t)]
                 mu = [sample.success]
                 prc = [np.eye(dV)]
                 wt = [10. / (t+1)]

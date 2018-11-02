@@ -9,8 +9,9 @@ import sys
 import copy
 import argparse
 from datetime import datetime
-import threading
+from threading import Thread
 import pprint
+import sys
 import time
 import traceback
 
@@ -19,6 +20,7 @@ import tensorflow as tf
 
 from roslaunch.core import RLException
 from roslaunch.parent import ROSLaunchParent
+import rosgraph
 import rospy
 
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
@@ -149,6 +151,7 @@ class MultiProcessMain(object):
             'state_include': self.config['state_include'],
             'obs_include': self.config['obs_include'],
             'prim_obs_include': self.config['prim_obs_include'],
+            'val_obs_include': self.config['val_obs_include'],
             'conditions': self.config['num_conds'],
             'solver': None,
             'num_cans': num_objs,
@@ -217,6 +220,7 @@ class MultiProcessMain(object):
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
                 'prim_obs_include': self.config['agent']['prim_obs_include'],
+                'val_obs_include': self.config['agent']['val_obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
                 'obs_image_data': [],
                 'image_width': utils.IM_W,
@@ -342,7 +346,7 @@ class MultiProcessMain(object):
                                   self.config['num_samples'],
                                   self.config['num_distilled_samples'],
                                   soft_decision=1.0,
-                                  C=2.,
+                                  C=np.sqrt(2.),
                                   max_depth=self.config['max_tree_depth'],
                                   always_opt=False
                                   ))
@@ -355,6 +359,7 @@ class MultiProcessMain(object):
         self.config['symbolic_bound'] = self.symbolic_bound
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
+        self.config['dValObs'] = self.agent.dVal
         self.config['dObj'] = self.config['algorithm'].values()[0]['dObj'] 
         self.config['dTarg'] = self.config['algorithm'].values()[0]['dTarg'] 
         self.config['state_inds'] = self.state_inds
@@ -366,10 +371,11 @@ class MultiProcessMain(object):
         self.config['task_list'] = self.task_list
         self.config['time_log'] = 'tf_saved/'+self.config['weight_dir']+'/timing_info.txt'
 
-        self.spawn_servers(self.config)
+        self.roscore = None
 
     def spawn_servers(self, config):
         self.processes = []
+        self.threads = []
         if self.config['mp_server']:
             self.create_mp_servers(config)
         if self.config['pol_server']:
@@ -383,11 +389,19 @@ class MultiProcessMain(object):
         for p in self.processes:
             p.start()
             time.sleep(1)
+        for t in self.threads:
+            t.start()
 
-    def create_server(self, server_cls, hyperparams):
-        p = Process(target=spawn_server, args=(server_cls, hyperparams))
-        p.daemon = True
-        self.processes.append(p)
+
+    def create_server(self, server_cls, hyperparams, process=True):
+        if process:
+            p = Process(target=spawn_server, args=(server_cls, hyperparams))
+            p.daemon = True
+            self.processes.append(p)
+        else:
+            t = Thread(target=spawn_server, args=(server_cls, hyperparams))
+            t.daemon = True
+            self.threads.append(t)
 
     def create_mp_servers(self, hyperparams):
         for n in range(hyperparams['n_optimizers']):
@@ -419,14 +433,9 @@ class MultiProcessMain(object):
 
     def create_view_server(self, hyperparams):
         new_hyperparams = copy.copy(hyperparams)
-        try:
-            self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
-            self.roscore.start()
-        except RLException as e:
-            self.roscore = None
-        time.sleep(1)
         spawn_server(ViewServer, new_hyperparams)
         if self.roscore is not None: self.roscore.shutdown()
+        sys.exit(0)
 
     def watch_processes(self, kill_all=False):
         exit = False
@@ -449,17 +458,22 @@ class MultiProcessMain(object):
         if not os.path.exists('tf_saved/'+self.config['weight_dir']+'_trained'):
             os.makedirs('tf_saved/'+self.config['weight_dir']+'_trained')
 
+    def start_ros(self):
+        if self.roscore is not None or rosgraph.is_master_online(): return
+        try:
+            self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
+            self.roscore.start()
+        except RLException as e:
+            pass
+
     def start(self, kill_all=False):
         self.check_dirs()
         if self.config['log_timing']:
             with open(self.config['time_log'], 'a+') as f:
                 f.write('\n\n\n\n\nTiming info for {0}:'.format(datetime.now()))
-        try:
-            self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
-            self.roscore.start()
-        except RLException as e:
-            self.roscore = None
+        self.start_ros()
         time.sleep(1)
+        self.spawn_servers(self.config)
         self.start_servers()
         self.watch_processes(kill_all)
         if self.roscore is not None: self.roscore.shutdown()

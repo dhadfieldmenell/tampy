@@ -80,7 +80,7 @@ class NAMOSortingAgent(TAMPAgent):
         # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
 
         if noisy:
-            noise = 1e0 * generate_noise(self.T, self.dU, self._hyperparams)
+            noise = 5e0 * generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
 
@@ -175,7 +175,32 @@ class NAMOSortingAgent(TAMPAgent):
         pr2 = plan.params['pr2']
         n_dirs = self.n_dirs
         obs = 1e1*np.ones(n_dirs)
-        angles = 2 * np.array(range(n_dirs), dtype='float32') / n_dirs
+        angles = 2 * np.pi * np.array(range(n_dirs), dtype='float32') / n_dirs
+        rays = np.zeros((n_dirs, 6))
+        for i in range(n_dirs):
+            a = angles[i]
+            ray = np.array([np.cos(a), np.sin(a)])
+            rays[i, :2] = pr2.pose[:,t] + (pr2.geom.radius+0.01)*ray
+            rays[i, 3:5] = 100 * ray
+        pr2.openrave_body.set_pose(pr2.pose[:,t])
+
+        for p_name in plan.params:
+            p = plan.params[p_name]
+            if p.is_symbol() or p is pr2: continue
+            if (p_name, 'pose') in self.state_inds:
+                p.openrave_body.set_pose(p.pose[:,t])
+            else:
+                p.openrave_body.set_pose(p.pose[:,0])
+        is_hits, hits = self.env.CheckCollisionRays(rays, None)
+        dists = np.linalg.norm(hits[:,:3]-rays[:,:3], axis=1)
+        return dists
+
+
+    def trajopt_dist_obs(self, plan, t):
+        pr2 = plan.params['pr2']
+        n_dirs = self.n_dirs
+        obs = 1e1*np.ones(n_dirs)
+        angles = 2 * np.pi * np.array(range(n_dirs), dtype='float32') / n_dirs
         pr2.openrave_body.set_pose(pr2.pose[:,t])
 
         for p_name in plan.params:
@@ -210,6 +235,7 @@ class NAMOSortingAgent(TAMPAgent):
                 closest_angle = np.argmin(np.abs(angles - angle))
                 if distance < obs[closest_angle]:
                     obs[closest_angle] = distance
+
 
         return obs
 

@@ -22,7 +22,8 @@ class AlgorithmMDGPS(Algorithm):
     def __init__(self, hyperparams):
         config = copy.deepcopy(ALG_MDGPS)
         config.update(hyperparams)
-        self.dPrimObs  = hyperparams['agent'].dPrim
+        self.dPrimObs = hyperparams['agent'].dPrim
+        self.dValObs = hyperparams['agent'].dVal
         Algorithm.__init__(self, config)
 
         self.cur = []
@@ -33,7 +34,7 @@ class AlgorithmMDGPS(Algorithm):
         self.replace_conds = self._hyperparams['stochastic_conditions']
         if self._hyperparams['policy_opt']['prev'] is None:
             self.policy_opt = self._hyperparams['policy_opt']['type'](
-                self._hyperparams['policy_opt'], self.dO, self.dU, self.dObj, self.dTarg, self.dPrimObs
+                self._hyperparams['policy_opt'], self.dO, self.dU, self.dObj, self.dTarg, self.dPrimObs, self.dValObs
             )
         else:
             self.policy_opt = self._hyperparams['policy_opt']['prev']

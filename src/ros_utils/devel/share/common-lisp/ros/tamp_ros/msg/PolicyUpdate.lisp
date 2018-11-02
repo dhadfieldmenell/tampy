@@ -37,6 +37,11 @@
     :initarg :dPrimObs
     :type cl:integer
     :initform 0)
+   (dValObs
+    :reader dValObs
+    :initarg :dValObs
+    :type cl:integer
+    :initform 0)
    (dU
     :reader dU
     :initarg :dU
@@ -91,6 +96,11 @@
 (cl:defmethod dPrimObs-val ((m <PolicyUpdate>))
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader tamp_ros-msg:dPrimObs-val is deprecated.  Use tamp_ros-msg:dPrimObs instead.")
   (dPrimObs m))
+
+(cl:ensure-generic-function 'dValObs-val :lambda-list '(m))
+(cl:defmethod dValObs-val ((m <PolicyUpdate>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader tamp_ros-msg:dValObs-val is deprecated.  Use tamp_ros-msg:dValObs instead.")
+  (dValObs m))
 
 (cl:ensure-generic-function 'dU-val :lambda-list '(m))
 (cl:defmethod dU-val ((m <PolicyUpdate>))
@@ -159,6 +169,12 @@
     (cl:write-byte (cl:ldb (cl:byte 8 24) unsigned) ostream)
     )
   (cl:let* ((signed (cl:slot-value msg 'dPrimObs)) (unsigned (cl:if (cl:< signed 0) (cl:+ signed 4294967296) signed)))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) unsigned) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) unsigned) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) unsigned) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) unsigned) ostream)
+    )
+  (cl:let* ((signed (cl:slot-value msg 'dValObs)) (unsigned (cl:if (cl:< signed 0) (cl:+ signed 4294967296) signed)))
     (cl:write-byte (cl:ldb (cl:byte 8 0) unsigned) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) unsigned) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 16) unsigned) ostream)
@@ -258,6 +274,12 @@
       (cl:setf (cl:ldb (cl:byte 8 8) unsigned) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 16) unsigned) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 24) unsigned) (cl:read-byte istream))
+      (cl:setf (cl:slot-value msg 'dValObs) (cl:if (cl:< unsigned 2147483648) unsigned (cl:- unsigned 4294967296))))
+    (cl:let ((unsigned 0))
+      (cl:setf (cl:ldb (cl:byte 8 0) unsigned) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 8) unsigned) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 16) unsigned) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 24) unsigned) (cl:read-byte istream))
       (cl:setf (cl:slot-value msg 'dU) (cl:if (cl:< unsigned 2147483648) unsigned (cl:- unsigned 4294967296))))
     (cl:let ((unsigned 0))
       (cl:setf (cl:ldb (cl:byte 8 0) unsigned) (cl:read-byte istream))
@@ -281,22 +303,23 @@
   "tamp_ros/PolicyUpdate")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<PolicyUpdate>)))
   "Returns md5sum for a message object of type '<PolicyUpdate>"
-  "74d9a9ad258b0d5854987033dafe686d")
+  "1688550284fb9359a8dfabdfd917a70f")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'PolicyUpdate)))
   "Returns md5sum for a message object of type 'PolicyUpdate"
-  "74d9a9ad258b0d5854987033dafe686d")
+  "1688550284fb9359a8dfabdfd917a70f")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<PolicyUpdate>)))
   "Returns full string definition for message of type '<PolicyUpdate>"
-  (cl:format cl:nil "float32[] obs~%float32[] mu~%float32[] prc~%float32[] wt~%~%int32 dO~%int32 dPrimObs~%int32 dU~%int32 n~%int32 rollout_len~%~%~%"))
+  (cl:format cl:nil "float32[] obs~%float32[] mu~%float32[] prc~%float32[] wt~%~%int32 dO~%int32 dPrimObs~%int32 dValObs~%int32 dU~%int32 n~%int32 rollout_len~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'PolicyUpdate)))
   "Returns full string definition for message of type 'PolicyUpdate"
-  (cl:format cl:nil "float32[] obs~%float32[] mu~%float32[] prc~%float32[] wt~%~%int32 dO~%int32 dPrimObs~%int32 dU~%int32 n~%int32 rollout_len~%~%~%"))
+  (cl:format cl:nil "float32[] obs~%float32[] mu~%float32[] prc~%float32[] wt~%~%int32 dO~%int32 dPrimObs~%int32 dValObs~%int32 dU~%int32 n~%int32 rollout_len~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <PolicyUpdate>))
   (cl:+ 0
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'obs) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 4)))
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'mu) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 4)))
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'prc) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 4)))
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'wt) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 4)))
+     4
      4
      4
      4
@@ -312,6 +335,7 @@
     (cl:cons ':wt (wt msg))
     (cl:cons ':dO (dO msg))
     (cl:cons ':dPrimObs (dPrimObs msg))
+    (cl:cons ':dValObs (dValObs msg))
     (cl:cons ':dU (dU msg))
     (cl:cons ':n (n msg))
     (cl:cons ':rollout_len (rollout_len msg))

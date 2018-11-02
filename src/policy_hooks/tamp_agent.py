@@ -119,7 +119,10 @@ class TAMPAgent(Agent):
         self.move_limit = 1e-3
 
         self.n_policy_calls = {}
-        self._cc = ctrajoptpy.GetCollisionChecker(self.plans.values()[0].env)
+        self._cc = openravepy.RaveCreateCollisionChecker(self.env, "ode")
+        self._cc.SetCollisionOptions(openravepy.CollisionOptions.Contacts)
+        self.env.SetCollisionChecker(self._cc)
+        # self._cc = ctrajoptpy.GetCollisionChecker(self.env)
         self.n_dirs = self._hyperparams['n_dirs']
 
 
@@ -328,7 +331,9 @@ class TAMPAgent(Agent):
 
     def perturb_solve(self, sample, perturb_var=0.02):
         x0 = sample.get(STATE_ENUM, t=0)
+        saved_targets = {}
         cond = sample.condition
+        saved_target_vec = self.target_vecs[cond].copy()
         for obj in self.obj_list:
             obj_p = self.plans.values()[0].params[obj]
             if obj_p._type == 'Robot': continue
@@ -336,10 +341,15 @@ class TAMPAgent(Agent):
         old_targets = sample.get(TARGETS_ENUM, t=0)
         for target_name in self.targets[cond]:
             old_value = old_targets[self.target_inds[target_name, 'value']]
+            saved_targets[target_name] = old_value
             self.targets[cond][target_name] = old_value + np.random.normal(0, perturb_var, old_value.shape)
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
         target_params = [self.plans.values()[0].params[sample.obj], self.plans.values()[0].params[sample.targ]]
-        return self.solve_sample_opt_traj(x0, sample.task, sample.condition, sample.get_U(), target_params)
+        out = self.solve_sample_opt_traj(x0, sample.task, sample.condition, sample.get_U(), target_params)
+        for target_name in self.targets[cond]:
+            self.targets[cond][target_name] = saved_targets[target_name]
+        self.target_vecs[cond] = saved_target_vec
+        return out
 
 
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):

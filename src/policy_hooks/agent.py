@@ -31,6 +31,11 @@ class Agent(object):
         else:
             self.prim_obs_data_types = self.obs_data_types
 
+        if 'val_obs_include' in self._hyperparams:
+            self.val_obs_data_types = self._hyperparams['val_obs_include']
+        else:
+            self.val_obs_data_types = self.obs_data_types
+
         if 'meta_include' in self._hyperparams:
             self.meta_data_types = self._hyperparams['meta_include']
         else:
@@ -59,6 +64,13 @@ class Agent(object):
             i += dim
         self.dPrim = i
 
+        self._val_obs_idx, i = [], 0
+        for sensor in self.val_obs_data_types:
+            dim = self._hyperparams['sensor_dims'][sensor]
+            self._val_obs_idx.append(list(range(i, i+dim)))
+            i += dim
+        self.dVal = i
+
         # List of indices for each data type in meta data.
         self._meta_idx, i = [], 0
         for sensor in self.meta_data_types:
@@ -72,7 +84,9 @@ class Agent(object):
         self._obs_data_idx = {d: i for d, i in zip(self.obs_data_types,
                                                    self._obs_idx)}
         self._prim_obs_data_idx = {d: i for d, i in zip(self.prim_obs_data_types,
-                                                   self._prim_obs_idx)}
+                                                        self._prim_obs_idx)}
+        self._val_obs_data_idx = {d: i for d, i in zip(self.val_obs_data_types,
+                                                       self._val_obs_idx)}
         self._meta_data_idx = {d: i for d, i in zip(self.meta_data_types,
                                                    self._meta_idx)}
 
@@ -209,6 +223,47 @@ class Agent(object):
         for i in range(num_sensor):
             index[axes[i]] = slice(self._prim_obs_data_idx[data_types[i]][0],
                                    self._prim_obs_data_idx[data_types[i]][-1] + 1)
+        existing_mat[index] = data_to_insert
+
+    def pack_data_val_obs(self, existing_mat, data_to_insert, data_types,
+                      axes=None):
+        """
+        Update the observation matrix with new data.
+        Args:
+            existing_mat: Current observation matrix.
+            data_to_insert: New data to insert into the existing matrix.
+            data_types: Name of the sensors to insert data for.
+            axes: Which axes to insert data. Defaults to the last axes.
+        """
+        num_sensor = len(data_types)
+        if axes is None:
+            # If axes not specified, assume indexing on last dimensions.
+            axes = list(range(-1, -num_sensor - 1, -1))
+        else:
+            # Make sure number of sensors and axes are consistent.
+            if num_sensor != len(axes):
+                raise ValueError(
+                    'Length of sensors (%d) must equal length of axes (%d)',
+                    num_sensor, len(axes)
+                )
+
+        # Shape checks.
+        insert_shape = list(existing_mat.shape)
+        for i in range(num_sensor):
+            # Make sure to slice along X.
+            if existing_mat.shape[axes[i]] != self.dVal:
+                raise ValueError('Axes must be along an dX=%d dimensional axis',
+                                 self.dVal)
+            insert_shape[axes[i]] = len(self._val_obs_data_idx[data_types[i]])
+        if tuple(insert_shape) != data_to_insert.shape:
+            raise ValueError('Data has shape %s. Expected %s',
+                             data_to_insert.shape, tuple(insert_shape))
+
+        # Actually perform the slice.
+        index = [slice(None) for _ in range(len(existing_mat.shape))]
+        for i in range(num_sensor):
+            index[axes[i]] = slice(self._val_obs_data_idx[data_types[i]][0],
+                                   self._val_obs_data_idx[data_types[i]][-1] + 1)
         existing_mat[index] = data_to_insert
 
     def pack_data_meta(self, existing_mat, data_to_insert, data_types,

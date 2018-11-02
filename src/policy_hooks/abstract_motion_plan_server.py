@@ -28,6 +28,7 @@ class AbstractMotionPlanServer(object):
 
     def __init__(self, hyperparams):
         self.id =  hyperparams['id']
+        self.config = hyperparams
         rospy.init_node(hyperparams['domain']+'_mp_solver_'+str(self.id))
         self.task_list = hyperparams['task_list']
         plans = {}
@@ -47,6 +48,7 @@ class AbstractMotionPlanServer(object):
         self.solver.policy_opt = DummyPolicyOpt(self.prob)
         self.agent = hyperparams['agent']
         self.solver.agent = self.agent
+        self.agent.solver = self.solver
         self.weight_dir = hyperparams['weight_dir']
         self.solver.policy_inf_fs = {}
         for i in range(len(self.task_list)):
@@ -58,8 +60,11 @@ class AbstractMotionPlanServer(object):
         self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
         self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
+        self.hl_publishers = {i: rospy.Publisher('hl_result_'+str(i), HLPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=10)
+        self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=10)
         self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**20)
+        self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets)
         self.stop = rospy.Subscriber('terminate', String, self.end)
 
         self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
@@ -73,8 +78,10 @@ class AbstractMotionPlanServer(object):
                 hyperparams['dU'],
                 hyperparams['dObj'],
                 hyperparams['dTarg'],
-                hyperparams['dPrimObs']
+                hyperparams['dPrimObs'],
+                hyperparams['dValObs']
             )
+        self.perturb_steps = hyperparams['perturb_steps']
 
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
@@ -96,6 +103,10 @@ class AbstractMotionPlanServer(object):
     def store_weights(self, msg):
         if self.use_local:
             self.policy_opt.deserialize_weights(msg.data)
+
+
+    def update_targets(self, msg):
+        raise NotImplementedError()
 
 
     def prob(self, obs, init_state, task):
@@ -137,10 +148,12 @@ class AbstractMotionPlanServer(object):
         cond = msg.cond
         mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
         targets = [msg.obj, msg.targ]
-        out, failed, success = self.sample_optimal_trajectory(state, task_tuple, cond, mean, targets)
+        targets = [self.agent.plans.values()[0].params[p_name] for p_name in targets]
+        sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, targets)
         failed = str(failed)
         resp = MotionPlanResult()
         resp.traj = []
+        out = sample.get(STATE_ENUM)
         for t in range(len(out)):
             next_line = Float32MultiArray()
             next_line.data = out[t]
@@ -153,6 +166,109 @@ class AbstractMotionPlanServer(object):
         resp.obj = msg.obj
         resp.targ = msg.targ
         self.mp_publishers[msg.server_id].publish(resp)
+
+        if success:
+            for _ in range(self.perturb_steps):
+                out, failed, success = self.agent.perturb_solve(sample)
+                failed = str(failed)
+                resp = MotionPlanResult()
+                resp.traj = []
+                out = sample.get(STATE_ENUM)
+                for t in range(len(out)):
+                    next_line = Float32MultiArray()
+                    next_line.data = out[t]
+                    resp.traj.append(next_line)
+                resp.failed = failed
+                resp.success = success
+                resp.plan_id = msg.prob_id
+                resp.cond = msg.cond
+                resp.task = msg.task
+                resp.obj = msg.obj
+                resp.targ = msg.targ
+                self.mp_publishers[msg.server_id].publish(resp)
+
+
+    def publish_hl_plan(self, msg):
+        if msg.solver_id != self.id: return
+        paths = []
+        failed = []
+        new_failed = []
+        stop = False
+        attempt = 0
+        cur_sample = None
+        cond = msg.cond
+        opt_hl_plan = []
+        cur_path = []
+        cur_state = np.array(msg.init_state)
+
+        try:
+            hl_plan = self.agent.get_hl_plan(cur_state, cond, failed)
+        except:
+            hl_plan = []
+
+        last_reset = 0
+        while not stop and attempt < 4 * len(self.agent.obj_list):
+            last_reset += 1
+            for step in hl_plan:
+                targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
+                plan = self.config['plan_f'](step[0], targets)
+                if len(targets) < 2:
+                    targets.append(plan.params['{0}_end_target'.format(targets[0].name)])
+                next_sample, new_failed, success = self.agent.solve_sample_opt_traj(cur_state, step[0], cond, fixed_targets=targets)
+                next_sample.success = FAIL_LABEL
+                if not success:
+                    if last_reset > 5:
+                        failed = []
+                        last_reset = 0
+                    next_sample.success = FAIL_LABEL
+                    if not len(new_failed):
+                        stop = True
+                    else:
+                        failed.extend(new_failed)
+                        try:
+                            hl_plan = self.agent.get_hl_plan(cur_state, cond, failed)
+                        except:
+                            hl_plan = []
+                        # attempt += 1
+                    break
+
+                cur_path.append(next_sample)
+                cur_sample = next_sample
+                cur_state = cur_sample.end_state.copy()
+                opt_hl_plan.append(step)
+
+            if self.config['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans.values()[0]) == 0:
+                for sample in cur_path:
+                    sample.success = SUCCESS_LABEL
+                break
+
+            attempt += 1
+
+        resp = HLPlanResult()
+        steps = []
+        for sample in cur_path:
+            mp_step = MotionPlanResult()
+
+            mp_step.traj = []
+            out = sample.get(STATE_ENUM)
+            for t in range(len(out)):
+                next_line = Float32MultiArray()
+                next_line.data = out[t]
+                mp_step.traj.append(next_line)
+            mp_step.failed = ''
+            mp_step.success = True
+            mp_step.plan_id = -1
+            mp_step.cond = msg.cond
+            mp_step.task = sample.task
+            mp_step.obj = sample.obj
+            mp_step.targ = sample.targ
+
+            steps.append(mp_step)
+        resp.steps = steps
+        resp.path_to = msg.path_to
+        resp.success = len(cur_path) and cur_path[0].success == SUCCESS_LABEL
+        resp.cond = msg.cond
+        self.hl_publishers[msg.server_id].publish(resp)
 
 
     def serve_motion_plan(self, req):
@@ -176,6 +292,7 @@ class AbstractMotionPlanServer(object):
         variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
         saver = tf.train.Saver(variables)
         saver.restore(self.policy_opt.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
+
 
     @abstractmethod
     def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[], fixed_targets=[]):

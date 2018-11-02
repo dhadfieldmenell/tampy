@@ -6,6 +6,7 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.widgets import Button, TextBox
+from matplotlib.text import Text
 
 from numba import cuda
 import rospy
@@ -38,7 +39,6 @@ class ViewServer(object):
         self.task_list = self.agent.task_list
         self.stopped = False
         self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**20)
-        self.stop = rospy.Subscriber('terminate', String, self.end)
 
         self.policy_proxies = {task: rospy.ServiceProxy(task+'_policy_act', PolicyAct, persistent=True) for task in self.task_list}
         self.value_proxy = rospy.ServiceProxy('qvalue', QValue, persistent=True)
@@ -54,12 +54,15 @@ class ViewServer(object):
                 hyperparams['dU'],
                 hyperparams['dObj'],
                 hyperparams['dTarg'],
-                hyperparams['dPrimObs']
+                hyperparams['dPrimObs'],
+                hyperparams['dValObs']
             )
             self.rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
 
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
+
+        self.stopped = False
 
 
     def gen_controls(self):
@@ -72,17 +75,23 @@ class ViewServer(object):
         self.axes1  = plt.axes([0.1, 0.5, 0.25, 0.05])
         self.cur_condition = 0
         self.cur_condition_text = self.full_axes.text(0.1, 0.4, 'Current condition: {0}'.format(self.cur_condition))
-        self.b_run_cond = Button(self.axes1, "Run current condition.", color='Green')
-        self.b_run_cond.on_clicked(self.run_condition)
+        self.b_run_cond = Button(self.axes1, "Run current condition", color='Green')
+        self.b_run_cond.on_clicked(self.start_run_thread)
         self.axes2  = plt.axes([0.2, 0.6, 0.075, 0.05])
         self.t_choose_cond = TextBox(self.axes2, 'Condition: ')
         self.t_choose_cond.on_text_change(self.update_condition)
+        self.axes3  = plt.axes([0.1, 0.45, 0.25, 0.05])
+        self.b_stop = Button(self.axes3, "Stop", color='Red')
+        self.b_stop.on_clicked(self.set_stop)
+        self.axes4  = plt.axes([0.9, 0.9, 0.1, 0.1])
+        self.b_exit = Button(self.axes4, 'Exit', color='0.5')
+        self.b_exit.label.color = 'White'
+        self.b_exit.on_clicked(self.exit)
         plt.show()
 
 
-    def end(self, msg):
+    def set_stop(self, event):
         self.stopped = True
-        rospy.signal_shutdown('Received signal to terminate.')
 
 
     def store_weights(self, msg):
@@ -189,7 +198,13 @@ class ViewServer(object):
         return sample
 
 
-    def run_condition(self, event):
+    def start_run_thread(self, event):
+        run_thread = Thread(target=self.run_condition)
+        run_thread.daemon = True
+        run_thread.start()
+
+
+    def run_condition(self):
         steps = 5 
         cond = self.cur_condition
         if cond not in range(len(self.agent.x0)):
@@ -198,13 +213,20 @@ class ViewServer(object):
 
         state = self.agent.x0[cond]
         for _ in range(steps):
+            if self.stopped: break
             sample = self.sample_current_policies(state, cond)
             self.agent.animate_sample(sample)
             state = sample.end_state
+        self.stopped = False
 
  
     def run(self):
         ctrl_thread = Thread(target=self.gen_controls)
         ctrl_thread.daemon = True
         ctrl_thread.start()
-        rospy.spin()
+        while ctrl_thread.is_alive():
+            time.sleep(0.1)
+
+
+    def exit(self, event):
+        sys.exit(0)

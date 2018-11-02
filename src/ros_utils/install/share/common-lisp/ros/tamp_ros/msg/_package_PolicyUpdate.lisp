@@ -11,6 +11,8 @@
           DO
           DPRIMOBS-VAL
           DPRIMOBS
+          DVALOBS-VAL
+          DVALOBS
           DU-VAL
           DU
           N-VAL

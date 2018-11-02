@@ -426,9 +426,11 @@ tamp_ros/clean: tamp_ros/CMakeFiles/rosgraph_msgs_generate_messages_py.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/std_msgs_generate_messages_py.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/roscpp_generate_messages_lisp.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/std_msgs_generate_messages_eus.dir/clean
+tamp_ros/clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/std_msgs_generate_messages_lisp.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyAct.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanResult.dir/clean
+tamp_ros/clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanProblem.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_Primitive.dir/clean
 tamp_ros/clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyProb.dir/clean
@@ -452,7 +454,7 @@ tamp_ros/CMakeFiles/tamp_ros_genpy.dir/all: tamp_ros/CMakeFiles/tamp_ros_generat
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_genpy.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 12
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 14
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_genpy.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_genpy.dir/rule
@@ -482,19 +484,21 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyUpdate.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/std_msgs_generate_messages_py.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyAct.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanResult.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_Primitive.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyProb.dir/all
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/depend
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=53,54,55,56,57,58,59,60,61,62,63,64 "Built target tamp_ros_generate_messages_py"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=61,62,63,64,65,66,67,68,69,70,71,72,73,74 "Built target tamp_ros_generate_messages_py"
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 12
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 14
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_py.dir/rule
@@ -526,7 +530,7 @@ tamp_ros/CMakeFiles/tamp_ros_gennodejs.dir/all: tamp_ros/CMakeFiles/tamp_ros_gen
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_gennodejs.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 12
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_gennodejs.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_gennodejs.dir/rule
@@ -556,19 +560,21 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFil
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyUpdate.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/std_msgs_generate_messages_nodejs.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyAct.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanResult.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_Primitive.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyProb.dir/all
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/depend
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=43,44,45,46,47,48,49,50,51,52 "Built target tamp_ros_generate_messages_nodejs"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=49,50,51,52,53,54,55,56,57,58,59,60 "Built target tamp_ros_generate_messages_nodejs"
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 12
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs.dir/rule
@@ -597,20 +603,22 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_QValue.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyUpdate.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/std_msgs_generate_messages_lisp.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyAct.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanResult.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_Primitive.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyProb.dir/all
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/depend
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=33,34,35,36,37,38,39,40,41,42 "Built target tamp_ros_generate_messages_lisp"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=37,38,39,40,41,42,43,44,45,46,47,48 "Built target tamp_ros_generate_messages_lisp"
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 12
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_lisp.dir/rule
@@ -642,7 +650,7 @@ tamp_ros/CMakeFiles/tamp_ros_geneus.dir/all: tamp_ros/CMakeFiles/tamp_ros_genera
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_geneus.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 13
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_geneus.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_geneus.dir/rule
@@ -672,19 +680,21 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyUpdate.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/std_msgs_generate_messages_eus.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyAct.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanResult.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_Primitive.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyProb.dir/all
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/depend
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=22,23,24,25,26,27,28,29,30,31,32 "Built target tamp_ros_generate_messages_eus"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=24,25,26,27,28,29,30,31,32,33,34,35,36 "Built target tamp_ros_generate_messages_eus"
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 13
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus.dir/rule
@@ -714,19 +724,21 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/std_msgs_generate_messages_cpp.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyUpdate.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyAct.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanResult.dir/all
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanProblem.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_Primitive.dir/all
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyProb.dir/all
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/depend
 	$(MAKE) -f tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/build.make tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=12,13,14,15,16,17,18,19,20,21 "Built target tamp_ros_generate_messages_cpp"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num=12,13,14,15,16,17,18,19,20,21,22,23 "Built target tamp_ros_generate_messages_cpp"
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 12
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp.dir/rule
@@ -854,7 +866,7 @@ tamp_ros/CMakeFiles/tamp_ros_gencpp.dir/all: tamp_ros/CMakeFiles/tamp_ros_genera
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_gencpp.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 12
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_gencpp.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_gencpp.dir/rule
@@ -927,7 +939,7 @@ all: tamp_ros/CMakeFiles/tamp_ros_generate_messages.dir/all
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_generate_messages.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 53
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 63
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_generate_messages.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_generate_messages.dir/rule
@@ -1055,7 +1067,7 @@ tamp_ros/CMakeFiles/tamp_ros_genlisp.dir/all: tamp_ros/CMakeFiles/tamp_ros_gener
 
 # Build rule for subdir invocation for target.
 tamp_ros/CMakeFiles/tamp_ros_genlisp.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 12
 	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/tamp_ros_genlisp.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
 .PHONY : tamp_ros/CMakeFiles/tamp_ros_genlisp.dir/rule
@@ -1492,6 +1504,38 @@ clean: tamp_ros/CMakeFiles/std_msgs_generate_messages_eus.dir/clean
 .PHONY : clean
 
 #=============================================================================
+# Target rules for target tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir
+
+# All Build rule for target.
+tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/all:
+	$(MAKE) -f tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/build.make tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/depend
+	$(MAKE) -f tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/build.make tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num= "Built target _tamp_ros_generate_messages_check_deps_HLProblem"
+.PHONY : tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/all
+
+# Build rule for subdir invocation for target.
+tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
+	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
+.PHONY : tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/rule
+
+# Convenience name for target.
+_tamp_ros_generate_messages_check_deps_HLProblem: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/rule
+
+.PHONY : _tamp_ros_generate_messages_check_deps_HLProblem
+
+# clean rule for target.
+tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/clean:
+	$(MAKE) -f tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/build.make tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/clean
+.PHONY : tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/clean
+
+# clean rule for target.
+clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLProblem.dir/clean
+
+.PHONY : clean
+
+#=============================================================================
 # Target rules for target tamp_ros/CMakeFiles/std_msgs_generate_messages_lisp.dir
 
 # All Build rule for target.
@@ -1584,6 +1628,38 @@ tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanResult.dir/
 
 # clean rule for target.
 clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_MotionPlanResult.dir/clean
+
+.PHONY : clean
+
+#=============================================================================
+# Target rules for target tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir
+
+# All Build rule for target.
+tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/all:
+	$(MAKE) -f tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/build.make tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/depend
+	$(MAKE) -f tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/build.make tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles --progress-num= "Built target _tamp_ros_generate_messages_check_deps_HLPlanResult"
+.PHONY : tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/all
+
+# Build rule for subdir invocation for target.
+tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
+	$(MAKE) -f CMakeFiles/Makefile2 tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/CMakeFiles 0
+.PHONY : tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/rule
+
+# Convenience name for target.
+_tamp_ros_generate_messages_check_deps_HLPlanResult: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/rule
+
+.PHONY : _tamp_ros_generate_messages_check_deps_HLPlanResult
+
+# clean rule for target.
+tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/clean:
+	$(MAKE) -f tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/build.make tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/clean
+.PHONY : tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/clean
+
+# clean rule for target.
+clean: tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_HLPlanResult.dir/clean
 
 .PHONY : clean
 

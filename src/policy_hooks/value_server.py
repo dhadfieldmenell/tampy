@@ -19,7 +19,8 @@ class ValueServer(object):
             hyperparams['dU'],
             hyperparams['dObj'],
             hyperparams['dTarg'],
-            hyperparams['dPrimObs']
+            hyperparams['dPrimObs'],
+            hyperparams['dValObs']
         )
         self.task = 'value'
         self.value_service = rospy.Service('qvalue', QValue, self.value)
@@ -49,7 +50,7 @@ class ValueServer(object):
         mu = mu.reshape(mu_dims)
 
         obs = np.array(msg.obs)
-        obs_dims = (msg.n, msg.rollout_len, msg.dO)
+        obs_dims = (msg.n, msg.rollout_len, msg.dValObs)
         obs = obs.reshape(obs_dims)
 
         prc = np.array(msg.prc)

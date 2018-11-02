@@ -170,8 +170,8 @@ config = {
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 2,
-    'max_tree_depth': 15,
+    'num_rollouts': 3,
+    'max_tree_depth': 2*NUM_OBJS,
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
@@ -181,7 +181,7 @@ config = {
     'weight_decay': 0.00001,
     'batch_size': 1000,
     'n_layers': 2,
-    'dim_hidden': [40, 40],
+    'dim_hidden': [64, 64],
     'n_traj_centers': algorithm['n_traj_centers'],
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
@@ -189,7 +189,7 @@ config = {
 
     # New for multiprocess, transfer to sequential version as well.
 
-    'n_optimizers': 5,
+    'n_optimizers': 8,
     'n_rollout_servers': 1,
     'base_weight_dir': 'namo_',
     'policy_out_coeff': algorithm['policy_out_coeff'],
@@ -206,10 +206,12 @@ config = {
     'attr_map': ATTRMAP,
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
-    'update_size': 1000,
+    'update_size': 10000,
     'use_local': True,
-    'n_dirs': 32,
+    'n_dirs': 16,
     'domain': 'namo',
+    'perturb_steps': 10,
+    'mcts_early_stop_prob': 0.75,
 
     'state_include': [utils.STATE_ENUM],
     'obs_include': [utils.LIDAR_ENUM,
@@ -219,5 +221,10 @@ config = {
                     utils.TARG_POSE_ENUM],
     'prim_obs_include': [utils.STATE_ENUM,
                          utils.TARGETS_ENUM],
+    'val_obs_include': [utils.STATE_ENUM,
+                        utils.TARGETS_ENUM,
+                        utils.TASK_ENUM,
+                        utils.OBJ_ENUM,
+                        utils.TARG_ENUM],
 
 }

@@ -19,6 +19,8 @@ class MCTSNode():
         self.sample_links = {}
         self.sample_to_traj = {}
         self.depth = parent.depth + 1 if parent != None else 0
+        if parent is not None:
+            parent.add_child(self)
 
     def is_leaf(self):
         return self.is_leaf()
@@ -34,10 +36,10 @@ class MCTSNode():
 
     def update_value(self, new_value):
         # self.value = (self.value*self.n_explored + new_value) / (self.n_explored + 1)
-        if new_value == 0:
-            new_value = 1
-        else:
-            new_value = 0
+        # if new_value == 0:
+        #     new_value = 1
+        # else:
+        #     new_value = 0
 
         self.value = (self.value*self.n_explored + new_value) / (self.n_explored + 1)
         self.n_explored += 1
@@ -118,6 +120,21 @@ class MCTS:
         obs = obs.reshape((1, -1))
         return self._value_f(obs)
 
+    def update_vals(self, path, success):
+        node = self.root
+        for step in path:
+            node = node.get_child(*step)
+            if node is None:
+                node = MCTSNode(step, 
+                                int(success), 
+                                node, 
+                                len(self.tasks), 
+                                len(self.agent.obj_list), 
+                                len(self.agent.targ_list))
+
+            else:
+                node.update_value(int(success))
+
     def node_check_f(self, task_ind, obj_ind, targ_ind, state, parent):
         child = parent.get_child(task_ind, obj_ind, targ_ind)
         sample = Sample(self.agent)
@@ -145,13 +162,15 @@ class MCTS:
 
         obs = sample.get_obs(t=0)
         prim_obs = sample.get_prim_obs(t=0)
-        q_value = self.value_func(obs)[1] if child is None else child.value
+        val_obs = sample.get_val_obs(t=0)
+        q_value = self.value_func(val_obs)[1] if child is None else child.value
         policy_distr = self.prob_func(prim_obs)
         prob = policy_distr[0][task_ind] * policy_distr[1][obj_ind] * policy_distr[2][targ_ind]
         child_explored = child.n_explored if child is not None else 0
         # print task_ind, obj_ind, targ_ind, q_value, self.value_func(obs)[1]
-        return self.value_func(obs)[1] + self.C * np.sqrt(parent.n_explored) / (1 + child_explored)
+        # return self.value_func(val_obs)[1] + self.C * np.sqrt(parent.n_explored) / (1 + child_explored)
         # return q_value + self.C * self.value_func(obs)[1] / (1 + child_explored)
+        return q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + child_explored))
 
     def print_run(self, state, use_distilled=True):
         path = self.simulate(state.copy(), use_distilled, debug=False)
@@ -169,40 +188,16 @@ class MCTS:
             self.rollout_policy = new_policies
         opt_val = np.inf
         paths = []
-        if hl_plan == None:
-            for n in range(num_rollouts):
-                self.agent.reset_hist()
-                print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
-                next_path = self.simulate(state.copy(), use_distilled, debug=debug)
-                print "Finished Rollout {0} for condition {1}.\n".format(n, self.condition)
-                if len(next_path):
-                    end = next_path[-1]
-                    new_opt_value = self._goal_f(end.end_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
-                    if new_opt_value == 0: paths.append(next_path)
-                    opt_val = np.minimum(new_opt_value, opt_val)
-        else:
-            cur_state = state
-            paths = [[]]
-            cur_sample = None
-            opt_val = np.inf
-            for step in hl_plan:
-                targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
-                if len(targets) < 2:
-                    targets.append(self.agent.plans.values()[0].params['{0}_init_target'.format(p_name)])
-                plan = self._plan_f(step[0], targets)
-                # next_sample, cur_state = self.sample(step[0], cur_state, targets, plan)
-                next_sample, _ = self.agent.sample_optimal_trajectory(cur_state, step[0], self.condition, targets)
-                if next_sample == None:
-                    break
-                cur_sample = next_sample
-                cur_state = cur_sample.end_state
-                paths[0].append(cur_sample)
-
-            if cur_sample != None: 
-                opt_val = self._goal_f(cur_sample.end_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
-                for path in paths:
-                    for sample in path:
-                        sample.task_cost = opt_val
+        for n in range(num_rollouts):
+            self.agent.reset_hist()
+            print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
+            next_path = self.simulate(state.copy(), use_distilled, debug=debug)
+            print "Finished Rollout {0} for condition {1}.\n".format(n, self.condition)
+            if len(next_path):
+                end = next_path[-1]
+                new_opt_value = self._goal_f(end.end_state, self.agent.targets[self.condition], self.agent.plans.values()[0])
+                if new_opt_value == 0: paths.append(next_path)
+                opt_val = np.minimum(new_opt_value, opt_val)
 
         self.agent.add_task_paths(paths)
         return opt_val
@@ -259,10 +254,10 @@ class MCTS:
                                          len(self.agent.obj_list), 
                                          len(self.agent.targ_list))
                     cost, _ = self.simulate_from_next(next_node, state, prev_sample, num_samples=5, use_distilled=use_distilled, save=True, exclude_hl=exclude_hl, debug=debug)
-                    next_node.update_value(-cost)
+                    next_node.update_value(int(cost==0))
                     node.add_child(next_node)
                     while node != self.root:
-                        node.update_value(-cost)
+                        node.update_value(int(cost==0))
                         node = node.parent
                     return None
 
@@ -384,7 +379,7 @@ class MCTS:
 
         return lowest_cost_sample, cur_state
 
-    def simulate(self, state, use_distilled=True, debug=False):
+    def simulate(self, state, use_distilled=True, early_stop_prob=0.0, debug=False):
         current_node = self.root
         path = []
         samples = []
@@ -432,6 +427,8 @@ class MCTS:
             exclude_hl += [self._encode_f(cur_state, plan, self.agent.targets[self.condition])]
 
             iteration += 1
+            if np.random.uniform() < early_stop_prob:
+                break
 
 
         if path_value is None:
@@ -441,7 +438,7 @@ class MCTS:
             path.append(prev_sample)
             prev_sample.task_cost = path_value
             prev_sample = current_node.parent.sample_links[prev_sample]
-            current_node.update_value(-path_value)
+            current_node.update_value(int(path_value==0))
             current_node = current_node.parent
 
         path.reverse()
