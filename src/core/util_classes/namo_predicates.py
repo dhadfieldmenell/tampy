@@ -60,7 +60,7 @@ class CollisionPredicate(ExprPredicate):
         self._cache = {}
         self.n_cols = 1
 
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, priority=3)
 
     def test(self, time, negated=False, tol=1e-4):
         # This test is overwritten so that collisions can be calculated correctly
@@ -188,7 +188,7 @@ class At(ExprPredicate):
         val = np.zeros((2, 1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
-        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
 class RobotAt(At):
 
@@ -288,7 +288,7 @@ class GripperClosed(ExprPredicate):
         neg_val = np.zeros((1,1))
         neg_aff_e = AffExpr(A, b)
         self.neg_expr = EqExpr(neg_aff_e, neg_val)
-        super(GripperClosed, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(GripperClosed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
     def get_expr(self, negated):
         if negated:
@@ -380,7 +380,7 @@ class RCollides(CollisionPredicate):
         f = lambda x: -self.distance_from_obj(x)[0]
         grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e2
+        neg_coeff = 1e4
         neg_grad_coeff = 1e-3
 
         ## so we have an expr for the negated predicate
@@ -409,6 +409,36 @@ class RCollides(CollisionPredicate):
         self.n_cols = N_COLS
 
         # self.priority = 1
+
+    def resample(self, negated, time, plan):
+        assert negated
+        res = OrderedDict()
+        attr_inds = OrderedDict()
+        a = 0
+        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+            a += 1
+
+        if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
+            return None, None
+            
+        act = plan.actions[a]
+
+        x = self.get_param_vector(time)
+        jac = self.distance_from_obj(x)[1][0,:2]
+        jac = jac / np.linalg.norm(jac)
+
+        new_robot_pose = self.r.pose[:, time] + self.r.geom.radius * jac
+        st = max(max(time-3,0), act.active_timesteps[0])
+        et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
+        for i in range(st, et):
+            dist =float(np.abs(i - time))
+            if i <= time:
+                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * new_robot_pose
+            else:
+                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * new_robot_pose
+
+            add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
+        return res, attr_inds
 
     def get_expr(self, negated):
         if negated:
@@ -754,7 +784,7 @@ class GraspValid(ExprPredicate):
         e = AffExpr(A, b)
         e = EqExpr(e, np.zeros((2,1)))
 
-        super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority=0)
 
 class Stationary(ExprPredicate):
 
@@ -767,7 +797,7 @@ class Stationary(ExprPredicate):
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
-        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 class StationaryNEq(ExprPredicate):
 
@@ -787,7 +817,7 @@ class StationaryNEq(ExprPredicate):
                           [0, 1, 0, -1]])
             b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 class StationaryW(ExprPredicate):
 
@@ -800,7 +830,7 @@ class StationaryW(ExprPredicate):
                       [0, 1, 0, -1]])
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
-        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
 
@@ -820,4 +850,4 @@ class IsMP(ExprPredicate):
         b = np.zeros((4, 1))
 
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
-        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1))
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)

@@ -5,6 +5,7 @@ import copy
 import itertools
 import numpy as np
 import random
+import time
 
 from core.internal_repr.plan import Plan
 from core.util_classes.namo_predicates import dsafe
@@ -13,8 +14,8 @@ from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 
 possible_can_locs = [(0, 60), (0, 50), (0, 45), (0, 40), (0, 35)]
-possible_can_locs.extend(list(itertools.product(range(-25, 25), range(-10, 25))))
-for i in range(-10, 10):
+possible_can_locs.extend(list(itertools.product(range(-65, 65), range(-45, 25))))
+for i in range(-25, 25):
     for j in range(-10, 10):
         if (i, j) in possible_can_locs:
             possible_can_locs.remove((i, j))
@@ -29,15 +30,26 @@ domain_file = "../domains/namo_domain/namo.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_2"
 pddl_file = "../domains/namo_domain/sorting_domain_2.pddl"
 
-targets = [[0., 6.], [0., 5.], [0., 4.], [0., -2.], [0., 2.]]
+END_TARGETS = [(0., 6.), 
+           (0., 5.), 
+           (0., 4.), 
+           (2., -2.), 
+           (0., -2.),
+           (4., 0.),
+           (-4, 0.),
+           (4., -2.),
+           (-4., -2.),
+           (-2., -2.)]
 
 def get_end_targets(num_cans):
     target_map = {}
     for n in range(num_cans):
-        target_map['can{0}_end_target'.format(n)] = np.array(targets[n])
+        target_map['can{0}_end_target'.format(n)] = np.array(END_TARGETS[n])
     target_map['middle_target'] = np.array([0., 0.])
-    target_map['left_target'] = np.array([-1., 0.])
-    target_map['right_target'] = np.array([1., 0.])
+    target_map['left_target_1'] = np.array([-1., 0.])
+    target_map['right_target_1'] = np.array([1., 0.])
+    target_map['left_target_2'] = np.array([-2., 0.])
+    target_map['right_target_2'] = np.array([2., 0.])
     return target_map
 
 def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
@@ -45,12 +57,16 @@ def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
     keep = False
 
     for i in range(num_vecs):
-        can_locs = get_random_initial_can_locations(num_cans)
+        if True: # not i % 2:
+            can_locs = copy.deepcopy(END_TARGETS)
+            random.shuffle(can_locs)
+        else:
+            can_locs = get_random_initial_can_locations(num_cans)
         if i == max(num_vecs-1, 3):
             can_locs[0] = (0, 5)
             can_locs[1] = (0, 6)
             for j in range(2, num_cans):
-                while can_locs[j] == (0, 5) or can_locs[j] == (0, 6):
+                while tuple(can_locs[j]) == (0, 5) or tuple(can_locs[j]) == (0, 6):
                     can_locs[j:] = get_random_initial_can_locations(num_cans-j)
         # while not keep:
         #     can_locs = get_random_initial_can_locations(num_cans)
@@ -66,6 +82,7 @@ def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
 
         # for target in targets[i]:
         #     Xs[i, state_inds[target, 'value']] = targets[i][target]
+
     return [np.array(X) for X in Xs.tolist()]
 
 def get_sorting_problem(can_locs, targets, pr2, grasp, failed_preds=[]):
@@ -98,6 +115,22 @@ def get_sorting_problem(can_locs, targets, pr2, grasp, failed_preds=[]):
 
 def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
     hl_init_state = "(:init "
+    for can1 in can_locs:
+        loc1 = can_locs[can1]
+        t1 = targets[can1+'_end_target']
+        if loc1[1] < 3.5: continue
+        for can2 in can_locs:
+            if can2 == can1: continue
+            loc2 = can_locs[can2]
+            t2 = targets[can2+'_end_target']
+            if loc2[1] < 3.5: continue
+            if loc1[1] < loc2[1]:
+                hl_init_state += " (CanObstructs {0} {1})".format(can1, can2)
+                hl_init_state += " (WaitingOnCan {0} {1})".format(can2, can1)
+            else:
+                hl_init_state += " (CanObstructs {0} {1})".format(can2, can1)
+                hl_init_state += " (WaitingOnCan {0} {1})".format(can1, can2)
+
     for can in can_locs:
         loc = can_locs[can]
 
@@ -106,6 +139,14 @@ def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
         closest_target = None
         closest_dist = np.inf
         for target in targets:
+            if targets[target][1] > 3.5 \
+               and np.abs(targets[target][0]) < 0.5 \
+               and loc[1] > 3.5 \
+               and loc[1] < targets[target][1] \
+               and np.abs(loc[0]) < 0.5 \
+               and target[3] != can[3]:
+                hl_init_state += " (CanObstructsTarget {0} {1})".format(can, target)
+
             dist = np.sum((targets[target] - loc)**2)
             if dist < closest_dist:
                 closest_dist = dist
@@ -120,18 +161,21 @@ def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
         if np.all(np.abs(loc - pr2 + grasp) < 1.0):
             hl_init_state += " (NearCan {0})".format(can)
 
+    # Only mark the closest obstruction; it needs to be cleared first.
     for pred in failed_preds:
         if pred[0].get_type().lower() == 'obstructs':
             if " (CanObstructsTarget {0} {1})".format(pred[0].c.name, pred[2].name) not in hl_init_state:
                 if pred[0].c.name != pred[1].name:
                     hl_init_state += " (CanObstructs {0} {1})".format(pred[0].c.name, pred[1].name)
                 hl_init_state += " (CanObstructsTarget {0} {1})".format(pred[0].c.name, pred[2].name)
+                break
 
         if pred[0].get_type().lower() == 'obstructsholding':
             if " (CanObstructsTarget {0} {1})".format(pred[0].obstr.name, pred[2].name) not in hl_init_state:
                 if pred[0].obstr.name != pred[1].name:
                     hl_init_state += " (CanObstructs {0} {1})".format(pred[0].obstr.name, pred[1].name)
                 hl_init_state += " (CanObstructsTarget {0} {1})".format(pred[0].obstr.name, pred[2].name)
+                break
 
 
     hl_init_state += ")\n"
@@ -259,12 +303,22 @@ def fill_random_initial_configuration(plan):
 
 def get_random_initial_can_locations(num_cans):
     locs = []
-    for _ in range(num_cans):
-        next_loc = random.choice(possible_can_locs)
-        while len(locs) and np.any(np.abs(np.array(locs)[:,:2]-next_loc[:2]) < 0.5):
+    stop = False
+    while not len(locs):
+        locs = []
+        for _ in range(num_cans):
             next_loc = random.choice(possible_can_locs)
+            start = time.time()
+            while len(locs) and np.any(np.abs(np.array(locs)[:,:2]-next_loc[:2]) < 0.6):
+                next_loc = random.choice(possible_can_locs)
+                if time.time() - start > 10:
+                    locs = []
+                    start = time.time()
+                    stop = True
+                    break
 
-        locs.append(next_loc)
+            if stop: break
+            locs.append(next_loc)
 
     def compare_locs(a, b):
         if b[0] > a[0]: return 1

@@ -37,13 +37,14 @@ from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_OBJS = 4
-NUM_CONDS = 20
+NUM_OBJS = 10
+NUM_CONDS = 100
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
 N_SAMPLES = 20
 N_TRAJ_CENTERS = N_SAMPLES
+HL_TIMEOUT = 600
 
 
 common = {
@@ -171,7 +172,7 @@ config = {
     'hist_len': 3,
     'take_optimal_sample': True,
     'num_rollouts': 3,
-    'max_tree_depth': 2*NUM_OBJS,
+    'max_tree_depth': 6*NUM_OBJS,
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
@@ -190,7 +191,7 @@ config = {
     # New for multiprocess, transfer to sequential version as well.
 
     'n_optimizers': 8,
-    'n_rollout_servers': 1,
+    'n_rollout_servers': 2,
     'base_weight_dir': 'namo_',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
@@ -212,6 +213,7 @@ config = {
     'domain': 'namo',
     'perturb_steps': 10,
     'mcts_early_stop_prob': 0.75,
+    'hl_timeout': HL_TIMEOUT,
 
     'state_include': [utils.STATE_ENUM],
     'obs_include': [utils.LIDAR_ENUM,

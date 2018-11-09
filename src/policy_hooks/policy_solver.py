@@ -43,7 +43,7 @@ def get_base_solver(parent_class):
             self.transfer_coeff = 1e0
             self.strong_transfer_coeff = 1e2
             self.rs_coeff = 2e2
-            self.trajopt_coeff = 1e2
+            self.trajopt_coeff = 1e3 # 1e2
             self.policy_pred = None
             self.transfer_always = False
             self.gps = None
@@ -51,6 +51,7 @@ def get_base_solver(parent_class):
             self.policy_fs = {}
             self.policy_inf_fs = {}
 
+            self.hyperparams = hyperparams
             if hyperparams != None:
                 self.dX = hyperparams['dX']
                 self.dU = hyperparams['dU']
@@ -62,6 +63,7 @@ def get_base_solver(parent_class):
                 self.target_inds = hyperparams['target_inds']
                 self.target_dim = hyperparams['target_dim']
                 self.task_list = hyperparams['task_list']
+                self.robot_name = hyperparams['robot_name']
 
 
         # TODO: Add hooks for online policy learning
@@ -108,7 +110,7 @@ def get_base_solver(parent_class):
                         for attr in p._free_attrs:
                             p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                             p._free_attrs[attr][:, active_ts[1]] = 0
-                self.child_solver = self.__class__()
+                self.child_solver = self.__class__(self.hyperparams)
                 self.child_solver.dX = self.dX
                 self.child_solver.dU = self.dU
                 self.child_solver.symbolic_bound = self.symbolic_bound
@@ -190,7 +192,7 @@ def get_base_solver(parent_class):
                     setattr(rs_param, attr, val)
 
                 success = False
-                self.child_solver = self.__class__()
+                self.child_solver = self.__class__(self.hyperparams)
                 self.child_solver.dX = self.dX
                 self.child_solver.dU = self.dU
                 self.child_solver.symbolic_bound = self.symbolic_bound
@@ -415,8 +417,12 @@ def get_base_solver(parent_class):
                 sample.set(TASK_ENUM, task_vec, t-start_t)
                 sample.set(OBJ_ENUM, obj_vec, t-start_t)
                 sample.set(TARG_ENUM, targ_vec, t-start_t)
-                sample.set(OBJ_POSE_ENUM, state[:, t-start_t][plan.state_inds[self.agent.obj_list[j], 'pose']], t-start_t)
-                sample.set(TARG_POSE_ENUM, plan.params[self.agent.targ_list[k]].value[:,0].copy(), t-start_t)
+                ee_pose = state[:, t-start_t][plan.state_inds[self.robot_name, 'pose']]
+                obj_pose = state[:, t-start_t][plan.state_inds[self.agent.obj_list[j], 'pose']] - ee_pose
+                targ_pose = plan.params[self.agent.targ_list[k]].value[:,0] - ee_pose
+                sample.set(EE_ENUM, ee_pose, t-start_t)
+                sample.set(OBJ_POSE_ENUM, obj_pose, t-start_t)
+                sample.set(TARG_POSE_ENUM, targ_pose, t-start_t)
                 sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
                 sample.set(TARGETS_ENUM, target_vec, t-start_t)
                 sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)

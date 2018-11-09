@@ -21,7 +21,8 @@ def load_config(args, reload_module=None):
     config['num_objs'] = args.nobjs if args.nobjs > 0 else config['num_objs']
     config['weight_dir'] = config['base_weight_dir'] + str(config['num_objs'])
     config['log_timing'] = args.timing
-    config['pretrain_timeout'] = args.pretrain_timeout
+    # config['pretrain_timeout'] = args.pretrain_timeout
+    config['hl_timeout'] = args.hl_timeout if args.hl_timeout > 0 else config['hl_timeout']
     config['mcts_server'] = args.mcts_server or args.all_servers
     config['mp_server'] = args.mp_server or args.all_servers
     config['pol_server'] = args.policy_server or args.all_servers
@@ -39,7 +40,8 @@ def main():
     parser.add_argument('-nf', '--nofull', action='store_true', default=False)
     parser.add_argument('-n', '--nconds', type=int, default=0)
     parser.add_argument('-o', '--nobjs', type=int, default=0)
-    parser.add_argument('-ptt', '--pretrain_timeout', type=int, default=300)
+    # parser.add_argument('-ptt', '--pretrain_timeout', type=int, default=300)
+    parser.add_argument('-hlt', '--hl_timeout', type=int, default=0)
     parser.add_argument('-k', '--killall', action='store_true', default=False)
     parser.add_argument('-r', '--remote', action='store_true', default=False)
     parser.add_argument('-t', '--timing', action='store_true', default=False)

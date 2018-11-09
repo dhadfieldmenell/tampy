@@ -57,7 +57,7 @@ def solve_condition(trainer, cond, paths=[], all_samples=[], all_successful_samp
         hl_plan = []
 
     last_reset = 0
-    while not stop and attempt < 4 * trainer.config['num_objs']:
+    while not stop and attempt < 6 * trainer.config['num_objs']:
         last_reset += 1
         for step in hl_plan:
             print 'Current hl plan for '+str(cond)+ ': ', opt_hl_plan
@@ -405,7 +405,7 @@ class MultiProcessPretrainMain(object):
 
         self.rollout_policies = {task: self.policy_opt.task_map[task]['policy'] for task in self.task_list}
         self.time_log = 'tf_saved/'+self.config['weight_dir']+'/pretrain_timing_info.txt'
-        self.pretrain_timeout = self.config['pretrain_timeout']
+        self.hl_timeout = self.config['hl_timeout']
 
 
     def run(self, itr_load=None):
@@ -439,6 +439,8 @@ class MultiProcessPretrainMain(object):
 
             start_time = time.time()
             processes = []
+            solve_condition(self, 0, sample_paths, all_samples, all_successful_samples)
+            import ipdb; ipdb.set_trace()
             for cond in self._train_idx:
                 process = Process(target=solve_condition, args=(self, cond, sample_paths, all_samples, all_successful_samples))
                 process.daemon = True
@@ -446,7 +448,7 @@ class MultiProcessPretrainMain(object):
                 processes.append(process)
 
             base_t = time.time()
-            while time.time() - base_t < self.pretrain_timeout:
+            while time.time() - base_t < self.hl_timeout:
                 if any(p.is_alive() for p in processes):
                     time.sleep(0.1)
                 else:
@@ -459,6 +461,7 @@ class MultiProcessPretrainMain(object):
                     p.join()
 
             end_len = len(all_successful_samples)
+            import ipdb; ipdb.set_trace()
 
             # Resolve with perturbations
             iters = max(min((end_len-start_len) / 16, 5), 1)
@@ -474,7 +477,7 @@ class MultiProcessPretrainMain(object):
                     processes.append(process)
 
                 base_t = time.time()
-                while time.time() - base_t < self.pretrain_timeout:
+                while time.time() - base_t < self.hl_timeout:
                     if any(p.is_alive() for p in processes):
                         time.sleep(0.1)
                     else:

@@ -150,9 +150,12 @@ class MCTS:
         sample.set(OBJ_ENUM, obj_vec, 0)
         sample.set(TARG_ENUM, targ_vec, 0)
         sample.set(TASK_ENUM, task_vec, 0)
-        sample.set(OBJ_POSE_ENUM, state[self.agent.state_inds[self.agent.obj_list[obj_ind], 'pose']].copy(), 0)
-        sample.set(TARG_POSE_ENUM, self.agent.targets[self.condition][self.agent.targ_list[targ_ind]].copy(), 0)
-        sample.set(EE_ENUM, state[self.agent.state_inds['pr2', 'pose']].copy(), 0)
+        ee_pose = state[self.agent.state_inds['pr2', 'pose']]
+        obj_pose = state[self.agent.state_inds[self.agent.obj_list[obj_ind], 'pose']] - ee_pose
+        targ_pose = self.agent.targets[self.condition][self.agent.targ_list[targ_ind]] - ee_pose
+        sample.set(OBJ_POSE_ENUM, obj_pose.copy(), 0)
+        sample.set(TARG_POSE_ENUM, targ_pose.copy(), 0)
+        sample.set(EE_ENUM, ee_pose.copy(), 0)
 
         if LIDAR_ENUM in self.agent._hyperparams['obs_include']:
             plan = self.agent.plans.values()[0]

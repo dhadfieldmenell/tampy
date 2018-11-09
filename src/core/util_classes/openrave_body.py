@@ -137,6 +137,8 @@ class OpenRAVEBody(object):
 
     def set_pose(self, base_pose, rotation = [0, 0, 0]):
         trans = None
+        if np.any(np.isnan(base_pose)) or np.any(np.isnan(rotation)):
+            return
         if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer):
             trans = OpenRAVEBody.base_pose_to_mat(base_pose)
         elif len(base_pose) == 2:
@@ -157,7 +159,7 @@ class OpenRAVEBody(object):
         dof_val = self.env_body.GetActiveDOFValues()
 
         for k, v in dof_value_map.iteritems():
-            if k not in self._geom.dof_map[k]: continue
+            if k not in self._geom.dof_map[k] or np.any(np.isnan(v)): continue
             inds = self._geom.dof_map[k]
             dof_val[inds] = v
         # Set new DOF value to the robot
@@ -231,7 +233,7 @@ class OpenRAVEBody(object):
         wall_color = [0.5, 0.2, 0.1]
         box_infos = []
         if wall_type == 'closet':
-            wall_endpoints = [[-3.0,-5.0],[-3.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[10.0,4.0],[10.0,-5.0],[-3.0,-5.0]]
+            wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
         else:
             raise NotImplemented
         for i, (start, end) in enumerate(zip(wall_endpoints[0:-1], wall_endpoints[1:])):
