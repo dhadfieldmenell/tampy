@@ -8,6 +8,7 @@
                  (NearCan ?can - Can)
                  (WaitingOnCan ?waiter - Can ?obstr - Can) ; waiter cannot move until obstr has been moved
                  (WaitingOnTarget ?waiter - Can ?obstr - Target)
+                 (InFront ?target1 ?target2) ; target1 is in front of target2 and hence obstructs it
     )
 
     (:types Can Target)
@@ -26,7 +27,8 @@
                      (forall (?c - Can) (not (WaitingOnCan ?c ?can)))
                      (forall (?c - Can) (not (WaitingOnTarget ?c ?target)))
                      (forall (?t - Target) (when (not (= ?t ?target)) (not (CanAtTarget ?can ?t))))
-                     (forall (?t - Target) (when (not (= ?t ?target)) (not (CanObstructsTarget ?can ?t)))))
+                     (forall (?t - Target) (when (and (not (= ?t ?target)) (not (InFront ?target ?t))) (not (CanObstructsTarget ?can ?t))))
+                     (forall (?t - Target) (when (InFront ?target ?t) (CanObstructsTarget ?can ?t))))
     )
 
 )

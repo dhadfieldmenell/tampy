@@ -36,41 +36,28 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
         AlgorithmMDGPS.__init__(self, config)
 
-    def iteration(self, sample_lists, optimal_samples, reset=True):
+    def iteration(self, optimal_samples, reset=True):
         """
         Run iteration of PI-based guided policy search.
 
         Args:
             sample_lists: List of SampleList objects for each condition.
         """
-        # if not len(self.cur) or self.replace_conds:
-        #     self.set_conditions(len(sample_lists))
-        print 'Algorithm for {0} updating on {1} rollouts and {2} optimal samples'.format(self.task, len(sample_lists), len(optimal_samples))
-        if reset:
-            self.set_conditions(len(sample_lists))
+        all_opt_samples = []
+        sample_lists = []
+        for opt_s, s_list in optimal_samples:
+            all_opt_samples.append(SampleList([opt_s]))
+            for s in s_list:
+                s.set_ref_X(opt_s.get(STATE_ENUM))
+                s.set_ref_U(opt_s.get_U())
+            sample_lists.append(s_list)
 
-        if True: # self.traj_centers >= len(sample_lists[0]):
-            success= False
-            all_opt_samples = []
-            if len(optimal_samples):
-                for opt_s, s_list in optimal_samples:
-                    all_opt_samples.append(SampleList([opt_s]))
-            else:
-                for m in range(len(self.cur)):
-                    opt_samples = []
-                    for sample in sample_lists[m]:
-                        agent = sample.agent
-                        obj = agent.plans.values()[0].params[sample.obj]
-                        targ = agent.plans.values()[0].params[sample.targ]
-                        opt_sample, _, success = agent.sample_optimal_trajectory(sample.get(STATE_ENUM, t=0), sample.task, sample.condition, traj_mean=sample.get(STATE_ENUM), fixed_targets=[obj, targ])
-                        if success:
-                            opt_samples.append(opt_sample)
-                        else:
-                            break
-                    if len(opt_samples):
-                        all_opt_samples.append(SampleList(opt_samples))
-
+        if len(self.cur) != len(all_opt_samples) or reset:
             self.set_conditions(len(all_opt_samples))
+
+        print 'Algorithm for {0} updating on {1} rollouts'.format(self.task, len(all_opt_samples))
+
+        if self.traj_centers >= len(sample_lists[0]):
             for m in range(len(self.cur)):
                 self.cur[m].sample_list = all_opt_samples[m]
 
@@ -78,61 +65,9 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             self._update_policy_no_cost()
             return all_opt_samples
 
-        del_inds = []
-        final_samples = []
         for m in range(len(self.cur)):
-            samples = sample_lists[m]
-            Xs = samples.get_X()
-            flat_Xs = Xs.reshape((Xs.shape[0], np.prod(Xs.shape[1:])))
-            centroids, labels = kmeans(flat_Xs, k=self.traj_centers)
-            opt_samples = []
-            for c in range(len(centroids)):
-                centroid = centroids[c]
-                s = samples[0]
-                obj = s.agent.plans.values()[0].params[s.agent.obj_list[np.argmax(s.get(OBJ_ENUM, t=0))]]
-                targ = s.agent.plans.values()[0].params[s.agent.targ_list[np.argmax(s.get(TARG_ENUM, t=0))]]
-                if self.use_centroids:
-                    traj_mean = centroid.reshape(Xs.shape[1:])
-                else:
-                    dist = np.inf
-                    center = -1
-                    for l in range(len(labels)):
-                        label = labels[l]
-                        if label == c:
-                            new_dist = np.sum((centroid - flat_Xs[l])**2)
-                            if new_dist < dist:
-                                dist = new_dist
-                                center = l
-                    traj_mean = Xs[center]
-
-                opt_sample, _, success = s.agent.sample_optimal_trajectory(s.get_X(t=0), s.task, s.condition, traj_mean=traj_mean, fixed_targets=[obj, targ])
-                if success:
-                    opt_samples.append(opt_sample)
-                    optimal_samples.append(opt_sample)
-                else:
-                    opt_samples.append(None)
-
-            all_none = True
-            for n in range(len(samples)):
-                if opt_samples[labels[n]] is not None:
-                    all_none = False
-                    samples[n].set_ref_X(opt_samples[labels[n]].get(STATE_ENUM))
-                    samples[n].set_ref_U(opt_samples[labels[n]].get_U())
-
-            if all_none:
-                del_inds.append(m)
-            else:
-                final_samples.append(samples)
-
-
-            if m not in del_inds:
-                self.cur[m].sample_list = samples
-                self._eval_cost(m)
-
-        del_inds.sort()
-        del_inds.reverse()
-        for i in del_inds:
-            del self.cur[i]
+            self.cur[m].sample_lists = sample_lists[m]
+            self._eval_cost(m)
 
         # Update dynamics linearizations.
         # self._update_dynamics()
@@ -152,12 +87,12 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         self._update_trajectories()
 
         # S-step
-        self._update_policy(optimal_samples)
+        self._update_policy(all_opt_samples)
 
         # Prepare for next iteration
         self._advance_iteration_variables()
 
-        return sample_list
+        return sample_lists
 
 
     def _update_policy_no_cost(self):

@@ -365,20 +365,20 @@ class RolloutServer(object):
         start_time = time.time()
         for task in self.agent.task_list:
             if len(self.opt_samples[task]):
-                sample_lists[task] = self.alg_map[task].iteration([], self.opt_samples[task], reset=False)
+                sample_lists[task] = self.alg_map[task].iteration(self.opt_samples[task], reset=False)
 
-        for step in range(self.traj_opt_steps-1):
-            for task in self.agent.task_list:
-                try:
-                    sample_lists[task] = self.alg_map[task].iteration(sample_lists[task], self.opt_samples[task], reset=True)
-                    if len(sample_lists[task]):
-                        sample_lists[task] = self.agent.resample(sample_lists[task], rollout_policies[task], self.n_samples)
-                    else:
-                        continue
-                    self.agent._samples[task] = sample_lists[task]
-                except:
-                    traceback.print_exception(*sys.exc_info())
-        self.agent.reset_sample_refs()
+        # for step in range(self.traj_opt_steps-1):
+        #     for task in self.agent.task_list:
+        #         try:
+        #             sample_lists[task] = self.alg_map[task].iteration(sample_lists[task], self.opt_samples[task], reset=True)
+        #             if len(sample_lists[task]):
+        #                 sample_lists[task] = self.agent.resample(sample_lists[task], rollout_policies[task], self.n_samples)
+        #             else:
+        #                 continue
+        #             self.agent._samples[task] = sample_lists[task]
+        #         except:
+        #             traceback.print_exception(*sys.exc_info())
+        # self.agent.reset_sample_refs()
         end_time = time.time()
         if self.log_timing:
             with open(self.time_log, 'a+') as f:

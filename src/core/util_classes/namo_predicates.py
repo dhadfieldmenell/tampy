@@ -427,7 +427,7 @@ class RCollides(CollisionPredicate):
         jac = self.distance_from_obj(x)[1][0,:2]
         jac = jac / np.linalg.norm(jac)
 
-        new_robot_pose = self.r.pose[:, time] + self.r.geom.radius * jac
+        new_robot_pose = self.r.pose[:, time] + 1e-1 * jac
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         for i in range(st, et):

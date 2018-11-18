@@ -124,6 +124,7 @@ def get_base_solver(parent_class):
                 self.child_solver.policy_inf_fs = self.policy_inf_fs
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
+                self.child_solver.robot_name = self.robot_name
                 success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, n_resamples=n_resamples, traj_mean=traj_mean, task=task)
 
                 # reset free_attrs
@@ -143,7 +144,7 @@ def get_base_solver(parent_class):
                     callback_a = lambda: callback(a)
                 else:
                     callback_a = None
-                self.child_solver = self.__class__()
+                self.child_solver = self.__class__(self.hyperparams)
                 self.child_solver.dX = self.dX
                 self.child_solver.dU = self.dU
                 self.child_solver.symbolic_bound = self.symbolic_bound
@@ -157,6 +158,7 @@ def get_base_solver(parent_class):
                 self.child_solver.policy_inf_fs = self.policy_inf_fs
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
+                self.child_solver.robot_name = self.robot_name
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts=active_ts, verbose=verbose, force_init=True, 
                                                   traj_mean=traj_mean, task=task)
@@ -206,6 +208,7 @@ def get_base_solver(parent_class):
                 self.child_solver.policy_inf_fs = self.policy_inf_fs
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
+                self.child_solver.robot_name = self.robot_name
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts = active_ts, verbose=verbose,
                                                   force_init=True, traj_mean=traj_mean, task=task)

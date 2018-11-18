@@ -60,14 +60,16 @@ def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
         if True: # not i % 2:
             can_locs = copy.deepcopy(END_TARGETS)
             random.shuffle(can_locs)
+            can_locs = can_locs[:num_cans]
         else:
             can_locs = get_random_initial_can_locations(num_cans)
-        if i == max(num_vecs-1, 3):
-            can_locs[0] = (0, 5)
-            can_locs[1] = (0, 6)
-            for j in range(2, num_cans):
-                while tuple(can_locs[j]) == (0, 5) or tuple(can_locs[j]) == (0, 6):
-                    can_locs[j:] = get_random_initial_can_locations(num_cans-j)
+        # if i == max(num_vecs-1, 3):
+        #     can_locs[0] = (0, 5)
+        #     can_locs[1] = (0, 6)
+        #     for j in range(2, num_cans):
+        #         while tuple(can_locs[j]) == (0, 5) or tuple(can_locs[j]) == (0, 6):
+        #             can_locs[j:] = get_random_initial_can_locations(num_cans-j)
+
         # while not keep:
         #     can_locs = get_random_initial_can_locations(num_cans)
         #     for i in range(num_cans):
@@ -130,6 +132,18 @@ def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
             else:
                 hl_init_state += " (CanObstructs {0} {1})".format(can2, can1)
                 hl_init_state += " (WaitingOnCan {0} {1})".format(can1, can2)
+
+    for t1 in targets:
+        loc1 = targets[t1]
+        if loc1[1] < 3.5 or np.abs(loc1[0]) > 0.5: continue
+        for t2 in targets:
+            if t1 == t2: continue
+            loc2 = targets[t2]
+            if loc2[1] < 3.5 or np.abs(loc2[0]) > 0.5: continue
+            if loc2[1] > loc1[1]:
+                hl_init_state += " (InFront {0} {1})".format(t1, t2)
+
+
 
     for can in can_locs:
         loc = can_locs[can]

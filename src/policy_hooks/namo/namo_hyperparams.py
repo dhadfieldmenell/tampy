@@ -66,8 +66,8 @@ algorithm = {
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
-    'policy_inf_coeff': 1e1,
-    'policy_out_coeff': 1e0,
+    'policy_inf_coeff': 1e3,
+    'policy_out_coeff': 1e2,
     'kl_step': 1e-3,
     'min_step_mult': 0.5,
     'max_step_mult': 5.0,
@@ -149,7 +149,7 @@ algorithm['traj_opt'] = {
 # }
 
 algorithm['policy_prior'] = {
-    'type': PolicyPriorGMM,
+    'type': PolicyPrior,
     'max_clusters': 20,
     'min_samples_per_cluster': 40,
     'max_samples': 20,
@@ -191,7 +191,7 @@ config = {
     # New for multiprocess, transfer to sequential version as well.
 
     'n_optimizers': 8,
-    'n_rollout_servers': 2,
+    'n_rollout_servers': 1,
     'base_weight_dir': 'namo_',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
@@ -207,12 +207,12 @@ config = {
     'attr_map': ATTRMAP,
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
-    'update_size': 10000,
+    'update_size': 5e3,
     'use_local': True,
     'n_dirs': 16,
     'domain': 'namo',
-    'perturb_steps': 10,
-    'mcts_early_stop_prob': 0.75,
+    'perturb_steps': 3,
+    'mcts_early_stop_prob': 0.5,
     'hl_timeout': HL_TIMEOUT,
 
     'state_include': [utils.STATE_ENUM],
