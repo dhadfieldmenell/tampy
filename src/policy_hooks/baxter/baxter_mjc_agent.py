@@ -8,7 +8,6 @@ import ctypes
 
 import numpy as np
 
-import xml.etree.ElementTree as xml
 
 import openravepy
 from openravepy import RaveCreatePhysicsEngine
@@ -35,6 +34,10 @@ from policy_hooks.utils.tamp_eval_funcs import *
 from policy_hooks.baxter.pick_place_prob import *
 from policy_hooks.tam_agent import TAMPAgent
 
+
+BASE_POS_XML = '../models/baxter/mujoco/baxter_mujoco_pos.xml'
+BASE_MOTOR_XML = '../models/baxter/mujoco/baxter_mujoco.xml'
+ENV_XML = 'policy_hooks/mujoco/current_baxter_env.xml'
 
 BAXTER_JOINTS = ['_s0', '_s1', '_e0', '_e1', '_w0', '_w1', '_w2']
 
@@ -65,6 +68,11 @@ BAXTER_GAINS = {
 
 MJC_TIME_DELTA = 0.1
 MJC_DELTAS_PER_STEP = int(1. // MJC_TIME_DELTA)
+MUJOCO_MODEL_Z_OFFSET = -0.706
+
+N_CONTACT_LIMIT = 12
+
+GRIPPER_ROT = np.array([0, np.pi/2, 0])
 
 
 class BaxterMJCAgent(TAMPAgent):
