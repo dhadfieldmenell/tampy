@@ -237,9 +237,9 @@ class MoveHoldingClothRight(Action):
         ]
 
 
-class GraspLeftVer(Action):
+class GraspLeftVertical(Action):
     def __init__(self):
-        self.name = 'grasp_left_ver'
+        self.name = 'grasp_left_vertical'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?sp - RobotPose ?ee_left - EEPose ?ep - RobotPose)'
@@ -252,6 +252,7 @@ class GraspLeftVer(Action):
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachableLeftVer ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(grasp_time, end)),
+            ('(not (BaxterClothInGripperRight ?robot ?cloth))', '{}:{}'.format(0, end)),
             ('(BaxterClothGraspValid ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  end)),
@@ -276,9 +277,9 @@ class GraspLeftVer(Action):
         ]
 
 
-class GraspRightVer(Action):
+class GraspRightVertical(Action):
     def __init__(self):
-        self.name = 'grasp_right_ver'
+        self.name = 'grasp_right_vertical'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?sp - RobotPose ?ee_right - EEPose ?ep - RobotPose)'
@@ -291,6 +292,7 @@ class GraspRightVer(Action):
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachableRightVer ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterClothInGripperRight ?robot ?cloth)', '{}:{}'.format(grasp_time, end)),
+            ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(0, end)),
             ('(BaxterClothGraspValid ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGripperRight ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperRight ?robot)', '{}:{}'.format(grasp_time,  end)),
@@ -315,9 +317,9 @@ class GraspRightVer(Action):
         ]
 
 
-class GraspLeftHor(Action):
+class GraspLeftHorizontal(Action):
     def __init__(self):
-        self.name = 'grasp_left_hor'
+        self.name = 'grasp_left_horizontal'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?sp - RobotPose ?ee_left - EEPose ?ep - RobotPose)'
@@ -330,6 +332,7 @@ class GraspLeftHor(Action):
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachableLeftHor ?robot ?sp ?ee_left)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterClothInGripperLeft ?robot ?cloth)', '{}:{}'.format(grasp_time, end)),
+            ('(not (BaxterClothInGripperRight ?robot ?cloth))', '{}:{}'.format(0, end)),
             ('(BaxterClothGraspValid ?ee_left ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGripperLeft ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperLeft ?robot)', '{}:{}'.format(grasp_time,  end)),
@@ -354,9 +357,9 @@ class GraspLeftHor(Action):
         ]
 
 
-class GraspRightHor(Action):
+class GraspRightHorizontal(Action):
     def __init__(self):
-        self.name = 'grasp_right_hor'
+        self.name = 'grasp_right_horizontal'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?sp - RobotPose ?ee_right - EEPose ?ep - RobotPose)'
@@ -369,6 +372,7 @@ class GraspRightHor(Action):
             ('(BaxterRobotAt ?robot ?sp)', '0:0'),
             ('(BaxterEEReachableRightHor ?robot ?sp ?ee_right)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterClothInGripperRight ?robot ?cloth)', '{}:{}'.format(grasp_time, end)),
+            ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(0, end)),
             ('(BaxterClothGraspValid ?ee_right ?target)', '{}:{}'.format(grasp_time, grasp_time)),
             ('(BaxterOpenGripperRight ?robot)', '{}:{}'.format(0,  grasp_time-1)),
             ('(BaxterCloseGripperRight ?robot)', '{}:{}'.format(grasp_time,  end)),
@@ -426,7 +430,7 @@ class PutdownLeftVertical(Action):
             ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
-            ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end)),
+            ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (BaxterObstructsCloth ?robot ?sym1 ?sym2 ?cloth))\
@@ -468,7 +472,7 @@ class PutdownRightVertical(Action):
             ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
-            ('(not (BaxterClothInGripperRight ?robot ?cloth))', '{}:{}'.format(end, end)),
+            ('(not (BaxterClothInGripperRight ?robot ?cloth))', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (BaxterObstructsCloth ?robot ?sym1 ?sym2 ?cloth))\
@@ -510,7 +514,7 @@ class PutdownLeftHorizontal(Action):
             ('(BaxterClothAt ?cloth ?target)', '{}:{}'.format(end, end)),
             ('(not (BaxterRobotAt ?robot ?sp))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?ep)', '{}:{}'.format(end, end)),
-            ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end)),
+            ('(not (BaxterClothInGripperLeft ?robot ?cloth))', '{}:{}'.format(end, end-1)),
             ('(forall (?sym1 - RobotPose)\
                 (forall (?sym2 - RobotPose)\
                     (not (BaxterObstructsCloth ?robot ?sym1 ?sym2 ?cloth))\
@@ -521,7 +525,7 @@ class PutdownLeftHorizontal(Action):
 
 class PutdownRightHorizontal(Action):
     def __init__(self):
-        self.name = 'putdown_right_vertical'
+        self.name = 'putdown_right_horizontal'
         self.timesteps = 2 * const.EEREACHABLE_STEPS + 11
         end = self.timesteps - 1
         self.args = '(?robot - Robot ?cloth - Cloth ?target - ClothTarget ?sp - RobotPose ?ee_right - EEPose ?ep - RobotPose)'
@@ -562,9 +566,9 @@ class PutdownRightHorizontal(Action):
 
 
 actions = [Move(), MoveHoldingClothLeft(), MoveHoldingClothRight(), 
-           GraspLeftVer(), GraspRightVer(), GraspLeftHor(), GraspRightHor(), 
-           PutdownLeftVertical(), PutdownRightVertical(), PutdownLeftHorizontal(),
-           PutdownRightHorizontal()]
+           GraspLeftVertical(), GraspRightVertical(), GraspLeftHorizontal(), 
+           GraspRightHorizontal(), PutdownLeftVertical(), PutdownRightVertical(), 
+           PutdownLeftHorizontal(), PutdownRightHorizontal()]
 
 for action in actions:
     dom_str += '\n\n'

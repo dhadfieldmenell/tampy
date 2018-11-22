@@ -79,7 +79,28 @@ class FFSolver(HLSolver):
     FF_EXEC = "../task_planners/FF-v2.3/ff"
     FILE_PREFIX = "temp_"
 
-    def _translate_domain(self, domain_config):
+    def _parse_precondition_ts(self, pre, ts):
+        preds = ''
+        ts = ts.strip().split()
+        timesteps = [(int(t[0]), int(t[1])) for t in ts]
+
+        count, inds = 0, [0]
+        for i, token in enumerate(pre):
+            if token == "(":
+                count += 1
+            if token == ")":
+                count -= 1
+                if count == 0:
+                    inds.append(i+1)
+
+        for i in range(count):
+            if ts[i][0] == 0:
+                pred = pre[inds[i]:inds[i+1]] if i+1 < count else pre[inds[i]:]
+                preds += pred
+
+        return preds
+
+    def _translate_domain(self, domain_config, first_ts_pre=False):
         """
         Argument:
             domain_config: parsed domain configuration that defines the problem
@@ -113,6 +134,9 @@ class FFSolver(HLSolver):
                 params = domain_config[key][inds[0]:inds[1]].strip()
                 pre = domain_config[key][inds[1]:inds[2]].strip()
                 eff = domain_config[key][inds[2]:inds[3]].strip()
+                if first_ts_pre:
+                    ts = domain_config[key][inds[3]:].strip()
+                    pre = self._parse_precondition_ts(pre, ts)
                 dom_str += "(:action %s\n:parameters %s\n:precondition %s\n:effect %s\n)\n\n"%(key.split()[1], params, pre, eff)
         dom_str += ")"
 
