@@ -124,6 +124,7 @@ class TAMPAgent(Agent):
         self.env.SetCollisionChecker(self._cc)
         # self._cc = ctrajoptpy.GetCollisionChecker(self.env)
         self.n_dirs = self._hyperparams['n_dirs']
+        self.seed = 1234
 
 
     def add_viewer(self):

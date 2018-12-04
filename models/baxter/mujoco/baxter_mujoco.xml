@@ -17,9 +17,9 @@
 ====================================================== -->
 
 <mujoco model="baxter(v1.31)">
-    <compiler coordinate="local" angle="radian" meshdir="../../models/baxter/mujoco/meshes/" strippath="false" />
-    <option timestep="0.02" gravity="0 0 -9.81" iterations="20" integrator="Euler" />
-    <size njmax="10000" nconmax="70000" nstack="500000" />
+    <compiler coordinate="local" angle="radian" meshdir="../../../models/baxter/mujoco/meshes/" strippath="false" />
+    <option timestep="0.01" gravity="0 0 -9.81" iterations="20" integrator="Euler" />
+    <size njmax="795" nconmax="250" nstack="631875" />
    
    <asset>
         <mesh name="base_link" file="torso/base_link.STL"/>
@@ -73,7 +73,7 @@
     <worldbody>
         <light directional="false" cutoff="90" exponent="1" diffuse="1 1 1" specular="0 0 0" pos="1 0 1.5" dir="-1 0 -2.5"/>
         <geom name="ground" type="plane" pos="0 0 -0.925" size="4 4 .05" rgba="0.7 0.6 0.5 1"/>
-        
+        <camera name="overhead_cam" pos="1.0 0.0 0.686" quat="1 0 0 0" />
         <body name="base" pos="0 0 0">
             <inertial pos="0 0 0" mass="10" diaginertia="0.001 0.001 0.001" />
             <body name="collision_head_link_1" pos="0.11 0 0.75">

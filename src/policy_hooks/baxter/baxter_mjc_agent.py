@@ -27,80 +27,53 @@ from core.util_classes.viewer import OpenRAVEViewer
 from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 
 from policy_hooks.agent import Agent
+from policy_hooks.baxter.baxter_mjc_env import BaxterMJCEnv
+from policy_hooks.baxter.pick_place_prob import *
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
-from policy_hooks.baxter.pick_place_prob import *
-from policy_hooks.tam_agent import TAMPAgent
+from policy_hooks.tamp_agent import TAMPAgent
 
 
-BASE_POS_XML = '../models/baxter/mujoco/baxter_mujoco_pos.xml'
-BASE_MOTOR_XML = '../models/baxter/mujoco/baxter_mujoco.xml'
-ENV_XML = 'policy_hooks/mujoco/current_baxter_env.xml'
 
-BAXTER_JOINTS = ['_s0', '_s1', '_e0', '_e1', '_w0', '_w1', '_w2']
-
-MUJOCO_JOINT_ORDER = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_e2', 'left_w0', 'left_w1', 'left_w2', 'left_gripper_l_finger_joint', 'left_gripper_r_finger_joint'\
-                      'right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2', 'right_gripper_l_finger_joint', 'right_gripper_r_finger_joint']
-
-BAXTER_GAINS = {
-    'left_s0': (700., 0.01, 25.),
-    'left_s1': (10000., 100., 100.),
-    'left_e0': (4500., 35., 1.),
-    'left_e1': (5500, 60, 2),
-    'left_w0': (1000, 30, 0.01),
-    'left_w1': (900, 0.1, 0.01),
-    'left_w2': (1000, 0.1, 0.01),
-    'left_gripper_l_finger_joint': (1000, 0.1, 0.01),
-    'left_gripper_r_finger_joint': (1000, 0.1, 0.01),
-
-    'right_s0': (700., 0.01, 100.),
-    'right_s1': (10000., 100., 100.),
-    'right_e0': (4500., 35., 1.),
-    'right_e1': (5500, 60, 2),
-    'right_w0': (1000, 30, 0.01),
-    'right_w1': (900, 0.1, 0.01),
-    'right_w2': (1000, 0.1, 0.01),
-    'right_gripper_l_finger_joint': (1000, 0.1, 0.01),
-    'right_gripper_r_finger_joint': (1000, 0.1, 0.01),
-}
-
-MJC_TIME_DELTA = 0.1
-MJC_DELTAS_PER_STEP = int(1. // MJC_TIME_DELTA)
-MUJOCO_MODEL_Z_OFFSET = -0.706
-
-N_CONTACT_LIMIT = 12
-
-GRIPPER_ROT = np.array([0, np.pi/2, 0])
+BAXTER_JOINTS = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2', 'left_gripper_l_finger_joint', 'left_gripper_r_finger_joint'\
+                 'right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2', 'right_gripper_l_finger_joint', 'right_gripper_r_finger_joint']
 
 
 class BaxterMJCAgent(TAMPAgent):
     def __init__(self, hyperparams):
-        self.ctrl_data = {}
-        self.cur_time = 0.
-        self.prev_time = 0.
-        for joint in BAXTER_GAINS:
-            self.ctrl_data[joint] = {
-                'prev_err': 0.,
-                'cp': 0.,
-                'cd': 0.,
-                'ci': 0.,
-            }
+        super(TAMPAgent, self).__init__(hyperparams)
+        self.env = BaxterMJCEnv()
+        self.cur_t = 0
+        self.cur_task_ind = 0
 
 
-    def compute_joint(self, joint, error):
-        ctrl_data = self.ctrl_data[joint]
-        gains = BAXTER_GAINS[joint]
-        dt = MJC_TIME_DELTA
-        de = error - ctrl_data[joint]['prev_error']
-        ctrl_data['cp'] = error
-        ctrl_data['cd'] = de / dt
-        ctrl_data['ci'] += error * dt
-        ctrl_data['prev_err'] = error
-        return gains[0] * ctrl_data['cp'] + \
-               gains[1] * ctrl_data['cd'] + \
-               gains[2] * ctrl_data['ci']
+    def step(self, action):
+        self.env.step(action)
+        obs_dict = self.env.get_obs()
+        obs = self.parse_obs(obs_dict)
+        reward = -self._eval_cost(obs_dict)
+        done = self.is_done(obs_dict)
+        info = {}
+        return obs, reward, done, info
+
+
+    def reset(self):
+        self.env.reset()
+
+
+    def render(self):
+        # TODO: Pass proper params
+        return self.env.render(camera_id=0)
+
+
+    def close(self):
+        self.env.close()
+
+
+    def seed(self, seed):
+        self.seed = seed
 
 
     def sample_task(self, policy, condition, x0, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True):
