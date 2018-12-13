@@ -114,16 +114,16 @@ algorithm['traj_opt'] = {
 #     'kl_step': np.linspace(0.6, 0.2, 100),
 # }
 
-# algorithm['dynamics'] = {
-#     'type': DynamicsLRPrior,
-#     'regularization': 1e-6,
-#     'prior': {
-#         'type': DynamicsPriorGMM,
-#         'max_clusters': 20,
-#         'min_samples_per_cluster': 60,
-#         'max_samples': 30,
-#     },
-# }
+algorithm['dynamics'] = {
+    'type': DynamicsLRPrior,
+    'regularization': 1e-6,
+    'prior': {
+        'type': DynamicsPriorGMM,
+        'max_clusters': 20,
+        'min_samples_per_cluster': 60,
+        'max_samples': 30,
+    },
+}
 
 # algorithm['traj_opt'] = {
 #     'type': TrajOptPILQR,

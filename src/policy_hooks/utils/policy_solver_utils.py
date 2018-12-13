@@ -47,6 +47,7 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
     robot_x_attrs = x_params[robot_name]
     robot_u_attrs = u_params[robot_name]
     robot_attr_map = attr_map['Robot']
+    ee_all_attrs = ['ee_pose']
     ee_pos_attrs = ['ee_left_pos', 'ee_right_pos']
     ee_rot_attrs = ['ee_left_rot', 'ee_right_rot']
     for attr in robot_x_attrs:
@@ -58,6 +59,12 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
 
         if attr in ee_rot_attrs:
             x_inds = np.array([0, 1, 2, 3]) + cur_x_ind
+            cur_x_ind = x_inds[-1] + 1
+            params_to_x_inds[(robot_name, attr)] = x_inds
+            continue
+
+        if attr in ee_all_attrs:
+            x_inds = np.array(range(7)) + cur_x_ind
             cur_x_ind = x_inds[-1] + 1
             params_to_x_inds[(robot_name, attr)] = x_inds
             continue
@@ -76,6 +83,12 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
 
         if attr in ee_rot_attrs:
             u_inds = np.array([0, 1, 2, 3]) + cur_u_ind
+            cur_u_ind = u_inds[-1] + 1
+            params_to_u_inds[(robot_name, attr)] = u_inds
+            continue
+
+        if attr in ee_all_attrs:
+            u_inds = np.array(range(7)) + cur_u_ind
             cur_u_ind = u_inds[-1] + 1
             params_to_u_inds[(robot_name, attr)] = u_inds
             continue

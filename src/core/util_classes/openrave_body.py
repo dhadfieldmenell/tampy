@@ -159,7 +159,7 @@ class OpenRAVEBody(object):
         dof_val = self.env_body.GetActiveDOFValues()
 
         for k, v in dof_value_map.iteritems():
-            if k not in self._geom.dof_map[k] or np.any(np.isnan(v)): continue
+            if k not in self._geom.dof_map or np.any(np.isnan(v)): continue
             inds = self._geom.dof_map[k]
             dof_val[inds] = v
         # Set new DOF value to the robot
@@ -469,3 +469,24 @@ class OpenRAVEBody(object):
         trans = self.env_body.GetLink(manip_name)
         pos = trans[:3, 3]
         quat = openravepy.quatFromRotationMatrix(trans[:3, :3])
+
+    def param_fwd_kinematics(self, param, manip_names, t):
+        if not isinstance(self._geom, Robot): return
+
+        attrs = param._attr_types.keys()
+        dof_val = self.env_body.GetActiveDOFValues()
+        for attr in attrs:
+            if attr not in self._geom.dof_map: continue
+            val = getattr(param, attr)[:, t]
+            if np.any(np.isnan(val)): continue
+            inds = self._geom.dof_map[attr]
+            dof_val[inds] = val
+        self.env_body.SetActiveDOFValues(dof_val)
+
+        result = {}
+        for manip_name in manip_names:
+            result[manip_name] = {}
+            trans = self.env_body.GetLink(manip_name)
+            result[manip_name]['pos'] = trans[:3, 3]
+            result[manip_name]['quat'] = openravepy.quatFromRotationMatrix(trans[:3, :3])
+        return result

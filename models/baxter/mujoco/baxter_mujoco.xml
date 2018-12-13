@@ -18,7 +18,7 @@
 
 <mujoco model="baxter(v1.31)">
     <compiler coordinate="local" angle="radian" meshdir="../../../models/baxter/mujoco/meshes/" strippath="false" />
-    <option timestep="0.01" gravity="0 0 -9.81" iterations="20" integrator="Euler" />
+    <option timestep="0.002" gravity="0 0 -9.81" iterations="100" integrator="Euler" />
     <size njmax="795" nconmax="250" nstack="631875" />
    
    <asset>
@@ -49,7 +49,8 @@
     
    <default>
         <geom margin="0.001"/>
-        <joint limited="true" damping="0.2" armature=".01"/>
+        <!-- <joint limited="true" damping="0.2" armature=".01"/> -->
+        <joint limited="true" damping="0" armature=".01"/>
         <default class="viz">
             <geom contype="0" conaffinity="0" group="1" type="mesh"/>
         </default>
@@ -74,6 +75,7 @@
         <light directional="false" cutoff="90" exponent="1" diffuse="1 1 1" specular="0 0 0" pos="1 0 1.5" dir="-1 0 -2.5"/>
         <geom name="ground" type="plane" pos="0 0 -0.925" size="4 4 .05" rgba="0.7 0.6 0.5 1"/>
         <camera name="overhead_cam" pos="1.0 0.0 0.686" quat="1 0 0 0" />
+        <camera name="forward_cam" pos="2.5 0.0 0.0" quat="0.5 0.5 0.5 0.5" />
         <body name="base" pos="0 0 0">
             <inertial pos="0 0 0" mass="10" diaginertia="0.001 0.001 0.001" />
             <body name="collision_head_link_1" pos="0.11 0 0.75">
@@ -335,24 +337,25 @@
     </worldbody>
 
     <actuator>
-        <motor gear="1 0 0 0 0 0" joint="right_s0"/>
-        <motor gear="1 0 0 0 0 0" joint="right_s1"/>
-        <motor gear="1 0 0 0 0 0" joint="right_e0"/>
-        <motor gear="1 0 0 0 0 0" joint="right_e1"/>
-        <motor joint="right_w0"/>
-        <motor joint="right_w1"/>
-        <motor joint="right_w2"/>
-        <motor joint="right_gripper_l_finger_joint"/>
-        <motor joint="right_gripper_r_finger_joint"/>
+        <motor gear="1 0 0 0 0 0" joint="right_s0" forcelimited="true" forcerange="-1500 1500"/>
+        <motor gear="1 0 0 0 0 0" joint="right_s1" forcelimited="true" forcerange="-750 750"/>
+        <motor gear="1 0 0 0 0 0" joint="right_e0" forcelimited="true" forcerange="-300 300"/>
+        <motor gear="1 0 0 0 0 0" joint="right_e1" forcelimited="true" forcerange="-300 300"/>
+        <motor gear="1 0 0 0 0 0" joint="right_w0" forcelimited="true" forcerange="-300 300"/>
+        <motor gear="1 0 0 0 0 0" joint="right_w1" forcelimited="true" forcerange="-200 200"/>
+        <motor gear="1 0 0 0 0 0" joint="right_w2" forcelimited="true" forcerange="-100 100"/>
+        <motor gear="1 0 0 0 0 0" joint="right_gripper_l_finger_joint" forcelimited="true" forcerange="-150 150"/>
+        <motor gear="1 0 0 0 0 0" joint="right_gripper_r_finger_joint" forcelimited="true" forcerange="-150 150"/>
         
-        <motor gear="1 0 0 0 0 0" joint="left_s0"/>
-        <motor gear="1 0 0 0 0 0" joint="left_s1"/>
-        <motor gear="1 0 0 0 0 0" joint="left_e0"/>
-        <motor gear="1 0 0 0 0 0" joint="left_e1"/>
-        <motor joint="left_w0"/>
-        <motor joint="left_w1"/>
-        <motor joint="left_w2"/>
-        <motor joint="left_gripper_l_finger_joint"/>
-        <motor joint="left_gripper_r_finger_joint"/>
+        <motor gear="1 0 0 0 0 0" joint="left_s0" forcelimited="true" forcerange="-1500 1500"/>
+        <motor gear="1 0 0 0 0 0" joint="left_s1" forcelimited="true" forcerange="-750 750"/>
+        <motor gear="1 0 0 0 0 0" joint="left_e0" forcelimited="true" forcerange="-300 300"/>
+        <motor gear="1 0 0 0 0 0" joint="left_e1" forcelimited="true" forcerange="-300 300"/>
+        <motor gear="1 0 0 0 0 0" joint="left_w0" forcelimited="true" forcerange="-300 300"/>
+        <motor gear="1 0 0 0 0 0" joint="left_w1" forcelimited="true" forcerange="-200 200"/>
+        <motor gear="1 0 0 0 0 0" joint="left_w2" forcelimited="true" forcerange="-100 100"/>
+        <motor gear="1 0 0 0 0 0" joint="left_gripper_l_finger_joint" forcelimited="true" forcerange="-150 150"/>
+        <motor gear="1 0 0 0 0 0" joint="left_gripper_r_finger_joint" forcelimited="true" forcerange="-150 150"/>
     </actuator>
+
 </mujoco>

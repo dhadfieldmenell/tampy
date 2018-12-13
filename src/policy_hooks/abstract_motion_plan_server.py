@@ -10,6 +10,7 @@ import tensorflow as tf
 import rospy
 from std_msgs.msg import *
 
+from gps.utility.gmm import GMM
 
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
@@ -46,6 +47,7 @@ class AbstractMotionPlanServer(object):
         # self.policy_opt = hyperparams['policy_opt']
         # self.solver.policy_opt = self.policy_opt
         self.solver.policy_opt = DummyPolicyOpt(self.prob)
+        self.solver.policy_priors = {task: GMM() for task in self.task_list}
         self.agent = hyperparams['agent']
         self.solver.agent = self.agent
         self.agent.solver = self.solver
@@ -65,6 +67,7 @@ class AbstractMotionPlanServer(object):
         self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=10)
         self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**20)
         self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets)
+        self.policy_prior_subscriber = rsopy.Subscriber('policy_prior', PolicyPirorUpdate, self.update_policy_prior)
         self.stop = rospy.Subscriber('terminate', String, self.end)
 
         self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
@@ -103,6 +106,19 @@ class AbstractMotionPlanServer(object):
     def store_weights(self, msg):
         if self.use_local:
             self.policy_opt.deserialize_weights(msg.data)
+
+
+    def update_policy_prior(seflf, msg):
+        task = msg.task
+        sigma = np.array(msg.sigma).reshape(msg.K, msg.Do, msg.Do)
+        mu = np.array(msg.mu).reshape(msg.K, msg.Do)
+        logmass = np.array(msg.logmass).reshape(msg.K, 1)
+        mass = np.array(msg.mass).reshape(msg.K, 1)
+        self.solver.policy_prior[task].sigma = sigma
+        self.solver.policy_prior[task].mu = mu
+        self.solver.policy_prior[task].logmass = logmass
+        self.solver.policy_prior[task].mass = mass
+        self.solver.policy_prior[task].N = msg.N
 
 
     def update_targets(self, msg):

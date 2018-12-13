@@ -80,6 +80,13 @@ class Cloth(Can):
         self.color = "blue"
         self._type = "can"
 
+class Edge(Can):
+    def __init__(self, length):
+        super(Cloth, self).__init__(0.01,length)
+        self.color = "red"
+        self._type = "can"
+
+
 class Sphere(Item):
     def __init__(self, radius):
         self.color = "blue"

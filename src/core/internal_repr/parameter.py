@@ -37,8 +37,8 @@ class Parameter(object):
                         name = attrs["name"][0]
                         raise DomainConfigException("Attribute '{}' for {} '{}' not defined in domain file.".format(attr_name, type(self).__name__, name))
 
-    def get_attr_type(self, attr_name):
-        raise NotImplementedError("get_attr_type not implemented for Parameter.")
+    # def get_attr_type(self, attr_name):
+    #     raise NotImplementedError("get_attr_type not implemented for Parameter.")
 
     def get_attr_type(self, attr_name):
         if attr_name == 'openrave_body':

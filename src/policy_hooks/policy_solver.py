@@ -380,7 +380,7 @@ def get_base_solver(parent_class):
             return transfer_objs
 
 
-        def _policy_inference_obj(self, plan, (i, j, k), start_t, end_t):
+        def _policy_prob_obj(self, plan, (i, j, k), start_t, end_t):
             transfer_objs = []
             if not hasattr(self, 'gps'):
                 return []
@@ -473,6 +473,82 @@ def get_base_solver(parent_class):
             return transfer_objs
 
 
+        def _policy_inference_obj(self, plan, (i, j, k), start_t, end_t):
+            transfer_objs = []
+            if not hasattr(self, 'gmm') or self.gmm.sigma is None:
+                return []
+
+            T = end_t-start_t+1
+            sample = self._fill_sample((i, j, k), start_t, end_t, plan)
+
+            mu, sig = self.gmm.inference(np.concatenate(sample.get_X(), sample.get_U()))
+            def attr_moments(param, attr_name, inds):
+                attr_mu = mu[:, inds]
+                attr_sig = sig[:, inds][:, :, inds]
+                active_ts = (start_t, end_t)
+                if not hasattr(param, attr_name):
+                    attr_name, attr_mu, attr_sig = self.convert_attrs(attr_name, attr_mu, attr_sig, param, active_ts)
+                prec = np.linalg.inv(attr_sig)
+                attr_type = param.get_attr_type(attr_name)
+                return attr_name, attr_type.dim, attr_attr_mu, attr_sig, prec
+
+            def inf_expr(Q, v):
+                return QuadExpr(coeff*Q, -2*coeff*v.T.dot(Q), coeff*v.T.dot(Q).dot(v))
+
+            for param_name, attr_name in self.action_inds:
+                act_inds = self.action_inds[(param_name, attr_name)]
+                dX = self.symbolic_bound
+                param = plan.params[param_name]
+                param_ll = self._param_to_ll[param]
+
+                attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, dX+act_inds)
+                attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
+                attr_val[:, :-1] -= attr_val[:, 1:]
+
+                KT = K*T
+
+                Q = np.zeros(KT, KT)
+                v = attr_mu.reshape((KT, 1))
+                for t in range(T-1):
+                    Q[t:t+1,t:t+1] = prec[t]
+
+                coeff = self.policy_inf_coeff / T
+                quad_expr = inf_expr(Q, v)
+
+                bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
+                transfer_objs.append(bexpr)
+
+            for param_name, attr_name in self.state_inds:
+                state_inds = self.state_inds[param_name, attr_name]dX = self.symbolic_bound
+                param = plan.params[param_name]
+                param_ll = self._param_to_ll[param]
+
+                attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, state_inds)
+                attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
+
+                KT = K*T
+
+                Q = np.zeros(KT, KT)
+                v = attr_mu.reshape((KT, 1))
+                for t in range(T):
+                    Q[t:t+1,t:t+1] = prec[t]
+
+                coeff = self.policy_inf_coeff / T
+                quad_expr = inf_Expr(Q, v)
+
+                bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
+                transfer_objs.append(bexpr)
+
+            return transfer_objs
+
+        def gen_bexpr(self, param_ll, attr_name, KT, expr):
+            ll_attr_val = getattr(param_ll, attr_name)
+            param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+            cur_val = attr_val.reshape((KT, 1), order='F')
+            sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+            return BoundExpr(quad_expr, sco_var)
+
+
         def _policy_inf_func(self, obs, x0, task):
             mu, sig, prec, det_sig = self.policy_opt.traj_prob(np.array([obs]), task)
             for p_name, a_name in self.action_inds:
@@ -509,38 +585,25 @@ def get_base_solver(parent_class):
 
             if resample:
                 obj_bexprs = []
-                # if len(traj_mean):
-                #     obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
                 failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
                 rs_obj = self._resample(plan, failed_preds, sample_all = True)
                 obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
                 self._add_all_timesteps_of_actions(plan, priority=3,
                     add_nonlin=True, active_ts=active_ts)
-                # self._add_policy_preds(plan, active_ts)
                 obj_bexprs.extend(rs_obj)
-                if task is not None and task in self.policy_inf_fs:
+                if task is not None:
                     obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
                 self._add_obj_bexprs(obj_bexprs)
                 initial_trust_region_size = 1e3
             else:
                 self._bexpr_to_pred = {}
                 obj_bexprs = []
+
+                obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 if self.transfer_always:
                     obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm, coeff=self.strong_transfer_coeff))
-                else:
-                    obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-
-                if task is not None and task in self.policy_inf_fs:
+                if task is not None:
                     obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
-                # if priority >= 0 and len(traj_mean):
-                #     obj_bexprs.extend(self._traj_policy_opt(plan, traj_mean, active_ts[0], active_ts[1]))
-                # self.transfer_coeff *= 1e1
-                # obj_bexprs = self._get_transfer_obj(plan, self.transfer_norm)
-                # self.transfer_coeff *= 1e-1
-                # self._add_obj_bexprs(obj_bexprs)
-                # self._add_all_timesteps_of_actions(plan, priority=3, add_nonlin=True,
-                #                                    active_ts=active_ts)
-                # self._add_policy_preds(plan, active_ts)
 
                 if priority == -2:
                     """

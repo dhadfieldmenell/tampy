@@ -26,7 +26,7 @@ from policy_hooks.namo.namo_agent import NAMOSortingAgent
 # import policy_hooks.namo.namo_hyperparams as namo_hyperparams
 # import policy_hooks.namo.namo_optgps_hyperparams as namo_hyperparams
 from policy_hooks.namo.namo_policy_predicates import NAMOPolicyPredicate
-import policy_hooks.utils.policy_solver_utils as utils
+from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.namo.sorting_prob_2 import *
 from policy_hooks.task_net import tf_binary_network, tf_classification_network
 from policy_hooks.mcts import MCTS
@@ -47,7 +47,59 @@ EXP_DIR = BASE_DIR + '/experiments'
 BASE_CLASS = get_base_solver(NAMOSolver)
 
 class NAMOPolicySolver(BASE_CLASS):
-#     # TODO: Add hooks for online policy learning
+    def _fill_sample(self, (i, j, k), start_t, end_t, plan):
+        T = end_t - start_t + 1
+        self.agent.T = T
+        sample = self.fill_sample((i, j, k), start_t, end_t)
+        sample = Sample(self.agent)
+        state = np.zeros((self.symbolic_bound, T))
+        act = np.zeros((self.dU, T))
+        for p_name, a_name in self.state_inds:
+            p = plan.params[p_name]
+            if p.is_symbol(): continue
+            state[self.state_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
+        for p_name, a_name in self.action_inds:
+            p = plan.params[p_name]
+            if p.is_symbol(): continue
+            x1 = getattr(p, a_name)[:, start_t:end_t]
+            x2 = getattr(p, a_name)[:, start_t+1:end_t+1]
+            act[self.action_inds[p_name, a_name], :-1] = x2 - x1
+        hist_len = self.agent.hist_len
+        target_vec = np.zeros(self.agent.target_vecs[0].shape)
+        for p_name, a_name in self.target_inds:
+            param = plan.params[p_name]
+            target_vec[self.target_inds[p_name, a_name]] = getattr(param, a_name).flatten()
+        for t in range(start_t, end_t+1):
+            sample.set(STATE_ENUM, state[:, t-start_t], t-start_t)
+            task_vec = np.zeros((len(self.agent.task_list)))
+            task_vec[i] = 1
+            obj_vec = np.zeros((len(self.agent.obj_list)))
+            obj_vec[j] = 1
+            targ_vec = np.zeros((len(self.agent.targ_list)))
+            targ_vec[k] = 1
+            traj_hist = np.zeros((hist_len, self.dU))
+            for sub_t in range(t-hist_len, t):
+                if sub_t < start_t:
+                    continue
+                traj_hist[sub_t-t+hist_len, :] = act[:, sub_t-start_t]
+            sample.set(TASK_ENUM, task_vec, t-start_t)
+            sample.set(OBJ_ENUM, obj_vec, t-start_t)
+            sample.set(TARG_ENUM, targ_vec, t-start_t)
+            ee_pose = state[:, t-start_t][plan.state_inds[self.robot_name, 'pose']]
+            obj_pose = state[:, t-start_t][plan.state_inds[self.agent.obj_list[j], 'pose']] - ee_pose
+            targ_pose = plan.params[self.agent.targ_list[k]].value[:,0] - ee_pose
+            sample.set(EE_ENUM, ee_pose, t-start_t)
+            sample.set(OBJ_POSE_ENUM, obj_pose, t-start_t)
+            sample.set(TARG_POSE_ENUM, targ_pose, t-start_t)
+            sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
+            sample.set(TARGETS_ENUM, target_vec, t-start_t)
+            sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)
+            if LIDAR_ENUM in self.agent._hyperparams['obs_include']:
+                lidar = self.agent.dist_obs(plan, t)
+                sample.set(LIDAR_ENUM, lidar.flatten(), t-start_t)
+        return sample
+
+
     def train_policy(self, num_cans, hyperparams=None):
 #         '''
 #         Integrates the GPS code base with the TAMPy codebase to create a robust
