@@ -40,7 +40,7 @@ class BaxterIKController(object):
         self.robot_jpos_getter = robot_jpos_getter
         self.use_rot_mat = use_rot_mat
 
-        path = "baxter.urdf"
+        path = "../models/baxter/baxter_description/urdf/baxter_mod.urdf"
         self.setup_inverse_kinematics(path)
 
         self.commanded_joint_positions = robot_jpos_getter()
@@ -132,7 +132,7 @@ class BaxterIKController(object):
         p.connect(p.DIRECT)
         p.resetSimulation()
 
-        self.ik_robot = p.loadURDF(urdf_path, (0, 0, 0), useFixedBase=1)
+        self.ik_robot = p.loadURDF(urdf_path, (0, 0, 0), (0, 0, 0, 1), useFixedBase=1)
 
         # Relevant joints we care about. Many of the joints are fixed and don't count, so
         # we need this second map to use the right ones.
@@ -301,15 +301,22 @@ class BaxterIKController(object):
             A list of size @num_joints corresponding to the target joint angles.
         """
 
-        dpos_right = right["dpos"]
-        dpos_left = left["dpos"]
-        self.target_pos_right = self.ik_robot_target_pos_right + np.array([0, 0, 0.913])
-        self.target_pos_left = self.ik_robot_target_pos_left + np.array([0, 0, 0.913])
-        self.ik_robot_target_pos_right += dpos_right
-        self.ik_robot_target_pos_left += dpos_left
+        # dpos_right = right["dpos"]
+        # dpos_left = left["dpos"]
+        # self.target_pos_right = self.ik_robot_target_pos_right + np.array([0, 0, 0.913])
+        # self.target_pos_left = self.ik_robot_target_pos_left + np.array([0, 0, 0.913])
+        # self.ik_robot_target_pos_right += dpos_right
+        # self.ik_robot_target_pos_left += dpos_left
+
+        # rotation_right = right["rotation"]
+        # rotation_left = left["rotation"]
+
+        self.ik_robot_target_pos_right = right["pos"]
+        self.ik_robot_target_pos_left = left["pos"]
 
         rotation_right = right["rotation"]
         rotation_left = left["rotation"]
+
         if self.use_rot_mat:
             rotation_right = T.mat2quat(rotation_right)
             rotation_left = T.mat2quat(rotation_left)
@@ -317,23 +324,33 @@ class BaxterIKController(object):
         self.ik_robot_target_orn_left = rotation_left
 
         # convert from target pose in base frame to target pose in bullet world frame
-        world_targets_right = self.bullet_base_pose_to_world_pose(
-            (self.ik_robot_target_pos_right, self.ik_robot_target_orn_right)
-        )
-        world_targets_left = self.bullet_base_pose_to_world_pose(
-            (self.ik_robot_target_pos_left, self.ik_robot_target_orn_left)
-        )
+        # world_targets_right = self.bullet_base_pose_to_world_pose(
+        #     (self.ik_robot_target_pos_right, self.ik_robot_target_orn_right)
+        # )
+        # world_targets_left = self.bullet_base_pose_to_world_pose(
+        #     (self.ik_robot_target_pos_left, self.ik_robot_target_orn_left)
+        # )
 
         # Empirically, more iterations aren't needed, and it's faster
+        # for _ in range(5):
+        #     arm_joint_pos = self.inverse_kinematics(
+        #         world_targets_right[0],
+        #         world_targets_right[1],
+        #         world_targets_left[0],
+        #         world_targets_left[1],
+        #         rest_poses=self.robot_jpos_getter(),
+        #     )
+        #     self.sync_ik_robot(arm_joint_pos, sync_last=True)
         for _ in range(5):
             arm_joint_pos = self.inverse_kinematics(
-                world_targets_right[0],
-                world_targets_right[1],
-                world_targets_left[0],
-                world_targets_left[1],
+                right["pos"],
+                right["rotation"],
+                left["pos"],
+                left["rotation"],
                 rest_poses=self.robot_jpos_getter(),
             )
             self.sync_ik_robot(arm_joint_pos, sync_last=True)
+        print self.ik_robot_eef_joint_cartesian_pose()
 
         return arm_joint_pos
 

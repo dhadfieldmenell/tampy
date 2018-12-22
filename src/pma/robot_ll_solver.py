@@ -633,9 +633,9 @@ class RobotLLSolver(LLSolver):
 
                 robot_body.set_dof({'rArmPose': np.zeros((7,))})
 
-                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0])
+                random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.5], [0.01, 0.01, 0])
                 ee_left = target_pos + random_dir
-                ee_left[2] += 0.2
+                ee_left[2] += 0.1
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
                 if not len(l_arm_pose):

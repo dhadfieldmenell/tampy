@@ -10,7 +10,7 @@ NUM_SYMBOLS = NUM_CLOTHS
 filename = "laundry_probs/folding.prob"
 GOAL = "(BaxterRobotAt baxter robot_end_pose)"
 for i in range(NUM_CLOTHS):
-    GOAL.append(", (BaxterClothAt cloth{0} cloth{0}_end_target)".format(i))
+    GOAL += ", (BaxterClothAt cloth{0} cloth{0}_end_target)".format(i)
 
 
 CLOTH_CAPSULES = (6, 3)
@@ -28,7 +28,7 @@ ROBOT_DIST_FROM_TABLE = 0.05
 # TABLE_GEOM = [1.4, 1.4, 0.97/2]
 TABLE_GEOM = [0.3, 0.6, 0.97/2]
 # TABLE_POS = [0, 0, 0.97/2-0.375]
-TABLE_POS = [0.75, 0.02, 0.97/2-0.375]
+TABLE_POS = [0.75, 0.0, 0.97/2-0.375]
 TABLE_ROT = [0,0,0]
 
 
@@ -76,8 +76,10 @@ def main():
 
         s += "Robot (name {}); ".format("baxter")
         for i in range(NUM_SYMBOLS):
-            s += "EEPose (name {}); ".format("cg_ee_{0}".format(i))
-            s += "EEPose (name {}); ".format("cp_ee_{0}".format(i))
+            s += "EEPose (name {}); ".format("cg_ee_left_{0}".format(i))
+            s += "EEPose (name {}); ".format("cp_ee_left_{0}".format(i))
+            s += "EEPose (name {}); ".format("cg_ee_right_{0}".format(i))
+            s += "EEPose (name {}); ".format("cp_ee_right_{0}".format(i))
             s += "RobotPose (name {}); ".format("cloth_grasp_begin_{0}".format(i))
             s += "RobotPose (name {}); ".format("cloth_grasp_end_{0}".format(i))
             s += "RobotPose (name {}); ".format("cloth_putdown_begin_{0}".format(i))
@@ -99,33 +101,33 @@ def main():
                 s += "Cloth (name {}); ".format("B{0}_{1}".format(i, j))
 
 
-        s += "Obstacle (name {}); ".format("table")
+        s += "Obstacle (name {}); \n\n".format("table")
 
         s += "Init: "
         for i in range(NUM_CLOTHS):
             s += "(geom cloth{0}), ".format(i)
-            s += "(pose cloth{0} {1}), ".format(i, [0, 0, 0])
+            s += "(pose cloth{0} {1}), ".format(i, [0, 0, 0.615])
             s += "(rotation cloth{0} {1}), ".format(i, [0, 0, 0])
 
-            s += "(value cloth{0}_init_target {}), ".format(i, [0, 0, 0])
-            s += "(rotation cloth{0}_init_target {}), ".format(i, [0, 0, 0])
+            s += "(value cloth{0}_init_target {1}), ".format(i, [0, 0, 0.615])
+            s += "(rotation cloth{0}_init_target {1}), ".format(i, [0, 0, 0])
 
-            s += "(value cloth{0}_end_target {}), ".format(i, [0, 0, 0])
-            s += "(rotation cloth{0}_end_target {}), ".format(i, [0, 0, 0])
+            s += "(value cloth{0}_end_target {1}), ".format(i, [0, 0, 0.615])
+            s += "(rotation cloth{0}_end_target {1}), ".format(i, [0, 0, 0])
 
             s += "(geom edge{0} {1} {2}), ".format(i, 0.01, 0.5)
             s += "(pose edge{0} {1}), ".format(i, [0, 0, 0])
             s += "(rotation edge{0} {1}), ".format(i, [0, 0, 0])
 
-            s += "(value edge{0}_init_target {}), ".format(i, [0, 0, 0])
-            s += "(rotation edge{0}_init_target {}), ".format(i, [0, 0, 0])
+            s += "(value edge{0}_init_target {1}), ".format(i, [0, 0, 0])
+            s += "(rotation edge{0}_init_target {1}), ".format(i, [0, 0, 0])
 
-            s += "(value edge{0}_end_target {}), ".format(i, [0, 0, 0])
-            s += "(rotation edge{0}_end_target {}), ".format(i, [0, 0, 0])
+            s += "(value edge{0}_end_target {1}), ".format(i, [0, 0, 0])
+            s += "(rotation edge{0}_end_target {1}), ".format(i, [0, 0, 0])
 
         for i in range(CLOTH_CAPSULES[0]):
             for j in range(CLOTH_CAPSULES[1]):
-                s += "(geom B{0}_{1}), ".format(i)
+                s += "(geom B{0}_{1}), ".format(i, j)
                 s += "(pose B{0}_{1} {2}), ".format(i, j, [0, 0, 0])
                 s += "(rotation B{0}_{1} {2}), ".format(i, j, [0, 0, 0])
 
@@ -147,11 +149,11 @@ def main():
         s += "(rotation table {}); ".format(TABLE_ROT)
 
         s += "(BaxterRobotAt baxter robot_init_pose), "
-        for i in range(NUM_CLOTHS):
-            s += "(BaxterClothTargetHor cloth{0}_end_target), ".format(i)
+        # for i in range(NUM_CLOTHS):
+        #     s += "(BaxterClothTargetHor cloth{0}_end_target), ".format(i)
 
-        for i in range(NUM_CLOTHS):
-            s += "(BaxterClothTargetVer cloth{0}_end_target), ".format(i)
+        # for i in range(NUM_CLOTHS):
+        #     s += "(BaxterClothTargetVer cloth{0}_end_target), ".format(i)
 
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "

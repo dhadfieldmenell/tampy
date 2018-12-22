@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as xml
 
-MUJOCO_MODEL_Z_OFFSET = -0.706
+MUJOCO_MODEL_Z_OFFSET = -0.67 # -0.706
+
 
 def get_param_xml(param):
     if param._type == 'Cloth':
@@ -36,7 +37,7 @@ def get_param_xml(param):
         length = param.geom.dim[0]
         width = param.geom.dim[1]
         thickness = param.geom.dim[2]
-        x, y, z = param.pose[:, active_ts[0]]
+        x, y, z = param.pose[:, 0]
         table_body = xml.Element('body', {'name': param.name, 
                                           'pos': "{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET), 
                                           'euler': "0 0 0"})
@@ -46,8 +47,8 @@ def get_param_xml(param):
         return param.name, table_body, {'contacts': []}
 
     elif param._type == 'Basket':
-        x, y, z = param.pose[:, active_ts[0]]
-        yaw, pitch, roll = param.rotation[:, active_ts[0]]
+        x, y, z = param.pose[:, 0]
+        yaw, pitch, roll = param.rotation[:, 0]
         basket_body = xml.Element('body', {'name':param.name, 
                                   'pos':"{} {} {}".format(x, y, z+MUJOCO_MODEL_Z_OFFSET), 
                                   'euler':'{} {} {}'.format(roll, pitch, yaw), 
@@ -59,18 +60,19 @@ def get_param_xml(param):
         return param.name, basket_body, {'contacts': []}
 
 
-def get_deformable_cloth(width, length, pos=(1.,0.,1.), material='matcarpet', label=""):
-    spacing = 0.05
+def get_deformable_cloth(width, length, spacing=0.1, radius=0.15, pos=(1.,0.,1.), material='matcarpet', label=""):
     body =  '''
                 <body name="B0_0" pos="{0} {1} {2}">
                     <freejoint />
                     <composite type="cloth" count="{3} {4} 1" spacing="{5}" flatinertia="0.01">
-                        <joint kind="main" damping="0.001"/>
+                        <!-- <joint kind="main" damping="0.001"/> -->
+                        <joint kind="main" armature="0.01"/>
                         <skin material="cloth_1" texcoord="true" inflate="0.005" subgrid="3" />
-                        <geom type="capsule" size="0.015 0.01" rgba=".8 .2 .1 1" />
+                        <!-- <geom type="capsule" size="0.015 0.01" /> -->
+                        <geom type="sphere" size="{6}" mass="0.005"/>
                     </composite>
                 </body>\n
-                '''.format(pos[0], pos[1], pos[2], length, width, spacing)
+                '''.format(pos[0], pos[1], pos[2], length, width, spacing, radius)
 
     texture = '<texture name="cloth_1" type="2d" file="cloth_1.png" />'
     xml_texture = xml.fromstring(texture)
@@ -92,8 +94,17 @@ def get_deformable_cloth(width, length, pos=(1.,0.,1.), material='matcarpet', la
     # xml_center = xml.fromstring(center)
     # sites = [xml_corner_1, xml_corner_2, xml_corner_3, xml_corner_4, xml_center]
 
+    eq_constrs = []
+    for i in range(length):
+        for j in range(width):
+            # constr1 = '<weld name="left{0}_{1}" body1="B{0}_{1}" body2="left_gripper_l_finger_tip" relpose="0 0 0 0 0 0 0" active="false" solimp="0.99 0.99 0.01" solref="0.01 1"/>'.format(i, j)
+            # constr2 = '<weld name="right{0}_{1}" body1="B{0}_{1}" body2="right_gripper_l_finger_tip" relpose="0 0 0 0 0 0 0" active="false" solimp="0.99 0.99 0.01" solref="0.01 1"/>'.format(i, j)
+            constr1 = '<connect name="left{0}_{1}" body1="B{0}_{1}" body2="left_gripper_l_finger" anchor="0 0 0" active="false" solimp="0.99 0.99 0.01" solref="0.01 1"/>'.format(i, j)
+            constr2 = '<connect name="right{0}_{1}" body1="B{0}_{1}" body2="right_gripper_l_finger" anchor="0 0 0" active="false" solimp="0.99 0.99 0.01" solref="0.01 1"/>'.format(i, j)
+            eq_constrs.append(xml.fromstring(constr1))
+            eq_constrs.append(xml.fromstring(constr2))
 
-    return 'B0_0', xml_body, {'assets': [xml_texture, xml_material]}
+    return 'B0_0', xml_body, {'assets': [xml_texture, xml_material], 'equality':eq_constrs}
 
 
 def generate_xml(base_file, target_file, items):
@@ -102,6 +113,7 @@ def generate_xml(base_file, target_file, items):
     worldbody = root.find('worldbody')
     contacts = root.find('contact')
     assets = root.find('asset')
+    equality = root.find('equality')
 
     for name, item_body, tag_dict in items:
         worldbody.append(item_body)
@@ -111,5 +123,8 @@ def generate_xml(base_file, target_file, items):
         if 'assets' in tag_dict:
             for asset in tag_dict['assets']:
                 assets.append(asset)
+        if 'equality' in tag_dict:
+            for eq in tag_dict['equality']:
+                equality.append(eq)
 
     base_xml.write(target_file)

@@ -4,7 +4,7 @@ from errors_exceptions import OpenRAVEException
 from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
 axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
 RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
-IkFilterOptions, matrixFromAxisAngle
+IkFilterOptions, matrixFromAxisAngle, quatFromRotationMatrix
 from core.util_classes.robots import Robot, PR2, Baxter, Washer
 
 from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, BlueCircle, RedCircle, GreenCircle, Obstacle, Wall, Table, Basket
@@ -464,13 +464,23 @@ class OpenRAVEBody(object):
         solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
         return solutions
 
+    def get_close_ik_solution(self, manip_name, trans, dof_map=None):
+        if dof_map is not None:
+            self.set_dof(dof_map)
+
+        manip = self.env_body.GetManipulator(manip_name)
+        iktype = IkParameterizationType.Transform6D
+        ik_param = IkParameterization(trans, iktype)
+        solution = manip.FindIKSolution(ik_param, IkFilterOptions.IgnoreSelfCollisions)
+        return solution
+
     def fwd_kinematics(self, dof, manip_name):
         self.set_dof(dof)
         trans = self.env_body.GetLink(manip_name)
         pos = trans[:3, 3]
-        quat = openravepy.quatFromRotationMatrix(trans[:3, :3])
+        quat = quatFromRotationMatrix(trans[:3, :3])
 
-    def param_fwd_kinematics(self, param, manip_names, t):
+    def param_fwd_kinematics(self, param, manip_names, t, mat_result=False):
         if not isinstance(self._geom, Robot): return
 
         attrs = param._attr_types.keys()
@@ -484,9 +494,14 @@ class OpenRAVEBody(object):
         self.env_body.SetActiveDOFValues(dof_val)
 
         result = {}
-        for manip_name in manip_names:
-            result[manip_name] = {}
-            trans = self.env_body.GetLink(manip_name)
-            result[manip_name]['pos'] = trans[:3, 3]
-            result[manip_name]['quat'] = openravepy.quatFromRotationMatrix(trans[:3, :3])
+        if mat_result:
+            for manip_name in manip_names:
+                result[manip_name] = self.env_body.GetLink(manip_name).GetTransform()
+        else:
+            for manip_name in manip_names:
+                result[manip_name] = {}
+                trans = self.env_body.GetLink(manip_name).GetTransform()
+                result[manip_name]['pos'] = trans[:3, 3]
+                result[manip_name]['quat'] = quatFromRotationMatrix(trans[:3, :3])
+
         return result

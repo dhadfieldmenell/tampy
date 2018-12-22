@@ -18,8 +18,10 @@ from dm_control.viewer import util
 from dm_control.viewer import viewer
 from dm_control.viewer import views
 
+from core.util_classes.openrave_body import OpenRAVEBody
+from core.util_classes.robots import Baxter
 from policy_hooks.baxter.baxter_ik_controller import BaxterIKController
-from policy_hooks.utils.mjc_xml_utils import generate_xml
+from policy_hooks.utils.mjc_xml_utils import *
 import policy_hooks.utils.transform_utils as T
 
 
@@ -79,26 +81,22 @@ BAXTER_GAINS = {
 
 
 _MAX_FRONTBUFFER_SIZE = 2048
-_CAM_WIDTH = 400
-_CAM_HEIGHT = 300
+_CAM_WIDTH = 200
+_CAM_HEIGHT = 150
 
+GRASP_THRESHOLD = np.array([0.05, 0.05, 0.025]) # np.array([0.01, 0.01, 0.03])
 MJC_TIME_DELTA = 0.002
 MJC_DELTAS_PER_STEP = int(1. // MJC_TIME_DELTA)
-MUJOCO_MODEL_Z_OFFSET = -0.706
-
 N_CONTACT_LIMIT = 12
 
 
 CTRL_MODES = ['joint_angle', 'end_effector']
 
 class BaxterMJCEnv(object):
-    def __init__(self, mode='joint_angle', obs_include=[], items=[], view=False):
+    def __init__(self, mode='joint_angle', obs_include=[], items=[], cloth_info=None, view=False):
         assert mode in CTRL_MODES, 'Env mode must be one of {0}'.format(CTRL_MODES)
         self.ctrl_mode = mode
         self.active = True
-
-        if self.ctrl_mode == 'end_effector':
-            self.ee_ctrl = BaxterIKController(lambda: self.get_arm_joint_angles())
 
         self.cur_time = 0.
         self.prev_time = 0.
@@ -107,6 +105,14 @@ class BaxterMJCEnv(object):
         self.use_glew = os.environ['MUJOCO_GL'] != 'osmesa'
         self.obs_include = obs_include
         self._obs_inds = {}
+        self._joint_map_cache = {}
+        self._ind_cache = {}
+        self._cloth_present = cloth_info is not None
+        if self._cloth_present:
+            self.cloth_width = cloth_info['width']
+            self.cloth_length = cloth_info['length']
+            self.cloth_sphere_radius = cloth_info['radius']
+            self.cloth_spacing = cloth_info['spacing']
 
         ind = 0
         if 'image' in obs_include or not len(obs_include):
@@ -144,6 +150,10 @@ class BaxterMJCEnv(object):
 
         self.items = items
         self._load_model()
+        if self.ctrl_mode == 'end_effector':
+            # self.ee_ctrl = BaxterIKController(lambda: self.get_arm_joint_angles())
+            env = openravepy.Environment()
+            self._ikbody = OpenRAVEBody(env, 'baxter', Baxter())
 
         self.action_inds = {
             ('baxter', 'rArmPose'): np.array(range(7)),
@@ -226,9 +236,9 @@ class BaxterMJCEnv(object):
     def get_obs(self):
         obs = []
 
-        if not len(self.obs_include) or 'image' in self.obs_include:
-            pixels = self.render(view=False)
-            obs.extend(pixels.flatten())
+        # if not len(self.obs_include) or 'image' in self.obs_include:
+        #     pixels = self.render(view=False)
+        #     obs.extend(pixels.flatten())
 
         if not len(self.obs_include) or 'joints' in self.obs_include:
             jnts = self.get_joint_angles()
@@ -266,25 +276,27 @@ class BaxterMJCEnv(object):
 
     def get_left_ee_pose(self):
         model = self.physics.model
-        l_gripper_ind = model.name2id('left_gripper_l_finger_tip', 'body')
-        return self.physics.data.xpos[l_gripper_ind].copy()
+        ll_gripper_ind = model.name2id('left_gripper_l_finger_tip', 'body')
+        lr_gripper_ind = model.name2id('left_gripper_r_finger_tip', 'body')
+        return (self.physics.data.xpos[ll_gripper_ind] + self.physics.data.xpos[lr_gripper_ind]) / 2
 
 
     def get_right_ee_pose(self):
         model = self.physics.model
-        r_gripper_ind = model.name2id('right_gripper_r_finger_tip', 'body')
-        return self.physics.data.xpos[r_gripper_ind].copy()
+        rr_gripper_ind = model.name2id('right_gripper_r_finger_tip', 'body')
+        rl_gripper_ind = model.name2id('right_gripper_l_finger_tip', 'body')
+        return (self.physics.data.xpos[rr_gripper_ind] + self.physics.data.xpos[rl_gripper_ind]) / 2
 
 
     def get_left_ee_rot(self):
         model = self.physics.model
-        l_gripper_ind = model.name2id('left_gripper_l_finger_tip', 'body')
+        l_gripper_ind = model.name2id('left_gripper_base', 'body')
         return self.physics.data.xquat[l_gripper_ind].copy()
 
 
     def get_right_ee_rot(self):
         model = self.physics.model
-        r_gripper_ind = model.name2id('right_gripper_r_finger_tip', 'body')
+        r_gripper_ind = model.name2id('right_gripper_base', 'body')
         return self.physics.data.xquat[r_gripper_ind].copy()
 
 
@@ -307,20 +319,31 @@ class BaxterMJCEnv(object):
 
 
     def get_cloth_point(self, x, y):
+        if not self._cloth_present:
+            raise AttributeError('No cloth in model (remember to supply cloth_info).')
+
         model = self.physics.model
         name = 'B{0}_{1}'.format(x, y)
-        point_ind = model.name2id(name, 'body')
+        if name in self._ind_cache:
+            point_ind = self._ind_cache[name]
+        else:
+            point_ind = model.name2id(name, 'body')
+            self._ind_cache[name] = point_ind
         return self.physics.data.xpos[point_ind]
 
 
-    def get_cloth_points(self, x_max, y_max):
+    def get_cloth_points(self):
+        if not self._cloth_present:
+            raise AttributeError('No cloth in model (remember to supply cloth_info).')
+
+        if not self._cloth_present: return []
         points_inds = []
         model = self.physics.model
-        for x in range(x_max):
-            for y in range(y_max):
+        for x in range(self.cloth_length):
+            for y in range(self.cloth_width):
                 name = 'B{0}_{1}'.format(x, y)
-                point_inds.append(model.name2id(name, 'body'))
-        return self.physics.data.xpos[point_inds]
+                points_inds.append(model.name2id(name, 'body'))
+        return self.physics.data.xpos[points_inds]
 
 
     def get_joint_angles(self):
@@ -332,22 +355,33 @@ class BaxterMJCEnv(object):
         return self.physics.data.qpos[inds]
 
 
+    def get_gripper_joint_angles(self):
+        inds = [8, 17]
+        return self.physics.data.qpos[inds]
+
+
     def _get_joints(self, act_index):
+        if act_index in self._joint_map_cache:
+            return self._joint_map_cache[act_index]
+
+        res = []
         for name, attr in self.action_inds:
             inds = self.action_inds[name, attr]
             # Actions have a single gripper command, but MUJOCO uses two gripper joints
             if act_index in inds:
                 if attr == 'lGripper':
-                    return [('left_gripper_l_finger_joint', 1), ('left_gripper_r_finger_joint', -1)]
+                    res = [('left_gripper_l_finger_joint', 1), ('left_gripper_r_finger_joint', -1)]
                 elif attr == 'rGripper':
-                    return [('right_gripper_r_finger_joint', 1), ('right_gripper_l_finger_joint', -1)]
+                    res = [('right_gripper_r_finger_joint', 1), ('right_gripper_l_finger_joint', -1)]
                 elif attr == 'lArmPose':
                     arm_ind = inds.tolist().index(act_index)
-                    return [(MUJOCO_JOINT_ORDER[9+arm_ind], 1)]
+                    res = [(MUJOCO_JOINT_ORDER[9+arm_ind], 1)]
                 elif attr == 'rArmPose':
                     arm_ind = inds.tolist().index(act_index)
-                    return [(MUJOCO_JOINT_ORDER[arm_ind], 1)]
-        return []
+                    res = [(MUJOCO_JOINT_ORDER[arm_ind], 1)]
+
+        self._joint_map_cache[act_index] = res
+        return res
 
 
     def _step_joint(self, joint, error):
@@ -364,37 +398,147 @@ class BaxterMJCEnv(object):
                gains[2] * ctrl_data['ci']
 
 
-    def step(self, action):
-        cmd = np.zeros((18))
-        for t in range(MJC_DELTAS_PER_STEP):
-            if not t % 50: self.render(view=True, camera_id=1)
-            if self.ctrl_mode == 'joint_angle':
-                for i in range(len(action)):
-                    jnts = self._get_joints(i)
-                    for jnt in jnts:
-                        ind = MUJOCO_JOINT_ORDER.index(jnt[0])
-                        current_angle = self.physics.data.qpos[ind+1]
-                        cmd_angle = jnt[1] * action[i]
-                        error = cmd_angle - current_angle
-                        cmd[ind] = 1e1* error
-            elif self.ctr_mode == 'end_effector':
-                # Order: ee_right_pos, ee_right_quat, ee_right_grip, ee_left_pos, ee_left_quat, ee_left_grip
-                ee_cmd_right = {}
-                ee_cmd_left = {}
-                ee_cmd_right['dpos'] = action[:3]
-                ee_cmd_right['rot'] = action[3:7]
-                ee_cmd_left['dpos'] = action[8:11]
-                ee_cmd_left['rot'] = action[11:15]
-                arm_ctrl = self.ee_ctrl.get_control(ee_cmd_right, ee_cmd_left)
-                cmd[:7] = arm_ctrl[:7]
-                cmd[7] = 0.1 if action[7] - self.physics.data.qpos[8] > 0 else -5
-                cmd[8] = -cmd[7]
-                cmd[9:16] = arm_ctrl[7:]
-                cmd[16] = 0.1 if action[15] - self.physics.data.qpos[17] > 0 else -5
-                cmd[17] = -cmd[16]
+    def activate_cloth_eq(self):
+        for i in range(self.cloth_length):
+            for j in range(self.cloth_width):
+                pnt = self.get_cloth_point(i, j)
+                right_ee = self.get_right_ee_pose()
+                left_ee = self.get_left_ee_pose()
+                right_grip, left_grip = self.get_gripper_joint_angles()
 
+                r_eq_name = 'right{0}_{1}'.format(i, j)
+                l_eq_name = 'left{0}_{1}'.format(i, j)
+                if r_eq_name in self._ind_cache:
+                    r_eq_ind = self._ind_cache[r_eq_name]
+                else:
+                    r_eq_ind = self.physics.model.name2id(r_eq_name, 'equality')
+                    self._ind_cache[r_eq_name] = r_eq_ind
+
+                if l_eq_name in self._ind_cache:
+                    l_eq_ind = self._ind_cache[l_eq_name]
+                else:
+                    l_eq_ind = self.physics.model.name2id(l_eq_name, 'equality')
+                    self._ind_cache[l_eq_name] = l_eq_ind
+
+                if np.all(np.abs(pnt - right_ee) < GRASP_THRESHOLD) and right_grip < 0.015:
+                    # if not self.physics.model.eq_active[r_eq_ind]:
+                    #     self._shift_cloth_to_grip(right_ee, (i, j))
+                    self.physics.model.eq_active[r_eq_ind] = True
+                    print 'Activated right equality'.format(i, j)
+                # else:
+                #     self.physics.model.eq_active[r_eq_ind] = False
+
+                if np.all(np.abs(pnt - left_ee) < GRASP_THRESHOLD) and left_grip < 0.015:
+                    # if not self.physics.model.eq_active[l_eq_ind]:
+                    #     self._shift_cloth_to_grip(left_ee, (i, j))
+                    self.physics.model.eq_active[l_eq_ind] = True
+                    print 'Activated left equality {0} {1}'.format(i, j)
+                # else:
+                #     self.physics.model.eq_active[l_eq_ind] = False
+
+
+    def _shift_cloth_to_grip(self, ee_pos, point_xy):
+        point_pos = self.get_cloth_point(point_xy[0], point_xy[1])
+        cloth_disp = ee_pos - point_pos
+        xpos = self.physics.data.xpos
+        for i in range(self.cloth_length):
+            for j in range(self.cloth_width):
+                if 'B{0}_{1}'.format(i, j) in self._ind_cache:
+                    point_ind = self._ind_cache['B{0}_{1}'.format(i, j)]
+                else:
+                    point_ind = self.physics.model.name2id('B{0}_{1}'.format(i, j), 'body')
+                    self._ind_cache['B{0}_{1}'.format(i, j)] = point_ind
+                xpos[point_ind] += cloth_disp
+        self.physics.forward()
+
+
+    def _clip_joint_angles(self, r_jnts, r_grip, l_jnts, l_grip):
+        DOF_limits = self._ikbody.env_body.GetDOFLimits()
+        left_DOF_limits = (DOF_limits[0][2:9]+0.001, DOF_limits[1][2:9]-0.001)
+        right_DOF_limits = (DOF_limits[0][10:17]+0.001, DOF_limits[1][10:17]-0.001)
+
+        if r_grip[0] < 0:
+            r_grip[0] = 0
+        if r_grip[0] > 0.02:
+            r_grip[0] = 0.02
+        if l_grip[0] < 0:
+            l_grip[0] = 0
+        if l_grip[0] > 0.02:
+            l_grip[0] = 0.02
+
+        for i in range(7):
+            if l_jnts[i] < left_DOF_limits[0][i]:
+                l_jnts[i] = left_DOF_limits[0][i]
+            if l_jnts[i] > left_DOF_limits[1][i]:
+                l_jnts[i] = left_DOF_limits[1][i]
+            if r_jnts[i] < right_DOF_limits[0][i]:
+                r_jnts[i] = right_DOF_limits[0][i]
+            if r_jnts[i] > right_DOF_limits[1][i]:
+                r_jnts[i] = right_DOF_limits[1][i]
+
+
+    def _calc_ik(self, pos, quat, use_right=True):
+        arm_jnts = self.get_arm_joint_angles()
+        grip_jnts = self.get_gripper_joint_angles()
+        self._clip_joint_angles(arm_jnts[:7], grip_jnts[:1], arm_jnts[7:], grip_jnts[1:])
+
+        dof_map = {
+            'rArmPose': arm_jnts[:7],
+            'rGripper': grip_jnts[0],
+            'lArmPose': arm_jnts[7:],
+            'lGripper': grip_jnts[1],
+        }
+
+        manip_name = 'right_arm' if use_right else 'left_arm'
+        trans = np.zeros((4, 4))
+        trans[:3, :3] = openravepy.matrixFromQuat(quat)[:3,:3]
+        trans[:3, 3] = pos
+        trans[3, 3] = 1
+
+        jnt_cmd = self._ikbody.get_close_ik_solution(manip_name, trans, dof_map)
+
+        return jnt_cmd
+
+
+    def step(self, action, debug=False):
+        cmd = np.zeros((18))
+        abs_cmd = np.zeros((18))
+
+        if self.ctrl_mode == 'joint_angle':
+            for i in range(len(action)):
+                jnts = self._get_joints(i)
+                for jnt in jnts:
+                    cmd_angle = jnt[1] * action[i]
+                    ind = MUJOCO_JOINT_ORDER.index(jnt[0])
+                    abs_cmd[ind] = cmd_angle
+
+        elif self.ctrl_mode == 'end_effector':
+            # Order: ee_right_pos, ee_right_quat, ee_right_grip, ee_left_pos, ee_left_quat, ee_left_grip
+            abs_cmd[:7] = self._calc_ik(action[:3], action[3:7], use_right=True)
+            abs_cmd[9:16] = self._calc_ik(action[8:11], action[11:15], use_right=False)
+
+        for t in range(MJC_DELTAS_PER_STEP):
+            error = abs_cmd - self.physics.data.qpos[1:19]
+            cmd = 6e1 * error
+            cmd[7] = 10 if action[7] > 0.0175 else -100
+            cmd[8] = -cmd[7]
+            cmd[16] = 10 if action[15] > 0.0175 else -100
+            cmd[17] = -cmd[16]
             self.physics.set_control(cmd)
             self.physics.step()
+
+        # if self._cloth_present:
+        #     self.activate_cloth_eq()
+
+        if debug:
+            print '\n'
+            print 'Joint Errors:', abs_cmd - self.physics.data.qpos[1:19]
+            print 'EE Pose', self.get_right_ee_pose(), self.get_left_ee_pose()
+            corner1 = self.get_item_pose('B0_0')
+            corner2 = self.get_item_pose('B0_{0}'.format(self.cloth_width-1))
+            corner3 = self.get_item_pose('B{0}_0'.format(self.cloth_length-1))
+            corner4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
+            print 'Cloth corners:', corner1, corner2, corner3, corner4
 
         return self.get_obs(), 0, False, {}
 

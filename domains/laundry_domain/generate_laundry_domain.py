@@ -59,6 +59,7 @@ pp.add('Obstacle', [('geom', 'Box'), ('pose', 'Vector3d'), ('rotation', 'Vector3
 pp.add('Rotation', [('value', 'Vector1d')])
 pp.add('Can', [('geom', 'Can'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 pp.add('Region', [('value', 'Vector2d')])
+pp.add('Edge', [('geom', 'Edge'), ('pose', 'Vector3d'), ('rotation', 'Vector3d')])
 # pp.add('Fabric', [('gripleft', 'Vector3d'), ('gripright', 'Vector3d')])
 dom_str += pp.get_str() + '\n\n'
 
