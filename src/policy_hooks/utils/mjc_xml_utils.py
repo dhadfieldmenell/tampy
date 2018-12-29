@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as xml
 
-MUJOCO_MODEL_Z_OFFSET = -0.67 # -0.706
+MUJOCO_MODEL_Z_OFFSET = -0.665 # -0.706
 
 
 def get_param_xml(param):
@@ -14,21 +14,21 @@ def get_param_xml(param):
         cloth_intertial = xml.SubElement(cloth_body, 'inertial', {'pos':'0 0 0', 'quat':'0 0 0 1', 'mass':'0.1', 'diaginertia': '0.01 0.01 0.01'})
         # Exclude collisions between the left hand and the cloth to help prevent exceeding the contact limit
         contacts = [
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'left_wrist'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'left_hand'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_base'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_l_finger_tip'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_l_finger'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger_tip'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'right_wrist'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'right_hand'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_base'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_l_finger_tip'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_l_finger'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_r_finger_tip'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'right_gripper_r_finger'}),
-            xml.Element(contacts, 'exclude', {'body1': param.name, 'body2': 'basket'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'left_wrist'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'left_hand'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'left_gripper_base'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'left_gripper_l_finger_tip'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'left_gripper_l_finger'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger_tip'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'left_gripper_r_finger'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'right_wrist'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'right_hand'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'right_gripper_base'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'right_gripper_l_finger_tip'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'right_gripper_l_finger'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'right_gripper_r_finger_tip'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'right_gripper_r_finger'}),
+            xml.Element('exclude', {'body1': param.name, 'body2': 'basket'}),
         ]
 
         return param.name, cloth_body, {'contacts': contacts}
@@ -104,7 +104,14 @@ def get_deformable_cloth(width, length, spacing=0.1, radius=0.15, pos=(1.,0.,1.)
             eq_constrs.append(xml.fromstring(constr1))
             eq_constrs.append(xml.fromstring(constr2))
 
-    return 'B0_0', xml_body, {'assets': [xml_texture, xml_material], 'equality':eq_constrs}
+    contacts = []
+    for i in range(length):
+        for j in range(width):
+            for k in range(i+1, length):
+                for l in range(j+1, width):
+                    contacts.append(xml.Element('exclude', {'body1': 'B{0}_{1}'.format(i, j), 'body2': 'B{0}_{1}'.format(k, l)}))
+
+    return 'B0_0', xml_body, {'assets': [xml_texture, xml_material], 'equality': eq_constrs, 'contacts': contacts}
 
 
 def generate_xml(base_file, target_file, items):

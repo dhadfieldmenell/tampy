@@ -35,6 +35,16 @@ MUJOCO_JOINT_ORDER = ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0'
                       'left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2', 'left_gripper_l_finger_joint', 'left_gripper_r_finger_joint']
                       
 
+NO_CLOTH = 0
+NO_FOLD = 1
+ONE_FOLD = 2
+TWO_FOLD = 3
+WIDTH_GRASP = 4
+LENGTH_GRASP = 5
+TWO_GRASP = 6
+HALF_WIDTH_GRASP = 7
+HALF_LENGTH_GRASP = 8
+
 # BAXTER_GAINS = {
 #     'left_s0': (700., 0.01, 25.),
 #     'left_s1': (10000., 100., 100.),
@@ -79,7 +89,6 @@ BAXTER_GAINS = {
     'right_gripper_r_finger_joint': (1000, 0.1, 0.01),
 }
 
-
 _MAX_FRONTBUFFER_SIZE = 2048
 _CAM_WIDTH = 200
 _CAM_HEIGHT = 150
@@ -89,8 +98,10 @@ MJC_TIME_DELTA = 0.002
 MJC_DELTAS_PER_STEP = int(1. // MJC_TIME_DELTA)
 N_CONTACT_LIMIT = 12
 
-
+START_EE = [0.6, -0.5, 0.75, 0, 0, 1, 0, 0.6, 0.5, 0.75, 0, 0, 1, 0]
 CTRL_MODES = ['joint_angle', 'end_effector']
+
+
 
 class BaxterMJCEnv(object):
     def __init__(self, mode='joint_angle', obs_include=[], items=[], cloth_info=None, view=False):
@@ -150,10 +161,14 @@ class BaxterMJCEnv(object):
 
         self.items = items
         self._load_model()
-        if self.ctrl_mode == 'end_effector':
-            # self.ee_ctrl = BaxterIKController(lambda: self.get_arm_joint_angles())
-            env = openravepy.Environment()
-            self._ikbody = OpenRAVEBody(env, 'baxter', Baxter())
+
+        env = openravepy.Environment()
+        self._ikbody = OpenRAVEBody(env, 'baxter', Baxter())
+
+        # Start joints with grippers pointing downward
+        self.physics.data.qpos[1:8] = self._calc_ik(START_EE[:3], START_EE[3:7], True)
+        self.physics.data.qpos[10:17] = self._calc_ik(START_EE[7:10], START_EE[10:14], False)
+        self.physics.forward()
 
         self.action_inds = {
             ('baxter', 'rArmPose'): np.array(range(7)),
@@ -245,9 +260,9 @@ class BaxterMJCEnv(object):
             obs.extend(jnts)
 
         if not len(self.obs_include) or 'end_effector' in self.obs_include:
-            obs.extend(self.get_left_ee_pose())
+            obs.extend(self.get_left_ee_pos())
             obs.extend(self.get_left_ee_rot())
-            obs.extend(self.get_right_ee_pose())
+            obs.extend(self.get_right_ee_pos())
             obs.extend(self.get_right_ee_rot())
 
         for item in self.items:
@@ -274,18 +289,24 @@ class BaxterMJCEnv(object):
             return inds[7:8]
 
 
-    def get_left_ee_pose(self):
+    def get_left_ee_pos(self, mujoco_frame=True):
         model = self.physics.model
         ll_gripper_ind = model.name2id('left_gripper_l_finger_tip', 'body')
         lr_gripper_ind = model.name2id('left_gripper_r_finger_tip', 'body')
-        return (self.physics.data.xpos[ll_gripper_ind] + self.physics.data.xpos[lr_gripper_ind]) / 2
+        pos = (self.physics.data.xpos[ll_gripper_ind] + self.physics.data.xpos[lr_gripper_ind]) / 2
+        if not mujoco_frame:
+            pos[2] -= MUJOCO_MODEL_Z_OFFSET
+        return pos 
 
 
-    def get_right_ee_pose(self):
+    def get_right_ee_pos(self, mujoco_frame=True):
         model = self.physics.model
         rr_gripper_ind = model.name2id('right_gripper_r_finger_tip', 'body')
         rl_gripper_ind = model.name2id('right_gripper_l_finger_tip', 'body')
-        return (self.physics.data.xpos[rr_gripper_ind] + self.physics.data.xpos[rl_gripper_ind]) / 2
+        pos = (self.physics.data.xpos[rr_gripper_ind] + self.physics.data.xpos[rl_gripper_ind]) / 2
+        if not mujoco_frame:
+            pos[2] -= MUJOCO_MODEL_Z_OFFSET
+        return pos
 
 
     def get_left_ee_rot(self):
@@ -402,8 +423,8 @@ class BaxterMJCEnv(object):
         for i in range(self.cloth_length):
             for j in range(self.cloth_width):
                 pnt = self.get_cloth_point(i, j)
-                right_ee = self.get_right_ee_pose()
-                left_ee = self.get_left_ee_pose()
+                right_ee = self.get_right_ee_pos()
+                left_ee = self.get_left_ee_pos()
                 right_grip, left_grip = self.get_gripper_joint_angles()
 
                 r_eq_name = 'right{0}_{1}'.format(i, j)
@@ -513,19 +534,49 @@ class BaxterMJCEnv(object):
                     abs_cmd[ind] = cmd_angle
 
         elif self.ctrl_mode == 'end_effector':
-            # Order: ee_right_pos, ee_right_quat, ee_right_grip, ee_left_pos, ee_left_quat, ee_left_grip
-            abs_cmd[:7] = self._calc_ik(action[:3], action[3:7], use_right=True)
-            abs_cmd[9:16] = self._calc_ik(action[8:11], action[11:15], use_right=False)
+            # Action Order: ee_right_pos, ee_right_quat, ee_right_grip, ee_left_pos, ee_left_quat, ee_left_grip
+            cur_right_ee_pos = self.get_right_ee_pos()
+            cur_right_ee_rot = self.get_right_ee_rot()
+            cur_left_ee_pos = self.get_left_ee_pos()
+            cur_left_ee_rot = self.get_left_ee_rot()
 
-        for t in range(MJC_DELTAS_PER_STEP):
+            target_right_ee_pos = cur_right_ee_pos + action[:3]
+            target_right_ee_rot = action[3:7] # cur_right_ee_rot + action[3:7]
+            target_left_ee_pos = cur_left_ee_pos + action[8:11]
+            target_left_ee_rot = action[11:15] # cur_left_ee_rot + action[11:15]
+
+            # target_right_ee_rot /= np.linalg.norm(target_right_ee_rot)
+            # target_left_ee_rot /= np.linalg.norm(target_left_ee_rot)
+
+            start_t = time.time()
+            right_cmd = self._calc_ik(target_right_ee_pos, 
+                                      target_right_ee_rot, 
+                                      use_right=True)
+
+            left_cmd = self._calc_ik(target_left_ee_pos, 
+                                     target_left_ee_rot, 
+                                     use_right=False)
+            # print 'IK time:', time.time() - start_t
+
+            if right_cmd is None:
+                right_cmd = self.get_arm_joint_angles()[:7]
+            if left_cmd is None:
+                left_cmd = self.get_arm_joint_angles()[7:]
+
+            abs_cmd[:7] = right_cmd
+            abs_cmd[9:16] = left_cmd
+
+        start_t = time.time()
+        for t in range(MJC_DELTAS_PER_STEP / 4):
             error = abs_cmd - self.physics.data.qpos[1:19]
-            cmd = 6e1 * error
-            cmd[7] = 10 if action[7] > 0.0175 else -100
+            cmd = 7e1 * error
+            cmd[7] = 20 if action[7] > 0.0175 else -75
             cmd[8] = -cmd[7]
-            cmd[16] = 10 if action[15] > 0.0175 else -100
+            cmd[16] = 20 if action[15] > 0.0175 else -75
             cmd[17] = -cmd[16]
             self.physics.set_control(cmd)
             self.physics.step()
+        # print 'Step time:', time.time() - start_t
 
         # if self._cloth_present:
         #     self.activate_cloth_eq()
@@ -533,21 +584,26 @@ class BaxterMJCEnv(object):
         if debug:
             print '\n'
             print 'Joint Errors:', abs_cmd - self.physics.data.qpos[1:19]
-            print 'EE Pose', self.get_right_ee_pose(), self.get_left_ee_pose()
+            print 'EE Position', self.get_right_ee_pos(), self.get_left_ee_pos()
+            print 'EE Quaternion', self.get_right_ee_rot(), self.get_left_ee_rot()
             corner1 = self.get_item_pose('B0_0')
             corner2 = self.get_item_pose('B0_{0}'.format(self.cloth_width-1))
             corner3 = self.get_item_pose('B{0}_0'.format(self.cloth_length-1))
             corner4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
             print 'Cloth corners:', corner1, corner2, corner3, corner4
 
-        return self.get_obs(), 0, False, {}
+        return self.get_obs(), self.get_reward(), False, {}
 
 
     def render(self, height=_CAM_HEIGHT, width=_CAM_WIDTH, camera_id=-1, overlays=(),
              depth=False, scene_option=None, view=True):
+        start_t = time.time()
         pixels = self.physics.render(height, width, camera_id, overlays, depth, scene_option)
+        # print 'Pixels time:', time.time() - start_t
         if view and self.use_viewer:
+            start_t = time.time()
             self._render_viewer(pixels)
+            # print 'View time:', time.time() - start_t
         return pixels
 
 
@@ -658,3 +714,195 @@ class BaxterMJCEnv(object):
 
     def seed(self, seed=None):
         pass
+
+
+    def get_reward(self):
+        start_t = time.time()
+        state = self.check_cloth_state()
+
+        if NO_CLOTH in state: return 0
+
+        if TWO_FOLD in state: return 1e3
+
+        reward = 0
+
+        ee_right_pos = self.get_right_ee_pos()
+        ee_left_pos = self.get_left_ee_pos()
+
+        corner1 = self.get_item_pose('B0_0')
+        corner2 = self.get_item_pose('B0_{0}'.format(self.cloth_width-1))
+        corner3 = self.get_item_pose('B{0}_0'.format(self.cloth_length-1))
+        corner4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
+        corners = [corner1, corner2, corner3, corner4]
+
+
+        min_right_dist = min([np.linalg.norm(ee_right_pos-corners[i]) for i in range(4)])
+        min_left_dist = min([np.linalg.norm(ee_left_pos-corners[i]) for i in range(4)])
+
+        if ONE_FOLD in state:
+            reward += 5e1
+            if self.cloth_length % 2:
+                mid1 = self.get_item_pose('B{0}_0'.format(self.cloth_length // 2))
+                mid2 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length // 2), self.cloth_width-1)
+            else:
+                mid1 = (self.get_item_pose('B{0}_0'.format(self.cloth_length // 2)-1) \
+                        + self.get_item_pose('B{0}_0'.format(self.cloth_length // 2))) / 2.0
+                mid2 = (self.get_item_pose('B{0}_{1}'.format(self.cloth_length // 2 - 1, self.cloth_width-1)) \
+                        + self.get_item_pose('B{0}_{1}'.format(self.cloth_length // 2, self.cloth_width-1))) / 2.0
+
+            if self.cloth_width % 2:
+                mid3 = self.get_item_pose('B0_{0}'.format(self.cloth_width // 2))
+                mid4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width // 2))
+            else:
+                mid3 = (self.get_item_pose('B0_{0}'.format(self.cloth_width // 2)-1) \
+                        + self.get_item_pose('B0_{0}'.format(self.cloth_width // 2))) / 2.0
+                mid4 = (self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width // 2 - 1)) \
+                        + self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width // 2))) / 2.0
+
+            min_dist = min([
+                            np.linalg.norm(corner1-ee_left_pos) + np.linalg.norm(mid3-ee_right_pos),
+                            np.linalg.norm(corner1-ee_right_pos) + np.linalg.norm(mid3-ee_left_pos),
+                            np.linalg.norm(corner3-ee_left_pos) + np.linalg.norm(mid4-ee_right_pos),
+                            np.linalg.norm(corner3-ee_right_pos) + np.linalg.norm(mid4-ee_left_pos),
+                           ])
+            reward -= min_dist
+            reward -= 1e1 * np.linalg.norm(corner1 - corner3)
+            reward -= 1e1 * np.linalg.norm(mid3 - mid4)
+            reward += 1e1 * (0.75 * self.cloth_spacing - np.linalg.norm(corner1 - mid3))
+            reward += 1e1 * (0.75 * self.cloth_spacing - np.linalg.norm(corner3 - mid4))
+
+        elif LENGTH_GRASP in state:
+            reward += 1e1
+
+            mid1 = self.get_item_pose('B{0}_0'.format(int((self.cloth_length - 1.5) // 2)))
+            mid2 = self.get_item_pose('B{0}_0'.format(int((self.cloth_length - 1.5) // 2)))
+            mid3 = self.get_item_pose('B{0}_{1}'.format(int((self.cloth_length - 1.5) // 2), self.cloth_width-1))
+            mid4 = self.get_item_pose('B{0}_{1}'.format(int((self.cloth_length - 1.5) // 2), self.cloth_width-1))
+
+            mid5 = self.get_item_pose('B0_{0}'.format(int((self.cloth_width - 1.5) // 2)))
+            mid6 = self.get_item_pose('B0_{0}'.format(int((self.cloth_width + 1.5) // 2)))
+            mid7 = self.get_item_pose('B{0}_{1}'.format(self.cloth_width-1, int((self.cloth_length - 1.5) // 2)))
+            mid8 = self.get_item_pose('B{0}_{1}'.format(self.cloth_width-1, int((self.cloth_length + 1.5) // 2)))
+            min_dist = min([
+                            np.linalg.norm(corner1-ee_left_pos) + np.linalg.norm(corner3-ee_right_pos),
+                            np.linalg.norm(corner1-ee_right_pos) + np.linalg.norm(corner3-ee_left_pos),
+                            np.linalg.norm(corner2-ee_left_pos) + np.linalg.norm(corner4-ee_right_pos),
+                            np.linalg.norm(corner2-ee_right_pos) + np.linalg.norm(corner4-ee_left_pos),
+                           ])
+            reward -= 1e1 * min_dist
+            reward -= 1e1 * np.linalg.norm(corner1[:2] - corner2[:2])
+            reward -= 1e1 * np.linalg.norm(corner3[:2] - corner4[:2])
+            reward += 1e1 * np.linalg.norm(corner1[:2] - corner3[:2])
+            reward += 1e1 * np.linalg.norm(corner2[:2] - corner4[:2])
+            reward -= 5e0 * np.linalg.norm(mid5[:2] - mid6[:2])
+            reward -= 5e0 * np.linalg.norm(mid7[:2] - mid8[:2])
+
+        else:
+            right_most_corner = min(corners, key=lambda c: c[0])
+            left_most_corner = max(corners, key=lambda c: c[0])
+
+            r_corner_id = np.argmin([np.linalg.norm(c - right_most_corner) for c in corners])
+            l_corner_id = np.argmin([np.linalg.norm(c - left_most_corner) for c in corners])
+            reward -= 1e1 * np.linalg.norm(ee_left_pos - left_most_corner)
+            if right_most_corner[0] > 0.1:
+                reward -= 1e1 * np.linalg.norm(ee_left_pos - right_most_corner)
+                reward -= 1e1 * right_most_corner[0]
+            elif left_most_corner[0] > -0.1:
+                reward += 5
+                next_corner1 = (-2 + l_corner_id) % 4
+                next_corner2 = (-2 + r_corner_id) % 4
+                if next_corner1[0] < 0.1:
+                    reward -= 1e1 * np.linalg.norm(ee_left_pos - left_most_corner)
+                    reward -= 1e1 * np.linalg.norm(ee_right_pos - next_corner1)
+                elif next_corner2[0] > -0.1:
+                    reward -= 1e1 * np.linalg.norm(ee_right_pos - right_most_corner)
+                    reward -= 1e1 * np.linalg.norm(ee_left_pos - next_corner2)
+                else:
+                    reward -= 1e1 * np.linalg.norm(ee_left_pos - next_corner1)
+                    reward -= 1e1 * next_corner1[0]
+
+            else:
+                reward -= 4e1 * np.linalg.norm(ee_right_pos - left_most_corner)
+                reward += 1e1 * left_most_corner[0]
+
+        print 'Reward calculation time:', time.time() - start_t
+        return reward
+
+
+    def check_cloth_state(self):
+        if not self._cloth_present: return [NO_CLOTH]
+
+        state = []
+
+        # Check full fold
+        corner1 = self.get_item_pose('B0_0')
+        corner2 = self.get_item_pose('B0_{0}'.format(self.cloth_width-1))
+        corner3 = self.get_item_pose('B{0}_0'.format(self.cloth_length-1))
+        corner4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
+
+        corners = [corner1, corner2, corner3, corner4]
+        check1 = all([all([np.max(np.abs(corners[i][:2] - corners[j][:2])) < 0.04 for j in range(i+1, 4)]) for i in range(4)])
+
+        mid1 = self.get_item_pose('B{0}_0'.format(int((self.cloth_length - 1.5) // 2)))
+        mid2 = self.get_item_pose('B{0}_0'.format(int((self.cloth_length + 1.5) // 2)))
+        mid3 = self.get_item_pose('B{0}_{1}'.format(int((self.cloth_length - 1.5) // 2), self.cloth_width-1))
+        mid4 = self.get_item_pose('B{0}_{1}'.format(int((self.cloth_length + 1.5) // 2), self.cloth_width-1))
+        mids = [mid1, mid2, mid3, mid4]
+        check2 = all([all([np.max(np.abs(mids[i][:2] - mids[j][:2])) < 0.04 for j in range(i+1, 4)]) for i in range(4)])
+
+        mid5 = self.get_item_pose('B0_{0}'.format(int((self.cloth_width - 1.5) // 2)))
+        mid6 = self.get_item_pose('B0_{0}'.format(int((self.cloth_width + 1.5) // 2)))
+        mid7 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, int((self.cloth_width - 1.5) // 2)))
+        mid8 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, int((self.cloth_width + 1.5) // 2)))
+        mids = [mid5, mid6, mid7, mid8]
+        check2 = all([all([np.max(np.abs(mids[i][:2] - mids[j][:2])) < 0.04 for j in range(i+1, 4)]) for i in range(4)])
+
+        check3 = np.min(corner1[:2] - mid1[:2]) > 0.75 * self.cloth_spacing and \
+                 np.min(corner1[:2] - mid5[:2]) > 0.75 * self.cloth_spacing and \
+                 np.min(mid1[:2] - mid5[:2]) > 0.75 * self.cloth_spacing
+
+        if check1 and check2 and check3: state.append(TWO_FOLD)
+
+        # Check length-wise fold
+        corner1 = self.get_item_pose('B0_0')
+        corner2 = self.get_item_pose('B0_{0}'.format(self.cloth_width-1))
+        check1 = np.max(np.abs(corner1[:2] - corner2[:2])) < 0.04
+
+        mid1 = self.get_item_pose('B0_{0}'.format(int((self.cloth_width - 1.5) // 2)))
+        mid2 = self.get_item_pose('B0_{0}'.format(int((self.cloth_width + 1.5) // 2)))
+        check2 = np.max(np.abs(mid1[:2] - mid2[:2])) < 0.02
+
+        corner3 = self.get_item_pose('B{0}_0'.format(self.cloth_length-1))
+        corner4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
+        check3 = np.max(np.abs(corner3[:2] - corner4[:2])) < 0.04
+
+        mid3 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, int((self.cloth_width - 1.5) // 2)))
+        mid4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, int((self.cloth_width + 1.5) // 2)))
+        check4 = np.max(np.abs(mid3[:2] - mid4[:2])) < 0.04
+
+        check5 = np.min(corner1[:2] - mid1[:2]) > 0.75 * self.cloth_spacing and \
+                 np.min(corner3[:2] - mid3[:2]) > 0.75 * self.cloth_spacing
+
+        if check1 and check2 and check3 and check4 and check5: state.append(ONE_FOLD)
+
+        # Check two corner grasp
+        corner1 = self.get_item_pose('B0_0')
+        corner2 = self.get_item_pose('B0_{0}'.format(self.cloth_width-1))
+        corner3 = self.get_item_pose('B{0}_0'.format(self.cloth_length-1))
+        corner4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
+
+        corners = [corner1, corner2, corner3, corner4]
+
+        ee_left_pos = self.get_left_ee_pos()
+        ee_right_pos = self.get_right_ee_pos()
+        grips = self.get_gripper_joint_angles()
+
+        check1 = np.linalg.norm(ee_right_pos - corner1) < 0.02 and grips[0] < 0.04 and np.linalg.norm(ee_left_pos - corner3) < 0.02 and grips[1] < 0.04
+        check2 = np.linalg.norm(ee_left_pos - corner1) < 0.02 and grips[1] < 0.04 and np.linalg.norm(ee_right_pos - corner3) < 0.02 and grips[0] < 0.04
+
+        check3 = np.linalg.norm(ee_right_pos - corner2) < 0.02 and grips[0] < 0.04 and np.linalg.norm(ee_left_pos - corner4) < 0.02 and grips[1] < 0.04
+        check4 = np.linalg.norm(ee_left_pos - corner2) < 0.02 and grips[1] < 0.04 and np.linalg.norm(ee_right_pos - corner4) < 0.02 and grips[0] < 0.04
+
+        if check1 or check2 or check3 or check4: state.append(LENGTH_GRASP)
+
+        return state

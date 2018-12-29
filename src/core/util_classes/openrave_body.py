@@ -474,11 +474,17 @@ class OpenRAVEBody(object):
         solution = manip.FindIKSolution(ik_param, IkFilterOptions.IgnoreSelfCollisions)
         return solution
 
-    def fwd_kinematics(self, dof, manip_name):
-        self.set_dof(dof)
-        trans = self.env_body.GetLink(manip_name)
+    def fwd_kinematics(self, manip_name, dof_map=None, mat_result=False):
+        if dof_map is not None:
+            self.set_dof(dof_map)
+
+        trans = self.env_body.GetLink(manip_name).GetTransform()
+        if mat_result:
+            return trans
+
         pos = trans[:3, 3]
         quat = quatFromRotationMatrix(trans[:3, :3])
+        return {'pos': pos, 'quat': quat}
 
     def param_fwd_kinematics(self, param, manip_names, t, mat_result=False):
         if not isinstance(self._geom, Robot): return
@@ -494,14 +500,7 @@ class OpenRAVEBody(object):
         self.env_body.SetActiveDOFValues(dof_val)
 
         result = {}
-        if mat_result:
-            for manip_name in manip_names:
-                result[manip_name] = self.env_body.GetLink(manip_name).GetTransform()
-        else:
-            for manip_name in manip_names:
-                result[manip_name] = {}
-                trans = self.env_body.GetLink(manip_name).GetTransform()
-                result[manip_name]['pos'] = trans[:3, 3]
-                result[manip_name]['quat'] = quatFromRotationMatrix(trans[:3, :3])
+        for manip_name in manip_names:
+            result[manip_name] = self.fwd_kinematics(manip_name, mat_result=mat_result)
 
         return result
