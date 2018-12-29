@@ -60,6 +60,23 @@ def get_param_xml(param):
         return param.name, basket_body, {'contacts': []}
 
 
+def get_table():
+    body = '''
+            <body name="table" pos="0.5 0 -0.4875" euler="0 0 0">
+              <geom name="table" type="box" size="0.5 0.75 0.4375" />
+            </body>
+           '''
+    xml_body = xml.fromstring(body)
+    contacts = [
+        xml.Element('exclude', {'body1': 'table', 'body2': 'pedestal'}),
+        xml.Element('exclude', {'body1': 'table', 'body2': 'torso'}),
+        xml.Element('exclude', {'body1': 'table', 'body2': 'right_arm_mount'}),
+        xml.Element('exclude', {'body1': 'table', 'body2': 'left_arm_mount'}),
+        xml.Element('exclude', {'body1': 'table', 'body2': 'base'}),
+    ]
+    return 'table', xml_body, {'contacts': contacts}
+
+
 def get_deformable_cloth(width, length, spacing=0.1, radius=0.15, pos=(1.,0.,1.), material='matcarpet', label=""):
     body =  '''
                 <body name="B0_0" pos="{0} {1} {2}">
@@ -107,8 +124,8 @@ def get_deformable_cloth(width, length, spacing=0.1, radius=0.15, pos=(1.,0.,1.)
     contacts = []
     for i in range(length):
         for j in range(width):
-            for k in range(i+1, length):
-                for l in range(j+1, width):
+            for k in range(i, length):
+                for l in range(j, width):
                     contacts.append(xml.Element('exclude', {'body1': 'B{0}_{1}'.format(i, j), 'body2': 'B{0}_{1}'.format(k, l)}))
 
     return 'B0_0', xml_body, {'assets': [xml_texture, xml_material], 'equality': eq_constrs, 'contacts': contacts}

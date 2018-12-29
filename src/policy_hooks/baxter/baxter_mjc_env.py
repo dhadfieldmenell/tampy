@@ -716,6 +716,17 @@ class BaxterMJCEnv(object):
         pass
 
 
+    def list_joint_info(self):
+        for i in range(self.physics.model.njnt):
+            print '\n'
+            print 'Jnt ', i, ':', self.physics.model.id2name(i, 'joint')
+            print 'Axis :', self.physics.model.jnt_axis[i]
+            print 'Dof adr :', self.physics.model.jnt_dofadr[i]
+            body_id = self.physics.model.jnt_bodyid[i]
+            print 'Body :', self.physics.model.id2name(body_id, 'body')
+            print 'Parent body :', self.physics.model.id2name(self.physics.model.body_parentid[body_id], 'body')
+
+
     def get_reward(self):
         start_t = time.time()
         state = self.check_cloth_state()
@@ -743,7 +754,7 @@ class BaxterMJCEnv(object):
             reward += 5e1
             if self.cloth_length % 2:
                 mid1 = self.get_item_pose('B{0}_0'.format(self.cloth_length // 2))
-                mid2 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length // 2), self.cloth_width-1)
+                mid2 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length // 2, self.cloth_width-1))
             else:
                 mid1 = (self.get_item_pose('B{0}_0'.format(self.cloth_length // 2)-1) \
                         + self.get_item_pose('B{0}_0'.format(self.cloth_length // 2))) / 2.0
@@ -809,8 +820,8 @@ class BaxterMJCEnv(object):
                 reward -= 1e1 * right_most_corner[0]
             elif left_most_corner[0] > -0.1:
                 reward += 5
-                next_corner1 = (-2 + l_corner_id) % 4
-                next_corner2 = (-2 + r_corner_id) % 4
+                next_corner1 = corners[(-2 + l_corner_id) % 4]
+                next_corner2 = corners[(-2 + r_corner_id) % 4]
                 if next_corner1[0] < 0.1:
                     reward -= 1e1 * np.linalg.norm(ee_left_pos - left_most_corner)
                     reward -= 1e1 * np.linalg.norm(ee_right_pos - next_corner1)
@@ -857,9 +868,9 @@ class BaxterMJCEnv(object):
         mids = [mid5, mid6, mid7, mid8]
         check2 = all([all([np.max(np.abs(mids[i][:2] - mids[j][:2])) < 0.04 for j in range(i+1, 4)]) for i in range(4)])
 
-        check3 = np.min(corner1[:2] - mid1[:2]) > 0.75 * self.cloth_spacing and \
-                 np.min(corner1[:2] - mid5[:2]) > 0.75 * self.cloth_spacing and \
-                 np.min(mid1[:2] - mid5[:2]) > 0.75 * self.cloth_spacing
+        check3 = np.linalg.norm(corner1[:2] - mid1[:2]) > 0.75 * self.cloth_spacing and \
+                 np.linalg.norm(corner1[:2] - mid5[:2]) > 0.75 * self.cloth_spacing and \
+                 np.linalg.norm(mid1[:2] - mid5[:2]) > 0.75 * self.cloth_spacing
 
         if check1 and check2 and check3: state.append(TWO_FOLD)
 
@@ -880,8 +891,8 @@ class BaxterMJCEnv(object):
         mid4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, int((self.cloth_width + 1.5) // 2)))
         check4 = np.max(np.abs(mid3[:2] - mid4[:2])) < 0.04
 
-        check5 = np.min(corner1[:2] - mid1[:2]) > 0.75 * self.cloth_spacing and \
-                 np.min(corner3[:2] - mid3[:2]) > 0.75 * self.cloth_spacing
+        check5 = np.linalg.norm(corner1[:2] - mid1[:2]) > 0.75 * self.cloth_spacing and \
+                 np.linalg.norm(corner3[:2] - mid3[:2]) > 0.75 * self.cloth_spacing
 
         if check1 and check2 and check3 and check4 and check5: state.append(ONE_FOLD)
 

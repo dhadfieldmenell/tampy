@@ -221,30 +221,26 @@ def test_ee_ctrl_cloth_grasp():
         env.render(camera_id=1)
 
 def test_reward():
-    domain_fname = '../domains/laundry_domain/laundry.domain'
-    d_c = main.parse_file_to_dict(domain_fname)
-    domain = parse_domain_config.ParseDomainConfig.parse(d_c)
-    hls = hl_solver.FFSolver(d_c)
-    p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/folding.prob')
-    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
-
-    plan_str = [
-    '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0',
-    '1: CLOTH_GRASP BAXTER CLOTH0 CLOTH0_INIT_TARGET CLOTH_GRASP_BEGIN_0 CG_EE_LEFT_0 CLOTH_GRASP_END_0',
-    ]
-
-    plan = hls.get_plan(plan_str, domain, problem)
-    c_wid = 7
-    c_len = 4
+    c_wid = 5 # 7
+    c_len = 3 # 5
     c_rad = 0.02
     c_spac = 0.1
-    cloth = get_deformable_cloth(c_wid, c_len, c_spac, c_rad, (0.5, -0.4, 0.65+MUJOCO_MODEL_Z_OFFSET))
-    table = get_param_xml(plan.params['table'])
+    cloth = get_deformable_cloth(c_wid, c_len, c_spac, c_rad, (0.5, -0.2, 0.65+MUJOCO_MODEL_Z_OFFSET))
+    table = get_table()
     cloth_info={'width': c_wid, 'length': c_len, 'radius': c_rad, 'spacing': c_spac}
     env = BaxterMJCEnv(mode='end_effector', items=[cloth, table], view=True, cloth_info=cloth_info)
-    env.render(camera_id=1)
+    env.list_joint_info()
+    env.render(camera_id=0)
+    for i in range(24+c_wid+1, len(env.physics.data.qpos), 2*c_wid):
+        env.physics.data.qpos[i] = np.pi
+    env.physics.forward()
+    env.render(camera_id=0)
+    print 'Cloth points:', env.get_cloth_points()
+    print 'State 1:', env.check_cloth_state()
     env.get_reward()
+    time.sleep(20)
 
 # test_move()
 # test_cloth_grasp()
-test_ee_ctrl_cloth_grasp()
+# test_ee_ctrl_cloth_grasp()
+test_reward()
