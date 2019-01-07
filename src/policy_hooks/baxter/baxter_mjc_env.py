@@ -44,6 +44,7 @@ LENGTH_GRASP = 5
 TWO_GRASP = 6
 HALF_WIDTH_GRASP = 7
 HALF_LENGTH_GRASP = 8
+TWIST_FOLD = 9
 
 # BAXTER_GAINS = {
 #     'left_s0': (700., 0.01, 25.),
@@ -99,7 +100,7 @@ MJC_DELTAS_PER_STEP = int(1. // MJC_TIME_DELTA)
 N_CONTACT_LIMIT = 12
 
 START_EE = [0.6, -0.5, 0.75, 0, 0, 1, 0, 0.6, 0.5, 0.75, 0, 0, 1, 0]
-CTRL_MODES = ['joint_angle', 'end_effector']
+CTRL_MODES = ['joint_angle', 'end_effector', 'end_effector_pos', 'discrete_pos']
 
 
 
@@ -405,6 +406,156 @@ class BaxterMJCEnv(object):
         return res
 
 
+    def get_action_meanings(self):
+        # For discrete action mode
+        return ['NOOP', 'RIGHT_EE_FORWARD', 'RIGHT_EE_BACK', 'RIGHT_EE_LEFT', 'RIGHT_EE_RIGHT',
+                'RIGHT_EE_UP', 'RIGHT_EE_DOWN', 'RIGHT_EE_OPEN', 'RIGHT_EE_CLOSE',
+                'LEFT_EE_FORWARD', 'LEFT_EE_BACK', 'LEFT_EE_LEFT', 'LEFT_EE_RIGHT',
+                'LEFT_EE_UP', 'LEFT_EE_DOWN', 'LEFT_EE_OPEN', 'LEFT_EE_CLOSE']
+
+
+    def move_right_gripper_forward(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[0] = 0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_right_gripper_backward(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[0] = -0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_right_gripper_left(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[1] = 0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_right_gripper_right(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[1] = -0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_right_gripper_up(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[2] = 0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_right_gripper_down(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[2] = -0.01
+        return self.step(act, mode='end_effector_pos')
+
+    def open_right_gripper(self):
+        act = np.zeros(8)
+        act[3] = 0.02
+        return self.step(act, mode='end_effector_pos')
+
+
+    def close_right_gripper(self):
+        act = np.zeros(8)
+        act[3] = 0
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_left_gripper_forward(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[4] = 0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_left_gripper_backward(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[4] = -0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_left_gripper_left(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[5] = 0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_left_gripper_right(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[5] = -0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_left_gripper_up(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[6] = 0.01
+        return self.step(act, mode='end_effector_pos')
+
+
+    def move_left_gripper_down(self):
+        grip_jnts = self.get_gripper_joint_angles()
+
+        act = np.zeros(8)
+        act[3] = grip_jnts[0]
+        act[7] = grip_jnts[1]
+        act[6] = -0.01
+        return self.step(act, mode='end_effector_pos')
+
+    def open_left_gripper(self):
+        act = np.zeros(8)
+        act[7] = 0.02
+        return self.step(act, mode='end_effector_pos')
+
+
+    def close_left_gripper(self):
+        act = np.zeros(8)
+        act[7] = 0
+        return self.step(act, mode='end_effector_pos')
+
+
     def _step_joint(self, joint, error):
         ctrl_data = self.ctrl_data[joint]
         gains = BAXTER_GAINS[joint]
@@ -461,15 +612,7 @@ class BaxterMJCEnv(object):
     def _shift_cloth_to_grip(self, ee_pos, point_xy):
         point_pos = self.get_cloth_point(point_xy[0], point_xy[1])
         cloth_disp = ee_pos - point_pos
-        xpos = self.physics.data.xpos
-        for i in range(self.cloth_length):
-            for j in range(self.cloth_width):
-                if 'B{0}_{1}'.format(i, j) in self._ind_cache:
-                    point_ind = self._ind_cache['B{0}_{1}'.format(i, j)]
-                else:
-                    point_ind = self.physics.model.name2id('B{0}_{1}'.format(i, j), 'body')
-                    self._ind_cache['B{0}_{1}'.format(i, j)] = point_ind
-                xpos[point_ind] += cloth_disp
+        self.physics.data.qpos[19:22] += cloth_disp
         self.physics.forward()
 
 
@@ -521,19 +664,27 @@ class BaxterMJCEnv(object):
         return jnt_cmd
 
 
-    def step(self, action, debug=False):
+    def step(self, action, mode=None, debug=False):
+        if mode is None:
+            mode = self.ctrl_mode
+
         cmd = np.zeros((18))
         abs_cmd = np.zeros((18))
 
-        if self.ctrl_mode == 'joint_angle':
+        r_grip = 0
+        l_grip = 0
+
+        if mode == 'joint_angle':
             for i in range(len(action)):
                 jnts = self._get_joints(i)
                 for jnt in jnts:
                     cmd_angle = jnt[1] * action[i]
                     ind = MUJOCO_JOINT_ORDER.index(jnt[0])
                     abs_cmd[ind] = cmd_angle
+            r_grip = action[7]
+            l_grip = action[15]
 
-        elif self.ctrl_mode == 'end_effector':
+        elif mode == 'end_effector':
             # Action Order: ee_right_pos, ee_right_quat, ee_right_grip, ee_left_pos, ee_left_quat, ee_left_grip
             cur_right_ee_pos = self.get_right_ee_pos()
             cur_right_ee_rot = self.get_right_ee_rot()
@@ -565,14 +716,64 @@ class BaxterMJCEnv(object):
 
             abs_cmd[:7] = right_cmd
             abs_cmd[9:16] = left_cmd
+            r_grip = action[7]
+            l_grip = action[15]
+
+        elif mode == 'end_effector_pos':
+            # Action Order: ee_right_pos, ee_right_quat, ee_right_grip, ee_left_pos, ee_left_quat, ee_left_grip
+            cur_right_ee_pos = self.get_right_ee_pos()
+            cur_left_ee_pos = self.get_left_ee_pos()
+
+            target_right_ee_pos = cur_right_ee_pos + action[:3]
+            target_right_ee_rot = self.get_right_ee_rot()
+            target_left_ee_pos = cur_left_ee_pos + action[4:7]
+            target_left_ee_rot = self.get_left_ee_rot()
+
+            start_t = time.time()
+            right_cmd = self._calc_ik(target_right_ee_pos, 
+                                      target_right_ee_rot, 
+                                      use_right=True)
+
+            left_cmd = self._calc_ik(target_left_ee_pos, 
+                                     target_left_ee_rot, 
+                                     use_right=False)
+            # print 'IK time:', time.time() - start_t
+
+            if right_cmd is None:
+                right_cmd = self.get_arm_joint_angles()[:7]
+            if left_cmd is None:
+                left_cmd = self.get_arm_joint_angles()[7:]
+
+            abs_cmd[:7] = right_cmd
+            abs_cmd[9:16] = left_cmd
+            r_grip = action[3]
+            l_grip = action[7]
+
+        elif mode == 'discrete_pos':
+            if action == 1: return self.move_right_gripper_forward()
+            if action == 2: return self.move_right_gripper_backward()
+            if aciton == 3: return self.move_right_gripper_left()
+            if action == 4: return self.move_right_gripper_right()
+            if action == 5: return self.move_right_gripper_up()
+            if action == 6: return self.move_right_gripper_down()
+            if action == 7: return self.open_right_gripper()
+            if action == 8: return self.close_right_gripper()
+
+            if action == 9: return self.move_left_gripper_forward()
+            if action == 10: return self.move_left_gripper_backward()
+            if aciton == 11: return self.move_left_gripper_left()
+            if action == 12: return self.move_left_gripper_right()
+            if action == 13: return self.move_left_gripper_up()
+            if action == 14: return self.move_left_gripper_down()
+            return self.get_obs(), self.compute_reward(), False, {}
 
         start_t = time.time()
         for t in range(MJC_DELTAS_PER_STEP / 4):
             error = abs_cmd - self.physics.data.qpos[1:19]
             cmd = 7e1 * error
-            cmd[7] = 20 if action[7] > 0.0175 else -75
+            cmd[7] = 20 if r_grip > 0.0175 else -75
             cmd[8] = -cmd[7]
-            cmd[16] = 20 if action[15] > 0.0175 else -75
+            cmd[16] = 20 if l_grip > 0.0175 else -75
             cmd[17] = -cmd[16]
             self.physics.set_control(cmd)
             self.physics.step()
@@ -592,7 +793,7 @@ class BaxterMJCEnv(object):
             corner4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
             print 'Cloth corners:', corner1, corner2, corner3, corner4
 
-        return self.get_obs(), self.get_reward(), False, {}
+        return self.get_obs(), self.compute_reward(), False, {}
 
 
     def render(self, height=_CAM_HEIGHT, width=_CAM_WIDTH, camera_id=-1, overlays=(),
@@ -707,9 +908,10 @@ class BaxterMJCEnv(object):
 
     def close(self):
         self.active = False
-        if self._viewer is not None:
+        if self._viewer is not None and self.use_glew:
             self._viewer.close()
             self._viewer = None
+        self.physics.free()
 
 
     def seed(self, seed=None):
@@ -727,7 +929,7 @@ class BaxterMJCEnv(object):
             print 'Parent body :', self.physics.model.id2name(self.physics.model.body_parentid[body_id], 'body')
 
 
-    def get_reward(self):
+    def compute_reward(self):
         start_t = time.time()
         state = self.check_cloth_state()
 
@@ -751,7 +953,7 @@ class BaxterMJCEnv(object):
         min_left_dist = min([np.linalg.norm(ee_left_pos-corners[i]) for i in range(4)])
 
         if ONE_FOLD in state:
-            reward += 5e1
+            reward += 1e2
             if self.cloth_length % 2:
                 mid1 = self.get_item_pose('B{0}_0'.format(self.cloth_length // 2))
                 mid2 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length // 2, self.cloth_width-1))
@@ -783,7 +985,7 @@ class BaxterMJCEnv(object):
             reward += 1e1 * (0.75 * self.cloth_spacing - np.linalg.norm(corner3 - mid4))
 
         elif LENGTH_GRASP in state:
-            reward += 1e1
+            reward += 5e1
 
             mid1 = self.get_item_pose('B{0}_0'.format(int((self.cloth_length - 1.5) // 2)))
             mid2 = self.get_item_pose('B{0}_0'.format(int((self.cloth_length - 1.5) // 2)))
@@ -836,7 +1038,7 @@ class BaxterMJCEnv(object):
                 reward -= 4e1 * np.linalg.norm(ee_right_pos - left_most_corner)
                 reward += 1e1 * left_most_corner[0]
 
-        print 'Reward calculation time:', time.time() - start_t
+        # print 'Reward calculation time:', time.time() - start_t
         return reward
 
 
@@ -895,6 +1097,29 @@ class BaxterMJCEnv(object):
                  np.linalg.norm(corner3[:2] - mid3[:2]) > 0.75 * self.cloth_spacing
 
         if check1 and check2 and check3 and check4 and check5: state.append(ONE_FOLD)
+
+        # Check twist-fold
+        corner1 = self.get_item_pose('B0_0')
+        corner2 = self.get_item_pose('B0_{0}'.format(self.cloth_width-1))
+        corner3 = self.get_item_pose('B{0}_0'.format(self.cloth_length-1))
+        corner4 = self.get_item_pose('B{0}_{1}'.format(self.cloth_length-1, self.cloth_width-1))
+
+        dist1 = np.linalg.norm(corner1 - corner4)
+        dist2 = np.linalg.norm(corner2 - corner3)
+        if dist1 > dist2:
+            check1 = dist1 > 0.9 * (self.cloth_spacing*np.sqrt(self.cloth_width**2+self.cloth_length**2))
+            check2 = np.abs(corner1[0] - corner4[0]) < 0.08
+
+            far_x_pos = 0.8 * (self.cloth_length * self.cloth_width / dist1)
+            check3 = corner3[0] - corner1[0] > far_x_pos and corner2[0] - corner4[0] > far_x_pos
+        else:
+            check1 = dist2 > 0.9 * (self.cloth_spacing*np.sqrt(self.cloth_width**2+self.cloth_length**2))
+            check2 = np.abs(corner2[0] - corner3[0]) < 0.08
+
+            far_x_pos = 0.8 * (self.cloth_length * self.cloth_width / dist1)
+            check3 = corner1[0] - corner3[0] > far_x_pos and corner4[0] - corner2[0] > far_x_pos
+        if check1 and check2 and check3: state.append('TWIST_FOLD')
+
 
         # Check two corner grasp
         corner1 = self.get_item_pose('B0_0')

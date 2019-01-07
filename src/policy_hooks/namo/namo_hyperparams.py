@@ -214,6 +214,10 @@ config = {
     'perturb_steps': 3,
     'mcts_early_stop_prob': 0.5,
     'hl_timeout': HL_TIMEOUT,
+    'multi_polciy': True,
+    'image_width': 200,
+    'image_height': 150,
+    'image_channels': 3,
 
     'state_include': [utils.STATE_ENUM],
     'obs_include': [utils.LIDAR_ENUM,
@@ -228,5 +232,12 @@ config = {
                         utils.TASK_ENUM,
                         utils.OBJ_ENUM,
                         utils.TARG_ENUM],
+    'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM]
+    'sensor_dims': {
+            utils.OBJ_POSE_ENUM: 2,
+            utils.TARG_POSE_ENUM: 2,
+            utils.LIDAR_ENUM: 16,
+            utils.EE_ENUM: 2,
+        }
 
 }

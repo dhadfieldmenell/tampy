@@ -6,6 +6,7 @@ import rospy
 
 from std_msgs.msg import Float32MultiArray, String
 
+from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 
 from tamp_ros.msg import *

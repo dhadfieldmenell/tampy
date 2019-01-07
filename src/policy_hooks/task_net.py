@@ -55,10 +55,8 @@ def multi_sotfmax_prediction_layer(logits, boundaries):
     start = 0
     predictions = []
     for i in range(len(boundaries)):
-        bound = boundaries[i]
-        end = start+bound
+        start, end = boundaries[i]
         predictions.append(tf.nn.softmax(logits[:,start:end], name="softmax_layer_{0}".format(i)))
-        start = end
     return tf.concat(predictions, axis=1, name='multi_softmax_layer')
     
 

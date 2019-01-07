@@ -44,9 +44,6 @@ BAXTER_JOINTS = ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1
 class BaxterMJCAgent(TAMPAgent):
     def __init__(self, hyperparams):
         super(TAMPAgent, self).__init__(hyperparams)
-        self.env = BaxterMJCEnv()
-        self.cur_t = 0
-        self.cur_task_ind = 0
 
 
     def step(self, action):
@@ -78,7 +75,7 @@ class BaxterMJCAgent(TAMPAgent):
 
     def sample_task(self, policy, condition, x0, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True):
         task = tuple(task)
-        plan = self.plans[task[:2]]
+        plan = self.plans[task]
         for (param, attr) in self.state_inds:
             if plan.params[param].is_symbol(): continue
             getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
@@ -105,6 +102,8 @@ class BaxterMJCAgent(TAMPAgent):
             noise = np.zeros((self.T, self.dU))
 
         for t in range(0, self.T):
+            obs = self.env.get_obs()
+
             X = np.zeros((plan.symbolic_bound))
             fill_vector(plan.params, plan.state_inds, X, t)
 

@@ -15,8 +15,10 @@ from gps.algorithm.policy.tf_policy import TfPolicy
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
+from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 
-class MultiHeadPolicyOptTf(PolicyOpt):
+
+class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
     def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs, dValObs):
         import tensorflow as tf
@@ -78,7 +80,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
 
         else:
-            for scope in self.task_list + ('value', 'primitive'):
+            for scope in self.task_list + ('image', 'value', 'primitive'):
                 variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
                 self.saver = tf.train.Saver(variables)
                 try:
@@ -128,7 +130,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
     def serialize_weights(self, scopes=None):
         if scopes is None:
-            scopes = self.task_list + ('value', 'primitive')
+            scopes = self.task_list + ('image', 'value', 'primitive')
 
         print 'Serializing', scopes
         var_to_val = {}
@@ -183,7 +185,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
     def store_weights(self, weight_dir=None):
         if self.scope is None:
-            self.store_scope_weights(self.task_list+('value', 'primitive'), weight_dir)
+            self.store_scope_weights(self.task_list+('image', 'value', 'primitive'), weight_dir)
         else:
             self.store_scope_weights([self.scope], weight_dir)
 
@@ -215,11 +217,33 @@ class MultiHeadPolicyOptTf(PolicyOpt):
 
     def init_network(self):
         """ Helper method to initialize the tf networks used """
+
+        input_tensor = None
+        if self._hyperparams['image_network_model'] is not None and (self.scope is None or 'image' == self.scope):
+            with tf.variable_scope('image'):
+                tf_map_generator = self._hyperparams['image_network_model']
+                dIm = self._dIm
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=dIm, dim_output=1, batch_size=self.batch_size,
+                                          network_config=self._hyperparams['image_network_params'])
+                self.image_obs_tensor = tf_map.get_input_tensor()
+                self.image_precision_tensor = tf_map.get_precision_tensor()
+                self.image_action_tensor = tf_map.get_target_output_tensor()
+                self.image_act_op = tf_map.get_output_op()
+                self.image_feat_op = tf_map.get_feature_op()
+                self.image_loss_scalar = tf_map.get_loss_op()
+                self.image_fc_vars = fc_vars
+                self.image_last_conv_vars = last_conv_vars
+
+                # Setup the gradients
+                self.image_grads = [tf.gradients(self.image_act_op[:,u], self.image_obs_tensor)[0] for u in range(1)]
+
+                input_tensor = self.image_act_op
+
         if self.scope is None or 'primitive' == self.scope:
             with tf.variable_scope('primitive'):
                 tf_map_generator = self._hyperparams['primitive_network_model']
                 tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim+self._dObj+self._dTarg, batch_size=self.batch_size,
-                                          network_config=self._hyperparams['primitive_network_params'])
+                                          network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor)
                 self.primitive_obs_tensor = tf_map.get_input_tensor()
                 self.primitive_precision_tensor = tf_map.get_precision_tensor()
                 self.primitive_action_tensor = tf_map.get_target_output_tensor()
@@ -237,7 +261,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                 tf_map_generator = self._hyperparams['value_network_model']
                 dValObs = self._dValObs
                 tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=dValObs, dim_output=1, batch_size=self.batch_size,
-                                          network_config=self._hyperparams['network_params'])
+                                          network_config=self._hyperparams['value_network_params'], input_layer=input_tensor)
                 self.value_obs_tensor = tf_map.get_input_tensor()
                 self.value_precision_tensor = tf_map.get_precision_tensor()
                 self.value_action_tensor = tf_map.get_target_output_tensor()
@@ -272,7 +296,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                     self.task_map[task] = {}
                     tf_map_generator = self._hyperparams['network_model']
                     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dO, dim_output=self._dU, batch_size=self.batch_size,
-                                              network_config=self._hyperparams['network_params'])
+                                              network_config=self._hyperparams['network_params'], input_layer=input_tensor)
                     self.task_map[task]['obs_tensor'] = tf_map.get_input_tensor()
                     self.task_map[task]['precision_tensor'] = tf_map.get_precision_tensor()
                     self.task_map[task]['action_tensor'] = tf_map.get_target_output_tensor()
@@ -288,7 +312,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
     def init_solver(self):
         """ Helper method to initialize the solver. """
         if self.scope is None or 'primitive' == self.scope:
-            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive_filter')
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive')
             self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
                                                solver_name=self._hyperparams['solver_type'],
                                                base_lr=self._hyperparams['lr'],
@@ -300,7 +324,7 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                                vars_to_opt=vars_to_opt)
 
         if self.scope is None or 'value' == self.scope:
-            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive_filter')
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='value')
             self.value_solver = TfSolver(loss_scalar=self.value_loss_scalar,
                                            solver_name=self._hyperparams['solver_type'],
                                            base_lr=self._hyperparams['lr'],
@@ -311,6 +335,17 @@ class MultiHeadPolicyOptTf(PolicyOpt):
                                            last_conv_vars=self.value_last_conv_vars,
                                            vars_to_opt=vars_to_opt)
 
+        if self._hyperparams['image_network_model'] is not None self.scope is None or 'image' == self.scope:
+            vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='image_filter')
+            self.image_solver = TfSolver(loss_scalar=self.image_loss_scalar,
+                                           solver_name=self._hyperparams['solver_type'],
+                                           base_lr=self._hyperparams['lr'],
+                                           lr_policy=self._hyperparams['lr_policy'],
+                                           momentum=self._hyperparams['momentum'],
+                                           weight_decay=0.,
+                                           fc_vars=self.image_fc_vars,
+                                           last_conv_vars=self.image_last_conv_vars,
+                                           vars_to_opt=vars_to_opt)
         # vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='distilled')
         # self.distilled_solver = TfSolver(loss_scalar=self.distilled_loss_scalar,
         #                                    solver_name=self._hyperparams['solver_type'],
@@ -355,18 +390,6 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         #                                  self.sess,
         #                                  self.device_string,
         #                                  copy_param_scope=None)
-
-    def task_distr(self, obs):
-        if len(obs.shape) < 2:
-            obs = obs.reshape(1, -1)
-        distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs}).flatten()
-        return distr[:self._dPrim], distr[self._dPrim:self._dPrim+self._dObj], distr[self._dPrim+self._dObj:self._dPrim+self._dObj+self._dTarg]
-
-    def value(self, obs):
-        if len(obs.shape) < 2:
-            obs = obs.reshape(1, -1)
-        value = self.sess.run(self.value_act_op, feed_dict={self.value_obs_tensor:obs}).flatten()
-        return value.flatten()
 
     def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task=""):
         """
@@ -496,183 +519,6 @@ class MultiHeadPolicyOptTf(PolicyOpt):
         policy.chol_pol_covar = np.diag(np.sqrt(self.var[task]))
 
         return policy
-
-    def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt):
-        """
-        Update policy.
-        Args:
-            obs: Numpy array of observations, N x T x dO.
-            tgt_mu: Numpy array of mean filter outputs, N x T x dP.
-            tgt_prc: Numpy array of precision matrices, N x T x dP x dP.
-            tgt_wt: Numpy array of weights, N x T.
-        Returns:
-            A tensorflow object with updated weights.
-        """
-        # print 'Updating primitive network...'
-        N = obs.shape[0]
-        dP, dO = self._dPrim+self._dObj+self._dTarg, self._dPrimObs
-
-        # TODO - Make sure all weights are nonzero?
-
-        # Save original tgt_prc.
-        tgt_prc_orig = np.reshape(tgt_prc, [N, dP, dP])
-
-        # Renormalize weights.
-        tgt_wt *= (float(N) / np.sum(tgt_wt))
-        # Allow weights to be at most twice the robust median.
-        mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
-        for n in range(N):
-            tgt_wt[n] = min(tgt_wt[n], 2 * mn)
-        # Robust median should be around one.
-        tgt_wt /= mn
-
-        # Reshape inputs.
-        obs = np.reshape(obs, (N, dO))
-        tgt_mu = np.reshape(tgt_mu, (N, dP))
-        tgt_prc = np.reshape(tgt_prc, (N, dP, dP))
-        tgt_wt = np.reshape(tgt_wt, (N, 1, 1))
-
-        # Fold weights into tgt_prc.
-        tgt_prc = tgt_wt * tgt_prc
-
-        # Assuming that N*T >= self.batch_size.
-        batch_size = np.minimum(self.batch_size, N)
-        batches_per_epoch = np.maximum(np.floor(N / batch_size), 1)
-        idx = range(N)
-        average_loss = 0
-        np.random.shuffle(idx)
-
-        if self._hyperparams['fc_only_iterations'] > 0:
-            feed_dict = {self.obs_tensor: obs}
-            num_values = obs.shape[0]
-            conv_values = self.primitive_solver.get_last_conv_values(self.sess, feed_dict, num_values, batch_size)
-            for i in range(self._hyperparams['fc_only_iterations'] ):
-                start_idx = int(i * batch_size %
-                                (batches_per_epoch * batch_size))
-                idx_i = idx[start_idx:start_idx+batch_size]
-                feed_dict = {self.primitive_last_conv_vars: conv_values[idx_i],
-                             self.primitive_action_tensor: tgt_mu[idx_i],
-                             self.primitive_precision_tensor: tgt_prc[idx_i]}
-                train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
-                average_loss += train_loss
-
-                # if (i+1) % 500 == 0:
-                #     LOGGER.info('tensorflow iteration %d, average loss %f',
-                #                     i+1, average_loss / 500)
-                #     average_loss = 0
-            average_loss = 0
-
-        # actual training.
-        for i in range(self._hyperparams['iterations']):
-            # Load in data for this batch.
-            start_idx = int(i * self.batch_size %
-                            (batches_per_epoch * self.batch_size))
-            idx_i = idx[start_idx:start_idx+self.batch_size]
-            feed_dict = {self.primitive_obs_tensor: obs[idx_i],
-                         self.primitive_action_tensor: tgt_mu[idx_i],
-                         self.primitive_precision_tensor: tgt_prc[idx_i]}
-            train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string)
-
-            average_loss += train_loss
-            if (i+1) % 50 == 0:
-            #     LOGGER.info('tensorflow iteration %d, average loss %f',
-            #                  i+1, average_loss / 50)
-                average_loss = 0
-
-        feed_dict = {self.obs_tensor: obs}
-        num_values = obs.shape[0]
-        if self.primitive_feat_op is not None:
-            self.primitive_feat_vals = self.primitive_solver.get_var_values(self.sess, self.primitive_feat_op, feed_dict, num_values, self.batch_size)
-        # print 'Updated primitive network.\n'
-
-
-    def update_value(self, obs, tgt_mu, tgt_prc, tgt_wt):
-        """
-        Update policy.
-        Args:
-            obs: Numpy array of observations, N x T x dO.
-            tgt_mu: Numpy array of mean filter outputs, N x T x dP.
-            tgt_prc: Numpy array of precision matrices, N x T x dP x dP.
-            tgt_wt: Numpy array of weights, N x T.
-        Returns:
-            A tensorflow object with updated weights.
-        """
-        # print 'Updating value network...'
-        N = obs.shape[0]
-        dP, dO = 2, self._dValObs
-
-        # TODO - Make sure all weights are nonzero?
-
-        # Save original tgt_prc.
-        tgt_prc_orig = np.reshape(tgt_prc, [N, dP, dP])
-
-        # Renormalize weights.
-        tgt_wt *= (float(N) / np.sum(tgt_wt))
-        # Allow weights to be at most twice the robust median.
-        mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
-        for n in range(N):
-            tgt_wt[n] = min(tgt_wt[n], 2 * mn)
-        # Robust median should be around one.
-        tgt_wt /= mn
-
-        # Reshape inputs.
-        obs = np.reshape(obs, (N, dO))
-        tgt_mu = np.reshape(tgt_mu, (N, dP))
-        tgt_prc = np.reshape(tgt_prc, (N, dP, dP))
-        tgt_wt = np.reshape(tgt_wt, (N, 1, 1))
-
-        # Fold weights into tgt_prc.
-        tgt_prc = tgt_wt * tgt_prc
-
-        # Assuming that N*T >= self.batch_size.
-        batch_size = np.minimum(self.batch_size, N)
-        batches_per_epoch = np.maximum(np.floor(N / batch_size), 1)
-        idx = range(N)
-        average_loss = 0
-        np.random.shuffle(idx)
-
-        if self._hyperparams['fc_only_iterations'] > 0:
-            feed_dict = {self.obs_tensor: obs}
-            num_values = obs.shape[0]
-            conv_values = self.value_solver.get_last_conv_values(self.sess, feed_dict, num_values, batch_size)
-            for i in range(self._hyperparams['fc_only_iterations'] ):
-                start_idx = int(i * batch_size %
-                                (batches_per_epoch * batch_size))
-                idx_i = idx[start_idx:start_idx+batch_size]
-                feed_dict = {self.value_last_conv_vars: conv_values[idx_i],
-                             self.value_action_tensor: tgt_mu[idx_i],
-                             self.value_precision_tensor: tgt_prc[idx_i]}
-                train_loss = self.value_solver(feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
-                average_loss += train_loss
-
-                # if (i+1) % 500 == 0:
-                #     LOGGER.info('tensorflow iteration %d, average loss %f',
-                #                     i+1, average_loss / 500)
-                #     average_loss = 0
-            average_loss = 0
-
-        # actual training.
-        for i in range(self._hyperparams['iterations']):
-            # Load in data for this batch.
-            start_idx = int(i * self.batch_size %
-                            (batches_per_epoch * self.batch_size))
-            idx_i = idx[start_idx:start_idx+self.batch_size]
-            feed_dict = {self.value_obs_tensor: obs[idx_i],
-                         self.value_action_tensor: tgt_mu[idx_i],
-                         self.value_precision_tensor: tgt_prc[idx_i]}
-            train_loss = self.value_solver(feed_dict, self.sess, device_string=self.device_string)
-
-            average_loss += train_loss
-            if (i+1) % 50 == 0:
-                # LOGGER.info('tensorflow iteration %d, average loss %f',
-                #              i+1, average_loss / 50)
-                average_loss = 0
-
-        feed_dict = {self.obs_tensor: obs}
-        num_values = obs.shape[0]
-        if self.value_feat_op is not None:
-            self.value_feat_vals = self.value_solver.get_var_values(self.sess, self.value_feat_op, feed_dict, num_values, self.batch_size)
-        # print 'Updated value network.'
 
 
     def update_distilled(self, obs, tgt_mu, tgt_prc, tgt_wt):

@@ -19,6 +19,7 @@ class Sample(object):
         self.dO = agent.dO
         self.dM = agent.dM
         self.dPrim = agent.dPrim
+        self.dPrimOut = agent.dPrimOut
         self.dVal = agent.dVal
 
         # Dictionary containing the sample data from various sensors.
@@ -105,6 +106,20 @@ class Sample(object):
                         else self._data[data_type][t, :])
                 self.agent.pack_data_prim_obs(obs, data, data_types=[data_type])
         return obs
+
+    def get_prim_out(self, t=None):
+        """ Get the observation. Put it together if not precomputed. """
+        out = self._prim_out if t is None else self._prim_out[t, :]
+        if np.any(np.isnan(out)):
+            for data_type in self._data:
+                if data_type not in self.agent.prim_out_data_types:
+                    continue
+                if data_type in self.agent.meta_data_types:
+                    continue
+                data = (self._data[data_type] if t is None
+                        else self._data[data_type][t, :])
+                self.agent.pack_data_prim_out(out, data, data_types=[data_type])
+        return out
 
     def get_val_obs(self, t=None):
         """ Get the observation. Put it together if not precomputed. """

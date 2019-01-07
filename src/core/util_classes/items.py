@@ -86,7 +86,6 @@ class Edge(Can):
         self.color = "red"
         self._type = "can"
 
-
 class Sphere(Item):
     def __init__(self, radius):
         self.color = "blue"

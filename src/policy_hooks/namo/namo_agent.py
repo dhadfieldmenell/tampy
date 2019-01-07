@@ -416,3 +416,29 @@ class NAMOSortingAgent(TAMPAgent):
         plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
 
         return check_constr_violation(plan)
+
+    def fill_sample(self, sample, state, t, task_ind):
+        plan = self.plans[task_ind]
+        ee_pose = state[self.state_inds['pr2', 'pose']]
+        sample.set(EE_ENUM, ee_pose.copy(), t)
+
+        if LIDAR_ENUM in self._hyperparams['obs_include']:
+            plan = self.plans.values()[0]
+            set_params_attrs(plan.params, plan.state_inds, state, t)
+            lidar = self.dist_obs(plan, 0)
+            sample.set(LIDAR_ENUM, lidar.flatten(), t)
+
+    def get_prim_options(self, cond, state):
+        outs = {}
+        for enum in self.prim_out_data_types:
+            if enum == utils.TARG_ENUM:
+                out = np.zeros((2, len(self.targ_list)))
+                for i in range(len(self.targ_list)):
+                    out[i] = self.targets[cond].value[:, 0]
+                outs[enum] = out
+            if enum == utils.OBJ_ENUM:
+                out = np.zeros((2, len(self.obj_list)))
+                for i in range(len(self.obj_list)):
+                    out[i] = state[self.state_inds[obj, 'pose']]
+                outs[enum] = out
+        return outs

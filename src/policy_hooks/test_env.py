@@ -112,10 +112,10 @@ def test_cloth_grasp():
 
     baxter, cloth = plan.params['baxter'], plan.params['cloth0']
     arm_jnts = env.get_arm_joint_angles()
-    baxter.lArmPose[:,0] = arm_jnts[:7]
-    baxter.rArmPose[:,0] = arm_jnts[7:]
-    plan.params['robot_init_pose'].lArmPose[:,0] = arm_jnts[:7]
-    plan.params['robot_init_pose'].rArmPose[:,0] = arm_jnts[7:]
+    baxter.lArmPose[:,0] = arm_jnts[7:]
+    baxter.rArmPose[:,0] = arm_jnts[:7]
+    plan.params['robot_init_pose'].lArmPose[:,0] = arm_jnts[7:]
+    plan.params['robot_init_pose'].rArmPose[:,0] = arm_jnts[:7]
     cloth.pose[:2,0] = (0.57, 0.2)
     plan.params['cloth0_init_target'].value[:2,0] = cloth.pose[:2,0]
     solver = robot_ll_solver.RobotLLSolver()
@@ -148,7 +148,7 @@ def test_ee_ctrl_cloth_grasp():
 
     plan = hls.get_plan(plan_str, domain, problem)
     c_wid = 7
-    c_len = 4
+    c_len = 5
     c_rad = 0.02
     c_spac = 0.1
     cloth = get_deformable_cloth(c_wid, c_len, c_spac, c_rad, (0.5, -0.4, 0.65+MUJOCO_MODEL_Z_OFFSET))
@@ -191,33 +191,7 @@ def test_ee_ctrl_cloth_grasp():
 
         old_cmd = ee_cmd
 
-        # dof_map = {
-        #     'lArmPose': baxter.lArmPose[:, t],
-        #     'lGripper': baxter.lGripper[:, t],
-        #     'rArmPose': baxter.rArmPose[:, t],
-        #     'rGripper': baxter.rGripper[:, t],
-        # }
-
-        # rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])[:3,:3]
-
-        # # right_trans = np.zeros((4,4))
-        # # right_trans[3, 3] = 1
-        # # right_trans[:3, :3] = trans_utils.quat2mat(ee_cmd['right_gripper']['quat'])
-        # # right_trans[:3, 3] = ee_cmd['right_gripper']['pos']
-        # right_trans = ee_cmd['right_gripper']
-        # right_jnts = baxter.openrave_body.get_close_ik_solution('right_arm', right_trans, dof_map)
-
-        # # left_trans = np.zeros((4,4))
-        # # left_trans[3, 3] = 1
-        # # left_trans[:3, :3] = trans_utils.quat2mat(ee_cmd['left_gripper']['quat'])
-        # # left_trans[:3, 3] = ee_cmd['left_gripper']['pos']
-        # left_trans = ee_cmd['left_gripper']
-        # left_jnts = baxter.openrave_body.get_close_ik_solution('left_arm', left_trans, dof_map)
-
-        # act = np.r_[right_jnts, rGrip, left_jnts, lGrip]
-        # print act
-
-        env.step(act, debug=True)
+        env.step(act, debug=False)
         env.render(camera_id=1)
 
 def test_reward():
@@ -242,5 +216,5 @@ def test_reward():
 
 # test_move()
 # test_cloth_grasp()
-# test_ee_ctrl_cloth_grasp()
-test_reward()
+test_ee_ctrl_cloth_grasp()
+# test_reward()

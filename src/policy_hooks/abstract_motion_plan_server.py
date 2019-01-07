@@ -32,6 +32,7 @@ class AbstractMotionPlanServer(object):
         self.config = hyperparams
         rospy.init_node(hyperparams['domain']+'_mp_solver_'+str(self.id))
         self.task_list = hyperparams['task_list']
+        self.on_policy = hyperparams['on_policy']
         plans = {}
         env = None
         openrave_bodies = {}
@@ -108,43 +109,41 @@ class AbstractMotionPlanServer(object):
             self.policy_opt.deserialize_weights(msg.data)
 
 
-    def update_policy_prior(seflf, msg):
+    # def update_policy_prior(self, msg):
+    #     task = msg.task
+    #     sigma = np.array(msg.sigma).reshape(msg.K, msg.Do, msg.Do)
+    #     mu = np.array(msg.mu).reshape(msg.K, msg.Do)
+    #     logmass = np.array(msg.logmass).reshape(msg.K, 1)
+    #     mass = np.array(msg.mass).reshape(msg.K, 1)
+    #     self.solver.policy_prior[task].sigma = sigma
+    #     self.solver.policy_prior[task].mu = mu
+    #     self.solver.policy_prior[task].logmass = logmass
+    #     self.solver.policy_prior[task].mass = mass
+    #     self.solver.policy_prior[task].N = msg.N
+
+
+    def gen_gmm(self, msg):
+        gmm = GMM()
         task = msg.task
         sigma = np.array(msg.sigma).reshape(msg.K, msg.Do, msg.Do)
         mu = np.array(msg.mu).reshape(msg.K, msg.Do)
         logmass = np.array(msg.logmass).reshape(msg.K, 1)
         mass = np.array(msg.mass).reshape(msg.K, 1)
-        self.solver.policy_prior[task].sigma = sigma
-        self.solver.policy_prior[task].mu = mu
-        self.solver.policy_prior[task].logmass = logmass
-        self.solver.policy_prior[task].mass = mass
-        self.solver.policy_prior[task].N = msg.N
+        gmm.sigma = sigma
+        gmm.mu = mu
+        gmm.logmass = logmass
+        gmm.mass = mass
+        gmm.N = msg.N
+        return gmm
 
 
     def update_targets(self, msg):
         raise NotImplementedError()
 
 
-    def prob(self, obs, init_state, task):
-        if self.use_local:
-            mu, sig, prec, det_sig = self.policy_opt.traj_prob(obs, task)
-            for p_name, a_name in self.solver.action_inds:
-                mu[0, :, self.solver.action_inds[p_name, a_name]] += init_state[self.solver.state_inds[p_name, a_name]].reshape(-1,1)
-            return mu, sig, prec, det_sig
-
-        raise NotImplementedError()
-        # rospy.wait_for_service(task+'_policy_prob', timeout=10)
-        # req_obs = []
-        # for i in range(len(obs)):
-        #     next_line = Float32MultiArray()
-        #     next_line.data = obs[i]
-        #     req_obs.append(next_line)
-        # req = PolicyProbRequest()
-        # req.obs = req_obs
-        # req.task = task
-        # resp = self.prob_proxies[task](req)
-        # return np.array([resp.mu[i].data for i in range(len(resp.mu))]), np.array([resp.sigma[i].data for i in range(len(resp.sigma))]), [], []
-
+    def prob(self, sample):
+        mu, sig, _, _ self.policy_opt.prob(sample.get_obs(), task=sample.task)
+        return mu[0], sig[0]
 
     def update_timing_info(self, time):
         if self.log_timing:
@@ -165,7 +164,16 @@ class AbstractMotionPlanServer(object):
         mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
         targets = [msg.obj, msg.targ]
         targets = [self.agent.plans.values()[0].params[p_name] for p_name in targets]
-        sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, targets)
+
+        if self.on_policy and msg.use_prior:
+            gmm = self.gen_gmm(msg)
+            inf_f = lambda s: self.gmm_inf(gmm, s)
+        elif not self.on_policy and self.policy_opt.opt_map[msg.task]['policy'].scale is not None:
+            inf_f = lambda s: self.prob(s)
+        else:
+            inf_f = None
+
+        sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, targets, inf_f)
         failed = str(failed)
         resp = MotionPlanResult()
         resp.traj = []
@@ -313,3 +321,6 @@ class AbstractMotionPlanServer(object):
     @abstractmethod
     def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[], fixed_targets=[]):
         pass
+
+    def gmm_inf(self, gmm, sample):
+        return gmm.inference(np.concatenate[sample.get_X(), sample.get_U()])

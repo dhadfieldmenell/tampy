@@ -36,7 +36,6 @@ class PR2(Robot):
         return
 
 
-
 class Baxter(Robot):
     """
     Defines geometry used in the Baxter domain.
@@ -90,6 +89,44 @@ class Baxter(Robot):
         left_manip = robot.GetManipulator('left_arm')
         ikmodel.manip = left_manip
         left_manip.SetIkSolver(ikmodel.iksolver)
+
+
+class HSR(Robot):
+    """
+    Defines geometry used in the HSR domain.
+    """
+    def __init__(self):
+        self._type = "hsr"
+        shape = "/home/michaelmcdonald/dependencies/hsr_description/robots/hsrb4s.xml"
+        # self.col_links = set(["torso", "pedestal", "head", "sonar_ring", "screen", "collision_head_link_1",
+        #                       "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
+        #                       "right_upper_elbow", "right_upper_elbow_visual", "right_lower_elbow",
+        #                       "right_upper_forearm", "right_upper_forearm_visual", "right_lower_forearm",
+        #                       "right_wrist", "right_hand", "right_gripper_base", "right_gripper",
+        #                       "right_gripper_l_finger", "right_gripper_r_finger", "right_gripper_l_finger_tip",
+        #                       "right_gripper_r_finger_tip", "left_upper_shoulder", "left_lower_shoulder",
+        #                       "left_upper_elbow", "left_upper_elbow_visual", "left_lower_elbow",
+        #                       "left_upper_forearm", "left_upper_forearm_visual", "left_lower_forearm",
+        #                       "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
+        #                       "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
+        #                       "left_gripper_r_finger_tip"])
+        self.col_links = set([])
+        self.dof_map = {'arm': [0, 1, 2, 3, 4], 'gripper': [6]}
+        super(HSR, self).__init__(shape)
+
+    def setup(self, robot):
+        """
+        Need to setup iksolver for baxter
+        """
+        iktype = IkParameterizationType.Translation3D
+        ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, iktype, True)
+        if not ikmodel.load():
+            print 'Something went wrong when loading ikmodel'
+            ikmodel.autogenerate()
+        manip = robot.GetManipulator('arm')
+        ikmodel.manip = manip
+        manip.SetIkSolver(ikmodel.iksolver)
+
 
 class Washer(Robot):
     """

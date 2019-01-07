@@ -71,7 +71,7 @@ def get_base_solver(parent_class):
             raise NotImplementedError
 
 
-        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, traj_mean=[], task=None):
+        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=inf_f, traj_mean=[], task=None):
             if amax is None:
                 amax = len(plan.actions) - 1
 
@@ -125,7 +125,8 @@ def get_base_solver(parent_class):
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
                 self.child_solver.robot_name = self.robot_name
-                success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, n_resamples=n_resamples, traj_mean=traj_mean, task=task)
+                success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, 
+                                                             n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task)
 
                 # reset free_attrs
                 for p in plan.params.itervalues():
@@ -161,7 +162,7 @@ def get_base_solver(parent_class):
                 self.child_solver.robot_name = self.robot_name
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts=active_ts, verbose=verbose, force_init=True, 
-                                                  traj_mean=traj_mean, task=task)
+                                                  inf_f=inf_f, traj_mean=traj_mean, task=task)
                 if not success:
                     ## if planning fails we're done
                     return False
@@ -211,7 +212,7 @@ def get_base_solver(parent_class):
                 self.child_solver.robot_name = self.robot_name
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts = active_ts, verbose=verbose,
-                                                  force_init=True, traj_mean=traj_mean, task=task)
+                                                  force_init=True, inf_f=inf_f, traj_mean=traj_mean, task=task)
                 if success:
                     if recursive_solve():
                         break
@@ -223,7 +224,7 @@ def get_base_solver(parent_class):
 
 
         def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
-                  verbose=False, force_init=False, traj_mean=[], task=None):
+                  verbose=False, force_init=False, inf_f=None, traj_mean=[], task=None):
             success = False
             if callback is not None:
                 viewer = callback()
@@ -242,7 +243,7 @@ def get_base_solver(parent_class):
                     ## refinement loop
                     success = self._solve_opt_prob(plan, priority=priority,
                                     callback=callback, active_ts=active_ts, verbose=verbose, 
-                                    traj_mean=traj_mean, task=task)
+                                    inf_f=inf_f, traj_mean=traj_mean, task=task)
 
                     try:
                         if DEBUG: plan.check_cnt_violation(active_ts=active_ts, priority=priority, tol=1e-3)
@@ -252,7 +253,7 @@ def get_base_solver(parent_class):
                         break
 
                     self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, 
-                            verbose=verbose, resample=True, traj_mean=traj_mean, task=task)
+                            verbose=verbose, resample=True, inf_f=inf_f, traj_mean=traj_mean, task=task)
 
                     # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                     #     break
@@ -346,148 +347,19 @@ def get_base_solver(parent_class):
             return success
 
 
-        def _traj_policy_opt(self, plan, traj_mean, start_t, end_t):
+        def _policy_inference_obj(self, plan, task, start_t, end_t, inf_f):
             transfer_objs = []
-            for param_name, attr_name in self.action_inds:
-                param = plan.params[param_name]
-                attr_type = param.get_attr_type(attr_name)
-                param_ll = self._param_to_ll[param]
-                T = end_t - start_t + 1
-                attr_val = traj_mean[start_t:end_t+1, self.action_inds[(param_name, attr_name)]].T
-                K = attr_type.dim
-
-                KT = K*T
-                v = -1 * np.ones((KT - K, 1))
-                d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-                # [:,0] allows numpy to see v and d as one-dimensional so
-                # that numpy will create a diagonal matrix with v and d as a diagonal
-                P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-                # P = np.eye(KT)
-                Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-                cur_val = attr_val.reshape((KT, 1), order='F')
-                A = -2 * cur_val.T.dot(Q)
-                b = cur_val.T.dot(Q.dot(cur_val))
-                policy_traj_coeff = self.policy_traj_coeff / T
-
-                # QuadExpr is 0.5*x^Tx + Ax + b
-                quad_expr = QuadExpr(2*policy_traj_coeff*Q,
-                                     policy_traj_coeff*A, policy_traj_coeff*b)
-                ll_attr_val = getattr(param_ll, attr_name)
-                param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-                sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-                bexpr = BoundExpr(quad_expr, sco_var)
-                transfer_objs.append(bexpr)
-            return transfer_objs
-
-
-        def _policy_prob_obj(self, plan, (i, j, k), start_t, end_t):
-            transfer_objs = []
-            if not hasattr(self, 'gps'):
-                return []
 
             T = end_t-start_t+1
-            pol_f = self.policy_inf_fs[(i, j, k)]
-            self.agent.T = T
-            sample = Sample(self.agent)
-            state = np.zeros((self.symbolic_bound, T))
-            act = np.zeros((self.dU, T))
-            for p_name, a_name in self.state_inds:
-                p = plan.params[p_name]
-                if p.is_symbol(): continue
-                state[self.state_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
-            for p_name, a_name in self.action_inds:
-                p = plan.params[p_name]
-                if p.is_symbol(): continue
-                act[self.action_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
-            hist_len = self.agent.hist_len
-            target_vec = np.zeros(self.agent.target_vecs[0].shape)
-            for p_name, a_name in self.target_inds:
-                param = plan.params[p_name]
-                target_vec[self.target_inds[p_name, a_name]] = getattr(param, a_name).flatten()
-            for t in range(start_t, end_t+1):
-                sample.set(STATE_ENUM, state[:, t-start_t], t-start_t)
-                task_vec = np.zeros((len(self.agent.task_list)))
-                task_vec[i] = 1
-                obj_vec = np.zeros((len(self.agent.obj_list)))
-                obj_vec[j] = 1
-                targ_vec = np.zeros((len(self.agent.targ_list)))
-                targ_vec[k] = 1
-                traj_hist = np.zeros((hist_len, self.dU))
-                for sub_t in range(t-hist_len, t):
-                    if sub_t < start_t:
-                        continue
-                    traj_hist[sub_t-t+hist_len, :] = act[:, sub_t-start_t]
-                sample.set(TASK_ENUM, task_vec, t-start_t)
-                sample.set(OBJ_ENUM, obj_vec, t-start_t)
-                sample.set(TARG_ENUM, targ_vec, t-start_t)
-                ee_pose = state[:, t-start_t][plan.state_inds[self.robot_name, 'pose']]
-                obj_pose = state[:, t-start_t][plan.state_inds[self.agent.obj_list[j], 'pose']] - ee_pose
-                targ_pose = plan.params[self.agent.targ_list[k]].value[:,0] - ee_pose
-                sample.set(EE_ENUM, ee_pose, t-start_t)
-                sample.set(OBJ_POSE_ENUM, obj_pose, t-start_t)
-                sample.set(TARG_POSE_ENUM, targ_pose, t-start_t)
-                sample.set(TRAJ_HIST_ENUM, traj_hist.flatten(), t-start_t)
-                sample.set(TARGETS_ENUM, target_vec, t-start_t)
-                sample.set(ACTION_ENUM, act[:, t-start_t], t-start_t)
-                if LIDAR_ENUM in self.agent._hyperparams['obs_include']:
-                    lidar = self.agent.dist_obs(plan, t)
-                    sample.set(LIDAR_ENUM, lidar.flatten(), t-start_t)
+            sample = self._fill_sample(task, start_t, end_t, plan)
 
-            pol_mu, pol_sig, pol_cov, pol_det_sig = pol_f(sample.get_obs(), sample.get(STATE_ENUM, t=0))
-
-            for param_name, attr_name in self.action_inds:
-                param = plan.params[param_name]
-                attr_type = param.get_attr_type(attr_name)
-                param_ll = self._param_to_ll[param]
-                T = end_t - start_t + 1
-                act_inds = self.action_inds[(param_name, attr_name)]
-                attr_val = pol_mu[0, :, act_inds]
-                K = attr_type.dim
-
-                KT = K*T
-                v = -1 * np.ones((KT - K, 1))
-                d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
-                # [:,0] allows numpy to see v and d as one-dimensional so
-                # that numpy will create a diagonal matrix with v and d as a diagonal
-                # P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
-                # P = np.eye(KT)
-                # Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
-                Q = np.eye(KT)
-                prec = np.zeros(KT)
-                for i in range(len(pol_sig[0])):
-                    prec[i*K:(i+1)*K] = 1. / pol_sig[0, i, act_inds, act_inds]
-                Q *= prec
-                cur_val = attr_val.reshape((KT, 1), order='F')
-                A = -2 * cur_val.T.dot(Q)
-                b = cur_val.T.dot(Q.dot(cur_val))
-                policy_inf_coeff = self.policy_inf_coeff / T
-
-                # QuadExpr is 0.5*x^Tx + Ax + b
-                quad_expr = QuadExpr(2*policy_inf_coeff*Q,
-                                     policy_inf_coeff*A, policy_inf_coeff*b)
-                ll_attr_val = getattr(param_ll, attr_name)
-                param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
-                sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-                bexpr = BoundExpr(quad_expr, sco_var)
-                transfer_objs.append(bexpr)
-            return transfer_objs
-
-
-        def _policy_inference_obj(self, plan, (i, j, k), start_t, end_t):
-            transfer_objs = []
-            if not hasattr(self, 'gmm') or self.gmm.sigma is None:
-                return []
-
-            T = end_t-start_t+1
-            sample = self._fill_sample((i, j, k), start_t, end_t, plan)
-
-            mu, sig = self.gmm.inference(np.concatenate(sample.get_X(), sample.get_U()))
-            def attr_moments(param, attr_name, inds):
+            mu, sig, use_state, use_action = inf_f(np.concatenate(sample.get_X(), sample.get_U()))
+            def attr_moments(param, attr_name, inds, sample):
                 attr_mu = mu[:, inds]
                 attr_sig = sig[:, inds][:, :, inds]
                 active_ts = (start_t, end_t)
                 if not hasattr(param, attr_name):
-                    attr_name, attr_mu, attr_sig = self.convert_attrs(attr_name, attr_mu, attr_sig, param, active_ts)
+                    attr_name, attr_mu, attr_sig = self.convert_attrs(attr_name, attr_mu, attr_sig, param, active_ts, sample)
                 prec = np.linalg.inv(attr_sig)
                 attr_type = param.get_attr_type(attr_name)
                 return attr_name, attr_type.dim, attr_attr_mu, attr_sig, prec
@@ -495,49 +367,51 @@ def get_base_solver(parent_class):
             def inf_expr(Q, v):
                 return QuadExpr(coeff*Q, -2*coeff*v.T.dot(Q), coeff*v.T.dot(Q).dot(v))
 
-            for param_name, attr_name in self.action_inds:
-                act_inds = self.action_inds[(param_name, attr_name)]
-                dX = self.symbolic_bound
-                param = plan.params[param_name]
-                param_ll = self._param_to_ll[param]
+            if use_action:
+                for param_name, attr_name in self.action_inds:
+                    act_inds = self.action_inds[(param_name, attr_name)]
+                    start_ind = sample.dX if use_state else 0
+                    param = plan.params[param_name]
+                    param_ll = self._param_to_ll[param]
 
-                attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, dX+act_inds)
-                attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
-                attr_val[:, :-1] -= attr_val[:, 1:]
+                    attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, start_ind+act_inds, sample)
+                    attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
+                    attr_val[:, :-1] -= attr_val[:, 1:]
 
-                KT = K*T
+                    KT = K*T
 
-                Q = np.zeros(KT, KT)
-                v = attr_mu.reshape((KT, 1))
-                for t in range(T-1):
-                    Q[t:t+1,t:t+1] = prec[t]
+                    Q = np.zeros(KT, KT)
+                    v = attr_mu.reshape((KT, 1))
+                    for t in range(T-1):
+                        Q[t:t+1,t:t+1] = prec[t]
 
-                coeff = self.policy_inf_coeff / T
-                quad_expr = inf_expr(Q, v)
+                    coeff = self.policy_inf_coeff / T
+                    quad_expr = inf_expr(Q, v)
 
-                bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
-                transfer_objs.append(bexpr)
+                    bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
+                    transfer_objs.append(bexpr)
 
-            for param_name, attr_name in self.state_inds:
-                state_inds = self.state_inds[param_name, attr_name]dX = self.symbolic_bound
-                param = plan.params[param_name]
-                param_ll = self._param_to_ll[param]
+            if use_state:
+                for param_name, attr_name in self.state_inds:
+                    state_inds = self.state_inds[param_name, attr_name]
+                    param = plan.params[param_name]
+                    param_ll = self._param_to_ll[param]
 
-                attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, state_inds)
-                attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
+                    attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, state_inds)
+                    attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
 
-                KT = K*T
+                    KT = K*T
 
-                Q = np.zeros(KT, KT)
-                v = attr_mu.reshape((KT, 1))
-                for t in range(T):
-                    Q[t:t+1,t:t+1] = prec[t]
+                    Q = np.zeros(KT, KT)
+                    v = attr_mu.reshape((KT, 1))
+                    for t in range(T):
+                        Q[t:t+1,t:t+1] = prec[t]
 
-                coeff = self.policy_inf_coeff / T
-                quad_expr = inf_Expr(Q, v)
+                    coeff = self.policy_inf_coeff / T
+                    quad_expr = inf_Expr(Q, v)
 
-                bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
-                transfer_objs.append(bexpr)
+                    bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
+                    transfer_objs.append(bexpr)
 
             return transfer_objs
 
@@ -561,18 +435,17 @@ def get_base_solver(parent_class):
             self._store_policy_fs()
 
 
-        def _store_policy_fs(self):
-            if hasattr(self, 'agent'):
-                for i in range(len(self.agent.task_list)):
-                    for j in range(len(self.agent.obj_list)):
-                        for k in range(len(self.agent.targ_list)):
-                            pol_inf_f = lambda o, x: self._policy_inf_func(o, x, self.agent.task_list[i])
-                            self.policy_inf_fs[(i, j, k)] = pol_inf_f
-            else:
-                print '{0} has no attribute agent; not setting policy functions.'.format(self.__class__)
+        # def _store_policy_fs(self):
+        #     if hasattr(self, 'agent'):
+        #         for i in range(len(self.agent.task_list)):
+        #             for j in range(len(self.agent.targ_list)):
+        #                 pol_inf_f = lambda o, x: self._policy_inf_func(o, x, self.agent.task_list[i])
+        #                 self.policy_inf_fs[(i, j)] = pol_inf_f
+        #     else:
+        #         print '{0} has no attribute agent; not setting policy functions.'.format(self.__class__)
 
 
-        def _solve_opt_prob(self, plan, active_ts, priority, traj_mean=[], task=None, resample=False, callback=None, verbose=False):
+        def _solve_opt_prob(self, plan, active_ts, priority, inf_f=None, traj_mean=[], task=None, resample=False, callback=None, verbose=False):
             self.plan = plan
             plan.save_free_attrs()
             model = grb.Model()
@@ -591,8 +464,8 @@ def get_base_solver(parent_class):
                 self._add_all_timesteps_of_actions(plan, priority=3,
                     add_nonlin=True, active_ts=active_ts)
                 obj_bexprs.extend(rs_obj)
-                if task is not None:
-                    obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
+                if inf_f is not None:
+                    obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]), inf_F)
                 self._add_obj_bexprs(obj_bexprs)
                 initial_trust_region_size = 1e3
             else:

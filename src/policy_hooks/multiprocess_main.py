@@ -1,5 +1,6 @@
 from multiprocessing import Process, Pool
 import atexit
+from collections import OrderedDict
 import subprocess
 import logging
 import imp
@@ -29,6 +30,7 @@ from gps.algorithm.cost.cost_sum import CostSum
 from gps.algorithm.cost.cost_utils import *
 from gps.sample.sample_list import SampleList
 
+from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_mcts import StateMCTS
 from policy_hooks.sample import Sample
@@ -48,6 +50,7 @@ from policy_hooks.value_server import ValueServer
 from policy_hooks.primitive_server import PrimitiveServer
 from policy_hooks.policy_server import PolicyServer
 from policy_hooks.rollout_server import RolloutServer
+from policy_hooks.tf_models import tf_network, multi_modal_network_fp
 from policy_hooks.view_server import ViewServer
 
 
@@ -62,6 +65,9 @@ class MultiProcessMain(object):
 
         conditions = self.config['num_conds']
         self.task_list = tuple(get_tasks(self.config['task_map_file']).keys())
+
+        if 'multi_policy' not in self.config: self.config['multi_policy'] = False
+        self.pol_list = self.task_list if self.config['multi_policy'] else ['control']
         self.task_durations = get_task_durations(self.config['task_map_file'])
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
@@ -71,18 +77,8 @@ class MultiProcessMain(object):
         goal_states = []
         targets = []
 
-        env = None
-        openrave_bodies = {}
-        obj_type = self.config['obj_type']
-        num_objs = self.config['num_objs']
-        for task in self.task_list:
-            for c in range(num_objs):
-                plans[task, '{0}{1}'.format(obj_type, c)] = prob.get_plan_for_task(task, ['{0}{1}'.format(obj_type, c), '{0}{1}_end_target'.format(obj_type, c)], num_objs, env, openrave_bodies)
-                if env is None:
-                    env = plans[task, '{0}{1}'.format(obj_type, c)].env
-                    for param in plans[task, '{0}{1}'.format(obj_type, c)].params.values():
-                        if not param.is_symbol():
-                            openrave_bodies[param.name] = param.openrave_body
+
+        plans, openrave_bodies, env = prob.get_plans()
 
         state_vector_include, action_vector_include, target_vector_include = self.config['get_vector'](num_objs)
 
@@ -105,6 +101,7 @@ class MultiProcessMain(object):
             plan.target_dim = self.target_dim
             plan.target_inds = self.target_inds
 
+        sensor_dims = self.config['sensor_dims']
         sensor_dims = {
             utils.STATE_ENUM: self.symbolic_bound,
             utils.ACTION_ENUM: self.dU,
@@ -113,11 +110,15 @@ class MultiProcessMain(object):
             utils.TARGETS_ENUM: self.target_dim,
             utils.OBJ_ENUM: num_objs,
             utils.TARG_ENUM: len(targets[0].keys()),
-            utils.OBJ_POSE_ENUM: 2,
-            utils.TARG_POSE_ENUM: 2,
-            utils.LIDAR_ENUM: self.config['n_dirs'],
-            utils.EE_ENUM: 2,
         }
+
+        self.prim_bounds = OrderedDict({})
+        ind = 0
+        prim_out_include = self.config['prim_out_include']
+        for enum in prim_out_include:
+            next_ind = ind+sensor_dims[enum]
+            self.prim_bounds[enum] = (ind, next_ind)
+            ind = next_ind
 
         self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name] 
         self.config['goal_f'] = prob.goal_f
@@ -151,6 +152,7 @@ class MultiProcessMain(object):
             'state_include': self.config['state_include'],
             'obs_include': self.config['obs_include'],
             'prim_obs_include': self.config['prim_obs_include'],
+            'prim_out_include': prim_out_include,
             'val_obs_include': self.config['val_obs_include'],
             'conditions': self.config['num_conds'],
             'solver': None,
@@ -170,6 +172,9 @@ class MultiProcessMain(object):
             'n_dirs': self.config['n_dirs'],
             'prob': prob,
             'attr_map': self.config['attr_map'],
+            'image_width': self.config['image_width'],
+            'image_height': self.config['image_height'],
+            'image_channels': self.config['image_channels']
         }
 
         self.config['algorithm']['dObj'] = sensor_dims[utils.OBJ_ENUM]
@@ -216,7 +221,7 @@ class MultiProcessMain(object):
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
 
         self.config['algorithm']['policy_opt'] = {
-            'type': MultiHeadPolicyOptTf,
+            'type': MultiHeadPolicyOptTf if self.config['multi_policy'] else ControlAttentionPolicyOpt,
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
                 'prim_obs_include': self.config['agent']['prim_obs_include'],
@@ -243,6 +248,17 @@ class MultiProcessMain(object):
                 'num_filters': [5,10],
                 'dim_hidden': [100, 100, 100]
             },
+            'image_network_params': {
+                'obs_include': ['image'],
+                'obs_image_data': ['image'],
+                'image_width': self.config['image_width'],
+                'image_height': self.config['image_height'],
+                'image_channels': self.config['image_channels'],
+                'sensor_dims': sensor_dims,
+                'n_fc_layers': self.config['n_layers'],
+                'num_filters': [5,10],
+                'fc_layer_size': self.config['dim_hidden'],
+            },
             'primitive_network_params': {
                 'obs_include': self.config['agent']['obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
@@ -254,9 +270,7 @@ class MultiProcessMain(object):
                 'n_layers': 2,
                 'num_filters': [5,10],
                 'dim_hidden': [40, 40],
-                'output_boundaries': [len(self.task_list),
-                                      len(obj_list),
-                                      len(targets[0].keys())],
+                'output_boundaries': prim_bounds.values(),
                 'output_order': ['task', 'obj', 'targ'],
             },
             'value_network_params': {
@@ -276,6 +290,7 @@ class MultiProcessMain(object):
             'distilled_network_model': tf_network,
             'primitive_network_model': tf_classification_network,
             'value_network_model': tf_binary_network,
+            'image_network_model': multi_modal_network_fp if 'image' in self.config['agent']['obs_include'] else None,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
             'weight_decay': self.config['weight_decay'],
@@ -304,7 +319,7 @@ class MultiProcessMain(object):
         self.config['algorithm'][task]['policy_opt']['scope'] = 'value'
         self.config['algorithm'][task]['policy_opt']['weight_dir'] = self.config['weight_dir']
         self.task_durations = self.config['task_durations']
-        for task in self.task_list:
+        for task in self.pol_list:
             self.config['algorithm'][task]['policy_opt']['prev'] = 'skip'
             self.config['algorithm'][task]['agent'] = self.agent
             self.config['algorithm'][task]['init_traj_distr']['T'] = self.task_durations[task]
@@ -314,7 +329,7 @@ class MultiProcessMain(object):
             self.alg_map[task].set_conditions(len(self.agent.x0))
             self.alg_map[task].agent = self.agent
 
-        for task in self.task_list:
+        for task in self.pol_list:
             self.config['algorithm'][task]['policy_opt']['prev'] = None
         self.config['alg_map'] = self.alg_map
 
@@ -330,7 +345,7 @@ class MultiProcessMain(object):
 
         for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
-                                  self.task_list,
+                                  self.pol_list,
                                   None,
                                   self.config['plan_f'],
                                   self.config['cost_f'],
@@ -412,18 +427,18 @@ class MultiProcessMain(object):
             self.create_server(new_hyperparams['opt_server_type'], new_hyperparams)
 
     def create_pol_servers(self, hyperparams):
-        for task in self.task_list:
+        for task in self.pol_list+('image', 'value', 'primitive'):
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
             self.create_server(PolicyServer, new_hyperparams)
 
-        new_hyperparams = copy.copy(hyperparams)
-        new_hyperparams['scope'] = 'value'
-        self.create_server(ValueServer, new_hyperparams)
+        # new_hyperparams = copy.copy(hyperparams)
+        # new_hyperparams['scope'] = 'value'
+        # self.create_server(ValueServer, new_hyperparams)
 
-        new_hyperparams = copy.copy(hyperparams)
-        new_hyperparams['scope'] = 'primitive'
-        self.create_server(PrimitiveServer, new_hyperparams)
+        # new_hyperparams = copy.copy(hyperparams)
+        # new_hyperparams['scope'] = 'primitive'
+        # self.create_server(PrimitiveServer, new_hyperparams)
 
     def create_rollout_servers(self, hyperparams):
         for n in range(hyperparams['n_rollout_servers']):
@@ -470,7 +485,7 @@ class MultiProcessMain(object):
         self.check_dirs()
         if self.config['log_timing']:
             with open(self.config['time_log'], 'a+') as f:
-                f.write('\n\n\n\n\nTiming info for {0}:'.format(datetime.now()))
+                f.write('\n\nTiming info for {0}:'.format(datetime.now()))
         self.start_ros()
         time.sleep(1)
         self.spawn_servers(self.config)

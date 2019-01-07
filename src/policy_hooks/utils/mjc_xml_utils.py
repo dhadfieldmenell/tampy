@@ -63,7 +63,7 @@ def get_param_xml(param):
 def get_table():
     body = '''
             <body name="table" pos="0.5 0 -0.4875" euler="0 0 0">
-              <geom name="table" type="box" size="0.5 0.75 0.4375" />
+              <geom name="table" type="box" size="0.75 1.5 0.4375" />
             </body>
            '''
     xml_body = xml.fromstring(body)
@@ -77,7 +77,7 @@ def get_table():
     return 'table', xml_body, {'contacts': contacts}
 
 
-def get_deformable_cloth(width, length, spacing=0.1, radius=0.15, pos=(1.,0.,1.), material='matcarpet', label=""):
+def get_deformable_cloth(width, length, spacing=0.1, radius=0.15, pos=(0.5,0.,0.75), material='matcarpet', label=""):
     body =  '''
                 <body name="B0_0" pos="{0} {1} {2}">
                     <freejoint />

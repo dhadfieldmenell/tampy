@@ -167,5 +167,39 @@ config = {
     'batch_size': 1000,
     'n_layers': 2,
     'dim_hidden': [100, 100],
+
+    'cloth_wid': 5,
+    'cloth_len': 3,
+    'cloth_spacing': 0.1,
+    'cloth_radius': 0.01,
+
+    'state_include': [utils.LEFT_EE_POS_ENUM,
+                      utils.RIGHT_EE_POS_ENUM,
+                      utils.STATE_ENUM],
+    'obs_include': [utils.LEFT_EE_POS_ENUM,
+                    utils.RIGHT_EE_POS_ENUM,
+                    utils.TASK_ENUM,
+                    utils.LEFT_TARG_POSE_ENUM,
+                    utils.RIGHT_TARG_POSE_ENUM,
+                    utils.LEFT_HAND_IM_ENUM,
+                    utils.RIGHT_HAND_IM_ENUM,
+                    utils.OVERHEAD_IMAGE_ENUM],
+    'prim_obs_include': [utils.TARGETS_ENUM,
+                         utils.OVERHEAD_IMAGE_ENUM],
+    'val_obs_include': [utils.OVERHEAD_IMAGE_ENUM,
+                        utils.TARGETS_ENUM,
+                        utils.TASK_ENUM,
+                        utils.LEFT_TARG_ENUM,
+                        utils.RIGHT_TARG_ENUM],
+    'prim_out_include': [utils.TASK_ENUM, utils.RIGHT_TARG_ENUM, utils.LEFT_TARG_ENUM]
+
+    'sensor_dims': {
+            utils.LEFT_TARG_POSE_ENUM: 2,
+            utils.RIGHT_TARG_POSE_ENUM: 2,
+            utils.RIGHT_EE_POS_ENUM: 3,
+            utils.RIGHT_EE_QUAT_ENUM: 4,
+            utils.LEFT_EE_POS_ENUM: 3,
+            utils.LEFT_EE_QUAT_ENUM: 4,
+        }
 }
 
