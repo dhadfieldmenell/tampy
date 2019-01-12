@@ -19,6 +19,8 @@
     (:file "_package_PlanProb" :depends-on ("_package"))
     (:file "PlanResult" :depends-on ("_package_PlanResult"))
     (:file "_package_PlanResult" :depends-on ("_package"))
+    (:file "PolicyPriorUpdate" :depends-on ("_package_PolicyPriorUpdate"))
+    (:file "_package_PolicyPriorUpdate" :depends-on ("_package"))
     (:file "PolicyUpdate" :depends-on ("_package_PolicyUpdate"))
     (:file "_package_PolicyUpdate" :depends-on ("_package"))
     (:file "SampleData" :depends-on ("_package_SampleData"))

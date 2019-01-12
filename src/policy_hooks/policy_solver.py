@@ -335,6 +335,7 @@ def get_base_solver(parent_class):
 
             return success
 
+
         def _optimize_against_global(self, plan, active_ts, n_resamples=1, global_traj_mean=[]):
             priority = 3
             for attempt in range(n_resamples):
@@ -351,9 +352,17 @@ def get_base_solver(parent_class):
             transfer_objs = []
 
             T = end_t-start_t+1
-            sample = self._fill_sample(task, start_t, end_t, plan)
+            sample = Sample(self.agent)
+            state = np.zeros((self.symbolic_bound, T))
+            for p_name, a_name in self.state_inds:
+                p = plan.params[p_name]
+                if p.is_symbol(): continue
+                state[self.state_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
 
-            mu, sig, use_state, use_action = inf_f(np.concatenate(sample.get_X(), sample.get_U()))
+            for t in range(0, T):
+                sample = self.agent.fill_sample(0, sample, state[:,t], t, task)
+
+            mu, sig, use_state, use_action = inf_f(sample)
             def attr_moments(param, attr_name, inds, sample):
                 attr_mu = mu[:, inds]
                 attr_sig = sig[:, inds][:, :, inds]
@@ -414,6 +423,7 @@ def get_base_solver(parent_class):
                     transfer_objs.append(bexpr)
 
             return transfer_objs
+
 
         def gen_bexpr(self, param_ll, attr_name, KT, expr):
             ll_attr_val = getattr(param_ll, attr_name)

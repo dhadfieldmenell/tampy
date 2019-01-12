@@ -20,7 +20,8 @@ class PrimitiveServer(object):
             hyperparams['dObj'],
             hyperparams['dTarg'],
             hyperparams['dPrimObs'],
-            hyperparams['dValObs']
+            hyperparams['dValObs'],
+            hyperparams['prim_bounds']
         )
         self.task = 'primitive'
         self.primitive_service = rospy.Service('primitive', Primitive, self.primitive)

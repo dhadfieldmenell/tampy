@@ -2,7 +2,7 @@
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install")
+  set(CMAKE_INSTALL_PREFIX "/home/michaelmcdonald/tampy/src/ros_utils/install")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -34,7 +34,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/michaelmcdonald/dependencies/tampy/src/ros_utils/build/gtest/gtest/cmake_install.cmake")
+  include("/home/michaelmcdonald/tampy/src/ros_utils/build/gtest/gtest/cmake_install.cmake")
 
 endif()
 

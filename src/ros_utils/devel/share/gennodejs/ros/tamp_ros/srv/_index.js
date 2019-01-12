@@ -1,18 +1,18 @@
 
 "use strict";
 
-let Primitive = require('./Primitive.js')
-let PolicyAct = require('./PolicyAct.js')
-let MotionPlan = require('./MotionPlan.js')
 let PolicyProb = require('./PolicyProb.js')
 let PolicyForward = require('./PolicyForward.js')
+let Primitive = require('./Primitive.js')
+let MotionPlan = require('./MotionPlan.js')
+let PolicyAct = require('./PolicyAct.js')
 let QValue = require('./QValue.js')
 
 module.exports = {
-  Primitive: Primitive,
-  PolicyAct: PolicyAct,
-  MotionPlan: MotionPlan,
   PolicyProb: PolicyProb,
   PolicyForward: PolicyForward,
+  Primitive: Primitive,
+  MotionPlan: MotionPlan,
+  PolicyAct: PolicyAct,
   QValue: QValue,
 };

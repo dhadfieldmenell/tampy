@@ -67,7 +67,7 @@ class MultiProcessMain(object):
         self.task_list = tuple(get_tasks(self.config['task_map_file']).keys())
 
         if 'multi_policy' not in self.config: self.config['multi_policy'] = False
-        self.pol_list = self.task_list if self.config['multi_policy'] else ['control']
+        self.pol_list = self.task_list # if self.config['multi_policy'] else ['control']
         self.task_durations = get_task_durations(self.config['task_map_file'])
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
@@ -80,17 +80,13 @@ class MultiProcessMain(object):
 
         plans, openrave_bodies, env = prob.get_plans()
 
-        state_vector_include, action_vector_include, target_vector_include = self.config['get_vector'](num_objs)
+        state_vector_include, action_vector_include, target_vector_include = self.config['get_vector'](self.config)
 
         self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
 
         self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], self.config['attr_map'], target_vector_include)
-
-        for i in range(conditions):
-            targets.append(prob.get_end_targets(num_objs))
         
-        x0 = prob.get_random_initial_state_vec(num_objs, targets, self.dX, self.state_inds, conditions)
-        obj_list = ['{0}{1}'.format(obj_type, c) for c in range(num_objs)]
+        x0 = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
 
         for plan in plans.values():
             plan.state_inds = self.state_inds
@@ -101,39 +97,53 @@ class MultiProcessMain(object):
             plan.target_dim = self.target_dim
             plan.target_inds = self.target_inds
 
-        sensor_dims = self.config['sensor_dims']
         sensor_dims = {
             utils.STATE_ENUM: self.symbolic_bound,
             utils.ACTION_ENUM: self.dU,
             utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
-            utils.OBJ_ENUM: num_objs,
-            utils.TARG_ENUM: len(targets[0].keys()),
         }
+        for enum in self.config['sensor_dims']:
+            sensor_dims[enum] = self.config['sensor_dims'][enum]
 
-        self.prim_bounds = OrderedDict({})
-        ind = 0
-        prim_out_include = self.config['prim_out_include']
-        for enum in prim_out_include:
-            next_ind = ind+sensor_dims[enum]
-            self.prim_bounds[enum] = (ind, next_ind)
+        self.prim_bounds = []
+        self.prim_dims = OrderedDict({})
+        self.config['prim_dims'] = self.prim_dims
+        options = prob.get_prim_choices()
+        ind = len(self.task_list)
+        self.prim_bounds.append((0, ind))
+        for enum in options:
+            if enum == utils.TASK_ENUM: continue
+            n_options = len(options[enum])
+            next_ind = ind+n_options
+            self.prim_bounds.append((ind, next_ind))
+            self.prim_dims[enum] = n_options
             ind = next_ind
+        for enum in self.prim_dims:
+            sensor_dims[enum] = self.prim_dims[enum]
+        self.config['prim_bounds'] = self.prim_bounds
+        self.config['prim_dims'] = self.prim_dims
 
-        self.config['plan_f'] = lambda task, targets: plans[task, targets[0].name] 
-        self.config['goal_f'] = prob.goal_f
-        self.config['cost_f'] = prob.cost_f
-        self.config['target_f'] = prob.get_next_target
-        self.config['encode_f'] = prob.sorting_state_encode
+        # self.config['goal_f'] = prob.goal_f
+        # self.config['cost_f'] = prob.cost_f
+        self.config['target_f'] = None # prob.get_next_target
+        self.config['encode_f'] = None # prob.sorting_state_encode
         # self.config['weight_file'] = 'tf_saved/2018-09-12 23:43:45.748906_namo_5.ckpt'
 
         self.config['task_durations'] = self.task_durations
 
         self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
         self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
+        x0s = []
+        for m in range(len(self.agent.x0)):
+            sample = Sample(self.agent)
+            self.agent.fill_sample(m, sample, x0[m], 0, tuple(np.zeros(1+len(self.prim_bounds))))
+            x0s.append(sample.get_X(t=0))
+            old_x0 = self.agent.x0
         self.config['agent'] = {
             'type': self.config['agent_type'],
-            'x0': x0,
+            'x0': x0s,
             'targets': targets,
             'task_list': self.task_list,
             'plans': plans,
@@ -147,17 +157,17 @@ class MultiProcessMain(object):
             'dX': self.symbolic_bound,
             'symbolic_bound': self.symbolic_bound,
             'target_dim': self.target_dim,
-            'get_plan': prob.get_plan,
+            'get_plan': None, # prob.get_plan,
             'sensor_dims': sensor_dims,
             'state_include': self.config['state_include'],
             'obs_include': self.config['obs_include'],
             'prim_obs_include': self.config['prim_obs_include'],
-            'prim_out_include': prim_out_include,
+            'prim_out_include': self.config['prim_out_include'],
             'val_obs_include': self.config['val_obs_include'],
             'conditions': self.config['num_conds'],
             'solver': None,
-            'num_cans': num_objs,
-            'obj_list': obj_list,
+            'num_cans': 1,
+            'obj_list': [],
             'stochastic_conditions': False,
             'image_width': utils.IM_W,
             'image_height': utils.IM_H,
@@ -166,7 +176,7 @@ class MultiProcessMain(object):
             'T': 1,
             'viewer': config['viewer'],
             'model': None,
-            'get_hl_plan': prob.hl_plan_for_state,
+            'get_hl_plan': None,
             'env': env,
             'openrave_bodies': openrave_bodies,
             'n_dirs': self.config['n_dirs'],
@@ -174,11 +184,14 @@ class MultiProcessMain(object):
             'attr_map': self.config['attr_map'],
             'image_width': self.config['image_width'],
             'image_height': self.config['image_height'],
-            'image_channels': self.config['image_channels']
+            'image_channels': self.config['image_channels'],
+            'prim_dims': self.prim_dims
         }
-
-        self.config['algorithm']['dObj'] = sensor_dims[utils.OBJ_ENUM]
-        self.config['algorithm']['dTarg'] = sensor_dims[utils.TARG_ENUM]
+        if 'cloth_width' in self.config:
+            self.config['agent']['cloth_width'] = self.config['cloth_width']
+            self.config['agent']['cloth_length'] = self.config['cloth_length']
+            self.config['agent']['cloth_spacing'] = self.config['cloth_spacing']
+            self.config['agent']['cloth_radius'] = self.config['cloth_radius']
 
         # action_cost_wp = np.ones((self.config['agent']['T'], self.dU), dtype='float64')
         state_cost_wp = np.ones((self.symbolic_bound), dtype='float64')
@@ -208,13 +221,13 @@ class MultiProcessMain(object):
         #                 'type': TrajConstrCost,
         #               }
 
-        self.config['algorithm']['cost'] = {
-                                                'type': CostSum,
-                                                'costs': [traj_cost, action_cost],
-                                                'weights': [1.0, 1.0],
-                                           }
+        # self.config['algorithm']['cost'] = {
+        #                                         'type': CostSum,
+        #                                         'costs': [traj_cost, action_cost],
+        #                                         'weights': [1.0, 1.0],
+        #                                    }
 
-        # self.config['algorithm']['cost'] = constr_cost
+        self.config['algorithm']['cost'] = traj_cost
 
         self.config['dQ'] = self.dU
         self.config['algorithm']['init_traj_distr']['dQ'] = self.dU
@@ -224,62 +237,60 @@ class MultiProcessMain(object):
             'type': MultiHeadPolicyOptTf if self.config['multi_policy'] else ControlAttentionPolicyOpt,
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
-                'prim_obs_include': self.config['agent']['prim_obs_include'],
-                'val_obs_include': self.config['agent']['val_obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
-                'obs_image_data': [],
-                'image_width': utils.IM_W,
-                'image_height': utils.IM_H,
-                'image_channels': utils.IM_C,
+                'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'image_width': self.config['image_width'],
+                'image_height': self.config['image_height'],
+                'image_channels': self.config['image_channels'],
                 'sensor_dims': sensor_dims,
                 'n_layers': self.config['n_layers'],
                 'num_filters': [5,10],
                 'dim_hidden': self.config['dim_hidden'],
             },
-            'distilled_network_params': {
-                'obs_include': self.config['agent']['obs_include'],
+            # 'distilled_network_params': {
+            #     'obs_include': self.config['agent']['obs_include'],
+            #     # 'obs_vector_data': [utils.STATE_ENUM],
+            #     'obs_image_data': [],
+            #     'image_width': self.config['image_width'],
+            #     'image_height': self.config['image_height'],
+            #     'image_channels': self.config['image_channels'],
+            #     'sensor_dims': sensor_dims,
+            #     'n_layers': 3,
+            #     'num_filters': [5,10],
+            #     'dim_hidden': [100, 100, 100]
+            # },
+            # 'image_network_params': {
+            #     'obs_include': ['image'],
+            #     'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+            #     'image_width': self.config['image_width'],
+            #     'image_height': self.config['image_height'],
+            #     'image_channels': self.config['image_channels'],
+            #     'sensor_dims': sensor_dims,
+            #     'n_fc_layers': self.config['n_layers'],
+            #     'num_filters': [5,10],
+            #     'fc_layer_size': self.config['dim_hidden'],
+            # },
+            'primitive_network_params': {
+                'obs_include': self.config['agent']['prim_obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
-                'obs_image_data': [],
-                'image_width': utils.IM_W,
-                'image_height': utils.IM_H,
-                'image_channels': utils.IM_C,
-                'sensor_dims': sensor_dims,
-                'n_layers': 3,
-                'num_filters': [5,10],
-                'dim_hidden': [100, 100, 100]
-            },
-            'image_network_params': {
-                'obs_include': ['image'],
-                'obs_image_data': ['image'],
+                'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': sensor_dims,
-                'n_fc_layers': self.config['n_layers'],
-                'num_filters': [5,10],
-                'fc_layer_size': self.config['dim_hidden'],
-            },
-            'primitive_network_params': {
-                'obs_include': self.config['agent']['obs_include'],
-                # 'obs_vector_data': [utils.STATE_ENUM],
-                'obs_image_data': [],
-                'image_width': utils.IM_W,
-                'image_height': utils.IM_H,
-                'image_channels': utils.IM_C,
-                'sensor_dims': sensor_dims,
                 'n_layers': 2,
                 'num_filters': [5,10],
                 'dim_hidden': [40, 40],
-                'output_boundaries': prim_bounds.values(),
+                'output_boundaries': self.prim_bounds,
                 'output_order': ['task', 'obj', 'targ'],
             },
             'value_network_params': {
-                'obs_include': self.config['agent']['obs_include'],
+                'obs_include': self.config['agent']['val_obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
-                'obs_image_data': [],
-                'image_width': utils.IM_W,
-                'image_height': utils.IM_H,
-                'image_channels': utils.IM_C,
+                'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'image_width': self.config['image_width'],
+                'image_height': self.config['image_height'],
+                'image_channels': self.config['image_channels'],
                 'sensor_dims': sensor_dims,
                 'n_layers': 1,
                 'num_filters': [5,10],
@@ -312,6 +323,7 @@ class MultiProcessMain(object):
         self.config['algorithm'] = alg_map
 
         self.agent = self.config['agent']['type'](self.config['agent'])
+        self.config['agent']['cloth_init_joints'] = self.agent.cloth_init_joints
 
         self.fail_value = self.config['fail_value']
         self.alg_map = {}
@@ -346,12 +358,13 @@ class MultiProcessMain(object):
         for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
                                   self.pol_list,
+                                  self.prim_dims,
                                   None,
-                                  self.config['plan_f'],
-                                  self.config['cost_f'],
-                                  self.config['goal_f'],
-                                  self.config['target_f'],
-                                  self.config['encode_f'],
+                                  None,
+                                  None,
+                                  None,
+                                  None,
+                                  None,
                                   None,
                                   None,
                                   None,
@@ -367,7 +380,7 @@ class MultiProcessMain(object):
                                   ))
 
         self.config['mcts'] = self.mcts
-        self.config['agent'] = self.agent
+        # self.config['agent'] = self.agent
         self.config['alg_map'] = self.alg_map
         self.config['dX'] = self.dX
         self.config['dU'] = self.dU
@@ -375,8 +388,7 @@ class MultiProcessMain(object):
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
         self.config['dValObs'] = self.agent.dVal
-        self.config['dObj'] = self.config['algorithm'].values()[0]['dObj'] 
-        self.config['dTarg'] = self.config['algorithm'].values()[0]['dTarg'] 
+        self.config['dPrimOut'] = self.agent.dPrimOut 
         self.config['state_inds'] = self.state_inds
         self.config['action_inds'] = self.action_inds
         self.config['policy_out_coeff'] = self.policy_out_coeff

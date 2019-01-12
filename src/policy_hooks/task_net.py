@@ -39,8 +39,7 @@ def sigmoid_loss_layer(labels, logits):
 def multi_softmax_loss_layer(labels, logits, boundaries):
     start = 0
     losses = []
-    for bound in boundaries:
-        end = start + bound
+    for start, end in boundaries:
         losses.append(tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end]))
         start = end
     stacked_loss = tf.stack(losses, axis=0, name='softmax_loss_stack')
@@ -101,7 +100,7 @@ def get_loss_layer(mlp_out, task, boundaries):
     return multi_softmax_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries)
 
 
-def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None):
+def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None):
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
     dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
     dim_hidden.append(dim_output)
@@ -116,7 +115,7 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
     return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, []
 
 
-def tf_binary_network(dim_input=27, dim_output=2, batch_size=25, network_config=None):
+def tf_binary_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None):
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
     dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
     dim_hidden.append(2)

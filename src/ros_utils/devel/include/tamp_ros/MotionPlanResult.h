@@ -30,9 +30,7 @@ struct MotionPlanResult_
     , success(false)
     , plan_id(0)
     , cond(0)
-    , task()
-    , obj()
-    , targ()  {
+    , task()  {
     }
   MotionPlanResult_(const ContainerAllocator& _alloc)
     : traj(_alloc)
@@ -40,9 +38,7 @@ struct MotionPlanResult_
     , success(false)
     , plan_id(0)
     , cond(0)
-    , task(_alloc)
-    , obj(_alloc)
-    , targ(_alloc)  {
+    , task(_alloc)  {
   (void)_alloc;
     }
 
@@ -65,12 +61,6 @@ struct MotionPlanResult_
 
    typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _task_type;
   _task_type task;
-
-   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _obj_type;
-  _obj_type obj;
-
-   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _targ_type;
-  _targ_type targ;
 
 
 
@@ -107,7 +97,7 @@ namespace message_traits
 
 
 // BOOLTRAITS {'IsFixedSize': False, 'IsMessage': True, 'HasHeader': False}
-// {'tamp_ros': ['/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
+// {'tamp_ros': ['/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
 
 // !!!!!!!!!!! ['__class__', '__delattr__', '__dict__', '__doc__', '__eq__', '__format__', '__getattribute__', '__hash__', '__init__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_parsed_fields', 'constants', 'fields', 'full_name', 'has_header', 'header_present', 'names', 'package', 'parsed_fields', 'short_name', 'text', 'types']
 
@@ -150,12 +140,12 @@ struct MD5Sum< ::tamp_ros::MotionPlanResult_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "326cd4f386f413012deeafd4217bb17d";
+    return "5efc67c8ca4a7fce7ecdcac89381d056";
   }
 
   static const char* value(const ::tamp_ros::MotionPlanResult_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x326cd4f386f41301ULL;
-  static const uint64_t static_value2 = 0x2deeafd4217bb17dULL;
+  static const uint64_t static_value1 = 0x5efc67c8ca4a7fceULL;
+  static const uint64_t static_value2 = 0x7ecdcac89381d056ULL;
 };
 
 template<class ContainerAllocator>
@@ -180,8 +170,6 @@ bool success\n\
 int32 plan_id\n\
 int32 cond\n\
 string task\n\
-string obj\n\
-string targ\n\
 \n\
 ================================================================================\n\
 MSG: std_msgs/Float32MultiArray\n\
@@ -250,8 +238,6 @@ namespace serialization
       stream.next(m.plan_id);
       stream.next(m.cond);
       stream.next(m.task);
-      stream.next(m.obj);
-      stream.next(m.targ);
     }
 
     ROS_DECLARE_ALLINONE_SERIALIZER
@@ -288,10 +274,6 @@ struct Printer< ::tamp_ros::MotionPlanResult_<ContainerAllocator> >
     Printer<int32_t>::stream(s, indent + "  ", v.cond);
     s << indent << "task: ";
     Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.task);
-    s << indent << "obj: ";
-    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.obj);
-    s << indent << "targ: ";
-    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.targ);
   }
 };
 

@@ -7,17 +7,15 @@ import struct
 
 
 class PlanProb(genpy.Message):
-  _md5sum = "bacbc44c2a384d436608cc453c774b3b"
+  _md5sum = "97af7a9beb35cfa765c4c9dd69c7befd"
   _type = "tamp_ros/PlanProb"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """int32 prob_id
 string task
-string object
-string target
 float32[] state
 """
-  __slots__ = ['prob_id','task','object','target','state']
-  _slot_types = ['int32','string','string','string','float32[]']
+  __slots__ = ['prob_id','task','state']
+  _slot_types = ['int32','string','float32[]']
 
   def __init__(self, *args, **kwds):
     """
@@ -27,7 +25,7 @@ float32[] state
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       prob_id,task,object,target,state
+       prob_id,task,state
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -40,17 +38,11 @@ float32[] state
         self.prob_id = 0
       if self.task is None:
         self.task = ''
-      if self.object is None:
-        self.object = ''
-      if self.target is None:
-        self.target = ''
       if self.state is None:
         self.state = []
     else:
       self.prob_id = 0
       self.task = ''
-      self.object = ''
-      self.target = ''
       self.state = []
 
   def _get_types(self):
@@ -67,18 +59,6 @@ float32[] state
     try:
       buff.write(_get_struct_i().pack(self.prob_id))
       _x = self.task
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.object
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.target
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
@@ -113,24 +93,6 @@ float32[] state
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.object = str[start:end].decode('utf-8')
-      else:
-        self.object = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.target = str[start:end].decode('utf-8')
-      else:
-        self.target = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
       pattern = '<%sf'%length
       start = end
       end += struct.calcsize(pattern)
@@ -149,18 +111,6 @@ float32[] state
     try:
       buff.write(_get_struct_i().pack(self.prob_id))
       _x = self.task
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.object
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.target
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
@@ -193,24 +143,6 @@ float32[] state
         self.task = str[start:end].decode('utf-8')
       else:
         self.task = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.object = str[start:end].decode('utf-8')
-      else:
-        self.object = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.target = str[start:end].decode('utf-8')
-      else:
-        self.target = str[start:end]
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])

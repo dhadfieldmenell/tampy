@@ -17,16 +17,6 @@
     :initarg :task
     :type cl:string
     :initform "")
-   (object
-    :reader object
-    :initarg :object
-    :type cl:string
-    :initform "")
-   (target
-    :reader target
-    :initarg :target
-    :type cl:string
-    :initform "")
    (state
     :reader state
     :initarg :state
@@ -52,16 +42,6 @@
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader tamp_ros-msg:task-val is deprecated.  Use tamp_ros-msg:task instead.")
   (task m))
 
-(cl:ensure-generic-function 'object-val :lambda-list '(m))
-(cl:defmethod object-val ((m <PlanProb>))
-  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader tamp_ros-msg:object-val is deprecated.  Use tamp_ros-msg:object instead.")
-  (object m))
-
-(cl:ensure-generic-function 'target-val :lambda-list '(m))
-(cl:defmethod target-val ((m <PlanProb>))
-  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader tamp_ros-msg:target-val is deprecated.  Use tamp_ros-msg:target instead.")
-  (target m))
-
 (cl:ensure-generic-function 'state-val :lambda-list '(m))
 (cl:defmethod state-val ((m <PlanProb>))
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader tamp_ros-msg:state-val is deprecated.  Use tamp_ros-msg:state instead.")
@@ -80,18 +60,6 @@
     (cl:write-byte (cl:ldb (cl:byte 8 16) __ros_str_len) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_str_len) ostream))
   (cl:map cl:nil #'(cl:lambda (c) (cl:write-byte (cl:char-code c) ostream)) (cl:slot-value msg 'task))
-  (cl:let ((__ros_str_len (cl:length (cl:slot-value msg 'object))))
-    (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_str_len) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_str_len) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 16) __ros_str_len) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_str_len) ostream))
-  (cl:map cl:nil #'(cl:lambda (c) (cl:write-byte (cl:char-code c) ostream)) (cl:slot-value msg 'object))
-  (cl:let ((__ros_str_len (cl:length (cl:slot-value msg 'target))))
-    (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_str_len) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_str_len) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 16) __ros_str_len) ostream)
-    (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_str_len) ostream))
-  (cl:map cl:nil #'(cl:lambda (c) (cl:write-byte (cl:char-code c) ostream)) (cl:slot-value msg 'target))
   (cl:let ((__ros_arr_len (cl:length (cl:slot-value msg 'state))))
     (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_arr_len) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_arr_len) ostream)
@@ -120,22 +88,6 @@
       (cl:setf (cl:slot-value msg 'task) (cl:make-string __ros_str_len))
       (cl:dotimes (__ros_str_idx __ros_str_len msg)
         (cl:setf (cl:char (cl:slot-value msg 'task) __ros_str_idx) (cl:code-char (cl:read-byte istream)))))
-    (cl:let ((__ros_str_len 0))
-      (cl:setf (cl:ldb (cl:byte 8 0) __ros_str_len) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 8) __ros_str_len) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 16) __ros_str_len) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 24) __ros_str_len) (cl:read-byte istream))
-      (cl:setf (cl:slot-value msg 'object) (cl:make-string __ros_str_len))
-      (cl:dotimes (__ros_str_idx __ros_str_len msg)
-        (cl:setf (cl:char (cl:slot-value msg 'object) __ros_str_idx) (cl:code-char (cl:read-byte istream)))))
-    (cl:let ((__ros_str_len 0))
-      (cl:setf (cl:ldb (cl:byte 8 0) __ros_str_len) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 8) __ros_str_len) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 16) __ros_str_len) (cl:read-byte istream))
-      (cl:setf (cl:ldb (cl:byte 8 24) __ros_str_len) (cl:read-byte istream))
-      (cl:setf (cl:slot-value msg 'target) (cl:make-string __ros_str_len))
-      (cl:dotimes (__ros_str_idx __ros_str_len msg)
-        (cl:setf (cl:char (cl:slot-value msg 'target) __ros_str_idx) (cl:code-char (cl:read-byte istream)))))
   (cl:let ((__ros_arr_len 0))
     (cl:setf (cl:ldb (cl:byte 8 0) __ros_arr_len) (cl:read-byte istream))
     (cl:setf (cl:ldb (cl:byte 8 8) __ros_arr_len) (cl:read-byte istream))
@@ -160,22 +112,20 @@
   "tamp_ros/PlanProb")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<PlanProb>)))
   "Returns md5sum for a message object of type '<PlanProb>"
-  "bacbc44c2a384d436608cc453c774b3b")
+  "97af7a9beb35cfa765c4c9dd69c7befd")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'PlanProb)))
   "Returns md5sum for a message object of type 'PlanProb"
-  "bacbc44c2a384d436608cc453c774b3b")
+  "97af7a9beb35cfa765c4c9dd69c7befd")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<PlanProb>)))
   "Returns full string definition for message of type '<PlanProb>"
-  (cl:format cl:nil "int32 prob_id~%string task~%string object~%string target~%float32[] state~%~%~%"))
+  (cl:format cl:nil "int32 prob_id~%string task~%float32[] state~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'PlanProb)))
   "Returns full string definition for message of type 'PlanProb"
-  (cl:format cl:nil "int32 prob_id~%string task~%string object~%string target~%float32[] state~%~%~%"))
+  (cl:format cl:nil "int32 prob_id~%string task~%float32[] state~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <PlanProb>))
   (cl:+ 0
      4
      4 (cl:length (cl:slot-value msg 'task))
-     4 (cl:length (cl:slot-value msg 'object))
-     4 (cl:length (cl:slot-value msg 'target))
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'state) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 4)))
 ))
 (cl:defmethod roslisp-msg-protocol:ros-message-to-list ((msg <PlanProb>))
@@ -183,7 +133,5 @@
   (cl:list 'PlanProb
     (cl:cons ':prob_id (prob_id msg))
     (cl:cons ':task (task msg))
-    (cl:cons ':object (object msg))
-    (cl:cons ':target (target msg))
     (cl:cons ':state (state msg))
 ))

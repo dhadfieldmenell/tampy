@@ -34,28 +34,30 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         self.traj_centers = hyperparams['n_traj_centers']
         self.use_centroids = hyperparams['use_centroids']
 
+        policy_prior = hyperparams['policy_prior']
+
+        # MDGPS uses a prior per-condition; IMGPS wants one per task as well
+        self.policy_prior = policy_prior['type'](policy_prior)
+
         AlgorithmMDGPS.__init__(self, config)
 
     def iteration(self, optimal_samples, reset=True):
-        """
-        Run iteration of PI-based guided policy search.
-
-        Args:
-            sample_lists: List of SampleList objects for each condition.
-        """
         all_opt_samples = []
         sample_lists = []
+        all_samples = []
         for opt_s, s_list in optimal_samples:
             all_opt_samples.append(SampleList([opt_s]))
             for s in s_list:
                 s.set_ref_X(opt_s.get(STATE_ENUM))
                 s.set_ref_U(opt_s.get_U())
             sample_lists.append(s_list)
+            all_samples.extend(s_list)
 
         if len(self.cur) != len(all_opt_samples) or reset:
             self.set_conditions(len(all_opt_samples))
 
         print 'Algorithm for {0} updating on {1} rollouts'.format(self.task, len(all_opt_samples))
+        self._update_prior(self.policy_prior, SampleList(all_samples))
 
         if self.traj_centers >= len(sample_lists[0]):
             for m in range(len(self.cur)):
@@ -93,6 +95,23 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         self._advance_iteration_variables()
 
         return sample_lists
+
+    def preiteration_step(self, sample_lists):
+        if not self.policy_opt.policy_initialized(self.task): return
+        if self.M != len(sample_lists):
+            self.set_conditions(len(sample_lists))
+        for m in range(self.M):
+            self.cur[m].sample_list = sample_lists[m]
+            self._update_policy_fit(m)
+
+
+    def _update_prior(self, prior, samples):
+        if not self.policy_opt.policy_initialized(self.task): return
+        mode = self._hyperparams['policy_sample_mode']
+        try:
+            prior.update(samples, self.policy_opt, mode, self.task)
+        except Exception as e:
+            print 'Policy prior update threw exception: ', e, '\n'
 
 
     def _update_policy_no_cost(self):

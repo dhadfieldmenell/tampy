@@ -4,5 +4,3 @@ bool success
 int32 plan_id
 int32 cond
 string task
-string obj
-string targ

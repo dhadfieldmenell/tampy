@@ -23,11 +23,17 @@ class MotionPlanProblem {
       this.prob_id = null;
       this.server_id = null;
       this.task = null;
-      this.obj = null;
-      this.targ = null;
       this.state = null;
       this.cond = null;
       this.traj_mean = null;
+      this.use_prior = null;
+      this.sigma = null;
+      this.mu = null;
+      this.logmass = null;
+      this.mass = null;
+      this.N = null;
+      this.K = null;
+      this.Do = null;
     }
     else {
       if (initObj.hasOwnProperty('solver_id')) {
@@ -54,18 +60,6 @@ class MotionPlanProblem {
       else {
         this.task = '';
       }
-      if (initObj.hasOwnProperty('obj')) {
-        this.obj = initObj.obj
-      }
-      else {
-        this.obj = '';
-      }
-      if (initObj.hasOwnProperty('targ')) {
-        this.targ = initObj.targ
-      }
-      else {
-        this.targ = '';
-      }
       if (initObj.hasOwnProperty('state')) {
         this.state = initObj.state
       }
@@ -84,6 +78,54 @@ class MotionPlanProblem {
       else {
         this.traj_mean = [];
       }
+      if (initObj.hasOwnProperty('use_prior')) {
+        this.use_prior = initObj.use_prior
+      }
+      else {
+        this.use_prior = false;
+      }
+      if (initObj.hasOwnProperty('sigma')) {
+        this.sigma = initObj.sigma
+      }
+      else {
+        this.sigma = [];
+      }
+      if (initObj.hasOwnProperty('mu')) {
+        this.mu = initObj.mu
+      }
+      else {
+        this.mu = [];
+      }
+      if (initObj.hasOwnProperty('logmass')) {
+        this.logmass = initObj.logmass
+      }
+      else {
+        this.logmass = [];
+      }
+      if (initObj.hasOwnProperty('mass')) {
+        this.mass = initObj.mass
+      }
+      else {
+        this.mass = [];
+      }
+      if (initObj.hasOwnProperty('N')) {
+        this.N = initObj.N
+      }
+      else {
+        this.N = 0;
+      }
+      if (initObj.hasOwnProperty('K')) {
+        this.K = initObj.K
+      }
+      else {
+        this.K = 0;
+      }
+      if (initObj.hasOwnProperty('Do')) {
+        this.Do = initObj.Do
+      }
+      else {
+        this.Do = 0;
+      }
     }
   }
 
@@ -97,10 +139,6 @@ class MotionPlanProblem {
     bufferOffset = _serializer.int32(obj.server_id, buffer, bufferOffset);
     // Serialize message field [task]
     bufferOffset = _serializer.string(obj.task, buffer, bufferOffset);
-    // Serialize message field [obj]
-    bufferOffset = _serializer.string(obj.obj, buffer, bufferOffset);
-    // Serialize message field [targ]
-    bufferOffset = _serializer.string(obj.targ, buffer, bufferOffset);
     // Serialize message field [state]
     bufferOffset = _arraySerializer.float32(obj.state, buffer, bufferOffset, null);
     // Serialize message field [cond]
@@ -111,6 +149,22 @@ class MotionPlanProblem {
     obj.traj_mean.forEach((val) => {
       bufferOffset = std_msgs.msg.Float32MultiArray.serialize(val, buffer, bufferOffset);
     });
+    // Serialize message field [use_prior]
+    bufferOffset = _serializer.bool(obj.use_prior, buffer, bufferOffset);
+    // Serialize message field [sigma]
+    bufferOffset = _arraySerializer.float32(obj.sigma, buffer, bufferOffset, null);
+    // Serialize message field [mu]
+    bufferOffset = _arraySerializer.float32(obj.mu, buffer, bufferOffset, null);
+    // Serialize message field [logmass]
+    bufferOffset = _arraySerializer.float32(obj.logmass, buffer, bufferOffset, null);
+    // Serialize message field [mass]
+    bufferOffset = _arraySerializer.float32(obj.mass, buffer, bufferOffset, null);
+    // Serialize message field [N]
+    bufferOffset = _serializer.int32(obj.N, buffer, bufferOffset);
+    // Serialize message field [K]
+    bufferOffset = _serializer.int32(obj.K, buffer, bufferOffset);
+    // Serialize message field [Do]
+    bufferOffset = _serializer.int32(obj.Do, buffer, bufferOffset);
     return bufferOffset;
   }
 
@@ -126,10 +180,6 @@ class MotionPlanProblem {
     data.server_id = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [task]
     data.task = _deserializer.string(buffer, bufferOffset);
-    // Deserialize message field [obj]
-    data.obj = _deserializer.string(buffer, bufferOffset);
-    // Deserialize message field [targ]
-    data.targ = _deserializer.string(buffer, bufferOffset);
     // Deserialize message field [state]
     data.state = _arrayDeserializer.float32(buffer, bufferOffset, null)
     // Deserialize message field [cond]
@@ -141,19 +191,37 @@ class MotionPlanProblem {
     for (let i = 0; i < len; ++i) {
       data.traj_mean[i] = std_msgs.msg.Float32MultiArray.deserialize(buffer, bufferOffset)
     }
+    // Deserialize message field [use_prior]
+    data.use_prior = _deserializer.bool(buffer, bufferOffset);
+    // Deserialize message field [sigma]
+    data.sigma = _arrayDeserializer.float32(buffer, bufferOffset, null)
+    // Deserialize message field [mu]
+    data.mu = _arrayDeserializer.float32(buffer, bufferOffset, null)
+    // Deserialize message field [logmass]
+    data.logmass = _arrayDeserializer.float32(buffer, bufferOffset, null)
+    // Deserialize message field [mass]
+    data.mass = _arrayDeserializer.float32(buffer, bufferOffset, null)
+    // Deserialize message field [N]
+    data.N = _deserializer.int32(buffer, bufferOffset);
+    // Deserialize message field [K]
+    data.K = _deserializer.int32(buffer, bufferOffset);
+    // Deserialize message field [Do]
+    data.Do = _deserializer.int32(buffer, bufferOffset);
     return data;
   }
 
   static getMessageSize(object) {
     let length = 0;
     length += object.task.length;
-    length += object.obj.length;
-    length += object.targ.length;
     length += 4 * object.state.length;
     object.traj_mean.forEach((val) => {
       length += std_msgs.msg.Float32MultiArray.getMessageSize(val);
     });
-    return length + 36;
+    length += 4 * object.sigma.length;
+    length += 4 * object.mu.length;
+    length += 4 * object.logmass.length;
+    length += 4 * object.mass.length;
+    return length + 57;
   }
 
   static datatype() {
@@ -163,7 +231,7 @@ class MotionPlanProblem {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '16d7918adaf19fd881d0994f4c74a8b4';
+    return '62f92843a78550529c22bfbaad9b886c';
   }
 
   static messageDefinition() {
@@ -173,11 +241,18 @@ class MotionPlanProblem {
     int32 prob_id
     int32 server_id
     string task
-    string obj
-    string targ
     float32[] state
     int32 cond
     std_msgs/Float32MultiArray[] traj_mean
+    
+    bool use_prior
+    float32[] sigma
+    float32[] mu
+    float32[] logmass
+    float32[] mass
+    int32 N
+    int32 K
+    int32 Do
     
     ================================================================================
     MSG: std_msgs/Float32MultiArray
@@ -259,20 +334,6 @@ class MotionPlanProblem {
       resolved.task = ''
     }
 
-    if (msg.obj !== undefined) {
-      resolved.obj = msg.obj;
-    }
-    else {
-      resolved.obj = ''
-    }
-
-    if (msg.targ !== undefined) {
-      resolved.targ = msg.targ;
-    }
-    else {
-      resolved.targ = ''
-    }
-
     if (msg.state !== undefined) {
       resolved.state = msg.state;
     }
@@ -295,6 +356,62 @@ class MotionPlanProblem {
     }
     else {
       resolved.traj_mean = []
+    }
+
+    if (msg.use_prior !== undefined) {
+      resolved.use_prior = msg.use_prior;
+    }
+    else {
+      resolved.use_prior = false
+    }
+
+    if (msg.sigma !== undefined) {
+      resolved.sigma = msg.sigma;
+    }
+    else {
+      resolved.sigma = []
+    }
+
+    if (msg.mu !== undefined) {
+      resolved.mu = msg.mu;
+    }
+    else {
+      resolved.mu = []
+    }
+
+    if (msg.logmass !== undefined) {
+      resolved.logmass = msg.logmass;
+    }
+    else {
+      resolved.logmass = []
+    }
+
+    if (msg.mass !== undefined) {
+      resolved.mass = msg.mass;
+    }
+    else {
+      resolved.mass = []
+    }
+
+    if (msg.N !== undefined) {
+      resolved.N = msg.N;
+    }
+    else {
+      resolved.N = 0
+    }
+
+    if (msg.K !== undefined) {
+      resolved.K = msg.K;
+    }
+    else {
+      resolved.K = 0
+    }
+
+    if (msg.Do !== undefined) {
+      resolved.Do = msg.Do;
+    }
+    else {
+      resolved.Do = 0
     }
 
     return resolved;

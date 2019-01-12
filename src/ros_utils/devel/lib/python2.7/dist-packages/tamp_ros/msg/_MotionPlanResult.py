@@ -8,7 +8,7 @@ import struct
 import std_msgs.msg
 
 class MotionPlanResult(genpy.Message):
-  _md5sum = "326cd4f386f413012deeafd4217bb17d"
+  _md5sum = "5efc67c8ca4a7fce7ecdcac89381d056"
   _type = "tamp_ros/MotionPlanResult"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """std_msgs/Float32MultiArray[] traj
@@ -17,8 +17,6 @@ bool success
 int32 plan_id
 int32 cond
 string task
-string obj
-string targ
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -63,8 +61,8 @@ MSG: std_msgs/MultiArrayDimension
 string label   # label of given dimension
 uint32 size    # size of given dimension (in type units)
 uint32 stride  # stride of given dimension"""
-  __slots__ = ['traj','failed','success','plan_id','cond','task','obj','targ']
-  _slot_types = ['std_msgs/Float32MultiArray[]','string','bool','int32','int32','string','string','string']
+  __slots__ = ['traj','failed','success','plan_id','cond','task']
+  _slot_types = ['std_msgs/Float32MultiArray[]','string','bool','int32','int32','string']
 
   def __init__(self, *args, **kwds):
     """
@@ -74,7 +72,7 @@ uint32 stride  # stride of given dimension"""
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       traj,failed,success,plan_id,cond,task,obj,targ
+       traj,failed,success,plan_id,cond,task
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -95,10 +93,6 @@ uint32 stride  # stride of given dimension"""
         self.cond = 0
       if self.task is None:
         self.task = ''
-      if self.obj is None:
-        self.obj = ''
-      if self.targ is None:
-        self.targ = ''
     else:
       self.traj = []
       self.failed = ''
@@ -106,8 +100,6 @@ uint32 stride  # stride of given dimension"""
       self.plan_id = 0
       self.cond = 0
       self.task = ''
-      self.obj = ''
-      self.targ = ''
 
   def _get_types(self):
     """
@@ -150,18 +142,6 @@ uint32 stride  # stride of given dimension"""
       _x = self
       buff.write(_get_struct_B2i().pack(_x.success, _x.plan_id, _x.cond))
       _x = self.task
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.obj
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.targ
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
@@ -240,24 +220,6 @@ uint32 stride  # stride of given dimension"""
         self.task = str[start:end].decode('utf-8')
       else:
         self.task = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.obj = str[start:end].decode('utf-8')
-      else:
-        self.obj = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.targ = str[start:end].decode('utf-8')
-      else:
-        self.targ = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -299,18 +261,6 @@ uint32 stride  # stride of given dimension"""
       _x = self
       buff.write(_get_struct_B2i().pack(_x.success, _x.plan_id, _x.cond))
       _x = self.task
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.obj
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.targ
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
@@ -390,24 +340,6 @@ uint32 stride  # stride of given dimension"""
         self.task = str[start:end].decode('utf-8')
       else:
         self.task = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.obj = str[start:end].decode('utf-8')
-      else:
-        self.obj = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.targ = str[start:end].decode('utf-8')
-      else:
-        self.targ = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill

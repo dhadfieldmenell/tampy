@@ -9,7 +9,7 @@ import tamp_ros.msg
 import std_msgs.msg
 
 class HLPlanResult(genpy.Message):
-  _md5sum = "19bff39c2204ab093accc09544e93f76"
+  _md5sum = "3d15420a1ea98d1e6019df3adbc0e259"
   _type = "tamp_ros/HLPlanResult"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """MotionPlanResult[] steps
@@ -25,8 +25,6 @@ bool success
 int32 plan_id
 int32 cond
 string task
-string obj
-string targ
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -154,18 +152,6 @@ uint32 stride  # stride of given dimension"""
           _x = _x.encode('utf-8')
           length = len(_x)
         buff.write(struct.pack('<I%ss'%length, length, _x))
-        _x = val1.obj
-        length = len(_x)
-        if python3 or type(_x) == unicode:
-          _x = _x.encode('utf-8')
-          length = len(_x)
-        buff.write(struct.pack('<I%ss'%length, length, _x))
-        _x = val1.targ
-        length = len(_x)
-        if python3 or type(_x) == unicode:
-          _x = _x.encode('utf-8')
-          length = len(_x)
-        buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self.path_to
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -253,24 +239,6 @@ uint32 stride  # stride of given dimension"""
           val1.task = str[start:end].decode('utf-8')
         else:
           val1.task = str[start:end]
-        start = end
-        end += 4
-        (length,) = _struct_I.unpack(str[start:end])
-        start = end
-        end += length
-        if python3:
-          val1.obj = str[start:end].decode('utf-8')
-        else:
-          val1.obj = str[start:end]
-        start = end
-        end += 4
-        (length,) = _struct_I.unpack(str[start:end])
-        start = end
-        end += length
-        if python3:
-          val1.targ = str[start:end].decode('utf-8')
-        else:
-          val1.targ = str[start:end]
         self.steps.append(val1)
       start = end
       end += 4
@@ -330,18 +298,6 @@ uint32 stride  # stride of given dimension"""
         _x = val1
         buff.write(_get_struct_B2i().pack(_x.success, _x.plan_id, _x.cond))
         _x = val1.task
-        length = len(_x)
-        if python3 or type(_x) == unicode:
-          _x = _x.encode('utf-8')
-          length = len(_x)
-        buff.write(struct.pack('<I%ss'%length, length, _x))
-        _x = val1.obj
-        length = len(_x)
-        if python3 or type(_x) == unicode:
-          _x = _x.encode('utf-8')
-          length = len(_x)
-        buff.write(struct.pack('<I%ss'%length, length, _x))
-        _x = val1.targ
         length = len(_x)
         if python3 or type(_x) == unicode:
           _x = _x.encode('utf-8')
@@ -435,24 +391,6 @@ uint32 stride  # stride of given dimension"""
           val1.task = str[start:end].decode('utf-8')
         else:
           val1.task = str[start:end]
-        start = end
-        end += 4
-        (length,) = _struct_I.unpack(str[start:end])
-        start = end
-        end += length
-        if python3:
-          val1.obj = str[start:end].decode('utf-8')
-        else:
-          val1.obj = str[start:end]
-        start = end
-        end += 4
-        (length,) = _struct_I.unpack(str[start:end])
-        start = end
-        end += length
-        if python3:
-          val1.targ = str[start:end].decode('utf-8')
-        else:
-          val1.targ = str[start:end]
         self.steps.append(val1)
       start = end
       end += 4

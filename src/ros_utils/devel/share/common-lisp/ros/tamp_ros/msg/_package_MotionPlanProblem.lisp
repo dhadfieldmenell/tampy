@@ -7,14 +7,26 @@
           SERVER_ID
           TASK-VAL
           TASK
-          OBJ-VAL
-          OBJ
-          TARG-VAL
-          TARG
           STATE-VAL
           STATE
           COND-VAL
           COND
           TRAJ_MEAN-VAL
           TRAJ_MEAN
+          USE_PRIOR-VAL
+          USE_PRIOR
+          SIGMA-VAL
+          SIGMA
+          MU-VAL
+          MU
+          LOGMASS-VAL
+          LOGMASS
+          MASS-VAL
+          MASS
+          N-VAL
+          N
+          K-VAL
+          K
+          DO-VAL
+          DO
 ))

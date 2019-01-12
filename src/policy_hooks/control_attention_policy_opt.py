@@ -14,9 +14,9 @@ from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
 
-class ControlAttetionPolicyOpt(PolicyOpt):
+class ControlAttentionPolicyOpt(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
-    def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs, dValObs, primBounds):
+    def __init__(self, hyperparams, dO, dU, dPrimObs, dValObs, primBounds):
         import tensorflow as tf
         self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
         # tf.reset_default_graph()
@@ -30,8 +30,8 @@ class ControlAttetionPolicyOpt(PolicyOpt):
 
         self.tf_iter = 0
         self.batch_size = self._hyperparams['batch_size']
-        self._dObj = dObj
-        self._dTarg = dTarg
+
+        self._dPrim = primBounds[-1][-1]
         self._dPrimObs = dPrimObs
         self._dValObs = dValObs
         self._primBounds = primBounds
@@ -77,14 +77,15 @@ class ControlAttetionPolicyOpt(PolicyOpt):
         else:
             for scope in ('control', 'value', 'primitive', 'image'):
                 variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-                self.saver = tf.train.Saver(variables)
-                try:
-                    self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
-                    if scope in self.opt_map:
-                        self.opt_map[scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale.npy')
-                        self.opt_map[scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias.npy')
-                except Exception as e:
-                    print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir)
+                if len(variables):
+                    self.saver = tf.train.Saver(variables)
+                    try:
+                        self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
+                        if scope in self.opt_map:
+                            self.opt_map[scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale.npy')
+                            self.opt_map[scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias.npy')
+                    except Exception as e:
+                        print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir)
         
         # List of indices for state (vector) data and image (tensor) data in observation.
         self.x_idx, self.img_idx, i = [], [], 0
@@ -99,18 +100,18 @@ class ControlAttetionPolicyOpt(PolicyOpt):
             i += dim
 
         self.prim_x_idx, self.prim_img_idx, i = [], [], 0
-        for sensor in self._hyperparams['network_params']['prim_obs_include']:
-            dim = self._hyperparams['network_params']['sensor_dims'][sensor]
-            if sensor in self._hyperparams['network_params']['obs_image_data']:
+        for sensor in self._hyperparams['primitive_network_params']['obs_include']:
+            dim = self._hyperparams['primitive_network_params']['sensor_dims'][sensor]
+            if sensor in self._hyperparams['primitive_network_params']['obs_image_data']:
                 self.prim_img_idx = self.prim_img_idx + list(range(i, i+dim))
             else:
                 self.prim_x_idx = self.prim_x_idx + list(range(i, i+dim))
             i += dim
 
         self.val_x_idx, self.val_img_idx, i = [], [], 0
-        for sensor in self._hyperparams['network_params']['val_obs_include']:
-            dim = self._hyperparams['network_params']['sensor_dims'][sensor]
-            if sensor in self._hyperparams['network_params']['obs_image_data']:
+        for sensor in self._hyperparams['value_network_params']['obs_include']:
+            dim = self._hyperparams['value_network_params']['sensor_dims'][sensor]
+            if sensor in self._hyperparams['value_network_params']['obs_image_data']:
                 self.val_img_idx = self.val_img_idx + list(range(i, i+dim))
             else:
                 self.val_x_idx = self.val_x_idx + list(range(i, i+dim))
@@ -230,12 +231,12 @@ class ControlAttetionPolicyOpt(PolicyOpt):
                 # Setup the gradients
                 self.image_grads = [tf.gradients(self.image_act_op[:,u], self.image_obs_tensor)[0] for u in range(1)]
 
-                input_tensor = self.image_act_op
+                # input_tensor = self.image_act_op
 
         if self.scope is None or 'primitive' == self.scope:
             with tf.variable_scope('primitive'):
                 tf_map_generator = self._hyperparams['primitive_network_model']
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim+self._dObj+self._dTarg, batch_size=self.batch_size,
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size,
                                           network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor)
                 self.primitive_obs_tensor = tf_map.get_input_tensor()
                 self.primitive_precision_tensor = tf_map.get_precision_tensor()
@@ -247,7 +248,7 @@ class ControlAttetionPolicyOpt(PolicyOpt):
                 self.primitive_last_conv_vars = last_conv_vars
 
                 # Setup the gradients
-                self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim+self._dObj+self._dTarg)]
+                self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
 
         if self.scope is None or 'value' == self.scope:
             with tf.variable_scope('value'):
@@ -338,7 +339,7 @@ class ControlAttetionPolicyOpt(PolicyOpt):
                                            fc_vars=self.image_fc_vars,
                                            last_conv_vars=self.image_last_conv_vars,
                                            vars_to_opt=vars_to_opt)
-            
+
         # vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='distilled')
         # self.distilled_solver = TfSolver(loss_scalar=self.distilled_loss_scalar,
         #                                    solver_name=self._hyperparams['solver_type'],
@@ -541,7 +542,7 @@ class ControlAttetionPolicyOpt(PolicyOpt):
         """
         # print 'Updating primitive network...'
         N = obs.shape[0]
-        dP, dO = self._dPrim+self._dObj+self._dTarg, self._dPrimObs
+        dP, dO = self._dPrim
 
         # TODO - Make sure all weights are nonzero?
 
@@ -822,6 +823,9 @@ class ControlAttetionPolicyOpt(PolicyOpt):
         mu, sig, prec, det_sig = self.prob(obs, task)
         traj = np.tri(mu.shape[1]).dot(mu[0])
         return np.array([traj]), sig, prec, det_sig
+
+    def policy_initialized(self, task):
+        return self.task_map[task]['policy'].sclae is not None
 
     def prob(self, obs, task="control"):
         """

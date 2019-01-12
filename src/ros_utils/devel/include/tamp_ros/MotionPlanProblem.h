@@ -29,22 +29,34 @@ struct MotionPlanProblem_
     , prob_id(0)
     , server_id(0)
     , task()
-    , obj()
-    , targ()
     , state()
     , cond(0)
-    , traj_mean()  {
+    , traj_mean()
+    , use_prior(false)
+    , sigma()
+    , mu()
+    , logmass()
+    , mass()
+    , N(0)
+    , K(0)
+    , Do(0)  {
     }
   MotionPlanProblem_(const ContainerAllocator& _alloc)
     : solver_id(0)
     , prob_id(0)
     , server_id(0)
     , task(_alloc)
-    , obj(_alloc)
-    , targ(_alloc)
     , state(_alloc)
     , cond(0)
-    , traj_mean(_alloc)  {
+    , traj_mean(_alloc)
+    , use_prior(false)
+    , sigma(_alloc)
+    , mu(_alloc)
+    , logmass(_alloc)
+    , mass(_alloc)
+    , N(0)
+    , K(0)
+    , Do(0)  {
   (void)_alloc;
     }
 
@@ -62,12 +74,6 @@ struct MotionPlanProblem_
    typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _task_type;
   _task_type task;
 
-   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _obj_type;
-  _obj_type obj;
-
-   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _targ_type;
-  _targ_type targ;
-
    typedef std::vector<float, typename ContainerAllocator::template rebind<float>::other >  _state_type;
   _state_type state;
 
@@ -76,6 +82,30 @@ struct MotionPlanProblem_
 
    typedef std::vector< ::std_msgs::Float32MultiArray_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::std_msgs::Float32MultiArray_<ContainerAllocator> >::other >  _traj_mean_type;
   _traj_mean_type traj_mean;
+
+   typedef uint8_t _use_prior_type;
+  _use_prior_type use_prior;
+
+   typedef std::vector<float, typename ContainerAllocator::template rebind<float>::other >  _sigma_type;
+  _sigma_type sigma;
+
+   typedef std::vector<float, typename ContainerAllocator::template rebind<float>::other >  _mu_type;
+  _mu_type mu;
+
+   typedef std::vector<float, typename ContainerAllocator::template rebind<float>::other >  _logmass_type;
+  _logmass_type logmass;
+
+   typedef std::vector<float, typename ContainerAllocator::template rebind<float>::other >  _mass_type;
+  _mass_type mass;
+
+   typedef int32_t _N_type;
+  _N_type N;
+
+   typedef int32_t _K_type;
+  _K_type K;
+
+   typedef int32_t _Do_type;
+  _Do_type Do;
 
 
 
@@ -112,7 +142,7 @@ namespace message_traits
 
 
 // BOOLTRAITS {'IsFixedSize': False, 'IsMessage': True, 'HasHeader': False}
-// {'tamp_ros': ['/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
+// {'tamp_ros': ['/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
 
 // !!!!!!!!!!! ['__class__', '__delattr__', '__dict__', '__doc__', '__eq__', '__format__', '__getattribute__', '__hash__', '__init__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_parsed_fields', 'constants', 'fields', 'full_name', 'has_header', 'header_present', 'names', 'package', 'parsed_fields', 'short_name', 'text', 'types']
 
@@ -155,12 +185,12 @@ struct MD5Sum< ::tamp_ros::MotionPlanProblem_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "16d7918adaf19fd881d0994f4c74a8b4";
+    return "62f92843a78550529c22bfbaad9b886c";
   }
 
   static const char* value(const ::tamp_ros::MotionPlanProblem_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x16d7918adaf19fd8ULL;
-  static const uint64_t static_value2 = 0x81d0994f4c74a8b4ULL;
+  static const uint64_t static_value1 = 0x62f92843a7855052ULL;
+  static const uint64_t static_value2 = 0x9c22bfbaad9b886cULL;
 };
 
 template<class ContainerAllocator>
@@ -183,11 +213,18 @@ struct Definition< ::tamp_ros::MotionPlanProblem_<ContainerAllocator> >
 int32 prob_id\n\
 int32 server_id\n\
 string task\n\
-string obj\n\
-string targ\n\
 float32[] state\n\
 int32 cond\n\
 std_msgs/Float32MultiArray[] traj_mean\n\
+\n\
+bool use_prior\n\
+float32[] sigma\n\
+float32[] mu\n\
+float32[] logmass\n\
+float32[] mass\n\
+int32 N\n\
+int32 K\n\
+int32 Do\n\
 \n\
 ================================================================================\n\
 MSG: std_msgs/Float32MultiArray\n\
@@ -254,11 +291,17 @@ namespace serialization
       stream.next(m.prob_id);
       stream.next(m.server_id);
       stream.next(m.task);
-      stream.next(m.obj);
-      stream.next(m.targ);
       stream.next(m.state);
       stream.next(m.cond);
       stream.next(m.traj_mean);
+      stream.next(m.use_prior);
+      stream.next(m.sigma);
+      stream.next(m.mu);
+      stream.next(m.logmass);
+      stream.next(m.mass);
+      stream.next(m.N);
+      stream.next(m.K);
+      stream.next(m.Do);
     }
 
     ROS_DECLARE_ALLINONE_SERIALIZER
@@ -285,10 +328,6 @@ struct Printer< ::tamp_ros::MotionPlanProblem_<ContainerAllocator> >
     Printer<int32_t>::stream(s, indent + "  ", v.server_id);
     s << indent << "task: ";
     Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.task);
-    s << indent << "obj: ";
-    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.obj);
-    s << indent << "targ: ";
-    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.targ);
     s << indent << "state[]" << std::endl;
     for (size_t i = 0; i < v.state.size(); ++i)
     {
@@ -305,6 +344,38 @@ struct Printer< ::tamp_ros::MotionPlanProblem_<ContainerAllocator> >
       s << indent;
       Printer< ::std_msgs::Float32MultiArray_<ContainerAllocator> >::stream(s, indent + "    ", v.traj_mean[i]);
     }
+    s << indent << "use_prior: ";
+    Printer<uint8_t>::stream(s, indent + "  ", v.use_prior);
+    s << indent << "sigma[]" << std::endl;
+    for (size_t i = 0; i < v.sigma.size(); ++i)
+    {
+      s << indent << "  sigma[" << i << "]: ";
+      Printer<float>::stream(s, indent + "  ", v.sigma[i]);
+    }
+    s << indent << "mu[]" << std::endl;
+    for (size_t i = 0; i < v.mu.size(); ++i)
+    {
+      s << indent << "  mu[" << i << "]: ";
+      Printer<float>::stream(s, indent + "  ", v.mu[i]);
+    }
+    s << indent << "logmass[]" << std::endl;
+    for (size_t i = 0; i < v.logmass.size(); ++i)
+    {
+      s << indent << "  logmass[" << i << "]: ";
+      Printer<float>::stream(s, indent + "  ", v.logmass[i]);
+    }
+    s << indent << "mass[]" << std::endl;
+    for (size_t i = 0; i < v.mass.size(); ++i)
+    {
+      s << indent << "  mass[" << i << "]: ";
+      Printer<float>::stream(s, indent + "  ", v.mass[i]);
+    }
+    s << indent << "N: ";
+    Printer<int32_t>::stream(s, indent + "  ", v.N);
+    s << indent << "K: ";
+    Printer<int32_t>::stream(s, indent + "  ", v.K);
+    s << indent << "Do: ";
+    Printer<int32_t>::stream(s, indent + "  ", v.Do);
   }
 };
 

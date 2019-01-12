@@ -170,6 +170,14 @@ class RobotLLSolver(LLSolver):
             rs_param = a.params[-1]
         elif a.name == 'both_move_cloth_to':
             rs_param = a.params[-1]
+        elif a.name == 'move_holding_deformable_cloth_to_ee':
+            rs_param = a.params[2]
+        elif a.name == 'moveholding_cloth_to_ee_left':
+            rs_param = a.params[2]
+        elif a.name == 'moveholding_cloth_to_ee_right':
+            rs_param = a.params[2]
+        elif a.name == 'cloth_grasp_both':
+            rs_param = a.params[-1]
         else:
             raise NotImplemented
         return rs_param
@@ -343,6 +351,127 @@ class RobotLLSolver(LLSolver):
                 target_rot = act.params[4]
                 init_pos = act.params[2]
                 robot_pose.append({'lArmPose': init_pos.lArmPose.copy(), 'rArmPose': init_pos.rArmPose.copy(), 'lGripper': init_pos.lGripper.copy(), 'rGripper': init_pos.rGripper.copy(), 'value': target_rot.value.copy()})
+
+            elif act.name == 'move_holding_deformable_cloth_to_ee':
+                ltarget = act.params[4]
+                ltarget_rot = target.rotation[0, 0]
+                rtarget = act.params[5]
+                rtarget_rot = target.rotation[0, 0]
+
+                ee_left = ltarget.value[:,0]
+                ee_right = rtarget.value[:,0]
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'moveholding_cloth_to_ee_left' or act.name == 'moveholding_cloth_to_ee_right':
+                ltarget = act.params[3]
+                ltarget_rot = target.rotation[0, 0]
+                rtarget = act.params[4]
+                rtarget_rot = target.rotation[0, 0]
+
+                ee_left = ltarget.value[:,0] + np.array([0, 0, 0.05])
+                ee_right = rtarget.value[:,0] + np.array([0, 0, 0.05])
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif next_act != None and next_act.name == 'cloth_grasp_both':
+                ltarget = next_act.params[3]
+                ltarget_rot = target.rotation[0, 0]
+                rtarget = next_act.params[4]
+                rtarget_rot = target.rotation[0, 0]
+
+                ee_left = ltarget.value[:,0] + np.array([0, 0, 0.1])
+                ee_right = rtarget.value[:,0] + np.array([0, 0, 0.1])
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'cloth_grasp_both':
+                ltarget = act.params[3]
+                ltarget_rot = target.rotation[0, 0]
+                rtarget = act.params[4]
+                rtarget_rot = target.rotation[0, 0]
+
+                ee_left = ltarget.value[:,0] + np.array([0, 0, 0.05])
+                ee_right = rtarget.value[:,0] + np.array([0, 0, 0.05])
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+
+            elif next_act != None and next_act.name == 'both_end_cloth_putdown':
+                ltarget = next_act.params[3]
+                ltarget_rot = target.rotation[0, 0]
+                rtarget = next_act.params[4]
+                rtarget_rot = target.rotation[0, 0]
+
+                ee_left = ltarget.value[:,0] + np.array([0, 0, 0.1])
+                ee_right = rtarget.value[:,0] + np.array([0, 0, 0.1])
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
+
+            elif act.name == 'both_end_cloth_putdown':
+                ltarget = act.params[3]
+                ltarget_rot = target.rotation[0, 0]
+                rtarget = act.params[4]
+                rtarget_rot = target.rotation[0, 0]
+
+                ee_left = ltarget.value[:,0] + np.array([0, 0, 0.05])
+                ee_right = rtarget.value[:,0] + np.array([0, 0, 0.05])
+
+                l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
+                r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, np.pi/2, 0], "right_arm")
+                if not len(l_arm_pose) or not len(r_arm_pose):
+                    # import ipdb; ipdb.set_trace()
+                    continue
+                l_arm_pose = baxter_sampling.closest_arm_pose(l_arm_pose, old_l_arm_pose.flatten()).reshape((7,1))
+                r_arm_pose = baxter_sampling.closest_arm_pose(r_arm_pose, old_r_arm_pose.flatten()).reshape((7,1))
+
+                # TODO once we have the rotor_base we should resample pose
+                robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
             elif next_act != None and (next_act.name == 'basket_grasp' or next_act.name == 'basket_grasp_with_cloth'):
                 target = next_act.params[2]

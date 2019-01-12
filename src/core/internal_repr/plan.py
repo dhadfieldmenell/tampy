@@ -61,8 +61,10 @@ class Plan(object):
             for k, v in p.__dict__.iteritems():
                 if type(v) == np.ndarray:
                     if p.is_symbol() and np.any(np.isnan(v)):
-                            return True
+                        print 'Nan found in', p.name, k, v
+                        return True
                     if not p.is_symbol() and np.any(np.isnan(v[:, active_ts[0]:active_ts[1]+1])):
+                        print 'Nan found in', p.name, k, v
                         return True
         return False
 
@@ -73,6 +75,16 @@ class Plan(object):
     def restore_free_attrs(self):
         for p in self.params.itervalues():
             p.restore_free_attrs()
+
+    def get_free_attrs(self):
+        free_attrs = {}
+        for p in self.params.itervalues():
+            free_attrs[p] = p.get_free_attrs()
+        return free_attrs
+
+    def store_free_attrs(self, attrs):
+        for p in self.params.itervalues():
+            p.store_free_attrs(attrs[p])
 
     def execute(self):
         raise NotImplementedError

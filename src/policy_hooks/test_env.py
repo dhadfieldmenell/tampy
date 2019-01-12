@@ -8,7 +8,8 @@ IkFilterOptions, matrixFromAxisAngle, quatFromRotationMatrix
 
 from pma import hl_solver, robot_ll_solver
 from core.parsing import parse_domain_config, parse_problem_config
-from policy_hooks.baxter.baxter_mjc_env import BaxterMJCEnv
+from baxter_gym.envs.baxter_cloth_env import BaxterClothEnv
+from baxter_gym.envs.baxter_mjc_env import BaxterMJCEnv
 from policy_hooks.utils.mjc_xml_utils import *
 import policy_hooks.utils.transform_utils as trans_utils
 
@@ -154,9 +155,11 @@ def test_ee_ctrl_cloth_grasp():
     cloth = get_deformable_cloth(c_wid, c_len, c_spac, c_rad, (0.5, -0.4, 0.65+MUJOCO_MODEL_Z_OFFSET))
     table = get_param_xml(plan.params['table'])
     cloth_info={'width': c_wid, 'length': c_len, 'radius': c_rad, 'spacing': c_spac}
-    env = BaxterMJCEnv(mode='end_effector', items=[cloth, table], view=True, cloth_info=cloth_info)
+    # env = BaxterMJCEnv(mode='end_effector', items=[cloth], view=True, cloth_info=cloth_info)
+    env = BaxterClothEnv(view=True, cloth_info=cloth_info, cloth_pos=(0.5, -0.4, 0.65+MUJOCO_MODEL_Z_OFFSET))
     env.render(camera_id=1)
-    env.get_reward()
+    env.render(camera_id=1)
+    time.sleep(10)
 
     baxter, cloth = plan.params['baxter'], plan.params['cloth0']
     arm_jnts = env.get_arm_joint_angles()
@@ -164,8 +167,8 @@ def test_ee_ctrl_cloth_grasp():
     baxter.rArmPose[:,0] = arm_jnts[:7]
     plan.params['robot_init_pose'].lArmPose[:,0] = arm_jnts[7:]
     plan.params['robot_init_pose'].rArmPose[:,0] = arm_jnts[:7]
-    cloth.pose[:2,0] = (0.57, 0.2)
-    plan.params['cloth0_init_target'].value[:2,0] = (0.57, 0.2)
+    cloth.pose[:2,0] = (0.5, 0.2)
+    plan.params['cloth0_init_target'].value[:2,0] = (0.5, 0.2)
     solver = robot_ll_solver.RobotLLSolver()
     result = solver.backtrack_solve(plan, callback = None, verbose=False)
 
@@ -177,22 +180,24 @@ def test_ee_ctrl_cloth_grasp():
                                                            t=t,
                                                            mat_result=False)
 
-        cur_right_ee_pos = env.get_right_ee_pos()
+        cur_right_ee_pos = env.get_right_ee_pos(False)
         cur_right_ee_rot = env.get_right_ee_rot()
-        cur_left_ee_pos = env.get_left_ee_pos()
+        cur_left_ee_pos = env.get_left_ee_pos(False)
         cur_left_ee_rot = env.get_left_ee_rot()
 
         act = np.r_[ee_cmd['right_gripper']['pos'] - cur_right_ee_pos,
-                    ee_cmd['right_gripper']['quat'],
+                    # ee_cmd['right_gripper']['quat'],
                     rGrip,
                     ee_cmd['left_gripper']['pos'] - cur_left_ee_pos,
-                    ee_cmd['left_gripper']['quat'],
+                    # ee_cmd['left_gripper']['quat'],
                     lGrip]
 
         old_cmd = ee_cmd
 
         env.step(act, debug=False)
         env.render(camera_id=1)
+        print env.get_left_ee_pos()
+        print env.get_cloth_points()
 
 def test_reward():
     c_wid = 5 # 7

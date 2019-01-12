@@ -20,7 +20,8 @@ class ValueServer(object):
             hyperparams['dObj'],
             hyperparams['dTarg'],
             hyperparams['dPrimObs'],
-            hyperparams['dValObs']
+            hyperparams['dValObs'],
+            hyperparams['prim_bounds']
         )
         self.task = 'value'
         self.value_service = rospy.Service('qvalue', QValue, self.value)

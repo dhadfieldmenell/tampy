@@ -75,6 +75,14 @@ class Parameter(object):
     def restore_free_attrs(self):
         self._free_attrs = self._saved_free_attrs
 
+    def get_free_attrs(self):
+        free_attrs = {}
+        for k, v in self._free_attrs.iteritems():
+            free_attrs[k] = v.copy()
+        return free_attrs
+
+    def store_free_attrs(self, free_attrs):
+        self._free_attrs = free_attrs
 
     def __repr__(self):
         return "%s - %s"%(self.name, self.get_type())

@@ -9,4 +9,6 @@
           COND
           PATH_TO-VAL
           PATH_TO
+          GMMS-VAL
+          GMMS
 ))

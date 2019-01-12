@@ -5,9 +5,9 @@ import random
 
 # SEED = 1234
 NUM_PROBS = 1
-NUM_CLOTHS = 2
+NUM_CLOTHS = 0
 NUM_SYMBOLS = NUM_CLOTHS
-filename = "laundry_probs/folding.prob"
+filename = "laundry_probs/fold.prob"
 GOAL = "(BaxterRobotAt baxter robot_end_pose)"
 for i in range(NUM_CLOTHS):
     GOAL += ", (BaxterClothAt cloth{0} cloth{0}_end_target)".format(i)
@@ -75,36 +75,47 @@ def main():
         s += "Objects: "
 
         s += "Robot (name {}); ".format("baxter")
-        s += "EEpose (name left_rest_pose); "
+        s += "EEPose (name left_rest_pose); "
         s += "EEPose (name right_rest_pose); "
+        s += "EEPose (name left_target_pose); "
+        s += "EEPose (name right_target_pose); "
 
         # Finishing drag so both hands can reach
-        s += "ClothTarget (name left_one_hand_1); "
-        s += "ClothTarget (name right_one_hand_1); "
+        s += "EEPose (name left_one_hand_1); "
+        s += "EEPose (name right_one_hand_1); "
 
-        # When lifting wiht both hands to get twist fold
-        s += "ClothTarget (name left_two_hand_1); "
-        s += "ClothTarget (name right_two_hand_1); "
+        # When lifting with both hands to get twist fold
+        s += "EEPose (name left_two_hand_1); "
+        s += "EEPose (name right_two_hand_1); "
 
         # When placing with both hands to get twist fold
-        s += "ClothTarget (name left_two_hand_2); "
-        s += "ClothTarget (name right_two_hand_2); "
+        s += "EEPose (name left_two_hand_2); "
+        s += "EEPose (name right_two_hand_2); "
 
         # When lifting from twist fold
-        s += "ClothTarget (name left_two_hand_3); "
-        s += "ClothTarget (name right_two_hand_3); "
-        s += "ClothTarget (name front_two_hand_3); "
-        s += "ClothTarget (name back_two_hand_3); "
+        s += "EEPose (name left_two_hand_3); "
+        s += "EEPose (name right_two_hand_3); "
+        s += "EEPose (name front_two_hand_3); "
+        s += "EEPose (name back_two_hand_3); "
 
         # Halfway through the first fold
-        s += "ClothTarget (name left_two_hand_4); "
-        s += "ClothTarget (name right_two_hand_4); "
+        s += "EEPose (name left_two_hand_4); "
+        s += "EEPose (name right_two_hand_4); "
 
 
         # Finishing the first fold
-        s += "ClothTarget (name left_two_hand_5); "
-        s += "ClothTarget (name right_two_hand_5); "
+        s += "EEPose (name left_two_hand_5); "
+        s += "EEPose (name right_two_hand_5); "
 
+        s += "EEPose (name {}); ".format("cg_ee_left")
+        s += "EEPose (name {}); ".format("cp_ee_left")
+        s += "EEPose (name {}); ".format("cg_ee_right")
+        s += "EEPose (name {}); ".format("cp_ee_right")
+        s += "RobotPose (name {}); ".format("cloth_grasp_begin")
+        s += "RobotPose (name {}); ".format("cloth_grasp_end")
+        s += "RobotPose (name {}); ".format("cloth_putdown_begin")
+        s += "RobotPose (name {}); ".format("cloth_putdown_end")
+        
         for i in range(NUM_SYMBOLS):
             s += "EEPose (name {}); ".format("cg_ee_left_{0}".format(i))
             s += "EEPose (name {}); ".format("cp_ee_left_{0}".format(i))
@@ -122,16 +133,22 @@ def main():
             s += "Cloth (name {}); ".format("cloth{0}".format(i))
             s += "ClothTarget (name {}); ".format("cloth{0}_init_target".format(i))
             s += "ClothTarget (name {});".format("cloth{0}_end_target".format(i))
-            s += "ClothTarget (name {}); ".format("edge{0}_init_target".format(i))
-            s += "ClothTarget (name {});".format("edge{0}_end_target".format(i))
 
+        s += "Cloth (name left_corner); "
+        s += "Cloth (name right_corner); "
+        s += "ClothTarget (name left_corner_init_target); "
+        s += "ClothTarget (name left_corner_end_target); "
+        s += "ClothTarget (name right_corner_init_target); "
+        s += "ClothTarget (name right_corner_end_target); "
         s += "Can (name {});".format("long_edge")
         s += "Can (name {});".format("short_edge")
         s += "Can (name {});".format("diagonal_edge")
-
-        for i in range(CLOTH_CAPSULES[0]):
-            for j in range(CLOTH_CAPSULES[1]):
-                s += "Cloth (name {}); ".format("B{0}_{1}".format(i, j))
+        s += "ClothTarget (name short_edge_init_target); "
+        s += "ClothTarget (name short_edge_end_target); "
+        s += "ClothTarget (name long_edge_init_target); "
+        s += "ClothTarget (name long_edge_end_target); "
+        s += "ClothTarget (name diagonal_edge_init_target); "
+        s += "ClothTarget (name diagonal_edge_end_target); "
 
 
         s += "Obstacle (name {}); \n\n".format("table")
@@ -143,10 +160,16 @@ def main():
         s += "(value right_rest_pose {0}), ".format([0.6, -0.5, 0.7])
         s += "(rotation right_rest_pose {0}), ".format([0, 1.57, 0])
 
-        s += "(value left_one_hand_1 {0}), ".format([0.55, -0.2, 0.675])
+        s += "(value left_target_pose {0}), ".format([0.6, 0.5, 0.7])
+        s += "(rotation left_target_pose {0}), ".format([0, 1.57, 0])
+
+        s += "(value right_target_pose {0}), ".format([0.6, -0.5, 0.7])
+        s += "(rotation right_target_pose {0}), ".format([0, 1.57, 0])
+
+        s += "(value left_one_hand_1 {0}), ".format([0.55, -0.2, 0.65])
         s += "(rotation left_one_hand_1 {0}), ".format([0, 0, 0])
 
-        s += "(value right_one_hand_1 {0}), ".format([0.55, 0.2, 0.675])
+        s += "(value right_one_hand_1 {0}), ".format([0.55, 0.2, 0.65])
         s += "(rotation right_one_hand_1 {0}), ".format([0, 0, 0])
 
         s += "(value left_two_hand_1 {0}), ".format([0.5, 0.2, 0.725])
@@ -183,7 +206,7 @@ def main():
         s += "(rotation left_two_hand_5 {0}), ".format([0, 0, 0])
 
         s += "(value right_two_hand_5 {0}), ".format([0.45, -0.1, 0.675])
-        s += "(rotation right_two_hand_5{0}), ".format([0, 0, 0])
+        s += "(rotation right_two_hand_5 {0}), ".format([0, 0, 0])
 
         for i in range(NUM_CLOTHS):
             s += "(geom cloth{0}), ".format(i)
@@ -220,14 +243,33 @@ def main():
         s += "(value diagonal_edge_end_target {0}), ".format([0, 0, 0])
         s += "(rotation diagonal_edge_end_target {0}), ".format([0, 0, 0])
 
-        for i in range(CLOTH_CAPSULES[0]):
-            for j in range(CLOTH_CAPSULES[1]):
-                s += "(geom B{0}_{1}), ".format(i, j)
-                s += "(pose B{0}_{1} {2}), ".format(i, j, [0, 0, 0])
-                s += "(rotation B{0}_{1} {2}), ".format(i, j, [0, 0, 0])
+        s += "(geom left_corner), "
+        s += "(pose left_corner {0}), ".format([0, 0, 0])
+        s += "(rotation left_corner {0}), ".format([0, 0, 0])
+        s += "(geom right_corner), "
+        s += "(pose right_corner {0}), ".format([0, 0, 0])
+        s += "(rotation right_corner {0}), ".format([0, 0, 0])
+
+        s += "(value left_corner_init_target {0}),".format([0, 0, 0])
+        s += "(rotation left_corner_init_target {0}),".format([0, 0, 0])
+        s += "(value right_corner_init_target {0}), ".format([0, 0, 0])
+        s += "(rotation right_corner_init_target {0}), ".format([0, 0, 0])
+
+        s += "(value left_corner_end_target {0}), ".format([0, 0, 0])
+        s += "(rotation left_corner_end_target {0}), ".format([0, 0, 0])
+        s += "(value right_corner_end_target {0}), ".format([0, 0, 0])
+        s += "(rotation right_corner_end_target {0}), ".format([0, 0, 0])
 
         s += get_baxter_str('baxter', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
         s += get_robot_pose_str('robot_init_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+        s += get_undefined_robot_pose_str("cloth_grasp_begin")
+        s += get_undefined_robot_pose_str("cloth_grasp_end")
+        s += get_undefined_robot_pose_str("cloth_putdown_begin")
+        s += get_undefined_robot_pose_str("cloth_putdown_end")
+        s += get_underfine_symbol("cg_ee_left")
+        s += get_underfine_symbol("cp_ee_left")
+        s += get_underfine_symbol("cg_ee_right")
+        s += get_underfine_symbol("cp_ee_right")
         for i in range(NUM_SYMBOLS):
             s += get_undefined_robot_pose_str("cloth_grasp_begin_{0}".format(i))
             s += get_undefined_robot_pose_str("cloth_grasp_end_{0}".format(i))
@@ -237,7 +279,7 @@ def main():
             s += get_underfine_symbol("cp_ee_left_{0}".format(i))
             s += get_underfine_symbol("cg_ee_right_{0}".format(i))
             s += get_underfine_symbol("cp_ee_right_{0}".format(i))
-        s += get_robot_pose_str('robot_end_pose', L_ARM_INIT, R_ARM_INIT, INT_GRIPPER, BAXTER_INIT_POSE)
+        s += get_undefined_robot_pose_str('robot_end_pose')
 
         s += "(geom table {}), ".format(TABLE_GEOM)
         s += "(pose table {}), ".format(TABLE_POS)

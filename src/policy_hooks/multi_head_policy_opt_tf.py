@@ -20,7 +20,7 @@ from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 
 class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
-    def __init__(self, hyperparams, dO, dU, dObj, dTarg, dPrimObs, dValObs):
+    def __init__(self, hyperparams, dO, dU, dPrimObs, dValOb, primBounds):
         import tensorflow as tf
         self.scope = hyperparams['scope'] if 'scope' in hyperparams else None
         # tf.reset_default_graph()
@@ -28,18 +28,11 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
         config = copy.deepcopy(POLICY_OPT_TF)
         config.update(hyperparams)
 
-        PolicyOpt.__init__(self, config, dO, dU)
+        ControlAttentionPolicyOpt.__init__(self, config, dO, dU, dPrimObs, dValObs, primBounds)
 
         tf.set_random_seed(self._hyperparams['random_seed'])
 
-        self.tf_iter = 0
-        self.batch_size = self._hyperparams['batch_size']
         self.task_list = self._hyperparams['task_list'] if 'task_list' in self._hyperparams else [""]
-        self._dPrim = len(self.task_list)
-        self._dObj = dObj
-        self._dTarg = dTarg
-        self._dPrimObs = dPrimObs
-        self._dValObs = dValObs
         self.task_map = {}
         self.device_string = "/cpu:0"
         if self._hyperparams['use_gpu'] == 1:
@@ -242,7 +235,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
         if self.scope is None or 'primitive' == self.scope:
             with tf.variable_scope('primitive'):
                 tf_map_generator = self._hyperparams['primitive_network_model']
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim+self._dObj+self._dTarg, batch_size=self.batch_size,
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size,
                                           network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor)
                 self.primitive_obs_tensor = tf_map.get_input_tensor()
                 self.primitive_precision_tensor = tf_map.get_precision_tensor()
@@ -254,7 +247,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
                 self.primitive_last_conv_vars = last_conv_vars
 
                 # Setup the gradients
-                self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim+self._dObj+self._dTarg)]
+                self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
 
         if self.scope is None or 'value' == self.scope:
             with tf.variable_scope('value'):
@@ -335,7 +328,7 @@ class MultiHeadPolicyOptTf(ControlAttentionPolicyOpt):
                                            last_conv_vars=self.value_last_conv_vars,
                                            vars_to_opt=vars_to_opt)
 
-        if self._hyperparams['image_network_model'] is not None self.scope is None or 'image' == self.scope:
+        if self._hyperparams['image_network_model'] is not None and (self.scope is None or 'image' == self.scope):
             vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='image_filter')
             self.image_solver = TfSolver(loss_scalar=self.image_loss_scalar,
                                            solver_name=self._hyperparams['solver_type'],

@@ -35,11 +35,13 @@ class RolloutServer(object):
         self.id = hyperparams['id']
         rospy.init_node('rollout_server_'+str(self.id))
         self.mcts = hyperparams['mcts']
+        self.prim_dims = hyperparams['prim_dims']
+        self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         for m in self.mcts:
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
+            m.agent = self.agent
         self.alg_map = hyperparams['alg_map']
-        self.agent = self.mcts[0].agent
         self.task_list = self.agent.task_list
         self.traj_opt_steps = hyperparams['traj_opt_steps']
         self.num_samples = hyperparams['num_samples']
@@ -84,10 +86,9 @@ class RolloutServer(object):
                 hyperparams['policy_opt'], 
                 hyperparams['dO'],
                 hyperparams['dU'],
-                hyperparams['dObj'],
-                hyperparams['dTarg'],
                 hyperparams['dPrimObs'],
-                hyperparams['dValObs']
+                hyperparams['dValObs'],
+                hyperparams['prim_bounds']
             )
 
         self.traj_centers = hyperparams['n_traj_centers']
@@ -121,9 +122,14 @@ class RolloutServer(object):
     def policy_call(self, x, obs, t, noise, task):
         # print 'Entering policy call:', datetime.now()
         if self.use_local:
-            if self.policy_opt.task_map[task]['policy'].scale is None:
-                return self.alg_map[task].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
-            return self.policy_opt.task_map[task]['policy'].act(x.copy(), obs.copy(), t, noise)
+            if 'control' in self.policy_opt.task_map:
+                if self.policy_opt.task_map['control']['policy'].scale is None:
+                    return self.alg_map['control'].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
+                return self.policy_opt.task_map['control']['policy'].act(x.copy(), obs.copy(), t, noise)
+            else:
+                if self.policy_opt.task_map[task]['policy'].scale is None:
+                    return self.alg_map[task].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
+                return self.policy_opt.task_map[task]['policy'].act(x.copy(), obs.copy(), t, noise)
 
         rospy.wait_for_service(task+'_policy_act', timeout=10)
         req = PolicyActRequest()
@@ -185,14 +191,10 @@ class RolloutServer(object):
             traj = np.array([step.traj[i].data for i in range(len(step.traj))])
             success = step.success
             task = step.task
-            obj = self.agent.plans.values()[0].params[step.obj]
-            targ = self.agent.plans.values()[0].params[step.targ]
-            opt_sample = self.agent.sample_optimal_trajectory(traj[0], task, cond, traj, traj_mean=[], fixed_targets=[obj, targ])
+            opt_sample = self.agent.sample_optimal_trajectory(traj[0], task, cond, traj, traj_mean=[])
             samples.append(opt_sample)
             self.store_opt_sample(opt_sample, -1)
-            path_to.append((self.agent.task_list.index(step.task),
-                            self.agent.obj_list.index(step.obj),
-                            self.agent.targ_list.index(step.targ)))
+            path_to.append((task))
         mcts.update_vals(path_to, msg.success)
         self.update_qvalue(samples)
         self.update_primitive(samples)
@@ -249,12 +251,10 @@ class RolloutServer(object):
         plan_id = msg.plan_id
         traj = np.array([msg.traj[i].data for i in range(len(msg.traj))])
         success = msg.success
-        task = msg.task
+        task = eval(msg.task)
         condition = msg.cond
-        obj = self.agent.plans.values()[0].params[msg.obj]
-        targ = self.agent.plans.values()[0].params[msg.targ]
         if success:
-            opt_sample = self.agent.sample_optimal_trajectory(traj[0], task, condition, traj, traj_mean=[], fixed_targets=[obj, targ])
+            opt_sample = self.agent.sample_optimal_trajectory(traj[0], task, condition, traj, traj_mean=[])
             self.store_opt_sample(opt_sample, plan_id)
 
 
@@ -290,20 +290,29 @@ class RolloutServer(object):
             next_line = Float32MultiArray()
             next_line.data = centroid[t]
             traj_mean.append(next_line)
-        obj = next_sample.obj
-        targ = next_sample.targ
         prob = MotionPlanProblem()
         prob.state = state
-        prob.task = task
+        prob.task = str(task)
         prob.cond = cond
         prob.traj_mean = traj_mean
-        prob.obj = obj
-        prob.targ = targ
         prob.prob_id = self.current_id
         prob.solver_id = np.random.randint(0, self.n_optimizers)
         prob.server_id = self.id
-        self.current_id += 1
         self.store_for_opt(s_list)
+
+        if self.alg_map[sample.task_name].policy_prior.gmm.sigma is None:
+            prob.use_prior = False
+        else:
+            gmm = self.alg_map[sample.task_name].policy_prior.gmm
+            prob.use_prior = True
+            prob.mu = gmm.mu.flatten()
+            prob.sigma = gmm.sigma.flatten()
+            prob.logmass = gmm.logmass.flatten()
+            prob.mass = gmm.mass.flatten()
+            prob.N = len(gmm.mu)
+            prob.K = len(gmm.mass)
+            prob.Do = gmm.sigma.shape[1]
+
         print 'Sending motion plan problem to server {0}.'.format(prob.solver_id)
         self.async_plan_publisher.publish(prob)
 
@@ -315,7 +324,7 @@ class RolloutServer(object):
 
         start_time = time.time()
         for mcts in self.mcts:
-            val = mcts.run(self.agent.x0[mcts.condition], self.num_rollouts, use_distilled=False, new_policies=rollout_policies, debug=True)
+            val = mcts.run(self.agent.get_init_state(mcts.condition), self.num_rollouts, use_distilled=False, new_policies=rollout_policies, debug=True)
             if val > 0:
                 init_state = self.agent.x0[mcts.condition]
                 prob = HLProblem()
@@ -323,12 +332,24 @@ class RolloutServer(object):
                 prob.solver_id = np.random.randint(0, self.n_optimizers)
                 prob.init_state = init_state.tolist()
                 prob.cond = mcts.condition
-                path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
+                gmms = {}
+                for task in self.task_list:
+                    gmm = self.alg_map[task].policy_prior.gmm
+                    if gmm.sigma is None: continue
+                    gmms[task] = {}
+                    gmms[task]['mu'] = gmm.mu.flatten()
+                    gmms[task]['sigma'] = gmm.sigma.flatten()
+                    gmms[task]['logmass'] = gmm.logmass.flatten()
+                    gmms[task]['mass'] = gmm.mass.flatten()
+                    gmms[task]['N'] = len(gmm.mu)
+                    gmms[task]['K'] = len(gmm.mass)
+                    gmms[task]['Do'] = gmm.sigma.shape[1]
+                prob.gmms = str(gmms)
+
+                path = mcts.simulate(self.agent.get_init_state(mcts.condition), early_stop_prob=self.early_stop_prob)
                 path_tuples = []
                 for step in path:
-                    path_tuples.append((self.agent.task_list.index(step.task),
-                                        self.agent.obj_list.index(step.obj),
-                                        self.agent.targ_list.index(step.targ)))
+                    path_tuples.append(step.task)
                 prob.path_to = str(path_tuples)
                 self.hl_publisher.publish(prob)
 
@@ -412,18 +433,16 @@ class RolloutServer(object):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'value', 1)
 
     def update_primitive(self, samples):
-        dP, dO = len(self.task_list), self.alg_map.values()[0].dPrimObs
-        dObj, dTarg = self.alg_map.values()[0].dObj, self.alg_map.values()[0].dTarg
-        dP += dObj + dTarg
+        dP, dO = self.agent.dPrimOut, self.agent.dPrim
         # Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         for sample in samples:
             for t in range(sample.T):
                 obs = [sample.get_prim_obs(t=t)]
-                mu = [np.concatenate([sample.get(TASK_ENUM, t=t), sample.get(OBJ_ENUM, t=t), sample.get(TARG_ENUM, t=t)])]
+                mu = [np.concatenate([sample.get(enum, t=t) for enum in self.prim_dims])]
                 prc = [np.eye(dP)]
-                wt = [1. / (t+1)] # [np.exp(-sample.task_cost)]
+                wt = [1.] # [np.exp(-sample.task_cost)]
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))

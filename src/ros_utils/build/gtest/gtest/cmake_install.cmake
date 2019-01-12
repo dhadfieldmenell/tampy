@@ -2,7 +2,7 @@
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install")
+  set(CMAKE_INSTALL_PREFIX "/home/michaelmcdonald/tampy/src/ros_utils/install")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 

@@ -13,8 +13,8 @@ from policy_hooks.abstract_motion_plan_server import AbstractMotionPlanServer
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.utils.tamp_eval_funcs import *
-from policy_hooks.namo.sorting_prob_2 import *
-from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
+from policy_hooks.baxter.folding_prob import *
+from policy_hooks.baxter.baxter_policy_solver import BaxterPolicySolver
 
 from tamp_ros.msg import *
 from tamp_ros.srv import *
@@ -24,20 +24,18 @@ class DummyPolicyOpt(object):
     def __init__(self, prob):
         self.traj_prob = prob
 
-class NAMOMotionPlanServer(AbstractMotionPlanServer):
+class FoldingMotionPlanServer(AbstractMotionPlanServer):
     def __init__(self, hyperparams):
-        self.solver = NAMOPolicySolver(hyperparams)
-        super(NAMOMotionPlanServer, self).__init__(hyperparams)
+        self.solver = BaxterPolicySolver(hyperparams)
+        self.agent = hyperparams['agent']['type'](hyperparams['agent'])
+        super(FoldingMotionPlanServer, self).__init__(hyperparams)
 
-    def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[], fixed_targets=[]):
+    def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[]):
         exclude_targets = []
         success = False
         task = self.task_list[task_tuple[0]]
 
-        targets = fixed_targets
-        obj = targets[0]
-        targ = targets[1]
-
+    
         failed_preds = []
         iteration = 0
 
@@ -45,32 +43,10 @@ class NAMOMotionPlanServer(AbstractMotionPlanServer):
         while not success:
             iteration += 1
 
-            plan = self.agent.plans[task, targets[0]] 
-            targets[0] = plan.params[targets[0]]
-            targets[1] = plan.params[targets[1]]
-            obj, targ = targets
+            plan = self.agent.plans[task_tuple] 
             set_params_attrs(plan.params, plan.state_inds, state, 0)
+            free_attrs = plan.get_free_attrs()
 
-            for param_name in plan.params:
-                param = plan.params[param_name]
-                if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
-                    plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
-
-            for target in self.agent.targets[condition]:
-                plan.params[target].value[:,0] = self.agent.targets[condition][target]
-
-            if targ.name in self.agent.targets[condition]:
-                plan.params['{0}_end_target'.format(obj.name)].value[:,0] = self.agent.targets[condition][targ.name]
-
-            if task == 'grasp':
-                plan.params[targ.name].value[:,0] = plan.params[obj.name].pose[:,0]
-            
-            plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-            dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
-            if task == 'putdown':
-                plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
-            if task == 'grasp':
-                plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
             # self.env.SetViewer('qtcoin')
             # success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
             try:
@@ -83,7 +59,7 @@ class NAMOMotionPlanServer(AbstractMotionPlanServer):
                 # import ipdb; ipdb.set_trace()
             except Exception as e:
                 traceback.print_exception(*sys.exc_info())
-                self.solver.restore_free(plan)
+                plan.store_free_attrs(free_attrs)
                 # self.env.SetViewer('qtcoin')
                 # import ipdb; ipdb.set_trace()
                 success = False

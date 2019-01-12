@@ -33,32 +33,17 @@ class AbstractMotionPlanServer(object):
         rospy.init_node(hyperparams['domain']+'_mp_solver_'+str(self.id))
         self.task_list = hyperparams['task_list']
         self.on_policy = hyperparams['on_policy']
-        plans = {}
-        env = None
-        openrave_bodies = {}
-        prob = hyperparams['prob']
-        for task in self.task_list:
-            for c in range(hyperparams['num_objs']):
-                plans[task, '{0}{1}'.format(hyperparams['obj_type'], c)] = prob.get_plan_for_task(task, ['{0}{1}'.format(hyperparams['obj_type'], c), '{0}{1}_end_target'.format(hyperparams['obj_type'], c)], hyperparams['num_objs'], env, openrave_bodies)
-                if env is None:
-                    env = plans[task, '{0}{1}'.format(hyperparams['obj_type'], c)].env
-                    for param in plans[task, '{0}{1}'.format(hyperparams['obj_type'], c)].params.values():
-                        if not param.is_symbol():
-                            openrave_bodies[param.name] = param.openrave_body
+        self.problem = hyperparams['prob']
+        plans, openrave_bodies, env = self.problem.get_plans()
+        
         # self.policy_opt = hyperparams['policy_opt']
         # self.solver.policy_opt = self.policy_opt
-        self.solver.policy_opt = DummyPolicyOpt(self.prob)
+        self.solver.policy_opt = DummyPolicyOpt(self.problem)
         self.solver.policy_priors = {task: GMM() for task in self.task_list}
         self.agent = hyperparams['agent']
         self.solver.agent = self.agent
         self.agent.solver = self.solver
         self.weight_dir = hyperparams['weight_dir']
-        self.solver.policy_inf_fs = {}
-        for i in range(len(self.task_list)):
-            task = self.task_list[i]
-            for j in range(len(self.agent.obj_list)):
-                for k in range(len(self.agent.targ_list)):
-                    self.solver.policy_inf_fs[(i,j,k)] = lambda o, s: self.prob(o, s, task)
 
         self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
@@ -124,7 +109,6 @@ class AbstractMotionPlanServer(object):
 
     def gen_gmm(self, msg):
         gmm = GMM()
-        task = msg.task
         sigma = np.array(msg.sigma).reshape(msg.K, msg.Do, msg.Do)
         mu = np.array(msg.mu).reshape(msg.K, msg.Do)
         logmass = np.array(msg.logmass).reshape(msg.K, 1)
@@ -137,6 +121,26 @@ class AbstractMotionPlanServer(object):
         return gmm
 
 
+    def gen_all_gmm(self, msg):
+        gmms = {}
+        info = eval(msg.gmms)
+        for task in info:
+            gmms[task] = GMM()
+            N = info[task]['N']
+            K = info[task]['K']
+            Do = info[task]['Do']
+            sigma = np.array(info[task]['sigma']).reshape(K, Do, Do)
+            mu = np.array(info[task]['mu']).reshape(K, Do)
+            logmass = np.array(info[task]['logmass']).reshape(K, 1)
+            mass = np.array(info[task]['mass']).reshape(K, 1)
+            gmm.sigma = sigma
+            gmm.mu = mu
+            gmm.logmass = logmass
+            gmm.mass = mass
+            gmm.N = N
+        return gmm
+
+
     def update_targets(self, msg):
         raise NotImplementedError()
 
@@ -144,6 +148,7 @@ class AbstractMotionPlanServer(object):
     def prob(self, sample):
         mu, sig, _, _ self.policy_opt.prob(sample.get_obs(), task=sample.task)
         return mu[0], sig[0]
+
 
     def update_timing_info(self, time):
         if self.log_timing:
@@ -158,22 +163,18 @@ class AbstractMotionPlanServer(object):
         if msg.solver_id != self.id: return
         print 'Server {0} solving motion plan for rollout server {1}.'.format(self.id, msg.server_id)
         state = np.array(msg.state)
-        task = msg.task
-        task_tuple = (self.task_list.index(task), self.agent.obj_list.index(msg.obj), self.agent.targ_list.index(msg.targ))
+        task = eval(msg.task)
+        task_tuple = eval(msg.task)
         cond = msg.cond
         mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
-        targets = [msg.obj, msg.targ]
-        targets = [self.agent.plans.values()[0].params[p_name] for p_name in targets]
 
-        if self.on_policy and msg.use_prior:
+        if msg.use_prior:
             gmm = self.gen_gmm(msg)
             inf_f = lambda s: self.gmm_inf(gmm, s)
-        elif not self.on_policy and self.policy_opt.opt_map[msg.task]['policy'].scale is not None:
-            inf_f = lambda s: self.prob(s)
         else:
             inf_f = None
 
-        sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, targets, inf_f)
+        sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f)
         failed = str(failed)
         resp = MotionPlanResult()
         resp.traj = []
@@ -187,13 +188,11 @@ class AbstractMotionPlanServer(object):
         resp.plan_id = msg.prob_id
         resp.cond = msg.cond
         resp.task = msg.task
-        resp.obj = msg.obj
-        resp.targ = msg.targ
         self.mp_publishers[msg.server_id].publish(resp)
 
         if success:
             for _ in range(self.perturb_steps):
-                out, failed, success = self.agent.perturb_solve(sample)
+                out, failed, success = self.agent.perturb_solve(sample, inf_f=inf_f)
                 failed = str(failed)
                 resp = MotionPlanResult()
                 resp.traj = []
@@ -207,8 +206,6 @@ class AbstractMotionPlanServer(object):
                 resp.plan_id = msg.prob_id
                 resp.cond = msg.cond
                 resp.task = msg.task
-                resp.obj = msg.obj
-                resp.targ = msg.targ
                 self.mp_publishers[msg.server_id].publish(resp)
 
 
@@ -225,6 +222,14 @@ class AbstractMotionPlanServer(object):
         cur_path = []
         cur_state = np.array(msg.init_state)
 
+        gmms = self.gen_all_gmm(msg)
+        inf_fs = {}
+        for task in gmms:
+            inf_f[task] = lambda s: self.gmm_inf(gmms[task], s)
+        for task in self.task_list:
+            if task not in gmms:
+                inf_f[task] = None
+
         try:
             hl_plan = self.agent.get_hl_plan(cur_state, cond, failed)
         except:
@@ -234,11 +239,15 @@ class AbstractMotionPlanServer(object):
         while not stop and attempt < 4 * len(self.agent.obj_list):
             last_reset += 1
             for step in hl_plan:
-                targets = [self.agent.plans.values()[0].params[p_name] for p_name in step[1]]
-                plan = self.config['plan_f'](step[0], targets)
-                if len(targets) < 2:
-                    targets.append(plan.params['{0}_end_target'.format(targets[0].name)])
-                next_sample, new_failed, success = self.agent.solve_sample_opt_traj(cur_state, step[0], cond, fixed_targets=targets)
+                task = []
+                task.append(self.task_list.index(step[0]))
+                prim_options = self.problem.get_prim_choices().values()
+                for i in range(len(step[1])):
+                    # First value of prim_options is the task list
+                    task.append(prim_options[i+1].index(step[1][i]))
+                task = tuple(task)
+                plan = self.agent.plans[task]
+                next_sample, new_failed, success = self.agent.solve_sample_opt_traj(cur_state, task, cond, inf_f=inf_f[step[0]])
                 next_sample.success = FAIL_LABEL
                 if not success:
                     if last_reset > 5:
@@ -283,9 +292,7 @@ class AbstractMotionPlanServer(object):
             mp_step.success = True
             mp_step.plan_id = -1
             mp_step.cond = msg.cond
-            mp_step.task = sample.task
-            mp_step.obj = sample.obj
-            mp_step.targ = sample.targ
+            mp_step.task = str(sample.task)
 
             steps.append(mp_step)
         resp.steps = steps
@@ -293,21 +300,6 @@ class AbstractMotionPlanServer(object):
         resp.success = len(cur_path) and cur_path[0].success == SUCCESS_LABEL
         resp.cond = msg.cond
         self.hl_publishers[msg.server_id].publish(resp)
-
-
-    def serve_motion_plan(self, req):
-        state = req.state
-        task = req.task
-        cond = req.condition
-        mean = np.array([req.traj_mean[i].data for i in range(len(req.traj_mean))])
-        targets = [reg.obj, req.targ]
-        out, failed, success = self.sample_optimal_trajectory(state, task, cond, mean, targets)
-        failed = str(failed)
-        resp = MotionPlanResponse()
-        resp.traj = out
-        resp.failed = failed
-        resp.success = success
-        return resp
 
 
     def update_weight(self, msg):
@@ -323,4 +315,5 @@ class AbstractMotionPlanServer(object):
         pass
 
     def gmm_inf(self, gmm, sample):
-        return gmm.inference(np.concatenate[sample.get_X(), sample.get_U()])
+        mu, sig = gmm.inference(np.concatenate[sample.get_X(), sample.get_U()])
+        return mu, sig, True, True

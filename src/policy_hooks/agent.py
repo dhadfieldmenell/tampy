@@ -104,6 +104,9 @@ class Agent(object):
         self._meta_data_idx = {d: i for d, i in zip(self.meta_data_types,
                                                    self._meta_idx)}
 
+    def get_init_state(self, condition):
+        return self.x0[condition].copy()
+
     @abc.abstractmethod
     def sample(self, policy, condition, verbose=True, save=True, noisy=True):
         """
@@ -400,6 +403,7 @@ class Agent(object):
         for i in range(num_sensor):
             index[axes[i]] = slice(self._x_data_idx[data_types[i]][0],
                                    self._x_data_idx[data_types[i]][-1] + 1)
+        print existing_mat, data_to_insert, data_types
         existing_mat[index] = data_to_insert
 
     def unpack_data_x(self, existing_mat, data_types, axes=None):

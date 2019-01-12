@@ -38,7 +38,6 @@ from policy_hooks.sample import Sample
 from policy_hooks.policy_solver import get_base_solver
 from policy_hooks.state_mcts import StateMCTS
 from policy_hooks.utils.policy_solver_utils import *
-from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
 
 
 def solve_condition(trainer, cond, paths=[], all_samples=[], all_successful_samples=[]):

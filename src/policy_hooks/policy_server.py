@@ -26,7 +26,8 @@ class PolicyServer(object):
             hyperparams['dObj'],
             hyperparams['dTarg'],
             hyperparams['dPrimObs'],
-            hyperparams['dValObs']
+            hyperparams['dValObs'],
+            hyperparams['prim_bounds']
         )
         # self.policy_opt = policy_opt
         # self.policy_opt.hyperparams['scope'] = task

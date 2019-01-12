@@ -28,14 +28,16 @@ struct HLProblem_
     , server_id(0)
     , init_state()
     , cond(0)
-    , path_to()  {
+    , path_to()
+    , gmms()  {
     }
   HLProblem_(const ContainerAllocator& _alloc)
     : solver_id(0)
     , server_id(0)
     , init_state(_alloc)
     , cond(0)
-    , path_to(_alloc)  {
+    , path_to(_alloc)
+    , gmms(_alloc)  {
   (void)_alloc;
     }
 
@@ -55,6 +57,9 @@ struct HLProblem_
 
    typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _path_to_type;
   _path_to_type path_to;
+
+   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _gmms_type;
+  _gmms_type gmms;
 
 
 
@@ -91,7 +96,7 @@ namespace message_traits
 
 
 // BOOLTRAITS {'IsFixedSize': False, 'IsMessage': True, 'HasHeader': False}
-// {'tamp_ros': ['/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
+// {'tamp_ros': ['/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
 
 // !!!!!!!!!!! ['__class__', '__delattr__', '__dict__', '__doc__', '__eq__', '__format__', '__getattribute__', '__hash__', '__init__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_parsed_fields', 'constants', 'fields', 'full_name', 'has_header', 'header_present', 'names', 'package', 'parsed_fields', 'short_name', 'text', 'types']
 
@@ -134,12 +139,12 @@ struct MD5Sum< ::tamp_ros::HLProblem_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "1a2adc264904a8c2fffd546791b7a9ec";
+    return "573d764c14495d91c035cf75dd9b1437";
   }
 
   static const char* value(const ::tamp_ros::HLProblem_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x1a2adc264904a8c2ULL;
-  static const uint64_t static_value2 = 0xfffd546791b7a9ecULL;
+  static const uint64_t static_value1 = 0x573d764c14495d91ULL;
+  static const uint64_t static_value2 = 0xc035cf75dd9b1437ULL;
 };
 
 template<class ContainerAllocator>
@@ -163,6 +168,7 @@ int32 server_id\n\
 float32[] init_state\n\
 int32 cond\n\
 string path_to\n\
+string gmms\n\
 ";
   }
 
@@ -186,6 +192,7 @@ namespace serialization
       stream.next(m.init_state);
       stream.next(m.cond);
       stream.next(m.path_to);
+      stream.next(m.gmms);
     }
 
     ROS_DECLARE_ALLINONE_SERIALIZER
@@ -218,6 +225,8 @@ struct Printer< ::tamp_ros::HLProblem_<ContainerAllocator> >
     Printer<int32_t>::stream(s, indent + "  ", v.cond);
     s << indent << "path_to: ";
     Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.path_to);
+    s << indent << "gmms: ";
+    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.gmms);
   }
 };
 

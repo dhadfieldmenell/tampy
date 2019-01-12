@@ -21,18 +21,32 @@ from gps.algorithm.policy.policy_prior import PolicyPrior
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.gui.config import generate_experiment_info
 
-from policy_hooks.algorithm_pigps import AlgorithmPIGPS
+from core.util_classes.baxter_predicates import ATTRMAP
+from pma.robot_ll_solver import RobotLLSolver
+from policy_hooks.algorithm_impgps import AlgorithmIMPGPS
 from policy_hooks.algorithm_tamp_gps import AlgorithmTAMPGPS
+from policy_hooks.baxter.baxter_mjc_folding_agent import BaxterMJCFoldingAgent
+from policy_hooks.baxter.fold_prob import *
+import policy_hooks.baxter.fold_prob as prob
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
+from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
 NUM_CONDS = 10
-
+NUM_OBJS = 1
+NUM_PRETRAIN_STEPS = 100
+NUM_TRAJ_OPT_STEPS = 2
+NUM_PRETRAIN_TRAJ_OPT_STEPS = 2
+HL_TIMEOUT = 100
+CLOTH_W = 5 
+CLOTH_L = 3
+IM_W = 64
+IM_H = 64
 
 common = {
     'experiment_name': 'my_experiment' + '_' + \
@@ -45,8 +59,7 @@ common = {
 }
 
 algorithm = {
-    # 'type': AlgorithmTAMPGPS,
-    'type': AlgorithmPIGPS,
+    'type': AlgorithmIMPGPS,
     'conditions': common['conditions'],
     'policy_sample_mode': 'add',
     'sample_on_policy': True,
@@ -62,6 +75,8 @@ algorithm = {
     'sample_ts_prob': 1.0,
     'opt_wt': 1e1,
     'fail_value': 5,
+    'n_traj_centers': 1,
+    'use_centroids': True
 }
 
 algorithm['init_traj_distr'] = {
@@ -114,16 +129,16 @@ algorithm['traj_opt'] = {
 #     'kl_step': np.linspace(0.6, 0.2, 100),
 # }
 
-algorithm['dynamics'] = {
-    'type': DynamicsLRPrior,
-    'regularization': 1e-6,
-    'prior': {
-        'type': DynamicsPriorGMM,
-        'max_clusters': 20,
-        'min_samples_per_cluster': 60,
-        'max_samples': 30,
-    },
-}
+# algorithm['dynamics'] = {
+#     'type': DynamicsLRPrior,
+#     'regularization': 1e-6,
+#     'prior': {
+#         'type': DynamicsPriorGMM,
+#         'max_clusters': 20,
+#         'min_samples_per_cluster': 60,
+#         'max_samples': 30,
+#     },
+# }
 
 # algorithm['traj_opt'] = {
 #     'type': TrajOptPILQR,
@@ -134,10 +149,10 @@ algorithm['dynamics'] = {
 # }
 
 algorithm['policy_prior'] = {
-    'type': PolicyPriorGMM,
+    'type': PolicyMPPriorGMM,
     'max_clusters': 20,
     'min_samples_per_cluster': 40,
-    'max_samples': 20,
+    'max_samples': 50,
 }
 
 config = {
@@ -150,7 +165,7 @@ config = {
     'num_samples': 10,
     'num_distilled_samples': 5,
     'num_conds': NUM_CONDS,
-    'mode': 'position',
+    'mode': 'add',
     'stochastic_conditions': algorithm['stochastic_conditions'],
     'policy_coeff': 1e0,
     'sample_on_policy': True,
@@ -167,39 +182,78 @@ config = {
     'batch_size': 1000,
     'n_layers': 2,
     'dim_hidden': [100, 100],
+    'n_traj_centers': algorithm['n_traj_centers'],
+    'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
+    'pretrain_steps': NUM_PRETRAIN_STEPS,
+    'pretrain_traj_opt_steps': NUM_PRETRAIN_TRAJ_OPT_STEPS,
 
-    'cloth_wid': 5,
-    'cloth_len': 3,
+    # New for multiprocess, transfer to sequential version as well.
+
+    'n_optimizers': 8,
+    'n_rollout_servers': 1,
+    'base_weight_dir': 'baxter_fold',
+    'policy_out_coeff': algorithm['policy_out_coeff'],
+    'policy_inf_coeff': algorithm['policy_inf_coeff'],
+    'max_sample_queue': 1e3,
+    'max_opt_sample_queue': 1e3,
+    'task_map_file': 'policy_hooks/baxter/fold_task_mapping',
+    'prob': prob,
+    'get_vector': get_vector,
+    'robot_name': 'baxter',
+    'obj_type': 'cloth',
+    'num_objs': NUM_OBJS,
+    'attr_map': ATTRMAP,
+    'agent_type': BaxterMJCFoldingAgent,
+    'opt_server_type': RobotLLSolver,
+    'update_size': 5e3,
+    'use_local': True,
+    'n_dirs': 16,
+    'domain': 'baxter',
+    'perturb_steps': 3,
+    'mcts_early_stop_prob': 0.5,
+    'hl_timeout': HL_TIMEOUT,
+    'multi_polciy': True,
+    'image_width': IM_W,
+    'image_height': IM_H,
+    'image_channels': 3,
+    'lr': 1e-3,
+
+    'cloth_width': CLOTH_W,
+    'cloth_length': CLOTH_L,
     'cloth_spacing': 0.1,
     'cloth_radius': 0.01,
 
     'state_include': [utils.LEFT_EE_POS_ENUM,
                       utils.RIGHT_EE_POS_ENUM,
-                      utils.STATE_ENUM],
+                      utils.CLOTH_JOINTS_ENUM,
+                      utils.CLOTH_POINTS_ENUM],
     'obs_include': [utils.LEFT_EE_POS_ENUM,
                     utils.RIGHT_EE_POS_ENUM,
                     utils.TASK_ENUM,
                     utils.LEFT_TARG_POSE_ENUM,
-                    utils.RIGHT_TARG_POSE_ENUM,
-                    utils.LEFT_HAND_IM_ENUM,
-                    utils.RIGHT_HAND_IM_ENUM,
-                    utils.OVERHEAD_IMAGE_ENUM],
-    'prim_obs_include': [utils.TARGETS_ENUM,
-                         utils.OVERHEAD_IMAGE_ENUM],
-    'val_obs_include': [utils.OVERHEAD_IMAGE_ENUM,
-                        utils.TARGETS_ENUM,
-                        utils.TASK_ENUM,
+                    utils.RIGHT_TARG_POSE_ENUM,],
+                    # utils.LEFT_IMAGE_ENUM,
+                    # utils.RIGHT_IMAGE_ENUM,
+                    #utils.OVERHEAD_IMAGE_ENUM],
+    'prim_obs_include': [utils.LEFT_EE_POS_ENUM, utils.RIGHT_EE_POS_ENUM], # [utils.OVERHEAD_IMAGE_ENUM],
+    'val_obs_include': [utils.TASK_ENUM,
+                        # utils.OVERHEAD_IMAGE_ENUM,
                         utils.LEFT_TARG_ENUM,
                         utils.RIGHT_TARG_ENUM],
-    'prim_out_include': [utils.TASK_ENUM, utils.RIGHT_TARG_ENUM, utils.LEFT_TARG_ENUM]
+    'prim_out_include': [utils.RIGHT_TARG_ENUM, utils.LEFT_TARG_ENUM],
 
     'sensor_dims': {
-            utils.LEFT_TARG_POSE_ENUM: 2,
-            utils.RIGHT_TARG_POSE_ENUM: 2,
+            utils.LEFT_TARG_POSE_ENUM: 3,
+            utils.RIGHT_TARG_POSE_ENUM: 3,
             utils.RIGHT_EE_POS_ENUM: 3,
             utils.RIGHT_EE_QUAT_ENUM: 4,
             utils.LEFT_EE_POS_ENUM: 3,
             utils.LEFT_EE_QUAT_ENUM: 4,
+            utils.LEFT_IMAGE_ENUM: IM_W*IM_H*3,
+            utils.RIGHT_IMAGE_ENUM: IM_W*IM_H*3,
+            utils.OVERHEAD_IMAGE_ENUM: IM_W*IM_H*3,
+            utils.CLOTH_JOINTS_ENUM: 6+2*CLOTH_W*CLOTH_L-1,
+            utils.CLOTH_POINTS_ENUM: CLOTH_W*CLOTH_L,
         }
 }
 

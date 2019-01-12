@@ -72,7 +72,7 @@ class TAMPAgent(Agent):
         self._samples = {task: [] for task in self.task_list}
         self.state_inds = self._hyperparams['state_inds']
         self.action_inds = self._hyperparams['action_inds']
-        self.dX = self._hyperparams['dX']
+        # self.dX = self._hyperparams['dX']
         self.dU = self._hyperparams['dU']
         self.symbolic_bound = self._hyperparams['symbolic_bound']
         self.solver = self._hyperparams['solver']
@@ -82,14 +82,14 @@ class TAMPAgent(Agent):
         self.targets = self._hyperparams['targets']
         self.target_dim = self._hyperparams['target_dim']
         self.target_inds = self._hyperparams['target_inds']
-        self.target_vecs = []
-        for condition in range(len(self.x0)):
-            target_vec = np.zeros((self.target_dim,))
-            for target_name in self.targets[condition]:
-                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-            self.target_vecs.append(target_vec)
-        self.targ_list = self.targets[0].keys()
-        self.obj_list = self._hyperparams['obj_list']
+        # self.target_vecs = []
+        # for condition in range(len(self.x0)):
+        #     target_vec = np.zeros((self.target_dim,))
+        #     for target_name in self.targets[condition]:
+        #         target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
+        #     self.target_vecs.append(target_vec)
+        # self.targ_list = self.targets[0].keys()
+        # self.obj_list = self._hyperparams['obj_list']
 
         self._get_hl_plan = self._hyperparams['get_hl_plan']
         self.attr_map = self._hyperparams['attr_map']
@@ -115,7 +115,7 @@ class TAMPAgent(Agent):
 
         self.task_paths = []
 
-        self.get_plan = self._hyperparams['get_plan']
+        # self.get_plan = self._hyperparams['get_plan']
         self.move_limit = 1e-3
 
         self.n_policy_calls = {}
@@ -125,6 +125,11 @@ class TAMPAgent(Agent):
         # self._cc = ctrajoptpy.GetCollisionChecker(self.env)
         self.n_dirs = self._hyperparams['n_dirs']
         self.seed = 1234
+        self.prim_dims = self._hyperparams['prim_dims']
+
+
+    def get_init_state(self, condition):
+        return self.x0[condition][self._x_data_idx[STATE_ENUM]].copy()
 
 
     def add_viewer(self):
@@ -283,14 +288,14 @@ class TAMPAgent(Agent):
         return samples
 
 
-    @abstractmethod
-    def dist_obs(self, plan, t):
-        raise NotImplementedError
+    # @abstractmethod
+    # def dist_obs(self, plan, t):
+    #     raise NotImplementedError
 
 
-    @abstractmethod
-    def run_policy_step(self, u, x, plan, t, obj):
-        raise NotImplementedError
+    # @abstractmethod
+    # def run_policy_step(self, u, x, plan, t, obj):
+    #     raise NotImplementedError
 
 
     def set_nonopt_attrs(self, plan, task):
@@ -361,9 +366,9 @@ class TAMPAgent(Agent):
         self.targets[condition] = targets
 
 
-    @abstractmethod
-    def get_sample_constr_cost(self, sample):
-        raise NotImplementedError
+    # @abstractmethod
+    # def get_sample_constr_cost(self, sample):
+    #     raise NotImplementedError
 
 
     def replace_conditions(self, conditions, keep=(0.2, 0.5)):

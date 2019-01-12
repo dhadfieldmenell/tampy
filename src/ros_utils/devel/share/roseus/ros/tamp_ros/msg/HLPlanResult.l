@@ -94,7 +94,7 @@
    self)
   )
 
-(setf (get tamp_ros::HLPlanResult :md5sum-) "19bff39c2204ab093accc09544e93f76")
+(setf (get tamp_ros::HLPlanResult :md5sum-) "3d15420a1ea98d1e6019df3adbc0e259")
 (setf (get tamp_ros::HLPlanResult :datatype-) "tamp_ros/HLPlanResult")
 (setf (get tamp_ros::HLPlanResult :definition-)
       "MotionPlanResult[] steps
@@ -110,8 +110,6 @@ bool success
 int32 plan_id
 int32 cond
 string task
-string obj
-string targ
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -160,6 +158,6 @@ uint32 stride  # stride of given dimension
 
 
 
-(provide :tamp_ros/HLPlanResult "19bff39c2204ab093accc09544e93f76")
+(provide :tamp_ros/HLPlanResult "3d15420a1ea98d1e6019df3adbc0e259")
 
 

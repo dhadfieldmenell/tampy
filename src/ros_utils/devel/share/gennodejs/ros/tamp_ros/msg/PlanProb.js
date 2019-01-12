@@ -20,8 +20,6 @@ class PlanProb {
       // initObj === null is a special case for deserialization where we don't initialize fields
       this.prob_id = null;
       this.task = null;
-      this.object = null;
-      this.target = null;
       this.state = null;
     }
     else {
@@ -36,18 +34,6 @@ class PlanProb {
       }
       else {
         this.task = '';
-      }
-      if (initObj.hasOwnProperty('object')) {
-        this.object = initObj.object
-      }
-      else {
-        this.object = '';
-      }
-      if (initObj.hasOwnProperty('target')) {
-        this.target = initObj.target
-      }
-      else {
-        this.target = '';
       }
       if (initObj.hasOwnProperty('state')) {
         this.state = initObj.state
@@ -64,10 +50,6 @@ class PlanProb {
     bufferOffset = _serializer.int32(obj.prob_id, buffer, bufferOffset);
     // Serialize message field [task]
     bufferOffset = _serializer.string(obj.task, buffer, bufferOffset);
-    // Serialize message field [object]
-    bufferOffset = _serializer.string(obj.object, buffer, bufferOffset);
-    // Serialize message field [target]
-    bufferOffset = _serializer.string(obj.target, buffer, bufferOffset);
     // Serialize message field [state]
     bufferOffset = _arraySerializer.float32(obj.state, buffer, bufferOffset, null);
     return bufferOffset;
@@ -81,10 +63,6 @@ class PlanProb {
     data.prob_id = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [task]
     data.task = _deserializer.string(buffer, bufferOffset);
-    // Deserialize message field [object]
-    data.object = _deserializer.string(buffer, bufferOffset);
-    // Deserialize message field [target]
-    data.target = _deserializer.string(buffer, bufferOffset);
     // Deserialize message field [state]
     data.state = _arrayDeserializer.float32(buffer, bufferOffset, null)
     return data;
@@ -93,10 +71,8 @@ class PlanProb {
   static getMessageSize(object) {
     let length = 0;
     length += object.task.length;
-    length += object.object.length;
-    length += object.target.length;
     length += 4 * object.state.length;
-    return length + 20;
+    return length + 12;
   }
 
   static datatype() {
@@ -106,7 +82,7 @@ class PlanProb {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return 'bacbc44c2a384d436608cc453c774b3b';
+    return '97af7a9beb35cfa765c4c9dd69c7befd';
   }
 
   static messageDefinition() {
@@ -114,8 +90,6 @@ class PlanProb {
     return `
     int32 prob_id
     string task
-    string object
-    string target
     float32[] state
     
     `;
@@ -139,20 +113,6 @@ class PlanProb {
     }
     else {
       resolved.task = ''
-    }
-
-    if (msg.object !== undefined) {
-      resolved.object = msg.object;
-    }
-    else {
-      resolved.object = ''
-    }
-
-    if (msg.target !== undefined) {
-      resolved.target = msg.target;
-    }
-    else {
-      resolved.target = ''
     }
 
     if (msg.state !== undefined) {
