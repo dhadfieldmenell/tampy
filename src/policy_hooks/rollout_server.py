@@ -124,7 +124,7 @@ class RolloutServer(object):
         if self.use_local:
             if 'control' in self.policy_opt.task_map:
                 if self.policy_opt.task_map['control']['policy'].scale is None:
-                    return self.alg_map['control'].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
+                    return self.alg_map[task].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
                 return self.policy_opt.task_map['control']['policy'].act(x.copy(), obs.copy(), t, noise)
             else:
                 if self.policy_opt.task_map[task]['policy'].scale is None:
@@ -324,7 +324,7 @@ class RolloutServer(object):
 
         start_time = time.time()
         for mcts in self.mcts:
-            val = mcts.run(self.agent.get_init_state(mcts.condition), self.num_rollouts, use_distilled=False, new_policies=rollout_policies, debug=True)
+            val = mcts.run(self.agent.x0[mcts.condition], self.num_rollouts, use_distilled=False, new_policies=rollout_policies, debug=True)
             if val > 0:
                 init_state = self.agent.x0[mcts.condition]
                 prob = HLProblem()
@@ -346,7 +346,7 @@ class RolloutServer(object):
                     gmms[task]['Do'] = gmm.sigma.shape[1]
                 prob.gmms = str(gmms)
 
-                path = mcts.simulate(self.agent.get_init_state(mcts.condition), early_stop_prob=self.early_stop_prob)
+                path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
                 path_tuples = []
                 for step in path:
                     path_tuples.append(step.task)

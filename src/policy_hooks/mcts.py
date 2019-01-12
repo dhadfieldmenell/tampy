@@ -126,7 +126,7 @@ class MCTS:
     def node_check_f(self, label, state, parent):
         child = parent.get_child(label)
         sample = Sample(self.agent)
-        sample.set(STATE_ENUM, state.copy(), 0)
+        sample.set_X(state.copy(), 0)
         # sample.set(TARGETS_ENUM, self.agent.target_vecs[self.condition].copy(), 0)
         sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
         task_vec = np.zeros((len(self.tasks)), dtype=np.float32)
@@ -138,7 +138,7 @@ class MCTS:
             vec[label[i+1]] = 1.0
             sample.set(prim, vec, 0)
 
-        self.agent.fill_sample(self.condition, sample, state, 0, label, fill_obs=True)
+        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True)
 
         prim_obs = sample.get_prim_obs(t=0)
         val_obs = sample.get_val_obs(t=0)
@@ -172,7 +172,7 @@ class MCTS:
             print "Finished Rollout {0} for condition {1}.\n".format(n, self.condition)
             if len(next_path):
                 end = next_path[-1]
-                new_opt_value = self.agent.goal_f(self.condition)
+                new_opt_value = self.agent.goal_f(self.condition, state)
                 if new_opt_value == 0: paths.append(next_path)
                 opt_val = np.minimum(new_opt_value, opt_val)
 
@@ -184,10 +184,10 @@ class MCTS:
             print 'Simulating from unexplored children.'
         if label is None:
             sample = Sample(self.agent)
-            sample.set(STATE_ENUM, state.copy(), 0)
+            sample.set_X(state.copy(), 0)
             sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
             dummy_label = tuple(np.zeros(len(self.num_prims)+1, dtype='int32'))
-            self.agent.fill_sample(self.condition, sample, state, 0, dummy_label, fill_obs=True)
+            self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, dummy_label, fill_obs=True)
             distrs = self.prob_func(sample.get_prim_obs(t=0))
             distr = np.ones(1)
             for i in range(len(distrs)):
@@ -323,7 +323,7 @@ class MCTS:
 
         if save:
             self.agent.add_sample_batch(samples, task)
-        cur_state = lowest_cost_sample.end_state
+        cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
         self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
         return lowest_cost_sample, cur_state
@@ -343,7 +343,7 @@ class MCTS:
         while True:
             if debug:
                 print "Taking simulation step"
-            if self.agent.goal_f(self.condition) == 0 or current_node.depth >= self.max_depth:
+            if self.agent.goal_f(self.condition, state) == 0 or current_node.depth >= self.max_depth:
                 break
 
             next_node, _ = self._choose_next(cur_state, current_node, prev_sample, exclude_hl, use_distilled, debug=debug)
@@ -373,7 +373,7 @@ class MCTS:
 
 
         if path_value is None:
-            path_value = self.agent.goal_f(self.condition)
+            path_value = self.agent.goal_f(self.condition, cur_state)
         path = []
         while current_node is not self.root:
             path.append(prev_sample)
@@ -406,19 +406,19 @@ class MCTS:
 
         plan = self.agent.plans[label]
         if self.agent.cost_f(state, label, self.condition, active_ts=(0,0)) > 0:
-            return self.agent.goal_f(self.condition), samples
+            return self.agent.goal_f(self.condition, state), samples
 
         next_sample, end_state = self.sample(label, state, plan, num_samples=num_samples, use_distilled=use_distilled, save=save, debug=debug)
 
         if next_sample is None:
-            path_value = self.agebt.goal_f(self.condition)
+            path_value = self.agent.goal_f(self.condition, state)
             for sample in samples:
                 sample.task_cost = path_value
                 sample.success = SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
             return path_value, samples
         samples.append(next_sample)
 
-        path_value = self.agent.goal_f(self.condition)
+        path_value = self.agent.goal_f(self.condition, end_state)
         # hl_encoding = self._encode_f(end_state, self.agent.plans.values()[0], self.agent.targets[self.condition])
         if path_value == 0 or depth >= self.max_depth or hl_encoding in exclude_hl:
             for sample in samples:
@@ -429,9 +429,8 @@ class MCTS:
         # exclude_hl = exclude_hl + [hl_encoding]
         
         sample = Sample(self.agent)
-        sample.set(STATE_ENUM, end_state.copy(), 0)
-        sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
-        self.agent.fill_sample(self.condition, sample, state, 0, label, fill_obs=True)
+        sample.set_X(end_state.copy(), t=0)
+        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True)
         distrs = self.prob_func(sample.get_prim_obs(t=0))
         next_label = []
         if self.soft_decision:

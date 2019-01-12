@@ -43,23 +43,29 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                                   obs_include=['end_effector', 'cloth_joints', 'cloth_points', 'joints'],
                                   view=False)
 
+        x0s = []
+        for m in range(len(self.x0)):
+            sample = Sample(self)
+            self.fill_sample(m, sample, self.x0[m], 0, tuple(np.zeros(1+len(self.prim_dims.keys()), dtype='int32')))
+            self.x0[m] = sample.get_X(t=0)
+
         if 'cloth_init_joints' not in hyperparams:
             self.cloth_init_joints = []
             for m in range(len(self.x0)):
                 self.env.randomize_cloth()
                 self.cloth_init_joints.append(self.env.get_cloth_joints())
                 if CLOTH_JOINTS_ENUM in hyperparams['state_include']:
-                    self.x0[self.condition][self._x_data_idx[CLOTH_JOINTS_ENUM]] = self.env.get_cloth_joints()
+                    self.x0[m][self._x_data_idx[CLOTH_JOINTS_ENUM]] = self.env.get_cloth_joints()
                 if CLOTH_POINTS_ENUM in hyperparams['state_include']:
-                    self.x0[self.condition][self._x_data_idx[CLOTH_POINTS_ENUM]] = self.env.get_cloth_points()
+                    self.x0[m][self._x_data_idx[CLOTH_POINTS_ENUM]] = self.env.get_cloth_points().flatten()
         else:
             self.cloth_init_joints = hyperparams['cloth_init_joints']
             for m in range(len(self.x0)):
                 self.env.set_cloth_joints(self.cloth_init_joints[m])
                 if CLOTH_JOINTS_ENUM in hyperparams['state_include']:
-                    self.x0[self.condition][self._x_data_idx[CLOTH_JOINTS_ENUM]] = self.env.get_cloth_joints()
+                    self.x0[m][self._x_data_idx[CLOTH_JOINTS_ENUM]] = self.env.get_cloth_joints()
                 if CLOTH_POINTS_ENUM in hyperparams['state_include']:
-                    self.x0[self.condition][self._x_data_idx[CLOTH_POINTS_ENUM]] = self.env.get_cloth_points()
+                    self.x0[m][self._x_data_idx[CLOTH_POINTS_ENUM]] = self.env.get_cloth_points().flatten()
 
 
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True):
@@ -97,7 +103,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             X[self.state_inds['baxter', 'rGripper']] = grip_joints[0]
             X[self.state_inds['baxter', 'lArmPose']] = arm_joints[7:]
             X[self.state_inds['baxter', 'lGripper']] = grip_joints[1]
-            prim_val = self.get_prim_value(condition, X, task)
+            prim_val = self.get_prim_value(condition, state, task)
             X[self.state_inds['right_corner', 'pose']] = prim_val[RIGHT_TARG_ENUM]
             X[self.state_inds['left_corner', 'pose']] = prim_val[LEFT_TARG_ENUM]
 
@@ -106,27 +112,25 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
             self.fill_sample(condition, sample, X, t, task, fill_obs=True)
             sample.condition = condition
+            state = sample.get_X(t=t)
 
             if use_prim_obs:
                 obs = sample.get_prim_obs(t=t)
             else:
                 obs = sample.get_obs(t=t)
 
-            U = policy.act(sample.get_X(t=t), obs, t, noise[t])
+            U = policy.act(state, obs, t, noise[t])
             if np.any(np.isnan(U)):
                 U[np.isnan(U)] = 0
             sample.set(ACTION_ENUM, U.copy(), t)
-            self.env.step(np.r_[U[self.action_inds['ee_right_pos']],
-                                U[self.action_inds['right_gripper']],
-                                U[self.action_inds['ee_left_pos']],
-                                U[self.action_inds['left_gripper']]],
-                          obs_include=obs_include)
+            self.env.step(np.r_[U[self.action_inds['baxter', 'ee_right_pos']],
+                                U[self.action_inds['baxter', 'rGripper']],
+                                U[self.action_inds['baxter', 'ee_left_pos']],
+                                U[self.action_inds['baxter', 'lGripper']]])
             
             self.traj_hist.append(U)
             while len(self.traj_hist) > self.hist_len:
                 self.traj_hist.pop(0)
-
-            self.run_policy_step(U, X, self.plans[task[:2]], t)
 
         X = np.zeros((plan.symbolic_bound))
         fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
@@ -274,10 +278,10 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         lGripper = mp_state[self.state_inds['baxter', 'lGripper']]
         rArmPose = mp_state[self.state_inds['baxter', 'rArmPose']]
         rGripper = mp_state[self.state_inds['baxter', 'rGripper']]
-        self.env.qpos[1:8] = rArmPose
-        self.env.qpos[8:10] = rGripper
-        self.env.qpos[10:17] = lArmPose
-        self.env.qpos[17:19] = lGripper
+        self.env.physics.data.qpos[1:8] = rArmPose
+        self.env.physics.data.qpos[8:10] = rGripper
+        self.env.physics.data.qpos[10:17] = lArmPose
+        self.env.physics.data.qpos[17:19] = lGripper
         if cloth_joints is not None:
             self.env.set_cloth_joints(cloth_joints)
         elif CLOTH_JOINTS_ENUM in self._x_data_idx:
@@ -324,16 +328,15 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         return hl_plan[0]
 
 
-    def fill_sample(self, cond, sample, state, t, task, fill_obs=False):
+    def fill_sample(self, cond, sample, mp_state, t, task, fill_obs=False):
         plan = self.plans[task]
-        x0 = state[self._x_data_idx[STATE_ENUM]]
-        sample.set(STATE_ENUM, x0.copy(), t)
+        sample.set(STATE_ENUM, mp_state.copy(), t)
 
         baxter = plan.params['baxter']
-        lArmPose = x0[self.state_inds['baxter', 'lArmPose']]
-        lGripper = x0[self.state_inds['baxter', 'lGripper']]
-        rArmPose = x0[self.state_inds['baxter', 'rArmPose']]
-        rGripper = x0[self.state_inds['baxter', 'rGripper']]
+        lArmPose = mp_state[self.state_inds['baxter', 'lArmPose']]
+        lGripper = mp_state[self.state_inds['baxter', 'lGripper']]
+        rArmPose = mp_state[self.state_inds['baxter', 'rArmPose']]
+        rGripper = mp_state[self.state_inds['baxter', 'rGripper']]
         baxter.openrave_body.set_dof({'lArmPose': lArmPose, 'lGripper': lGripper, 'rArmPose': rArmPose, 'rGripper': rGripper})
         right_ee = baxter.openrave_body.fwd_kinematics('right_gripper')
         left_ee = baxter.openrave_body.fwd_kinematics('left_gripper')
@@ -346,12 +349,12 @@ class BaxterMJCFoldingAgent(TAMPAgent):
 
         # Assumes sample is filled in chronological order
         if t > 0:
-            ee_right_1 = sample.get(EE_RIGHT_POS_ENUM, t=t-1)
-            ee_left_1 = sample.get(EE_LEFT_POS_ENUM, t=t-1)
+            ee_right_1 = sample.get(RIGHT_EE_POS_ENUM, t=t-1)
+            ee_left_1 = sample.get(LEFT_EE_POS_ENUM, t=t-1)
             U[self.action_inds['baxter', 'ee_right_pos']] = right_ee['pos'] - ee_right_1
             U[self.action_inds['baxter', 'ee_left_pos']] = left_ee['pos'] - ee_left_1
-            U[self.action_inds['baxter', 'rGripper']] = x0[self.state_inds['baxter', 'rGripper']]
-            U[self.action_inds['baxter', 'lGripper']] = x0[self.state_inds['baxter', 'lGripper']]
+            U[self.action_inds['baxter', 'rGripper']] = mp_state[self.state_inds['baxter', 'rGripper']]
+            U[self.action_inds['baxter', 'lGripper']] = mp_state[self.state_inds['baxter', 'lGripper']]
             sample.set(ACTION_ENUM, U, t-1)
             sample.set(ACTION_ENUM, U, t)
 
@@ -373,15 +376,15 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         right_targ = prim_choices[RIGHT_TARG_ENUM][task[1]]
         left_targ = prim_choices[LEFT_TARG_ENUM][task[2]]
         if right_targ not in plan.params:
-            sample.set(RIGHT_TARG_POSE_ENUM, state[self.state_inds['right_corner', 'pose']], t)
+            sample.set(RIGHT_TARG_POSE_ENUM, mp_state[self.state_inds['right_corner', 'pose']], t)
         else:
             sample.set(RIGHT_TARG_POSE_ENUM, plan.params[right_targ].value[:,0].copy(), t)
 
         if left_targ not in plan.params:
-            sample.set(LEFT_TARG_POSE_ENUM, state[self.state_inds['left_corner', 'pose']], t)
+            sample.set(LEFT_TARG_POSE_ENUM, mp_state[self.state_inds['left_corner', 'pose']], t)
         else:
             sample.set(LEFT_TARG_POSE_ENUM, plan.params[left_targ].value[:,0].copy(), t)
-        
+
         sample.set(CLOTH_POINTS_ENUM, self.env.get_cloth_points().flatten(), t)
         sample.set(CLOTH_JOINTS_ENUM, self.env.get_cloth_joints().flatten(), t)
         if fill_obs:
@@ -396,6 +399,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
 
 
     def get_prim_options(self, cond, state):
+        mp_state = state[self._x_data_idx[STATE_ENUM]]
         outs = {}
         out[TASK_ENUM] = copy.copy(self.task_list)
         options = self.prob.get_prim_choices()
@@ -409,7 +413,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                     if param.is_symbol():
                         out[enum].append(param.value[:,0].copy())
                     else:
-                        out[enum].append(state[self.state_inds[item, 'pose']].copy())
+                        out[enum].append(mp_state[self.state_inds[item, 'pose']].copy())
                     continue
 
                 val = self.env.get_pos_from_label(item)
@@ -421,6 +425,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
 
 
     def get_prim_value(self, cond, state, task):
+        mp_state = state[self._x_data_idx[STATE_ENUM]]
         out = {}
         out[TASK_ENUM] = self.task_list[task[0]]
         plan = self.plans[task]
@@ -433,7 +438,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                 if param.is_symbol():
                     out[enum] = param.value[:,0]
                 else:
-                    out[enum] = state[self.state_inds[item, 'pose']]
+                    out[enum] = mp_state[self.state_inds[item, 'pose']]
                 continue
 
             val = self.env.get_pos_from_label(item)
@@ -449,6 +454,9 @@ class BaxterMJCFoldingAgent(TAMPAgent):
 
 
     def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
+        if len(Xs.shape) == 1:
+            Xs = Xs.reshape(1, Xs.shape[0])
+        Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
         plan = self.plans[task]
         tol = 1e-3
 
@@ -459,7 +467,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             active_ts = (1, plan.horizon-1)
 
         for t in range(active_ts[0], active_ts[1]+1):
-            set_params_attrs(plan.params, plan.state_inds, Xs[t], t)
+            set_params_attrs(plan.params, plan.state_inds, Xs[t-active_ts[0]], t)
 
         robot = plan.params['baxter']
         robot_init_pose = plan.params['robot_init_pose']
@@ -491,7 +499,8 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         return cost
 
 
-    def goal_f(self, condition):
+    def goal_f(self, condition, state):
+        self.reset_to_state(state)
         state = self.env.check_cloth_state()
         if ONE_FOLD in state or TWO_FOLD in state: return 0
         if LENGTH_GRASP in state: return 1e1

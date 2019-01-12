@@ -72,9 +72,12 @@ class Sample(object):
                     continue
                 data = (self._data[data_type] if t is None
                         else self._data[data_type][t, :])
-                print X, data, data_type
                 self.agent.pack_data_x(X, data, data_types=[data_type])
         return X
+
+    def set_X(self, X, t):
+        for data_type in self.agent._x_data_idx:
+            self.set(data_type, X[self.agent._x_data_idx[data_type]], t=t)
 
     def get_U(self, t=None):
         """ Get the action. """

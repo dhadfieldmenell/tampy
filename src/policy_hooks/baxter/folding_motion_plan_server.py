@@ -30,7 +30,7 @@ class FoldingMotionPlanServer(AbstractMotionPlanServer):
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         super(FoldingMotionPlanServer, self).__init__(hyperparams)
 
-    def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[]):
+    def sample_optimal_trajectory(self, mp_state, task_tuple, condition, traj_mean=[]):
         exclude_targets = []
         success = False
         task = self.task_list[task_tuple[0]]
@@ -44,7 +44,7 @@ class FoldingMotionPlanServer(AbstractMotionPlanServer):
             iteration += 1
 
             plan = self.agent.plans[task_tuple] 
-            set_params_attrs(plan.params, plan.state_inds, state, 0)
+            set_params_attrs(plan.params, plan.state_inds, mp_state, 0)
             free_attrs = plan.get_free_attrs()
 
             # self.env.SetViewer('qtcoin')
@@ -136,7 +136,7 @@ class FoldingMotionPlanServer(AbstractMotionPlanServer):
 
                 cur_path.append(next_sample)
                 cur_sample = next_sample
-                cur_state = cur_sample.end_state.copy()
+                cur_state = cur_sample.get_X(t=cur_sample.T-1)
                 opt_hl_plan.append(step)
 
             if self.config['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans.values()[0]) == 0:

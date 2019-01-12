@@ -267,7 +267,7 @@ class AbstractMotionPlanServer(object):
 
                 cur_path.append(next_sample)
                 cur_sample = next_sample
-                cur_state = cur_sample.end_state.copy()
+                cur_state = cur_sample.get_X(t=cur_sample.T-1)
                 opt_hl_plan.append(step)
 
             if self.config['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans.values()[0]) == 0:
@@ -315,5 +315,5 @@ class AbstractMotionPlanServer(object):
         pass
 
     def gmm_inf(self, gmm, sample):
-        mu, sig = gmm.inference(np.concatenate[sample.get_X(), sample.get_U()])
+        mu, sig = gmm.inference(np.concatenate[sample.get(STATE_ENUM), sample.get_U()])
         return mu, sig, True, True

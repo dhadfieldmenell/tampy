@@ -226,7 +226,8 @@ config = {
     'state_include': [utils.LEFT_EE_POS_ENUM,
                       utils.RIGHT_EE_POS_ENUM,
                       utils.CLOTH_JOINTS_ENUM,
-                      utils.CLOTH_POINTS_ENUM],
+                      utils.CLOTH_POINTS_ENUM,
+                      utils.STATE_ENUM],
     'obs_include': [utils.LEFT_EE_POS_ENUM,
                     utils.RIGHT_EE_POS_ENUM,
                     utils.TASK_ENUM,
@@ -253,7 +254,7 @@ config = {
             utils.RIGHT_IMAGE_ENUM: IM_W*IM_H*3,
             utils.OVERHEAD_IMAGE_ENUM: IM_W*IM_H*3,
             utils.CLOTH_JOINTS_ENUM: 6+2*CLOTH_W*CLOTH_L-1,
-            utils.CLOTH_POINTS_ENUM: CLOTH_W*CLOTH_L,
+            utils.CLOTH_POINTS_ENUM: 3*CLOTH_W*CLOTH_L,
         }
 }
 

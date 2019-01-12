@@ -359,8 +359,9 @@ def get_base_solver(parent_class):
                 if p.is_symbol(): continue
                 state[self.state_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
 
-            for t in range(0, T):
-                sample = self.agent.fill_sample(0, sample, state[:,t], t, task)
+            sample.set(STATE_ENUM, state.T)
+            # for t in range(0, T):
+            #     sample = self.agent.fill_sample(0, sample, state[:,t], t, task)
 
             mu, sig, use_state, use_action = inf_f(sample)
             def attr_moments(param, attr_name, inds, sample):

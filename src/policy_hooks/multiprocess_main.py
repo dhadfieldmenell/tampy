@@ -135,15 +135,9 @@ class MultiProcessMain(object):
 
         self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
         self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
-        x0s = []
-        for m in range(len(self.agent.x0)):
-            sample = Sample(self.agent)
-            self.agent.fill_sample(m, sample, x0[m], 0, tuple(np.zeros(1+len(self.prim_bounds))))
-            x0s.append(sample.get_X(t=0))
-            old_x0 = self.agent.x0
         self.config['agent'] = {
             'type': self.config['agent_type'],
-            'x0': x0s,
+            'x0': x0,
             'targets': targets,
             'task_list': self.task_list,
             'plans': plans,
