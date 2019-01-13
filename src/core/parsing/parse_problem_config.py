@@ -85,7 +85,7 @@ class ParseProblemConfig(object):
                                                                           params=p_objs,
                                                                           expected_param_types=domain.pred_schemas[p_name].expected_params,
                                                                           env=env))
-                except TypeError:
+                except TypeError as e:
                     print("type error for {}".format(pred))
 
         # use params and initial preds to create an initial State object

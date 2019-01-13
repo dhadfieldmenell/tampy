@@ -81,7 +81,7 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.0001,
+    'init_var': 0.0004,
     'pos_gains': 0.0,
 }
 

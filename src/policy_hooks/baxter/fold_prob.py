@@ -82,7 +82,11 @@ def get_vector(config):
     state_vector_include = {
         'baxter': ['lArmPose', 'lGripper', 'rArmPose', 'rGripper'] ,
         'left_corner': ['pose'],
-        'right_corner': ['pose']
+        'right_corner': ['pose'],
+        'leftmost': ['pose'],
+        'rightmost': ['pose'],
+        'highest_left': ['pose'],
+        'highest_right': ['pose'],
     }
 
     action_vector_include = {

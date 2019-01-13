@@ -136,6 +136,10 @@ def main():
 
         s += "Cloth (name left_corner); "
         s += "Cloth (name right_corner); "
+        s += "Cloth (name leftmost); "
+        s += "Cloth (name rightmost); "
+        s += "Cloth (name highest_left); "
+        s += "Cloth (name highest_right); "
         s += "ClothTarget (name left_corner_init_target); "
         s += "ClothTarget (name left_corner_end_target); "
         s += "ClothTarget (name right_corner_init_target); "
@@ -250,9 +254,22 @@ def main():
         s += "(pose right_corner {0}), ".format([0, 0, 0])
         s += "(rotation right_corner {0}), ".format([0, 0, 0])
 
-        s += "(value left_corner_init_target {0}),".format([0, 0, 0])
+        s += "(geom leftmost), "
+        s += "(pose leftmost {0}), ".format([0, 0, 0])
+        s += "(rotation leftmost {0}), ".format([0, 0, 0])
+        s += "(geom rightmost), "
+        s += "(pose rightmost {0}), ".format([0, 0, 0])
+        s += "(rotation rightmost {0}), ".format([0, 0, 0])
+        s += "(geom highest_left), "
+        s += "(pose highest_left {0}), ".format([0, 0, 0])
+        s += "(rotation highest_left {0}), ".format([0, 0, 0])
+        s += "(geom highest_right), "
+        s += "(pose highest_right {0}), ".format([0, 0, 0])
+        s += "(rotation highest_right {0}), ".format([0, 0, 0])
+
+        s += "(value left_corner_init_target {0}),".format([0.5, 0.5, 0.65])
         s += "(rotation left_corner_init_target {0}),".format([0, 0, 0])
-        s += "(value right_corner_init_target {0}), ".format([0, 0, 0])
+        s += "(value right_corner_init_target {0}), ".format([0.5, -0.5, 0.65])
         s += "(rotation right_corner_init_target {0}), ".format([0, 0, 0])
 
         s += "(value left_corner_end_target {0}), ".format([0, 0, 0])
@@ -295,6 +312,8 @@ def main():
         s += "(BaxterStationaryBase baxter), "
         s += "(BaxterIsMP baxter), "
         s += "(BaxterWithinJointLimit baxter), "
+        s += "(BaxterTargetWithinReachLeft left_corner_init_target), "
+        s += "(BaxterTargetWithinReachRight right_corner_init_target), "
         s += "(BaxterStationaryW table) \n\n"
 
         s += "Goal: {}".format(GOAL)

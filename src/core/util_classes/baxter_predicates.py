@@ -954,6 +954,70 @@ class BaxterEEGraspValidSide(BaxterEEGraspValid):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(BaxterEEGraspValidSide, self).__init__(name, params, expected_param_types, env, debug)
         self.rot_dir = np.array([np.pi/2,0,0])
+
+
+class BaxterClothTargetAtRegion(ExprPredicate):
+
+    # RobotAt, ClothTarget, Region
+    def __init__(self, name, params, expected_param_types, env=None):
+        assert len(params) == 2
+        self.target, self.obj = params
+        attr_inds = OrderedDict([(self.obj, [("value", np.array([0,1], dtype=np.int))]),
+                                 (self.target, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b, val = np.zeros((4, 1)), np.ones((4, 1))
+        val[0] = 0.1
+        val[1] = 0.03
+        val[2] = 0.1
+        val[3] = 0.03
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+
+        super(BaxterClothTargetAtRegion, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+class BaxterTargetWithinReachLeft(ExprPredicate):
+    # WithinReach ClothTarget
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        assert len(params) == 1
+        attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:1]))])
+
+        A = np.r_[np.eye(3), -np.eye(3), np.ones((1,3))]
+        b, val = np.zeros((7, 1)), np.ones((7, 1))
+        val[0] = 0.75
+        val[1] = 0.75
+        val[2] = 1.0
+        val[3] = 0.35
+        val[4] = 0.15
+        val[5] = 0.62
+        val[6] = 2.25
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(BaxterTargetWithinReachLeft, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+
+
+class BaxterTargetWithinReachRight(ExprPredicate):
+    # WithinReach ClothTarget
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        assert len(params) == 1
+        attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:1]))])
+
+        A = np.r_[np.eye(3), -np.eye(3), np.ones((1,3))]
+        A[:, 1] *= -1
+        b, val = np.zeros((7, 1)), np.ones((7, 1))
+        val[0] = 0.75
+        val[1] = 0.75
+        val[2] = 1.0
+        val[3] = 0.35
+        val[4] = 0.15
+        val[5] = 0.62
+        val[6] = 2.25
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(BaxterTargetWithinReachRight, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+
+
 """
     Gripper Constraints Family
 """
@@ -2308,6 +2372,67 @@ class BaxterClothInGripperLeft(BaxterInGripper):
                          "rGripper": r_gripper}
         robot_body.set_dof(dof_value_map)
         self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
+
+class BaxterClothAlmostInGripperLeft(robot_predicates.AlmostInGripper):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.arm = "left"
+        self.coeff = const.IN_GRIPPER_COEFF
+        self.eval_dim = 6
+        self.max_dist = np.array([0.02, 0.01, 0.02, 0.02, 0.01, 0.02])
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        self.attr_inds = OrderedDict([(params[0], ATTRMAP[params[0]._type][:-1]),
+                                      (params[1], ATTRMAP[params[1]._type])])
+        super(BaxterClothAlmostInGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
+
+    # def resample(self, negated, t, plan):
+    #     print "resample {}".format(self.get_type())
+    #     return baxter_sampling.resample_cloth_in_gripper(self, negated, t, plan)
+
+    def stacked_f(self, x):
+        pos_check = self.pos_check_f(x)
+        return self.coeff * np.r_[pos_check, -pos_check]
+
+    def stacked_grad(self, x):
+        pos_jac = self.pos_check_jac(x)
+        return self.coeff * np._r[pos_jac, pos_jac]
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+        self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
+
+    def get_robot_info(self, robot_body, arm):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
+        # Provide functionality of Obtaining Robot information
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
+        return robot_trans, arm_inds
+
+class BaxterClothAlmostInGripperRight(BaxterClothAlmostInGripperLeft):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterClothAlmostInGripperRight, self).__init__(name, params, expected_param_types, env, debug)
+        self.arm = "right"
 
 class BaxterGripperAt(robot_predicates.GripperAt):
 

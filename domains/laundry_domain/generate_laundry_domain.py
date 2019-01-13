@@ -170,6 +170,10 @@ dp.add('BaxterClothTargetAtRegion', ['ClothTarget', 'Region'])
 dp.add('BaxterGrippersDownRot', ['Robot'])
 dp.add('BaxterGrippersWithinDistance', ['Robot', 'Can'])
 dp.add('BaxterGrippersAtDistance', ['Robot', 'Can'])
+dp.add('BaxterTargetWithinReachLeft', ['ClothTarget'])
+dp.add('BaxterTargetWithinReachRight', ['ClothTarget'])
+dp.add('BaxterClothAlmostInGripperLeft', ['Robot', 'Cloth'])
+dp.add('BaxterClothAlmostInGripperRight', ['Robot', 'Cloth'])
 
 dom_str += dp.get_str() + '\n'
 
@@ -285,9 +289,11 @@ class MoveHoldingDeformableClothToEE(Action):
         self.name = 'move_holding_deformable_cloth_to_ee'
         self.timesteps = 20
         end = self.timesteps - 1
-        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?edge - Can ?ee_left - EEPose ?ee_right - EEPose)'
+        self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?edge - Can ?ee_left - EEPose ?ee_right - EEPose ?lcloth - Cloth ?rcloth - Cloth)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterClothAlmostInGripperLeft ?robot ?lcloth)', '0:0'),
+            ('(BaxterClothAlmostInGripperRight ?robot ?rcloth)', '0:0'),
             ('(BaxterGrippersWithinDistance ?robot ?edge)', '0:{}'.format(end)),
             ('(BaxterGrippersDownRot ?robot)', '0:{}'.format(end)),
             ('(BaxterCloseGrippers ?robot)', '0:{}'.format(end)),
@@ -316,6 +322,8 @@ class MoveHoldingDeformableClothToEE(Action):
             ('(not (BaxterRobotAt ?robot ?start))', '{}:{}'.format(end, end-1)),
             ('(BaxterRobotAt ?robot ?end)', '{}:{}'.format(end, end)),
             ('(BaxterBothEndsInGripper ?robot ?edge)', '{}:{}'.format(end, end)),
+            ('(BaxterClothInGripperLeft ?robot ?lcloth)', '{}:{}'.format(1, end)),
+            ('(BaxterClothInGripperRight ?robot ?rcloth)', '{}:{}'.format(1, end)),
         ]
 
 class MoveAroundWasher(Action):
@@ -398,6 +406,7 @@ class MoveHoldingCloth(Action):
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?cloth - Cloth)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterClothAlmostInGripperLeft ?robot ?cloth)', '0:0'),
             # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
             ('(BaxterCloseGrippers ?robot)', '1:{}'.format(end)),
             ('(BaxterGrippersDownRot ?robot)', '0:{}'.format(end)),
@@ -437,6 +446,7 @@ class MoveHoldingClothToEELeft(Action):
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?end_left - EEPose ?end_right - EEPose ?cloth - Cloth)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterClothAlmostInGripperLeft ?robot ?cloth)', '0:0'),
             # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
             ('(BaxterCloseGrippers ?robot)', '1:{}'.format(end)),
             ('(BaxterGrippersDownRot ?robot)', '0:{}'.format(end)),
@@ -554,6 +564,7 @@ class MoveHoldingClothRight(Action):
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?cloth - Cloth)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterClothAlmostInGripperRight ?robot ?cloth)', '0:0'),
             # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
             ('(BaxterCloseGrippers ?robot)', '1:{}'.format(end)),
             ('(BaxterGrippersDownRot ?robot)', '0:{}'.format(end)),
@@ -593,6 +604,7 @@ class MoveHoldingClothToEERight(Action):
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?end_left - EEPose ?end_right - EEPose ?cloth - Cloth)'
         self.pre = [\
             ('(BaxterRobotAt ?robot ?start)', '0:0'),
+            ('(BaxterClothAlmostInGripperRight ?robot ?cloth)', '0:0'),
             # ('(BaxterClothInGripperLeft ?robot ?cloth)', '0:{}'.format(end)),
             ('(BaxterCloseGrippers ?robot)', '1:{}'.format(end)),
             ('(BaxterGrippersDownRot ?robot)', '0:{}'.format(end)),

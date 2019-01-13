@@ -418,8 +418,8 @@ class RobotLLSolver(LLSolver):
                 rtarget = act.params[4]
                 rtarget_rot = target.rotation[0, 0]
 
-                ee_left = ltarget.value[:,0] + np.array([0, 0, 0.05])
-                ee_right = rtarget.value[:,0] + np.array([0, 0, 0.05])
+                ee_left = ltarget.value[:,0] + np.array([0, 0, 0.1])
+                ee_right = rtarget.value[:,0] + np.array([0, 0, 0.1])
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, [0, np.pi/2, 0], "left_arm")
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, [0, np.pi/2, 0], "right_arm")
@@ -836,7 +836,8 @@ class RobotLLSolver(LLSolver):
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0])
                 ee_left = target_pos + random_dir
-                ee_left[2] += 0.3
+                ee_left[2] += 0.15
+
 
                 l_arm_pose = robot_body.get_ik_from_pose(ee_left, DOWN_ROT, "left_arm")
                 if not len(l_arm_pose):
@@ -872,7 +873,7 @@ class RobotLLSolver(LLSolver):
 
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-2.5], [0.01, 0.01, 0])
                 ee_right = target_pos + random_dir
-                ee_right[2] += 0.3
+                ee_right[2] += 0.15
 
                 r_arm_pose = robot_body.get_ik_from_pose(ee_right, DOWN_ROT, "right_arm")
                 if not len(r_arm_pose):
@@ -1021,6 +1022,7 @@ class RobotLLSolver(LLSolver):
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.1])
+                random_dir[2] = 0.1
                 ee_left = target_pos + random_dir
 
                 # old_pose = act.params[3].value[:,0]
@@ -1045,6 +1047,7 @@ class RobotLLSolver(LLSolver):
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
                 target_pos = target.value[:, 0]
                 random_dir = np.multiply(np.random.sample(3) - [0.5,0.5,-1.0], [0.01, 0.01, 0.1])
+                random_dir[2] = 0.1
                 ee_right = target_pos + random_dir
 
                 # old_pose = act.params[3].value[:,0]

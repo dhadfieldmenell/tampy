@@ -53,6 +53,11 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             self.cloth_init_joints = []
             for m in range(len(self.x0)):
                 self.env.randomize_cloth()
+                for param_name in self.plans.values()[0].params:
+                    if (param_name, 'pose') in self.state_inds:
+                        pose = self.env.get_pos_from_label(param_name)
+                        if pose is not None:
+                            self.x0[m][self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, 'pose']] = pose
                 self.cloth_init_joints.append(self.env.get_cloth_joints())
                 if CLOTH_JOINTS_ENUM in hyperparams['state_include']:
                     self.x0[m][self._x_data_idx[CLOTH_JOINTS_ENUM]] = self.env.get_cloth_joints()
@@ -62,6 +67,11 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             self.cloth_init_joints = hyperparams['cloth_init_joints']
             for m in range(len(self.x0)):
                 self.env.set_cloth_joints(self.cloth_init_joints[m])
+                for param_name in self.plans.values()[0].params:
+                    if (param_name, 'pose') in self.state_inds:
+                        pose = self.env.get_pos_from_label(param_name)
+                        if pose is not None:
+                            self.x0[m][self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, 'pose']] = pose
                 if CLOTH_JOINTS_ENUM in hyperparams['state_include']:
                     self.x0[m][self._x_data_idx[CLOTH_JOINTS_ENUM]] = self.env.get_cloth_joints()
                 if CLOTH_POINTS_ENUM in hyperparams['state_include']:
@@ -90,7 +100,9 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
 
         if noisy:
-            noise = 1e1 * generate_noise(self.T, self.dU, self._hyperparams)
+            noise = generate_noise(self.T, self.dU, self._hyperparams)
+            noise[:, 3] *= 0
+            noise[:, 7] *= 0
         else:
             noise = np.zeros((self.T, self.dU))
 
@@ -106,6 +118,11 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             prim_val = self.get_prim_value(condition, state, task)
             X[self.state_inds['right_corner', 'pose']] = prim_val[RIGHT_TARG_ENUM]
             X[self.state_inds['left_corner', 'pose']] = prim_val[LEFT_TARG_ENUM]
+            for param_name in plan.params:
+                if (param_name, 'pose') in self.state_inds and plan.params[param_name]._type == 'Cloth':
+                    pose = self.env.get_pos_from_label(param_name)
+                    if pose is not None:
+                        X[self.state_inds[param_name, 'pose']] = pose
 
             sample.set(STATE_ENUM, X.copy(), t)
             sample.set(NOISE_ENUM, noise[t], t)
@@ -139,14 +156,14 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         return sample
 
 
-    def _clip_joint_angles(self, u, plan):
+    def _clip_joint_angles(self, lArmPose, lGripper, rArmPose, rGripper, plan):
         DOF_limits = plan.params['baxter'].openrave_body.env_body.GetDOFLimits()
         left_DOF_limits = (DOF_limits[0][2:9]+0.000001, DOF_limits[1][2:9]-0.000001)
         right_DOF_limits = (DOF_limits[0][10:17]+0.000001, DOF_limits[1][10:17]-0.00001)
-        left_joints = u[plan.action_inds['baxter', 'lArmPose']]
-        left_grip = u[plan.action_inds['baxter', 'lGripper']]
-        right_joints = u[plan.action_inds['baxter', 'rArmPose']]
-        right_grip = u[plan.action_inds['baxter', 'rGripper']]
+        left_joints = lArmPose
+        left_grip = lGripper
+        right_joints = rArmPose
+        right_grip = rGripper
 
         if left_grip[0] < 0:
             left_grip[0] = 0.015
@@ -167,11 +184,6 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                 right_joints[i] = right_DOF_limits[0][i]
             if right_joints[i] > right_DOF_limits[1][i]:
                 right_joints[i] = right_DOF_limits[1][i]
-
-        u[plan.action_inds['baxter', 'lArmPose']] = left_joints
-        u[plan.action_inds['baxter', 'lGripper']] = left_grip
-        u[plan.action_inds['baxter', 'rArmPose']] = right_joints
-        u[plan.action_inds['baxter', 'rGripper']] = right_grip
 
 
     def set_nonopt_attrs(self, plan, task):
@@ -337,6 +349,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         lGripper = mp_state[self.state_inds['baxter', 'lGripper']]
         rArmPose = mp_state[self.state_inds['baxter', 'rArmPose']]
         rGripper = mp_state[self.state_inds['baxter', 'rGripper']]
+        self._clip_joint_angles(lArmPose, lGripper, rArmPose, rGripper, plan)
         baxter.openrave_body.set_dof({'lArmPose': lArmPose, 'lGripper': lGripper, 'rArmPose': rArmPose, 'rGripper': rGripper})
         right_ee = baxter.openrave_body.fwd_kinematics('right_gripper')
         left_ee = baxter.openrave_body.fwd_kinematics('left_gripper')
@@ -356,7 +369,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             U[self.action_inds['baxter', 'rGripper']] = mp_state[self.state_inds['baxter', 'rGripper']]
             U[self.action_inds['baxter', 'lGripper']] = mp_state[self.state_inds['baxter', 'lGripper']]
             sample.set(ACTION_ENUM, U, t-1)
-            sample.set(ACTION_ENUM, U, t)
+            sample.set(ACTION_ENUM, U, t)            
 
         sample.task = task
         sample.task_name = self.task_list[task[0]]
@@ -378,12 +391,20 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         if right_targ not in plan.params:
             sample.set(RIGHT_TARG_POSE_ENUM, mp_state[self.state_inds['right_corner', 'pose']], t)
         else:
-            sample.set(RIGHT_TARG_POSE_ENUM, plan.params[right_targ].value[:,0].copy(), t)
+            param = plan.params[right_targ]
+            if param.is_symbol():
+                sample.set(RIGHT_TARG_POSE_ENUM, plan.params[right_targ].value[:,0].copy(), t)
+            else:
+                sample.set(RIGHT_TARG_POSE_ENUM, plan.params[right_targ].pose[:,0].copy(), t)
 
         if left_targ not in plan.params:
             sample.set(LEFT_TARG_POSE_ENUM, mp_state[self.state_inds['left_corner', 'pose']], t)
         else:
-            sample.set(LEFT_TARG_POSE_ENUM, plan.params[left_targ].value[:,0].copy(), t)
+            param = plan.params[left_targ]
+            if param.is_symbol():
+                sample.set(LEFT_TARG_POSE_ENUM, plan.params[left_targ].value[:,0].copy(), t)
+            else:
+                sample.set(LEFT_TARG_POSE_ENUM, plan.params[left_targ].pose[:,0].copy(), t)
 
         sample.set(CLOTH_POINTS_ENUM, self.env.get_cloth_points().flatten(), t)
         sample.set(CLOTH_JOINTS_ENUM, self.env.get_cloth_joints().flatten(), t)

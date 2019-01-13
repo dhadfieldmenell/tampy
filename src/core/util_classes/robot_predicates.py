@@ -1399,6 +1399,35 @@ class InGripper(PosePredicate):
         super(InGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = True
 
+class AlmostInGripper(PosePredicate):
+    """
+        Format: AlmostInGripper, Robot, Item
+
+        Robot related
+
+        Requires:
+            attr_inds[OrderedDict]: robot attribute indices
+            set_robot_poses[Function]:Function that sets robot's poses
+            get_robot_info[Function]:Function that returns robot's transformations and arm indices
+            eval_f[Function]:Function returns predicate value
+            eval_grad[Function]:Function returns predicate gradient
+            coeff[Float]:In Gripper coeffitions, used during optimazation
+            opt_coeff[Float]:In Gripper coeffitions, used during optimazation
+    """
+    #@profile
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        assert len(params) == 2
+        self._env = env
+        self.robot, self.obj = params
+
+        self._param_to_body = {
+        self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
+        self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
+
+        e = LEqExpr(Expr(self.eval_f, self.eval_grad), self.max_dist.reshape(-1,1))
+        super(AlmostInGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
+        self.spacial_anchor = True
+
 class GripperAt(PosePredicate):
     """
         Format: GripperAt, Robot, EEPose
