@@ -7,6 +7,7 @@ e197779d93858d547dd65a979806b535 /home/michaelmcdonald/tampy/src/ros_utils/devel
 e00bfed0a6b8845f5065042f2506c6ad /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PlanProb.h
 08312747628d50ca20c817a22ad40cd2 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PlanResult.h
 27460c629a6eabae8bc0cc619442c3a9 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyAct.h
+4aa8f044f3ec5431ff5c9154a73337fb /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyPriorUpdate.h
 8f1d5298f44ef699b7431cde68c9d7e1 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyProb.h
 f889a277b1229018866e1849709842ed /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyUpdate.h
 a282b27c4d8ca60707fa1675cd937880 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/Primitive.h
@@ -17,6 +18,7 @@ a42b81e28994ee6584507e196ac8cb96 /home/michaelmcdonald/tampy/src/ros_utils/devel
 d1ed0b7e439822151bcefc2d0ec2532b /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanResult.py
 a4acad93c0dbbb50a26e1164c9b6aebe /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PlanProb.py
 5e37448cb85ce3ea50ad56620e7e7206 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PlanResult.py
+47ef3274392efd2b3884b7f3d6b66ebc /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyPriorUpdate.py
 913de379809f5981783841863d2b282e /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyUpdate.py
 6345c443f29d9ca15aa761dcc247e79e /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py
 c3cd86947dd579803b4035a63a1735c1 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_MotionPlan.py
@@ -31,6 +33,7 @@ b5a6f169c2c4fad1525a78e9f8dfafb3 /home/michaelmcdonald/tampy/src/ros_utils/devel
 a83f9d5643babe59c76d82420bdb1fbe /home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/MotionPlanResult.lisp
 f7ff3cd77fe2285473b615c289e618c4 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/PlanProb.lisp
 5e0ddddce5560f47d706fd4e24095f4d /home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/PlanResult.lisp
+9bc3d66e681eeae1ffcd117206a58ad6 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/PolicyPriorUpdate.lisp
 986b8141a5bfc881e0cd82e95f46cd02 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/PolicyUpdate.lisp
 d6e7fe97ddd2f96fbdc8a314bdd09f60 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/srv/MotionPlan.lisp
 2493b39acab1f9e062bfd579578c0044 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/srv/PolicyAct.lisp
@@ -43,6 +46,7 @@ a619080981ecb00ac1e10a009e356ffd /home/michaelmcdonald/tampy/src/ros_utils/devel
 f2c5fa4c8dfea51785353a070e348855 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/MotionPlanResult.js
 5256afe37f1bc973df38dd4d2ddf7691 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PlanProb.js
 52844232a959a1f3838a5871d81195f6 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PlanResult.js
+c74082cfdca93b7fa0a16dc37ba96185 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PolicyPriorUpdate.js
 d593faf8c2bedc11bc12f0bb61506917 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PolicyUpdate.js
 3a3d1adc1e02a30a0fe65b87f9aef61c /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/MotionPlan.js
 d1ff1b23c5498d73239d00218b611148 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyAct.js
@@ -56,6 +60,7 @@ fb224443842b8957c58f59af77c05593 /home/michaelmcdonald/tampy/src/ros_utils/devel
 2ba4878311572e47e2a8fef03259c680 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/MotionPlanResult.l
 1ea3de2072099ce2724aa667d49d4e55 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PlanProb.l
 4cfa222101f97b900caef7b5330c9ded /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PlanResult.l
+63ec6ae8ad993633996d47d86cbfc0eb /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PolicyPriorUpdate.l
 1d0dfe9795ef38eaa9be0b2635d7d961 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PolicyUpdate.l
 0dc3ec2317fdb2c186b1f8f9762ae84a /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/MotionPlan.l
 678fbaa194de6582f9b26d3f1ddc04ce /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyAct.l
@@ -71,6 +76,7 @@ ab435855dcf0428cca3dc774c8768599 tamp_ros/CMakeFiles/_tamp_ros_generate_messages
 550f2eaa487b9eaa25f708b463fc3577 tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PlanProb
 bb40924de4f3134c9f02cd51c3a3f5da tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PlanResult
 9a0ce90d160d76224ed55cccfd0b642a tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyAct
+4441f399ac37d5101d014d04684aeb4b tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyPriorUpdate
 950f7a7e0934a2e28ce96b67233ace3d tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyProb
 845e75889f605cb5228a912acbc8065b tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_PolicyUpdate
 8dd95b0f755bf494d91b24224e5b9927 tamp_ros/CMakeFiles/_tamp_ros_generate_messages_check_deps_Primitive

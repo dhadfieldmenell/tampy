@@ -87,7 +87,7 @@ namespace message_traits
 
 
 // BOOLTRAITS {'IsFixedSize': False, 'IsMessage': True, 'HasHeader': False}
-// {'tamp_ros': ['/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
+// {'tamp_ros': ['/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
 
 // !!!!!!!!!!! ['__class__', '__delattr__', '__dict__', '__doc__', '__eq__', '__format__', '__getattribute__', '__hash__', '__init__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_parsed_fields', 'constants', 'fields', 'full_name', 'has_header', 'header_present', 'names', 'package', 'parsed_fields', 'short_name', 'text', 'types']
 
@@ -130,12 +130,12 @@ struct MD5Sum< ::tamp_ros::HLPlanResult_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "19bff39c2204ab093accc09544e93f76";
+    return "3d15420a1ea98d1e6019df3adbc0e259";
   }
 
   static const char* value(const ::tamp_ros::HLPlanResult_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x19bff39c2204ab09ULL;
-  static const uint64_t static_value2 = 0x3accc09544e93f76ULL;
+  static const uint64_t static_value1 = 0x3d15420a1ea98d1eULL;
+  static const uint64_t static_value2 = 0x6019df3adbc0e259ULL;
 };
 
 template<class ContainerAllocator>
@@ -167,8 +167,6 @@ bool success\n\
 int32 plan_id\n\
 int32 cond\n\
 string task\n\
-string obj\n\
-string targ\n\
 \n\
 ================================================================================\n\
 MSG: std_msgs/Float32MultiArray\n\

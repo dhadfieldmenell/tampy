@@ -16,7 +16,7 @@
 
 (defclass tamp_ros::MotionPlanProblem
   :super ros::object
-  :slots (_solver_id _prob_id _server_id _task _obj _targ _state _cond _traj_mean ))
+  :slots (_solver_id _prob_id _server_id _task _state _cond _traj_mean _use_prior _sigma _mu _logmass _mass _N _K _Do ))
 
 (defmethod tamp_ros::MotionPlanProblem
   (:init
@@ -25,22 +25,34 @@
     ((:prob_id __prob_id) 0)
     ((:server_id __server_id) 0)
     ((:task __task) "")
-    ((:obj __obj) "")
-    ((:targ __targ) "")
     ((:state __state) (make-array 0 :initial-element 0.0 :element-type :float))
     ((:cond __cond) 0)
     ((:traj_mean __traj_mean) (let (r) (dotimes (i 0) (push (instance std_msgs::Float32MultiArray :init) r)) r))
+    ((:use_prior __use_prior) nil)
+    ((:sigma __sigma) (make-array 0 :initial-element 0.0 :element-type :float))
+    ((:mu __mu) (make-array 0 :initial-element 0.0 :element-type :float))
+    ((:logmass __logmass) (make-array 0 :initial-element 0.0 :element-type :float))
+    ((:mass __mass) (make-array 0 :initial-element 0.0 :element-type :float))
+    ((:N __N) 0)
+    ((:K __K) 0)
+    ((:Do __Do) 0)
     )
    (send-super :init)
    (setq _solver_id (round __solver_id))
    (setq _prob_id (round __prob_id))
    (setq _server_id (round __server_id))
    (setq _task (string __task))
-   (setq _obj (string __obj))
-   (setq _targ (string __targ))
    (setq _state __state)
    (setq _cond (round __cond))
    (setq _traj_mean __traj_mean)
+   (setq _use_prior __use_prior)
+   (setq _sigma __sigma)
+   (setq _mu __mu)
+   (setq _logmass __logmass)
+   (setq _mass __mass)
+   (setq _N (round __N))
+   (setq _K (round __K))
+   (setq _Do (round __Do))
    self)
   (:solver_id
    (&optional __solver_id)
@@ -54,12 +66,6 @@
   (:task
    (&optional __task)
    (if __task (setq _task __task)) _task)
-  (:obj
-   (&optional __obj)
-   (if __obj (setq _obj __obj)) _obj)
-  (:targ
-   (&optional __targ)
-   (if __targ (setq _targ __targ)) _targ)
   (:state
    (&optional __state)
    (if __state (setq _state __state)) _state)
@@ -73,6 +79,30 @@
      (progn
        (if __traj_mean (setq _traj_mean (car __traj_mean)))
        _traj_mean)))
+  (:use_prior
+   (&optional __use_prior)
+   (if __use_prior (setq _use_prior __use_prior)) _use_prior)
+  (:sigma
+   (&optional __sigma)
+   (if __sigma (setq _sigma __sigma)) _sigma)
+  (:mu
+   (&optional __mu)
+   (if __mu (setq _mu __mu)) _mu)
+  (:logmass
+   (&optional __logmass)
+   (if __logmass (setq _logmass __logmass)) _logmass)
+  (:mass
+   (&optional __mass)
+   (if __mass (setq _mass __mass)) _mass)
+  (:N
+   (&optional __N)
+   (if __N (setq _N __N)) _N)
+  (:K
+   (&optional __K)
+   (if __K (setq _K __K)) _K)
+  (:Do
+   (&optional __Do)
+   (if __Do (setq _Do __Do)) _Do)
   (:serialization-length
    ()
    (+
@@ -84,16 +114,28 @@
     4
     ;; string _task
     4 (length _task)
-    ;; string _obj
-    4 (length _obj)
-    ;; string _targ
-    4 (length _targ)
     ;; float32[] _state
     (* 4    (length _state)) 4
     ;; int32 _cond
     4
     ;; std_msgs/Float32MultiArray[] _traj_mean
     (apply #'+ (send-all _traj_mean :serialization-length)) 4
+    ;; bool _use_prior
+    1
+    ;; float32[] _sigma
+    (* 4    (length _sigma)) 4
+    ;; float32[] _mu
+    (* 4    (length _mu)) 4
+    ;; float32[] _logmass
+    (* 4    (length _logmass)) 4
+    ;; float32[] _mass
+    (* 4    (length _mass)) 4
+    ;; int32 _N
+    4
+    ;; int32 _K
+    4
+    ;; int32 _Do
+    4
     ))
   (:serialize
    (&optional strm)
@@ -107,10 +149,6 @@
        (write-long _server_id s)
      ;; string _task
        (write-long (length _task) s) (princ _task s)
-     ;; string _obj
-       (write-long (length _obj) s) (princ _obj s)
-     ;; string _targ
-       (write-long (length _targ) s) (princ _targ s)
      ;; float32[] _state
      (write-long (length _state) s)
      (dotimes (i (length _state))
@@ -123,6 +161,34 @@
      (dolist (elem _traj_mean)
        (send elem :serialize s)
        )
+     ;; bool _use_prior
+       (if _use_prior (write-byte -1 s) (write-byte 0 s))
+     ;; float32[] _sigma
+     (write-long (length _sigma) s)
+     (dotimes (i (length _sigma))
+       (sys::poke (elt _sigma i) (send s :buffer) (send s :count) :float) (incf (stream-count s) 4)
+       )
+     ;; float32[] _mu
+     (write-long (length _mu) s)
+     (dotimes (i (length _mu))
+       (sys::poke (elt _mu i) (send s :buffer) (send s :count) :float) (incf (stream-count s) 4)
+       )
+     ;; float32[] _logmass
+     (write-long (length _logmass) s)
+     (dotimes (i (length _logmass))
+       (sys::poke (elt _logmass i) (send s :buffer) (send s :count) :float) (incf (stream-count s) 4)
+       )
+     ;; float32[] _mass
+     (write-long (length _mass) s)
+     (dotimes (i (length _mass))
+       (sys::poke (elt _mass i) (send s :buffer) (send s :count) :float) (incf (stream-count s) 4)
+       )
+     ;; int32 _N
+       (write-long _N s)
+     ;; int32 _K
+       (write-long _K s)
+     ;; int32 _Do
+       (write-long _Do s)
      ;;
      (if (null strm) (get-output-stream-string s))))
   (:deserialize
@@ -135,10 +201,6 @@
      (setq _server_id (sys::peek buf ptr- :integer)) (incf ptr- 4)
    ;; string _task
      (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _task (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
-   ;; string _obj
-     (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _obj (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
-   ;; string _targ
-     (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _targ (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
    ;; float32[] _state
    (let (n)
      (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4)
@@ -155,22 +217,65 @@
      (dolist (elem- _traj_mean)
      (send elem- :deserialize buf ptr-) (incf ptr- (send elem- :serialization-length))
      ))
+   ;; bool _use_prior
+     (setq _use_prior (not (= 0 (sys::peek buf ptr- :char)))) (incf ptr- 1)
+   ;; float32[] _sigma
+   (let (n)
+     (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4)
+     (setq _sigma (instantiate float-vector n))
+     (dotimes (i n)
+     (setf (elt _sigma i) (sys::peek buf ptr- :float)) (incf ptr- 4)
+     ))
+   ;; float32[] _mu
+   (let (n)
+     (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4)
+     (setq _mu (instantiate float-vector n))
+     (dotimes (i n)
+     (setf (elt _mu i) (sys::peek buf ptr- :float)) (incf ptr- 4)
+     ))
+   ;; float32[] _logmass
+   (let (n)
+     (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4)
+     (setq _logmass (instantiate float-vector n))
+     (dotimes (i n)
+     (setf (elt _logmass i) (sys::peek buf ptr- :float)) (incf ptr- 4)
+     ))
+   ;; float32[] _mass
+   (let (n)
+     (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4)
+     (setq _mass (instantiate float-vector n))
+     (dotimes (i n)
+     (setf (elt _mass i) (sys::peek buf ptr- :float)) (incf ptr- 4)
+     ))
+   ;; int32 _N
+     (setq _N (sys::peek buf ptr- :integer)) (incf ptr- 4)
+   ;; int32 _K
+     (setq _K (sys::peek buf ptr- :integer)) (incf ptr- 4)
+   ;; int32 _Do
+     (setq _Do (sys::peek buf ptr- :integer)) (incf ptr- 4)
    ;;
    self)
   )
 
-(setf (get tamp_ros::MotionPlanProblem :md5sum-) "16d7918adaf19fd881d0994f4c74a8b4")
+(setf (get tamp_ros::MotionPlanProblem :md5sum-) "62f92843a78550529c22bfbaad9b886c")
 (setf (get tamp_ros::MotionPlanProblem :datatype-) "tamp_ros/MotionPlanProblem")
 (setf (get tamp_ros::MotionPlanProblem :definition-)
       "int32 solver_id
 int32 prob_id
 int32 server_id
 string task
-string obj
-string targ
 float32[] state
 int32 cond
 std_msgs/Float32MultiArray[] traj_mean
+
+bool use_prior
+float32[] sigma
+float32[] mu
+float32[] logmass
+float32[] mass
+int32 N
+int32 K
+int32 Do
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -219,6 +324,6 @@ uint32 stride  # stride of given dimension
 
 
 
-(provide :tamp_ros/MotionPlanProblem "16d7918adaf19fd881d0994f4c74a8b4")
+(provide :tamp_ros/MotionPlanProblem "62f92843a78550529c22bfbaad9b886c")
 
 

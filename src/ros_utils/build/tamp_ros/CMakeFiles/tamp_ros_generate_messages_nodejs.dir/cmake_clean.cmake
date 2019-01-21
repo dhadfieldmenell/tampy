@@ -7,6 +7,7 @@ file(REMOVE_RECURSE
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PlanResult.js"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/HLProblem.js"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/MotionPlanResult.js"
+  "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PolicyPriorUpdate.js"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/QValue.js"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyAct.js"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyProb.js"

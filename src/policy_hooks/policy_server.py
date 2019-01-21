@@ -23,8 +23,6 @@ class PolicyServer(object):
             hyperparams['policy_opt'], 
             hyperparams['dO'],
             hyperparams['dU'],
-            hyperparams['dObj'],
-            hyperparams['dTarg'],
             hyperparams['dPrimObs'],
             hyperparams['dValObs'],
             hyperparams['prim_bounds']

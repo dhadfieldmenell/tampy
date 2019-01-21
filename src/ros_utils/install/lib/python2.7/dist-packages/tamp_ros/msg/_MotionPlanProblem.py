@@ -8,18 +8,25 @@ import struct
 import std_msgs.msg
 
 class MotionPlanProblem(genpy.Message):
-  _md5sum = "16d7918adaf19fd881d0994f4c74a8b4"
+  _md5sum = "62f92843a78550529c22bfbaad9b886c"
   _type = "tamp_ros/MotionPlanProblem"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """int32 solver_id
 int32 prob_id
 int32 server_id
 string task
-string obj
-string targ
 float32[] state
 int32 cond
 std_msgs/Float32MultiArray[] traj_mean
+
+bool use_prior
+float32[] sigma
+float32[] mu
+float32[] logmass
+float32[] mass
+int32 N
+int32 K
+int32 Do
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -64,8 +71,8 @@ MSG: std_msgs/MultiArrayDimension
 string label   # label of given dimension
 uint32 size    # size of given dimension (in type units)
 uint32 stride  # stride of given dimension"""
-  __slots__ = ['solver_id','prob_id','server_id','task','obj','targ','state','cond','traj_mean']
-  _slot_types = ['int32','int32','int32','string','string','string','float32[]','int32','std_msgs/Float32MultiArray[]']
+  __slots__ = ['solver_id','prob_id','server_id','task','state','cond','traj_mean','use_prior','sigma','mu','logmass','mass','N','K','Do']
+  _slot_types = ['int32','int32','int32','string','float32[]','int32','std_msgs/Float32MultiArray[]','bool','float32[]','float32[]','float32[]','float32[]','int32','int32','int32']
 
   def __init__(self, *args, **kwds):
     """
@@ -75,7 +82,7 @@ uint32 stride  # stride of given dimension"""
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       solver_id,prob_id,server_id,task,obj,targ,state,cond,traj_mean
+       solver_id,prob_id,server_id,task,state,cond,traj_mean,use_prior,sigma,mu,logmass,mass,N,K,Do
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -92,26 +99,44 @@ uint32 stride  # stride of given dimension"""
         self.server_id = 0
       if self.task is None:
         self.task = ''
-      if self.obj is None:
-        self.obj = ''
-      if self.targ is None:
-        self.targ = ''
       if self.state is None:
         self.state = []
       if self.cond is None:
         self.cond = 0
       if self.traj_mean is None:
         self.traj_mean = []
+      if self.use_prior is None:
+        self.use_prior = False
+      if self.sigma is None:
+        self.sigma = []
+      if self.mu is None:
+        self.mu = []
+      if self.logmass is None:
+        self.logmass = []
+      if self.mass is None:
+        self.mass = []
+      if self.N is None:
+        self.N = 0
+      if self.K is None:
+        self.K = 0
+      if self.Do is None:
+        self.Do = 0
     else:
       self.solver_id = 0
       self.prob_id = 0
       self.server_id = 0
       self.task = ''
-      self.obj = ''
-      self.targ = ''
       self.state = []
       self.cond = 0
       self.traj_mean = []
+      self.use_prior = False
+      self.sigma = []
+      self.mu = []
+      self.logmass = []
+      self.mass = []
+      self.N = 0
+      self.K = 0
+      self.Do = 0
 
   def _get_types(self):
     """
@@ -128,18 +153,6 @@ uint32 stride  # stride of given dimension"""
       _x = self
       buff.write(_get_struct_3i().pack(_x.solver_id, _x.prob_id, _x.server_id))
       _x = self.task
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.obj
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.targ
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
@@ -170,6 +183,25 @@ uint32 stride  # stride of given dimension"""
         buff.write(_struct_I.pack(length))
         pattern = '<%sf'%length
         buff.write(struct.pack(pattern, *val1.data))
+      buff.write(_get_struct_B().pack(self.use_prior))
+      length = len(self.sigma)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(struct.pack(pattern, *self.sigma))
+      length = len(self.mu)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(struct.pack(pattern, *self.mu))
+      length = len(self.logmass)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(struct.pack(pattern, *self.logmass))
+      length = len(self.mass)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(struct.pack(pattern, *self.mass))
+      _x = self
+      buff.write(_get_struct_3i().pack(_x.N, _x.K, _x.Do))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -195,24 +227,6 @@ uint32 stride  # stride of given dimension"""
         self.task = str[start:end].decode('utf-8')
       else:
         self.task = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.obj = str[start:end].decode('utf-8')
-      else:
-        self.obj = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.targ = str[start:end].decode('utf-8')
-      else:
-        self.targ = str[start:end]
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -261,6 +275,42 @@ uint32 stride  # stride of given dimension"""
         end += struct.calcsize(pattern)
         val1.data = struct.unpack(pattern, str[start:end])
         self.traj_mean.append(val1)
+      start = end
+      end += 1
+      (self.use_prior,) = _get_struct_B().unpack(str[start:end])
+      self.use_prior = bool(self.use_prior)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.sigma = struct.unpack(pattern, str[start:end])
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.mu = struct.unpack(pattern, str[start:end])
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.logmass = struct.unpack(pattern, str[start:end])
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.mass = struct.unpack(pattern, str[start:end])
+      _x = self
+      start = end
+      end += 12
+      (_x.N, _x.K, _x.Do,) = _get_struct_3i().unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -276,18 +326,6 @@ uint32 stride  # stride of given dimension"""
       _x = self
       buff.write(_get_struct_3i().pack(_x.solver_id, _x.prob_id, _x.server_id))
       _x = self.task
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.obj
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.targ
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
@@ -318,6 +356,25 @@ uint32 stride  # stride of given dimension"""
         buff.write(_struct_I.pack(length))
         pattern = '<%sf'%length
         buff.write(val1.data.tostring())
+      buff.write(_get_struct_B().pack(self.use_prior))
+      length = len(self.sigma)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(self.sigma.tostring())
+      length = len(self.mu)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(self.mu.tostring())
+      length = len(self.logmass)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(self.logmass.tostring())
+      length = len(self.mass)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(self.mass.tostring())
+      _x = self
+      buff.write(_get_struct_3i().pack(_x.N, _x.K, _x.Do))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -344,24 +401,6 @@ uint32 stride  # stride of given dimension"""
         self.task = str[start:end].decode('utf-8')
       else:
         self.task = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.obj = str[start:end].decode('utf-8')
-      else:
-        self.obj = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.targ = str[start:end].decode('utf-8')
-      else:
-        self.targ = str[start:end]
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -410,6 +449,42 @@ uint32 stride  # stride of given dimension"""
         end += struct.calcsize(pattern)
         val1.data = numpy.frombuffer(str[start:end], dtype=numpy.float32, count=length)
         self.traj_mean.append(val1)
+      start = end
+      end += 1
+      (self.use_prior,) = _get_struct_B().unpack(str[start:end])
+      self.use_prior = bool(self.use_prior)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.sigma = numpy.frombuffer(str[start:end], dtype=numpy.float32, count=length)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.mu = numpy.frombuffer(str[start:end], dtype=numpy.float32, count=length)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.logmass = numpy.frombuffer(str[start:end], dtype=numpy.float32, count=length)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.mass = numpy.frombuffer(str[start:end], dtype=numpy.float32, count=length)
+      _x = self
+      start = end
+      end += 12
+      (_x.N, _x.K, _x.Do,) = _get_struct_3i().unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -430,6 +505,12 @@ def _get_struct_3i():
     if _struct_3i is None:
         _struct_3i = struct.Struct("<3i")
     return _struct_3i
+_struct_B = None
+def _get_struct_B():
+    global _struct_B
+    if _struct_B is None:
+        _struct_B = struct.Struct("<B")
+    return _struct_B
 _struct_2I = None
 def _get_struct_2I():
     global _struct_2I

@@ -40,12 +40,12 @@ class AbstractMotionPlanServer(object):
         # self.solver.policy_opt = self.policy_opt
         self.solver.policy_opt = DummyPolicyOpt(self.problem)
         self.solver.policy_priors = {task: GMM() for task in self.task_list}
-        self.agent = hyperparams['agent']
+        self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.solver.agent = self.agent
         self.agent.solver = self.solver
         self.weight_dir = hyperparams['weight_dir']
 
-        self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
+        # self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
         self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
         self.hl_publishers = {i: rospy.Publisher('hl_result_'+str(i), HLPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
@@ -53,10 +53,11 @@ class AbstractMotionPlanServer(object):
         self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=10)
         self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**20)
         self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets)
-        self.policy_prior_subscriber = rsopy.Subscriber('policy_prior', PolicyPirorUpdate, self.update_policy_prior)
+        # self.policy_prior_subscriber = rospy.Subscriber('policy_prior', PolicyPriorUpdate, self.update_policy_prior)
         self.stop = rospy.Subscriber('terminate', String, self.end)
+        self.opt_count_publisher = rospy.Publisher('optimization_counter', String, queue_size=1)
 
-        self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
+        # self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
         self.use_local = hyperparams['use_local']
         if self.use_local:
             hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] + '_trained'
@@ -65,10 +66,9 @@ class AbstractMotionPlanServer(object):
                 hyperparams['policy_opt'], 
                 hyperparams['dO'],
                 hyperparams['dU'],
-                hyperparams['dObj'],
-                hyperparams['dTarg'],
                 hyperparams['dPrimObs'],
-                hyperparams['dValObs']
+                hyperparams['dValObs'],
+                hyperparams['prim_bounds']
             )
         self.perturb_steps = hyperparams['perturb_steps']
 
@@ -146,7 +146,7 @@ class AbstractMotionPlanServer(object):
 
 
     def prob(self, sample):
-        mu, sig, _, _ self.policy_opt.prob(sample.get_obs(), task=sample.task)
+        mu, sig, _, _ = self.policy_opt.prob(sample.get_obs(), task=sample.task)
         return mu[0], sig[0]
 
 
@@ -175,6 +175,7 @@ class AbstractMotionPlanServer(object):
             inf_f = None
 
         sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f)
+        self.opt_count_publisher.publish("Ran solve for motion plan.")
         failed = str(failed)
         resp = MotionPlanResult()
         resp.traj = []
@@ -248,6 +249,7 @@ class AbstractMotionPlanServer(object):
                 task = tuple(task)
                 plan = self.agent.plans[task]
                 next_sample, new_failed, success = self.agent.solve_sample_opt_traj(cur_state, task, cond, inf_f=inf_f[step[0]])
+                self.optimization_counter.publish("Solved motion plan.")
                 next_sample.success = FAIL_LABEL
                 if not success:
                     if last_reset > 5:
@@ -313,6 +315,7 @@ class AbstractMotionPlanServer(object):
     @abstractmethod
     def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[], fixed_targets=[]):
         pass
+
 
     def gmm_inf(self, gmm, sample):
         mu, sig = gmm.inference(np.concatenate[sample.get(STATE_ENUM), sample.get_U()])

@@ -26,15 +26,11 @@ struct PlanProb_
   PlanProb_()
     : prob_id(0)
     , task()
-    , object()
-    , target()
     , state()  {
     }
   PlanProb_(const ContainerAllocator& _alloc)
     : prob_id(0)
     , task(_alloc)
-    , object(_alloc)
-    , target(_alloc)
     , state(_alloc)  {
   (void)_alloc;
     }
@@ -46,12 +42,6 @@ struct PlanProb_
 
    typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _task_type;
   _task_type task;
-
-   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _object_type;
-  _object_type object;
-
-   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _target_type;
-  _target_type target;
 
    typedef std::vector<float, typename ContainerAllocator::template rebind<float>::other >  _state_type;
   _state_type state;
@@ -91,7 +81,7 @@ namespace message_traits
 
 
 // BOOLTRAITS {'IsFixedSize': False, 'IsMessage': True, 'HasHeader': False}
-// {'tamp_ros': ['/home/michaelmcdonald/dependencies/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
+// {'tamp_ros': ['/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg'], 'std_msgs': ['/opt/ros/kinetic/share/std_msgs/cmake/../msg']}
 
 // !!!!!!!!!!! ['__class__', '__delattr__', '__dict__', '__doc__', '__eq__', '__format__', '__getattribute__', '__hash__', '__init__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_parsed_fields', 'constants', 'fields', 'full_name', 'has_header', 'header_present', 'names', 'package', 'parsed_fields', 'short_name', 'text', 'types']
 
@@ -134,12 +124,12 @@ struct MD5Sum< ::tamp_ros::PlanProb_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "bacbc44c2a384d436608cc453c774b3b";
+    return "97af7a9beb35cfa765c4c9dd69c7befd";
   }
 
   static const char* value(const ::tamp_ros::PlanProb_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0xbacbc44c2a384d43ULL;
-  static const uint64_t static_value2 = 0x6608cc453c774b3bULL;
+  static const uint64_t static_value1 = 0x97af7a9beb35cfa7ULL;
+  static const uint64_t static_value2 = 0x65c4c9dd69c7befdULL;
 };
 
 template<class ContainerAllocator>
@@ -160,8 +150,6 @@ struct Definition< ::tamp_ros::PlanProb_<ContainerAllocator> >
   {
     return "int32 prob_id\n\
 string task\n\
-string object\n\
-string target\n\
 float32[] state\n\
 ";
   }
@@ -183,8 +171,6 @@ namespace serialization
     {
       stream.next(m.prob_id);
       stream.next(m.task);
-      stream.next(m.object);
-      stream.next(m.target);
       stream.next(m.state);
     }
 
@@ -208,10 +194,6 @@ struct Printer< ::tamp_ros::PlanProb_<ContainerAllocator> >
     Printer<int32_t>::stream(s, indent + "  ", v.prob_id);
     s << indent << "task: ";
     Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.task);
-    s << indent << "object: ";
-    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.object);
-    s << indent << "target: ";
-    Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.target);
     s << indent << "state[]" << std::endl;
     for (size_t i = 0; i < v.state.size(); ++i)
     {

@@ -41,6 +41,7 @@ if(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unspeci
     "/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg"
     "/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/HLProblem.msg"
     "/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/HLPlanResult.msg"
+    "/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg"
     )
 endif()
 

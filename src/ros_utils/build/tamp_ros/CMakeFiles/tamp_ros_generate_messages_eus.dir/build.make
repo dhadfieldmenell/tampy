@@ -60,6 +60,7 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PlanResult.l
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/HLProblem.l
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/MotionPlanResult.l
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PolicyPriorUpdate.l
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/QValue.l
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyAct.l
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyProb.l
@@ -116,14 +117,19 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating EusLisp code from tamp_ros/MotionPlanResult.msg"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg
 
+/home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PolicyPriorUpdate.l: /opt/ros/kinetic/lib/geneus/gen_eus.py
+/home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PolicyPriorUpdate.l: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating EusLisp code from tamp_ros/PolicyPriorUpdate.msg"
+	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg
+
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/QValue.l: /opt/ros/kinetic/lib/geneus/gen_eus.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/QValue.l: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating EusLisp code from tamp_ros/QValue.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating EusLisp code from tamp_ros/QValue.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyAct.l: /opt/ros/kinetic/lib/geneus/gen_eus.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyAct.l: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating EusLisp code from tamp_ros/PolicyAct.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating EusLisp code from tamp_ros/PolicyAct.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyProb.l: /opt/ros/kinetic/lib/geneus/gen_eus.py
@@ -131,12 +137,12 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyProb.l: /opt/ros/kinetic/share/std_msgs/msg/Float32MultiArray.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyProb.l: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayDimension.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyProb.l: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayLayout.msg
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating EusLisp code from tamp_ros/PolicyProb.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating EusLisp code from tamp_ros/PolicyProb.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/Primitive.l: /opt/ros/kinetic/lib/geneus/gen_eus.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/Primitive.l: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating EusLisp code from tamp_ros/Primitive.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating EusLisp code from tamp_ros/Primitive.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/MotionPlan.l: /opt/ros/kinetic/lib/geneus/gen_eus.py
@@ -144,11 +150,11 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/MotionPlan.l: /opt/ros/kinetic/share/std_msgs/msg/Float32MultiArray.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/MotionPlan.l: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayDimension.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/MotionPlan.l: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayLayout.msg
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating EusLisp code from tamp_ros/MotionPlan.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Generating EusLisp code from tamp_ros/MotionPlan.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/MotionPlan.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/manifest.l: /opt/ros/kinetic/lib/geneus/gen_eus.py
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Generating EusLisp manifest code for tamp_ros"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Generating EusLisp manifest code for tamp_ros"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py -m -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros tamp_ros std_msgs
 
 tamp_ros_generate_messages_eus: tamp_ros/CMakeFiles/tamp_ros_generate_messages_eus
@@ -159,6 +165,7 @@ tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/
 tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PlanResult.l
 tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/HLProblem.l
 tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/MotionPlanResult.l
+tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/msg/PolicyPriorUpdate.l
 tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/QValue.l
 tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyAct.l
 tamp_ros_generate_messages_eus: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/roseus/ros/tamp_ros/srv/PolicyProb.l

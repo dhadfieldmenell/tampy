@@ -67,7 +67,7 @@ class MultiProcessMain(object):
         self.task_list = tuple(get_tasks(self.config['task_map_file']).keys())
 
         if 'multi_policy' not in self.config: self.config['multi_policy'] = False
-        self.pol_list = self.task_list # if self.config['multi_policy'] else ['control']
+        self.pol_list = self.task_list if self.config['multi_policy'] else ('control',)
         self.task_durations = get_task_durations(self.config['task_map_file'])
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
@@ -241,18 +241,6 @@ class MultiProcessMain(object):
                 'num_filters': [5,10],
                 'dim_hidden': self.config['dim_hidden'],
             },
-            # 'distilled_network_params': {
-            #     'obs_include': self.config['agent']['obs_include'],
-            #     # 'obs_vector_data': [utils.STATE_ENUM],
-            #     'obs_image_data': [],
-            #     'image_width': self.config['image_width'],
-            #     'image_height': self.config['image_height'],
-            #     'image_channels': self.config['image_channels'],
-            #     'sensor_dims': sensor_dims,
-            #     'n_layers': 3,
-            #     'num_filters': [5,10],
-            #     'dim_hidden': [100, 100, 100]
-            # },
             # 'image_network_params': {
             #     'obs_include': ['image'],
             #     'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
@@ -325,7 +313,7 @@ class MultiProcessMain(object):
         self.config['algorithm'][task]['policy_opt']['scope'] = 'value'
         self.config['algorithm'][task]['policy_opt']['weight_dir'] = self.config['weight_dir']
         self.task_durations = self.config['task_durations']
-        for task in self.pol_list:
+        for task in self.task_list:
             self.config['algorithm'][task]['policy_opt']['prev'] = 'skip'
             self.config['algorithm'][task]['agent'] = self.agent
             self.config['algorithm'][task]['init_traj_distr']['T'] = self.task_durations[task]
@@ -335,7 +323,7 @@ class MultiProcessMain(object):
             self.alg_map[task].set_conditions(len(self.agent.x0))
             self.alg_map[task].agent = self.agent
 
-        for task in self.pol_list:
+        for task in self.task_list:
             self.config['algorithm'][task]['policy_opt']['prev'] = None
         self.config['alg_map'] = self.alg_map
 
@@ -351,7 +339,7 @@ class MultiProcessMain(object):
 
         for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
-                                  self.pol_list,
+                                  self.task_list,
                                   self.prim_dims,
                                   None,
                                   None,
@@ -433,7 +421,7 @@ class MultiProcessMain(object):
             self.create_server(new_hyperparams['opt_server_type'], new_hyperparams)
 
     def create_pol_servers(self, hyperparams):
-        for task in self.pol_list+('image', 'value', 'primitive'):
+        for task in self.pol_list+('value', 'primitive'):
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
             self.create_server(PolicyServer, new_hyperparams)

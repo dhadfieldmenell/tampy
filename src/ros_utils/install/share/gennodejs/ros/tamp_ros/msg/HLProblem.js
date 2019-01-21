@@ -23,6 +23,7 @@ class HLProblem {
       this.init_state = null;
       this.cond = null;
       this.path_to = null;
+      this.gmms = null;
     }
     else {
       if (initObj.hasOwnProperty('solver_id')) {
@@ -55,6 +56,12 @@ class HLProblem {
       else {
         this.path_to = '';
       }
+      if (initObj.hasOwnProperty('gmms')) {
+        this.gmms = initObj.gmms
+      }
+      else {
+        this.gmms = '';
+      }
     }
   }
 
@@ -70,6 +77,8 @@ class HLProblem {
     bufferOffset = _serializer.int32(obj.cond, buffer, bufferOffset);
     // Serialize message field [path_to]
     bufferOffset = _serializer.string(obj.path_to, buffer, bufferOffset);
+    // Serialize message field [gmms]
+    bufferOffset = _serializer.string(obj.gmms, buffer, bufferOffset);
     return bufferOffset;
   }
 
@@ -87,6 +96,8 @@ class HLProblem {
     data.cond = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [path_to]
     data.path_to = _deserializer.string(buffer, bufferOffset);
+    // Deserialize message field [gmms]
+    data.gmms = _deserializer.string(buffer, bufferOffset);
     return data;
   }
 
@@ -94,7 +105,8 @@ class HLProblem {
     let length = 0;
     length += 4 * object.init_state.length;
     length += object.path_to.length;
-    return length + 20;
+    length += object.gmms.length;
+    return length + 24;
   }
 
   static datatype() {
@@ -104,7 +116,7 @@ class HLProblem {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '1a2adc264904a8c2fffd546791b7a9ec';
+    return '573d764c14495d91c035cf75dd9b1437';
   }
 
   static messageDefinition() {
@@ -115,6 +127,7 @@ class HLProblem {
     float32[] init_state
     int32 cond
     string path_to
+    string gmms
     
     `;
   }
@@ -158,6 +171,13 @@ class HLProblem {
     }
     else {
       resolved.path_to = ''
+    }
+
+    if (msg.gmms !== undefined) {
+      resolved.gmms = msg.gmms;
+    }
+    else {
+      resolved.gmms = ''
     }
 
     return resolved;

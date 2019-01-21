@@ -60,6 +60,7 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tam
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PlanResult.js
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/HLProblem.js
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/MotionPlanResult.js
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PolicyPriorUpdate.js
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/QValue.js
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyAct.js
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyProb.js
@@ -115,14 +116,19 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tam
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating Javascript code from tamp_ros/MotionPlanResult.msg"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gennodejs/cmake/../../../lib/gennodejs/gen_nodejs.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg
 
+/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PolicyPriorUpdate.js: /opt/ros/kinetic/lib/gennodejs/gen_nodejs.py
+/home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PolicyPriorUpdate.js: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating Javascript code from tamp_ros/PolicyPriorUpdate.msg"
+	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gennodejs/cmake/../../../lib/gennodejs/gen_nodejs.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg
+
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/QValue.js: /opt/ros/kinetic/lib/gennodejs/gen_nodejs.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/QValue.js: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating Javascript code from tamp_ros/QValue.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating Javascript code from tamp_ros/QValue.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gennodejs/cmake/../../../lib/gennodejs/gen_nodejs.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyAct.js: /opt/ros/kinetic/lib/gennodejs/gen_nodejs.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyAct.js: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating Javascript code from tamp_ros/PolicyAct.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating Javascript code from tamp_ros/PolicyAct.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gennodejs/cmake/../../../lib/gennodejs/gen_nodejs.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyProb.js: /opt/ros/kinetic/lib/gennodejs/gen_nodejs.py
@@ -130,12 +136,12 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tam
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyProb.js: /opt/ros/kinetic/share/std_msgs/msg/Float32MultiArray.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyProb.js: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayDimension.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyProb.js: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayLayout.msg
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating Javascript code from tamp_ros/PolicyProb.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating Javascript code from tamp_ros/PolicyProb.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gennodejs/cmake/../../../lib/gennodejs/gen_nodejs.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/Primitive.js: /opt/ros/kinetic/lib/gennodejs/gen_nodejs.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/Primitive.js: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating Javascript code from tamp_ros/Primitive.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating Javascript code from tamp_ros/Primitive.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gennodejs/cmake/../../../lib/gennodejs/gen_nodejs.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/MotionPlan.js: /opt/ros/kinetic/lib/gennodejs/gen_nodejs.py
@@ -143,7 +149,7 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tam
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/MotionPlan.js: /opt/ros/kinetic/share/std_msgs/msg/Float32MultiArray.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/MotionPlan.js: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayDimension.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/MotionPlan.js: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayLayout.msg
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating Javascript code from tamp_ros/MotionPlan.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Generating Javascript code from tamp_ros/MotionPlan.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gennodejs/cmake/../../../lib/gennodejs/gen_nodejs.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/MotionPlan.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv
 
 tamp_ros_generate_messages_nodejs: tamp_ros/CMakeFiles/tamp_ros_generate_messages_nodejs
@@ -154,6 +160,7 @@ tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/dev
 tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PlanResult.js
 tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/HLProblem.js
 tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/MotionPlanResult.js
+tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/msg/PolicyPriorUpdate.js
 tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/QValue.js
 tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyAct.js
 tamp_ros_generate_messages_nodejs: /home/michaelmcdonald/tampy/src/ros_utils/devel/share/gennodejs/ros/tamp_ros/srv/PolicyProb.js

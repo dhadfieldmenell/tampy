@@ -7,6 +7,7 @@ file(REMOVE_RECURSE
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/PlanResult.lisp"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/HLProblem.lisp"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/MotionPlanResult.lisp"
+  "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/msg/PolicyPriorUpdate.lisp"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/srv/QValue.lisp"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/srv/PolicyAct.lisp"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/share/common-lisp/ros/tamp_ros/srv/PolicyProb.lisp"

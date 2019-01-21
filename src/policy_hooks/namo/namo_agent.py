@@ -57,7 +57,8 @@ class optimal_pol:
 
 
 class NAMOSortingAgent(TAMPAgent):
-    def sample_task(self, policy, condition, x0, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True):
+    def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True):
+        x0 = state[self._x_data_idx[STATE_ENUM]]
         task = tuple(task)
         plan = self.plans[task[:2]]
         for (param, attr) in self.state_inds:
@@ -267,30 +268,18 @@ class NAMOSortingAgent(TAMPAgent):
         return True
 
 
-    def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], fixed_targets=[]):
-        exclude_targets = []
+    def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0):
         success = False
-
-        if len(fixed_targets):
-            targets = fixed_targets
-            obj = fixed_targets[0]
-            targ = fixed_targets[1]
-        else:
-            task_distr, obj_distr, targ_distr = self.prob_func(sample.get_prim_obs(t=0))
-            obj = self.plans.values()[0].params[self.obj_list[np.argmax(obj_distr)]]
-            targ = self.plans.values()[0].params[self.targ_list[np.argmax(targ_distr)]]
-            targets = [obj, targ]
-            # targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean)
+        x0 = state[self._x_data_idx[STATE_ENUM]]
 
         failed_preds = []
         iteration = 0
-        if iteration > 0 and not len(fixed_targets):
-             targets = get_next_target(self.plans.values()[0], state, task, self.targets[condition], sample_traj=traj_mean, exclude=exclude_targets)
-
         iteration += 1
+        plan = self.plans[task] 
+        prim_choices = get_prim_choices()
+        targets = [prim_choices[OBJ_ENUM][task[1]], prim_choices[TARG_ENUM][task[2]]]
+        set_params_attrs(plan.params, plan.state_inds, x0, 0)
 
-        plan = self.plans[task, targets[0].name] 
-        set_params_attrs(plan.params, plan.state_inds, state, 0)
         for param_name in plan.params:
             param = plan.params[param_name]
             if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
@@ -311,116 +300,95 @@ class NAMOSortingAgent(TAMPAgent):
             plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
         if task == 'grasp':
             plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
-        # self.env.SetViewer('qtcoin')
-        # success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
+
+
+        prim_vals = self.get_prim_value(condition, state, task) 
+
+        
         try:
-            self.save_free(plan)
-            success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, task=(self.task_list.index(task), self.obj_list.index(obj.name), self.targ_list.index(targ.name)))
-            print success, plan.get_failed_preds()
-            # viewer = OpenRAVEViewer._viewer if OpenRAVEViewer._viewer is not None else OpenRAVEViewer(plan.env)
-            # if task == 'putdown':
-            #     import ipdb; ipdb.set_trace()
-            # self.env.SetViewer('qtcoin')
-            # import ipdb; ipdb.set_trace()
+            success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, inf_f=inf_f)
         except Exception as e:
             print e
             traceback.print_exception(*sys.exc_info())
-            self.restore_free(plan)
-            # self.env.SetViewer('qtcoin')
-            # import ipdb; ipdb.set_trace()
             success = False
-
-        failed_preds = []
-        for action in plan.actions:
-            try:
-                failed_info = plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
-                def pred_t_sort(p1, p2):
-                    if p1[2] > p2[2]: return 1
-                    if p1[2] < p2[2]: return -1
-                    return 0
-
-                failed_info.sort(pred_t_sort)
-                failed_preds += [(pred, targets[0], targets[1]) for negated, pred, t in failed_info]
-            except Exception as e:
-                print 'Skipping failed predicates due to exception:', e
-                pass
-        exclude_targets.append(targets[0].name)
-
-        if len(failed_preds):
-            success = False
-        else:
-            success = True
+            raise e
 
         if not success:
-            # import ipdb; ipdb.set_trace()
-            task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
-            task_vec[self.task_list.index(task)] = 1.
-            obj_vec = np.zeros((len(self.obj_list)), dtype='float32')
-            targ_vec = np.zeros((len(self.targ_list)), dtype='float32')
-            obj_vec[self.obj_list.index(targets[0].name)] = 1.
-            targ_vec[self.targ_list.index(targets[1].name)] = 1.
-            target_vec = np.zeros((self.target_dim,))
-            set_params_attrs(plan.params, plan.state_inds, state, 0)
-            for target_name in self.targets[condition]:
-                target = plan.params[target_name]
-                target.value[:,0] = self.targets[condition][target.name]
-                target_vec[self.target_inds[target.name, 'value']] = target.value[:,0]
+            for action in plan.actions:
+                try:
+                    print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
+                except:
+                    pass
+            print '\n\n'
 
+        try:
+            if not len(failed_preds):
+                for action in plan.actions:
+                    failed_preds += [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
+        except:
+            pass
+
+
+        if not success:
             sample = Sample(self)
-            sample.set(STATE_ENUM, state.copy(), 0)
-            sample.set(TASK_ENUM, task_vec, 0)
-            sample.set(OBJ_ENUM, obj_vec, 0)
-            sample.set(TARG_ENUM, targ_vec, 0)
-            sample.set(OBJ_POSE_ENUM, self.state_inds[targets[0].name, 'pose'], 0)
+            for i in range(len(self.prim_dims.keys())):
+                enum = self.prim_dims.keys()[i]
+                vec = np.zeros((self.prim_dims[enum]))
+                vec[task[i]] = 1.
+                sample.set(enum, vec, 0)
+
+            sample.set(STATE_ENUM, x0.copy(), 0)
+            sample.set(OBJ_POSE_ENUM, x0[self.state_inds[targets[0].name, 'pose']], 0)
             sample.set(TARG_POSE_ENUM, self.targets[condition][targets[1].name], 0)
             sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), 0)
-            sample.set(TARGETS_ENUM, target_vec, 0)
+            sample.set(TARGETS_ENUM, self.target_vecs[condition].copy(), 0)
             sample.condition = condition
             sample.task = task
-            return sample, failed_preds, False
+            return sample, failed_preds, success
 
-        traj = np.zeros((plan.horizon, self.dU))
-        disp_traj = np.zeros((plan.horizon, self.dU))
-        for t in range(plan.horizon):
-            fill_vector(plan.params, plan.action_inds, traj[t], t)
-            if t > 0:
-                disp_traj[t-1] = traj[t] - traj[t-1]
+        class optimal_pol:
+            def act(self, X, O, t, noise):
+                U = np.zeros((plan.dU), dtype=np.float32)
+                if t < plan.horizon - 1:
+                    fill_vector(plan.params, plan.action_inds, U, t+1)
+                else:
+                    fill_vector(plan.params, plan.action_inds, U, t)
+                return U
 
-        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, disp_traj), condition, state, [task, targets[0].name, targets[1].name], noisy=False, fixed_obj=True)
+        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
         self.optimal_samples[task].append(sample)
-        sample.set_ref_X(sample.get(STATE_ENUM))
-        sample.set_ref_U(sample.get_U())
         return sample, failed_preds, success
 
+    # def get_sample_constr_cost(self, sample):
+    #     obj = self.plans.values()[0].params[self.obj_list[np.argmax(sample.get(OBJ_ENUM, t=0))]]
+    #     targ = self.plans.values()[0].params[self.targ_list[np.argmax(sample.get(TARG_ENUM, t=0))]]
+    #     targets = [obj, targ]
+    #     # targets = get_next_target(self.plans.values()[0], sample.get(STATE_ENUM, t=0), sample.task, self.targets[sample.condition])
+    #     plan = self.plans[sample.task, targets[0].name]
+    #     for t in range(sample.T):
+    #         set_params_attrs(plan.params, plan.state_inds, sample.get(STATE_ENUM, t=t), t)
 
-    def get_sample_constr_cost(self, sample):
-        obj = self.plans.values()[0].params[self.obj_list[np.argmax(sample.get(OBJ_ENUM, t=0))]]
-        targ = self.plans.values()[0].params[self.targ_list[np.argmax(sample.get(TARG_ENUM, t=0))]]
-        targets = [obj, targ]
-        # targets = get_next_target(self.plans.values()[0], sample.get(STATE_ENUM, t=0), sample.task, self.targets[sample.condition])
-        plan = self.plans[sample.task, targets[0].name]
-        for t in range(sample.T):
-            set_params_attrs(plan.params, plan.state_inds, sample.get(STATE_ENUM, t=t), t)
+    #     for param_name in plan.params:
+    #         param = plan.params[param_name]
+    #         if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
+    #             plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
 
-        for param_name in plan.params:
-            param = plan.params[param_name]
-            if param._type == 'Can' and '{0}_init_target'.format(param_name) in plan.params:
-                plan.params['{0}_init_target'.format(param_name)].value[:,0] = plan.params[param_name].pose[:,0]
+    #     for target in targets:
+    #         if target.name in self.targets[sample.condition]:
+    #             plan.params[target.name].value[:,0] = self.targets[sample.condition][target.name]
 
-        for target in targets:
-            if target.name in self.targets[sample.condition]:
-                plan.params[target.name].value[:,0] = self.targets[sample.condition][target.name]
+    #     plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
+    #     dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
+    #     plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
 
-        plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
-        plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
+    #     return check_constr_violation(plan)
 
-        return check_constr_violation(plan)
 
     def fill_sample(self, sample, state, t, task_ind):
         plan = self.plans[task_ind]
         ee_pose = state[self.state_inds['pr2', 'pose']]
         sample.set(EE_ENUM, ee_pose.copy(), t)
+        sample.set(STATE_ENUM, state, t)
 
         if LIDAR_ENUM in self._hyperparams['obs_include']:
             plan = self.plans.values()[0]
@@ -428,17 +396,167 @@ class NAMOSortingAgent(TAMPAgent):
             lidar = self.dist_obs(plan, 0)
             sample.set(LIDAR_ENUM, lidar.flatten(), t)
 
+
     def get_prim_options(self, cond, state):
+        mp_state = state[self._x_data_idx[STATE_ENUM]]
         outs = {}
-        for enum in self.prim_out_data_types:
-            if enum == utils.TARG_ENUM:
-                out = np.zeros((2, len(self.targ_list)))
-                for i in range(len(self.targ_list)):
-                    out[i] = self.targets[cond].value[:, 0]
-                outs[enum] = out
-            if enum == utils.OBJ_ENUM:
-                out = np.zeros((2, len(self.obj_list)))
-                for i in range(len(self.obj_list)):
-                    out[i] = state[self.state_inds[obj, 'pose']]
-                outs[enum] = out
+        out[TASK_ENUM] = copy.copy(self.task_list)
+        options = get_prim_choices()
+        plan = self.plans.values()[0]
+        for enum in self.prim_dims:
+            if enum == TASK_ENUM: continue
+            out[enum] = []
+            for item in options[enum]:
+                if item in plan.params:
+                    param = plan.params[item]
+                    if param.is_symbol():
+                        if param.name in self.targets[cond]:
+                            out[enum] = self.targets[cond][param.name].copy()
+                        else:
+                            out[enum].append(param.value[:,0].copy())
+                    else:
+                        out[enum].append(mp_state[self.state_inds[item, 'pose']].copy())
+
+            out[enum] = np.array(out[enum])
         return outs
+
+
+    def get_prim_value(self, cond, state, task):
+        mp_state = state[self._x_data_idx[STATE_ENUM]]
+        out = {}
+        out[TASK_ENUM] = self.task_list[task[0]]
+        plan = self.plans[task]
+        options = get_prim_choices()
+        for i in range(1, len(task)):
+            enum = self.prim_dims.keys()[i-1]
+            item = options[enum][task[i]]
+            if item in plan.params:
+                param = plan.params[item]
+                if param.is_symbol():
+                    if param.name in self.targets[cond]:
+                        out[enum] = self.targets[cond][param.name].copy()
+                    else:
+                        out[enum] = param.value[:,0]
+                else:
+                    out[enum] = mp_state[self.state_inds[item, 'pose']]
+
+        return out
+
+
+    def get_prim_index(self, enum, name):
+        prim_options = self.prob.get_prim_choices()
+        return prim_options[enum].index(name)
+
+
+    def get_prim_indices(self, names):
+        task = [self.task_list.index(names[0])]
+        for i in range(1, len(names)):
+            task.append(self.get_prim_index(self.prim_dims.keys()[i-1], names[i]))
+        return tuple(task)
+
+
+    def goal_f(self, condition, state):
+        cost = 0
+        plan = self.plans.values()[0]
+        for param in plan.params.values():
+            if param._type == 'Can':
+                dist = np.sum((X[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
+                cost += dist if dist > 0.01 else 0
+
+        return cost
+
+
+    def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
+        if len(Xs.shape) == 1:
+            Xs = Xs.reshape(1, Xs.shape[0])
+        Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
+        plan = self.plans[task]
+        tol = 1e-3
+        targets = self.targets[condition]
+
+        if len(Xs.shape) == 1:
+            Xs = Xs.reshape(1, -1)
+
+        if active_ts == None:
+            active_ts = (1, plan.horizon-1)
+
+        for t in range(active_ts[0], active_ts[1]+1):
+            set_params_attrs(plan.params, plan.state_inds, Xs[t-active_ts[0]], t)
+
+        for param in plan.params:
+            if plan.params[param]._type == 'Can':
+                plan.params['{0}_init_target'.format(param)].value[:,0] = plan.params[param].pose[:,0]
+                plan.params['{0}_end_target'.format(param)].value[:,0] = targets['{0}_end_target'.format(param)]
+
+        plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
+        plan.params['robot_end_pose'].value[:,0] = plan.params['pr2'].pose[:,-1]
+        plan.params['{0}_init_target'.format(params[0].name)].value[:,0] = plan.params[params[0].name].pose[:,0]
+        plan.params['{0}_end_target'.format(params[0].name)].value[:,0] = targets['{0}_end_target'.format(params[0].name)]
+
+        failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+        if debug:
+            print failed_preds
+
+        cost = 0
+        print plan.actions, failed_preds
+        for failed in failed_preds:
+            for t in range(active_ts[0], active_ts[1]+1):
+                if t + failed[1].active_range[1] > active_ts[1]:
+                    break
+
+                try:
+                    viol = failed[1].check_pred_violation(t, negated=failed[0], tol=tol)
+                    if viol is not None:
+                        cost += np.max(viol)
+                except:
+                    pass
+
+        return cost
+
+
+    def reset_to_sample(self, sample):
+        pass
+
+
+    def reset(self, m):
+        pass
+
+
+    def reset_to_state(self, x):
+        pass
+
+
+    def perturb_solve(self, sample, perturb_var=0.05, inf_f=None):
+        state = sample.get_X(t=0)
+        condition = sample.get(condition)
+        task = sample.task
+        out = self.solve_sample_opt_traj(state, task, condition, traj_mean=sample.get_U(), inf_f=inf_f, mp_var=perturb_var)
+        return out
+
+
+    def sample_optimal_trajectory(self, state, task, condition, opt_traj=[], traj_mean=[]):
+        if not len(opt_traj):
+            return self.solve_sample_opt_traj(state, task, condition, traj_mean)
+
+        exclude_targets = []
+        plan = self.plans[task]
+        act_traj = np.zeros((plan.horizon, self.dU))
+        pr2 = plan.params['pr2']
+        for t in range(plan.horizon-1):
+            act_traj[t, self.action_inds['pr2', 'pose']] = pr2.pose[:,t+1] - pr2.pose[:,t]
+            act_traj[t, self.action_inds['pr2', 'gripper']] = pr2.gripper[:,t+1]
+        act_traj[-1] = act_traj[-2]
+
+        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False,)
+        self.optimal_samples[task].append(sample)
+        sample.set_ref_X(opt_traj)
+        sample.set_ref_U(sample.get_U())
+        return sample
+
+
+    def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
+        targets = get_prim_choices[TARG_ENUM]
+        state = state[self._x_data_idx[STATE_ENUM]]
+        params = self.plans.values()_[0].params
+
+        return hl_plan_for_state(state, targets, plan_id, params, self.state_inds, failed_preds)

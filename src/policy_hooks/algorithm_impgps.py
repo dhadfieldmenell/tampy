@@ -35,9 +35,11 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         self.use_centroids = hyperparams['use_centroids']
 
         policy_prior = hyperparams['policy_prior']
+        mp_policy_prior = hyperparams['mp_policy_prior']
 
         # MDGPS uses a prior per-condition; IMGPS wants one per task as well
         self.policy_prior = policy_prior['type'](policy_prior)
+        self.mp_policy_prior = mp_policy_prior['type'](mp_policy_prior)
 
         AlgorithmMDGPS.__init__(self, config)
 
@@ -48,8 +50,8 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         for opt_s, s_list in optimal_samples:
             all_opt_samples.append(SampleList([opt_s]))
             for s in s_list:
-                s.set_ref_X(opt_s.get(STATE_ENUM))
-                s.set_ref_U(opt_s.get_U())
+                s.set_ref_X(opt_s.get_ref_X())
+                s.set_ref_U(opt_s.get_ref_U())
             sample_lists.append(s_list)
             all_samples.extend(s_list)
 
@@ -58,6 +60,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
         print 'Algorithm for {0} updating on {1} rollouts'.format(self.task, len(all_opt_samples))
         self._update_prior(self.policy_prior, SampleList(all_samples))
+        self._update_prior(self.mp_policy_prior, SampleList(all_samples))
 
         if self.traj_centers >= len(sample_lists[0]):
             for m in range(len(self.cur)):

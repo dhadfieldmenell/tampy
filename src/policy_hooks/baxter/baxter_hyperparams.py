@@ -33,6 +33,7 @@ from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
+from policy_hooks.baxter.folding_motion_plan_server import FoldingMotionPlanServer
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
@@ -75,7 +76,7 @@ algorithm = {
     'sample_ts_prob': 1.0,
     'opt_wt': 1e1,
     'fail_value': 5,
-    'n_traj_centers': 1,
+    'n_traj_centers': 2,
     'use_centroids': True
 }
 
@@ -149,6 +150,13 @@ algorithm['traj_opt'] = {
 # }
 
 algorithm['policy_prior'] = {
+    'type': PolicyPriorGMM,
+    'max_clusters': 20,
+    'min_samples_per_cluster': 40,
+    'max_samples': 50,
+}
+
+algorithm['mp_policy_prior'] = {
     'type': PolicyMPPriorGMM,
     'max_clusters': 20,
     'min_samples_per_cluster': 40,
@@ -162,7 +170,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 10,
+    'num_samples': 20,
     'num_distilled_samples': 5,
     'num_conds': NUM_CONDS,
     'mode': 'add',
@@ -186,6 +194,7 @@ config = {
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
     'pretrain_traj_opt_steps': NUM_PRETRAIN_TRAJ_OPT_STEPS,
+    'on_policy': True,
 
     # New for multiprocess, transfer to sequential version as well.
 
@@ -204,7 +213,7 @@ config = {
     'num_objs': NUM_OBJS,
     'attr_map': ATTRMAP,
     'agent_type': BaxterMJCFoldingAgent,
-    'opt_server_type': RobotLLSolver,
+    'opt_server_type': FoldingMotionPlanServer,
     'update_size': 5e3,
     'use_local': True,
     'n_dirs': 16,
@@ -212,7 +221,7 @@ config = {
     'perturb_steps': 3,
     'mcts_early_stop_prob': 0.5,
     'hl_timeout': HL_TIMEOUT,
-    'multi_polciy': True,
+    'multi_policy': False,
     'image_width': IM_W,
     'image_height': IM_H,
     'image_channels': 3,

@@ -3,10 +3,6 @@
           PROB_ID
           TASK-VAL
           TASK
-          OBJECT-VAL
-          OBJECT
-          TARGET-VAL
-          TARGET
           STATE-VAL
           STATE
 ))

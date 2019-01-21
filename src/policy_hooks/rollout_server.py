@@ -241,6 +241,8 @@ class RolloutServer(object):
         else:
             samples = []
 
+        for s in samples:
+            s.set_ref_X(sample.get_ref_X())
         self.opt_samples[sample.task].append((sample, samples))
         while len(self.opt_samples[sample.task]) > self.max_opt_sample_queue:
             del self.opt_samples[sample.task][0]
@@ -259,7 +261,7 @@ class RolloutServer(object):
 
 
     def choose_mp_problems(self, samples):
-        Xs = samples.get_X()
+        Xs = samples.get_X()[:,:,self.agent._x_data_idx[STATE_ENUM]]
         flat_Xs = Xs.reshape((Xs.shape[0], np.prod(Xs.shape[1:])))
         centroids, labels = kmeans(flat_Xs, k=self.traj_centers, minit='points')
         probs = []
@@ -282,7 +284,7 @@ class RolloutServer(object):
 
     def send_mp_problem(self, centroid, s_list):
         next_sample = s_list[0]
-        state = next_sample.get(STATE_ENUM, t=0)
+        state = next_sample.get_X(t=0)
         task = next_sample.task
         cond = next_sample.condition
         traj_mean = []
@@ -300,10 +302,10 @@ class RolloutServer(object):
         prob.server_id = self.id
         self.store_for_opt(s_list)
 
-        if self.alg_map[sample.task_name].policy_prior.gmm.sigma is None:
+        if self.alg_map[next_sample.task_name].policy_prior.gmm.sigma is None:
             prob.use_prior = False
         else:
-            gmm = self.alg_map[sample.task_name].policy_prior.gmm
+            gmm = self.alg_map[next_sample.task_name].mp_policy_prior.gmm
             prob.use_prior = True
             prob.mu = gmm.mu.flatten()
             prob.sigma = gmm.sigma.flatten()
@@ -334,7 +336,7 @@ class RolloutServer(object):
                 prob.cond = mcts.condition
                 gmms = {}
                 for task in self.task_list:
-                    gmm = self.alg_map[task].policy_prior.gmm
+                    gmm = self.alg_map[task].mp_policy_prior.gmm
                     if gmm.sigma is None: continue
                     gmms[task] = {}
                     gmms[task]['mu'] = gmm.mu.flatten()

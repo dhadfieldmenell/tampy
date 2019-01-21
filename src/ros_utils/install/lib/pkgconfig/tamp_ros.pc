@@ -1,8 +1,8 @@
-prefix=/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install
+prefix=/home/michaelmcdonald/tampy/src/ros_utils/install
 
 Name: tamp_ros
 Description: Description of tamp_ros
 Version: 0.0.0
-Cflags: -I/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/include
-Libs: -L/home/michaelmcdonald/dependencies/tampy/src/ros_utils/install/lib 
+Cflags: -I/home/michaelmcdonald/tampy/src/ros_utils/install/include
+Libs: -L/home/michaelmcdonald/tampy/src/ros_utils/install/lib 
 Requires: message_runtime roscpp rospy std_msgs

@@ -8,3 +8,6 @@ src/experiments/
 src/tf_saved/
 src/temp/*
 !src/temp/.gitkeep
+src/ros_utils/devel/*
+src/ros_utils/install/*
+src/ros_utils/build/*

@@ -7,6 +7,7 @@ file(REMOVE_RECURSE
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PlanResult.h"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/HLProblem.h"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/MotionPlanResult.h"
+  "/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyPriorUpdate.h"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/QValue.h"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyAct.h"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyProb.h"

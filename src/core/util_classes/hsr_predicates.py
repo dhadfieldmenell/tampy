@@ -6,6 +6,7 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import ctrajoptpy
 from collections import OrderedDict
 from openravepy import DOFAffine, Environment, quatRotateDirection, matrixFromQuat
+from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle, CollisionReport, RaveCreateCollisionChecker
 import numpy as np
 import core.util_classes.hsr_constants as const
 from core.util_classes.items import Box, Can, Sphere
@@ -46,6 +47,36 @@ ATTRMAP = {"Robot": (("arm", np.array(range(5), dtype=np.int)),
            "Region": [("value", np.array([0,1], dtype=np.int))]
           }
 
+def lin_interp_traj(start, end, time_steps):
+    """
+    This helper function returns a linear trajectory from start pose to end pose
+    """
+    assert start.shape == end.shape
+    if time_steps == 0:
+        assert np.allclose(start, end)
+        return start.copy()
+    rows = start.shape[0]
+    traj = np.zeros((rows, time_steps+1))
+
+    for i in range(rows):
+        traj_row = np.linspace(start[i], end[i], num=time_steps+1)
+        traj[i, :] = traj_row
+    return traj
+
+def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
+    # param_attr_inds = []
+    if param.is_symbol():
+        t = 0
+    for attr_name, val in attr_name_val_tuples:
+        inds = np.where(param._free_attrs[attr_name][:, t])[0]
+        getattr(param, attr_name)[inds, t] = val[inds]
+        if param in attr_inds:
+            res[param].extend(val[inds].flatten().tolist())
+            attr_inds[param].append((attr_name, inds, t))
+        else:
+            res[param] = val[inds].flatten().tolist()
+            attr_inds[param] = [(attr_name, inds, t)]
+            
 """
     Movement Constraints Family
 """
@@ -54,6 +85,9 @@ class HSRAt(robot_predicates.At):
     pass
 
 class HSRClothAt(robot_predicates.At):
+    pass
+
+class HSRCanAt(robot_predicates.At):
     pass
 
 class HSRClothAtPose(robot_predicates.AtPose):
@@ -68,6 +102,37 @@ class HSRRobotAt(robot_predicates.RobotAt):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(HSRRobotAt, self).__init__(name, params, expected_param_types, env)
+
+class HSRStacked(robot_predicates.ExprPredicate):
+
+    # Stacked, Bottom, Top
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_dim = 12
+        self.bottom_can = params[0]
+        self.top_can = params[1]
+        A = np.r_[np.c_[np.eye(3), np.zeros((3,3)), -np.eye(3), np.zeros((3,3))], 
+                  np.c_[np.zeros((3,3)), np.eye(3), np.zeros((3,6))], 
+                  np.c_[np.zeros((3,9)), np.eye(3)]]
+
+        b = np.zeros((self.attr_dim/2,1))
+        val = np.array([[0], [0], [self.bottom_can.geom.height /2 + self.top_can.geom.height / 2], [0], [0], [0], [0], [0]. [0]])
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(HSRStacked, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
+
+class HSRCansStacked(HSRStacked):
+    pass
+
+class HSRTargetOnTable(HSRStacked):
+    pass
+
+class HSRTargetsStacked(HSRStacked):
+    pass
+
+class HSRTargetCanStacked(HSRStacked):
+    pass
 
 class HSRIsMP(robot_predicates.IsMP):
 
@@ -140,6 +205,11 @@ class HSRStationaryCloth(robot_predicates.Stationary):
 class HSRStationaryNeqCloth(robot_predicates.StationaryNEq):
     pass
 
+class HSRStationaryCan(robot_predicates.Stationary):
+    pass
+
+class HSRStationaryNeqCan(robot_predicates.StationaryNEq):
+    pass
 
 class HSRStationaryWasher(robot_predicates.StationaryBase):
 
@@ -168,9 +238,9 @@ class HSRStationaryBase(robot_predicates.StationaryBase):
         self.attr_dim = const.BASE_DIM
         super(HSRStationaryBase, self).__init__(name, params, expected_param_types, env)
 
-class HSRStationaryArms(robot_predicates.StationaryArms):
+class HSRStationaryArm(robot_predicates.StationaryArms):
 
-    # StationaryArms, Robot (Only Robot Arms)
+    # StationaryArm, Robot (Only Robot Arms)
 
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
@@ -190,11 +260,11 @@ class HSRStationaryNEq(robot_predicates.StationaryNEq):
 class HSRGraspValid(robot_predicates.GraspValid):
     pass
 
-class HSRGraspValid(HSRGraspValid):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]),(params[1], [ATTRMAP[params[1]._type][0]])])
-        self.attr_dim = 3
-        super(HSRGraspValid, self).__init__(name, params, expected_param_types, env, debug)
+# class HSRGraspValid(HSRGraspValid):
+#     def __init__(self, name, params, expected_param_types, env=None, debug=False):
+#         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]),(params[1], [ATTRMAP[params[1]._type][0]])])
+#         self.attr_dim = 3
+#         super(HSRGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
 
 class HSREEGraspValid(robot_predicates.EEGraspValid):
@@ -329,7 +399,7 @@ class HSRObstructs(robot_predicates.Obstructs):
         robot_body.set_pose([x[6], x[7], 0])
         robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
 
-class HSRObstructsCloth(HSRObstructs):
+class HSRObstructsCan(HSRObstructs):
     pass
 
 class HSRObstructsWasher(HSRObstructs):
@@ -509,7 +579,7 @@ class HSRObstructsHolding(robot_predicates.ObstructsHolding):
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
-        self.attr_dim = 11
+        self.attr_dim = 8
         self.dof_cache = None
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
@@ -530,7 +600,7 @@ class HSRObstructsHolding(robot_predicates.ObstructsHolding):
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
-class HSRObstructsHoldingCloth(HSRObstructsHolding):
+class HSRObstructsHoldingCan(HSRObstructsHolding):
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
         robot_body.set_pose([x[6],x[7],base_pose])
@@ -542,7 +612,7 @@ class HSRObstructsHoldingCloth(HSRObstructsHolding):
 
 class HSRCollides(robot_predicates.Collides):
 
-    # Collides Basket Obstacle
+    # Collides Item Obstacle
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.coeff = -const.COLLIDE_COEFF
@@ -555,7 +625,7 @@ class HSRRCollides(robot_predicates.RCollides):
     # RCollides Robot Obstacle
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_dim = 11
+        self.attr_dim = 8
         self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
@@ -580,12 +650,94 @@ class HSRRCollides(robot_predicates.RCollides):
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
+    def resample_rcollides(self, negated, t, plan):
+        # Variable that needs to added to BoundExpr and latter pass to the planner
+        JOINT_STEP = 20
+        STEP_DECREASE_FACTOR = 1.5
+        ATTEMPT_SIZE = 7
+        LIN_SAMP_RANGE = 5
+
+        attr_inds = OrderedDict()
+        res = OrderedDict()
+        robot, rave_body = self.robot, self._param_to_body[self.robot]
+        body = rave_body.env_body
+        manip = body.GetManipulator("right_arm")
+        arm_inds = manip.GetArmIndices()
+        lb_limit, ub_limit = body.GetDOFLimits()
+        step_factor = JOINT_STEP
+        joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/ step_factor
+        base_step = np.array([0.05, 0.05])
+        if self.obstacle.pose[0] > self.robot.pose[0]:
+            base_step[0] *= -1
+        if self.obstacle.pose[1] > self.robot.pose[1]:
+            base_step[1] *= -1
+        original_arm_pose, arm_pose = robot.arm[:, t].copy(), robot.arm[:, t].copy()
+        original_pose, pose = robot.pose[:,t].copy(), robot.pose[:,t].copy()
+        rave_body.set_pose([pose[0], pose[1], 0])
+        rave_body.set_dof({"arm": robot.arm[:, t].flatten(),
+                           "gripper": robot.gripper[:, t].flatten(),})
+
+        ## Determine the range we should resample
+        pred_list = [act_pred['active_timesteps'] for act_pred in plan.actions[0].preds if act_pred['pred'].spacial_anchor == True]
+        start, end = 0, plan.horizon-1
+        for action in plan.actions:
+            if action.active_timesteps[0] <= t and action.active_timesteps[1] > t:
+                for act_pred in plan.actions[0].preds:
+                    if act_pred['pred'].spacial_anchor == True:
+                        if act_pred['active_timesteps'][0] + act_pred['pred'].active_range[0] > t:
+                            end = min(end, act_pred['active_timesteps'][0] + act_pred['pred'].active_range[0])
+                        if act_pred['active_timesteps'][1] + act_pred['pred'].active_range[1] < t:
+                            start = max(start, act_pred['active_timesteps'][1] + act_pred['pred'].active_range[1])
+
+        desired_end_pose = robot.arm[:, end]
+        current_end_pose = robot.arm[:, t]
+        col_report = CollisionReport()
+        collisionChecker = RaveCreateCollisionChecker(plan.env,'pqp')
+        count = 1
+        while (body.CheckSelfCollision() or
+               collisionChecker.CheckCollision(body, report=col_report) or
+               col_report.minDistance <= pred.dsafe):
+            step_sign = np.ones(len(arm_inds))
+            step_sign[np.random.choice(len(arm_inds), len(arm_inds)/2, replace=False)] = -1
+            # Ask in collision pose to randomly move a step, hopefully out of collision
+            arm_pose = original_arm_pose + np.multiply(step_sign, joint_step)
+            pose = original_pose + base_step
+            rave_body.set_dof({"arm": arm_pose})
+            rave_body.set_pose([pose[0], pose[1], 0])
+            # arm_pose = body.GetActiveDOFValues()[arm_inds]
+            if not count % ATTEMPT_SIZE:
+                step_factor = step_factor/STEP_DECREASE_FACTOR
+                joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/ step_factor
+            count += 1
+
+            if count > 25:
+                return None, None
+
+        add_to_attr_inds_and_res(t, attr_inds, res, robot,[('arm', arm_pose), ('pose', pose)])
+        robot._free_attrs['rArmPose'][:, t] = 0
+
+
+        start, end = max(start, t-LIN_SAMP_RANGE), min(t+LIN_SAMP_RANGE, end)
+        rcollides_traj = np.hstack([lin_interp_traj(robot.arm[:, start], arm_pose, t-start), lin_interp_traj(arm_pose, robot.arm[:, end], end - t)[:, 1:]]).T
+        base_rcollides_traj = np.hstack([lin_interp_traj(robot.pose[:, start], pose, t-start), lin_interp_traj(pose, robot.pose[:, end], end - t)[:, 1:]]).T
+        i = start + 1
+        for traj in rcollides_traj[1:-1]:
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('arm', traj)])
+            i +=1
+        i = start + 1
+        for traj in base_rcollides_traj[1:-1]:
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('pose', traj)])
+            i +=1
+
+
+        return np.array(res), attr_inds
+
 class HSRRSelfCollides(robot_predicates.RSelfCollides):
 
     # RCollides Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_dim = 17
+        self.attr_dim = 8
         self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
         self.coeff = -const.RCOLLIDE_COEFF
@@ -615,7 +767,7 @@ class HSRCollidesWasher(HSRRCollides):
     This collision checks the full mock-up as a set of its individual parts
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_dim = 11
+        self.attr_dim = 8
         self.dof_cache = None
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
@@ -837,17 +989,7 @@ class HSREEReachable(robot_predicates.EEReachable):
 
         return grad
 
-class HSREEReachableLeftInv(HSREEReachable):
-
-    # HSREEReachableLeftInv Robot, StartPose, EEPose
-
-    def get_rel_pt(self, rel_step):
-        if rel_step <= 0:
-            return rel_step*np.array([0, 0, -const.RETREAT_DIST])
-        else:
-            return rel_step*np.array([-const.APPROACH_DIST, 0, 0])
-
-class HSREEReachableLeftVer(HSREEReachableLeft):
+class HSREEReachableVer(HSREEReachable):
 
     # HSREEReachableVerLeftPos Robot, RobotPose, EEPose
 
@@ -856,6 +998,16 @@ class HSREEReachableLeftVer(HSREEReachableLeft):
             return rel_step*np.array([const.APPROACH_DIST, 0, 0])
         else:
             return rel_step*np.array([-const.RETREAT_DIST, 0, 0])
+
+class HSREEReachableHor(HSREEReachable):
+
+    # HSREEReachableVerLeftPos Robot, RobotPose, EEPose
+
+    def get_rel_pt(self, rel_step):
+        if rel_step <= 0:
+            return rel_step*np.array([, 0, -const.APPROACH_DIST])
+        else:
+            return rel_step*np.array([0, 0, const.RETREAT_DIST])
 
 """
     InGripper Constraint Family
@@ -894,6 +1046,9 @@ class HSRInGripper(robot_predicates.InGripper):
 
     def stacked_grad(self, x):
         return np.vstack([self.coeff * self.pos_check_jac(x)])
+
+class HSRCanInGripper(HSRInGripper):
+    pass
 
 class HSRGripperAt(robot_predicates.GripperAt):
 

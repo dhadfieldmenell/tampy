@@ -13,19 +13,10 @@ from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 
-possible_can_locs = [(0, 60), (0, 50), (0, 45), (0, 40), (0, 35)]
-possible_can_locs.extend(list(itertools.product(range(-65, 65), range(-45, 25))))
-for i in range(-25, 25):
-    for j in range(-10, 10):
-        if (i, j) in possible_can_locs:
-            possible_can_locs.remove((i, j))
-for i in range(len(possible_can_locs)):
-    loc = list(possible_can_locs[i])
-    loc[0] *= 0.1
-    loc[1] *= 0.1
-    possible_can_locs[i] = tuple(loc)
 
-prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob"
+NUM_OBJS = 10
+
+prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
 domain_file = "../domains/namo_domain/namo.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_2"
 pddl_file = "../domains/namo_domain/sorting_domain_2.pddl"
@@ -41,6 +32,96 @@ END_TARGETS = [(0., 6.),
            (-4., -2.),
            (-2., -2.)]
 
+possible_can_locs = [(0, 60), (0, 50), (0, 45), (0, 40), (0, 35)]
+possible_can_locs.extend(list(itertools.product(range(-65, 65), range(-45, 25))))
+for i in range(-25, 25):
+    for j in range(-10, 10):
+        if (i, j) in possible_can_locs:
+            possible_can_locs.remove((i, j))
+for i in range(len(possible_can_locs)):
+    loc = list(possible_can_locs[i])
+    loc[0] *= 0.1
+    loc[1] *= 0.1
+    possible_can_locs[i] = tuple(loc)
+
+
+def get_prim_choices():
+    out = OrderedDict({})
+    out[utils.TASK_ENUM] = get_tasks(mapping_file).keys()
+    out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
+    out[utils.TARG_ENUM] = ['middle_target', 
+                            'left_target_1', 
+                            'left_target_2', 
+                            'right_target_1',
+                            'right_target_2'] + ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
+    return out
+
+
+def get_vector(config):
+    state_vector_include = {
+        'pr2': ['pose', 'gripper'] ,
+    }
+    for i in rangR(NUM_OBJS):
+        state_vector_include['can{0}'.format(i)] = ['pose']
+
+    action_vector_include = {
+        'pr2': ['pose', 'gripper']
+    }
+
+    target_vector_include = {
+        'can{0}_end_target': ['value'] for i in range(NUM_OBJS)
+    }
+
+
+    return state_vector_include, action_vector_include, target_vector_include
+
+def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
+    # Information is track by the environment
+    x0s = []
+    for i in range(conditions):
+        x0 = np.zeros((dX,))
+        can_locs = copy.deepcopy(END_TARGETS)
+        random.shuffle(can_locs)
+        can_locs = can_locs[:NUM_OBJS]
+        for i in range(NUM_OBJS):
+            x0[state_inds['can{0}'.format(i), 'pose']] = can_locs[i]
+        x0s.append(x0)
+    return x0s
+
+def parse_hl_plan(hl_plan):
+    plan = []
+    for i in range(len(hl_plan)):
+        action = hl_plan[i]
+        act_params = action.split()
+        task = act_params[1].lower()
+        next_params = [p.lower() for p in act_params[2:]]
+        plan.append((task, next_params))
+    return plan
+
+def get_plans():
+    tasks = get_tasks(mapping_file)
+    prim_options = get_prim_choices()
+    plans = {}
+    openrave_bodies = {}
+    env = None
+    for task in tasks:
+        next_task_str = copy.deepcopy(tasks[task])
+        plan = plan_from_str(next_task_str, prob_file, domain_file, env, openrave_bodies)
+
+        for i in range(len(prim_options[utils.OBJ_ENUM])):
+            for j in range(len(prim_options[utils.TARG_ENUM])):
+                plans[(tasks.keys().index(task), i, j)] = plan
+        if env is None:
+            env = plan.env
+            for param in plan.params.values():
+                if not param.is_symbol() and param.openrave_body is not None:
+                    openrave_bodies[param.name] = param.openrave_body
+    return plans, openrave_bodies, env
+
+
+
+# CODE FROM OLDER VERSION OF PROB FILE BELOW THIS
+
 def get_end_targets(num_cans):
     target_map = {}
     for n in range(num_cans):
@@ -52,40 +133,6 @@ def get_end_targets(num_cans):
     target_map['right_target_2'] = np.array([2., 0.])
     return target_map
 
-def get_random_initial_state_vec(num_cans, targets, dX, state_inds, num_vecs=1):
-    Xs = np.zeros((num_vecs, dX), dtype='float32')
-    keep = False
-
-    for i in range(num_vecs):
-        if True: # not i % 2:
-            can_locs = copy.deepcopy(END_TARGETS)
-            random.shuffle(can_locs)
-            can_locs = can_locs[:num_cans]
-        else:
-            can_locs = get_random_initial_can_locations(num_cans)
-        # if i == max(num_vecs-1, 3):
-        #     can_locs[0] = (0, 5)
-        #     can_locs[1] = (0, 6)
-        #     for j in range(2, num_cans):
-        #         while tuple(can_locs[j]) == (0, 5) or tuple(can_locs[j]) == (0, 6):
-        #             can_locs[j:] = get_random_initial_can_locations(num_cans-j)
-
-        # while not keep:
-        #     can_locs = get_random_initial_can_locations(num_cans)
-        #     for i in range(num_cans):
-        #         if can_locs[i][0] != targets['can{0}_end_target'.format(i)][0] or can_locs[i][1] != targets['can{0}_end_target'.format(i)][1]:
-        #             keep = True
-
-        # robot_loc = np.array(random.choice(itertools.product(range(-3, 3), range(-3, 1))))
-
-        for n in range(num_cans):
-            Xs[i, state_inds['can{0}'.format(n), 'pose']] = can_locs[n]
-            # Xs[i, state_inds['can{0}_init_target'.format(n), 'value']] = Xs[i, state_inds['can{0}'.format(n), 'pose']]
-
-        # for target in targets[i]:
-        #     Xs[i, state_inds[target, 'value']] = targets[i][target]
-
-    return [np.array(X) for X in Xs.tolist()]
 
 def get_sorting_problem(can_locs, targets, pr2, grasp, failed_preds=[]):
     hl_plan_str = "(define (problem sorting_problem)\n"
@@ -273,41 +320,6 @@ def get_plan(num_cans):
     plan.task_breaks = task_timesteps
     return plan, task_timesteps, goal_state
 
-def get_target_state_vector(state_inds, goal_state, dX):
-    state = np.zeros((dX, ))
-    weights = np.zeros((dX, ))
-    preds = goal_state.split('(')[3:-1]
-    for i in range(len(preds)):
-        preds[i] = preds[i].split()
-        preds[i][-1] = preds[i][-1][:-1]
-
-        if preds[i][0] == "CanAtBlueTarget":
-            target = preds[i][2]
-            state[state_inds[(preds[i][1], 'pose')]] = targets['blue_target']
-            weights[state_inds[(preds[i][1], 'pose')]] = 1.0
-        if preds[i][0] == "CanAtGreenTarget":
-            target = preds[i][2]
-            state[state_inds[(preds[i][1], 'pose')]] = targets['green_target']
-            weights[state_inds[(preds[i][1], 'pose')]] = 1.0
-        if preds[i][0] == "CanAtYellowTarget":
-            target = preds[i][2]
-            state[state_inds[(preds[i][1], 'pose')]] = targets['yellow_target']
-            weights[state_inds[(preds[i][1], 'pose')]] = 1.0
-        if preds[i][0] == "CanAtWhiteTarget":
-            target = preds[i][2]
-            state[state_inds[(preds[i][1], 'pose')]] = targets['white_target']
-            weights[state_inds[(preds[i][1], 'pose')]] = 1.0
-    return state, weights
-
-# def get_task_durations():
-#     tasks = get_tasks('policy_hooks/sorting_task_mapping')
-#     durations = []
-#     for task in tasks:
-#         for i in range(len(task)):
-#             task[i].format('can0', 'blue_target', 'left_region', 0)
-#         plan = plan_from_str(task[i])
-#         durations.append(plan.horizon-1)
-#     return durations
 
 def fill_random_initial_configuration(plan):
     for param in plan.params:
@@ -368,108 +380,6 @@ def sorting_state_encode(state, plan, targets, task=(None, None, None)):
 
     return tuple(hl_state)
 
-def get_next_target(plan, state, task, target_poses, sample_traj=[], exclude=[]):
-    state = np.array(state)
-    robot_pose = state[plan.state_inds['pr2', 'pose']]
-    if task == 'grasp':
-
-        if len(sample_traj):
-            robot_end_pose = sample_traj[-1, plan.state_inds['pr2', 'pose']]
-            closest_dist = np.inf
-            closest_can = None
-            for param in plan.params.values():
-
-                if param._type != 'Can' or param.name in exclude: continue
-                param_pose = state[plan.state_inds[param.name, 'pose']]
-                target = target_poses['{0}_end_target'.format(param.name)]
-
-                if np.sum((param_pose - target)**2) > 0.01 and np.sum((param_pose - robot_end_pose)**2) < closest_dist:
-                    closest_dist = np.sum((param_pose - robot_end_pose)**2)
-                    closest_can = param
-
-            if closest_can is None:
-                return None, None
-
-            return closest_can, plan.params['{0}_end_target'.format(closest_can.name)]
-
-        for param in plan.params.values():
-            if param._type != 'Can' or param.name in exclude: continue
-            param_pose = state[plan.state_inds[param.name, 'pose']]
-            if np.sum((param_pose - target_poses['{0}_end_target'.format(param.name)])**2) > 0.01:
-                return param, plan.params['{0}_end_target'.format(param.name)]
-
-        import ipdb; ipdb.set_trace()
-    
-    if task == 'putdown':
-        target_occupied = False
-        middle_occupied = False
-        left_occupied = False
-        right_occupied = False
-
-        if len(sample_traj):
-            robot_init_pose = sample_traj[0, plan.state_inds['pr2', 'pose']]
-            robot_end_pose = sample_traj[-1, plan.state_inds['pr2', 'pose']]
-            closest_dist = np.inf
-            closest_can = None
-
-            for param in plan.params.values():
-
-                if param._type != 'Can' or param.name in exclude: continue
-                param_pose = state[plan.state_inds[param.name, 'pose']]
-
-                if np.sum((param_pose - robot_end_pose)**2) < closest_dist and \
-                   np.sum((param_pose - robot_init_pose) ** 2) < 1.:
-                    closest_dist = np.sum((param_pose - robot_end_pose)**2)
-                    closest_can = param
-
-            if closest_can is not None:
-                for param_2 in plan.params.values():
-                    if param_2._type != 'Can': continue
- 
-                    param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
-                    if param_2.name != param.name:
-                        param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
-                        taget_occupied = target_occupied or np.sum((param_2_pose - plan.params['can{0}_end_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
- 
-                    middle_occupied = middle_occupied or np.sum((param_2_pose - plan.params['middle_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
-                    left_occupied = left_occupied or np.sum((param_2_pose - plan.params['left_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
-                    right_occupied = right_occupied or np.sum((param_2_pose - plan.params['right_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
- 
-                if target_occupied:
-                    if not middle_occupied: return closest_can, plan.params['middle_target']
-                    if not left_occupied: return closest_can, plan.params['left_target']
-                    if not right_occupied: return closest_can, plan.params['right_target']
-                    return None, None
-                else:
-                    return closest_can, plan.params['{0}_end_target'.format(closest_can.name)]
-
-        for param in plan.params.values():
-            if param._type != 'Can' or param.name in exclude: continue
-            param_pose = state[plan.state_inds[param.name, 'pose']]
- 
-            if np.all(np.abs(param_pose-robot_pose-[0, param.geom.radius+plan.params['pr2'].geom.radius+dsafe]) < 0.7):
-                for param_2 in plan.params.values():
-                    if param_2._type != 'Can': continue
- 
-                    param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
-                    if param_2.name != param.name:
-                        param_2_pose = state[plan.state_inds[param_2.name, 'pose']]
-                        taget_occupied = target_occupied or np.sum((param_2_pose - plan.params['can{0}_end_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
- 
-                    middle_occupied = middle_occupied or np.sum((param_2_pose - plan.params['middle_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
-                    left_occupied = left_occupied or np.sum((param_2_pose - plan.params['left_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
-                    right_occupied = right_occupied or np.sum((param_2_pose - plan.params['right_target'.format(param.name[-1])].value[:,0])**2) < param_2.geom.radius**2
- 
-                if target_occupied:
-                    if not middle_occupied: return param, plan.params['middle_target']
-                    if not left_occupied: return param, plan.params['left_target']
-                    if not right_occupied: return param, plan.params['right_target']
-                    continue
-                else:
-                    return param, plan.params['can{0}_end_target'.format(param.name[-1])]
-
-    return None, None
-
 def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
     tasks = get_tasks(mapping_file)
     next_task_str = copy.deepcopy(tasks[task])
@@ -477,69 +387,3 @@ def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
         next_task_str[j]= next_task_str[j].format(*targets)
 
     return plan_from_str(next_task_str, prob_file.format(num_cans), domain_file, env, openrave_bodies)
-
-def cost_f(Xs, task, params, targets, plan, active_ts=None, debug=False):
-    tol = 1e-3
-
-    if len(Xs.shape) == 1:
-        Xs = Xs.reshape(1, -1)
-
-    if active_ts == None:
-        active_ts = (1, plan.horizon-1)
-
-    for t in range(active_ts[0], active_ts[1]+1):
-        set_params_attrs(plan.params, plan.state_inds, Xs[t], t)
-
-    for param in plan.params:
-        if plan.params[param]._type == 'Can':
-            plan.params['{0}_init_target'.format(param)].value[:,0] = plan.params[param].pose[:,0]
-            plan.params['{0}_end_target'.format(param)].value[:,0] = targets['{0}_end_target'.format(param)]
-
-    plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-    plan.params['robot_end_pose'].value[:,0] = plan.params['pr2'].pose[:,-1]
-    plan.params['{0}_init_target'.format(params[0].name)].value[:,0] = plan.params[params[0].name].pose[:,0]
-    plan.params['{0}_end_target'.format(params[0].name)].value[:,0] = targets['{0}_end_target'.format(params[0].name)]
-
-    failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
-    if debug:
-        print failed_preds
-
-    cost = 0
-    for failed in failed_preds:
-        for t in range(active_ts[0], active_ts[1]+1):
-            if t + failed[1].active_range[1] > active_ts[1]:
-                break
-
-            try:
-                viol = failed[1].check_pred_violation(t, negated=failed[0], tol=tol)
-                if viol is not None:
-                    cost += np.max(viol)
-            except:
-                pass
-
-    return cost
-    
-    # Below this was an old approach
-    if task.lower() == 'putdown':
-        X = Xs[-1]
-        can = params[0]
-        target = params[1]
-        dist = np.sum((X[plan.state_inds[can.name, 'pose']] - targets[target.name])**2)
-        if dist < 0.001: return 0
-        return dist
-    
-    if task.lower() == 'grasp':
-        X = Xs[-1]
-        can = params[0]
-        dist = np.sum((X[plan.state_inds[can.name, 'pose']] - plan.params['pr2'].pose[:,-1])**2)
-        if dist < 0.001: return 0
-        return dist
-
-def goal_f(X, targets, plan):
-    cost = 0
-    for param in plan.params.values():
-        if param._type == 'Can':
-            dist = np.sum((X[plan.state_inds[param.name, 'pose']] - targets['{0}_end_target'.format(param.name)])**2)
-            cost += dist if dist > 0.01 else 0
-
-    return cost

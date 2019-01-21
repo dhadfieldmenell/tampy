@@ -60,6 +60,7 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PlanResult.h
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/HLProblem.h
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/MotionPlanResult.h
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyPriorUpdate.h
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/QValue.h
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyAct.h
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyProb.h
@@ -122,18 +123,24 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating C++ code from tamp_ros/MotionPlanResult.msg"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros && /home/michaelmcdonald/tampy/src/ros_utils/build/catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros -e /opt/ros/kinetic/share/gencpp/cmake/..
 
+/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyPriorUpdate.h: /opt/ros/kinetic/lib/gencpp/gen_cpp.py
+/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyPriorUpdate.h: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg
+/home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyPriorUpdate.h: /opt/ros/kinetic/share/gencpp/msg.h.template
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating C++ code from tamp_ros/PolicyPriorUpdate.msg"
+	cd /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros && /home/michaelmcdonald/tampy/src/ros_utils/build/catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros -e /opt/ros/kinetic/share/gencpp/cmake/..
+
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/QValue.h: /opt/ros/kinetic/lib/gencpp/gen_cpp.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/QValue.h: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/QValue.h: /opt/ros/kinetic/share/gencpp/msg.h.template
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/QValue.h: /opt/ros/kinetic/share/gencpp/srv.h.template
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating C++ code from tamp_ros/QValue.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating C++ code from tamp_ros/QValue.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros && /home/michaelmcdonald/tampy/src/ros_utils/build/catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros -e /opt/ros/kinetic/share/gencpp/cmake/..
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyAct.h: /opt/ros/kinetic/lib/gencpp/gen_cpp.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyAct.h: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyAct.h: /opt/ros/kinetic/share/gencpp/msg.h.template
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyAct.h: /opt/ros/kinetic/share/gencpp/srv.h.template
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating C++ code from tamp_ros/PolicyAct.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating C++ code from tamp_ros/PolicyAct.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros && /home/michaelmcdonald/tampy/src/ros_utils/build/catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros -e /opt/ros/kinetic/share/gencpp/cmake/..
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyProb.h: /opt/ros/kinetic/lib/gencpp/gen_cpp.py
@@ -143,14 +150,14 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyProb.h: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayLayout.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyProb.h: /opt/ros/kinetic/share/gencpp/msg.h.template
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyProb.h: /opt/ros/kinetic/share/gencpp/srv.h.template
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating C++ code from tamp_ros/PolicyProb.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating C++ code from tamp_ros/PolicyProb.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros && /home/michaelmcdonald/tampy/src/ros_utils/build/catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros -e /opt/ros/kinetic/share/gencpp/cmake/..
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/Primitive.h: /opt/ros/kinetic/lib/gencpp/gen_cpp.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/Primitive.h: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/Primitive.h: /opt/ros/kinetic/share/gencpp/msg.h.template
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/Primitive.h: /opt/ros/kinetic/share/gencpp/srv.h.template
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating C++ code from tamp_ros/Primitive.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating C++ code from tamp_ros/Primitive.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros && /home/michaelmcdonald/tampy/src/ros_utils/build/catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros -e /opt/ros/kinetic/share/gencpp/cmake/..
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/MotionPlan.h: /opt/ros/kinetic/lib/gencpp/gen_cpp.py
@@ -160,7 +167,7 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/MotionPlan.h: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayLayout.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/MotionPlan.h: /opt/ros/kinetic/share/gencpp/msg.h.template
 /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/MotionPlan.h: /opt/ros/kinetic/share/gencpp/srv.h.template
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating C++ code from tamp_ros/MotionPlan.srv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Generating C++ code from tamp_ros/MotionPlan.srv"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros && /home/michaelmcdonald/tampy/src/ros_utils/build/catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/MotionPlan.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros -e /opt/ros/kinetic/share/gencpp/cmake/..
 
 tamp_ros_generate_messages_cpp: tamp_ros/CMakeFiles/tamp_ros_generate_messages_cpp
@@ -171,6 +178,7 @@ tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/
 tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PlanResult.h
 tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/HLProblem.h
 tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/MotionPlanResult.h
+tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyPriorUpdate.h
 tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/QValue.h
 tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyAct.h
 tamp_ros_generate_messages_cpp: /home/michaelmcdonald/tampy/src/ros_utils/devel/include/tamp_ros/PolicyProb.h

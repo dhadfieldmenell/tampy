@@ -420,7 +420,7 @@ class MCTS:
 
         path_value = self.agent.goal_f(self.condition, end_state)
         # hl_encoding = self._encode_f(end_state, self.agent.plans.values()[0], self.agent.targets[self.condition])
-        if path_value == 0 or depth >= self.max_depth or hl_encoding in exclude_hl:
+        if path_value == 0 or depth >= self.max_depth: # or hl_encoding in exclude_hl:
             for sample in samples:
                 sample.task_cost = path_value
                 sample.success = SUCCESS_LABEL if path_value == 0 else FAIL_LABEL

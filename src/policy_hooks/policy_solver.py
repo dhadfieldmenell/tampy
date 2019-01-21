@@ -71,7 +71,7 @@ def get_base_solver(parent_class):
             raise NotImplementedError
 
 
-        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=inf_f, traj_mean=[], task=None):
+        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None):
             if amax is None:
                 amax = len(plan.actions) - 1
 
@@ -88,9 +88,10 @@ def get_base_solver(parent_class):
             if len(traj_mean):
                 self.transfer_always = True
                 for t in range(base_t, min(active_ts[1], len(traj_mean))):
-                    for param_name, attr in plan.action_inds:
+                    for param_name, attr in plan.state_inds:
                         param = plan.params[param_name]
-                        getattr(param, attr)[:, base_t+1] = traj_mean[t, plan.action_inds[param_name, attr]]
+                        if hasattr(param, attr):
+                            getattr(param, attr)[:, base_t+1] = traj_mean[t, plan.action_inds[param_name, attr]]
             else:
                 self.transfer_always = False
 

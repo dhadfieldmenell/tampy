@@ -7,7 +7,7 @@ import struct
 
 
 class HLProblem(genpy.Message):
-  _md5sum = "1a2adc264904a8c2fffd546791b7a9ec"
+  _md5sum = "573d764c14495d91c035cf75dd9b1437"
   _type = "tamp_ros/HLProblem"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """int32 solver_id
@@ -15,9 +15,10 @@ int32 server_id
 float32[] init_state
 int32 cond
 string path_to
+string gmms
 """
-  __slots__ = ['solver_id','server_id','init_state','cond','path_to']
-  _slot_types = ['int32','int32','float32[]','int32','string']
+  __slots__ = ['solver_id','server_id','init_state','cond','path_to','gmms']
+  _slot_types = ['int32','int32','float32[]','int32','string','string']
 
   def __init__(self, *args, **kwds):
     """
@@ -27,7 +28,7 @@ string path_to
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       solver_id,server_id,init_state,cond,path_to
+       solver_id,server_id,init_state,cond,path_to,gmms
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -46,12 +47,15 @@ string path_to
         self.cond = 0
       if self.path_to is None:
         self.path_to = ''
+      if self.gmms is None:
+        self.gmms = ''
     else:
       self.solver_id = 0
       self.server_id = 0
       self.init_state = []
       self.cond = 0
       self.path_to = ''
+      self.gmms = ''
 
   def _get_types(self):
     """
@@ -73,6 +77,12 @@ string path_to
       buff.write(struct.pack(pattern, *self.init_state))
       buff.write(_get_struct_i().pack(self.cond))
       _x = self.path_to
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self.gmms
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
@@ -111,6 +121,15 @@ string path_to
         self.path_to = str[start:end].decode('utf-8')
       else:
         self.path_to = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.gmms = str[start:end].decode('utf-8')
+      else:
+        self.gmms = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -131,6 +150,12 @@ string path_to
       buff.write(self.init_state.tostring())
       buff.write(_get_struct_i().pack(self.cond))
       _x = self.path_to
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self.gmms
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
@@ -170,6 +195,15 @@ string path_to
         self.path_to = str[start:end].decode('utf-8')
       else:
         self.path_to = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.gmms = str[start:end].decode('utf-8')
+      else:
+        self.gmms = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill

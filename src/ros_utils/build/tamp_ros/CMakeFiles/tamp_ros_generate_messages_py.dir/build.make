@@ -60,6 +60,7 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/s
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PlanResult.py
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_HLProblem.py
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanResult.py
+tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyPriorUpdate.py
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_QValue.py
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyAct.py
 tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py
@@ -117,14 +118,19 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/s
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating Python from MSG tamp_ros/MotionPlanResult"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/genmsg_py.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/MotionPlanResult.msg -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg
 
+/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyPriorUpdate.py: /opt/ros/kinetic/lib/genpy/genmsg_py.py
+/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyPriorUpdate.py: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating Python from MSG tamp_ros/PolicyPriorUpdate"
+	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/genmsg_py.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg/PolicyPriorUpdate.msg -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg
+
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_QValue.py: /opt/ros/kinetic/lib/genpy/gensrv_py.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_QValue.py: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating Python code from SRV tamp_ros/QValue"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating Python code from SRV tamp_ros/QValue"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/gensrv_py.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/QValue.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyAct.py: /opt/ros/kinetic/lib/genpy/gensrv_py.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyAct.py: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating Python code from SRV tamp_ros/PolicyAct"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating Python code from SRV tamp_ros/PolicyAct"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/gensrv_py.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyAct.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py: /opt/ros/kinetic/lib/genpy/gensrv_py.py
@@ -132,12 +138,12 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/s
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py: /opt/ros/kinetic/share/std_msgs/msg/Float32MultiArray.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayDimension.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayLayout.msg
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating Python code from SRV tamp_ros/PolicyProb"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating Python code from SRV tamp_ros/PolicyProb"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/gensrv_py.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/PolicyProb.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_Primitive.py: /opt/ros/kinetic/lib/genpy/gensrv_py.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_Primitive.py: /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating Python code from SRV tamp_ros/Primitive"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating Python code from SRV tamp_ros/Primitive"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/gensrv_py.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/Primitive.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_MotionPlan.py: /opt/ros/kinetic/lib/genpy/gensrv_py.py
@@ -145,7 +151,7 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/s
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_MotionPlan.py: /opt/ros/kinetic/share/std_msgs/msg/Float32MultiArray.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_MotionPlan.py: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayDimension.msg
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_MotionPlan.py: /opt/ros/kinetic/share/std_msgs/msg/MultiArrayLayout.msg
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating Python code from SRV tamp_ros/MotionPlan"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Generating Python code from SRV tamp_ros/MotionPlan"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/gensrv_py.py /home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/srv/MotionPlan.srv -Itamp_ros:/home/michaelmcdonald/tampy/src/ros_utils/src/tamp_ros/msg -Istd_msgs:/opt/ros/kinetic/share/std_msgs/cmake/../msg -p tamp_ros -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /opt/ros/kinetic/lib/genpy/genmsg_py.py
@@ -156,12 +162,13 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/s
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PlanResult.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_HLProblem.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanResult.py
+/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyPriorUpdate.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_QValue.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyAct.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_Primitive.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_MotionPlan.py
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Generating Python msg __init__.py for tamp_ros"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Generating Python msg __init__.py for tamp_ros"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/genmsg_py.py -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg --initpy
 
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /opt/ros/kinetic/lib/genpy/genmsg_py.py
@@ -172,12 +179,13 @@ tamp_ros/CMakeFiles/tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/s
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PlanResult.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_HLProblem.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanResult.py
+/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyPriorUpdate.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_QValue.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyAct.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_Primitive.py
 /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/__init__.py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_MotionPlan.py
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Generating Python srv __init__.py for tamp_ros"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/michaelmcdonald/tampy/src/ros_utils/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Generating Python srv __init__.py for tamp_ros"
 	cd /home/michaelmcdonald/tampy/src/ros_utils/build/tamp_ros && ../catkin_generated/env_cached.sh /usr/bin/python /opt/ros/kinetic/share/genpy/cmake/../../../lib/genpy/genmsg_py.py -o /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv --initpy
 
 tamp_ros_generate_messages_py: tamp_ros/CMakeFiles/tamp_ros_generate_messages_py
@@ -188,6 +196,7 @@ tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/l
 tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PlanResult.py
 tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_HLProblem.py
 tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanResult.py
+tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyPriorUpdate.py
 tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_QValue.py
 tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyAct.py
 tamp_ros_generate_messages_py: /home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py

@@ -22,8 +22,6 @@ from policy_hooks.baxter.multi_task_main import GPSMain
 from policy_hooks.baxter.vector_include import *
 from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
-from policy_hooks.baxter.baxter_agent import BaxterSortingAgent
-import policy_hooks.baxter.baxter_hyperparams as baxter_hyperparams
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.baxter.pick_place_prob import *
 from policy_hooks.task_net import tf_classification_network
@@ -55,7 +53,7 @@ class BaxterPolicySolver(BASE_CLASS):
         robot_pos = param.openrave_body.param_fwd_kinemtics(param, [manip_name], t+active_ts[0])[manip_name][attr]
         next_robot_pos = param.openrave_body.param_fwd_kinemtics(param, [manip_name], t+active_ts[0]+1)[manip_name][attr]
         jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
-        new_mu = (next_robot_pos - robot_pose - attr_mu[t]).dot(jac)
+        new_mu = (next_robot_pos - robot_pose - mu[t]).dot(jac)
 
         if use_cov:
             new_sig = jac.T.dot(sig.dot(jac))
@@ -81,23 +79,24 @@ class BaxterPolicySolver(BASE_CLASS):
             arm_joints = [param.openrave_body.GetJointFromDOFIndex(ind) for ind in range(2,9)]
             for t in range(active_ts[1]-active_ts[0]):
                 new_mu[t] = param.lArmPose[:, t+active_ts[0]+1]
-                new_mu[t], new_sig[t] += self.convert_ee(attr_mu[t], attr_sig[t], 'left_gripper', param, t, arm_joints, 'pos')
+                next_mu, next_sig = self.convert_ee(attr_mu[t], attr_sig[t], 'left_gripper', param, t, arm_joints, 'pos')
+                new_mu[t] += next_mu
+                new_sig[t] += next_sig
 
         elif attr_name == 'ee_right_pos':
             ee_pos = param.openrave_body.param_fwd_kinemtics(param, ['right_gripper'], active_ts[0])
             start_val = ee_pos['right_gripper']['pos']
             new_attr = 'rArmPose'
-            abs_mu = attr_mu.copy()
-            abs_mu[0] += start_val
-            for t in range(len(attr_mu), 0, -1):
-                attr_mu[t-1] = np.sum(attr_mu[:t-1], axis=0)
 
             new_mu = np.zeros((attr_mu.shape[0], 7))
             new_sig = np.zeros((attr_sig.shape[0], 7, 7))
             arm_joints = [param.openrave_body.GetJointFromDOFIndex(ind) for ind in range(2,9)]
             for t in range(active_ts[1]-active_ts[0]):
-                new_mu[t] = param.rArmPose[:, t]
-                new_mu[t], new_sig[t] += self.convert_ee(attr_mu[t], attr_sig[t], 'right_gripper', param, t, arm_joints, 'pos')
+                new_mu[t] = param.rArmPose[:, t+active_ts[0]+1]
+                next_mu, next_sig = self.convert_ee(attr_mu[t], attr_sig[t], 'right_gripper', param, t, arm_joints, 'pos')
+                new_mu[t] += next_mu
+                new_sig[t] += next_sig
+
         else:
             raise NotImplementedError
 

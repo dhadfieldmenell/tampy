@@ -14,7 +14,7 @@
 
 (defclass tamp_ros::HLProblem
   :super ros::object
-  :slots (_solver_id _server_id _init_state _cond _path_to ))
+  :slots (_solver_id _server_id _init_state _cond _path_to _gmms ))
 
 (defmethod tamp_ros::HLProblem
   (:init
@@ -24,6 +24,7 @@
     ((:init_state __init_state) (make-array 0 :initial-element 0.0 :element-type :float))
     ((:cond __cond) 0)
     ((:path_to __path_to) "")
+    ((:gmms __gmms) "")
     )
    (send-super :init)
    (setq _solver_id (round __solver_id))
@@ -31,6 +32,7 @@
    (setq _init_state __init_state)
    (setq _cond (round __cond))
    (setq _path_to (string __path_to))
+   (setq _gmms (string __gmms))
    self)
   (:solver_id
    (&optional __solver_id)
@@ -47,6 +49,9 @@
   (:path_to
    (&optional __path_to)
    (if __path_to (setq _path_to __path_to)) _path_to)
+  (:gmms
+   (&optional __gmms)
+   (if __gmms (setq _gmms __gmms)) _gmms)
   (:serialization-length
    ()
    (+
@@ -60,6 +65,8 @@
     4
     ;; string _path_to
     4 (length _path_to)
+    ;; string _gmms
+    4 (length _gmms)
     ))
   (:serialize
    (&optional strm)
@@ -78,6 +85,8 @@
        (write-long _cond s)
      ;; string _path_to
        (write-long (length _path_to) s) (princ _path_to s)
+     ;; string _gmms
+       (write-long (length _gmms) s) (princ _gmms s)
      ;;
      (if (null strm) (get-output-stream-string s))))
   (:deserialize
@@ -97,11 +106,13 @@
      (setq _cond (sys::peek buf ptr- :integer)) (incf ptr- 4)
    ;; string _path_to
      (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _path_to (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
+   ;; string _gmms
+     (let (n) (setq n (sys::peek buf ptr- :integer)) (incf ptr- 4) (setq _gmms (subseq buf ptr- (+ ptr- n))) (incf ptr- n))
    ;;
    self)
   )
 
-(setf (get tamp_ros::HLProblem :md5sum-) "1a2adc264904a8c2fffd546791b7a9ec")
+(setf (get tamp_ros::HLProblem :md5sum-) "573d764c14495d91c035cf75dd9b1437")
 (setf (get tamp_ros::HLProblem :datatype-) "tamp_ros/HLProblem")
 (setf (get tamp_ros::HLProblem :definition-)
       "int32 solver_id
@@ -109,11 +120,12 @@ int32 server_id
 float32[] init_state
 int32 cond
 string path_to
+string gmms
 
 ")
 
 
 
-(provide :tamp_ros/HLProblem "1a2adc264904a8c2fffd546791b7a9ec")
+(provide :tamp_ros/HLProblem "573d764c14495d91c035cf75dd9b1437")
 
 

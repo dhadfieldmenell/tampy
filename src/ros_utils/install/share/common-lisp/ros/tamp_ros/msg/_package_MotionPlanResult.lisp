@@ -11,8 +11,4 @@
           COND
           TASK-VAL
           TASK
-          OBJ-VAL
-          OBJ
-          TARG-VAL
-          TARG
 ))

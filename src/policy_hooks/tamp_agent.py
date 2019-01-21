@@ -82,12 +82,12 @@ class TAMPAgent(Agent):
         self.targets = self._hyperparams['targets']
         self.target_dim = self._hyperparams['target_dim']
         self.target_inds = self._hyperparams['target_inds']
-        # self.target_vecs = []
-        # for condition in range(len(self.x0)):
-        #     target_vec = np.zeros((self.target_dim,))
-        #     for target_name in self.targets[condition]:
-        #         target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
-        #     self.target_vecs.append(target_vec)
+        self.target_vecs = []
+        for condition in range(len(self.x0)):
+            target_vec = np.zeros((self.target_dim,))
+            for target_name in self.targets[condition]:
+                target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
+            self.target_vecs.append(target_vec)
         # self.targ_list = self.targets[0].keys()
         # self.obj_list = self._hyperparams['obj_list']
 
@@ -145,6 +145,8 @@ class TAMPAgent(Agent):
         
 
     def add_sample_batch(self, samples, task):
+        if type(task) is tuple:
+            task = self.task_list[task[0]]
         if not hasattr(samples[0], '__getitem__'):
             if not isinstance(samples, SampleList):
                 samples = SampleList(samples)

@@ -64,6 +64,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.sess.run(init_op)
         self.init_policies(dU)
         if self.scope is not None:
+            print self.scope
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
             self.saver = tf.train.Saver(variables)
             try:
@@ -364,7 +365,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                    vars_to_opt=vars_to_opt)
 
     def init_policies(self, dU):
-        if self.scope is None or task == self.scope:
+        if self.scope is None or 'control' == self.scope:
             self.task_map['control']['policy'] = TfPolicy(dU, 
                                                     self.task_map['control']['obs_tensor'], 
                                                     self.task_map['control']['act_op'], 

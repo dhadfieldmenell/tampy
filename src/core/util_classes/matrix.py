@@ -34,6 +34,9 @@ class Vector2d(Vector):
 class Vector3d(Vector):
     dim = 3
 
+class Vector5d(Vector):
+    dim = 5
+
 class Vector7d(Vector):
     dim = 7
 

@@ -187,6 +187,7 @@ config = {
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
     'pretrain_traj_opt_steps': NUM_PRETRAIN_TRAJ_OPT_STEPS,
+    'on_policy': True,
 
     # New for multiprocess, transfer to sequential version as well.
 
@@ -214,7 +215,7 @@ config = {
     'perturb_steps': 3,
     'mcts_early_stop_prob': 0.5,
     'hl_timeout': HL_TIMEOUT,
-    'multi_polciy': True,
+    'multi_polciy': False,
     'image_width': 200,
     'image_height': 150,
     'image_channels': 3,
@@ -239,5 +240,4 @@ config = {
             utils.LIDAR_ENUM: 16,
             utils.EE_ENUM: 2,
         }
-
 }

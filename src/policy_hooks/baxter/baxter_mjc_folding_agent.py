@@ -1,10 +1,11 @@
+import sys
 import time
+import traceback
 from baxter_gym.envs import *
 
 from gps.agent.agent_utils import generate_noise
 from gps.sample.sample_list import SampleList
 
-from policy_hooks.baxter.baxter_mjc_agent import BaxterMJCAgent
 from policy_hooks.baxter.baxter_mjc_env import BaxterMJCEnv
 from policy_hooks.sample import Sample
 from policy_hooks.tamp_agent import TAMPAgent
@@ -22,7 +23,7 @@ class optimal_pol:
     def act(self, X, O, t, noise):
         u = np.zeros(self.dU)
         for param, attr in self.action_inds:
-            u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
+            u[self.action_inds[param, attr]] = self.opt_traj[t, self.action_inds[param, attr]]
         return u
 
 
@@ -46,7 +47,8 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         x0s = []
         for m in range(len(self.x0)):
             sample = Sample(self)
-            self.fill_sample(m, sample, self.x0[m], 0, tuple(np.zeros(1+len(self.prim_dims.keys()), dtype='int32')))
+            mp_state = self.x0[m][self._x_data_idx[STATE_ENUM]]
+            self.fill_sample(m, sample, mp_state, 0, tuple(np.zeros(1+len(self.prim_dims.keys()), dtype='int32')))
             self.x0[m] = sample.get_X(t=0)
 
         if 'cloth_init_joints' not in hyperparams:
@@ -55,7 +57,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                 self.env.randomize_cloth()
                 for param_name in self.plans.values()[0].params:
                     if (param_name, 'pose') in self.state_inds:
-                        pose = self.env.get_pos_from_label(param_name)
+                        pose = self.env.get_pos_from_label(param_name, mujoco_frame=False)
                         if pose is not None:
                             self.x0[m][self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, 'pose']] = pose
                 self.cloth_init_joints.append(self.env.get_cloth_joints())
@@ -69,7 +71,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                 self.env.set_cloth_joints(self.cloth_init_joints[m])
                 for param_name in self.plans.values()[0].params:
                     if (param_name, 'pose') in self.state_inds:
-                        pose = self.env.get_pos_from_label(param_name)
+                        pose = self.env.get_pos_from_label(param_name, mujoco_frame=False)
                         if pose is not None:
                             self.x0[m][self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, 'pose']] = pose
                 if CLOTH_JOINTS_ENUM in hyperparams['state_include']:
@@ -120,7 +122,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             X[self.state_inds['left_corner', 'pose']] = prim_val[LEFT_TARG_ENUM]
             for param_name in plan.params:
                 if (param_name, 'pose') in self.state_inds and plan.params[param_name]._type == 'Cloth':
-                    pose = self.env.get_pos_from_label(param_name)
+                    pose = self.env.get_pos_from_label(param_name, mujoco_frame=False)
                     if pose is not None:
                         X[self.state_inds[param_name, 'pose']] = pose
 
@@ -201,13 +203,13 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         plan = self.plans[task] 
         set_params_attrs(plan.params, plan.state_inds, x0, 0)
 
-        prim_vals = self.get_prim_value(condition, x0, task)            
-        plan.params['left_corner'].pose[:,0] = prim_vals[utils.LEFT_TARG_ENUM]
+        prim_vals = self.get_prim_value(condition, state, task)            
+        plan.params['left_corner'].pose[:,0] = prim_vals[LEFT_TARG_ENUM]
         plan.params['left_corner'].pose[:2,0] += np.random.normal(0, mp_var, 2)
         plan.params['left_corner_init_target'].value[:, 0] = plan.params['left_corner'].pose[:,0]
         plan.params['left_corner_end_target'].value[:, 0] = plan.params['left_corner'].pose[:,0]
         plan.params['left_target_pose'].value[:, 0] = plan.params['left_corner'].pose[:,0]
-        plan.params['right_corner'].pose[:,0] = prim_vals[utils.RIGHT_TARG_ENUM]
+        plan.params['right_corner'].pose[:,0] = prim_vals[RIGHT_TARG_ENUM]
         plan.params['right_corner'].pose[:2,0] += np.random.normal(0, mp_var, 2)
         plan.params['right_corner_init_target'].value[:, 0] = plan.params['right_corner'].pose[:,0]
         plan.params['right_corner_end_target'].value[:, 0] = plan.params['right_corner'].pose[:,0]
@@ -220,8 +222,10 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         try:
             success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, inf_f=inf_f)
         except Exception as e:
+            print e
             traceback.print_exception(*sys.exc_info())
             success = False
+            raise e
 
         if not success:
             for action in plan.actions:
@@ -240,6 +244,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
 
 
         if not success:
+            sample = Sample(self)
             for i in range(len(self.prim_dims.keys())):
                 enum = self.prim_dims.keys()[i]
                 vec = np.zeros((self.prim_dims[enum]))
@@ -251,7 +256,6 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             sample.set(RIGHT_TARG_POSE_ENUM, plan.params['right_corner'].pose[:,0].copy(), 0)
             sample.set(LEFT_TARG_POSE_ENUM, plan.params['left_corner'].pose[:,0].copy(), 0)
 
-            sample = Sample(self)
             sample.set(STATE_ENUM, x0.copy(), 0)
             for data_type in self._x_data_idx:
                 sample.set(data_type, state[self._x_data_idx[data_type]], 0)
@@ -305,34 +309,34 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         cloth_state = self.env.check_cloth_state()
         hl_plan = []
         if ONE_FOLD in cloth_state: return hl_plan
-        hl_plan.append([['putdown_corner_both_short', ['left_rest_pose', 'right_rest_pose']]])
+        hl_plan.append(['putdown_corner_both_short', ['highest_left', 'highest_right']])
         if LENGTH_GRASP in cloth_state: return hl_plan
-        hl_plan.insert(0, [['grab_corner_both', ['top_left', 'bottom_left']]])
+        hl_plan.insert(0, ['grab_corner_both', ['top_left', 'bottom_left']])
         if TWIST_FOLD in cloth_state: return hl_plan
-        hl_plan.insert(0, [['putdown_corner_both_diagonal', ['left_rest_pose', 'right_rest_pose']]])
+        hl_plan.insert(0, ['putdown_corner_both_diagonal', ['highest_left', 'highest_right']])
         if DIAGONAL_GRASP in cloth_state: return hl_plan
-        hl_plan.insert(0, [['grab_corner_both', ['leftmost', 'rightmost']]])
+        hl_plan.insert(0, ['grab_corner_both', ['leftmost', 'rightmost']])
         if LEFT_REACHABLE in cloth_state and RIGHT_REACHABLE in cloth_state: return hl_plan
 
         if IN_LEFT_GRIPPER in cloth_state:
-            hl_plan.insert(0, [['putdown_corner_left', ['left_rest_pose', 'right_rest_pose']]])
+            hl_plan.insert(0, ['putdown_corner_left', ['left_one_hand_1', 'right_rest_pose']])
             return hl_plan
 
         if IN_RIGHT_GRIPPER in cloth_state:
-            hl_plan.insert(0, [['putdown_corner_right', ['left_rest_pose', 'right_rest_pose']]])
+            hl_plan.insert(0, ['putdown_corner_right', ['left_rest_pose', 'right_one_hand_1']])
             return hl_plan
 
         if LEFT_REACHABLE in cloth_state:
-            hl_plan.insert(0, [['putdown_corner_left', ['left_rest_pose', 'right_rest_pose']]])
-            hl_plan.insert(0, [['grab_corner_left', ['rightmost', 'right_rest_pose']]])
+            hl_plan.insert(0, ['putdown_corner_left', ['left_rest_pose', 'right_rest_pose']])
+            hl_plan.insert(0, ['grab_corner_left', ['rightmost', 'right_rest_pose']])
             return hl_plan
 
         if RIGHT_REACHABLE in cloth_state:
-            hl_plan.insert(0, [['putdown_corner_right', ['left_rest_pose', 'right_rest_pose']]])
-            hl_plan.insert(0, [['grab_corner_right', ['left_rest_pose', 'leftmost']]])
+            hl_plan.insert(0, ['putdown_corner_right', ['left_rest_pose', 'right_rest_pose']])
+            hl_plan.insert(0, ['grab_corner_right', ['left_rest_pose', 'leftmost']])
             return hl_plan
 
-        return hl_plan
+        raise NotImplemntedError('Invalid state: {0}'.format(cloth_state))
 
 
     def get_next_action(self):
@@ -377,7 +381,6 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
         task_vec[task[0]] = 1.
         sample.set(TASK_ENUM, task_vec, t)
-        sample.task = self.task_list[task[0]]
 
         prim_choices = self.prob.get_prim_choices()
         for i in range(1, len(task)):
@@ -437,7 +440,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                         out[enum].append(mp_state[self.state_inds[item, 'pose']].copy())
                     continue
 
-                val = self.env.get_pos_from_label(item)
+                val = self.env.get_pos_from_label(item, mujoco_frame=False)
                 if val is not None:
                     out[enum] = val
                 out[enum].append(val)
@@ -462,7 +465,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                     out[enum] = mp_state[self.state_inds[item, 'pose']]
                 continue
 
-            val = self.env.get_pos_from_label(item)
+            val = self.env.get_pos_from_label(item, mujoco_frame=False)
             if val is not None:
                 out[enum] = val
 
@@ -470,8 +473,15 @@ class BaxterMJCFoldingAgent(TAMPAgent):
 
 
     def get_prim_index(self, enum, name):
-        prim_options = se;f.prob.get_prim_options()
+        prim_options = self.prob.get_prim_choices()
         return prim_options[enum].index(name)
+
+
+    def get_prim_indices(self, names):
+        task = [self.task_list.index(names[0])]
+        for i in range(1, len(names)):
+            task.append(self.get_prim_index(self.prim_dims.keys()[i-1], names[i]))
+        return tuple(task)
 
 
     def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
@@ -543,12 +553,21 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             return self.solve_sample_opt_traj(state, task, condition, traj_mean)
 
         exclude_targets = []
-        opt_disp_traj = np.zeros_like(opt_traj)
-        for t in range(0, len(opt_traj)-1):
-            opt_disp_traj[t] = opt_traj[t+1] - opt_traj[t]
+        plan = self.plans[task]
+        act_traj = np.zeros((plan.horizon, self.dU))
+        baxter = plan.params['baxter']
+        cur_ee = baxter.openrave_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], 0)
+        for t in range(plan.horizon-1):
+            next_ee = baxter.openrave_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], t+1)
+            act_traj[t, self.action_inds['baxter', 'ee_left_pos']] = next_ee['left_gripper']['pos'] - cur_ee['left_gripper']['pos']
+            act_traj[t, self.action_inds['baxter', 'lGripper']] = output_traj[t+1, self.state_inds['baxter', 'lGripper']]
+            act_traj[t, self.action_inds['baxter', 'ee_right_pos']] = next_ee['right_gripper']['pos'] - cur_ee['right_gripper']['pos']
+            act_traj[t, self.action_inds['baxter', 'rGripper']] = output_traj[t+1, self.state_inds['baxter', 'rGripper']]
+            cur_ee = next_ee
+        act_traj[-1] = act_traj[-2]
 
-        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, opt_disp_traj), condition, state, task, noisy=False,)
+        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False,)
         self.optimal_samples[task].append(sample)
-        sample.set_ref_X(sample.get(STATE_ENUM))
+        sample.set_ref_X(opt_traj)
         sample.set_ref_U(sample.get_U())
         return sample

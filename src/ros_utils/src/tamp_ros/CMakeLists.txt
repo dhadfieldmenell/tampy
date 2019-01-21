@@ -57,6 +57,7 @@ add_message_files(
   MotionPlanResult.msg
   HLProblem.msg
   HLPlanResult.msg
+  PolicyPriorUpdate.msg
 #   Message2.msg
 )
 

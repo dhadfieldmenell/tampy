@@ -7,6 +7,7 @@ file(REMOVE_RECURSE
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PlanResult.py"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_HLProblem.py"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_MotionPlanResult.py"
+  "/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/msg/_PolicyPriorUpdate.py"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_QValue.py"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyAct.py"
   "/home/michaelmcdonald/tampy/src/ros_utils/devel/lib/python2.7/dist-packages/tamp_ros/srv/_PolicyProb.py"

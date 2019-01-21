@@ -3,6 +3,6 @@ float32[] mu
 float32[] logmass
 float32[] mass
 int32 N
-it32 K
+int32 K
 int32 Do
 string task
