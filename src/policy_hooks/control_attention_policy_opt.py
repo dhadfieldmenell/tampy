@@ -199,9 +199,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.update_count += len(mu)
         if self.update_count > self.update_size:
             print 'Updating', net
-            self.update(self.obs[net].copy(), self.mu[net].copy(), self.prc[net].copy(), self.wt[net].copy(), net)
-            self.store_scope_weights(scopes=[net])
-            self.update_count = 0
+            # Possibility that no good information has come yet
+            if not np.all(self.mu[net] == self.mu[net][0]):
+                self.update(self.obs[net].copy(), self.mu[net].copy(), self.prc[net].copy(), self.wt[net].copy(), net)
+                self.store_scope_weights(scopes=[net])
+                self.update_count = 0
             del self.mu[net]
             del self.obs[net]
             del self.prc[net]

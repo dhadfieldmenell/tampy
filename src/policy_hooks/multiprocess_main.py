@@ -179,7 +179,12 @@ class MultiProcessMain(object):
             'image_width': self.config['image_width'],
             'image_height': self.config['image_height'],
             'image_channels': self.config['image_channels'],
-            'prim_dims': self.prim_dims
+            'prim_dims': self.prim_dims,
+            'solver_type': self.config['solver_type'],
+            'robot_name': self.config['robot_name'],
+            'policy_inf_coeff': self.config['policy_inf_coeff'],
+            'policy_out_coeff': self.config['policy_out_coeff'],
+
         }
         if 'cloth_width' in self.config:
             self.config['agent']['cloth_width'] = self.config['cloth_width']
@@ -337,18 +342,14 @@ class MultiProcessMain(object):
 
         self.mcts = []
 
+        gmms = {}
+        for task_name in self.alg_map:
+            gmms[task_name] = self.alg_map[task_name].mp_policy_prior.gmm
         for condition in range(len(self.agent.x0)):
             self.mcts.append(MCTS(
                                   self.task_list,
                                   self.prim_dims,
-                                  None,
-                                  None,
-                                  None,
-                                  None,
-                                  None,
-                                  None,
-                                  None,
-                                  None,
+                                  gmms,
                                   None,
                                   condition,
                                   self.agent,

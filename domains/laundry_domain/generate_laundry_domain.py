@@ -220,6 +220,8 @@ class Move(Action):
             )', '{}:{}'.format(0, 0)),
             ('(BaxterRobotAt ?robot ?start)', '{}:{}'.format(0, 0)),
             ('(BaxterGrippersDownRot ?robot)', '0:{}'.format(end)),
+            ('(forall (?obj - Cloth) (not (BaxterClothInGripperLeft ?robot ?obj)))', '{}:{}'.format(0, 0)),
+            ('(forall (?obj - Cloth) (not (BaxterClothInGripperRight ?robot ?obj)))', '{}:{}'.format(0, 0)),
             ('(forall (?obj - Basket)\
                 (not (BaxterObstructs ?robot ?start ?end ?obj)))', '{}:{}'.format(0, end-1)),
             ('(forall (?obj - Washer)\

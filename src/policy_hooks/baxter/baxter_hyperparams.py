@@ -34,6 +34,7 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.baxter.folding_motion_plan_server import FoldingMotionPlanServer
+from policy_hooks.baxter.baxter_policy_solver import BaxterPolicySolver
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
@@ -214,6 +215,7 @@ config = {
     'attr_map': ATTRMAP,
     'agent_type': BaxterMJCFoldingAgent,
     'opt_server_type': FoldingMotionPlanServer,
+    'solver_type': BaxterPolicySolver,
     'update_size': 5e3,
     'use_local': True,
     'n_dirs': 16,

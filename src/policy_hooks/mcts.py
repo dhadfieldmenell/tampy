@@ -5,6 +5,26 @@ import numpy as np
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 
+
+class MixedPolicy:
+    def __init__(self, pol, dU, action_inds, state_inds, opt_traj, opt_strength):
+        self.pol = pol
+        self.dU = dU
+        self.action_inds = action_inds
+        self.state_inds = state_inds
+        self.opt_traj = opt_traj
+        self.opt_strength = opt_strength
+
+    def act(self, X, O, t, noise):
+        if self.opt_strength == 0: return self.pol.act(X, O, t, noise)
+        opt_u = np.zeros(self.dU)
+        for param, attr in self.action_inds:
+            opt_u[self.action_inds[param, attr]] = self.opt_traj[t, self.action_inds[param, attr]]
+
+        if self.opt_strength == 1: return opt_u
+
+        return self.opt_strength * opt_u + (1 - self.opt_strength) * self.pol.act(X, O, t, noise)
+
 class MCTSNode():
     def __init__(self, label, value, parent, num_tasks, prim_dims):
         self.label = label
@@ -72,16 +92,13 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, prob_func, plan_f, cost_f, goal_f, target_f, encode_f, value_f, rollout_policy, distilled_policy, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20, always_opt=False):
+    def __init__(self, tasks, prim_dims, gmms, value_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20, opt_strength=0.0):
         self.tasks = tasks
         self.prim_dims = prim_dims
         self.prim_order = prim_dims.keys()
         self.num_prims = prim_dims.values()
-        self._prob_func = prob_func
         self.root = MCTSNode((-1, -1, -1), 0, None, len(tasks), prim_dims)
         self.max_depth = max_depth
-        self.rollout_policy = rollout_policy
-        self.distilled_policy = distilled_policy
         self.condition = condition
         self.agent = agent
         self.soft_decision = soft_decision
@@ -90,16 +107,11 @@ class MCTS:
         self.num_samples = 1
         self.num_distilled_samples = num_distilled_samples
         self._choose_next = choose_next if choose_next != None else self._default_choose_next
-        self._plan_f = plan_f
-        self.agent.cost_f = cost_f 
-        self._goal_f = goal_f
-        self._target_f = target_f
-        self._encode_f = encode_f
         self._value_f = value_f
         # self.node_check_f = lambda n: n.value/n.n_explored+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
 
         self._opt_cache = {}
-        self.always_opt = always_opt
+        self.opt_strength = opt_strength
 
     def prob_func(self, prim_obs):
         prim_obs = prim_obs.reshape((1, -1))
@@ -313,9 +325,23 @@ class MCTS:
         old_traj_hist = self.agent.get_hist()
         task_name = self.tasks[task[0]]
 
+        s, success = None, False
+        pol = MixedPolicy(self.rollout_policy[task_name], self.agent.dU, self.agent.action_inds, self.agent.state_inds, None, self.opt_strength)
+        if self.opt_strength > 0:
+            gmm = self.gmms[task_name] if self.gmms is not None else None
+            inf_f = None if gmm is None or gmm.sigma is None else lambda s: gmm.inference(np.concatenate[s.get(STATE_ENUM), s.get_U()])
+            s, failed, success = self.agent.solve_sample_opt_traj(cur_state, task, self.condition, inf_f=inf_f)
+            if success:
+                pol.opt_traj = s.get(ACTION_ENUM)
+            else:
+                pol.opt_strength = 0
+
         for n in range(self.num_samples):
             self.agent.reset_hist(deepcopy(old_traj_hist))
-            samples.append(self.agent.sample_task(self.rollout_policy[task_name], self.condition, cur_state, task, noisy=True))
+            samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
+            if success:
+                samples[-1].set_ref_X(s.get_ref_X())
+                samples[-1].set_ref_U(s.get_ref_U())
 
         lowest_cost_sample = samples[0]
 

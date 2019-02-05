@@ -239,9 +239,8 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             if not len(failed_preds):
                 for action in plan.actions:
                     failed_preds += [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
-        except:
-            pass
-
+        except Exception as e:
+            traceback.print_exception(*sys.exc_info())
 
         if not success:
             sample = Sample(self)
@@ -263,19 +262,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             sample.condition = condition
             sample.task = task
             return sample, failed_preds, success
-
-        class optimal_pol:
-            def act(self, X, O, t, noise):
-                U = np.zeros((plan.dU), dtype=np.float32)
-                if t < plan.horizon - 1:
-                    fill_vector(plan.params, plan.action_inds, U, t+1)
-                else:
-                    fill_vector(plan.params, plan.action_inds, U, t)
-                return U
-
-        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
-        self.optimal_samples[task].append(sample)
-        return sample, failed_preds, success
+        return super(BaxterMJCFoldingAgent, self)._sample_opt_traj(plan, state, task, condition)
 
 
     def reset_to_sample(self, sample):

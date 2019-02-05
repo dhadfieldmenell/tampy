@@ -127,6 +127,8 @@ class TAMPAgent(Agent):
         self.seed = 1234
         self.prim_dims = self._hyperparams['prim_dims']
 
+        self.solver = self._hyperparams['solver_type'](self._hyperparams)
+
 
     def get_init_state(self, condition):
         return self.x0[condition][self._x_data_idx[STATE_ENUM]].copy()
@@ -335,6 +337,29 @@ class TAMPAgent(Agent):
     @abstractmethod
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], fixed_targets=[]):
         raise NotImplementedError
+
+
+    def _sample_opt_traj(self, plan, state, task, condition):
+        '''
+        Only call for successfully planned trajectories
+        '''
+        class optimal_pol:
+            def act(self, X, O, t, noise):
+                U = np.zeros((plan.dU), dtype=np.float32)
+                if t < plan.horizon - 1:
+                    fill_vector(plan.params, plan.action_inds, U, t+1)
+                else:
+                    fill_vector(plan.params, plan.action_inds, U, t)
+                return U
+
+        state_traj = np.zeros((plan.horizon, self.symbolic_bound)):
+        for i in range(plan.horizon):
+            fill_vector(plan.params, plan.state_inds, state_traj[i], i)
+        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
+        self.optimal_samples[task].append(sample)
+        sample.set_ref_X(state_traj)
+        sample.set_ref_U(sample.get(ACTION_ENUM))
+        return sample, [], True
 
 
     def perturb_solve(self, sample, perturb_var=0.02):

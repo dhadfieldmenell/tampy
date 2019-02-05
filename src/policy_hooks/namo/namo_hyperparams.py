@@ -31,6 +31,7 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.vector_include import *
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
+from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
 import policy_hooks.namo.sorting_prob_2 as prob
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
 
@@ -208,6 +209,7 @@ config = {
     'attr_map': ATTRMAP,
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
+    'solver_type': NAMOPolicySolver,
     'update_size': 5e3,
     'use_local': True,
     'n_dirs': 16,

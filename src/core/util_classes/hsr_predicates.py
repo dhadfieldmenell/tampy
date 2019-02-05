@@ -76,7 +76,7 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
         else:
             res[param] = val[inds].flatten().tolist()
             attr_inds[param] = [(attr_name, inds, t)]
-            
+
 """
     Movement Constraints Family
 """
@@ -245,6 +245,24 @@ class HSRStationaryArm(robot_predicates.StationaryArms):
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
         self.attr_dim = const.JOINT_DIM + 1 # Keep gripper stationary as well
+        super(HSRStationaryArms, self).__init__(name, params, expected_param_types, env)
+
+class HSRStationaryRollJoints(robot_predicates.StationaryArms):
+
+    # StationaryArm, Robot (Only Robot Arms)
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_inds = OrderedDict([(params[0], [('arm', np.array([2, 4]))])])
+        self.attr_dim = 2
+        super(HSRStationaryArms, self).__init__(name, params, expected_param_types, env)
+
+class HSRStationaryLiftJoint(robot_predicates.StationaryArms):
+
+    # StationaryArm, Robot (Only Robot Arms)
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_inds = OrderedDict([(params[0], [('arm', np.array([0]))])])
+        self.attr_dim = 1
         super(HSRStationaryArms, self).__init__(name, params, expected_param_types, env)
 
 class HSRStationaryW(robot_predicates.StationaryW):

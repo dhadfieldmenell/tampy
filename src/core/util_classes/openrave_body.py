@@ -453,14 +453,17 @@ class OpenRAVEBody(object):
         solutions = self.get_ik_from_pose(pos, rot, 'rightarm_torso')
         return solutions
 
-    def get_ik_from_pose(self, pos, rot, manip_name):
+    def get_ik_from_pose(self, pos, rot, manip_name, use6d=True):
         trans = OpenRAVEBody.get_ik_transform(pos, rot)
-        solutions = self.get_ik_solutions(manip_name, trans)
+        solutions = self.get_ik_solutions(manip_name, trans, use6d)
         return solutions
 
-    def get_ik_solutions(self, manip_name, trans):
+    def get_ik_solutions(self, manip_name, trans, use6d=True):
         manip = self.env_body.GetManipulator(manip_name)
-        iktype = IkParameterizationType.Transform6D
+        if use6d:
+            iktype = IkParameterizationType.Transform6D
+        else:
+            iktype = IkParameterizationType.Translation3D
         solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
         return solutions
 

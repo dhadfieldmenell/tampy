@@ -115,6 +115,37 @@ class BaxterClothTargetAtRegion(ExprPredicate):
         super(BaxterClothTargetAtRegion, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
         self.spacial_anchor = True
 
+class BaxterStacked(robot_predicates.ExprPredicate):
+
+    # Stacked, Bottom, Top
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]), (params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_dim = 12
+        self.bottom_can = params[0]
+        self.top_can = params[1]
+        A = np.r_[np.c_[np.eye(3), np.zeros((3,3)), -np.eye(3), np.zeros((3,3))], 
+                  np.c_[np.zeros((3,3)), np.eye(3), np.zeros((3,6))], 
+                  np.c_[np.zeros((3,9)), np.eye(3)]]
+
+        b = np.zeros((self.attr_dim/2,1))
+        val = np.array([[0], [0], [self.bottom_can.geom.height /2 + self.top_can.geom.height / 2], [0], [0], [0], [0], [0], [0]])
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(BaxterStacked, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
+
+class BaxterCansStacked(BaxterStacked):
+    pass
+
+class BaxterTargetOnTable(BaxterStacked):
+    pass
+
+class BaxterTargetsStacked(BaxterStacked):
+    pass
+
+class BaxterTargetCanStacked(BaxterStacked):
+    pass
+
 class BaxterWasherAt(robot_predicates.RobotAt):
 
         # RobotAt, Washer, WasherPose
@@ -2373,6 +2404,12 @@ class BaxterClothInGripperLeft(BaxterInGripper):
         robot_body.set_dof(dof_value_map)
         self.obj.openrave_body.set_pose(x[-6:-3], x[-3:])
 
+class BaxterCanInGripperLeft(BaxterClothInGripperLeft):
+    pass
+
+class BaxterCanInGripperRight(BaxterClothInGripperRight):
+    pass
+
 class BaxterClothAlmostInGripperLeft(robot_predicates.AlmostInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "left"
@@ -2433,6 +2470,12 @@ class BaxterClothAlmostInGripperRight(BaxterClothAlmostInGripperLeft):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         super(BaxterClothAlmostInGripperRight, self).__init__(name, params, expected_param_types, env, debug)
         self.arm = "right"
+
+class BaxterCanAlmostInGripperLeft(BaxterClothAlmostInGripperLeft):
+    pass
+
+class BaxterCanAlmostInGripperRight(BaxterClothAlmostInGripperRight):
+    pass
 
 class BaxterGripperAt(robot_predicates.GripperAt):
 
@@ -3136,8 +3179,8 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
         obj_trans[:3,:3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
         obj_trans[3,3] = 1
 
-        l_rot_val = self.rot_lock_f(robot_left_trans, offset=np.array([[0, 0, -1], [0, 0, 0], [1, 0, 0]]))
-        r_rot_val = self.rot_lock_f(robot_right_trans, offset=np.array([[0, 0, -1], [0, 0, 0], [1, 0, 0]]))
+        l_rot_val = self.rot_lock_f(obj_trans, robot_left_trans)
+        r_rot_val = self.rot_lock_f(obj_trans, robot_right_trans)
         return np.r_[l_rot_val, r_rot_val]
 
     def both_arm_rot_check_jac(self, x):
@@ -3181,15 +3224,6 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
         rot_jac = np.r_[left_rot_jacs, right_rot_jacs]
         return rot_jac
 
-    def rot_lock_f(self, robot_trans, offset=np.eye(3)):
-        rot_vals = []
-        local_dir = np.eye(3)
-        for i in range(3):
-            world_dir = robot_trans[:3,:3].dot(local_dir[i])
-            rot_vals.append([np.dot(local_dir[i], world_dir) - offset[i].dot(local_dir[i])])
-
-        rot_val = np.vstack(rot_vals)
-        return rot_val
 
 
 class BaxterLeftGripperDownRot(robot_predicates.GrippersLevel):

@@ -1,4 +1,5 @@
 from datetime import datetime
+import numpy as np
 import sys
 import time
 
@@ -71,6 +72,8 @@ class RolloutServer(object):
         self.max_sample_queue = hyperparams['max_sample_queue']
         self.max_opt_sample_queue = hyperparams['max_opt_sample_queue']
         self.early_stop_prob = hyperparams['mcts_early_stop_prob']
+        self.run_hl = hyperparams['run_hl'] if 'run_hl' in hyperparams else False
+        self.opt_prob = hyperparams['opt_prob'] if 'opt_prob' in hyperparams else 0.1
 
         self.policy_proxies = {task: rospy.ServiceProxy(task+'_policy_act', PolicyAct, persistent=True) for task in self.task_list}
         self.value_proxy = rospy.ServiceProxy('qvalue', QValue, persistent=True)
@@ -327,7 +330,7 @@ class RolloutServer(object):
         start_time = time.time()
         for mcts in self.mcts:
             val = mcts.run(self.agent.x0[mcts.condition], self.num_rollouts, use_distilled=False, new_policies=rollout_policies, debug=True)
-            if val > 0:
+            if self.run_hl and val > 0:
                 init_state = self.agent.x0[mcts.condition]
                 prob = HLProblem()
                 prob.server_id = self.id
@@ -365,11 +368,12 @@ class RolloutServer(object):
         start_time_2 = time.time()
         for task in sample_lists:
             for s_list in sample_lists[task]:
-                all_samples.extend(s_list._samples)
-                probs = self.choose_mp_problems(s_list)
-                n_probs += len(probs)
-                for p in probs:
-                    self.send_mp_problem(*p)
+                if np.random.uniform() < self.opt_prob:
+                    all_samples.extend(s_list._samples)
+                    probs = self.choose_mp_problems(s_list)
+                    n_probs += len(probs)
+                    for p in probs:
+                        self.send_mp_problem(*p)
         end_time_2 = time.time()
 
         if self.log_timing:
