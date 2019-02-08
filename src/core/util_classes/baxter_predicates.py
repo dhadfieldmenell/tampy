@@ -2432,7 +2432,7 @@ class BaxterClothAlmostInGripperLeft(robot_predicates.AlmostInGripper):
 
     def stacked_grad(self, x):
         pos_jac = self.pos_check_jac(x)
-        return self.coeff * np._r[pos_jac, pos_jac]
+        return self.coeff * np.r_[pos_jac, pos_jac]
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -3128,13 +3128,16 @@ class BaxterObjRelPoseConstant(robot_predicates.ObjRelPoseConstant):
 class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
     # BaxterGrippersDownRot Robot
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.coeff = 0.1
-        self.opt_coeff = 0.1
-        self.eval_f = lambda x: self.both_arm_rot_check_f(x)
-        self.eval_grad = lambda x: self.both_arm_rot_check_jac(x)
+        self.coeff = 0.01
+        self.opt_coeff = 0.01
+        self.eval_f = lambda x: self.coeff*self.both_arm_rot_check_f(x)
+        self.eval_grad = lambda x: self.coeff*self.both_arm_rot_check_jac(x)
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
         self.eval_dim = 6
         super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
+
+    def resample(self, negated, t, plan):
+        return baxter_sampling.resample_gripper_down_rot(self, negated, t, plan)
 
     #@profile
     def get_robot_info(self, robot_body, arm = "left"):
@@ -3218,13 +3221,11 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
             right_jac = right_jac.reshape((1, len(right_arm_joints)))
 
             # Create final 1x26 jacobian matrix
-            left_rot_jacs.append(np.c_[left_jac, np.zeros((3,10))])
-            right_rot_jacs.append(np.c_[np.zeros((3,8)), right_jac, np.zeros((3,2))])
+            left_rot_jacs.append(np.c_[left_jac, np.zeros((1,10))].flatten())
+            right_rot_jacs.append(np.c_[np.zeros((1,8)), right_jac, np.zeros((1,2))].flatten())
 
-        rot_jac = np.r_[left_rot_jacs, right_rot_jacs]
+        rot_jac = np.vstack([left_rot_jacs, right_rot_jacs])
         return rot_jac
-
-
 
 class BaxterLeftGripperDownRot(robot_predicates.GrippersLevel):
     # BaxterLeftGripperDownRot Robot

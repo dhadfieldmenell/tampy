@@ -352,7 +352,7 @@ class TAMPAgent(Agent):
                     fill_vector(plan.params, plan.action_inds, U, t)
                 return U
 
-        state_traj = np.zeros((plan.horizon, self.symbolic_bound)):
+        state_traj = np.zeros((plan.horizon, self.symbolic_bound))
         for i in range(plan.horizon):
             fill_vector(plan.params, plan.state_inds, state_traj[i], i)
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)

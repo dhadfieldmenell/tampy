@@ -61,6 +61,10 @@ def get_plans():
     return plans, openrave_bodies, env
 
 
+def get_end_targets():
+    return {}
+
+
 # def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
 #     tasks = get_tasks(mapping_file)
 #     next_task_str = copy.deepcopy(tasks[task])

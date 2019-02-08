@@ -72,8 +72,8 @@ class RolloutServer(object):
         self.max_sample_queue = hyperparams['max_sample_queue']
         self.max_opt_sample_queue = hyperparams['max_opt_sample_queue']
         self.early_stop_prob = hyperparams['mcts_early_stop_prob']
-        self.run_hl = hyperparams['run_hl'] if 'run_hl' in hyperparams else False
-        self.opt_prob = hyperparams['opt_prob'] if 'opt_prob' in hyperparams else 0.1
+        self.run_hl_prob = hyperparams['run_hl_prob'] if 'run_hl_prob' in hyperparams else 0
+        self.opt_prob = hyperparams['opt_prob'] if 'opt_prob' in hyperparams else 0.05
 
         self.policy_proxies = {task: rospy.ServiceProxy(task+'_policy_act', PolicyAct, persistent=True) for task in self.task_list}
         self.value_proxy = rospy.ServiceProxy('qvalue', QValue, persistent=True)
@@ -85,6 +85,9 @@ class RolloutServer(object):
         if self.use_local:
             hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] + '_trained'
             hyperparams['policy_opt']['scope'] = None
+            hyperparams['policy_opt']['gpu_fraction'] = 1./16
+            hyperparams['policy_opt']['use_gpu'] = 1.
+            hyperparams['policy_opt']['allow_growth'] = True
             self.policy_opt = hyperparams['policy_opt']['type'](
                 hyperparams['policy_opt'], 
                 hyperparams['dO'],
@@ -96,6 +99,19 @@ class RolloutServer(object):
 
         self.traj_centers = hyperparams['n_traj_centers']
 
+        self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}.txt'.format(self.id)
+        start_info = []
+        for x in self.agent.x0:
+            info = []
+            for param_name, attr in self.agent.state_inds:
+                value = x[self.agent._x_data_idx][self.agent.state_inds[param_name, attr]]
+                info.append((param_name, attr, value))
+            state_info.append(info)
+        with open(self.rollout_log, 'w+') as f:
+            for i in range(len(state_info)):
+                f.write(str(i)+': '+str(state_info)+'\n')
+            f.write('\n\n\n')
+
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
 
@@ -103,6 +119,7 @@ class RolloutServer(object):
     def end(self, msg):
         self.stopped = True
         rospy.signal_shutdown('Received signal to terminate.')
+
 
     def update(self, obs, mu, prc, wt, task, rollout_len=0):
         msg = PolicyUpdate()
@@ -118,9 +135,11 @@ class RolloutServer(object):
         msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
         self.updaters[task].publish(msg)
 
+
     def store_weights(self, msg):
         if self.use_local:
             self.policy_opt.deserialize_weights(msg.data)
+
 
     def policy_call(self, x, obs, t, noise, task):
         # print 'Entering policy call:', datetime.now()
@@ -143,6 +162,7 @@ class RolloutServer(object):
         # print 'Leaving policy call:', datetime.now()
         return np.array(resp.act)
 
+
     def value_call(self, obs):
         # print 'Entering value call:', datetime.now()
         if self.use_local:
@@ -155,6 +175,7 @@ class RolloutServer(object):
         # print 'Leaving value call:', datetime.now()
         return np.array(resp.value)
 
+
     def primitive_call(self, prim_obs):
         # print 'Entering primitive call:', datetime.now()
         if self.use_local:
@@ -166,6 +187,7 @@ class RolloutServer(object):
         resp = self.primitive_proxy(req)
         # print 'Leaving primitive call:', datetime.now()
         return np.array(resp.task_distr), np.array(resp.obj_distr), np.array(resp.targ_distr)
+
 
     def prob(self, obs, task):
         # print 'Entering prob call:', datetime.now()
@@ -184,6 +206,7 @@ class RolloutServer(object):
         resp = self.prob_proxies[task](req)
         # print 'Leaving prob call:', datetime.now()
         return np.array([resp.mu[i].data for i in range(len(resp.mu))]), np.array([resp.sigma[i].data for i in range(len(resp.sigma))]), [], []
+
 
     def update_hl(self, msg):
         cond = msg.cond
@@ -205,6 +228,7 @@ class RolloutServer(object):
             self.early_stop_prob *= 0.975
         else:
             self.early_stop_prob *= 1.025
+
 
     def motion_plan(self, x, task, condition, traj_mean, targets):
         mp_id = np.random.randint(0, self.n_optimizers)
@@ -330,7 +354,7 @@ class RolloutServer(object):
         start_time = time.time()
         for mcts in self.mcts:
             val = mcts.run(self.agent.x0[mcts.condition], self.num_rollouts, use_distilled=False, new_policies=rollout_policies, debug=True)
-            if self.run_hl and val > 0:
+            if np.random.uniform() < self.run_hl_prob and val > 0:
                 init_state = self.agent.x0[mcts.condition]
                 prob = HLProblem()
                 prob.server_id = self.id
@@ -413,9 +437,11 @@ class RolloutServer(object):
 
         print '\n\nFinished tree search step.\n\n'
 
+
     def run(self):
         while not self.stopped:
             self.step()
+
 
     def update_qvalue(self, samples, first_ts_only=False):
         dV, dO = 2, self.agent.dVal
@@ -437,6 +463,7 @@ class RolloutServer(object):
 
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'value', 1)
+
 
     def update_primitive(self, samples):
         dP, dO = self.agent.dPrimOut, self.agent.dPrim

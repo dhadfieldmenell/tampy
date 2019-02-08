@@ -62,6 +62,9 @@ class AbstractMotionPlanServer(object):
         if self.use_local:
             hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] + '_trained'
             hyperparams['policy_opt']['scope'] = None
+            hyperparams['policy_opt']['gpu_fraction'] = 1./32
+            hyperparams['policy_opt']['use_gpu'] = 1.
+            hyperparams['policy_opt']['allow_growth'] = True
             self.policy_opt = hyperparams['policy_opt']['type'](
                 hyperparams['policy_opt'], 
                 hyperparams['dO'],
@@ -73,6 +76,7 @@ class AbstractMotionPlanServer(object):
         self.perturb_steps = hyperparams['perturb_steps']
 
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
+        self.traj_init_log = 'tf_saved/'+hyperparams['weight_dir']+'/traj_init_log.txt'
         self.log_timing = hyperparams['log_timing']
         self.n_time_samples_per_log = 10 if 'n_time_samples_per_log' not in hyperparams else hyperparams['n_time_samples_per_log']
         self.time_samples = []
@@ -173,6 +177,19 @@ class AbstractMotionPlanServer(object):
             inf_f = lambda s: self.gmm_inf(gmm, s)
         else:
             inf_f = None
+
+        plan = self.agent.plans[task]
+        for t in range(0, len(mean)):
+            for param_name, attr in plan.state_inds:
+                param = plan.params[param_name]
+                if hasattr(param, attr):
+                    getattr(param, attr)[:, t] = mean[t, plan.action_inds[param_name, attr]]
+        plan_actions = str(plan.actions)
+        plan_total_violation = plan.get_total_cnt_violation()
+        plan_failed_constrs = plan.get_failed_preds_by_type()
+        with open(self.traj_init_log, 'a+') as f:
+            f.write(str(plan_actions, plan_total_violation, plan_failed_constrs))
+            f.write('\n')
 
         sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f)
         self.opt_count_publisher.publish("Ran solve for motion plan.")
@@ -310,11 +327,6 @@ class AbstractMotionPlanServer(object):
         variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
         saver = tf.train.Saver(variables)
         saver.restore(self.policy_opt.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
-
-
-    @abstractmethod
-    def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[], fixed_targets=[]):
-        pass
 
 
     def gmm_inf(self, gmm, sample):

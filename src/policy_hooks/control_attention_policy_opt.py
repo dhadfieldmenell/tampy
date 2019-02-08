@@ -57,8 +57,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.scope = self._hyperparams['scope'] if 'scope' in self._hyperparams else None 
 
         self.gpu_fraction = self._hyperparams['gpu_fraction']
-        # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
-        gpu_options = tf.GPUOptions(allow_growth=True)
+        if not self._hyperparams['allow_growth']:
+            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_fraction)
+        else:
+            gpu_options = tf.GPUOptions(allow_growth=True)
         self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True))
         init_op = tf.initialize_all_variables()
         self.sess.run(init_op)

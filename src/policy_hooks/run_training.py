@@ -42,7 +42,7 @@ def main():
     parser.add_argument('-o', '--nobjs', type=int, default=0)
     # parser.add_argument('-ptt', '--pretrain_timeout', type=int, default=300)
     parser.add_argument('-hlt', '--hl_timeout', type=int, default=0)
-    parser.add_argument('-k', '--killall', action='store_true', default=False)
+    parser.add_argument('-k', '--killall', action='store_true', default=True)
     parser.add_argument('-r', '--remote', action='store_true', default=False)
     parser.add_argument('-t', '--timing', action='store_true', default=False)
     parser.add_argument('-mcts', '--mcts_server', action='store_true', default=False)

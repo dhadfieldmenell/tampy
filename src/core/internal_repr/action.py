@@ -45,6 +45,24 @@ class Action(object):
                     failed.append((negated, pred, t))
         return failed
 
+    def get_failed_preds_by_type(self, active_ts=None, priority=MAX_PRIORITY, tol=1e-3):
+        if active_ts is None:
+            active_ts = self.active_timesteps
+        failed = []
+        for pred_d in self.preds:
+            if pred_d['hl_info'] == 'hl_state': continue
+            pred = pred_d['pred']
+            negated = pred_d['negated']
+            start, end = pred_d['active_timesteps']
+            for t in range(max(start, active_ts[0]),
+                           min(end, active_ts[1])+1):
+                if pred.active_range[1]+t > active_ts[1] or pred.active_range[0] + t < active_ts[0]:
+                    continue
+                if pred.priority <= priority and not pred.test(t, negated=negated, tol=tol):
+                    failed.append((t, pred.get_type(), pred.check_pred_violation(t, negated=negated, tol=tol)))
+
+        return failed
+
     def get_active_preds(self, t):
         res = []
         for pred_d in self.preds:

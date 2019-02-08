@@ -1835,3 +1835,28 @@ def resample_rrt_planner(pred, netgated, t, plan):
         robot_attr_name_val_tuples = [('rArmPose', result[:, time - start-1])]
         add_to_attr_inds_and_res(time, attr_inds, res, pred.robot, robot_attr_name_val_tuples)
     return np.array(res), attr_inds
+
+def resample_gripper_down_rot(pred, negated, t, plan):
+    attr_inds, res = OrderedDict(), OrderedDict()
+
+    robot = pred.robot
+    rave_body, arm = robot.openrave_body, pred.arm
+    ee_pos = rave_body.param_fwd_kinematics(robot, ['left_gripper', 'right_gripper'], t)
+    # lArmPoses = rave_body.get_ik_from_pose(ee_pos['left_gripper']['pos'], [0, np.pi/2, 0], 'left_arm')
+    # rArmPoses = rave_body.get_ik_from_pose(ee_pos['right_gripper']['pos'], [0, np.pi/2, 0], 'right_arm')
+    if t > 0:
+        ind = t -1
+    else:
+        ind = t
+    # l_ind = np.argmin(np.sum((lArmPoses-robot.lArmPose[:,ind])**2, axis=1))
+    # r_ind = np.argmin(np.sum((rArmPoses-robot.rArmPose[:,ind])**2, axis=1))
+    trans = np.zeros((4,4))
+    trans[:3,3] = ee_pos['left_gripper']['pos']
+    trans[:3,:3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]
+    tans[3,3] = 1
+    lArmPose = rave_body.get_close_ik_solution('left_arm', trans, dof_map={'lArmPose': robot.lArmPose[:,ind],
+                                                                           'rArmPose': robot.rArmPose[:,ind]})
+    trans[:3,3] = ee_pos['right_gripper']['pos']
+    rArmPose = rave_body.get_close_ik_solution('right_arm', trans)
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', lArmPose), ('rArmPose', lArmPose)])
+    return res, attr_inds

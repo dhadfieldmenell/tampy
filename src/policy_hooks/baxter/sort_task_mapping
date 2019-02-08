@@ -1,0 +1,28 @@
+{
+    'grasp_left': [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN',
+        '1: CLOTH_GRASP BAXTER {0} {0}_INIT_TARGET CLOTH_GRASP_BEGIN CG_EE_LEFT CLOTH_GRASP_END',
+    ],
+
+    'putdown_left': [
+        '0: MOVEHOLDING_CLOTH BAXTER ROBOT_INIT_POSE CLOTH_PUTDOWN_BEGIN {0}',
+        '1: CLOTH_PUTDOWN BAXTER {0} {1} CLOTH_PUTDOWN_BEGIN CP_EE_LEFT CLOTH_PUTDOWN_END',
+    ],
+
+    'grasp_right': [
+        '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN',
+        '1: CLOTH_GRASP_RIGHT BAXTER {0} {0}_INIT_TARGET CLOTH_GRASP_BEGIN CG_EE_RIGHT CLOTH_GRASP_END',
+    ],
+
+    'putdown_right': [
+        '0: MOVEHOLDING_CLOTH_RIGHT BAXTER ROBOT_INIT_POSE CLOTH_PUTDOWN_BEGIN {0}',
+        '1: CLOTH_PUTDOWN_RIGHT BAXTER {0} {1} CLOTH_PUTDOWN_BEGIN CP_EE_RIGHT CLOTH_PUTDOWN_END',
+    ],
+};
+
+{
+    'grasp_left': 50,
+    'putdown_left': 50,
+    'grasp_right': 50,
+    'putdown_right': 50,
+}

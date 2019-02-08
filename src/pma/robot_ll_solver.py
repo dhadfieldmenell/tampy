@@ -120,10 +120,16 @@ class RobotLLSolver(LLSolver):
         elif a.name == 'cloth_putdown':
             ## find possible ee_poses for right arms
             rs_param = a.params[-1]
+        elif a.name == 'cloth_putdown_near':
+            ## find possible ee_poses for right arms
+            rs_param = a.params[-1]
         elif a.name == 'cloth_grasp_right':
             ## find possible ee_poses for right arms
             rs_param = a.params[-1]
         elif a.name == 'cloth_putdown_right':
+            ## find possible ee_poses for right arms
+            rs_param = a.params[-1]
+        elif a.name == 'cloth_putdown_near_right':
             ## find possible ee_poses for right arms
             rs_param = a.params[-1]
         elif a.name == 'cloth_putdown_in_region_left':
@@ -340,6 +346,12 @@ class RobotLLSolver(LLSolver):
 
         robot_body.set_dof({'lArmPose': old_l_arm_pose.flatten(), 'rArmPose': old_r_arm_pose.flatten(), 'lGripper': [0.02], 'rGripper': [0.02]})
         robot_body.set_pose([0, 0, old_pose[0, 0]])
+
+        if act.name == 'cloth_putdown_near' or act.name == 'cloth_putdown_near_right':
+            act.params[2].value[:2,0] = act.params[3].value[:2,0] + np.random.uniform(-0.04, 0.04, (2,))
+            act.params[2].value[2,0] = act.params[3].value[2,0]
+        if next_act != None and (next_act.name == 'cloth_putdown_near' or next_act.name == 'cloth_putdown_near_right'):
+            next_act.params[2].value[:,0] = next_act.params[3].value[:,0]
 
         for i in range(resample_size):
             if act.name == "rotate_holding_basket_with_cloth" or act.name == "rotate_holding_basket":
@@ -818,7 +830,7 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': old_l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_OPEN_VALUE]]), 'value': old_pose})
             
-            elif next_act != None and (next_act.name == 'cloth_putdown' or next_act.name == 'cloth_putdown_in_region_left'):
+            elif next_act != None and (next_act.name == 'cloth_putdown' or next_act.name == 'cloth_putdown_near' or next_act.name == 'cloth_putdown_in_region_left'):
                 target = next_act.params[2]
                 target_pos = target.value[:, 0]
                 # if target pose is not initialized, all entry should be 0
@@ -855,7 +867,7 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'rGripper': np.array([[baxter_constants.GRIPPER_CLOSE_VALUE]]), 'value': old_pose})
 
-            elif next_act != None and (next_act.name == 'cloth_putdown_right' or next_act.name == 'cloth_putdown_in_region_right'):
+            elif next_act != None and (next_act.name == 'cloth_putdown_right' or next_act.name == 'cloth_putdown_near_right' or next_act.name == 'cloth_putdown_in_region_right'):
                 target = next_act.params[2]
                 target_pos = target.value[:, 0]
                 # if target pose is not initialized, all entry should be 0
@@ -1016,7 +1028,7 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-            elif act.name == 'cloth_grasp' or act.name == 'cloth_putdown' or act.name == 'cloth_putdown_in_region_left':
+            elif act.name == 'cloth_grasp' or act.name == 'cloth_putdown' or act.name == 'cloth_putdown_near' or act.name == 'cloth_putdown_in_region_left':
                 target = act.params[2]
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])
@@ -1041,7 +1053,7 @@ class RobotLLSolver(LLSolver):
                 # TODO once we have the rotor_base we should resample pose
                 robot_pose.append({'lArmPose': l_arm_pose, 'rArmPose': old_r_arm_pose, 'lGripper': gripper_val, 'rGripper': gripper_val, 'value': old_pose})
 
-            elif act.name == 'cloth_grasp_right' or act.name == 'cloth_putdown_right' or act.name == 'cloth_putdown_in_region_right':
+            elif act.name == 'cloth_grasp_right' or act.name == 'cloth_putdown_right' or act.name == 'cloth_putdown_near_right' or act.name == 'cloth_putdown_in_region_right':
                 target = act.params[2]
                 target_body = act.params[1].openrave_body
                 target_body.set_pose(target.value[:, 0], target.rotation[:, 0])

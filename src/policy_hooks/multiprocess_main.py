@@ -76,7 +76,8 @@ class MultiProcessMain(object):
         task_breaks = []
         goal_states = []
         targets = []
-
+        for _ in range(conditions):
+            targets.append(prob.get_end_targets())
 
         plans, openrave_bodies, env = prob.get_plans()
 
@@ -297,7 +298,8 @@ class MultiProcessMain(object):
             'image_height': utils.IM_H,
             'image_channels': utils.IM_C,
             'task_list': self.task_list,
-            'gpu_fraction': 0.2,
+            'gpu_fraction': 0.25,
+            'allow_growth': True,
             'update_size': self.config['update_size'],
         }
 
@@ -310,7 +312,8 @@ class MultiProcessMain(object):
         self.config['algorithm'] = alg_map
 
         self.agent = self.config['agent']['type'](self.config['agent'])
-        self.config['agent']['cloth_init_joints'] = self.agent.cloth_init_joints
+        if hasattr(self.agent, 'cloth_init_joints'):
+            self.config['agent']['cloth_init_joints'] = self.agent.cloth_init_joints
 
         self.fail_value = self.config['fail_value']
         self.alg_map = {}
@@ -359,7 +362,7 @@ class MultiProcessMain(object):
                                   soft_decision=1.0,
                                   C=np.sqrt(2.),
                                   max_depth=self.config['max_tree_depth'],
-                                  always_opt=False
+                                  opt_strength=0,
                                   ))
 
         self.config['mcts'] = self.mcts

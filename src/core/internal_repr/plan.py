@@ -155,6 +155,14 @@ class Plan(object):
             failed.append(a.get_failed_preds(active_ts, priority, tol=tol))
         return failed
 
+    def get_failed_preds_by_type(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-3):
+        if active_ts == None:
+            active_ts = (0, self.horizon-1)
+        failed = []
+        for a in self.actions:
+            failed.extend(a.get_failed_preds_by_type(active_ts, priority, tol=tol))
+        return failed
+
     def satisfied(self, active_ts=None):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
@@ -182,6 +190,21 @@ class Plan(object):
 
         return cnt_violations
 
+    def check_total_cnt_violation(self, active_ts, tol=1e-3):
+        failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+        cost = 0
+        for failed in failed_preds:
+            for t in range(active_ts[0], active_ts[1]+1):
+                if t + failed[1].active_range[1] > active_ts[1]:
+                    break
+
+                try:
+                    viol = failed[1].check_pred_violation(t, negated=failed[0], tol=tol)
+                    if viol is not None:
+                        cost += np.max(viol)
+                except:
+                    pass
+        return cost
 
     def prefix(self, fail_step):
         """

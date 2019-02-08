@@ -10,7 +10,7 @@ from pma import hl_solver, robot_ll_solver
 from core.parsing import parse_domain_config, parse_problem_config
 from baxter_gym.envs.baxter_cloth_env import BaxterClothEnv
 from baxter_gym.envs.baxter_mjc_env import BaxterMJCEnv
-from policy_hooks.utils.mjc_xml_utils import *
+from baxter_gym.util_classes.mjc_xml_utils import *
 import policy_hooks.utils.transform_utils as trans_utils
 
 
@@ -219,7 +219,71 @@ def test_reward():
     env.get_reward()
     time.sleep(20)
 
+def test_pick_place():
+    domain_fname = '../domains/laundry_domain/laundry.domain'
+    d_c = main.parse_file_to_dict(domain_fname)
+    domain = parse_domain_config.ParseDomainConfig.parse(d_c)
+    hls = hl_solver.FFSolver(d_c)
+    p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/sort5.prob')
+    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
+
+    plan_str = [
+    '0: MOVETO BAXTER ROBOT_INIT_POSE CLOTH_GRASP_BEGIN_0',
+    '1: CLOTH_GRASP BAXTER CLOTH0 CLOTH0_INIT_TARGET CLOTH_GRASP_BEGIN_0 CG_EE_LEFT_0 CLOTH_GRASP_END_0',
+    '2: MOVEHOLDING_CLOTH BAXTER CLOTH_GRASP_END_0 CLOTH_PUTDOWN_BEGIN_0 CLOTH0',
+    '3: CLOTH_PUTDOWN_NEAR BAXTER CLOTH0 CLOTH0_FREE_TARGET MIDDLE_TARGET_1 CLOTH_PUTDOWN_BEGIN_0 CP_EE_LEFT_0 CLOTH_PUTDOWN_END_0',
+    ]
+
+    plan = hls.get_plan(plan_str, domain, problem)
+    baxter, cloth = plan.params['baxter'], plan.params['cloth0']
+    cloth.pose[:,0] = [0.6, 0.5, 0.625]
+    plan.params['cloth0_init_target'].value[:,0] = cloth.pose[:,0]
+    items = [get_param_xml(plan.params['cloth0'])]
+    env = BaxterMJCEnv(mode='end_effector_pos', obs_include=['end_effector'], items=items, view=True)
+    env.render(camera_id=1)
+    env.render(camera_id=1)
+    time.sleep(10)
+
+    arm_jnts = env.get_arm_joint_angles()
+    baxter.lArmPose[:,0] = arm_jnts[7:]
+    baxter.rArmPose[:,0] = arm_jnts[:7]
+    plan.params['robot_init_pose'].lArmPose[:,0] = arm_jnts[7:]
+    plan.params['robot_init_pose'].rArmPose[:,0] = arm_jnts[:7]
+    env.set_item_pose('cloth0', cloth.pose[:,0], mujoco_frame=False)
+    solver = robot_ll_solver.RobotLLSolver()
+    result = solver.backtrack_solve(plan, callback = None, verbose=False)
+
+    for t in range(plan.horizon):
+        rGrip = 0 if baxter.rGripper[:, t] < 0.016 else 0.02
+        lGrip = 0 if baxter.lGripper[:, t] < 0.016 else 0.02
+        ee_cmd = baxter.openrave_body.param_fwd_kinematics(param=baxter, 
+                                                           manip_names=['right_gripper', 'left_gripper'], 
+                                                           t=t,
+                                                           mat_result=False)
+
+        cur_right_ee_pos = env.get_right_ee_pos(False)
+        cur_right_ee_rot = env.get_right_ee_rot()
+        cur_left_ee_pos = env.get_left_ee_pos(False)
+        cur_left_ee_rot = env.get_left_ee_rot()
+
+        act = np.r_[ee_cmd['right_gripper']['pos'] - cur_right_ee_pos,
+                    # ee_cmd['right_gripper']['quat'],
+                    rGrip,
+                    ee_cmd['left_gripper']['pos'] - cur_left_ee_pos,
+                    # ee_cmd['left_gripper']['quat'],
+                    lGrip]
+
+        old_cmd = ee_cmd
+
+        # act = np.r_[baxter.rArmPose[:,t], rGrip, baxter.lArmPose[:,t], lGrip]
+
+        env.step(act, debug=False)
+        env.render(camera_id=1)
+        print env.get_left_ee_pos()
+        print env.get_item_pose('cloth0')
+
 # test_move()
 # test_cloth_grasp()
-test_ee_ctrl_cloth_grasp()
+# test_ee_ctrl_cloth_grasp()
 # test_reward()
+test_pick_place()

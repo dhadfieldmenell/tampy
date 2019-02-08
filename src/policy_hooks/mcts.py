@@ -15,6 +15,7 @@ class MixedPolicy:
         self.opt_traj = opt_traj
         self.opt_strength = opt_strength
 
+
     def act(self, X, O, t, noise):
         if self.opt_strength == 0: return self.pol.act(X, O, t, noise)
         opt_u = np.zeros(self.dU)
@@ -24,6 +25,7 @@ class MixedPolicy:
         if self.opt_strength == 1: return opt_u
 
         return self.opt_strength * opt_u + (1 - self.opt_strength) * self.pol.act(X, O, t, noise)
+
 
 class MCTSNode():
     def __init__(self, label, value, parent, num_tasks, prim_dims):
@@ -43,14 +45,18 @@ class MCTSNode():
         if parent is not None:
             parent.add_child(self)
 
+
     def is_leaf(self):
         return self.is_leaf()
+
 
     def get_task(self):
         return self.label[0]
 
+
     def get_prim(self, prim_name):
         return self.label[self.prim_order.index(prim_name)+1]
+
 
     def update_value(self, new_value):
         # self.value = (self.value*self.n_explored + new_value) / (self.n_explored + 1)
@@ -62,6 +68,7 @@ class MCTSNode():
         self.value = (self.value*self.n_explored + new_value) / (self.n_explored + 1)
         self.n_explored += 1
 
+
     def get_child(self, label):
         ind = 0
         m = 1
@@ -70,6 +77,7 @@ class MCTSNode():
             m *= self.num_prims[i-1]
         ind += self.num_tasks * label[0]
         return self.children[ind]
+
 
     def add_child(self, child):
         ind = 0
@@ -82,13 +90,19 @@ class MCTSNode():
         self.is_leaf = False
         child.parent = self
 
+
     def get_explored_children(self):
         return filter(lambda n: n is not None, self.children)
+
 
     def has_unexplored(self):
         for child in self.child:
             if child is None: return True
         return False
+
+
+    def __repr__(self):
+        return str(self.label)
 
 
 class MCTS:
@@ -113,13 +127,19 @@ class MCTS:
         self._opt_cache = {}
         self.opt_strength = opt_strength
 
+        self.n_success = 0
+        self.n_runs = 0
+
+
     def prob_func(self, prim_obs):
         prim_obs = prim_obs.reshape((1, -1))
         return self._prob_func(prim_obs)
 
+
     def value_func(self, obs):
         obs = obs.reshape((1, -1))
         return self._value_f(obs)
+
 
     def update_vals(self, path, success):
         node = self.root
@@ -134,6 +154,7 @@ class MCTS:
 
             else:
                 node.update_value(int(success))
+
 
     def node_check_f(self, label, state, parent):
         child = parent.get_child(label)
@@ -162,6 +183,7 @@ class MCTS:
         # return q_value + self.C * self.value_func(obs)[1] / (1 + child_explored)
         return q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + child_explored))
 
+
     def print_run(self, state, use_distilled=True):
         path = self.simulate(state.copy(), use_distilled, debug=False)
         print 'Testing rollout of MCTS'
@@ -172,12 +194,14 @@ class MCTS:
             print sample.get_X()
         print 'End of MCTS rollout.\n\n'
 
+
     def run(self, state, num_rollouts=20, use_distilled=True, hl_plan=None, new_policies=None, debug=False):
         if new_policies != None:
             self.rollout_policy = new_policies
         opt_val = np.inf
         paths = []
         for n in range(num_rollouts):
+            self.n_runs += 1
             self.agent.reset_hist()
             print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
             next_path = self.simulate(state.copy(), use_distilled, debug=debug)
@@ -185,11 +209,14 @@ class MCTS:
             if len(next_path):
                 end = next_path[-1]
                 new_opt_value = self.agent.goal_f(self.condition, state)
-                if new_opt_value == 0: paths.append(next_path)
+                if new_opt_value == 0: 
+                    paths.append(next_path)
+                    self.n_success += 1
                 opt_val = np.minimum(new_opt_value, opt_val)
 
         self.agent.add_task_paths(paths)
         return opt_val
+
 
     def _simulate_from_unexplored(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, label=None, debug=False):
         if debug:
@@ -218,6 +245,7 @@ class MCTS:
         old_traj_hist = self.agent.get_hist()
         while np.any(distr > 0):
             ind = np.argmax(distr)
+            distr[ind] = 0.
             label = []
             m = np.product(self.num_prims)
             label.append(int(ind / m))
@@ -320,6 +348,7 @@ class MCTS:
             return new_node, -np.inf
         return new_node, new_node.value
 
+
     def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, debug=False):
         samples = []
         old_traj_hist = self.agent.get_hist()
@@ -353,6 +382,7 @@ class MCTS:
         self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
         return lowest_cost_sample, cur_state
+
 
     def simulate(self, state, use_distilled=True, early_stop_prob=0.0, debug=False):
         current_node = self.root
@@ -411,6 +441,7 @@ class MCTS:
         path.reverse()
         return path
 
+
     def simulate_from_next(self, node, state, prev_sample, num_samples=1, save=False, exclude_hl=[], use_distilled=True, debug=False):
         if debug:
             print "Running simulate from next"
@@ -422,7 +453,8 @@ class MCTS:
             samples.append(None)
         return cost, samples[0]
 
-    def _simulate_from_next(self, label, depth, state, prob_func, samples, num_samples=1, save=False, exclude_hl=[], use_distilled=True, exclude=[], debug=False):
+
+    def _simulate_from_next(self, label, depth, state, prob_func, samples, num_samples=1, save=True, exclude_hl=[], use_distilled=True, exclude=[], debug=False):
         # print 'Entering simulate call:', datetime.now()
         task = self.tasks[label[0]]
         new_samples = []
