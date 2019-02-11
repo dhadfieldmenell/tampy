@@ -105,7 +105,7 @@ class HLPlanResult {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '3d15420a1ea98d1e6019df3adbc0e259';
+    return 'ed9a7be087c33aaa32d6c8524bc20653';
   }
 
   static messageDefinition() {
@@ -124,6 +124,7 @@ class HLPlanResult {
     int32 plan_id
     int32 cond
     string task
+    float32[] state
     
     ================================================================================
     MSG: std_msgs/Float32MultiArray

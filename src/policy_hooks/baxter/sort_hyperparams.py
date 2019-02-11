@@ -80,7 +80,7 @@ algorithm = {
     'sample_ts_prob': 1.0,
     'opt_wt': 1e1,
     'fail_value': 5,
-    'n_traj_centers': 2,
+    'n_traj_centers': 1,
     'use_centroids': True
 }
 
@@ -184,7 +184,7 @@ config = {
     'hist_len': 3,
     'take_optimal_sample': True,
     'num_rollouts': 10,
-    'max_tree_depth': 20,
+    'max_tree_depth': 25,
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
@@ -207,8 +207,8 @@ config = {
     'base_weight_dir': 'baxter_sort',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
-    'max_sample_queue': 1e3,
-    'max_opt_sample_queue': 1e3,
+    'max_sample_queue': 1e2,
+    'max_opt_sample_queue': 1e2,
     'task_map_file': 'policy_hooks/baxter/sort_task_mapping',
     'prob': prob,
     'get_vector': get_vector,
@@ -231,7 +231,7 @@ config = {
     'image_height': IM_H,
     'image_channels': 3,
     'lr': 1e-3,
-    'opt_prob': 0.01,
+    'opt_prob': 0.1,
 
     'cloth_width': CLOTH_W,
     'cloth_length': CLOTH_L,

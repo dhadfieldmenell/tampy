@@ -190,8 +190,10 @@ class Plan(object):
 
         return cnt_violations
 
-    def check_total_cnt_violation(self, active_ts, tol=1e-3):
-        failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
+    def check_total_cnt_violation(self, active_ts=None, tol=1e-3):
+        if active_ts is None:
+            active_ts = (0, self.horizon-1)
+        failed_preds = self.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
         cost = 0
         for failed in failed_preds:
             for t in range(active_ts[0], active_ts[1]+1):

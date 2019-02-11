@@ -30,7 +30,8 @@ struct MotionPlanResult_
     , success(false)
     , plan_id(0)
     , cond(0)
-    , task()  {
+    , task()
+    , state()  {
     }
   MotionPlanResult_(const ContainerAllocator& _alloc)
     : traj(_alloc)
@@ -38,7 +39,8 @@ struct MotionPlanResult_
     , success(false)
     , plan_id(0)
     , cond(0)
-    , task(_alloc)  {
+    , task(_alloc)
+    , state(_alloc)  {
   (void)_alloc;
     }
 
@@ -61,6 +63,9 @@ struct MotionPlanResult_
 
    typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _task_type;
   _task_type task;
+
+   typedef std::vector<float, typename ContainerAllocator::template rebind<float>::other >  _state_type;
+  _state_type state;
 
 
 
@@ -140,12 +145,12 @@ struct MD5Sum< ::tamp_ros::MotionPlanResult_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "5efc67c8ca4a7fce7ecdcac89381d056";
+    return "c25063a349cb64c4f23d5c5dfb881c60";
   }
 
   static const char* value(const ::tamp_ros::MotionPlanResult_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x5efc67c8ca4a7fceULL;
-  static const uint64_t static_value2 = 0x7ecdcac89381d056ULL;
+  static const uint64_t static_value1 = 0xc25063a349cb64c4ULL;
+  static const uint64_t static_value2 = 0xf23d5c5dfb881c60ULL;
 };
 
 template<class ContainerAllocator>
@@ -170,6 +175,7 @@ bool success\n\
 int32 plan_id\n\
 int32 cond\n\
 string task\n\
+float32[] state\n\
 \n\
 ================================================================================\n\
 MSG: std_msgs/Float32MultiArray\n\
@@ -238,6 +244,7 @@ namespace serialization
       stream.next(m.plan_id);
       stream.next(m.cond);
       stream.next(m.task);
+      stream.next(m.state);
     }
 
     ROS_DECLARE_ALLINONE_SERIALIZER
@@ -274,6 +281,12 @@ struct Printer< ::tamp_ros::MotionPlanResult_<ContainerAllocator> >
     Printer<int32_t>::stream(s, indent + "  ", v.cond);
     s << indent << "task: ";
     Printer<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::stream(s, indent + "  ", v.task);
+    s << indent << "state[]" << std::endl;
+    for (size_t i = 0; i < v.state.size(); ++i)
+    {
+      s << indent << "  state[" << i << "]: ";
+      Printer<float>::stream(s, indent + "  ", v.state[i]);
+    }
   }
 };
 

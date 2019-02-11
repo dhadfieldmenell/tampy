@@ -153,11 +153,13 @@ class TAMPAgent(Agent):
             if not isinstance(samples, SampleList):
                 samples = SampleList(samples)
             self._samples[task].append(samples)
+            print 'Stored {0} samples for'.format(len(samples)), task
         else:
             for batch in samples:
                 if not isinstance(batch, SampleList):
                     batch = SampleList(batch)
                 self._samples[task].append(batch)
+                print 'Stored {0} samples for'.format(len(samples)), task
         while len(self._samples[task]) > MAX_SAMPLELISTS:
             del self._samples[task][0]
 
@@ -356,7 +358,7 @@ class TAMPAgent(Agent):
         for i in range(plan.horizon):
             fill_vector(plan.params, plan.state_inds, state_traj[i], i)
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
-        self.optimal_samples[task].append(sample)
+        self.optimal_samples[self.task_list[task[0]]].append(sample)
         sample.set_ref_X(state_traj)
         sample.set_ref_U(sample.get(ACTION_ENUM))
         return sample, [], True

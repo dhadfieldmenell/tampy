@@ -79,7 +79,7 @@ def get_base_solver(parent_class):
                 return True
 
             a = plan.actions[anum]
-            # print "backtracking Solve on {}".format(a.name)
+            print "backtracking Solve on {}".format(a.name)
             active_ts = a.active_timesteps
             inits = {}
             rs_param = self.get_resample_param(a)
@@ -91,7 +91,8 @@ def get_base_solver(parent_class):
                     for param_name, attr in plan.state_inds:
                         param = plan.params[param_name]
                         if hasattr(param, attr):
-                            getattr(param, attr)[:, base_t+1] = traj_mean[t, plan.action_inds[param_name, attr]]
+                            if param.is_symbol(): continue
+                            getattr(param, attr)[:, base_t+1] = traj_mean[t, plan.state_inds[param_name, attr]]
             else:
                 self.transfer_always = False
 

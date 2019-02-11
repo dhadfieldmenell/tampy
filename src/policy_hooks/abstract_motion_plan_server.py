@@ -182,13 +182,14 @@ class AbstractMotionPlanServer(object):
         for t in range(0, len(mean)):
             for param_name, attr in plan.state_inds:
                 param = plan.params[param_name]
+                if param.is_symbol(): continue
                 if hasattr(param, attr):
-                    getattr(param, attr)[:, t] = mean[t, plan.action_inds[param_name, attr]]
+                    getattr(param, attr)[:, t] = mean[t, plan.state_inds[param_name, attr]]
         plan_actions = str(plan.actions)
-        plan_total_violation = plan.get_total_cnt_violation()
+        plan_total_violation = plan.check_total_cnt_violation()
         plan_failed_constrs = plan.get_failed_preds_by_type()
         with open(self.traj_init_log, 'a+') as f:
-            f.write(str(plan_actions, plan_total_violation, plan_failed_constrs))
+            f.write(str((plan_actions, plan_total_violation, plan_failed_constrs)))
             f.write('\n')
 
         sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f)
@@ -206,6 +207,7 @@ class AbstractMotionPlanServer(object):
         resp.plan_id = msg.prob_id
         resp.cond = msg.cond
         resp.task = msg.task
+        resp.state = state.tolist()
         self.mp_publishers[msg.server_id].publish(resp)
 
         if success:
@@ -224,6 +226,7 @@ class AbstractMotionPlanServer(object):
                 resp.plan_id = msg.prob_id
                 resp.cond = msg.cond
                 resp.task = msg.task
+                resp.state = state.tolist()
                 self.mp_publishers[msg.server_id].publish(resp)
 
 
@@ -300,20 +303,21 @@ class AbstractMotionPlanServer(object):
         steps = []
         for sample in cur_path:
             mp_step = MotionPlanResult()
-
             mp_step.traj = []
             out = sample.get(STATE_ENUM)
             for t in range(len(out)):
                 next_line = Float32MultiArray()
                 next_line.data = out[t]
                 mp_step.traj.append(next_line)
+                
             mp_step.failed = ''
             mp_step.success = True
             mp_step.plan_id = -1
             mp_step.cond = msg.cond
             mp_step.task = str(sample.task)
-
+            mp_step.state = sample.get_X(t=0).tolist()
             steps.append(mp_step)
+
         resp.steps = steps
         resp.path_to = msg.path_to
         resp.success = len(cur_path) and cur_path[0].success == SUCCESS_LABEL

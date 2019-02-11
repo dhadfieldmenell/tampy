@@ -910,7 +910,7 @@ class HSRCollidesWasher(HSRRCollides):
             self.dof_cache = None
         elif not reset and self.dof_cache is None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(2,18)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(list(range(0,8)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 

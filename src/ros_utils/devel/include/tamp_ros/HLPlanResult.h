@@ -130,12 +130,12 @@ struct MD5Sum< ::tamp_ros::HLPlanResult_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "3d15420a1ea98d1e6019df3adbc0e259";
+    return "ed9a7be087c33aaa32d6c8524bc20653";
   }
 
   static const char* value(const ::tamp_ros::HLPlanResult_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x3d15420a1ea98d1eULL;
-  static const uint64_t static_value2 = 0x6019df3adbc0e259ULL;
+  static const uint64_t static_value1 = 0xed9a7be087c33aaaULL;
+  static const uint64_t static_value2 = 0x32d6c8524bc20653ULL;
 };
 
 template<class ContainerAllocator>
@@ -167,6 +167,7 @@ bool success\n\
 int32 plan_id\n\
 int32 cond\n\
 string task\n\
+float32[] state\n\
 \n\
 ================================================================================\n\
 MSG: std_msgs/Float32MultiArray\n\

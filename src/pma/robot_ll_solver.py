@@ -1481,6 +1481,7 @@ class RobotLLSolver(LLSolver):
                 raise NotImplementedError
         if not robot_pose:
             if not baxter_constants.PRODUCTION:
+                print target_pos
                 print "Unable to find IK"
             # import ipdb; ipdb.set_trace()
 

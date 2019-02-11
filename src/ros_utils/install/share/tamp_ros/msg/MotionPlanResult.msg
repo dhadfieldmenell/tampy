@@ -4,3 +4,4 @@ bool success
 int32 plan_id
 int32 cond
 string task
+float32[] state

@@ -25,6 +25,7 @@ class MotionPlanResult {
       this.plan_id = null;
       this.cond = null;
       this.task = null;
+      this.state = null;
     }
     else {
       if (initObj.hasOwnProperty('traj')) {
@@ -63,6 +64,12 @@ class MotionPlanResult {
       else {
         this.task = '';
       }
+      if (initObj.hasOwnProperty('state')) {
+        this.state = initObj.state
+      }
+      else {
+        this.state = [];
+      }
     }
   }
 
@@ -84,6 +91,8 @@ class MotionPlanResult {
     bufferOffset = _serializer.int32(obj.cond, buffer, bufferOffset);
     // Serialize message field [task]
     bufferOffset = _serializer.string(obj.task, buffer, bufferOffset);
+    // Serialize message field [state]
+    bufferOffset = _arraySerializer.float32(obj.state, buffer, bufferOffset, null);
     return bufferOffset;
   }
 
@@ -108,6 +117,8 @@ class MotionPlanResult {
     data.cond = _deserializer.int32(buffer, bufferOffset);
     // Deserialize message field [task]
     data.task = _deserializer.string(buffer, bufferOffset);
+    // Deserialize message field [state]
+    data.state = _arrayDeserializer.float32(buffer, bufferOffset, null)
     return data;
   }
 
@@ -118,7 +129,8 @@ class MotionPlanResult {
     });
     length += object.failed.length;
     length += object.task.length;
-    return length + 21;
+    length += 4 * object.state.length;
+    return length + 25;
   }
 
   static datatype() {
@@ -128,7 +140,7 @@ class MotionPlanResult {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '5efc67c8ca4a7fce7ecdcac89381d056';
+    return 'c25063a349cb64c4f23d5c5dfb881c60';
   }
 
   static messageDefinition() {
@@ -140,6 +152,7 @@ class MotionPlanResult {
     int32 plan_id
     int32 cond
     string task
+    float32[] state
     
     ================================================================================
     MSG: std_msgs/Float32MultiArray
@@ -236,6 +249,13 @@ class MotionPlanResult {
     }
     else {
       resolved.task = ''
+    }
+
+    if (msg.state !== undefined) {
+      resolved.state = msg.state;
+    }
+    else {
+      resolved.state = []
     }
 
     return resolved;

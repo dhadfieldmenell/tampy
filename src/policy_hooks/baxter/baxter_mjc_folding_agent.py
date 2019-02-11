@@ -1,3 +1,4 @@
+import copy
 import sys
 import time
 import traceback
@@ -203,7 +204,8 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         plan = self.plans[task] 
         set_params_attrs(plan.params, plan.state_inds, x0, 0)
 
-        prim_vals = self.get_prim_value(condition, state, task)            
+        prim_vals = self.get_prim_value(condition, state, task)
+        prim_choices = self.prob.get_prim_choices()           
         plan.params['left_corner'].pose[:,0] = prim_vals[LEFT_TARG_ENUM]
         plan.params['left_corner'].pose[:2,0] += np.random.normal(0, mp_var, 2)
         plan.params['left_corner_init_target'].value[:, 0] = plan.params['left_corner'].pose[:,0]
@@ -219,6 +221,12 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         plan.params['robot_init_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,0]
         plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rArmPose[:,0]
         plan.params['robot_init_pose'].rGripper[:,0] = plan.params['baxter'].rGripper[:,0]
+        for t in range(len(traj_mean)):
+            lArmPose = traj_mean[t, self.state_inds['baxter', 'lArmPose']]
+            lGripper = traj_mean[t, self.state_inds['baxter', 'lGripper']]
+            rArmPose = traj_mean[t, self.state_inds['baxter', 'rArmPose']]
+            rGripper = traj_mean[t, self.state_inds['baxter', 'rGripper']]
+            self._clip_joint_angles(lArmPose, lGripper, rArmPose, rGripper, plan)
         try:
             success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, inf_f=inf_f)
         except Exception as e:
@@ -238,16 +246,19 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         try:
             if not len(failed_preds):
                 for action in plan.actions:
-                    failed_preds += [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
+                    failed_preds += [(pred, prim_choices[RIGHT_TARG_ENUM][task[1]], prim_choices[LEFT_TARG_ENUM][task[2]]) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
         except Exception as e:
             traceback.print_exception(*sys.exc_info())
 
         if not success:
             sample = Sample(self)
+            vec = np.zeros(len(self.task_list))
+            vec[task[0]] = 1.
+            sample.set(TASK_ENUM, vec, 0)
             for i in range(len(self.prim_dims.keys())):
                 enum = self.prim_dims.keys()[i]
                 vec = np.zeros((self.prim_dims[enum]))
-                vec[task[i]] = 1.
+                vec[task[i+1]] = 1.
                 sample.set(enum, vec, 0)
             
             set_params_attrs(plan.params, plan.state_inds, x0, 0)
@@ -262,7 +273,43 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             sample.condition = condition
             sample.task = task
             return sample, failed_preds, success
-        return super(BaxterMJCFoldingAgent, self)._sample_opt_traj(plan, state, task, condition)
+        return self._sample_opt_traj(plan, state, task, condition)
+
+
+    def _sample_opt_traj(self, plan, state, task, condition):
+        '''
+        Only call for successfully planned trajectories
+        '''
+        baxter = plan.params['baxter']
+        baxter_body = baxter.openrave_body
+        class optimal_pol:
+            def act(self, X, O, t, noise):
+                U = np.zeros((plan.dU), dtype=np.float32)
+                t2 = t+1 if t< plan.horizon-1 else t
+                baxter_body.set_dof({'lArmPose': baxter.lArmPose[:,t],
+                                     'lGripper': baxter.lGripper[:,t],
+                                     'rArmPose': baxter.rArmPose[:,t],
+                                     'rGripper': baxter.rGripper[:,t]})
+                ee1 = baxter_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], t)
+                baxter_body.set_dof({'lArmPose': baxter.lArmPose[:,t2],
+                                     'lGripper': baxter.lGripper[:,t2],
+                                     'rArmPose': baxter.rArmPose[:,t2],
+                                     'rGripper': baxter.rGripper[:,t2]})
+                ee2 = baxter_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], t2)
+                U[plan.action_inds['baxter', 'ee_left_pos']] = ee2['left_gripper']['pos'] - ee1['left_gripper']['pos']
+                U[plan.action_inds['baxter', 'ee_right_pos']] = ee2['right_gripper']['pos'] - ee1['right_gripper']['pos']
+                U[plan.action_inds['baxter', 'lGripper']] = baxter.lGripper[:,t2]
+                U[plan.action_inds['baxter', 'rGripper']] = baxter.rGripper[:,t2]
+                return U
+
+        state_traj = np.zeros((plan.horizon, self.symbolic_bound))
+        for i in range(plan.horizon):
+            fill_vector(plan.params, plan.state_inds, state_traj[i], i)
+        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
+        self.optimal_samples[self.task_list[task[0]]].append(sample)
+        sample.set_ref_X(state_traj)
+        sample.set_ref_U(sample.get(ACTION_ENUM))
+        return sample, [], True
 
 
     def reset_to_sample(self, sample):
@@ -334,6 +381,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
     def fill_sample(self, cond, sample, mp_state, t, task, fill_obs=False):
         plan = self.plans[task]
         sample.set(STATE_ENUM, mp_state.copy(), t)
+        sample.condition = cond
 
         baxter = plan.params['baxter']
         lArmPose = mp_state[self.state_inds['baxter', 'lArmPose']]
@@ -411,7 +459,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
 
     def get_prim_options(self, cond, state):
         mp_state = state[self._x_data_idx[STATE_ENUM]]
-        outs = {}
+        out = {}
         out[TASK_ENUM] = copy.copy(self.task_list)
         options = self.prob.get_prim_choices()
         plan = self.plans.values()[0]
@@ -432,7 +480,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
                     out[enum] = val
                 out[enum].append(val)
             out[enum] = np.array(out[enum])
-        return outs
+        return out
 
 
     def get_prim_value(self, cond, state, task):
@@ -528,10 +576,10 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         return 5e2
 
     def perturb_solve(self, sample, perturb_var=0.05, inf_f=None):
-        state = sample.get(STATE_ENUM, t=0)
-        condition = sample.get(condition)
+        state = sample.get_X(t=0)
+        condition = sample.condition
         task = sample.task
-        out = self.solve_sample_opt_traj(state, task, condition, traj_mean=sample.get_U(), inf_f=inf_f, mp_var=perturb_var)
+        out = self.solve_sample_opt_traj(state, task, condition, traj_mean=sample.get_X(), inf_f=inf_f, mp_var=perturb_var)
         return out
 
 
@@ -543,13 +591,21 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         plan = self.plans[task]
         act_traj = np.zeros((plan.horizon, self.dU))
         baxter = plan.params['baxter']
+        baxter.lArmPose[:,0] = opt_traj[0, self.state_inds['baxter', 'lArmPose']]
+        baxter.lGripper[:,0] = opt_traj[0, self.state_inds['baxter', 'lGripper']]
+        baxter.rArmPose[:,0] = opt_traj[0, self.state_inds['baxter', 'rArmPose']]
+        baxter.rGripper[:,0] = opt_traj[0, self.state_inds['baxter', 'rGripper']]
         cur_ee = baxter.openrave_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], 0)
         for t in range(plan.horizon-1):
+            baxter.lArmPose[:,t] = opt_traj[t, self.state_inds['baxter', 'lArmPose']]
+            baxter.lGripper[:,t] = opt_traj[t, self.state_inds['baxter', 'lGripper']]
+            baxter.rArmPose[:,t] = opt_traj[t, self.state_inds['baxter', 'rArmPose']]
+            baxter.rGripper[:,t] = opt_traj[t, self.state_inds['baxter', 'rGripper']]
             next_ee = baxter.openrave_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], t+1)
             act_traj[t, self.action_inds['baxter', 'ee_left_pos']] = next_ee['left_gripper']['pos'] - cur_ee['left_gripper']['pos']
-            act_traj[t, self.action_inds['baxter', 'lGripper']] = output_traj[t+1, self.state_inds['baxter', 'lGripper']]
+            act_traj[t, self.action_inds['baxter', 'lGripper']] = opt_traj[t+1, self.state_inds['baxter', 'lGripper']]
             act_traj[t, self.action_inds['baxter', 'ee_right_pos']] = next_ee['right_gripper']['pos'] - cur_ee['right_gripper']['pos']
-            act_traj[t, self.action_inds['baxter', 'rGripper']] = output_traj[t+1, self.state_inds['baxter', 'rGripper']]
+            act_traj[t, self.action_inds['baxter', 'rGripper']] = opt_traj[t+1, self.state_inds['baxter', 'rGripper']]
             cur_ee = next_ee
         act_traj[-1] = act_traj[-2]
 

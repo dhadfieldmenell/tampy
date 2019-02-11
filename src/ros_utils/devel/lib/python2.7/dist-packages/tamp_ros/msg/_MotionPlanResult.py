@@ -8,7 +8,7 @@ import struct
 import std_msgs.msg
 
 class MotionPlanResult(genpy.Message):
-  _md5sum = "5efc67c8ca4a7fce7ecdcac89381d056"
+  _md5sum = "c25063a349cb64c4f23d5c5dfb881c60"
   _type = "tamp_ros/MotionPlanResult"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """std_msgs/Float32MultiArray[] traj
@@ -17,6 +17,7 @@ bool success
 int32 plan_id
 int32 cond
 string task
+float32[] state
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -61,8 +62,8 @@ MSG: std_msgs/MultiArrayDimension
 string label   # label of given dimension
 uint32 size    # size of given dimension (in type units)
 uint32 stride  # stride of given dimension"""
-  __slots__ = ['traj','failed','success','plan_id','cond','task']
-  _slot_types = ['std_msgs/Float32MultiArray[]','string','bool','int32','int32','string']
+  __slots__ = ['traj','failed','success','plan_id','cond','task','state']
+  _slot_types = ['std_msgs/Float32MultiArray[]','string','bool','int32','int32','string','float32[]']
 
   def __init__(self, *args, **kwds):
     """
@@ -72,7 +73,7 @@ uint32 stride  # stride of given dimension"""
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       traj,failed,success,plan_id,cond,task
+       traj,failed,success,plan_id,cond,task,state
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -93,6 +94,8 @@ uint32 stride  # stride of given dimension"""
         self.cond = 0
       if self.task is None:
         self.task = ''
+      if self.state is None:
+        self.state = []
     else:
       self.traj = []
       self.failed = ''
@@ -100,6 +103,7 @@ uint32 stride  # stride of given dimension"""
       self.plan_id = 0
       self.cond = 0
       self.task = ''
+      self.state = []
 
   def _get_types(self):
     """
@@ -147,6 +151,10 @@ uint32 stride  # stride of given dimension"""
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
+      length = len(self.state)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(struct.pack(pattern, *self.state))
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -220,6 +228,13 @@ uint32 stride  # stride of given dimension"""
         self.task = str[start:end].decode('utf-8')
       else:
         self.task = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.state = struct.unpack(pattern, str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -266,6 +281,10 @@ uint32 stride  # stride of given dimension"""
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
+      length = len(self.state)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sf'%length
+      buff.write(self.state.tostring())
     except struct.error as se: self._check_types(struct.error("%s: '%s' when writing '%s'" % (type(se), str(se), str(locals().get('_x', self)))))
     except TypeError as te: self._check_types(ValueError("%s: '%s' when writing '%s'" % (type(te), str(te), str(locals().get('_x', self)))))
 
@@ -340,6 +359,13 @@ uint32 stride  # stride of given dimension"""
         self.task = str[start:end].decode('utf-8')
       else:
         self.task = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sf'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.state = numpy.frombuffer(str[start:end], dtype=numpy.float32, count=length)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill

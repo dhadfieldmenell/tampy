@@ -34,6 +34,7 @@ class DummyPolicyOpt:
 class RolloutServer(object):
     def __init__(self, hyperparams):
         self.id = hyperparams['id']
+        np.random.seed(self.id*1234)
         rospy.init_node('rollout_server_'+str(self.id))
         self.mcts = hyperparams['mcts']
         self.prim_dims = hyperparams['prim_dims']
@@ -100,11 +101,13 @@ class RolloutServer(object):
         self.traj_centers = hyperparams['n_traj_centers']
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}.txt'.format(self.id)
-        start_info = []
+        state_info = []
+        params = self.agent.plans.values()[0].params
         for x in self.agent.x0:
             info = []
             for param_name, attr in self.agent.state_inds:
-                value = x[self.agent._x_data_idx][self.agent.state_inds[param_name, attr]]
+                if params[param_name].is_symbol(): continue
+                value = x[self.agent._x_data_idx[STATE_ENUM]][self.agent.state_inds[param_name, attr]]
                 info.append((param_name, attr, value))
             state_info.append(info)
         with open(self.rollout_log, 'w+') as f:
@@ -279,11 +282,12 @@ class RolloutServer(object):
         print 'Sampling optimal trajectory for rollout server {0}.'.format(self.id)
         plan_id = msg.plan_id
         traj = np.array([msg.traj[i].data for i in range(len(msg.traj))])
+        state = np.array(msg.state)
         success = msg.success
         task = eval(msg.task)
         condition = msg.cond
         if success:
-            opt_sample = self.agent.sample_optimal_trajectory(traj[0], task, condition, traj, traj_mean=[])
+            opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, traj, traj_mean=[])
             self.store_opt_sample(opt_sample, plan_id)
 
 
@@ -352,59 +356,65 @@ class RolloutServer(object):
         rollout_policies = {task: DummyPolicy(task, self.policy_call) for task in self.agent.task_list}
 
         start_time = time.time()
+        all_samples = []
         for mcts in self.mcts:
-            val = mcts.run(self.agent.x0[mcts.condition], self.num_rollouts, use_distilled=False, new_policies=rollout_policies, debug=True)
-            if np.random.uniform() < self.run_hl_prob and val > 0:
-                init_state = self.agent.x0[mcts.condition]
-                prob = HLProblem()
-                prob.server_id = self.id
-                prob.solver_id = np.random.randint(0, self.n_optimizers)
-                prob.init_state = init_state.tolist()
-                prob.cond = mcts.condition
-                gmms = {}
-                for task in self.task_list:
-                    gmm = self.alg_map[task].mp_policy_prior.gmm
-                    if gmm.sigma is None: continue
-                    gmms[task] = {}
-                    gmms[task]['mu'] = gmm.mu.flatten()
-                    gmms[task]['sigma'] = gmm.sigma.flatten()
-                    gmms[task]['logmass'] = gmm.logmass.flatten()
-                    gmms[task]['mass'] = gmm.mass.flatten()
-                    gmms[task]['N'] = len(gmm.mu)
-                    gmms[task]['K'] = len(gmm.mass)
-                    gmms[task]['Do'] = gmm.sigma.shape[1]
-                prob.gmms = str(gmms)
+            for n in range(self.num_rollouts):
+                val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=True)
+                if np.random.uniform() < self.run_hl_prob and val > 0:
+                    init_state = self.agent.x0[mcts.condition]
+                    prob = HLProblem()
+                    prob.server_id = self.id
+                    prob.solver_id = np.random.randint(0, self.n_optimizers)
+                    prob.init_state = init_state.tolist()
+                    prob.cond = mcts.condition
+                    gmms = {}
+                    for task in self.task_list:
+                        gmm = self.alg_map[task].mp_policy_prior.gmm
+                        if gmm.sigma is None: continue
+                        gmms[task] = {}
+                        gmms[task]['mu'] = gmm.mu.flatten()
+                        gmms[task]['sigma'] = gmm.sigma.flatten()
+                        gmms[task]['logmass'] = gmm.logmass.flatten()
+                        gmms[task]['mass'] = gmm.mass.flatten()
+                        gmms[task]['N'] = len(gmm.mu)
+                        gmms[task]['K'] = len(gmm.mass)
+                        gmms[task]['Do'] = gmm.sigma.shape[1]
+                    prob.gmms = str(gmms)
 
-                path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
-                path_tuples = []
-                for step in path:
-                    path_tuples.append(step.task)
-                prob.path_to = str(path_tuples)
-                self.hl_publisher.publish(prob)
+                    path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
+                    path_tuples = []
+                    for step in path:
+                        path_tuples.append(step.task)
+                    prob.path_to = str(path_tuples)
+                    self.hl_publisher.publish(prob)
+
+                sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
+                self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=0.0)
+                n_probs = 0
+
+                for task in sample_lists:
+                    for s_list in sample_lists[task]:
+                        mp_prob = np.random.uniform()
+                        # print 'Checking for sample list for', task
+                        # print mp_prob < self.opt_prob, mp_prob, self.opt_prob
+                        if mp_prob < self.opt_prob:
+                            all_samples.extend(s_list._samples)
+                            probs = self.choose_mp_problems(s_list)
+                            n_probs += len(probs)
+                            for p in probs:
+                                self.send_mp_problem(*p)
 
         end_time = time.time()
 
-        sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
-        self.agent.clear_samples(keep_prob=0.1, keep_opt_prob=0.2)
-        all_samples = []
 
-        n_probs = 0
         start_time_2 = time.time()
-        for task in sample_lists:
-            for s_list in sample_lists[task]:
-                if np.random.uniform() < self.opt_prob:
-                    all_samples.extend(s_list._samples)
-                    probs = self.choose_mp_problems(s_list)
-                    n_probs += len(probs)
-                    for p in probs:
-                        self.send_mp_problem(*p)
         end_time_2 = time.time()
 
-        if self.log_timing:
-            with open(self.time_log, 'a+') as f:
-                f.write('Generated {0} problems from {1} conditions with {2} rollouts per condition.\n'.format(n_probs, len(self.mcts), self.num_rollouts))
-                f.write('Time to complete: {0}\n'.format(end_time-start_time))
-                f.write('Time to select problems through kmeans and send to supervised learner: {0}\n\n'.format(end_time_2-start_time_2))
+        # if self.log_timing:
+        #     with open(self.time_log, 'a+') as f:
+        #         f.write('Generated {0} problems from {1} conditions with {2} rollouts per condition.\n'.format(n_probs, len(self.mcts), self.num_rollouts))
+        #         f.write('Time to complete: {0}\n'.format(end_time-start_time))
+        #         f.write('Time to select problems through kmeans and send to supervised learner: {0}\n\n'.format(end_time_2-start_time_2))
 
         path_samples = []
         for path in self.agent.get_task_paths():

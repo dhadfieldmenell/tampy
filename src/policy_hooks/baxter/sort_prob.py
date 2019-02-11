@@ -24,12 +24,12 @@ domain_file = "../domains/laundry_domain/laundry.domain"
 mapping_file = "policy_hooks/baxter/sort_task_mapping"
 
 POSSIBLE_CLOTH_LOCS = []
-for i in range(30, 60, 3):
+for i in range(40, 70, 3):
     for j in range(20, 60, 2):
-        i *= 0.01
-        j *= 0.01
-        POSSIBLE_CLOTH_LOCS.append((i, j, 0.625))
-        POSSIBLE_CLOTH_LOCS.append((i, -j, 0.625))
+        x = i * 0.01
+        y = j * 0.01
+        POSSIBLE_CLOTH_LOCS.append((x, y, 0.625))
+        POSSIBLE_CLOTH_LOCS.append((x, -y, 0.625))
 
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     # Information is track by the environment

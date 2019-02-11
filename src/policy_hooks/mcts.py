@@ -411,6 +411,7 @@ class MCTS:
             if self.agent.cost_f(cur_state, label, self.condition, active_ts=(0,0)) > 0:
                 break
 
+            plan = self.agent.plans[label]
             next_sample, cur_state = self.sample(label, cur_state, plan, self.num_samples, use_distilled, debug=debug)
 
             if next_sample is None:
@@ -466,7 +467,7 @@ class MCTS:
         if self.agent.cost_f(state, label, self.condition, active_ts=(0,0)) > 0:
             return self.agent.goal_f(self.condition, state), samples
 
-        next_sample, end_state = self.sample(label, state, plan, num_samples=num_samples, use_distilled=use_distilled, save=save, debug=debug)
+        next_sample, end_state = self.sample(label, state, plan, num_samples=num_samples, use_distilled=use_distilled, debug=debug)
 
         if next_sample is None:
             path_value = self.agent.goal_f(self.condition, state)

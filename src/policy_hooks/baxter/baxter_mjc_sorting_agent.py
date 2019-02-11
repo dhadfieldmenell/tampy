@@ -1,3 +1,4 @@
+import copy
 import sys
 import time
 import traceback
@@ -39,6 +40,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         self.env = BaxterMJCEnv(items=items, 
                                 im_dims=(self.im_w, self.im_h), 
                                 obs_include=['end_effector', 'joints'],
+                                mode='end_effector_pos',
                                 view=False)
 
         self.n_items = self.prob.NUM_CLOTHS
@@ -47,13 +49,18 @@ class BaxterMJCSortingAgent(TAMPAgent):
             sample = Sample(self)
             mp_state = self.x0[m]
             self.fill_sample(m, sample, mp_state, 0, tuple(np.zeros(1+len(self.prim_dims.keys()), dtype='int32')))
-            self.x0[m] = sample.get_X(t=0)
+            self.x0[m] = sample.get_X(t=0).copy()
+            self.x0[m].setflags(write=False)
+            for param_name, attr in self.state_inds:
+                if attr == 'pose':
+                    self.env.set_item_pose(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False)
 
         for m in range(len(self.x0)):
             for param_name in self.plans.values()[0].params:
                 if (param_name, 'pose') in self.state_inds:
                     pose = self.env.get_pos_from_label(param_name, mujoco_frame=False)
                     if pose is not None:
+                        # print param_name, pose
                         self.x0[m][self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, 'pose']] = pose
 
 
@@ -88,6 +95,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         for t in range(0, self.T):
             arm_joints = self.env.get_arm_joint_angles()
             grip_joints = self.env.get_gripper_joint_angles()
+            self._clip_joint_angles(arm_joints[7:], grip_joints[1:], arm_joints[:7], grip_joints[:1], plan)
 
             X = np.zeros((plan.symbolic_bound))
             X[self.state_inds['baxter', 'rArmPose']] = arm_joints[:7]
@@ -95,11 +103,12 @@ class BaxterMJCSortingAgent(TAMPAgent):
             X[self.state_inds['baxter', 'lArmPose']] = arm_joints[7:]
             X[self.state_inds['baxter', 'lGripper']] = grip_joints[1]
             prim_val = self.get_prim_value(condition, state, task)
-            X[self.state_inds['cloth', 'pose']] = prim_val[TARG_ENUM]
             for param_name in plan.params:
                 if (param_name, 'pose') in self.state_inds and plan.params[param_name]._type == 'Cloth':
                     pose = self.env.get_pos_from_label(param_name, mujoco_frame=False)
                     if pose is not None:
+                        if pose[2] < 0.625:
+                            pose[2] = 0.625
                         X[self.state_inds[param_name, 'pose']] = pose
 
             sample.set(STATE_ENUM, X.copy(), t)
@@ -178,9 +187,12 @@ class BaxterMJCSortingAgent(TAMPAgent):
         iteration += 1
         plan = self.plans[task] 
         set_params_attrs(plan.params, plan.state_inds, x0, 0)
+        for param in plan.params.values():
+            if param._type == 'Cloth':
+                plan.params['{0}_init_target'.format(param.name)].value[:,0] = param.pose[:,0]
 
         prim_vals = self.get_prim_value(condition, state, task)
-        prim_choices = self.get_prim_options()
+        prim_choices = self.prob.get_prim_choices()
         obj_name = prim_choices[OBJ_ENUM][task[1]]
         targ_name = prim_choices[TARG_ENUM][task[2]]
 
@@ -188,6 +200,12 @@ class BaxterMJCSortingAgent(TAMPAgent):
         plan.params['robot_init_pose'].lGripper[:,0] = plan.params['baxter'].lGripper[:,0]
         plan.params['robot_init_pose'].rArmPose[:,0] = plan.params['baxter'].rArmPose[:,0]
         plan.params['robot_init_pose'].rGripper[:,0] = plan.params['baxter'].rGripper[:,0]
+        # for t in range(len(traj_mean)):
+        #     lArmPose = traj_mean[t, self.state_inds['baxter', 'lArmPose']]
+        #     lGripper = traj_mean[t, self.state_inds['baxter', 'lGripper']]
+        #     rArmPose = traj_mean[t, self.state_inds['baxter', 'rArmPose']]
+        #     rGripper = traj_mean[t, self.state_inds['baxter', 'rGripper']]
+        #     self._clip_joint_angles(lArmPose, lGripper, rArmPose, rGripper, plan)
         try:
             success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, inf_f=inf_f)
         except Exception as e:
@@ -207,22 +225,25 @@ class BaxterMJCSortingAgent(TAMPAgent):
         try:
             if not len(failed_preds):
                 for action in plan.actions:
-                    failed_preds += [(pred, targets[0], targets[1]) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
+                    failed_preds += [(pred, obj_name, targ_name) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
         except Exception as e:
             traceback.print_exception(*sys.exc_info())
 
         if not success:
             sample = Sample(self)
+            vec = np.zeros(len(self.task_list))
+            vec[task[0]] = 1.
+            sample.set(TASK_ENUM, vec, 0)
             for i in range(len(self.prim_dims.keys())):
                 enum = self.prim_dims.keys()[i]
                 vec = np.zeros((self.prim_dims[enum]))
-                vec[task[i]] = 1.
+                vec[task[i+1]] = 1.
                 sample.set(enum, vec, 0)
             
             set_params_attrs(plan.params, plan.state_inds, x0, 0)
             
             sample.set(OBJ_POSE_ENUM, plan.params[obj_name].pose[:,0].copy(), 0)
-            sample.set(TARG_POSE_ENUM, plan.params[targ_name].pose[:,0].copy(), 0)
+            sample.set(TARG_POSE_ENUM, plan.params[targ_name].value[:,0].copy(), 0)
 
             sample.set(STATE_ENUM, x0.copy(), 0)
             for data_type in self._x_data_idx:
@@ -231,7 +252,43 @@ class BaxterMJCSortingAgent(TAMPAgent):
             sample.condition = condition
             sample.task = task
             return sample, failed_preds, success
-        return super(BaxterMJCFoldingAgent, self)._sample_opt_traj(plan, state, task, condition)
+        return self._sample_opt_traj(plan, state, task, condition)
+
+
+    def _sample_opt_traj(self, plan, state, task, condition):
+        '''
+        Only call for successfully planned trajectories
+        '''
+        baxter = plan.params['baxter']
+        baxter_body = baxter.openrave_body
+        class optimal_pol:
+            def act(self, X, O, t, noise):
+                U = np.zeros((plan.dU), dtype=np.float32)
+                t2 = t+1 if t< plan.horizon-1 else t
+                baxter_body.set_dof({'lArmPose': baxter.lArmPose[:,t],
+                                     'lGripper': baxter.lGripper[:,t],
+                                     'rArmPose': baxter.rArmPose[:,t],
+                                     'rGripper': baxter.rGripper[:,t]})
+                ee1 = baxter_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], t)
+                baxter_body.set_dof({'lArmPose': baxter.lArmPose[:,t2],
+                                     'lGripper': baxter.lGripper[:,t2],
+                                     'rArmPose': baxter.rArmPose[:,t2],
+                                     'rGripper': baxter.rGripper[:,t2]})
+                ee2 = baxter_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], t2)
+                U[plan.action_inds['baxter', 'ee_left_pos']] = ee2['left_gripper']['pos'] - ee1['left_gripper']['pos']
+                U[plan.action_inds['baxter', 'ee_right_pos']] = ee2['right_gripper']['pos'] - ee1['right_gripper']['pos']
+                U[plan.action_inds['baxter', 'lGripper']] = baxter.lGripper[:,t2]
+                U[plan.action_inds['baxter', 'rGripper']] = baxter.rGripper[:,t2]
+                return U
+
+        state_traj = np.zeros((plan.horizon, self.symbolic_bound))
+        for i in range(plan.horizon):
+            fill_vector(plan.params, plan.state_inds, state_traj[i], i)
+        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
+        self.optimal_samples[self.task_list[task[0]]].append(sample)
+        sample.set_ref_X(state_traj)
+        sample.set_ref_U(sample.get(ACTION_ENUM))
+        return sample, [], True
 
 
     def reset_to_sample(self, sample):
@@ -259,6 +316,20 @@ class BaxterMJCSortingAgent(TAMPAgent):
                 self.env.set_item_pose(param_name, mp_state[self.state_inds[param_name, 'pose']], mujoco_frame=False)
 
 
+    def reset_to_mp_state(self, x):
+        lArmPose = x[self.state_inds['baxter', 'lArmPose']]
+        lGripper = x[self.state_inds['baxter', 'lGripper']]
+        rArmPose = x[self.state_inds['baxter', 'rArmPose']]
+        rGripper = x[self.state_inds['baxter', 'rGripper']]
+        self.env.physics.data.qpos[1:8] = rArmPose
+        self.env.physics.data.qpos[8:10] = rGripper
+        self.env.physics.data.qpos[10:17] = lArmPose
+        self.env.physics.data.qpos[17:19] = lGripper
+        for param_name, attr in self.state_inds:
+            if attr == 'pose':
+                self.env.set_item_pose(param_name, x[self.state_inds[param_name, 'pose']], mujoco_frame=False)
+
+
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
         self.reset_to_state(state)
         params = self.plans.values()[0].params
@@ -273,6 +344,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
     def fill_sample(self, cond, sample, mp_state, t, task, fill_obs=False):
         plan = self.plans[task]
         sample.set(STATE_ENUM, mp_state.copy(), t)
+        sample.condition = cond
 
         baxter = plan.params['baxter']
         lArmPose = mp_state[self.state_inds['baxter', 'lArmPose']]
@@ -335,7 +407,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
 
     def get_prim_options(self, cond, state):
         mp_state = state[self._x_data_idx[STATE_ENUM]]
-        outs = {}
+        out = {}
         out[TASK_ENUM] = copy.copy(self.task_list)
         options = self.prob.get_prim_choices()
         plan = self.plans.values()[0]
@@ -356,7 +428,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
                     out[enum] = val
                 out[enum].append(val)
             out[enum] = np.array(out[enum])
-        return outs
+        return out
 
 
     def get_prim_value(self, cond, state, task):
@@ -396,14 +468,12 @@ class BaxterMJCSortingAgent(TAMPAgent):
 
 
     def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
+        cost = 0
         if len(Xs.shape) == 1:
             Xs = Xs.reshape(1, Xs.shape[0])
         Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
         plan = self.plans[task]
         tol = 1e-3
-
-        if len(Xs.shape) == 1:
-            Xs = Xs.reshape(1, -1)
 
         if active_ts == None:
             active_ts = (1, plan.horizon-1)
@@ -424,7 +494,29 @@ class BaxterMJCSortingAgent(TAMPAgent):
         # if debug:
         #     print failed_preds
 
-        cost = 0
+        prim_choices = self.prob.get_prim_choices()
+
+        obj = prim_choices[OBJ_ENUM][task[1]]
+        targ = prim_choices[TARG_ENUM][task[2]]
+        obj_param = plan.params[obj]
+        targ_param = plan.params[targ]
+
+        if active_ts[0] == 0:
+            if 'grasp' in plan.actions[1].name.lower():
+                if 'right' in plan.actions[1].name.lower():
+                    if obj_param.pose[1,0] > 0.1:
+                        cost += 1e1
+                else:
+                    if obj_param.pose[1,0] < -0.1:
+                        cost += 1e1
+            if 'putdown' in plan.actions[1].name.lower():
+                if 'right' in plan.actions[1].name.lower():
+                    if targ_param.value[1,0] > 0.1:
+                        cost += 1e1
+                else:
+                    if targ_param.value[1,0] < -0.1:
+                        cost += 1e1
+
         # print plan.actions, failed_preds
         for failed in failed_preds:
             for t in range(active_ts[0], active_ts[1]+1):
@@ -462,10 +554,10 @@ class BaxterMJCSortingAgent(TAMPAgent):
         return diff
 
     def perturb_solve(self, sample, perturb_var=0.05, inf_f=None):
-        state = sample.get(STATE_ENUM, t=0)
-        condition = sample.get(condition)
+        state = sample.get_X(t=0)
+        condition = sample.condition
         task = sample.task
-        out = self.solve_sample_opt_traj(state, task, condition, traj_mean=sample.get_U(), inf_f=inf_f, mp_var=perturb_var)
+        out = self.solve_sample_opt_traj(state, task, condition, traj_mean=sample.get_X(), inf_f=inf_f, mp_var=perturb_var)
         return out
 
 
@@ -477,13 +569,21 @@ class BaxterMJCSortingAgent(TAMPAgent):
         plan = self.plans[task]
         act_traj = np.zeros((plan.horizon, self.dU))
         baxter = plan.params['baxter']
+        baxter.lArmPose[:,0] = opt_traj[0, self.state_inds['baxter', 'lArmPose']]
+        baxter.lGripper[:,0] = opt_traj[0, self.state_inds['baxter', 'lGripper']]
+        baxter.rArmPose[:,0] = opt_traj[0, self.state_inds['baxter', 'rArmPose']]
+        baxter.rGripper[:,0] = opt_traj[0, self.state_inds['baxter', 'rGripper']]
         cur_ee = baxter.openrave_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], 0)
         for t in range(plan.horizon-1):
+            baxter.lArmPose[:,t] = opt_traj[t, self.state_inds['baxter', 'lArmPose']]
+            baxter.lGripper[:,t] = opt_traj[t, self.state_inds['baxter', 'lGripper']]
+            baxter.rArmPose[:,t] = opt_traj[t, self.state_inds['baxter', 'rArmPose']]
+            baxter.rGripper[:,t] = opt_traj[t, self.state_inds['baxter', 'rGripper']]
             next_ee = baxter.openrave_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], t+1)
             act_traj[t, self.action_inds['baxter', 'ee_left_pos']] = next_ee['left_gripper']['pos'] - cur_ee['left_gripper']['pos']
-            act_traj[t, self.action_inds['baxter', 'lGripper']] = output_traj[t+1, self.state_inds['baxter', 'lGripper']]
+            act_traj[t, self.action_inds['baxter', 'lGripper']] = opt_traj[t+1, self.state_inds['baxter', 'lGripper']]
             act_traj[t, self.action_inds['baxter', 'ee_right_pos']] = next_ee['right_gripper']['pos'] - cur_ee['right_gripper']['pos']
-            act_traj[t, self.action_inds['baxter', 'rGripper']] = output_traj[t+1, self.state_inds['baxter', 'rGripper']]
+            act_traj[t, self.action_inds['baxter', 'rGripper']] = opt_traj[t+1, self.state_inds['baxter', 'rGripper']]
             cur_ee = next_ee
         act_traj[-1] = act_traj[-2]
 

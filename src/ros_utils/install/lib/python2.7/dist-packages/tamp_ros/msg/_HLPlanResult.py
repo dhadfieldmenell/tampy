@@ -9,7 +9,7 @@ import tamp_ros.msg
 import std_msgs.msg
 
 class HLPlanResult(genpy.Message):
-  _md5sum = "3d15420a1ea98d1e6019df3adbc0e259"
+  _md5sum = "ed9a7be087c33aaa32d6c8524bc20653"
   _type = "tamp_ros/HLPlanResult"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """MotionPlanResult[] steps
@@ -25,6 +25,7 @@ bool success
 int32 plan_id
 int32 cond
 string task
+float32[] state
 
 ================================================================================
 MSG: std_msgs/Float32MultiArray
@@ -152,6 +153,10 @@ uint32 stride  # stride of given dimension"""
           _x = _x.encode('utf-8')
           length = len(_x)
         buff.write(struct.pack('<I%ss'%length, length, _x))
+        length = len(val1.state)
+        buff.write(_struct_I.pack(length))
+        pattern = '<%sf'%length
+        buff.write(struct.pack(pattern, *val1.state))
       _x = self.path_to
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -239,6 +244,13 @@ uint32 stride  # stride of given dimension"""
           val1.task = str[start:end].decode('utf-8')
         else:
           val1.task = str[start:end]
+        start = end
+        end += 4
+        (length,) = _struct_I.unpack(str[start:end])
+        pattern = '<%sf'%length
+        start = end
+        end += struct.calcsize(pattern)
+        val1.state = struct.unpack(pattern, str[start:end])
         self.steps.append(val1)
       start = end
       end += 4
@@ -303,6 +315,10 @@ uint32 stride  # stride of given dimension"""
           _x = _x.encode('utf-8')
           length = len(_x)
         buff.write(struct.pack('<I%ss'%length, length, _x))
+        length = len(val1.state)
+        buff.write(_struct_I.pack(length))
+        pattern = '<%sf'%length
+        buff.write(val1.state.tostring())
       _x = self.path_to
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -391,6 +407,13 @@ uint32 stride  # stride of given dimension"""
           val1.task = str[start:end].decode('utf-8')
         else:
           val1.task = str[start:end]
+        start = end
+        end += 4
+        (length,) = _struct_I.unpack(str[start:end])
+        pattern = '<%sf'%length
+        start = end
+        end += struct.calcsize(pattern)
+        val1.state = numpy.frombuffer(str[start:end], dtype=numpy.float32, count=length)
         self.steps.append(val1)
       start = end
       end += 4

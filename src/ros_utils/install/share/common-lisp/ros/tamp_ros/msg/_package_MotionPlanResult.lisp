@@ -11,4 +11,6 @@
           COND
           TASK-VAL
           TASK
+          STATE-VAL
+          STATE
 ))

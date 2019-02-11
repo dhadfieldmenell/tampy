@@ -161,7 +161,10 @@ class OpenRAVEBody(object):
         for k, v in dof_value_map.iteritems():
             if k not in self._geom.dof_map or np.any(np.isnan(v)): continue
             inds = self._geom.dof_map[k]
-            dof_val[inds] = v
+            try:
+                dof_val[inds] = v
+            except IndexError:
+                print '\n\n\nBad index in set dof:', inds, k, v, self._geom, '\n\n\n'
         # Set new DOF value to the robot
         self.env_body.SetActiveDOFValues(dof_val)
 
