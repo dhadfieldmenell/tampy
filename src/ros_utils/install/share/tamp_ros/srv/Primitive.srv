@@ -1,7 +1,0 @@
-float32[] prim_obs
-
----
-
-float32[] task_distr
-float32[] obj_distr
-float32[] targ_distr

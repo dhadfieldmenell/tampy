@@ -1,7 +1,0 @@
-float32[] obs
-float32[] noise
-string task
-
----
-
-float32[] act
