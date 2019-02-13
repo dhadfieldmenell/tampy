@@ -47,6 +47,7 @@ class AbstractMotionPlanServer(object):
 
         # self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
+        self.busy = False
         self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
         self.hl_publishers = {i: rospy.Publisher('hl_result_'+str(i), HLPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=10)
@@ -164,7 +165,10 @@ class AbstractMotionPlanServer(object):
 
 
     def publish_motion_plan(self, msg):
-        if msg.solver_id != self.id: return
+        if self.busy:
+            print 'Server', self.id, 'busy, rejecting request for motion plan.'
+        if msg.solver_id != self.id or self.busy: return
+        self.busy = True
         print 'Server {0} solving motion plan for rollout server {1}.'.format(self.id, msg.server_id)
         state = np.array(msg.state)
         task = eval(msg.task)
@@ -209,6 +213,7 @@ class AbstractMotionPlanServer(object):
         resp.task = msg.task
         resp.state = state.tolist()
         self.mp_publishers[msg.server_id].publish(resp)
+        print 'Succeeded:', success, failed
 
         if success:
             for _ in range(self.perturb_steps):
@@ -216,10 +221,11 @@ class AbstractMotionPlanServer(object):
                 failed = str(failed)
                 resp = MotionPlanResult()
                 resp.traj = []
-                out = sample.get(STATE_ENUM)
-                for t in range(len(out)):
+                state = out.get_X(t=0)
+                out_traj = sample.get(STATE_ENUM)
+                for t in range(len(out_traj)):
                     next_line = Float32MultiArray()
-                    next_line.data = out[t]
+                    next_line.data = out_traj[t]
                     resp.traj.append(next_line)
                 resp.failed = failed
                 resp.success = success
@@ -228,10 +234,14 @@ class AbstractMotionPlanServer(object):
                 resp.task = msg.task
                 resp.state = state.tolist()
                 self.mp_publishers[msg.server_id].publish(resp)
+        self.busy = False
 
 
     def publish_hl_plan(self, msg):
-        if msg.solver_id != self.id: return
+        if self.busy:
+            print 'Server', self.id, 'busy, rejecting request for motion plan.'
+        if msg.solver_id != self.id or self.busy: return
+        self.busy = True
         paths = []
         failed = []
         new_failed = []
@@ -309,7 +319,7 @@ class AbstractMotionPlanServer(object):
                 next_line = Float32MultiArray()
                 next_line.data = out[t]
                 mp_step.traj.append(next_line)
-                
+
             mp_step.failed = ''
             mp_step.success = True
             mp_step.plan_id = -1
@@ -323,6 +333,7 @@ class AbstractMotionPlanServer(object):
         resp.success = len(cur_path) and cur_path[0].success == SUCCESS_LABEL
         resp.cond = msg.cond
         self.hl_publishers[msg.server_id].publish(resp)
+        self.busy = False
 
 
     def update_weight(self, msg):

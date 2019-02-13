@@ -68,6 +68,7 @@ class MultiProcessMain(object):
 
         if 'multi_policy' not in self.config: self.config['multi_policy'] = False
         self.pol_list = self.task_list if self.config['multi_policy'] else ('control',)
+        self.config['policy_list'] = self.pol_list
         self.task_durations = get_task_durations(self.config['task_map_file'])
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
@@ -362,6 +363,7 @@ class MultiProcessMain(object):
                                   soft_decision=1.0,
                                   C=np.sqrt(2.),
                                   max_depth=self.config['max_tree_depth'],
+                                  explore_depth=5,
                                   opt_strength=0,
                                   ))
 
@@ -388,6 +390,7 @@ class MultiProcessMain(object):
 
     def spawn_servers(self, config):
         self.processes = []
+        self.process_info = []
         self.threads = []
         if self.config['mp_server']:
             self.create_mp_servers(config)
@@ -411,6 +414,8 @@ class MultiProcessMain(object):
             p = Process(target=spawn_server, args=(server_cls, hyperparams))
             p.daemon = True
             self.processes.append(p)
+            server_id = hyperparams['id'] if 'id' in hyperparams else hyperparams['scope']
+            self.process_info.append((server_cls, server_id))
         else:
             t = Thread(target=spawn_server, args=(server_cls, hyperparams))
             t.daemon = True
@@ -457,7 +462,7 @@ class MultiProcessMain(object):
                 p = self.processes[n]
                 if not p.is_alive():
                     message = 'Killing All.' if kill_all else 'Restarting Dead Process.'
-                    print 'Process died. ' + message
+                    print '\n\nProcess died: ' + str(self.process_info[n]) + ' - ' + message
                     exit = kill_all
                     if exit: break
             time.sleep(1)

@@ -187,16 +187,17 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.store_scope_weights([self.scope], weight_dir)
 
     def store(self, obs, mu, prc, wt, net):
+        print 'Storing data for', self.scope
         if net not in self.mu or net not in self.obs or net not in self.prc or net not in self.wt:
             self.mu[net] = np.array(mu)
             self.obs[net] = np.array(obs)
             self.prc[net] = np.array(prc)
             self.wt[net] = np.array(wt)
         else:
-            self.mu[net] = np.concatenate([self.mu[net], np.array(mu)])
-            self.obs[net] = np.concatenate([self.obs[net], np.array(obs)])
-            self.prc[net] = np.concatenate([self.prc[net], np.array(prc)])
-            self.wt[net] = np.concatenate([self.wt[net], np.array(wt)])
+            self.mu[net] = np.r_[self.mu[net], np.array(mu)]
+            self.obs[net] = np.r_[self.obs[net], np.array(obs)]
+            self.prc[net] = np.r_[self.prc[net], np.array(prc)]
+            self.wt[net] = np.r_[self.wt[net], np.array(wt)]
 
         self.update_count += len(mu)
         if self.update_count > self.update_size:
@@ -830,7 +831,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         return np.array([traj]), sig, prec, det_sig
 
     def policy_initialized(self, task):
-        return self.task_map[task]['policy'].scale is not None
+        return self.task_map['control']['policy'].scale is not None
 
     def prob(self, obs, task="control"):
         """

@@ -58,7 +58,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         if len(self.cur) != len(all_opt_samples) or reset:
             self.set_conditions(len(all_opt_samples))
 
-        print 'Algorithm for {0} updating on {1} rollouts'.format(self.task, len(all_opt_samples))
+        print '\nAlgorithm for {0} updating on {1} rollouts\n'.format(self.task, len(all_opt_samples))
         self._update_prior(self.policy_prior, SampleList(all_samples))
         self._update_prior(self.mp_policy_prior, SampleList(all_samples))
 
@@ -92,6 +92,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         self._update_trajectories()
 
         # S-step
+        print 'Sending data to update policy.'
         self._update_policy(all_opt_samples)
 
         # Prepare for next iteration
@@ -100,7 +101,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         return sample_lists
 
     def preiteration_step(self, sample_lists):
-        if not self.policy_opt.policy_initialized(self.task): return
+        if not self.local_policy_opt.policy_initialized(self.task): return
         if self.M != len(sample_lists):
             self.set_conditions(len(sample_lists))
         for m in range(self.M):
@@ -109,10 +110,10 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
 
     def _update_prior(self, prior, samples):
-        if not self.policy_opt.policy_initialized(self.task): return
+        if not self.local_policy_opt.policy_initialized(self.task): return
         mode = self._hyperparams['policy_sample_mode']
         try:
-            prior.update(samples, self.policy_opt, mode, self.task)
+            prior.update(samples, self.local_policy_opt, mode, self.task)
         except Exception as e:
             print 'Policy prior update threw exception: ', e, '\n'
 

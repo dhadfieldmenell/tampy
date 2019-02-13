@@ -1,4 +1,5 @@
 import os
+import time
 
 import numpy as np
 
@@ -71,13 +72,15 @@ def get_base_solver(parent_class):
             raise NotImplementedError
 
 
-        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None):
+        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None, start_time=None):
             if amax is None:
                 amax = len(plan.actions) - 1
 
             if anum > amax:
                 return True
 
+            if start_time is None:
+                start_time = time.time()
             a = plan.actions[anum]
             print "backtracking Solve on {}".format(a.name)
             active_ts = a.active_timesteps

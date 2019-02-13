@@ -45,6 +45,7 @@ class RolloutServer(object):
             m.agent = self.agent
         self.alg_map = hyperparams['alg_map']
         self.task_list = self.agent.task_list
+        self.pol_list = tuple(hyperparams['policy_list']) + ('value', 'primitive')
         self.traj_opt_steps = hyperparams['traj_opt_steps']
         self.num_samples = hyperparams['num_samples']
         for mcts in self.mcts:
@@ -52,7 +53,7 @@ class RolloutServer(object):
         self.num_rollouts = hyperparams['num_rollouts']
         self.stopped = False
 
-        self.updaters = {task: rospy.Publisher(task+'_update', PolicyUpdate, queue_size=50) for task in self.alg_map}
+        self.updaters = {task: rospy.Publisher(task+'_update', PolicyUpdate, queue_size=50) for task in self.pol_list}
         self.updaters['value'] = rospy.Publisher('value_update', PolicyUpdate, queue_size=50)
         self.updaters['primitive'] = rospy.Publisher('primitive_update', PolicyUpdate, queue_size=50)
         self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp)
@@ -97,8 +98,11 @@ class RolloutServer(object):
                 hyperparams['dValObs'],
                 hyperparams['prim_bounds']
             )
+            for alg in self.alg_map.values():
+                alg.local_policy_opt = self.policy_opt
 
         self.traj_centers = hyperparams['n_traj_centers']
+        self.opt_queue = []
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}.txt'.format(self.id)
         state_info = []
@@ -136,7 +140,13 @@ class RolloutServer(object):
         msg.dU = mu.shape[-1]
         msg.n = len(mu)
         msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
-        self.updaters[task].publish(msg)
+        if task in self.pol_list:
+            print 'Sent update to', task, 'policy'
+            self.updaters[task].publish(msg)
+        else:
+            # Assume that if we don't have a policy for this task we're using a single control policy
+            print 'Sent update to control policy'
+            self.updaters['control'].publish(msg)
 
 
     def store_weights(self, msg):
@@ -264,31 +274,40 @@ class RolloutServer(object):
             del self.sample_queue[0]
 
 
-    def store_opt_sample(self, sample, plan_id):
+    def store_opt_sample(self, sample, plan_id, waiters=[]):
         if plan_id in self.waiting_for_opt:
             samples = self.waiting_for_opt[plan_id]
             del self.waiting_for_opt[plan_id]
         else:
-            samples = []
+            samples = waiters
 
         for s in samples:
             s.set_ref_X(sample.get_ref_X())
-        self.opt_samples[sample.task].append((sample, samples))
-        while len(self.opt_samples[sample.task]) > self.max_opt_sample_queue:
-            del self.opt_samples[sample.task][0]
+
+        task = self.task_list[sample.task[0]]
+        self.opt_samples[task].append((sample, samples))
+        while len(self.opt_samples[task]) > self.max_opt_sample_queue:
+            del self.opt_samples[task][0]
 
 
     def sample_mp(self, msg):
-        print 'Sampling optimal trajectory for rollout server {0}.'.format(self.id)
         plan_id = msg.plan_id
         traj = np.array([msg.traj[i].data for i in range(len(msg.traj))])
         state = np.array(msg.state)
         success = msg.success
         task = eval(msg.task)
         condition = msg.cond
+        print "Received trajectory, success:", success
         if success:
-            opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, traj, traj_mean=[])
-            self.store_opt_sample(opt_sample, plan_id)
+            waiters = []
+            if plan_id in self.waiting_for_opt:
+                waiters = self.waiting_for_opt[plan_id]
+                del self.waiting_for_opt[plan_id]
+
+            self.opt_queue.append((plan_id, state, task, condition, traj, waiters))
+            # print 'Sampling optimal trajectory on rollout server {0}.'.format(self.id)
+            # opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, opt_traj=traj, traj_mean=[])
+            # self.store_opt_sample(opt_sample, plan_id)
 
 
     def choose_mp_problems(self, samples):
@@ -350,6 +369,14 @@ class RolloutServer(object):
         self.async_plan_publisher.publish(prob)
 
 
+    def run_opt_queue(self):
+        if len(self.opt_queue):
+            print 'Running optimal trajectory.'
+            plan_id, state, task, condition, traj, waiters = self.opt_queue.pop()
+            opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, opt_traj=traj, traj_mean=[])
+            self.store_opt_sample(opt_sample, plan_id, waiters)
+
+
     def step(self):
         print '\n\nTaking tree search step.\n\n'
         self.cur_step += 1
@@ -358,51 +385,54 @@ class RolloutServer(object):
         start_time = time.time()
         all_samples = []
         for mcts in self.mcts:
-            for n in range(self.num_rollouts):
-                val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=True)
-                if np.random.uniform() < self.run_hl_prob and val > 0:
-                    init_state = self.agent.x0[mcts.condition]
-                    prob = HLProblem()
-                    prob.server_id = self.id
-                    prob.solver_id = np.random.randint(0, self.n_optimizers)
-                    prob.init_state = init_state.tolist()
-                    prob.cond = mcts.condition
-                    gmms = {}
-                    for task in self.task_list:
-                        gmm = self.alg_map[task].mp_policy_prior.gmm
-                        if gmm.sigma is None: continue
-                        gmms[task] = {}
-                        gmms[task]['mu'] = gmm.mu.flatten()
-                        gmms[task]['sigma'] = gmm.sigma.flatten()
-                        gmms[task]['logmass'] = gmm.logmass.flatten()
-                        gmms[task]['mass'] = gmm.mass.flatten()
-                        gmms[task]['N'] = len(gmm.mu)
-                        gmms[task]['K'] = len(gmm.mass)
-                        gmms[task]['Do'] = gmm.sigma.shape[1]
-                    prob.gmms = str(gmms)
+            val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=True)
+            self.run_opt_queue()
+            if np.random.uniform() < self.run_hl_prob and val > 0:
+                init_state = self.agent.x0[mcts.condition]
+                prob = HLProblem()
+                prob.server_id = self.id
+                prob.solver_id = np.random.randint(0, self.n_optimizers)
+                prob.init_state = init_state.tolist()
+                prob.cond = mcts.condition
+                gmms = {}
+                for task in self.task_list:
+                    gmm = self.alg_map[task].mp_policy_prior.gmm
+                    if gmm.sigma is None: continue
+                    gmms[task] = {}
+                    gmms[task]['mu'] = gmm.mu.flatten()
+                    gmms[task]['sigma'] = gmm.sigma.flatten()
+                    gmms[task]['logmass'] = gmm.logmass.flatten()
+                    gmms[task]['mass'] = gmm.mass.flatten()
+                    gmms[task]['N'] = len(gmm.mu)
+                    gmms[task]['K'] = len(gmm.mass)
+                    gmms[task]['Do'] = gmm.sigma.shape[1]
+                prob.gmms = str(gmms)
 
-                    path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
-                    path_tuples = []
-                    for step in path:
-                        path_tuples.append(step.task)
-                    prob.path_to = str(path_tuples)
-                    self.hl_publisher.publish(prob)
+                path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
+                path_tuples = []
+                for step in path:
+                    path_tuples.append(step.task)
+                prob.path_to = str(path_tuples)
+                self.hl_publisher.publish(prob)
 
-                sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
-                self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=0.0)
-                n_probs = 0
+            sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
+            self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=0.0)
+            n_probs = 0
 
-                for task in sample_lists:
-                    for s_list in sample_lists[task]:
-                        mp_prob = np.random.uniform()
-                        # print 'Checking for sample list for', task
-                        # print mp_prob < self.opt_prob, mp_prob, self.opt_prob
-                        if mp_prob < self.opt_prob:
-                            all_samples.extend(s_list._samples)
-                            probs = self.choose_mp_problems(s_list)
-                            n_probs += len(probs)
-                            for p in probs:
-                                self.send_mp_problem(*p)
+            for task in sample_lists:
+                for s_list in sample_lists[task]:
+                    mp_prob = np.random.uniform()
+                    # print 'Checking for sample list for', task
+                    # print mp_prob < self.opt_prob, mp_prob, self.opt_prob
+                    if mp_prob < self.opt_prob:
+                        all_samples.extend(s_list._samples)
+                        probs = self.choose_mp_problems(s_list)
+                        n_probs += len(probs)
+                        for p in probs:
+                            self.send_mp_problem(*p)
+            for task in self.agent.task_list:
+                if len(self.opt_samples[task]) > 0:
+                    sample_lists[task] = self.alg_map[task].iteration(self.opt_samples[task], reset=False)
 
         end_time = time.time()
 

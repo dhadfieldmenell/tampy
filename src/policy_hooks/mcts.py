@@ -106,13 +106,14 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20, opt_strength=0.0):
+    def __init__(self, tasks, prim_dims, gmms, value_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20, explore_depth=5, opt_strength=0.0):
         self.tasks = tasks
         self.prim_dims = prim_dims
         self.prim_order = prim_dims.keys()
         self.num_prims = prim_dims.values()
         self.root = MCTSNode((-1, -1, -1), 0, None, len(tasks), prim_dims)
         self.max_depth = max_depth
+        self.explore_depth = explore_depth
         self.condition = condition
         self.agent = agent
         self.soft_decision = soft_decision
@@ -202,6 +203,8 @@ class MCTS:
         paths = []
         for n in range(num_rollouts):
             self.n_runs += 1
+            # if not self.n_runs % 10 and self.n_success == 0:
+            #     self.max_depth += 1
             self.agent.reset_hist()
             print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
             next_path = self.simulate(state.copy(), use_distilled, debug=debug)
@@ -399,7 +402,7 @@ class MCTS:
         while True:
             if debug:
                 print "Taking simulation step"
-            if self.agent.goal_f(self.condition, state) == 0 or current_node.depth >= self.max_depth:
+            if self.agent.goal_f(self.condition, state) == 0: # or current_node.depth >= self.max_depth:
                 break
 
             next_node, _ = self._choose_next(cur_state, current_node, prev_sample, exclude_hl, use_distilled, debug=debug)
@@ -447,7 +450,7 @@ class MCTS:
         if debug:
             print "Running simulate from next"
         label = node.label
-        cost, samples = self._simulate_from_next(label, node.depth, state, self.prob_func, [], num_samples, save, exclude_hl, use_distilled, [], debug=debug)
+        cost, samples = self._simulate_from_next(label, node.depth, node.depth, state, self.prob_func, [], num_samples, save, exclude_hl, use_distilled, [], debug=debug)
         if len(samples):
             node.sample_links[samples[0]] = prev_sample
         else:
@@ -455,7 +458,7 @@ class MCTS:
         return cost, samples[0]
 
 
-    def _simulate_from_next(self, label, depth, state, prob_func, samples, num_samples=1, save=True, exclude_hl=[], use_distilled=True, exclude=[], debug=False):
+    def _simulate_from_next(self, label, depth, init_depth, state, prob_func, samples, num_samples=1, save=True, exclude_hl=[], use_distilled=True, exclude=[], debug=False):
         # print 'Entering simulate call:', datetime.now()
         task = self.tasks[label[0]]
         new_samples = []
@@ -479,7 +482,7 @@ class MCTS:
 
         path_value = self.agent.goal_f(self.condition, end_state)
         # hl_encoding = self._encode_f(end_state, self.agent.plans.values()[0], self.agent.targets[self.condition])
-        if path_value == 0 or depth >= self.max_depth: # or hl_encoding in exclude_hl:
+        if path_value == 0 or depth >= init_depth + self.explore_depth or depth >= self.max_depth: # or hl_encoding in exclude_hl:
             for sample in samples:
                 sample.task_cost = path_value
                 sample.success = SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
@@ -504,4 +507,4 @@ class MCTS:
                 next_label.append(np.argmax(distr))
 
         next_label = tuple(next_label)
-        return self._simulate_from_next(next_label, depth+1, end_state, prob_func, samples, num_samples=num_samples, save=False, use_distilled=use_distilled, debug=debug)
+        return self._simulate_from_next(next_label, depth+1, init_depth, end_state, prob_func, samples, num_samples=num_samples, save=False, use_distilled=use_distilled, debug=debug)

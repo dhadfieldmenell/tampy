@@ -40,9 +40,9 @@ BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
 N_OPTIMIZERS = 8
-N_ROLLOUT_SERVERS = 20
+N_ROLLOUT_SERVERS = 16
 
-NUM_CONDS = 20
+NUM_CONDS = 10
 NUM_OBJS = prob.NUM_CLOTHS
 NUM_PRETRAIN_STEPS = 100
 NUM_TRAJ_OPT_STEPS = 1
@@ -174,7 +174,7 @@ config = {
     'verbose_policy_trials': 1,
     'common': common,
     'algorithm': algorithm,
-    'num_samples': 20,
+    'num_samples': 15,
     'num_distilled_samples': 5,
     'num_conds': NUM_CONDS,
     'mode': 'add',
@@ -183,7 +183,7 @@ config = {
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 10,
+    'num_rollouts': 2,
     'max_tree_depth': 25,
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
@@ -219,7 +219,7 @@ config = {
     'agent_type': BaxterMJCSortingAgent,
     'opt_server_type': SortingMotionPlanServer,
     'solver_type': BaxterPolicySolver,
-    'update_size': 5e3,
+    'update_size': 1e3,
     'use_local': True,
     'n_dirs': 16,
     'domain': 'baxter',
@@ -231,7 +231,7 @@ config = {
     'image_height': IM_H,
     'image_channels': 3,
     'lr': 1e-3,
-    'opt_prob': 0.1,
+    'opt_prob': 0.9,
 
     'cloth_width': CLOTH_W,
     'cloth_length': CLOTH_L,
