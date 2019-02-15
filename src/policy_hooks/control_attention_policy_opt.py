@@ -138,9 +138,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             for v in variables:
                 var_to_val[v.name] = self.sess.run(v).tolist()
 
-        scale = self.task_map['control']['policy'].scale.tolist()
-        bias = self.task_map['control']['policy'].bias.tolist()
-        variance = self.var['control'].tolist()
+        scalees = {task: self.task_map[task]['policy'].scale.tolist() for task in scopes if task in self.task_map}
+        biases = {task: self.task_map[task]['policy'].bias.tolist() for task in scopes if task in self.task_map}
+        variances = {task: self.var[task].tolist() for task in scopes if task in self.task_map}
         scales[''] = []
         biases[''] = []
         variances[''] = []

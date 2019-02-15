@@ -103,6 +103,7 @@ class RolloutServer(object):
 
         self.traj_centers = hyperparams['n_traj_centers']
         self.opt_queue = []
+        self.hl_opt_queue = []
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}.txt'.format(self.id)
         state_info = []
@@ -226,17 +227,30 @@ class RolloutServer(object):
         mcts = self.mcts[cond]
         path_to = eval(msg.path_to)
         samples = []
+        opt_queue = []
         for step in msg.steps:
+            plan_id = -1 # step.plan_id
             traj = np.array([step.traj[i].data for i in range(len(step.traj))])
+            state = np.array(step.state)
             success = step.success
-            task = step.task
-            opt_sample = self.agent.sample_optimal_trajectory(traj[0], task, cond, traj, traj_mean=[])
-            samples.append(opt_sample)
-            self.store_opt_sample(opt_sample, -1)
+            task = eval(step.task)
             path_to.append((task))
-        mcts.update_vals(path_to, msg.success)
-        self.update_qvalue(samples)
-        self.update_primitive(samples)
+            condition = step.cond
+            # opt_sample = self.agent.sample_optimal_trajectory(traj[0], task, cond, traj, traj_mean=[])
+            # samples.append(opt_sample)
+            # self.store_opt_sample(opt_sample, -1)
+            if success:
+                waiters = []
+                if plan_id in self.waiting_for_opt:
+                    waiters = self.waiting_for_opt[plan_id]
+                    del self.waiting_for_opt[plan_id]
+
+                opt_queue.append((plan_id, state, task, condition, traj, waiters))
+
+        self.hl_opt_queue.append((path_to, msg.success, opt_queue))
+        # mcts.update_vals(path_to, msg.success)
+        # self.update_qvalue(samples)
+        # self.update_primitive(samples)
         if msg.success:
             self.early_stop_prob *= 0.975
         else:
@@ -270,7 +284,8 @@ class RolloutServer(object):
         self.sample_queue.append(self.current_id)
         self.current_id += 1
         while len(self.sample_queue) > self.max_sample_queue:
-            del self.waiting_for_opt[self.sample_queue[0]]
+            if self.sample_queue[0] in self.waiting_for_opt:
+                del self.waiting_for_opt[self.sample_queue[0]]
             del self.sample_queue[0]
 
 
@@ -377,6 +392,20 @@ class RolloutServer(object):
             self.store_opt_sample(opt_sample, plan_id, waiters)
 
 
+    def run_hl_opt_queue(self):
+        if len(self.hl_opt_queue):
+            samples = []
+            path_to, success, opt_queue = self.hl_opt_queue.pop()
+            mcts.update_vals(path_to, success)
+            for step in opt_queue:
+                plan_id, state, task, condition, traj, waiters = step
+                opt_sample = self.agent.sample_optimal_trajectory(state, task, cond, traj, traj_mean=[])
+                samples.append(opt_sample)
+                self.store_opt_sample(opt_sample, -1)
+            self.update_qvalue(samples)
+            self.update_primitive(samples)
+
+
     def step(self):
         print '\n\nTaking tree search step.\n\n'
         self.cur_step += 1
@@ -387,6 +416,7 @@ class RolloutServer(object):
         for mcts in self.mcts:
             val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=True)
             self.run_opt_queue()
+            self.run_hl_opt_queue()
             if np.random.uniform() < self.run_hl_prob and val > 0:
                 init_state = self.agent.x0[mcts.condition]
                 prob = HLProblem()

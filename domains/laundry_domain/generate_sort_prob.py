@@ -144,12 +144,12 @@ def main():
 
             s += get_underfine_symbol("cloth{0}_free_target".format(i))
 
-        s += "(value left_target_1 {0}),".format([0.4, 0.75, 0.65])
-        s += "(value right_target_1 {0}),".format([0.4, -0.75, 0.65])
-        s += "(value middle_target_1 {0}),".format([0.35, 0., 0.65])
-        s += "(rotation left_target_1 {0}),".format([0.4, 0.75, 0.65])
-        s += "(rotation right_target_1 {0}),".format([0.4, -0.75, 0.65])
-        s += "(rotation middle_target_1 {0}),".format([0.35, 0., 0.65])
+        s += "(value left_target_1 {0}),".format([0.4, 0.75, 0.625])
+        s += "(value right_target_1 {0}),".format([0.4, -0.75, 0.625])
+        s += "(value middle_target_1 {0}),".format([0.4, 0., 0.625])
+        s += "(rotation left_target_1 {0}),".format([0, 0, 0])
+        s += "(rotation right_target_1 {0}),".format([0, 0, 0])
+        s += "(rotation middle_target_1 {0}),".format([0, 0., 0])
 
 
 

@@ -142,7 +142,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         X = np.zeros((plan.symbolic_bound))
         fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
         sample.end_state = X
-        # print 'Sample time:', time.time() - start_time
+        print 'Sample time:', time.time() - start_time
         return sample
 
 

@@ -236,10 +236,10 @@ def test_pick_place():
 
     plan = hls.get_plan(plan_str, domain, problem)
     baxter, cloth = plan.params['baxter'], plan.params['cloth0']
-    cloth.pose[:,0] = [0.6, 0.5, 0.625]
+    cloth.pose[:,0] = [0.6, 0.5, 0.62]
     plan.params['cloth0_init_target'].value[:,0] = cloth.pose[:,0]
     items = [get_param_xml(plan.params['cloth0'])]
-    env = BaxterMJCEnv(mode='end_effector_pos', obs_include=['end_effector'], items=items, view=True)
+    env = BaxterMJCEnv(mode='end_effector_pos', obs_include=['end_effector'], items=items, timestep=0.004, view=True)
     env.render(camera_id=1)
     env.render(camera_id=1)
     time.sleep(10)
@@ -251,7 +251,7 @@ def test_pick_place():
     plan.params['robot_init_pose'].rArmPose[:,0] = arm_jnts[:7]
     env.set_item_pose('cloth0', cloth.pose[:,0], mujoco_frame=False)
     solver = robot_ll_solver.RobotLLSolver()
-    result = solver.backtrack_solve(plan, callback = None, verbose=False)
+    result = solver.backtrack_solve(plan, callback=None, verbose=False)
 
     for t in range(plan.horizon):
         rGrip = 0 if baxter.rGripper[:, t] < 0.016 else 0.02
