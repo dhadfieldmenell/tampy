@@ -1,6 +1,5 @@
 from copy import copy, deepcopy
 from datetime import datetime
-import itertools
 import numpy as np
 
 from policy_hooks.sample import Sample
@@ -37,13 +36,9 @@ class MCTSNode():
         self.prim_order = prim_dims.keys()
         self.num_prims = prim_dims.values()
         self.is_leaf = True
-        self.children = {}
-        label_options = itertools.product(range(num_tasks), *[range(n) for n in self.num_prims])
-        for option in label_options:
-            self.children[option] = None
+        self.children = [None for _ in range(num_tasks*np.prod([prim_dims.values()]))]
         self.parent = parent
         self.n_explored = 1.0
-        self.n_child_explored = {label:0 for label in self.children}
         self.sample_links = {}
         self.sample_to_traj = {}
         self.depth = parent.depth + 1 if parent != None else 0
@@ -52,7 +47,7 @@ class MCTSNode():
 
 
     def is_leaf(self):
-        return self.is_leaf
+        return self.is_leaf()
 
 
     def get_task(self):
@@ -71,33 +66,37 @@ class MCTSNode():
         #     new_value = 0
 
         self.value = (self.value*self.n_explored + new_value) / (self.n_explored + 1)
-
-
-    def update_n_explored(self):
         self.n_explored += 1
 
 
-    def update_child_explored(self, child_label):
-        child_label = tuple(child_label)
-        self.n_child_explored[child_label] += 1
-
-
     def get_child(self, label):
-        return self.children[tuple(label)]
+        ind = 0
+        m = 1
+        for i in range(len(self.prim_order), 0, -1):
+            ind += m * label[i]
+            m *= self.num_prims[i-1]
+        ind += self.num_tasks * label[0]
+        return self.children[ind]
 
 
     def add_child(self, child):
-        self.children[child.label] = child
-        child.parent = self
+        ind = 0
+        m = 1
+        for i in range(len(self.prim_order), 0, -1):
+            ind += m * child.label[i]
+            m *= self.num_prims[i-1]
+        ind += self.num_tasks * child.label[0]
+        self.children[ind] = child
         self.is_leaf = False
+        child.parent = self
 
 
     def get_explored_children(self):
-        return filter(lambda n: n is not None, self.children.values())
+        return filter(lambda n: n is not None, self.children)
 
 
     def has_unexplored(self):
-        for child in self.children.values():
+        for child in self.child:
             if child is None: return True
         return False
 
@@ -107,9 +106,8 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=1.0, C=2, max_depth=20, explore_depth=5, opt_strength=0.0):
+    def __init__(self, tasks, prim_dims, gmms, value_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, soft_decision=1.0, C=2, max_depth=20, explore_depth=5, opt_strength=0.0):
         self.tasks = tasks
-        self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
         self.prim_order = prim_dims.keys()
         self.num_prims = prim_dims.values()
@@ -123,10 +121,8 @@ class MCTS:
         self.branch_factor = branch_factor
         self.num_samples = 1
         self.num_distilled_samples = num_distilled_samples
-        self._choose_next = self._default_choose_next if choose_next is None else choose_next
-        self._simulate_from_next = self._default_simulate_from_next if sim_from_next is None else sim_from_next 
+        self._choose_next = choose_next if choose_next != None else self._default_choose_next
         self._value_f = value_f
-        self._prob_f = prob_f
         # self.node_check_f = lambda n: n.value/n.n_explored+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
 
         self._opt_cache = {}
@@ -138,7 +134,7 @@ class MCTS:
 
     def prob_func(self, prim_obs):
         prim_obs = prim_obs.reshape((1, -1))
-        return self._prob_f(prim_obs)
+        return self._prob_func(prim_obs)
 
 
     def value_func(self, obs):
@@ -156,6 +152,7 @@ class MCTS:
                                 node, 
                                 len(self.tasks), 
                                 self.prim_dims)
+
             else:
                 node.update_value(int(success))
 
@@ -177,18 +174,15 @@ class MCTS:
 
         self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True)
 
-        # prim_obs = sample.get_prim_obs(t=0)
+        prim_obs = sample.get_prim_obs(t=0)
         val_obs = sample.get_val_obs(t=0)
         q_value = self.value_func(val_obs)[1] if child is None else child.value
         # policy_distrs = self.prob_func(prim_obs)
         # prob = np.product([policy_distrs[ind][label[ind]] for ind in range(len(label))])
-        # child_explored = child.n_explored if child is not None else 0
+        child_explored = child.n_explored if child is not None else 0
         # return self.value_func(val_obs)[1] + self.C * np.sqrt(parent.n_explored) / (1 + child_explored)
         # return q_value + self.C * self.value_func(obs)[1] / (1 + child_explored)
-        # return q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + child_explored))
-
-        child_value = child.value if child is not None else q_value
-        return child_value + self.C * q_value / (1 + parent.n_child_explored[label])
+        return q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + child_explored))
 
 
     def print_run(self, state, use_distilled=True):
@@ -199,7 +193,6 @@ class MCTS:
             targ = self.agent.targ_list[np.argmax(sample.get(TARG_ENUM, t=0))]
             print task, targ
             print sample.get_X()
-
         print 'End of MCTS rollout.\n\n'
 
 
@@ -222,7 +215,6 @@ class MCTS:
                 if new_opt_value == 0: 
                     paths.append(next_path)
                     self.n_success += 1
-
                 opt_val = np.minimum(new_opt_value, opt_val)
 
         self.agent.add_task_paths(paths)
@@ -232,7 +224,6 @@ class MCTS:
     def _simulate_from_unexplored(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, label=None, debug=False):
         if debug:
             print 'Simulating from unexplored children.'
-
         if label is None:
             sample = Sample(self.agent)
             sample.set_X(state.copy(), 0)
@@ -240,48 +231,61 @@ class MCTS:
             dummy_label = tuple(np.zeros(len(self.num_prims)+1, dtype='int32'))
             self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, dummy_label, fill_obs=True)
             distrs = self.prob_func(sample.get_prim_obs(t=0))
-            while all([np.any(distr > 0) for distr in distrs]):
-                label = []
-                for d in distrs:
-                    label.append(np.argmax(d))
-                    d[np.argmax(d)] = 0
-
-                label = tuple(label)
-                precond_cost = self.agent.cost_f(state, label, self.condition, active_ts=(0,0), debug=debug)
-                if node.get_child(label) is None and precond_cost > 0: break
-
-            if label is None: 
-                return None
-
+            distr = np.ones(1)
+            for i in range(len(distrs)):
+                distr = np.outer(distr, distrs[i]).flatten()
         else:
-            distrs = [np.zeros(len(self.tasks))]
-            for n in self.num_prims:
-                distrs.append(np.zeros(n))
+            distr = np.zeros(len(self.tasks)*np.product(self.num_prims))
+            ind = 0
+            m = 1
+            for i in range(len(label), 1, -1):
+                ind += m * label[i-1]
+                m *= self.num_prims[i-2]
+            ind += m * label[0]
+            distr[ind] = 1.0
 
-            for i in range(len(label)):
-                distrs[i][label[i]] = 1.0
+        next_node = None
+        old_traj_hist = self.agent.get_hist()
+        while np.any(distr > 0):
+            ind = np.argmax(distr)
+            distr[ind] = 0.
+            label = []
+            m = np.product(self.num_prims)
+            label.append(int(ind / m))
+            ind = ind % m
+            for i in range(len(self.num_prims)):
+                m /= self.num_prims[i]
+                label.append(int(ind / m))
+                ind = ind % m
+            label = tuple(label)
 
-        precond_cost = self.agent.cost_f(state, label, self.condition, active_ts=(0,0), debug=debug)
-        if precond_cost > 0:
+            if node.get_child(label) is not None:
+                continue
+
+            precond_cost = self.agent.cost_f(state, label, self.condition, active_ts=(0,0), debug=debug)
+            if precond_cost > 0:
+                continue
+
+            self.agent.reset_hist(deepcopy(old_traj_hist))
+            next_node = MCTSNode(tuple(label), 
+                                 0, 
+                                 node, 
+                                 len(self.tasks), 
+                                 self.prim_dims)
+            cost, _ = self.simulate_from_next(next_node, state, prev_sample, num_samples=5, use_distilled=use_distilled, save=True, exclude_hl=exclude_hl, debug=debug)
+            next_node.update_value(int(cost==0))
+            node.add_child(next_node)
+            while node != self.root:
+                node.update_value(int(cost==0))
+                node = node.parent
             return None
 
-        # self.agent.reset_hist(deepcopy(old_traj_hist))
-        next_node = MCTSNode(tuple(label), 
-                             0, 
-                             node, 
-                             len(self.tasks), 
-                             self.prim_dims)
-        cost, _ = self.simulate_from_next(next_node, state, prev_sample, num_samples=5, use_distilled=use_distilled, save=True, exclude_hl=exclude_hl, debug=debug)
-        next_node.update_value(int(cost==0))
-        node.add_child(next_node)
-        # node.update_child_explored(label)
-        # while node != self.root:
-        #     node.update_value(int(cost==0))
-        #     node = node.parent
-        # return next_node
+        self.agent.reset_hist(old_traj_hist)
+
+        if debug:
+            print 'Rejected all unexplored child nodes.'
 
         return None
-
 
     def _select_from_explored(self, state, node, exclude_hl=[], label=None, debug=False):
         if debug:
@@ -296,35 +300,33 @@ class MCTS:
             assert children[0] is not None
             children_distr = np.ones(1)
 
-        next_ind = np.argmax(children_distr)
-        next_node = children[next_ind]
-        label = next_node.label
-        plan = self.agent.plans[label]
-        if self.agent.cost_f(state, label, self.condition, active_ts=(0,0), debug=debug) == 0:
-            if debug:
-                print 'Chose explored child.'
-            return children[next_ind]
-        else:
-            return None
-
-        # while np.any(children_distr > -np.inf):
-        #     next_ind = np.argmax(children_distr)
-        #     children_distr[next_ind] = -np.inf
-        #     next_node = children[next_ind]
-        #     label = next_node.label
-        #     plan = self.agent.plans[label]
-        #     if self.agent.cost_f(state, label, self.condition, active_ts=(0,0), debug=debug) == 0:
-        #         if debug:
-        #             print 'Chose explored child.'
-        #         return children[next_ind]
-        # return None
+        while np.any(children_distr > -np.inf):
+            next_ind = np.argmax(children_distr)
+            children_distr[next_ind] = -np.inf
+            next_node = children[next_ind]
+            label = next_node.label
+            plan = self.agent.plans[label]
+            if self.agent.cost_f(state, label, self.condition, active_ts=(0,0), debug=debug) == 0:
+                if debug:
+                    print 'Chose explored child.'
+                return children[next_ind]
+        return None
 
 
     def _default_choose_next(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, debug=False):
         if debug:
             print 'Choosing next node.'
         parameterizations, values = [], []
-        for label in itertools.product(range(self.num_tasks), *[range(n) for n in self.num_prims]):
+        for i in range(len(self.tasks) * np.product(self.num_prims)):
+            ind = i
+            label = []
+            m = np.product(self.num_prims)
+            label.append(int(ind / m))
+            ind = ind % m
+            for j in range(0, len(self.num_prims)):
+                m /= self.num_prims[j]
+                label.append(int(ind / m))
+                ind = ind % m
             label = tuple(label)
             parameterizations.append(label)
             values.append(self.node_check_f(label, state, node))
@@ -332,27 +334,21 @@ class MCTS:
         values = np.array(values)
         p = parameterizations[np.argmax(values)]
         values[np.argmax(values)] = -np.inf
-        # cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
-        # while cost > 0 and np.any(values > -np.inf):
-        #     p = parameterizations[np.argmax(values)]
-        #     values[np.argmax(values)] = -np.inf
-        #     cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
-        
-        p = parameterizations[np.argmax(values)]
-        child = node.get_child(p)
-        node.update_child_explored(p)
+        cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
+        while cost > 0 and np.any(values > -np.inf):
+            p = parameterizations[np.argmax(values)]
+            values[np.argmax(values)] = -np.inf
+            cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
 
+        child = node.get_child(p)
         if debug:
             print 'Chose to explore ', p
-
         if child is None:
             new_node = self._simulate_from_unexplored(state, node, prev_sample, exclude_hl, use_distilled, label=p, debug=debug)
         else:
             new_node = self._select_from_explored(state, node, exclude_hl, label=p, debug=debug)
-
         if new_node is None:
             return new_node, -np.inf
-
         return new_node, new_node.value
 
 
@@ -406,8 +402,6 @@ class MCTS:
         while True:
             if debug:
                 print "Taking simulation step"
-
-            current_node.update_n_explored()
             if self.agent.goal_f(self.condition, state) == 0: # or current_node.depth >= self.max_depth:
                 break
 
@@ -440,7 +434,6 @@ class MCTS:
 
         if path_value is None:
             path_value = self.agent.goal_f(self.condition, cur_state)
-
         path = []
         while current_node is not self.root:
             path.append(prev_sample)
@@ -465,7 +458,7 @@ class MCTS:
         return cost, samples[0]
 
 
-    def _default_simulate_from_next(self, label, depth, init_depth, state, prob_func, samples, num_samples=1, save=True, exclude_hl=[], use_distilled=True, exclude=[], debug=False):
+    def _simulate_from_next(self, label, depth, init_depth, state, prob_func, samples, num_samples=1, save=True, exclude_hl=[], use_distilled=True, exclude=[], debug=False):
         # print 'Entering simulate call:', datetime.now()
         task = self.tasks[label[0]]
         new_samples = []
@@ -478,14 +471,15 @@ class MCTS:
             return self.agent.goal_f(self.condition, state), samples
 
         next_sample, end_state = self.sample(label, state, plan, num_samples=num_samples, use_distilled=use_distilled, debug=debug)
+
         if next_sample is None:
             path_value = self.agent.goal_f(self.condition, state)
             for sample in samples:
                 sample.task_cost = path_value
                 sample.success = SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
             return path_value, samples
-
         samples.append(next_sample)
+
         path_value = self.agent.goal_f(self.condition, end_state)
         # hl_encoding = self._encode_f(end_state, self.agent.plans.values()[0], self.agent.targets[self.condition])
         if path_value == 0 or depth >= init_depth + self.explore_depth or depth >= self.max_depth: # or hl_encoding in exclude_hl:
@@ -495,6 +489,7 @@ class MCTS:
             return path_value, samples
 
         # exclude_hl = exclude_hl + [hl_encoding]
+        
         sample = Sample(self.agent)
         sample.set_X(end_state.copy(), t=0)
         self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True)
@@ -507,7 +502,6 @@ class MCTS:
                     next_label.append(np.random.choice(range(len(distrs[i])), p=distrs[i]))
                 else:
                     next_label.append(np.argmax(distrs[i]))
-
         else:
             for distr in distrs:
                 next_label.append(np.argmax(distr))

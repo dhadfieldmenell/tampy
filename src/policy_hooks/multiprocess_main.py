@@ -355,6 +355,7 @@ class MultiProcessMain(object):
                                   self.prim_dims,
                                   gmms,
                                   None,
+                                  None,
                                   condition,
                                   self.agent,
                                   self.config['branching_factor'],

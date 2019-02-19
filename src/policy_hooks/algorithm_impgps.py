@@ -71,7 +71,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             return all_opt_samples
 
         for m in range(len(self.cur)):
-            self.cur[m].sample_lists = sample_lists[m]
+            self.cur[m].sample_list = sample_lists[m]
             self._eval_cost(m)
 
         # Update dynamics linearizations.
