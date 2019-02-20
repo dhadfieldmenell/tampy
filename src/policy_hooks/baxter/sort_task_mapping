@@ -21,8 +21,8 @@
 };
 
 {
-    'grasp_left': 50,
-    'putdown_left': 50,
-    'grasp_right': 50,
-    'putdown_right': 50,
+    'grasp_left': 40,
+    'putdown_left': 40,
+    'grasp_right': 40,
+    'putdown_right': 40,
 }

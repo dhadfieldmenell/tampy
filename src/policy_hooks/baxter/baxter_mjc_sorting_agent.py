@@ -71,7 +71,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         start_time = time.time()
         task = tuple(task)
         plan = self.plans[task]
-        self.reset_to_state(state)
+        self.reset_to_state(state.copy())
 
         x0 = state[self._x_data_idx[STATE_ENUM]]
         for (param, attr) in self.state_inds:
@@ -142,7 +142,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         X = np.zeros((plan.symbolic_bound))
         fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
         sample.end_state = X
-        print 'Sample time:', time.time() - start_time
+        # print 'Sample time:', time.time() - start_time
         return sample
 
 
@@ -314,11 +314,14 @@ class BaxterMJCSortingAgent(TAMPAgent):
         self.env.physics.data.qpos[8:10] = rGripper
         self.env.physics.data.qpos[10:17] = lArmPose
         self.env.physics.data.qpos[17:19] = lGripper
+        self.env.physics.data.qvel[:] = 0
+        self.env.physics.data.qacc[:] = 0
         for param_name, attr in self.state_inds:
             if attr == 'pose':
                 # print param_name, mp_state[self.state_inds[param_name, 'pose']], self.env.get_item_pose(param_name, mujoco_frame=False)
-                self.env.set_item_pose(param_name, mp_state[self.state_inds[param_name, 'pose']].copy(), mujoco_frame=False)
+                self.env.set_item_pose(param_name, mp_state[self.state_inds[param_name, 'pose']].copy(), mujoco_frame=False, forward=False)
                 # print self.env.get_item_pose(param_name, mujoco_frame=False), '\n\n\n'
+        self.env.physics.forward()
 
 
     def reset_to_mp_state(self, x):
@@ -538,10 +541,31 @@ class BaxterMJCSortingAgent(TAMPAgent):
         return cost
 
 
+    # def goal_f(self, condition, state):
+    #     self.reset_to_state(state)
+    #     mp_state = state[self._x_data_idx[STATE_ENUM]]
+    #     diff = 0
+    #     plan = self.plans.values()[0]
+    #     l_targ = plan.params['left_target_1'].value
+    #     r_targ = plan.params['right_target_1'].value
+
+    #     for i in range(self.n_items):
+    #         pos = mp_state[self.state_inds['cloth{0}'.format(i), 'pose']]
+    #         if i > self.n_items / 2:
+    #             dist = np.linalg.norm(pos - l_targ)
+    #         else:
+    #             dist = np.linalg.norm(pos - r_targ)
+
+    #         if dist > 0.1:
+    #             diff += dist
+
+    #     return diff
+
+
     def goal_f(self, condition, state):
         self.reset_to_state(state)
         mp_state = state[self._x_data_idx[STATE_ENUM]]
-        diff = 0
+        diff = 0.
         plan = self.plans.values()[0]
         l_targ = plan.params['left_target_1'].value
         r_targ = plan.params['right_target_1'].value
@@ -554,11 +578,12 @@ class BaxterMJCSortingAgent(TAMPAgent):
                 dist = np.linalg.norm(pos - r_targ)
 
             if dist > 0.1:
-                diff += dist
+                diff += 1.
 
-        return diff
+        return diff / self.n_items
 
-    def perturb_solve(self, sample, perturb_var=0.05, inf_f=None):
+
+    def perturb_solve(self, sample, perturb_var=0.01, inf_f=None):
         state = sample.get_X(t=0)
         condition = sample.condition
         task = sample.task

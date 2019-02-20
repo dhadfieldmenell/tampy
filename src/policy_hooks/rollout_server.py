@@ -1,5 +1,6 @@
 from datetime import datetime
 import numpy as np
+import random
 import sys
 import time
 
@@ -53,15 +54,12 @@ class RolloutServer(object):
         self.num_rollouts = hyperparams['num_rollouts']
         self.stopped = False
 
-        self.updaters = {task: rospy.Publisher(task+'_update', PolicyUpdate, queue_size=50) for task in self.pol_list}
-        self.updaters['value'] = rospy.Publisher('value_update', PolicyUpdate, queue_size=50)
-        self.updaters['primitive'] = rospy.Publisher('primitive_update', PolicyUpdate, queue_size=50)
-        self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp)
-        self.async_plan_publisher = rospy.Publisher('motion_plan_prob', MotionPlanProblem, queue_size=5)
-        self.hl_subscriber = rospy.Subscriber('hl_result_'+str(self.id), HLPlanResult, self.update_hl)
-        self.hl_publisher = rospy.Publisher('hl_prob', HLProblem, queue_size=10)
-        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**20)
-        self.stop = rospy.Subscriber('terminate', String, self.end)
+        self.updaters = {task: rospy.Publisher(task+'_update', PolicyUpdate, queue_size=2) for task in self.pol_list}
+        self.updaters['value'] = rospy.Publisher('value_update', PolicyUpdate, queue_size=5)
+        self.updaters['primitive'] = rospy.Publisher('primitive_update', PolicyUpdate, queue_size=5)
+        self.async_plan_publisher = rospy.Publisher('motion_plan_prob', MotionPlanProblem, queue_size=1)
+        self.hl_publisher = rospy.Publisher('hl_prob', HLProblem, queue_size=2)
+        self.test_publisher = rospy.Publisher('is_alive', String, queue_size=2)
 
         for alg in self.alg_map.values():
             alg.policy_opt = DummyPolicyOpt(self.update, self.prob)
@@ -77,11 +75,11 @@ class RolloutServer(object):
         self.run_hl_prob = hyperparams['run_hl_prob'] if 'run_hl_prob' in hyperparams else 0
         self.opt_prob = hyperparams['opt_prob'] if 'opt_prob' in hyperparams else 0.05
 
-        self.policy_proxies = {task: rospy.ServiceProxy(task+'_policy_act', PolicyAct, persistent=True) for task in self.task_list}
-        self.value_proxy = rospy.ServiceProxy('qvalue', QValue, persistent=True)
-        self.primitive_proxy = rospy.ServiceProxy('primitive', Primitive, persistent=True)
-        self.prob_proxies = {task: rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True) for task in self.task_list}
-        self.mp_proxies = {mp_id: rospy.ServiceProxy('motion_planner_'+str(mp_id), MotionPlan, persistent=True) for mp_id in range(self.n_optimizers)}
+        # self.policy_proxies = {task: rospy.ServiceProxy(task+'_policy_act', PolicyAct, persistent=True) for task in self.task_list}
+        # self.value_proxy = rospy.ServiceProxy('qvalue', QValue, persistent=True)
+        # self.primitive_proxy = rospy.ServiceProxy('primitive', Primitive, persistent=True)
+        # self.prob_proxies = {task: rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True) for task in self.task_list}
+        # self.mp_proxies = {mp_id: rospy.ServiceProxy('motion_planner_'+str(mp_id), MotionPlan, persistent=True) for mp_id in range(self.n_optimizers)}
 
         self.use_local = hyperparams['use_local']
         if self.use_local:
@@ -123,10 +121,25 @@ class RolloutServer(object):
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
 
+        self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp, queue_size=3)
+        self.hl_subscriber = rospy.Subscriber('hl_result_'+str(self.id), HLPlanResult, self.update_hl, queue_size=1)
+        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**22)
+        self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
+
+
 
     def end(self, msg):
         self.stopped = True
-        rospy.signal_shutdown('Received signal to terminate.')
+        # rospy.signal_shutdown('Received signal to terminate.')
+
+
+    def renew_publisher(self):
+        self.updaters = {task: rospy.Publisher(task+'_update', PolicyUpdate, queue_size=2) for task in self.pol_list}
+        self.updaters['value'] = rospy.Publisher('value_update', PolicyUpdate, queue_size=5)
+        self.updaters['primitive'] = rospy.Publisher('primitive_update', PolicyUpdate, queue_size=5)
+        self.async_plan_publisher = rospy.Publisher('motion_plan_prob', MotionPlanProblem, queue_size=1)
+        self.hl_publisher = rospy.Publisher('hl_prob', HLProblem, queue_size=2)
+        self.test_publisher = rospy.Publisher('is_alive', String, queue_size=2)
 
 
     def update(self, obs, mu, prc, wt, task, rollout_len=0):
@@ -380,8 +393,9 @@ class RolloutServer(object):
             prob.K = len(gmm.mass)
             prob.Do = gmm.sigma.shape[1]
 
-        print 'Sending motion plan problem to server {0}.'.format(prob.solver_id)
+        print '\n\nSending motion plan problem to server {0}.\n\n'.format(prob.solver_id)
         self.async_plan_publisher.publish(prob)
+        self.test_publisher.publish('MCTS sent motion plan.')
 
 
     def run_opt_queue(self):
@@ -392,7 +406,7 @@ class RolloutServer(object):
             self.store_opt_sample(opt_sample, plan_id, waiters)
 
 
-    def run_hl_opt_queue(self):
+    def run_hl_opt_queue(self, mcts):
         if len(self.hl_opt_queue):
             samples = []
             path_to, success, opt_queue = self.hl_opt_queue.pop()
@@ -413,10 +427,13 @@ class RolloutServer(object):
 
         start_time = time.time()
         all_samples = []
+        self.renew_publisher()
+        random.shuffle(self.mcts) # If rospy hangs, don't want it to always be for the same trees
         for mcts in self.mcts:
             val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=True)
             self.run_opt_queue()
-            self.run_hl_opt_queue()
+            self.run_hl_opt_queue(mcts)
+            self.test_publisher.publish('MCTS Step')
             if np.random.uniform() < self.run_hl_prob and val > 0:
                 init_state = self.agent.x0[mcts.condition]
                 prob = HLProblem()
@@ -455,6 +472,7 @@ class RolloutServer(object):
                     # print 'Checking for sample list for', task
                     # print mp_prob < self.opt_prob, mp_prob, self.opt_prob
                     if mp_prob < self.opt_prob:
+                        # print 'Choosing mp problems.'
                         all_samples.extend(s_list._samples)
                         probs = self.choose_mp_problems(s_list)
                         n_probs += len(probs)
@@ -463,7 +481,7 @@ class RolloutServer(object):
             for task in self.agent.task_list:
                 if len(self.opt_samples[task]) > 0:
                     sample_lists[task] = self.alg_map[task].iteration(self.opt_samples[task], reset=False)
-
+            self.renew_publisher()
         end_time = time.time()
 
 
@@ -511,6 +529,7 @@ class RolloutServer(object):
     def run(self):
         while not self.stopped:
             self.step()
+            rospy.sleep(0.01)
 
 
     def update_qvalue(self, samples, first_ts_only=False):
@@ -524,7 +543,7 @@ class RolloutServer(object):
                 obs = [sample.get_val_obs(t=t)]
                 mu = [sample.success]
                 prc = [np.eye(dV)]
-                wt = [10. / (t+1)]
+                wt = 1. # [10. / (t+1)]
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))

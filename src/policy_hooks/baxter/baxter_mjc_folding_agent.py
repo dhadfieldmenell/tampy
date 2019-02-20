@@ -332,6 +332,8 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         self.env.physics.data.qpos[8:10] = rGripper
         self.env.physics.data.qpos[10:17] = lArmPose
         self.env.physics.data.qpos[17:19] = lGripper
+        self.env.physics.data.qvel[:] = 0
+        self.env.physics.data.qacc[:] = 0
         if cloth_joints is not None:
             self.env.set_cloth_joints(cloth_joints)
         elif CLOTH_JOINTS_ENUM in self._x_data_idx:
@@ -569,11 +571,12 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         self.reset_to_state(state)
         state = self.env.check_cloth_state()
         if ONE_FOLD in state or TWO_FOLD in state: return 0
-        if LENGTH_GRASP in state: return 1e1
-        if TWIST_FOLD in state: return 2.5e1
-        if DIAGONAL_GRASP in state: return 5e1
-        if LEFT_REACHABLE in state and RIGHT_REACHABLE in state: return 7.5e1
-        return 5e2
+        if LENGTH_GRASP in state: return 1e-1
+        if TWIST_FOLD in state: return 2.5e-1
+        if DIAGONAL_GRASP in state: return 5e-1
+        if LEFT_REACHABLE in state and RIGHT_REACHABLE in state: return 7.5e-1
+        return 1
+        
 
     def perturb_solve(self, sample, perturb_var=0.05, inf_f=None):
         state = sample.get_X(t=0)

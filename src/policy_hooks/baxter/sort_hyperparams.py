@@ -39,8 +39,8 @@ from policy_hooks.baxter.baxter_policy_solver import BaxterPolicySolver
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-N_OPTIMIZERS = 8
-N_ROLLOUT_SERVERS = 16
+N_OPTIMIZERS = 12
+N_ROLLOUT_SERVERS = 24
 
 NUM_CONDS = 10
 NUM_OBJS = prob.NUM_CLOTHS

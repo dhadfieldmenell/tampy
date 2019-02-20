@@ -185,10 +185,10 @@ class MCTS:
         # child_explored = child.n_explored if child is not None else 0
         # return self.value_func(val_obs)[1] + self.C * np.sqrt(parent.n_explored) / (1 + child_explored)
         # return q_value + self.C * self.value_func(obs)[1] / (1 + child_explored)
-        # return q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + child_explored))
+        return q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + parent.n_child_explored[label]))
 
-        child_value = child.value if child is not None else q_value
-        return child_value + self.C * q_value / (1 + parent.n_child_explored[label])
+        # child_value = child.value if child is not None else q_value
+        # return child_value + self.C * q_value / (1 + parent.n_child_explored[label])
 
 
     def print_run(self, state, use_distilled=True):
@@ -209,6 +209,7 @@ class MCTS:
         opt_val = np.inf
         paths = []
         for n in range(num_rollouts):
+            self.agent.reset_to_state(state)
             self.n_runs += 1
             # if not self.n_runs % 10 and self.n_success == 0:
             #     self.max_depth += 1
@@ -332,11 +333,11 @@ class MCTS:
         values = np.array(values)
         p = parameterizations[np.argmax(values)]
         values[np.argmax(values)] = -np.inf
-        # cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
-        # while cost > 0 and np.any(values > -np.inf):
-        #     p = parameterizations[np.argmax(values)]
-        #     values[np.argmax(values)] = -np.inf
-        #     cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
+        cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
+        while cost > 0 and np.any(values > -np.inf):
+            p = parameterizations[np.argmax(values)]
+            values[np.argmax(values)] = -np.inf
+            cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
         
         p = parameterizations[np.argmax(values)]
         child = node.get_child(p)
@@ -344,6 +345,10 @@ class MCTS:
 
         if debug:
             print 'Chose to explore ', p
+
+        if cost > 0:
+            print 'Failed all preconditions for next nodes'
+            return None, -np.inf
 
         if child is None:
             new_node = self._simulate_from_unexplored(state, node, prev_sample, exclude_hl, use_distilled, label=p, debug=debug)
@@ -457,7 +462,7 @@ class MCTS:
         if debug:
             print "Running simulate from next"
         label = node.label
-        cost, samples = self._simulate_from_next(label, node.depth, node.depth, state, self.prob_func, [], num_samples, save, exclude_hl, use_distilled, [], debug=debug)
+        cost, samples = self._default_simulate_from_next(label, node.depth, node.depth, state, self.prob_func, [], num_samples, save, exclude_hl, use_distilled, [], debug=debug)
         if len(samples):
             node.sample_links[samples[0]] = prev_sample
         else:
@@ -482,7 +487,7 @@ class MCTS:
             path_value = self.agent.goal_f(self.condition, state)
             for sample in samples:
                 sample.task_cost = path_value
-                sample.success = SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
+                sample.success = (path_value, 1-path_value) # SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
             return path_value, samples
 
         samples.append(next_sample)
@@ -491,7 +496,7 @@ class MCTS:
         if path_value == 0 or depth >= init_depth + self.explore_depth or depth >= self.max_depth: # or hl_encoding in exclude_hl:
             for sample in samples:
                 sample.task_cost = path_value
-                sample.success = SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
+                sample.success = (path_value, 1-path_value) # SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
             return path_value, samples
 
         # exclude_hl = exclude_hl + [hl_encoding]
@@ -513,4 +518,4 @@ class MCTS:
                 next_label.append(np.argmax(distr))
 
         next_label = tuple(next_label)
-        return self._simulate_from_next(next_label, depth+1, init_depth, end_state, prob_func, samples, num_samples=num_samples, save=False, use_distilled=use_distilled, debug=debug)
+        return self._default_simulate_from_next(next_label, depth+1, init_depth, end_state, prob_func, samples, num_samples=num_samples, save=False, use_distilled=use_distilled, debug=debug)

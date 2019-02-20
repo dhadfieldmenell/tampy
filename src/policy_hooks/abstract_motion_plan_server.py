@@ -44,18 +44,15 @@ class AbstractMotionPlanServer(object):
         self.solver.agent = self.agent
         self.agent.solver = self.solver
         self.weight_dir = hyperparams['weight_dir']
+        self.test_publisher = rospy.Publisher('is_alive', String, queue_size=2)
 
         # self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
         self.busy = False
-        self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
-        self.hl_publishers = {i: rospy.Publisher('hl_result_'+str(i), HLPlanResult, queue_size=50) for i in range(hyperparams['n_rollout_servers'])}
-        self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=10)
-        self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=10)
-        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**20)
-        self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets)
+        self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=5) for i in range(hyperparams['n_rollout_servers'])}
+        self.hl_publishers = {i: rospy.Publisher('hl_result_'+str(i), HLPlanResult, queue_size=5) for i in range(hyperparams['n_rollout_servers'])}
         # self.policy_prior_subscriber = rospy.Subscriber('policy_prior', PolicyPriorUpdate, self.update_policy_prior)
-        self.stop = rospy.Subscriber('terminate', String, self.end)
+        self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
         self.opt_count_publisher = rospy.Publisher('optimization_counter', String, queue_size=1)
 
         # self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
@@ -81,12 +78,23 @@ class AbstractMotionPlanServer(object):
         self.log_timing = hyperparams['log_timing']
         self.n_time_samples_per_log = 10 if 'n_time_samples_per_log' not in hyperparams else hyperparams['n_time_samples_per_log']
         self.time_samples = []
+        self.mp_queue = []
+        self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=1)
+        self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=2)
+        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**22)
+        self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets, queue_size=1)
 
 
     def run(self):
-        rospy.spin()
-        # while not self.stopped:
-        #     rospy.sleep(0.01)
+        # rospy.spin()
+        i = 0
+        while not self.stopped:
+            rospy.sleep(0.01)
+            while len(self.mp_queue):
+                self.solve_motion_plan(self.mp_queue.pop())
+            i += 1
+            if not i % 100:
+                self.test_publisher.publish('MP {0} alive.'.format(self.id))
 
 
     def end(self, msg):
@@ -165,10 +173,20 @@ class AbstractMotionPlanServer(object):
 
 
     def publish_motion_plan(self, msg):
-        if self.busy:
-            print 'Server', self.id, 'busy, rejecting request for motion plan.'
-        if msg.solver_id != self.id or self.busy: return
-        self.busy = True
+        print "Problem for server {0}".format(msg.solver_id)
+        if msg.solver_id != self.id: return
+        self.mp_queue.append(msg)
+        if len(self.mp_queue) > 1:
+            self.mp_queue.pop(0)
+
+
+    def solve_motion_plan(self, msg):
+        print "Problem for server {0}".format(msg.solver_id)
+        # if self.busy:
+        #     print 'Server', self.id, 'busy, rejecting request for motion plan.'
+        #     return
+        if msg.solver_id != self.id: return
+        # self.busy = True
         print 'Server {0} solving motion plan for rollout server {1}.'.format(self.id, msg.server_id)
         state = np.array(msg.state)
         task = eval(msg.task)
@@ -190,7 +208,7 @@ class AbstractMotionPlanServer(object):
                 if hasattr(param, attr):
                     getattr(param, attr)[:, t] = mean[t, plan.state_inds[param_name, attr]]
         plan_actions = str(plan.actions)
-        plan_total_violation = plan.check_total_cnt_violation()
+        plan_total_violation = np.sum(plan.check_total_cnt_violation())
         plan_failed_constrs = plan.get_failed_preds_by_type()
         with open(self.traj_init_log, 'a+') as f:
             f.write(str((plan_actions, plan_total_violation, plan_failed_constrs)))
@@ -234,7 +252,8 @@ class AbstractMotionPlanServer(object):
                 resp.task = msg.task
                 resp.state = state.tolist()
                 self.mp_publishers[msg.server_id].publish(resp)
-        self.busy = False
+        # self.busy = False
+        print 'Server {0} free.'.format(self.id, msg.server_id)
 
 
     def publish_hl_plan(self, msg):
