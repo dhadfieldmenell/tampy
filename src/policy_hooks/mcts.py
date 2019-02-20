@@ -362,6 +362,8 @@ class MCTS:
 
 
     def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, debug=False):
+        if debug:
+            print "SAMPLING"
         samples = []
         old_traj_hist = self.agent.get_hist()
         task_name = self.tasks[task[0]]

@@ -45,24 +45,31 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
     def iteration(self, optimal_samples, reset=True):
         all_opt_samples = []
+        individual_opt_samples = []
         sample_lists = []
         all_samples = []
         for opt_s, s_list in optimal_samples:
             all_opt_samples.append(SampleList([opt_s]))
+            individual_opt_samples.append(opt_s)
+            all_samples.append(opt_s)
             for s in s_list:
                 s.set_ref_X(opt_s.get_ref_X())
                 s.set_ref_U(opt_s.get_ref_U())
+            if not len(s_list): continue
             sample_lists.append(s_list)
             all_samples.extend(s_list)
 
-        if len(self.cur) != len(all_opt_samples) or reset:
-            self.set_conditions(len(all_opt_samples))
+        # if len(self.cur) != len(all_opt_samples) or reset:
+        #     self.set_conditions(len(all_opt_samples))
 
         print '\nAlgorithm for {0} updating on {1} rollouts\n'.format(self.task, len(all_opt_samples))
         self._update_prior(self.policy_prior, SampleList(all_samples))
         self._update_prior(self.mp_policy_prior, SampleList(all_samples))
 
-        if self.traj_centers >= len(sample_lists[0]):
+        # if len(sample_lists) and self.traj_centers >= len(sample_lists[0]):
+        if not len(sample_lists) or self.traj_centers >= len(sample_lists[0]):
+            if len(self.cur) != len(all_opt_samples) or reset:
+                self.set_conditions(len(all_opt_samples))
             for m in range(len(self.cur)):
                 self.cur[m].sample_list = all_opt_samples[m]
 
@@ -70,7 +77,12 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             self._update_policy_no_cost()
             return all_opt_samples
 
+        if len(self.cur) != len(sample_lists) or reset:
+            self.set_conditions(len(sample_lists))
+
         for m in range(len(self.cur)):
+            if type(sample_lists[m]) is list:
+                sample_lists[m] = SampleList(sample_lists[m])
             self.cur[m].sample_list = sample_lists[m]
             self._eval_cost(m)
 
@@ -93,7 +105,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
         # S-step
         print 'Sending data to update policy.'
-        self._update_policy(all_opt_samples)
+        self._update_policy(individual_opt_samples)
 
         # Prepare for next iteration
         self._advance_iteration_variables()
@@ -161,7 +173,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 ts.sort()
                 for t in range(data_len):
                     prc[0,t] = 1e0 * np.eye(dU)
-                    wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
+                    wt[:,t] = self._hyperparams['opt_wt'] # * sample.use_ts[ts[t]]
 
                 for i in range(data_len):
                     t = ts[i]

@@ -845,6 +845,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         N, T = obs.shape[:2]
 
         # Normalize obs.
+        if task not in self.task_map:
+            task = "control"
         if task in self.task_map:
             policy = self.task_map[task]['policy']
         else:

@@ -79,8 +79,8 @@ class AbstractMotionPlanServer(object):
         self.n_time_samples_per_log = 10 if 'n_time_samples_per_log' not in hyperparams else hyperparams['n_time_samples_per_log']
         self.time_samples = []
         self.mp_queue = []
-        self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=1)
-        self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=2)
+        self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=1, buff_size=2**19)
+        self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=2, buff_size=2**20)
         self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**22)
         self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets, queue_size=1)
 

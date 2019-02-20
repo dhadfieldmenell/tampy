@@ -483,6 +483,7 @@ class MultiProcessMain(object):
             self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
             self.roscore.start()
         except RLException as e:
+            
             pass
 
     def start(self, kill_all=False):
@@ -496,3 +497,4 @@ class MultiProcessMain(object):
         self.start_servers()
         self.watch_processes(kill_all)
         if self.roscore is not None: self.roscore.shutdown()
+

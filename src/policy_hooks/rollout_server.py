@@ -1,5 +1,6 @@
 from datetime import datetime
 import numpy as np
+import os
 import random
 import sys
 import time
@@ -121,7 +122,7 @@ class RolloutServer(object):
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
 
-        self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp, queue_size=3)
+        self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp, queue_size=3, buff_size=2**19)
         self.hl_subscriber = rospy.Subscriber('hl_result_'+str(self.id), HLPlanResult, self.update_hl, queue_size=1)
         self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**22)
         self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
@@ -179,7 +180,7 @@ class RolloutServer(object):
                 if self.policy_opt.task_map[task]['policy'].scale is None:
                     return self.alg_map[task].cur[0].traj_distr.act(x.copy(), obs.copy(), t, noise)
                 return self.policy_opt.task_map[task]['policy'].act(x.copy(), obs.copy(), t, noise)
-
+        raise NotImplementedError
         rospy.wait_for_service(task+'_policy_act', timeout=10)
         req = PolicyActRequest()
         req.obs = obs
@@ -194,7 +195,7 @@ class RolloutServer(object):
         # print 'Entering value call:', datetime.now()
         if self.use_local:
             return self.policy_opt.value(obs)
-
+        raise NotImplementedError
         rospy.wait_for_service('qvalue', timeout=10)
         req = QValueRequest()
         req.obs = obs
@@ -207,7 +208,7 @@ class RolloutServer(object):
         # print 'Entering primitive call:', datetime.now()
         if self.use_local:
             return self.policy_opt.task_distr(prim_obs)
-
+        raise NotImplementedError
         rospy.wait_for_service('primitive', timeout=10)
         req = PrimitiveRequest()
         req.prim_obs = prim_obs
@@ -220,7 +221,7 @@ class RolloutServer(object):
         # print 'Entering prob call:', datetime.now()
         if self.use_local:
             return self.policy_opt.prob(obs, task)
-
+        raise NotImplementedError
         rospy.wait_for_service(task+'_policy_prob', timeout=10)
         req_obs = []
         for i in range(len(obs)):
@@ -303,11 +304,11 @@ class RolloutServer(object):
 
 
     def store_opt_sample(self, sample, plan_id, waiters=[]):
+        samples = waiters
         if plan_id in self.waiting_for_opt:
-            samples = self.waiting_for_opt[plan_id]
+            if len(self.waiting_for_opt[plan_id]):
+                samples = self.waiting_for_opt[plan_id]
             del self.waiting_for_opt[plan_id]
-        else:
-            samples = waiters
 
         for s in samples:
             s.set_ref_X(sample.get_ref_X())
@@ -330,7 +331,7 @@ class RolloutServer(object):
             waiters = []
             if plan_id in self.waiting_for_opt:
                 waiters = self.waiting_for_opt[plan_id]
-                del self.waiting_for_opt[plan_id]
+                # del self.waiting_for_opt[plan_id]
 
             self.opt_queue.append((plan_id, state, task, condition, traj, waiters))
             # print 'Sampling optimal trajectory on rollout server {0}.'.format(self.id)
@@ -340,6 +341,8 @@ class RolloutServer(object):
 
     def choose_mp_problems(self, samples):
         Xs = samples.get_X()[:,:,self.agent._x_data_idx[STATE_ENUM]]
+        if self.traj_centers <= 1:
+            return [[np.mean(Xs, axis=0), samples]]
         flat_Xs = Xs.reshape((Xs.shape[0], np.prod(Xs.shape[1:])))
         centroids, labels = kmeans(flat_Xs, k=self.traj_centers, minit='points')
         probs = []
@@ -403,6 +406,10 @@ class RolloutServer(object):
             print 'Running optimal trajectory.'
             plan_id, state, task, condition, traj, waiters = self.opt_queue.pop()
             opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, opt_traj=traj, traj_mean=[])
+            if not len(waiters):
+                print "\n\n\n\n\n\n\nNO WAITERS ON PLAN"
+            else:
+                print "\n\n\n\n\n\n\nFOUND WAITERS FOR PLAN"
             self.store_opt_sample(opt_sample, plan_id, waiters)
 
 
@@ -427,10 +434,15 @@ class RolloutServer(object):
 
         start_time = time.time()
         all_samples = []
+        if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
+            print "\n\nRestarting dead ros node: rollout server\n\n", self.id
+            rospy.init_node('rollout_server_'+str(self.id))
+        
         self.renew_publisher()
         random.shuffle(self.mcts) # If rospy hangs, don't want it to always be for the same trees
         for mcts in self.mcts:
-            val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=True)
+            print os.popen("rosnode list").read(), "\n", self.id, "\n\n"
+            val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=False)
             self.run_opt_queue()
             self.run_hl_opt_queue(mcts)
             self.test_publisher.publish('MCTS Step')
@@ -465,6 +477,12 @@ class RolloutServer(object):
             sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
             self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=0.0)
             n_probs = 0
+
+            if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
+                print "\n\nRestarting dead ros node:", 'rollout_server_'+str(self.id), '\n\n'
+                rospy.init_node('rollout_server_'+str(self.id))
+            else:
+                print "Rosnode alive", self.id
 
             for task in sample_lists:
                 for s_list in sample_lists[task]:
@@ -529,7 +547,7 @@ class RolloutServer(object):
     def run(self):
         while not self.stopped:
             self.step()
-            rospy.sleep(0.01)
+            rospy.sleep(0.1)
 
 
     def update_qvalue(self, samples, first_ts_only=False):

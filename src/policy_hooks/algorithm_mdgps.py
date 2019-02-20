@@ -158,7 +158,7 @@ class AlgorithmMDGPS(Algorithm):
             ts.sort()
             for t in range(data_len):
                 prc[0,t] = 1e0 * np.eye(dU)
-                wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
+                wt[:,t] = self._hyperparams['opt_wt'] # * sample.use_ts[ts[t]]
 
             for i in range(data_len):
                 t = ts[i]
@@ -190,7 +190,7 @@ class AlgorithmMDGPS(Algorithm):
                                           [N, 1, 1])
                 for i in range(N):
                     mu[i, j, :] = (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])
-                wt[:, j].fill(pol_info.pol_wt[t] * sample.use_ts[t])
+                wt[:, j].fill(pol_info.pol_wt[t])# * sample.use_ts[t])
                 obs[:, j, :] = full_obs[:, t, :]
             tgt_mu = np.concatenate((tgt_mu, mu))
             tgt_prc = np.concatenate((tgt_prc, prc))
