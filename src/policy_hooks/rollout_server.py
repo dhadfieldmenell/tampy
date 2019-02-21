@@ -145,7 +145,6 @@ class RolloutServer(object):
 
     def update(self, obs, mu, prc, wt, task, rollout_len=0):
         assert(len(mu) == len(obs))
-        print task, self.agent.dO, self.agent.dPrim, self.agent.dVal, mu.shape[1]
         msg = PolicyUpdate()
         msg.obs = obs.flatten()
         msg.mu = mu.flatten()

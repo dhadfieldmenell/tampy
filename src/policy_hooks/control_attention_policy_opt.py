@@ -154,11 +154,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
             for var in variables:
                 var.load(var_to_val[var.name], session=self.sess)
-        np.save('tf_saved/'+self.weight_dir+'/control'+'_scale', scales['control'])
-        np.save('tf_saved/'+self.weight_dir+'/control'+'_bias', biases['control'])
-        self.task_map['control']['policy'].scale = np.array(scale)
-        self.task_map['control']['policy'].bias = np.array(biases['control'])
-        self.var['control'] = np.array(variance)
+        if 'control' in scopes:
+            np.save('tf_saved/'+self.weight_dir+'/control'+'_scale', scales['control'])
+            np.save('tf_saved/'+self.weight_dir+'/control'+'_bias', biases['control'])
+            self.task_map['control']['policy'].scale = np.array(scale)
+            self.task_map['control']['policy'].bias = np.array(biases['control'])
+            self.var['control'] = np.array(variance)
         self.store_scope_weights(scopes=scopes)
         print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
 
