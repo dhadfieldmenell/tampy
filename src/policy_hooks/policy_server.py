@@ -31,7 +31,7 @@ class PolicyServer(object):
         # self.policy_opt.hyperparams['scope'] = task
         self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
         self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
-        self.update_listener = rospy.Subscriber(self.task+'_update', PolicyUpdate, self.update, queue_size=2)
+        self.update_listener = rospy.Subscriber(self.task+'_update', PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
         self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = False

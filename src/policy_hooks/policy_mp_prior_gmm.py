@@ -47,7 +47,7 @@ class PolicyMPPriorGMM(object):
         self._max_clusters = self._hyperparams['max_clusters']
         self._strength = self._hyperparams['strength']
 
-    def update(self, samples, policy_opt, mode='add'):
+    def update(self, samples, policy_opt, mode='add', task=''):
         """
         Update GMM using new samples or policy_opt.
         By default does not replace old samples.
@@ -73,7 +73,7 @@ class PolicyMPPriorGMM(object):
                 self.obs = self.obs[start:, :, :]
 
         # Evaluate policy at samples to get mean policy action.
-        U = policy_opt.prob(self.obs.copy())[0]
+        U = policy_opt.prob(self.obs.copy(), task)[0]
         # Create the dataset
         N, T = self.X.shape[:2]
         dO = self.X.shape[2] + U.shape[2]

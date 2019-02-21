@@ -384,7 +384,7 @@ class RolloutServer(object):
         prob.server_id = self.id
         self.store_for_opt(s_list)
 
-        if self.alg_map[next_sample.task_name].policy_prior.gmm.sigma is None:
+        if self.alg_map[next_sample.task_name].mp_policy_prior.gmm.sigma is None:
             prob.use_prior = False
         else:
             gmm = self.alg_map[next_sample.task_name].mp_policy_prior.gmm
