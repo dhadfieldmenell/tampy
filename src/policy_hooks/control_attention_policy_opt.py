@@ -3,7 +3,9 @@ import copy
 import json
 import logging
 import os
+import sys
 import tempfile
+import traceback
 
 import numpy as np
 import tensorflow as tf
@@ -175,9 +177,13 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if weight_dir is None:
             weight_dir = self.weight_dir
         for scope in scopes:
-            variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-            saver = tf.train.Saver(variables)
-            saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
+            try:
+                variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+                saver = tf.train.Saver(variables)
+                saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
+            except:
+                print 'Saving variables encountered an issue but it will not crash:'
+                traceback.print_exception(*sys.exc_info())
 
             if scope in self.task_map:
                 policy = self.task_map[scope]['policy']
