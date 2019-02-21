@@ -49,8 +49,10 @@ class AbstractMotionPlanServer(object):
         # self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
         self.busy = False
-        self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=5) for i in range(hyperparams['n_rollout_servers'])}
-        self.hl_publishers = {i: rospy.Publisher('hl_result_'+str(i), HLPlanResult, queue_size=5) for i in range(hyperparams['n_rollout_servers'])}
+        # self.mp_publishers = {i: rospy.Publisher('motion_plan_result_'+str(i), MotionPlanResult, queue_size=5) for i in range(hyperparams['n_rollout_servers'])}
+        # self.hl_publishers = {i: rospy.Publisher('hl_result_'+str(i), HLPlanResult, queue_size=5) for i in range(hyperparams['n_rollout_servers'])}
+        self.mp_publishers = {}
+        self.hl_publishers = {}
         # self.policy_prior_subscriber = rospy.Subscriber('policy_prior', PolicyPriorUpdate, self.update_policy_prior)
         self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
         self.opt_count_publisher = rospy.Publisher('optimization_counter', String, queue_size=1)
@@ -105,6 +107,18 @@ class AbstractMotionPlanServer(object):
     def store_weights(self, msg):
         if self.use_local:
             self.policy_opt.deserialize_weights(msg.data)
+
+
+    def publish_mp(self, msg, server_id):
+        if server_id not in self.mp_publishers:
+            self.mp_publishers[server_id] = rospy.Publisher('motion_plan_result_'+str(server_id), MotionPlanResult, queue_size=5)
+        self.mp_publishers[server_id].publish(msg)
+
+
+    def publish_hl(self, msg, server_id):
+        if server_id not in self.hl_publishers:
+            self.hl_publishers[server_id] = rospy.Publisher('hl_result_'+str(server_id), HLPlanResultResult, queue_size=5)
+        self.hl_publishers[server_id].publish(msg)
 
 
     # def update_policy_prior(self, msg):
@@ -173,7 +187,6 @@ class AbstractMotionPlanServer(object):
 
 
     def publish_motion_plan(self, msg):
-        print "Problem for server {0}".format(msg.solver_id)
         if msg.solver_id != self.id: return
         self.mp_queue.append(msg)
         if len(self.mp_queue) > 1:
@@ -181,7 +194,6 @@ class AbstractMotionPlanServer(object):
 
 
     def solve_motion_plan(self, msg):
-        print "Problem for server {0}".format(msg.solver_id)
         # if self.busy:
         #     print 'Server', self.id, 'busy, rejecting request for motion plan.'
         #     return
@@ -230,7 +242,8 @@ class AbstractMotionPlanServer(object):
         resp.cond = msg.cond
         resp.task = msg.task
         resp.state = state.tolist()
-        self.mp_publishers[msg.server_id].publish(resp)
+        # self.mp_publishers[msg.server_id].publish(resp)
+        self.publish_mp(resp, msg.server_id)
         print 'Succeeded:', success, failed
 
         if success:
@@ -251,7 +264,8 @@ class AbstractMotionPlanServer(object):
                 resp.cond = msg.cond
                 resp.task = msg.task
                 resp.state = state.tolist()
-                self.mp_publishers[msg.server_id].publish(resp)
+                # self.mp_publishers[msg.server_id].publish(resp)
+                self.publish_mp(resp, msg.server_id)
         # self.busy = False
         print 'Server {0} free.'.format(self.id, msg.server_id)
 
@@ -351,7 +365,8 @@ class AbstractMotionPlanServer(object):
         resp.path_to = msg.path_to
         resp.success = len(cur_path) and cur_path[0].success == SUCCESS_LABEL
         resp.cond = msg.cond
-        self.hl_publishers[msg.server_id].publish(resp)
+        # self.hl_publishers[msg.server_id].publish(resp)
+        self.publish_hl(resp, msg.server_id)
         self.busy = False
 
 

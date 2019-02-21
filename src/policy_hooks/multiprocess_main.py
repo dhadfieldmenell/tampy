@@ -434,6 +434,7 @@ class MultiProcessMain(object):
         for task in self.pol_list+('value', 'primitive'):
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
+            # new_hyperparams['id'] = config['server_id']+'_'+str(task)
             self.create_server(PolicyServer, new_hyperparams)
 
         # new_hyperparams = copy.copy(hyperparams)
@@ -447,7 +448,7 @@ class MultiProcessMain(object):
     def create_rollout_servers(self, hyperparams):
         for n in range(hyperparams['n_rollout_servers']):
             new_hyperparams = copy.copy(hyperparams)
-            new_hyperparams['id'] = n
+            new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
             self.create_server(RolloutServer, new_hyperparams)
 
     def create_view_server(self, hyperparams):

@@ -219,7 +219,7 @@ class MCTS:
             print "Finished Rollout {0} for condition {1}.\n".format(n, self.condition)
             if len(next_path):
                 end = next_path[-1]
-                new_opt_value = self.agent.goal_f(self.condition, state)
+                new_opt_value = 1 - self.agent.goal_f(self.condition, state)
                 if new_opt_value == 0: 
                     paths.append(next_path)
                     self.n_success += 1
@@ -446,7 +446,7 @@ class MCTS:
 
 
         if path_value is None:
-            path_value = self.agent.goal_f(self.condition, cur_state)
+            path_value = 1 - self.agent.goal_f(self.condition, cur_state)
 
         path = []
         while current_node is not self.root:
@@ -493,7 +493,7 @@ class MCTS:
             return path_value, samples
 
         samples.append(next_sample)
-        path_value = self.agent.goal_f(self.condition, end_state)
+        path_value = 1 - self.agent.goal_f(self.condition, end_state)
         # hl_encoding = self._encode_f(end_state, self.agent.plans.values()[0], self.agent.targets[self.condition])
         if path_value == 0 or depth >= init_depth + self.explore_depth or depth >= self.max_depth: # or hl_encoding in exclude_hl:
             for sample in samples:

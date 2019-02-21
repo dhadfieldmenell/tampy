@@ -36,7 +36,7 @@ class DummyPolicyOpt:
 class RolloutServer(object):
     def __init__(self, hyperparams):
         self.id = hyperparams['id']
-        np.random.seed(self.id*1234)
+        np.random.seed(int(time.time()/100000))
         rospy.init_node('rollout_server_'+str(self.id))
         self.mcts = hyperparams['mcts']
         self.prim_dims = hyperparams['prim_dims']
@@ -144,6 +144,8 @@ class RolloutServer(object):
 
 
     def update(self, obs, mu, prc, wt, task, rollout_len=0):
+        assert(len(mu) == len(obs))
+        print task, self.agent.dO, self.agent.dPrim, self.agent.dVal, mu.shape[1]
         msg = PolicyUpdate()
         msg.obs = obs.flatten()
         msg.mu = mu.flatten()
@@ -326,7 +328,7 @@ class RolloutServer(object):
         success = msg.success
         task = eval(msg.task)
         condition = msg.cond
-        print "Received trajectory, success:", success
+        # print "Received trajectory, success:", success
         if success:
             waiters = []
             if plan_id in self.waiting_for_opt:
@@ -396,20 +398,16 @@ class RolloutServer(object):
             prob.K = len(gmm.mass)
             prob.Do = gmm.sigma.shape[1]
 
-        print '\n\nSending motion plan problem to server {0}.\n\n'.format(prob.solver_id)
+        # print '\n\nSending motion plan problem to server {0}.\n\n'.format(prob.solver_id)
         self.async_plan_publisher.publish(prob)
         self.test_publisher.publish('MCTS sent motion plan.')
 
 
     def run_opt_queue(self):
         if len(self.opt_queue):
-            print 'Running optimal trajectory.'
+            # print 'Running optimal trajectory.'
             plan_id, state, task, condition, traj, waiters = self.opt_queue.pop()
             opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, opt_traj=traj, traj_mean=[])
-            if not len(waiters):
-                print "\n\n\n\n\n\n\nNO WAITERS ON PLAN"
-            else:
-                print "\n\n\n\n\n\n\nFOUND WAITERS FOR PLAN"
             self.store_opt_sample(opt_sample, plan_id, waiters)
 
 
@@ -428,7 +426,7 @@ class RolloutServer(object):
 
 
     def step(self):
-        print '\n\nTaking tree search step.\n\n'
+        # print '\n\nTaking tree search step.\n\n'
         self.cur_step += 1
         rollout_policies = {task: DummyPolicy(task, self.policy_call) for task in self.agent.task_list}
 
@@ -441,7 +439,7 @@ class RolloutServer(object):
         self.renew_publisher()
         random.shuffle(self.mcts) # If rospy hangs, don't want it to always be for the same trees
         for mcts in self.mcts:
-            print os.popen("rosnode list").read(), "\n", self.id, "\n\n"
+            # print os.popen("rosnode list").read(), "\n", self.id, "\n\n"
             val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=False)
             self.run_opt_queue()
             self.run_hl_opt_queue(mcts)
@@ -481,8 +479,6 @@ class RolloutServer(object):
             if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
                 print "\n\nRestarting dead ros node:", 'rollout_server_'+str(self.id), '\n\n'
                 rospy.init_node('rollout_server_'+str(self.id))
-            else:
-                print "Rosnode alive", self.id
 
             for task in sample_lists:
                 for s_list in sample_lists[task]:
@@ -541,7 +537,7 @@ class RolloutServer(object):
             with open(self.time_log, 'a+') as f:
                 f.write('Time to update algorithms for {0} iterations on data: {1}\n\n'.format(self.traj_opt_steps, end_time-start_time))
 
-        print '\n\nFinished tree search step.\n\n'
+        # print '\n\nFinished tree search step.\n\n'
 
 
     def run(self):
@@ -561,7 +557,7 @@ class RolloutServer(object):
                 obs = [sample.get_val_obs(t=t)]
                 mu = [sample.success]
                 prc = [np.eye(dV)]
-                wt = 1. # [10. / (t+1)]
+                wt = [1.] # [10. / (t+1)]
                 tgt_mu = np.concatenate((tgt_mu, mu))
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))

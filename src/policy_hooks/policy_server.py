@@ -60,7 +60,12 @@ class PolicyServer(object):
         mu = mu.reshape(mu_dims)
 
         obs = np.array(msg.obs)
-        obs_dims = (msg.n, msg.rollout_len, msg.dO)
+        if self.task == "value":
+            obs_dims = (msg.n, msg.rollout_len, msg.dValObs)
+        elif self.task == "primitive":
+            obs_dims = (msg.n, msg.rollout_len, msg.dPrimObs)
+        else:
+            obs_dims = (msg.n, msg.rollout_len, msg.dO)
         obs = obs.reshape(obs_dims)
 
         prc = np.array(msg.prc)

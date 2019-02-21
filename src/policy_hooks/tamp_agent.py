@@ -153,13 +153,13 @@ class TAMPAgent(Agent):
             if not isinstance(samples, SampleList):
                 samples = SampleList(samples)
             self._samples[task].append(samples)
-            print 'Stored {0} samples for'.format(len(samples)), task
+            # print 'Stored {0} samples for'.format(len(samples)), task
         else:
             for batch in samples:
                 if not isinstance(batch, SampleList):
                     batch = SampleList(batch)
                 self._samples[task].append(batch)
-                print 'Stored {0} samples for'.format(len(samples)), task
+                # print 'Stored {0} samples for'.format(len(samples)), task
         while len(self._samples[task]) > MAX_SAMPLELISTS:
             del self._samples[task][0]
 
@@ -171,9 +171,9 @@ class TAMPAgent(Agent):
 
             n_opt_keep = int(keep_opt_prob * len(self.optimal_samples[task]))
             self.optimal_samples[task] = random.sample(self.optimal_samples[task], n_opt_keep)
-        print 'Cleared samples. Remaining per task:'
-        for task in self.task_list:
-            print '    ', task, ': ', len(self._samples[task]), ' standard; ', len(self.optimal_samples[task]), 'optimal'
+        # print 'Cleared samples. Remaining per task:'
+        # for task in self.task_list:
+        #     print '    ', task, ': ', len(self._samples[task]), ' standard; ', len(self.optimal_samples[task]), 'optimal'
 
 
     def reset_sample_refs(self):
