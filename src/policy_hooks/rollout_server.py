@@ -145,11 +145,17 @@ class RolloutServer(object):
 
     def update(self, obs, mu, prc, wt, task, rollout_len=0):
         assert(len(mu) == len(obs))
+        prc[np.where(prc > 1e20)] = 1e20
+        wt[np.where(wt > 1e20)] = 1e20
+        prc[np.where(prc < -1e20)] = -1e20
+        wt[np.where(wt < -1e20)] = -1e20
+        mu[np.where(np.abs(mu)) > 1e15] = 0
+        obs[np.where(np.abs(obs)) > 1e15] = 0
         msg = PolicyUpdate()
-        msg.obs = obs.flatten()
-        msg.mu = mu.flatten()
-        msg.prc = prc.flatten()
-        msg.wt = wt.flatten()
+        msg.obs = obs.flatten().tolist()
+        msg.mu = mu.flatten().tolist()
+        msg.prc = prc.flatten().tolist()
+        msg.wt = wt.flatten().tolist()
         msg.dO = self.agent.dO
         msg.dPrimObs = self.agent.dPrim
         msg.dValObs = self.agent.dVal
