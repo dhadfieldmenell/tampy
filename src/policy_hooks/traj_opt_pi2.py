@@ -97,9 +97,12 @@ class TrajOptPI2(TrajOpt):
             fixed_eta, use_fixed_eta
         )
         # print "Leaving PI^2 Update\n"
-        traj_distr.k, traj_distr.pol_covar = k, pS
-        traj_distr.inv_pol_covar, traj_distr.chol_pol_covar = ipS, cpS
-
+        try:
+            traj_distr.k, traj_distr.pol_covar = k, pS
+            traj_distr.inv_pol_covar, traj_distr.chol_pol_covar = ipS, cpS
+        except ValueError as e:
+            print "Error: VALUEERROR IN PI^2 UPDATE"
+            traj_distr = prev_traj_distr
         # print cur_data[0].task, cur_data[0].obj_ind, cur_data[0].targ_ind
         # print cur_data[0].agent.state_inds
         # print cur_data[0].agent.obj_list, cur_data[0].agent.targ_list

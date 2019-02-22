@@ -153,7 +153,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
     def deserialize_weights(self, json_wts):
         scopes, var_to_val, scales, biases, variances = json.loads(json_wts)
 
-        print 'Deserializing', scopes
+        # print 'Deserializing', scopes
         for scope in scopes:
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
             for var in variables:
@@ -166,7 +166,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.task_map['control']['policy'].bias = np.array(biases['control'])
             self.var['control'] = np.array(variances['control'])
         self.store_scope_weights(scopes=scopes)
-        print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
+        # print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
 
     def update_weights(self, scope, weight_dir=None):
         if weight_dir is None:

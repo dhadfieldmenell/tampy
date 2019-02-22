@@ -157,14 +157,14 @@ algorithm['policy_prior'] = {
     'type': PolicyPriorGMM,
     'max_clusters': 20,
     'min_samples_per_cluster': 40,
-    'max_samples': 50,
+    'max_samples': 100,
 }
 
 algorithm['mp_policy_prior'] = {
     'type': PolicyMPPriorGMM,
     'max_clusters': 20,
     'min_samples_per_cluster': 40,
-    'max_samples': 50,
+    'max_samples': 100,
 }
 
 config = {

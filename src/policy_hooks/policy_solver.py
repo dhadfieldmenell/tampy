@@ -34,6 +34,7 @@ EXP_DIR = BASE_DIR + '/experiments'
 N_RESAMPLES = 5
 MAX_PRIORITY = 3
 DEBUG=False
+TIME_LIMIT = 500
 
 def get_base_solver(parent_class):
     class PolicySolver(parent_class):
@@ -72,15 +73,20 @@ def get_base_solver(parent_class):
             raise NotImplementedError
 
 
-        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None, start_time=None):
+        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None, total_time=None, time_limit=TIME_LIMIT):
             if amax is None:
                 amax = len(plan.actions) - 1
 
             if anum > amax:
                 return True
 
-            if start_time is None:
-                start_time = time.time()
+            if total_time is None:
+                total_time = 0
+
+            if total_time > time_limit:
+                return False
+
+            start_time = time.time()
             a = plan.actions[anum]
             print "backtracking Solve on {}".format(a.name)
             active_ts = a.active_timesteps
@@ -130,8 +136,9 @@ def get_base_solver(parent_class):
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
                 self.child_solver.robot_name = self.robot_name
+                new_time = time.time() - start_time + total_time
                 success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, 
-                                                             n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task)
+                                                             n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, time_limit=time_limit)
 
                 # reset free_attrs
                 for p in plan.params.itervalues():
@@ -165,9 +172,11 @@ def get_base_solver(parent_class):
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
                 self.child_solver.robot_name = self.robot_name
+                new_time = time.time() - start_time + total_time
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts=active_ts, verbose=verbose, force_init=True, 
-                                                  inf_f=inf_f, traj_mean=traj_mean, task=task)
+                                                  inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, 
+                                                  time_limit=time_limit)
                 if not success:
                     ## if planning fails we're done
                     return False
@@ -215,9 +224,11 @@ def get_base_solver(parent_class):
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
                 self.child_solver.robot_name = self.robot_name
+                new_time = time.time() - start_time + total_time
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts = active_ts, verbose=verbose,
-                                                  force_init=True, inf_f=inf_f, traj_mean=traj_mean, task=task)
+                                                  force_init=True, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time,
+                                                  time_limit=time_limit)
                 if success:
                     if recursive_solve():
                         break
@@ -229,8 +240,13 @@ def get_base_solver(parent_class):
 
 
         def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
-                  verbose=False, force_init=False, inf_f=None, traj_mean=[], task=None):
+                  verbose=False, force_init=False, inf_f=None, traj_mean=[], task=None,
+                  total_time=0, time_limit=TIME_LIMIT):
             success = False
+            if total_time > time_limit:
+                return False
+
+            start_time = time.time()
             if callback is not None:
                 viewer = callback()
             if force_init or not plan.initialized:
@@ -254,7 +270,7 @@ def get_base_solver(parent_class):
                         if DEBUG: plan.check_cnt_violation(active_ts=active_ts, priority=priority, tol=1e-3)
                     except:
                         print "error in predicate checking"
-                    if success:
+                    if success or total_time + time.time() - start_time > time_limit:
                         break
 
                     self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, 

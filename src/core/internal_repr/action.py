@@ -59,7 +59,7 @@ class Action(object):
                 if pred.active_range[1]+t > active_ts[1] or pred.active_range[0] + t < active_ts[0]:
                     continue
                 if pred.priority <= priority and not pred.test(t, negated=negated, tol=tol):
-                    failed.append((t, pred.get_type(), pred.check_pred_violation(t, negated=negated, tol=tol)))
+                    failed.append((t, pred.get_type(), pred.check_pred_violation(t, negated=negated, tol=tol).flatten()))
 
         return failed
 

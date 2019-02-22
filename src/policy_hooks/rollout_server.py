@@ -45,6 +45,8 @@ class RolloutServer(object):
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
             m.agent = self.agent
+            m.log_file = 'tf_saved/'+hyperparams['weight_dir']+'mcts_log_{0}_cond{1}.txt'.format(self.id, m.condition)
+            with open(m.log_file, 'w+') as f: f.write('')
         self.alg_map = hyperparams['alg_map']
         self.task_list = self.agent.task_list
         self.pol_list = tuple(hyperparams['policy_list']) + ('value', 'primitive')

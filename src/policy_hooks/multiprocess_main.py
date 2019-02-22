@@ -12,6 +12,7 @@ import argparse
 from datetime import datetime
 from threading import Thread
 import pprint
+import psutil
 import sys
 import time
 import traceback
@@ -387,11 +388,18 @@ class MultiProcessMain(object):
         self.config['task_list'] = self.task_list
         self.config['time_log'] = 'tf_saved/'+self.config['weight_dir']+'/timing_info.txt'
 
+        with open('memory_info.txt', 'w+') as f:
+            f.write('Process memory info:\n')
+
+        with open('tf_saved/'+self.config['weight_dir']+'/traj_init_log.txt', 'w+') as f:
+            f.write('Traj init info:\n')
+
         self.roscore = None
 
     def spawn_servers(self, config):
         self.processes = []
         self.process_info = []
+        self.process_configs = {}
         self.threads = []
         if self.config['mp_server']:
             self.create_mp_servers(config)
@@ -417,6 +425,7 @@ class MultiProcessMain(object):
             self.processes.append(p)
             server_id = hyperparams['id'] if 'id' in hyperparams else hyperparams['scope']
             self.process_info.append((server_cls, server_id))
+            self.process_configs[p.pid] = (server_cls, hyperparams)
         else:
             t = Thread(target=spawn_server, args=(server_cls, hyperparams))
             t.daemon = True
@@ -466,8 +475,13 @@ class MultiProcessMain(object):
                     message = 'Killing All.' if kill_all else 'Restarting Dead Process.'
                     print '\n\nProcess died: ' + str(self.process_info[n]) + ' - ' + message
                     exit = kill_all
-                    if exit: break
-            time.sleep(1)
+                    if kill_all: break
+                    process_config = self.process_configs[p.pid]
+                    del self.process_info[n]
+                    self.create_server(*process_config)
+                    print "Relaunched dead process"
+            time.sleep(60)
+            self.log_mem_info() 
 
         for p in self.processes:
             if p.is_alive(): p.terminate()
@@ -498,4 +512,27 @@ class MultiProcessMain(object):
         self.start_servers()
         self.watch_processes(kill_all)
         if self.roscore is not None: self.roscore.shutdown()
+
+    def log_mem_info(self):
+        '''
+        Get list of running process sorted by Memory Usage
+        '''
+        listOfProcObjects = []
+        # Iterate over the list
+        for proc in psutil.process_iter():
+            try:
+                # Fetch process details as dict
+                pinfo = proc.as_dict(attrs=['pid', 'name', 'username'])
+                pinfo['vms'] = proc.memory_info().vms / (1024 * 1024)
+                # Append dict to list
+                listOfProcObjects.append(pinfo);
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+ 
+        # Sort list of dict by key vms i.e. memory usage
+        listOfProcObjects = sorted(listOfProcObjects, key=lambda procObj: procObj['vms'], reverse=True)
+        
+        with open('memory_info.txt', 'a+') as f:
+            f.write(str(listOfProcObjects)) 
+        return listOfProcObjects
 

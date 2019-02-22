@@ -39,7 +39,7 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
 
 
-MAX_SAMPLELISTS = 1000
+MAX_SAMPLELISTS = 100
 MAX_TASK_PATHS = 100
 
 

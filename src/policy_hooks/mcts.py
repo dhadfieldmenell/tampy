@@ -107,7 +107,7 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=1.0, C=2, max_depth=20, explore_depth=5, opt_strength=0.0):
+    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=1.0, C=2, max_depth=20, explore_depth=5, opt_strength=0.0, log_file=None):
         self.tasks = tasks
         self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
@@ -134,6 +134,19 @@ class MCTS:
 
         self.n_success = 0
         self.n_runs = 0
+
+        self.log_file = log_file
+        if self.log_file is not None:
+            init_state = []
+            x = self.agent.x0[self.condition][self.agent._x_data_idx[STATE_ENUM]]
+            for param_name, attr in self.agent.state_inds:
+                inds = self.agent.state_inds[param_name, attr]
+                if inds[-1] < len(x):
+                    init_state.append((param_name, attr, x[inds]))
+            with open(log_file, 'w+') as f:
+                f.write('Data for MCTS on initial state:')
+                f.write(str(init_state))
+                f.write('\n\n')
 
 
     def prob_func(self, prim_obs):
@@ -213,7 +226,7 @@ class MCTS:
             self.n_runs += 1
             # if not self.n_runs % 10 and self.n_success == 0:
             #     self.max_depth += 1
-            self.agent.reset_hist()
+            # self.agent.reset_hist()
             print "MCTS Rollout {0} for condition {1}.\n".format(n, self.condition)
             next_path = self.simulate(state.copy(), use_distilled, debug=debug)
             print "Finished Rollout {0} for condition {1}.\n".format(n, self.condition)
@@ -225,6 +238,7 @@ class MCTS:
                     self.n_success += 1
 
                 opt_val = np.minimum(new_opt_value, opt_val)
+            self.log_path(next_path)
 
         self.agent.add_task_paths(paths)
         return opt_val
@@ -347,7 +361,8 @@ class MCTS:
             print 'Chose to explore ', p
 
         if cost > 0:
-            print 'Failed all preconditions for next nodes'
+            if debug:
+                print 'Failed all preconditions for next nodes'
             return None, -np.inf
 
         if child is None:
@@ -365,7 +380,7 @@ class MCTS:
         if debug:
             print "SAMPLING"
         samples = []
-        old_traj_hist = self.agent.get_hist()
+        # old_traj_hist = self.agent.get_hist()
         task_name = self.tasks[task[0]]
 
         s, success = None, False
@@ -380,7 +395,7 @@ class MCTS:
                 pol.opt_strength = 0
 
         for n in range(self.num_samples):
-            self.agent.reset_hist(deepcopy(old_traj_hist))
+            # self.agent.reset_hist(deepcopy(old_traj_hist))
             samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
             if success:
                 samples[-1].set_ref_X(s.get_ref_X())
@@ -393,8 +408,23 @@ class MCTS:
         if save:
             self.agent.add_sample_batch(samples, task)
         cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
-        self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
+        # self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
+        if self.log_file is not None:
+            mp_state = []
+            x = cur_state[self.agent._x_data_idx[STATE_ENUM]]
+            for param_name, attr in self.agent.state_inds:
+                inds = self.agent.state_inds[param_name, attr]
+                if inds[-1] < len(x):
+                    mp_state.append((param_name, attr, x[inds]))
+            cost_info = self.agent.cost_info(cur_state, task, self.condition, active_ts=(-1,-1))
+            task_name = self.tasks[task[0]]
+            with open(self.log_file, 'w+') as f:
+                f.write('Data for MCTS after step for {0} on {1}:'.format(task_name, task))
+                f.write(str(mp_state))
+                f.write(str(cost_info))
+                f.write('\n\n')
+            
         return lowest_cost_sample, cur_state
 
 
@@ -451,9 +481,12 @@ class MCTS:
         path = []
         while current_node is not self.root:
             path.append(prev_sample)
+            cur_state = prev_sample.get_X(t=prev_sample.T-1)
+            path_value = np.maximum(path_value, 1-self.agent.goal_f(self.condition, cur_state))
             prev_sample.task_cost = path_value
             prev_sample = current_node.parent.sample_links[prev_sample]
-            current_node.update_value(int(path_value==0))
+            current_node.update_value(path_value)
+            current_node.sample_links = []
             current_node = current_node.parent
 
         path.reverse()
@@ -521,3 +554,16 @@ class MCTS:
 
         next_label = tuple(next_label)
         return self._default_simulate_from_next(next_label, depth+1, init_depth, end_state, prob_func, samples, num_samples=num_samples, save=False, use_distilled=use_distilled, debug=debug)
+
+
+    def log_path(self, path):
+        if self.log_file is None: return
+        tasks = []
+        for node in path:
+            tasks.append((self.tasks[node.label[0]], node.label, 'Value: {0}'.format(node.value)))
+
+        with open(self.log_file, 'a+') as f:
+            f.write('Path explored:')
+            f.write(str(tasks))
+            f.write('\n')
+

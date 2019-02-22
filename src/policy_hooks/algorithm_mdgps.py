@@ -78,7 +78,7 @@ class AlgorithmMDGPS(Algorithm):
 
         for m in range(M):
             self.cur.append(IterationData())
-            self.prev.append(IterationData())
+            # self.prev.append(IterationData())
             self.cur[-1].traj_info = TrajectoryInfo()
 
             self._hyperparams['init_traj_distr']['T'] = self.T

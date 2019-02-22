@@ -213,19 +213,7 @@ class AbstractMotionPlanServer(object):
             inf_f = None
 
         plan = self.agent.plans[task]
-        for t in range(0, len(mean)):
-            for param_name, attr in plan.state_inds:
-                param = plan.params[param_name]
-                if param.is_symbol(): continue
-                if hasattr(param, attr):
-                    getattr(param, attr)[:, t] = mean[t, plan.state_inds[param_name, attr]]
-        plan_actions = str(plan.actions)
-        plan_total_violation = np.sum(plan.check_total_cnt_violation())
-        plan_failed_constrs = plan.get_failed_preds_by_type()
-        with open(self.traj_init_log, 'a+') as f:
-            f.write(str((plan_actions, plan_total_violation, plan_failed_constrs)))
-            f.write('\n')
-
+        self.log_init_traj_cost(mean, task)
         sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f)
         self.opt_count_publisher.publish("Ran solve for motion plan.")
         failed = str(failed)
@@ -369,6 +357,22 @@ class AbstractMotionPlanServer(object):
         self.publish_hl(resp, msg.server_id)
         self.busy = False
 
+
+    def log_init_traj_cost(self, mean, task):
+        plan = self.agent.plans[task]
+        for t in range(0, len(mean)):
+            for param_name, attr in plan.state_inds:
+                param = plan.params[param_name]
+                if param.is_symbol(): continue
+                if hasattr(param, attr):
+                    getattr(param, attr)[:, t] = mean[t, plan.state_inds[param_name, attr]]
+        
+        plan_actions = str(plan.actions)
+        plan_total_violation = np.sum(plan.check_total_cnt_violation())
+        plan_failed_constrs = plan.get_failed_preds_by_type()
+        with open(self.traj_init_log, 'a+') as f:
+            f.write(str((plan_actions, plan_total_violation, plan_failed_constrs)))
+            f.write('\n\n\n')
 
     def update_weight(self, msg):
         scope = msg.scope

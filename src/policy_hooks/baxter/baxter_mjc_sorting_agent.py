@@ -289,6 +289,8 @@ class BaxterMJCSortingAgent(TAMPAgent):
             fill_vector(plan.params, plan.state_inds, state_traj[i], i)
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
         self.optimal_samples[self.task_list[task[0]]].append(sample)
+        while len(self.optimal_samples[self.task_list[0]]) > 25:
+            del self.optimal_samples[self.task_list[0]][0]
         sample.set_ref_X(state_traj)
         sample.set_ref_U(sample.get(ACTION_ENUM))
         return sample, [], True
@@ -475,8 +477,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         return tuple(task)
 
 
-    def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
-        cost = 0
+    def _cost_f(self, Xs, task, condition, active_ts=None, debug=False):
         if len(Xs.shape) == 1:
             Xs = Xs.reshape(1, Xs.shape[0])
         Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
@@ -495,14 +496,31 @@ class BaxterMJCSortingAgent(TAMPAgent):
         robot_init_pose.lGripper[:,0] = robot.lGripper[:,0]
         robot_init_pose.rArmPose[:,0] = robot.rArmPose[:,0]
         robot_init_pose.rGripper[:,0] = robot.rGripper[:,0]
+
+        robot_end_pose = plan.params['robot_end_pose']
+        robot_end_pose.lArmPose[:,0] = robot.lArmPose[:,-1]
+        robot_end_pose.lGripper[:,0] = robot.lGripper[:,-1]
+        robot_end_pose.rArmPose[:,0] = robot.rArmPose[:,-1]
+        robot_end_pose.rGripper[:,0] = robot.rGripper[:,-1]
+
         for i in range(self.n_items):
             plan.params['cloth{0}_init_target'.format(i)].value[:,0] = plan.params['cloth{0}'.format(i)].pose[:,0]
 
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
         # if debug:
         #     print failed_preds
+        return failed_preds
 
+
+    def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
+        if active_ts == None:
+            active_ts = (1, plan.horizon-1)
+        failed_preds = self._cost_f(Xs, task, condition, active_ts=active_ts, debug=debug)
         prim_choices = self.prob.get_prim_choices()
+
+        cost = 0
+        plan = self.plans[task]
+        tol = 1e-3
 
         obj = prim_choices[OBJ_ENUM][task[1]]
         targ = prim_choices[TARG_ENUM][task[2]]
@@ -539,6 +557,30 @@ class BaxterMJCSortingAgent(TAMPAgent):
                     pass
 
         return cost
+
+
+    def cost_info(self, Xs, task, cond, active_ts=(0,0)):
+        failed_preds = self._cost_f(Xs, task, cond, active_ts=active_ts)
+        plan = self.plans[task]
+        if active_ts[0] == -1:
+            active_ts = (plan.horizon-1, plan.horizon-1)
+        cost_info = [str(plan.actions)]
+        tol=1e-3
+        for failed in failed_preds:
+            for t in range(active_ts[0], active_ts[1]+1):
+                if t + failed[1].active_range[1] > active_ts[1]:
+                    break
+
+                try:
+                    viol = failed[1].check_pred_violation(t, negated=failed[0], tol=tol)
+                    if viol is not None:
+                        cost_info.append((t, failed[1].get_type(), viol.flatten()))
+                    else:
+                        cost_info.append((t, failed[1].get_type(), "Violation returned null"))
+                except Exception as e:
+                    cost_info.append((t, failed[1].get_type(), 'Error on evaluating: {0}'.format(e)))
+
+        return cost_info
 
 
     # def goal_f(self, condition, state):
@@ -621,6 +663,8 @@ class BaxterMJCSortingAgent(TAMPAgent):
         sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False)
         print 'Finished optimal sample.'
         self.optimal_samples[self.task_list[task[0]]].append(sample)
+        while len(self.optimal_samples[self.task_list[task[0]]]) > 25:
+            del self.optimal_samples[self.task_list[task[0]]][0]
         sample.set_ref_X(opt_traj)
         sample.set_ref_U(sample.get_U())
         return sample
