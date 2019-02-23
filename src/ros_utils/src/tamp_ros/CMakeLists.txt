@@ -58,7 +58,7 @@ add_message_files(
   HLProblem.msg
   HLPlanResult.msg
   PolicyPriorUpdate.msg
-#   Message2.msg
+  UpdateTF.msg
 )
 
 ## Generate services in the 'srv' folder
