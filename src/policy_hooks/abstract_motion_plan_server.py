@@ -106,7 +106,8 @@ class AbstractMotionPlanServer(object):
 
     def store_weights(self, msg):
         if self.use_local:
-            self.policy_opt.deserialize_weights(msg.data)
+            save = self.id == 0
+            self.policy_opt.deserialize_weights(msg.data, save=save)
 
 
     def publish_mp(self, msg, server_id):

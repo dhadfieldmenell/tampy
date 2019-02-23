@@ -150,7 +150,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         variances[''] = []
         return json.dumps([scopes, var_to_val, scales, biases, variances])
 
-    def deserialize_weights(self, json_wts):
+    def deserialize_weights(self, json_wts, save=True):
         scopes, var_to_val, scales, biases, variances = json.loads(json_wts)
 
         # print 'Deserializing', scopes
@@ -159,13 +159,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             for var in variables:
                 var.load(var_to_val[var.name], session=self.sess)
         if 'control' in scopes:
-            np.save('tf_saved/'+self.weight_dir+'/control'+'_scale', scales['control'])
-            np.save('tf_saved/'+self.weight_dir+'/control'+'_bias', biases['control'])
-            np.save('tf_saved/'+self.weight_dir+'/control'+'_variance', variances['control'])
+            # if save:
+            #     np.save('tf_saved/'+self.weight_dir+'/control'+'_scale', scales['control'])
+            #     np.save('tf_saved/'+self.weight_dir+'/control'+'_bias', biases['control'])
+            #     np.save('tf_saved/'+self.weight_dir+'/control'+'_variance', variances['control'])
             self.task_map['control']['policy'].scale = np.array(scales['control'])
             self.task_map['control']['policy'].bias = np.array(biases['control'])
             self.var['control'] = np.array(variances['control'])
-        self.store_scope_weights(scopes=scopes)
+        if save: self.store_scope_weights(scopes=scopes)
         # print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
 
     def update_weights(self, scope, weight_dir=None):

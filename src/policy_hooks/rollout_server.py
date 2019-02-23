@@ -175,7 +175,8 @@ class RolloutServer(object):
 
     def store_weights(self, msg):
         if self.use_local:
-            self.policy_opt.deserialize_weights(msg.data)
+            save = self.id.endswith('0')
+            self.policy_opt.deserialize_weights(msg.data, save=save)
 
 
     def policy_call(self, x, obs, t, noise, task):

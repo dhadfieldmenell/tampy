@@ -559,8 +559,8 @@ class MCTS:
     def log_path(self, path):
         if self.log_file is None: return
         tasks = []
-        for node in path:
-            tasks.append((self.tasks[node.label[0]], node.label, 'Value: {0}'.format(node.value)))
+        for sample in path:
+            tasks.append((self.tasks[sample.task[0]], sample.task, 'Value: {0}'.format(sample.task_cost)))
 
         with open(self.log_file, 'a+') as f:
             f.write('Path explored:')
