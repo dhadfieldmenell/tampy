@@ -371,6 +371,24 @@ class BaxterStationaryArms(robot_predicates.StationaryArms):
         self.attr_dim = const.TWOARMDIM
         super(BaxterStationaryArms, self).__init__(name, params, expected_param_types, env)
 
+class BaxterStationaryLeftArm(robot_predicates.StationaryArms):
+
+    # StationaryArms, Robot (Only Robot Arms)
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:2]))])
+        self.attr_dim = const.ONEARMDIM
+        super(BaxterStationaryLeftArm, self).__init__(name, params, expected_param_types, env)
+
+class BaxterStationaryRightArm(robot_predicates.StationaryArms):
+
+    # StationaryArms, Robot (Only Robot Arms)
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][2:4]))])
+        self.attr_dim = const.ONEARMDIM
+        super(BaxterStationaryRightArm, self).__init__(name, params, expected_param_types, env)
+
 class BaxterStationaryW(robot_predicates.StationaryW):
     pass
 

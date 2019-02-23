@@ -190,9 +190,10 @@ class MCTS:
 
         self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True)
 
+        q_value = 0 if child is None else child.value
         # prim_obs = sample.get_prim_obs(t=0)
-        val_obs = sample.get_val_obs(t=0)
-        q_value = self.value_func(val_obs)[1] if child is None else child.value
+        # val_obs = sample.get_val_obs(t=0)
+        # q_value = self.value_func(val_obs)[1] if child is None else child.value
         # policy_distrs = self.prob_func(prim_obs)
         # prob = np.product([policy_distrs[ind][label[ind]] for ind in range(len(label))])
         # child_explored = child.n_explored if child is not None else 0

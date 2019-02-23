@@ -83,7 +83,7 @@ class AbstractMotionPlanServer(object):
         self.mp_queue = []
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=1, buff_size=2**19)
         self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=2, buff_size=2**20)
-        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**22)
+        self.weight_subscriber = rospy.Subscriber('tf_weights', UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
         self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets, queue_size=1)
 
 

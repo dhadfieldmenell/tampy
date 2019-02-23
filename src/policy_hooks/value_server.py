@@ -26,7 +26,7 @@ class ValueServer(object):
         self.task = 'value'
         # self.value_service = rospy.Service('qvalue', QValue, self.value)
         self.updater = rospy.Subscriber('value_update', PolicyUpdate, self.update, queue_size=2)
-        self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
+        self.weight_publisher = rospy.Publisher('tf_weights', UpdateTF, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
         self.stopped = False
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
@@ -117,8 +117,14 @@ class ValueServer(object):
 
             rospy.sleep(0.01)
             print 'Weights updated:', update, self.task
+            # if update:
+            #     self.weight_publisher.publish(self.policy_opt.serialize_weights([self.task]))
+
             if update:
-                self.weight_publisher.publish(self.policy_opt.serialize_weights([self.task]))
+                msg = UpdateTF()
+                msg.scope = str(self.task)
+                msg.data = self.policy_opt.serialize_weights([self.task])
+                self.weight_publisher.publish(msg)
 
 
     def value(self, req):

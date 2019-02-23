@@ -366,10 +366,10 @@ class BaxterMJCSortingAgent(TAMPAgent):
         right_ee = baxter.openrave_body.fwd_kinematics('right_gripper')
         left_ee = baxter.openrave_body.fwd_kinematics('left_gripper')
 
-        sample.set(RIGHT_EE_POS_ENUM, right_ee['pos'], t)
-        sample.set(RIGHT_EE_QUAT_ENUM, right_ee['quat'], t)
-        sample.set(LEFT_EE_POS_ENUM, left_ee['pos'], t)
-        sample.set(LEFT_EE_QUAT_ENUM, left_ee['quat'], t)
+        # sample.set(RIGHT_EE_POS_ENUM, right_ee['pos'], t)
+        # sample.set(RIGHT_EE_QUAT_ENUM, right_ee['quat'], t)
+        # sample.set(LEFT_EE_POS_ENUM, left_ee['pos'], t)
+        # sample.set(LEFT_EE_QUAT_ENUM, left_ee['quat'], t)
         U = np.zeros(self.dU)
 
         # Assumes sample is filled in chronological order
@@ -399,11 +399,17 @@ class BaxterMJCSortingAgent(TAMPAgent):
 
         obj = prim_choices[OBJ_ENUM][task[1]]
         targ = prim_choices[TARG_ENUM][task[2]]
-        param = plan.params[obj]
-        sample.set(OBJ_POSE_ENUM, plan.params[obj].pose[:,0].copy(), t)
         param = plan.params[targ]
         sample.set(TARG_POSE_ENUM, plan.params[targ].value[:,0].copy(), t)
-           
+
+        param = plan.params[obj]
+        sample.set(OBJ_POSE_ENUM, plan.params[targ].value[:,0] - plan.params[obj].pose[:,0], t)
+          
+        sample.set(RIGHT_EE_POS_ENUM, plan.params[obj].pose[:,0] - right_ee['pos'], t)
+        sample.set(RIGHT_EE_QUAT_ENUM, right_ee['quat'], t)
+        sample.set(LEFT_EE_POS_ENUM, plan.params[obj].pose[:,0] - left_ee['pos'], t)
+        sample.set(LEFT_EE_QUAT_ENUM, left_ee['quat'], t)
+ 
         if fill_obs:
             if OVERHEAD_IMAGE_ENUM in self._hyperparams['obs_include'] or OVERHEAD_IMAGE_ENUM in self._hyperparams['prim_obs_include']:
                 sample.set(OVERHEAD_IMAGE_ENUM, self.env.render(height=self.im_h, width=self.im_w, camera_id=0, view=False).flatten(), t)

@@ -101,6 +101,7 @@ class RolloutServer(object):
             )
             for alg in self.alg_map.values():
                 alg.local_policy_opt = self.policy_opt
+            self.weights_to_store = {}
 
         self.traj_centers = hyperparams['n_traj_centers']
         self.opt_queue = []
@@ -126,7 +127,7 @@ class RolloutServer(object):
 
         self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp, queue_size=3, buff_size=2**19)
         self.hl_subscriber = rospy.Subscriber('hl_result_'+str(self.id), HLPlanResult, self.update_hl, queue_size=1)
-        self.weight_subscriber = rospy.Subscriber('tf_weights', String, self.store_weights, queue_size=1, buff_size=2**22)
+        self.weight_subscriber = rospy.Subscriber('tf_weights', UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
         self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
 
 
@@ -174,9 +175,16 @@ class RolloutServer(object):
 
 
     def store_weights(self, msg):
+        self.weights_to_store[msg.scope] = msg.data
+
+
+    def update_weights(self):
         if self.use_local:
-            save = self.id.endswith('0')
-            self.policy_opt.deserialize_weights(msg.data, save=save)
+            for scope in self.weights_to_store:
+                save = self.id.endswith('0')
+                data = self.weights_to_store[scope]
+                del self.weights_to_store[scope]
+                self.policy_opt.deserialize_weights(data, save=save)
 
 
     def policy_call(self, x, obs, t, noise, task):
@@ -447,6 +455,7 @@ class RolloutServer(object):
         self.renew_publisher()
         random.shuffle(self.mcts) # If rospy hangs, don't want it to always be for the same trees
         for mcts in self.mcts:
+            self.update_weights()
             # print os.popen("rosnode list").read(), "\n", self.id, "\n\n"
             val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=False)
             self.run_opt_queue()

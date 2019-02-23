@@ -32,7 +32,7 @@ class PolicyServer(object):
         self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
         self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
         self.update_listener = rospy.Subscriber(self.task+'_update', PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
-        self.weight_publisher = rospy.Publisher('tf_weights', String, queue_size=1)
+        self.weight_publisher = rospy.Publisher('tf_weights', UpdateTF, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = False
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
@@ -91,7 +91,10 @@ class PolicyServer(object):
             rospy.sleep(0.01)
             print 'Weights updated:', update, self.task
             if update:
-                self.weight_publisher.publish(self.policy_opt.serialize_weights([self.task]))
+                msg = UpdateTF()
+                msg.scope = str(self.task)
+                msg.data = self.policy_opt.serialize_weights([self.task])
+                self.weight_publisher.publish(msg)
 
 
     def prob(self, req):
