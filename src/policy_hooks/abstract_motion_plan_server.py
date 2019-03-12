@@ -80,6 +80,11 @@ class AbstractMotionPlanServer(object):
         self.log_timing = hyperparams['log_timing']
         self.n_time_samples_per_log = 10 if 'n_time_samples_per_log' not in hyperparams else hyperparams['n_time_samples_per_log']
         self.time_samples = []
+        self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
+        self.mp_plans_since_log = 0
+        self.hl_plans_since_log = 0
+        self.avg_traj_init_since_log = 0
+
         self.mp_queue = []
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=1, buff_size=2**19)
         self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=2, buff_size=2**20)
@@ -201,6 +206,7 @@ class AbstractMotionPlanServer(object):
         if msg.solver_id != self.id: return
         # self.busy = True
         print 'Server {0} solving motion plan for rollout server {1}.'.format(self.id, msg.server_id)
+        self.mp_plans_since_log += 1
         state = np.array(msg.state)
         task = eval(msg.task)
         task_tuple = eval(msg.task)
@@ -264,6 +270,7 @@ class AbstractMotionPlanServer(object):
             print 'Server', self.id, 'busy, rejecting request for motion plan.'
         if msg.solver_id != self.id or self.busy: return
         self.busy = True
+        self.hl_plans_since_log += 1
         paths = []
         failed = []
         new_failed = []
@@ -359,6 +366,30 @@ class AbstractMotionPlanServer(object):
         self.busy = False
 
 
+    def check_traj_cost(self, traj, task):
+        if np.any(np.isnan(np.array(traj))):
+           raise Excpetion('Nans in trajectory passed')
+        plan = self.agent.plans[task]
+        old_free_attrs = plan.get_free_attrs()
+        for t in range(0, len(traj)):
+            for param_name, attr in plan.state_inds:
+                param = plan.params[param_name]
+                if param.is_symbol(): continue
+                if hasattr(param, attr):
+                    getattr(param, attr)[:, t] = traj[t, plan.state_inds[param_name, attr]]
+                    param.fix_attr(attr, (t,t))
+                    if attr == 'pose' and (param_name, 'rotation') not in plan.state_inds:
+                        param.rotation[:, t] = 0
+
+        # Take a quick solve to resolve undetermined symbolic values
+        self.solver.solve(plan, time_limit=10)
+        plan.store_free_attrs(old_free_attrs)
+        
+        plan_total_violation = np.sum(plan.check_total_cnt_violation())
+        plan_failed_constrs = plan.get_failed_preds_by_type()
+        return plan_total_violation, plan_failed_constrs
+
+
     def log_init_traj_cost(self, mean, task):
         plan = self.agent.plans[task]
         for t in range(0, len(mean)):
@@ -369,11 +400,11 @@ class AbstractMotionPlanServer(object):
                     getattr(param, attr)[:, t] = mean[t, plan.state_inds[param_name, attr]]
         
         plan_actions = str(plan.actions)
-        plan_total_violation = np.sum(plan.check_total_cnt_violation())
-        plan_failed_constrs = plan.get_failed_preds_by_type()
+        plan_total_violation, plan_failed_constrs = self.check_traj_cost(mean, task)
         with open(self.traj_init_log, 'a+') as f:
             f.write(str((plan_actions, plan_total_violation, plan_failed_constrs)))
             f.write('\n\n\n')
+        
 
     def update_weight(self, msg):
         scope = msg.scope

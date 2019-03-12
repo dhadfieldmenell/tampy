@@ -74,6 +74,9 @@ class BaxterEdgeAt(robot_predicates.At):
 class BaxterClothAtPose(robot_predicates.AtPose):
     pass
 
+class BaxterClothNear(robot_predicates.Near):
+    pass
+
 class BaxterRobotAt(robot_predicates.RobotAt):
 
     # RobotAt, Robot, RobotPose

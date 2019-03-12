@@ -241,14 +241,18 @@ def get_base_solver(parent_class):
 
         def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
                   verbose=False, force_init=False, inf_f=None, traj_mean=[], task=None,
-                  total_time=0, time_limit=TIME_LIMIT):
+                  total_time=0, time_limit=TIME_LIMIT, priorities=None):
             success = False
             if total_time > time_limit:
                 return False
 
             start_time = time.time()
+            if priorities is None:
+                priorities = self.solve_priorities
+
             if callback is not None:
                 viewer = callback()
+
             if force_init or not plan.initialized:
                 self._solve_opt_prob(plan, priority=-2, callback=callback,
                     active_ts=active_ts, traj_mean=traj_mean, verbose=verbose, task=task)
@@ -259,7 +263,7 @@ def get_base_solver(parent_class):
             if success or len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0:
                 return True
 
-            for priority in self.solve_priorities:
+            for priority in priorities:
                 for attempt in range(n_resamples):
                     ## refinement loop
                     success = self._solve_opt_prob(plan, priority=priority,
@@ -270,6 +274,7 @@ def get_base_solver(parent_class):
                         if DEBUG: plan.check_cnt_violation(active_ts=active_ts, priority=priority, tol=1e-3)
                     except:
                         print "error in predicate checking"
+
                     if success or total_time + time.time() - start_time > time_limit:
                         break
 

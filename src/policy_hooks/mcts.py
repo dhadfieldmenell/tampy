@@ -487,7 +487,7 @@ class MCTS:
             prev_sample.task_cost = path_value
             prev_sample = current_node.parent.sample_links[prev_sample]
             current_node.update_value(path_value)
-            current_node.sample_links = []
+            current_node.sample_links = {}
             current_node = current_node.parent
 
         path.reverse()

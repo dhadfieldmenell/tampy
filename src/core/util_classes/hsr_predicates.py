@@ -14,10 +14,10 @@ from core.util_classes.param_setup import ParamSetup
 # Attribute map used in hsr domain. (Tuple to avoid changes to the attr_inds)
 ATTRMAP = {"Robot": (("arm", np.array(range(5), dtype=np.int)),
                      ("gripper", np.array([0], dtype=np.int)),
-                     ("pose", np.array([0, 1], dtype=np.int))),
+                     ("pose", np.array([0, 1, 2], dtype=np.int))),
            "RobotPose": (("arm", np.array(range(5), dtype=np.int)),
                          ("gripper", np.array([0], dtype=np.int)),
-                         ("value", np.array([0, 1], dtype=np.int))),
+                         ("value", np.array([0, 1, 2], dtype=np.int))),
            "Rotation": [("value", np.array([0], dtype=np.int))],
            "Can": (("pose", np.array([0,1,2], dtype=np.int)),
                    ("rotation", np.array([0,1,2], dtype=np.int))),
@@ -98,7 +98,7 @@ class HSRRobotAt(robot_predicates.RobotAt):
     # RobotAt, Robot, RobotPose
 
     def __init__(self, name, params, expected_param_types, env=None):
-        self.attr_dim = 8
+        self.attr_dim = 9
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(HSRRobotAt, self).__init__(name, params, expected_param_types, env)
@@ -234,7 +234,7 @@ class HSRStationaryBase(robot_predicates.StationaryBase):
     # StationaryBase, Robot (Only Robot Base)
 
     def __init__(self, name, params, expected_param_types, env=None):
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][-1]])])
+        self.attr_inds = OrderedDict([(params[0], ATTRMAP[params[0]._type][-1:])])
         self.attr_dim = const.BASE_DIM
         super(HSRStationaryBase, self).__init__(name, params, expected_param_types, env)
 
@@ -392,7 +392,7 @@ class HSRObstructs(robot_predicates.Obstructs):
     # Obstructs, Robot, RobotPose, RobotPose, Can
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
-        self.attr_dim = 11
+        self.attr_dim = 12
         self.dof_cache = None
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
@@ -414,8 +414,148 @@ class HSRObstructs(robot_predicates.Obstructs):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose([x[6], x[7], 0])
+        robot_body.set_pose(x[6:9])
         robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+
+    def _calc_self_grad_and_val(self, robot_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        col_links = robot.geom.col_links
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot1, linkRobot2 = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == robot_body.name:
+                ptRobot1, ptRobot2 = c.GetPtA(), c.GetPtB()
+                linkRobot1, linkRobot2 = linkA, linkB
+                sign = -1
+            else:
+                continue
+
+            if linkRobot1 not in col_links or linkRobot2 not in col_links:
+                continue
+
+            if not (linkRobot1.startswith('right') or linkRobot1.startswith('left')) or \
+                        linkRobot1 == linkRobot2 or \
+                        linkRobot1.endswith('upper_shoulder') or linkRobot1.endswith('lower_shoulder') or \
+                        linkRobot2.startswith('right') or linkRobot2.startswith('left'):
+                continue
+
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot1).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot1)
+
+            grad = np.zeros((1, self.attr_dim))
+            grad[:, :self.attr_dim-3] = np.dot(sign * normal, robot_jac)
+            col_vec =  sign*normal
+
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot1, linkRobot2)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot1), robot.GetLink(linkRobot2)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot1, ptRobot2, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim)), None, None])
+            vals.append(col_infos[0])
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim))
+
+    def _calc_grad_and_val(self, robot_body, obj_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        obj = self.params[self.ind1]
+        col_links = robot.geom.col_links
+        obj_links = obj.geom.col_links
+        obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+        rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot, linkObj = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtA(), c.GetPtB()
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == robot_body.name and linkAParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtB(), c.GetPtA()
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
+            else:
+                continue
+
+            if linkRobot not in col_links or linkObj not in obj_links:
+                continue
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
+
+            grad = np.zeros((1, self.attr_dim+6))
+            grad[:, :self.attr_dim-3] = np.dot(sign * normal, robot_jac)
+            col_vec =  -sign*normal
+            grad[:, self.attr_dim-3:self.attr_dim-1] = -col_vec[:2]
+            grad[:, self.attr_dim-1] = 0 # Don't try to rotate away
+            # Calculate object pose jacobian
+            grad[:, self.attr_dim:self.attr_dim+3] = col_vec
+            torque = ptObj - obj_pos[:3]
+            # Calculate object rotation jacobian
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
+            # obj_jac = np.c_[obj_jac, rot_vec]
+            grad[:, self.attr_dim+3:self.attr_dim+6] = rot_vec
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot), robot.GetLink(linkObj)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot, ptObj, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim+6)), None, None])
+            vals.append(col_infos[0])
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim+6))
 
 class HSRObstructsCan(HSRObstructs):
     pass
@@ -425,7 +565,7 @@ class HSRObstructsWasher(HSRObstructs):
     This collision checks the washer as a solid cube
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
-        self.attr_dim = 8
+        self.attr_dim = 9
         self.dof_cache = None
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
@@ -597,7 +737,7 @@ class HSRObstructsHolding(robot_predicates.ObstructsHolding):
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
-        self.attr_dim = 8
+        self.attr_dim = 9
         self.dof_cache = None
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
@@ -617,6 +757,98 @@ class HSRObstructsHolding(robot_predicates.ObstructsHolding):
             robot.SetActiveDOFs(list(range(0,8)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
+
+    def _calc_obj_held_grad_and_val(self, robot_body, obj_body, obstr_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x) #Used in ObstructsHolding#
+            It calculates collision distance and gradient between each robot's link and obstr,
+            and between held object and obstr
+
+            obj_body: OpenRAVEBody containing body information of object
+            obstr_body: OpenRAVEBody containing body information of obstruction
+            collisions: list of collision objects returned by collision checker
+        """
+        # Initialization
+        robot_links = self.robot.geom.col_links
+        held_links = self.obj.geom.col_links
+        obs_links = self.obstacle.geom.col_links
+
+        body = robot_body.env_body
+        manip = body.GetManipulator('arm')
+        ee_trans = manip.GetTransform(), manip.GetTransform()
+        arm_inds = self.robot.geom.dof_map['arm']
+
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        diff = np.linalg.norm(obj_body.env_body.GetTransform()[:3,3] - ee_trans[:3,3])
+
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkObj, linkObstr = None, None
+            sign = 1
+            if linkAParent == obj_body.name and linkBParent == obstr_body.name:
+                ptObj, ptObstr = c.GetPtA(), c.GetPtB()
+
+                linkObj, linkObstr = linkA, linkB
+                sign = -1
+            elif linkBParent == obj_body.name and linkAParent == obstr_body.name:
+                ptObj, ptObstr = c.GetPtB(), c.GetPtA()
+                linkObj, linkObstr = linkB, linkA
+                sign = 1
+            else:
+                continue
+            if linkObj not in held_links or linkObstr not in obs_links:
+                continue
+            # Obtain distance between two collision points, and their normal collision vector
+            grad = np.zeros((1, self.attr_dim+12))
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+
+            # Calculate robot joint jacobian
+
+            grad[:, 6:8] = sign * normal[:2]
+            arm_jac = np.array([np.cross(joint.GetAxis(), ptObj - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+            grad[:, :5] = np.dot(sign * normal, arm_jac)
+
+
+            # Calculate obstruct pose jacobian
+            obstr_jac = -sign*normal
+            obstr_pos = OpenRAVEBody.obj_pose_from_transform(obstr_body.env_body.GetTransform())
+            torque = ptObstr - obstr_pos[:3]
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obstr_pos[:3], obstr_pos[3:])
+            rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), obstr_jac) for axis in rot_axises]])
+            grad[:, self.attr_dim: self.attr_dim + 3] = obstr_jac
+            grad[:, self.attr_dim+3: self.attr_dim + 6] = rot_vec
+
+            # Calculate object_held pose jacobian
+            obj_jac = sign*normal
+            obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+            torque = ptObj - obj_pos[:3]
+            # Calculate object rotation jacobian
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+            rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), obj_jac) for axis in rot_axises]])
+            grad[:, self.attr_dim+6: self.attr_dim + 9] = obj_jac
+            grad[:, self.attr_dim+9: self.attr_dim + 12] = rot_vec
+            link_pair_to_col[(linkObj, linkObstr)] = [self.dsafe - distance, grad]
+            if self._debug:
+                self.plot_collision(ptObj, ptObstr, distance)
+
+        vals, grads = [], []
+        for robot_link, obj_link in self.obj_obj_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, 18)), None, None])
+            vals.append(col_infos[0])
+            grads.append(col_infos[1])
+
+
+        vals = np.vstack(vals)
+        grads = np.vstack(grads)
+        return vals, grads
+
 
 class HSRObstructsHoldingCan(HSRObstructsHolding):
     def set_robot_poses(self, x, robot_body):
@@ -643,7 +875,7 @@ class HSRRCollides(robot_predicates.RCollides):
     # RCollides Robot Obstacle
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_dim = 8
+        self.attr_dim = 9
         self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
@@ -667,6 +899,146 @@ class HSRRCollides(robot_predicates.RCollides):
             robot.SetActiveDOFs(list(range(0,8)), DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
+
+    def _calc_self_grad_and_val(self, robot_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        col_links = robot.geom.col_links
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot1, linkRobot2 = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == robot_body.name:
+                ptRobot1, ptRobot2 = c.GetPtA(), c.GetPtB()
+                linkRobot1, linkRobot2 = linkA, linkB
+                sign = -1
+            else:
+                continue
+
+            if linkRobot1 not in col_links or linkRobot2 not in col_links:
+                continue
+
+            if not (linkRobot1.startswith('right') or linkRobot1.startswith('left')) or \
+                        linkRobot1 == linkRobot2 or \
+                        linkRobot1.endswith('upper_shoulder') or linkRobot1.endswith('lower_shoulder') or \
+                        linkRobot2.startswith('right') or linkRobot2.startswith('left'):
+                continue
+
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot1).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot1)
+
+            grad = np.zeros((1, self.attr_dim))
+            grad[:, :self.attr_dim-3] = np.dot(sign * normal, robot_jac)
+            col_vec =  sign*normal
+
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot1, linkRobot2)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot1), robot.GetLink(linkRobot2)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot1, ptRobot2, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim)), None, None])
+            vals.append(col_infos[0])
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim))
+
+    def _calc_grad_and_val(self, robot_body, obj_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        obj = self.params[self.ind1]
+        col_links = robot.geom.col_links
+        obj_links = obj.geom.col_links
+        obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+        rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot, linkObj = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtA(), c.GetPtB()
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == robot_body.name and linkAParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtB(), c.GetPtA()
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
+            else:
+                continue
+
+            if linkRobot not in col_links or linkObj not in obj_links:
+                continue
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
+
+            grad = np.zeros((1, self.attr_dim+6))
+            grad[:, :self.attr_dim-3] = np.dot(sign * normal, robot_jac)
+            col_vec =  -sign*normal
+            grad[:, self.attr_dim-3:self.attr_dim-1] = -col_vec[:2]
+            grad[:, self.attr_dim-1] = 0 # Don't try to rotate away
+            # Calculate object pose jacobian
+            grad[:, self.attr_dim:self.attr_dim+3] = col_vec
+            torque = ptObj - obj_pos[:3]
+            # Calculate object rotation jacobian
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), col_vec) for axis in rot_axises]])
+            # obj_jac = np.c_[obj_jac, rot_vec]
+            grad[:, self.attr_dim+3:self.attr_dim+6] = rot_vec
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot), robot.GetLink(linkObj)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot, ptObj, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim+6)), None, None])
+            vals.append(col_infos[0])
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim+6))
 
     def resample_rcollides(self, negated, t, plan):
         # Variable that needs to added to BoundExpr and latter pass to the planner
@@ -755,7 +1127,7 @@ class HSRRSelfCollides(robot_predicates.RSelfCollides):
     # RCollides Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_dim = 8
+        self.attr_dim = 9
         self.dof_cache = None
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
         self.coeff = -const.RCOLLIDE_COEFF
@@ -780,12 +1152,78 @@ class HSRRSelfCollides(robot_predicates.RSelfCollides):
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
+    def _calc_self_grad_and_val(self, robot_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        col_links = robot.geom.col_links
+        link_pair_to_col = {}
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot1, linkRobot2 = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == robot_body.name:
+                ptRobot1, ptRobot2 = c.GetPtA(), c.GetPtB()
+                linkRobot1, linkRobot2 = linkA, linkB
+                sign = -1
+            else:
+                continue
+
+            if linkRobot1 not in col_links or linkRobot2 not in col_links:
+                continue
+
+            if not (linkRobot1.startswith('right') or linkRobot1.startswith('left')) or \
+                        linkRobot1 == linkRobot2 or \
+                        linkRobot1.endswith('upper_shoulder') or linkRobot1.endswith('lower_shoulder') or \
+                        linkRobot2.startswith('right') or linkRobot2.startswith('left'):
+                continue
+
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot1).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot1)
+
+            grad = np.zeros((1, self.attr_dim))
+            grad[:, :self.attr_dim-3] = np.dot(sign * normal, robot_jac)
+            col_vec =  sign*normal
+
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot1, linkRobot2)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot1), robot.GetLink(linkRobot2)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot1, ptRobot2, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim)), None, None])
+            vals.append(col_infos[0])
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim))
+
+
 class HSRCollidesWasher(HSRRCollides):
     """
     This collision checks the full mock-up as a set of its individual parts
     """
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_dim = 8
+        self.attr_dim = 9
         self.dof_cache = None
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
@@ -928,7 +1366,7 @@ class HSREEReachable(robot_predicates.EEReachable):
     def __init__(self, name, params, expected_param_types, active_range = (-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[2], list(ATTRMAP[params[2]._type]))])
-        self.attr_dim = 11
+        self.attr_dim = 12
         self.coeff = const.EEREACHABLE_COEFF
         self.rot_coeff = const.EEREACHABLE_ROT_COEFF
         self.eval_f = self.stacked_f
@@ -936,6 +1374,11 @@ class HSREEReachable(robot_predicates.EEReachable):
         self.eval_dim = 3+3*(1+(active_range[1] - active_range[0]))
         self.arm = 'center'
         super(HSREEReachable, self).__init__(name, params, expected_param_types, active_range, env, debug)
+
+    def get_arm_jac(self, arm_jac, base_jac, obj_jac, arm):
+        dim = arm_jac.shape[0]
+        jacobian = np.hstack((arm_jac, np.zeros((dim, 1)), base_jac, obj_jac))
+        return jacobian
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
@@ -945,8 +1388,7 @@ class HSREEReachable(robot_predicates.EEReachable):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        base_pose = x[16]
-        robot_body.set_pose([x[6], x[7], 0])
+        robot_body.set_pose(x[6:9])
         robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
 
     #@profile
@@ -1047,7 +1489,7 @@ class HSRInGripper(robot_predicates.InGripper):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose([x[6], x[7], 0])
+        robot_body.set_pose(x[6:9])
         robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
 
     def get_robot_info(self, robot_body, arm):
@@ -1056,7 +1498,7 @@ class HSRInGripper(robot_predicates.InGripper):
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-            arm_inds = list(range(0,5))
+        arm_inds = list(range(0,5))
         return robot_trans, arm_inds
 
     def stacked_f(self, x):
@@ -1084,7 +1526,7 @@ class HSRGripperAt(robot_predicates.GripperAt):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose([x[6], x[7], 0])
+        robot_body.set_pose(x[6:9])
         robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
 
     def get_robot_info(self, robot_body, arm):
@@ -1093,7 +1535,7 @@ class HSRGripperAt(robot_predicates.GripperAt):
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-            arm_inds = list(range(0,5))
+        arm_inds = list(range(0,5))
         return robot_trans, arm_inds
 
     def robot_obj_kinematics(self, x):
@@ -1183,11 +1625,11 @@ class HSRGripperLevel(robot_predicates.GrippersLevel):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
         self.eval_dim = 1
         self.dir = [0, 0, -1]
-        super(HSRGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
+        super(HSRGripperLevel, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose([x[6], x[7], 0])
+        robot_body.set_pose(x[6:9])
         robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
 
     def get_robot_info(self, robot_body, arm):
@@ -1234,3 +1676,4 @@ class HSRGripperLevel(robot_predicates.GrippersLevel):
         jac = np.zeros((1, 11))
         jac[0,:5] = arm_jac
         return jac
+

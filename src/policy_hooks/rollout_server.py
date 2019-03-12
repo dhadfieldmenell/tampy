@@ -125,6 +125,8 @@ class RolloutServer(object):
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
 
+        self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
+
         self.mp_subcriber = rospy.Subscriber('motion_plan_result_'+str(self.id), MotionPlanResult, self.sample_mp, queue_size=3, buff_size=2**19)
         self.hl_subscriber = rospy.Subscriber('hl_result_'+str(self.id), HLPlanResult, self.update_hl, queue_size=1)
         self.weight_subscriber = rospy.Subscriber('tf_weights', UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
@@ -180,11 +182,13 @@ class RolloutServer(object):
 
     def update_weights(self):
         if self.use_local:
-            for scope in self.weights_to_store:
+            scopes = self.weights_to_store.keys()
+            for scope in scopes:
                 save = self.id.endswith('0')
                 data = self.weights_to_store[scope]
-                del self.weights_to_store[scope]
-                self.policy_opt.deserialize_weights(data, save=save)
+                self.weights_to_store[scope] = None
+                if data is not None:
+                    self.policy_opt.deserialize_weights(data, save=save)
 
 
     def policy_call(self, x, obs, t, noise, task):
@@ -419,12 +423,32 @@ class RolloutServer(object):
         self.test_publisher.publish('MCTS sent motion plan.')
 
 
+    def parse_state(self, xs):
+        state_info = []
+        params = self.agent.plans.values()[0].params
+        for x in xs:
+            info = []
+            for param_name, attr in self.agent.state_inds:
+                if params[param_name].is_symbol(): continue
+                value = x[self.agent._x_data_idx[STATE_ENUM]][self.agent.state_inds[param_name, attr]]
+                info.append((param_name, attr, value))
+            state_info.append(info)
+        return state_info
+
+
     def run_opt_queue(self):
         if len(self.opt_queue):
             # print 'Running optimal trajectory.'
             plan_id, state, task, condition, traj, waiters = self.opt_queue.pop()
             opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, opt_traj=traj, traj_mean=[])
             self.store_opt_sample(opt_sample, plan_id, waiters)
+            info = self.parse_state(opt_sample)
+            with open(self.rollout_log, 'a+') as f:
+                f.write("Optimal rollout:\n")
+                for line in info:
+                    f.write(str(line))
+                    f.write('\n')
+                f.write('\n\n\n\n')
 
 
     def run_hl_opt_queue(self, mcts):

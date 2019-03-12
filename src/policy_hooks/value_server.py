@@ -31,6 +31,7 @@ class ValueServer(object):
         self.stopped = False
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
+        self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
 
         self.update_queue = []
 

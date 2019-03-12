@@ -1752,13 +1752,17 @@ class RobotLLSolver(LLSolver):
         return success
 
     #@profile
-    def _get_transfer_obj(self, plan, norm):
+    def _get_transfer_obj(self, plan, norm, coeff=None):
         """
             This function returns the expression e(x) = P|x - cur|^2
             Which says the optimized trajectory should be close to the
             previous trajectory.
             Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
         """
+
+        if coeff is None:
+            coeff = self.transfer_coeff
+        transfer_coeff = coeff / float(plan.horizon)
 
         transfer_objs = []
         if norm == 'min-vel':
@@ -1789,7 +1793,7 @@ class RobotLLSolver(LLSolver):
                         cur_val = attr_val.reshape((KT, 1), order='F')
                         A = -2*cur_val.T.dot(Q)
                         b = cur_val.T.dot(Q.dot(cur_val))
-                        transfer_coeff = self.transfer_coeff/float(plan.horizon)
+                        # transfer_coeff = self.transfer_coeff/float(plan.horizon)
 
                         # QuadExpr is 0.5*x^Tx + Ax + b
                         quad_expr = QuadExpr(2*transfer_coeff*Q,
