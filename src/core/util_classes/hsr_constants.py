@@ -22,6 +22,10 @@ BASE_MOVE = 0.2
 JOINT_MOVE_FACTOR = 15
 ROT_LB = -np.pi
 ROT_UB = np.pi
+GRIPPER_OPEN = 1.5
+GRIPPER_CLOSE = 0.25
+GRIPPER_OFFSET_ANGLE = 0.163 # Angle of line segment from robot x, y to hand x, y
+GRIPPER_OFFSET_DIS = 0.480 # Distance from robot x, y to hand x, y
 
 # EEReachable Constants
 APPROACH_DIST = 0.02
