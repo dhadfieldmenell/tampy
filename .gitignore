@@ -14,3 +14,5 @@ src/ros_utils/build
 src/ros_utils/devel/*
 src/ros_utils/install/*
 src/ros_utils/build/*
+src/memory_info.txt
+
