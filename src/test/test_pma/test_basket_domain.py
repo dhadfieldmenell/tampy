@@ -242,6 +242,7 @@ class TestBasketDomain(unittest.TestCase):
         viewer = OpenRAVEViewer.create_viewer(plan.env)
         def callback(a):
             return viewer
+        import ipdb; ipdb.set_trace()
 
         start = time.time()
         solver = robot_ll_solver.RobotLLSolver()

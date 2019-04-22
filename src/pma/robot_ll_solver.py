@@ -224,7 +224,7 @@ class RobotLLSolver(LLSolver):
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                         p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = RobotLLSolver()
-            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
+            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples)
 
             # reset free_attrs
             for p in plan.params.itervalues():

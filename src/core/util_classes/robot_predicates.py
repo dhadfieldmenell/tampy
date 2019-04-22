@@ -9,6 +9,8 @@ from collections import OrderedDict
 import numpy as np
 import ctrajoptpy
 import itertools
+import sys
+import traceback
 import time
 
 class CollisionPredicate(ExprPredicate):
@@ -16,8 +18,8 @@ class CollisionPredicate(ExprPredicate):
     #@profile
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = const.DIST_SAFE, debug = False, ind0=0, ind1=1, tol=const.COLLISION_TOL, priority = 0):
         self._debug = debug
-        # if self._debug:
-        #     self._env.SetViewer("qtcoin")
+        if self._debug:
+            self._env.SetViewer("qtcoin")
         self._cc = ctrajoptpy.GetCollisionChecker(self._env)
         self.dsafe = dsafe
         self.ind0 = ind0
@@ -222,7 +224,6 @@ class CollisionPredicate(ExprPredicate):
             # Calculate robot jacobian
             robot = robot_body.env_body
             robot_link_ind = robot.GetLink(linkRobot).GetIndex()
-            import ipdb; ipdb.set_trace()
             robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptObj)
             grad = np.zeros((1, self.attr_dim+6))
             grad[:, :self.attr_dim] = np.dot(sign * normal, robot_jac)
@@ -580,8 +581,9 @@ class CollisionPredicate(ExprPredicate):
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
             return self.neg_expr.eval(self.get_param_vector(time), tol=tol, negated = (not negated))
-        except IndexError:
+        except IndexError as err:
             ## this happens with an invalid time
+            traceback.print_exception(*sys.exc_info())
             raise PredicateException("Out of range time for predicate '%s'."%self)
 
     #@profile
@@ -774,16 +776,14 @@ class PosePredicate(ExprPredicate):
         return rot_jac
 
     #@profile
-    def pos_check_f(self, x):
+    def pos_check_f(self, x, rel_pt=np.zeros((3, ))):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.zeros((3, ))
 
         return self.rel_pos_error_f(obj_trans, robot_trans, rel_pt)
 
     #@profile
-    def pos_check_jac(self, x):
+    def pos_check_jac(self, x, rel_pt=np.zeros((3, ))):
         obj_trans, robot_trans, axises, arm_joints = self.robot_obj_kinematics(x)
-        rel_pt = np.zeros((3, ))
 
         return self.rel_pos_error_jac(obj_trans, robot_trans, axises, arm_joints, rel_pt)
 
@@ -1307,6 +1307,7 @@ class StationaryNEq(ExprPredicate):
             A = np.zeros((1, 12))
             b = np.zeros((1, 1))
         else:
+            print self.obj.name, self.obj_held.name
             A = np.c_[np.eye(6), -np.eye(6)]
             b = np.zeros((6, 1))
         e = EqExpr(AffExpr(A, b), b)

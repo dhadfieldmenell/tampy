@@ -11,21 +11,24 @@ This file is refferenced in:
 Following Constants are used in baxter_predicates
 """
 # Baxter dimension constant
-BASE_DIM = 2
-JOINT_DIM = 5
+BASE_DIM = 3
+JOINT_DIM = 6
 ROBOT_ATTR_DIM = 8
 JOINT_FAST_VELOCITY = 0.1
 JOINT_SLOW_VELOCITY = 0.01
 
 # Baxter Movement Constraints
-BASE_MOVE = 0.2
+BASE_MOVE = 0.3
 JOINT_MOVE_FACTOR = 15
 ROT_LB = -np.pi
 ROT_UB = np.pi
-GRIPPER_OPEN = 1.5
-GRIPPER_CLOSE = 0.25
+GRIPPER_OPEN = 0.75
+GRIPPER_CLOSE = 0.5
+GRIPPER_Y_OFFSET = 0.078
 GRIPPER_OFFSET_ANGLE = 0.163 # Angle of line segment from robot x, y to hand x, y
-GRIPPER_OFFSET_DIS = 0.480 # Distance from robot x, y to hand x, y
+GRIPPER_OFFSET_DISP = 0.480 # Distance from robot x, y to hand x, y
+HAND_DIST = -0.04 # Distance from where the hand link registers to the center of the hand
+COLLISION_DOF_INDICES = [0, 1, 2, 3, 4]
 
 # EEReachable Constants
 APPROACH_DIST = 0.02
@@ -41,8 +44,8 @@ COLLIDES_DSAFE = 1e-3
 
 EEREACHABLE_COEFF = 5e-3
 EEREACHABLE_ROT_COEFF = 5e-3
-IN_GRIPPER_COEFF = 5e0
-IN_GRIPPER_ROT_COEFF = 2e0
+IN_GRIPPER_COEFF = 1e-1
+IN_GRIPPER_ROT_COEFF = 1e-1
 WASHER_IN_GRIPPER_ROT_COEFF = 1e-2
 GRIPPER_AT_COEFF = 1e-2
 GRIPPER_AT_ROT_COEFF = 1e-2
@@ -54,9 +57,6 @@ MAX_CONTACT_DISTANCE = .1
 
 GRASP_VALID_COEFF = 7.5e1
 EEGRASP_VALID_COEFF = 1e2
-# Gripper Value
-GRIPPER_OPEN_VALUE = -0.798
-GRIPPER_CLOSE_VALUE = 1.24
 # BASKET_OFFSET = 0.317
 # BASKET_OFFSET = 0.325
 BASKET_OFFSET = 0.33

@@ -86,16 +86,18 @@ class BacktrackLLSolver(LLSolver):
             return True
 
         a = plan.actions[anum]
-        # print "backtracking Solve on {}".format(a.name)
+        print "backtracking Solve on {}".format(a.name)
         active_ts = a.active_timesteps
         inits = {}
         rs_param = self.get_resample_param(a)
+        success = False
 
         def recursive_solve():
             ## don't optimize over any params that are already set
             old_params_free = {}
             for p in plan.params.itervalues():
                 if p.is_symbol():
+                    continue
                     # if p not in a.params: continue
                     old_params_free[p] = p._free_attrs
                     p._free_attrs = {}
@@ -108,11 +110,12 @@ class BacktrackLLSolver(LLSolver):
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                         p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = self.__class__()
-            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax)
+            success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples)
 
             # reset free_attrs
             for p in plan.params.itervalues():
                 if p.is_symbol():
+                    continue
                     if p not in a.params: continue
                     p._free_attrs = old_params_free[p]
                 else:
@@ -190,12 +193,12 @@ class BacktrackLLSolver(LLSolver):
         if success or len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0:
             return True
 
-
         for priority in self.solve_priorities:
             for attempt in range(n_resamples):
                 ## refinement loop
                 success = self._solve_opt_prob(plan, priority=priority,
                                 callback=callback, active_ts=active_ts, verbose=verbose)
+                # success = len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) == 0
 
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
@@ -204,18 +207,22 @@ class BacktrackLLSolver(LLSolver):
                 if success:
                     break
 
+                failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
+                # import ipdb; ipdb.set_trace()
+
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
                 # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                 #     break
 
-                # print "resample attempt: {}".format(attempt)
+                print "resample attempt: {}".format(attempt)
 
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 except:
                     print "error in predicate checking"
 
+                # import ipdb; ipdb.set_trace()
                 assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
             if not success:
@@ -263,7 +270,7 @@ class BacktrackLLSolver(LLSolver):
 
             ## this is an objective that places
             ## a high value on matching the resampled values
-            failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
+            failed_preds = plan.get_failed_preds(active_ts = (active_ts[0]+1, active_ts[1]-1), priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             # import ipdb; ipdb.set_trace()
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.

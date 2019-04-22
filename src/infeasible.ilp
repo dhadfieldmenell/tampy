@@ -1,18 +1,11 @@
 Minimize
-  + 20966.67798534845 Constant
+  + 48.71443593437011 Constant
 Subject To
- R4: (can3_end_target-value-(0,_0)) = -2
- R21: (grasp0-value-(0,_0)) = 0
- R48: (robot_end_pose-value-(0,_0)) = 4
- R141: - 10 (grasp0-value-(0,_0)) + 10 (pr2-pose-(0,_24))
-   - 10 (can3-pose-(0,_24)) = 0
- R599: - (robot_end_pose-value-(0,_0)) + (pr2-pose-(0,_24)) = 0
- R602: - (can3_end_target-value-(0,_0)) + (can3-pose-(0,_24)) = 0
+ R4: (can_grasp_begin_0-arm-(0,_0)) = -0.035
+ R102: - (hsr-arm-(0,_19)) <= 0
+ R114: (hsr-arm-(0,_19)) - (can_grasp_begin_0-arm-(0,_0)) = 0
 Bounds
- (grasp0-value-(0,_0)) free
- (robot_end_pose-value-(0,_0)) free
- (can3_end_target-value-(0,_0)) free
- (pr2-pose-(0,_24)) free
- (can3-pose-(0,_24)) free
+ (hsr-arm-(0,_19)) free
+ (can_grasp_begin_0-arm-(0,_0)) free
  Constant = 1
 End

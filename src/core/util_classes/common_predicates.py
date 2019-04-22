@@ -94,7 +94,7 @@ class ExprPredicate(Predicate):
             raise PredicateException("Out of range time for predicate '%s'."%self)
         try:
             return self.expr.eval(self.get_param_vector(time), tol=tol, negated=negated)
-        except IndexError:
+        except IndexError as err:
             ## this happens with an invalid time
             traceback.print_exception(*sys.exc_info())
             raise PredicateException("Out of range time for predicate '%s'."%self)

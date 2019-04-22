@@ -1,7 +1,7 @@
 from openrave_body import OpenRAVEBody
 from openravepy import Environment
 from core.internal_repr.parameter import Object
-from core.util_classes.robots import Robot, PR2, Baxter, Washer
+from core.util_classes.robots import Robot, PR2, Baxter, Washer, HSR
 from core.util_classes.items import Can, Table, Box
 import numpy as np
 import time, os, os.path as osp, shutil, scipy.misc, subprocess
@@ -139,6 +139,10 @@ class OpenRAVEViewer(Viewer):
                                  "lGripper": obj.lGripper[:, t],
                                  "rArmPose": obj.rArmPose[:, t],
                                  "rGripper": obj.rGripper[:, t]}
+            elif isinstance(obj.geom, HSR):
+                dof_value_map = {"arm": obj.arm[:, t],
+                                 "gripper": obj.gripper[:, t]}
+                pose = obj.pose[:, t]
             elif isinstance(obj.geom, Washer):
                 dof_value_map = {"door": obj.door[:, t]}
                 pose = obj.pose[:, t]

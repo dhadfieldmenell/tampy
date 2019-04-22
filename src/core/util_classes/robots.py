@@ -97,20 +97,17 @@ class HSR(Robot):
     """
     def __init__(self):
         self._type = "hsr"
-        shape = "/home/michaelmcdonald/dependencies/hsr_description/robots/hsrb4s.xml"
-        # self.col_links = set(["torso", "pedestal", "head", "sonar_ring", "screen", "collision_head_link_1",
-        #                       "collision_head_link_2", "right_upper_shoulder", "right_lower_shoulder",
-        #                       "right_upper_elbow", "right_upper_elbow_visual", "right_lower_elbow",
-        #                       "right_upper_forearm", "right_upper_forearm_visual", "right_lower_forearm",
-        #                       "right_wrist", "right_hand", "right_gripper_base", "right_gripper",
-        #                       "right_gripper_l_finger", "right_gripper_r_finger", "right_gripper_l_finger_tip",
-        #                       "right_gripper_r_finger_tip", "left_upper_shoulder", "left_lower_shoulder",
-        #                       "left_upper_elbow", "left_upper_elbow_visual", "left_lower_elbow",
-        #                       "left_upper_forearm", "left_upper_forearm_visual", "left_lower_forearm",
-        #                       "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
-        #                       "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
-        #                       "left_gripper_r_finger_tip"])
-        self.col_links = set([])
+        shape = "../models/hsr/hsrb4s.xml"
+        self.col_links = set([u'arm_lift_link', u'arm_flex_link', u'arm_roll_link', 
+                              u'wrist_flex_link', u'wrist_roll_link', u'hand_palm_link', 
+                              u'hand_l_proximal_link', u'hand_l_spring_proximal_link', 
+                              u'hand_l_mimic_distal_link', u'hand_l_distal_link', 
+                              u'hand_motor_dummy_link', u'hand_r_proximal_link', 
+                              u'hand_r_spring_proximal_link', u'hand_r_mimic_distal_link', 
+                              u'hand_r_distal_link', u'base_roll_link', 
+                              u'base_l_drive_wheel_link', u'base_l_passive_wheel_z_link', 
+                              u'base_r_drive_wheel_link', u'base_r_passive_wheel_z_link', 
+                              u'torso_lift_link', u'head_pan_link', u'head_tilt_link'])
         self.dof_map = {'arm': [0, 1, 2, 3, 4], 'gripper': [6]}
         super(HSR, self).__init__(shape)
 

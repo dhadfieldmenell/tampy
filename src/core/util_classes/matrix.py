@@ -55,6 +55,12 @@ class PR2ArmPose(Vector7d):
 class Value(Vector1d):
     pass
 
+class ArmPose5d(Vector5d):
+    """
+    The 5 dimensional arm pose is a 5d vector.
+    """
+    pass
+
 class ArmPose7d(Vector7d):
     """
     The 7 dimensional arm pose is a 7d vector.

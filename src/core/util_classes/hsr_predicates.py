@@ -43,6 +43,8 @@ ATTRMAP = {"Robot": (("arm", np.array(range(5), dtype=np.int)),
                      ("rotation", np.array([0,1,2], dtype=np.int))),
            "ClothTarget": (("value", np.array([0,1,2], dtype=np.int)),
                      ("rotation", np.array([0,1,2], dtype=np.int))),
+           "CanTarget": (("value", np.array([0,1,2], dtype=np.int)),
+                     ("rotation", np.array([0,1,2], dtype=np.int))),
            "EEVel": (("value", np.array([0], dtype=np.int))),
            "Region": [("value", np.array([0,1], dtype=np.int))]
           }
@@ -117,7 +119,7 @@ class HSRStacked(robot_predicates.ExprPredicate):
                   np.c_[np.zeros((3,9)), np.eye(3)]]
 
         b = np.zeros((self.attr_dim/2,1))
-        val = np.array([[0], [0], [self.bottom_can.geom.height /2 + self.top_can.geom.height / 2], [0], [0], [0], [0], [0]. [0]])
+        val = np.array([[0], [0], [self.bottom_can.geom.height /2 + self.top_can.geom.height / 2], [0], [0], [0], [0], [0], [0]])
         pos_expr = AffExpr(A, b)
         e = EqExpr(pos_expr, val)
         super(HSRStacked, self).__init__(name, e, self.attr_inds, params, expected_param_types, priority = -2)
@@ -139,7 +141,7 @@ class HSRIsMP(robot_predicates.IsMP):
     # IsMP Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], list((ATTRMAP[params[0]._type][0], ATTRMAP[params[0]._type][2], ATTRMAP[params[0]._type][4])))])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type]))])
         self.dof_cache = None
         super(HSRIsMP, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -157,7 +159,7 @@ class HSRIsMP(robot_predicates.IsMP):
         # Setup the Equation so that: Ax+b < val represents
         # |base_pose_next - base_pose| <= const.BASE_MOVE
         # |joint_next - joint| <= joint_movement_range/const.JOINT_MOVE_FACTOR
-        val = np.vstack((joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1)), joint_move, const.BASE_MOVE*np.ones((const.BASE_DIM, 1))))
+        val = np.vstack((joint_move, 2*np.ones((1, 1)), const.BASE_MOVE*np.ones((const.BASE_DIM, 1)), joint_move, 2*np.ones((1, 1)), const.BASE_MOVE*np.ones((const.BASE_DIM, 1))))
         A = np.eye(len(val)) - np.eye(len(val), k=len(val)/2) - np.eye(len(val), k=-len(val)/2)
         b = np.zeros((len(val),1))
         self.base_step = const.BASE_MOVE*np.ones((const.BASE_DIM, 1))
@@ -171,7 +173,7 @@ class HSRWithinJointLimit(robot_predicates.WithinJointLimit):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.dof_cache = None
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-2]))])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
         super(HSRWithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
 
     def setup_mov_limit_check(self):
@@ -238,12 +240,21 @@ class HSRStationaryBase(robot_predicates.StationaryBase):
         self.attr_dim = const.BASE_DIM
         super(HSRStationaryBase, self).__init__(name, params, expected_param_types, env)
 
+class HSRStationaryBasePos(robot_predicates.StationaryBase):
+
+    # StationaryBase, Robot (Only Robot Base)
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_inds = OrderedDict([(params[0], ATTRMAP[params[0]._type][-1:])])
+        self.attr_dim = const.BASE_DIM
+        super(HSRStationaryBase, self).__init__(name, params, expected_param_types, env)
+
 class HSRStationaryArm(robot_predicates.StationaryArms):
 
     # StationaryArm, Robot (Only Robot Arms)
 
     def __init__(self, name, params, expected_param_types, env=None):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
+        self.attr_inds = OrderedDict([(params[0], ['pose', np.array([0, 1], dtype=np.int)])])
         self.attr_dim = const.JOINT_DIM + 1 # Keep gripper stationary as well
         super(HSRStationaryArms, self).__init__(name, params, expected_param_types, env)
 
@@ -255,6 +266,24 @@ class HSRStationaryRollJoints(robot_predicates.StationaryArms):
         self.attr_inds = OrderedDict([(params[0], [('arm', np.array([2, 4]))])])
         self.attr_dim = 2
         super(HSRStationaryArms, self).__init__(name, params, expected_param_types, env)
+
+class HSRStationaryEndJoints(robot_predicates.StationaryArms):
+
+    # StationaryArm, Robot (Only Robot Arms)
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_inds = OrderedDict([(params[0], [('arm', np.array([1, 2, 3]))])])
+        self.attr_dim = 3
+        super(HSRStationaryEndJoints, self).__init__(name, params, expected_param_types, env)
+
+class HSRStationaryWrist(robot_predicates.StationaryArms):
+
+    # StationaryArm, Robot (Only Robot Arms)
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.attr_inds = OrderedDict([(params[0], [('arm', np.array([4]))])])
+        self.attr_dim = 1
+        super(HSRStationaryWrist, self).__init__(name, params, expected_param_types, env)
 
 class HSRStationaryLiftJoint(robot_predicates.StationaryArms):
 
@@ -274,15 +303,24 @@ class HSRStationaryNEq(robot_predicates.StationaryNEq):
 """
     Grasping Pose Constraints Family
 """
+class HSRGraspValid(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]),(params[1], [ATTRMAP[params[1]._type][0]])])
+        self.attr_dim = 3
 
-class HSRGraspValid(robot_predicates.GraspValid):
+        self.ee_pose, self.target = params
+        attr_inds = self.attr_inds
+
+        A = np.c_[np.eye(self.attr_dim), -np.eye(self.attr_dim)]
+        b, val = np.zeros((self.attr_dim,1)), np.zeros((self.attr_dim,1))
+        val[2] = const.HAND_DIST
+        pos_expr = AffExpr(A, b)
+        e = EqExpr(pos_expr, val)
+        super(HSRGraspValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority = -2)
+        self.spacial_anchor = True
+
+class HSRCanGraspValid(HSRGraspValid):
     pass
-
-# class HSRGraspValid(HSRGraspValid):
-#     def __init__(self, name, params, expected_param_types, env=None, debug=False):
-#         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][0]]),(params[1], [ATTRMAP[params[1]._type][0]])])
-#         self.attr_dim = 3
-#         super(HSRGraspValid, self).__init__(name, params, expected_param_types, env, debug)
 
 
 class HSREEGraspValid(robot_predicates.EEGraspValid):
@@ -371,8 +409,8 @@ class HSRCloseGripper(robot_predicates.InContact):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         # Define constants
-        self.GRIPPER_CLOSE = const.GRIPPER_CLOSE_VALUE
-        self.GRIPPER_OPEN = const.GRIPPER_OPEN_VALUE
+        self.GRIPPER_CLOSE = const.GRIPPER_CLOSE
+        self.GRIPPER_OPEN = const.GRIPPER_OPEN
         self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][1]])])
         super(HSRCloseGripper, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -392,7 +430,7 @@ class HSRObstructs(robot_predicates.Obstructs):
     # Obstructs, Robot, RobotPose, RobotPose, Can
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, tol=const.DIST_SAFE):
-        self.attr_dim = 12
+        self.attr_dim = 9
         self.dof_cache = None
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
@@ -408,14 +446,14 @@ class HSRObstructs(robot_predicates.Obstructs):
             self.dof_cache = None
         elif not reset and self.dof_cache is None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(0,8)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(const.COLLISION_DOF_INDICES, DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose(x[6:9])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose(x[6:9].flatten())
+        robot_body.set_dof({'arm': x[:5, 0], 'gripper': x[5, 0]})
 
     def _calc_self_grad_and_val(self, robot_body, collisions):
         """
@@ -754,9 +792,94 @@ class HSRObstructsHolding(robot_predicates.ObstructsHolding):
             self.dof_cache = None
         elif reset == False and self.dof_cache == None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(0,8)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(const.COLLISION_DOF_INDICES, DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
+
+    def _calc_grad_and_val(self, robot_body, obj_body, collisions):
+        """
+            This function is helper function of robot_obj_collision(self, x)
+            It calculates collision distance and gradient between each robot's link and object
+
+            robot_body: OpenRAVEBody containing body information of pr2 robot
+            obj_body: OpenRAVEBody containing body information of object
+            collisions: list of collision objects returned by collision checker
+            Note: Needs to provide attr_dim indicating robot pose's total attribute dim
+        """
+        # Initialization
+        links = []
+        robot = self.params[self.ind0]
+        obj = self.params[self.ind1]
+        col_links = robot.geom.col_links
+        obj_links = obj.geom.col_links
+        obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+        rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+        link_pair_to_col = {}
+
+        body = robot_body.env_body
+        manip = body.GetManipulator('arm')
+        ee_trans = manip.GetTransform(), manip.GetTransform()
+        arm_inds = self.robot.geom.dof_map['arm']
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        for c in collisions:
+            # Identify the collision points
+            linkA, linkB = c.GetLinkAName(), c.GetLinkBName()
+            linkAParent, linkBParent = c.GetLinkAParentName(), c.GetLinkBParentName()
+            linkRobot, linkObj = None, None
+            sign = 0
+            if linkAParent == robot_body.name and linkBParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtA(), c.GetPtB()
+                linkRobot, linkObj = linkA, linkB
+                sign = -1
+            elif linkBParent == robot_body.name and linkAParent == obj_body.name:
+                ptRobot, ptObj = c.GetPtB(), c.GetPtA()
+                linkRobot, linkObj = linkB, linkA
+                sign = 1
+            else:
+                continue
+
+            if linkRobot not in col_links or linkObj not in obj_links:
+                continue
+            # Obtain distance between two collision points, and their normal collision vector
+            distance = c.GetDistance()
+            normal = c.GetNormal()
+            # Calculate robot jacobian
+            robot = robot_body.env_body
+            robot_link_ind = robot.GetLink(linkRobot).GetIndex()
+            robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
+
+            grad = np.zeros((1, self.attr_dim+6))
+            grad[:, 6:8] = sign * normal[:2]
+            arm_jac = np.array([np.cross(joint.GetAxis(), ptObj - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+            grad[:, 1:5] = np.dot(sign * normal, arm_jac)[1:]
+            grad[:, 0] = sign * normal[2]
+
+            obj_jac = -sign*normal
+            obj_pos = OpenRAVEBody.obj_pose_from_transform(obj_body.env_body.GetTransform())
+            torque = ptObj - obj_pos[:3]
+            Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(obj_pos[:3], obj_pos[3:])
+            rot_axises = [[0,0,1], np.dot(Rz, [0,1,0]),  np.dot(Rz, np.dot(Ry, [1,0,0]))]
+            rot_vec = np.array([[np.dot(np.cross(axis, torque), obj_jac) for axis in rot_axises]])
+            grad[:, self.attr_dim: self.attr_dim + 3] = obj_jac
+            grad[:, self.attr_dim+3: self.attr_dim + 6] = rot_vec
+
+            # Constructing gradient matrix
+            # robot_grad = np.c_[robot_grad, obj_jac]
+            # TODO: remove robot.GetLink(linkRobot) from links (added for debugging purposes)
+            link_pair_to_col[(linkRobot, linkObj)] = [self.dsafe - distance, grad, robot.GetLink(linkRobot), robot.GetLink(linkObj)]
+            # import ipdb; ipdb.set_trace()
+            if self._debug:
+                self.plot_collision(ptRobot, ptObj, distance)
+
+        vals, greds = [], []
+        for robot_link, obj_link in self.col_link_pairs:
+            col_infos = link_pair_to_col.get((robot_link, obj_link), [self.dsafe - const.MAX_CONTACT_DISTANCE, np.zeros((1, self.attr_dim+6)), None, None])
+            vals.append(col_infos[0])
+            greds.append(col_infos[1])
+
+        return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim+6))
 
     def _calc_obj_held_grad_and_val(self, robot_body, obj_body, obstr_body, collisions):
         """
@@ -811,7 +934,8 @@ class HSRObstructsHolding(robot_predicates.ObstructsHolding):
 
             grad[:, 6:8] = sign * normal[:2]
             arm_jac = np.array([np.cross(joint.GetAxis(), ptObj - joint.GetAnchor()) for joint in arm_joints]).T.copy()
-            grad[:, :5] = np.dot(sign * normal, arm_jac)
+            grad[:, 1:5] = np.dot(sign * normal, arm_jac)[1:]
+            grad[:, 0] = sign * normal[2]
 
 
             # Calculate obstruct pose jacobian
@@ -849,12 +973,11 @@ class HSRObstructsHolding(robot_predicates.ObstructsHolding):
         grads = np.vstack(grads)
         return vals, grads
 
-
 class HSRObstructsHoldingCan(HSRObstructsHolding):
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose([x[6],x[7],base_pose])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose(x[6:9])
+        robot_body.set_dof({'arm': x[:5,0], 'gripper': x[5,0]})
 
         manip = robot_body.env_body.GetManipulator("arm")
         pos = manip.GetTransform()[:3,3]
@@ -886,8 +1009,8 @@ class HSRRCollides(robot_predicates.RCollides):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose([x[6], x[7], 0])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose([x[6,0], x[7,0], x[8, 0]])
+        robot_body.set_dof({'arm': x[:5,0], 'gripper': x[5,0]})
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -896,7 +1019,7 @@ class HSRRCollides(robot_predicates.RCollides):
             self.dof_cache = None
         elif not reset and self.dof_cache is None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(0,8)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(const.COLLISION_DOF_INDICES, DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
@@ -1040,7 +1163,7 @@ class HSRRCollides(robot_predicates.RCollides):
 
         return np.array(vals).reshape((len(vals), 1)), np.array(greds).reshape((len(greds), self.attr_dim+6))
 
-    def resample_rcollides(self, negated, t, plan):
+    def resample(self, negated, t, plan):
         # Variable that needs to added to BoundExpr and latter pass to the planner
         JOINT_STEP = 20
         STEP_DECREASE_FACTOR = 1.5
@@ -1051,19 +1174,19 @@ class HSRRCollides(robot_predicates.RCollides):
         res = OrderedDict()
         robot, rave_body = self.robot, self._param_to_body[self.robot]
         body = rave_body.env_body
-        manip = body.GetManipulator("right_arm")
+        manip = body.GetManipulator("arm")
         arm_inds = manip.GetArmIndices()
         lb_limit, ub_limit = body.GetDOFLimits()
         step_factor = JOINT_STEP
         joint_step = (ub_limit[arm_inds] - lb_limit[arm_inds])/ step_factor
-        base_step = np.array([0.05, 0.05])
-        if self.obstacle.pose[0] > self.robot.pose[0]:
+        base_step = np.array([0.05, 0.05, 0.])
+        if self.obstacle.pose[0,t] > self.robot.pose[0,t]:
             base_step[0] *= -1
-        if self.obstacle.pose[1] > self.robot.pose[1]:
+        if self.obstacle.pose[1,t] > self.robot.pose[1,t]:
             base_step[1] *= -1
         original_arm_pose, arm_pose = robot.arm[:, t].copy(), robot.arm[:, t].copy()
         original_pose, pose = robot.pose[:,t].copy(), robot.pose[:,t].copy()
-        rave_body.set_pose([pose[0], pose[1], 0])
+        rave_body.set_pose([pose[0], pose[1], pose[2]])
         rave_body.set_dof({"arm": robot.arm[:, t].flatten(),
                            "gripper": robot.gripper[:, t].flatten(),})
 
@@ -1072,6 +1195,7 @@ class HSRRCollides(robot_predicates.RCollides):
         start, end = 0, plan.horizon-1
         for action in plan.actions:
             if action.active_timesteps[0] <= t and action.active_timesteps[1] > t:
+                start, end = action.active_timesteps
                 for act_pred in plan.actions[0].preds:
                     if act_pred['pred'].spacial_anchor == True:
                         if act_pred['active_timesteps'][0] + act_pred['pred'].active_range[0] > t:
@@ -1104,7 +1228,7 @@ class HSRRCollides(robot_predicates.RCollides):
                 return None, None
 
         add_to_attr_inds_and_res(t, attr_inds, res, robot,[('arm', arm_pose), ('pose', pose)])
-        robot._free_attrs['rArmPose'][:, t] = 0
+        robot._free_attrs['arm'][:, t] = 0
 
 
         start, end = max(start, t-LIN_SAMP_RANGE), min(t+LIN_SAMP_RANGE, end)
@@ -1120,7 +1244,7 @@ class HSRRCollides(robot_predicates.RCollides):
             i +=1
 
 
-        return np.array(res), attr_inds
+        return res, attr_inds
 
 class HSRRSelfCollides(robot_predicates.RSelfCollides):
 
@@ -1129,7 +1253,7 @@ class HSRRSelfCollides(robot_predicates.RSelfCollides):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 9
         self.dof_cache = None
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type]))])
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
         super(HSRRSelfCollides, self).__init__(name, params, expected_param_types, env, debug)
@@ -1137,9 +1261,8 @@ class HSRRSelfCollides(robot_predicates.RSelfCollides):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        base_pose = x[16]
-        robot_body.set_pose([x[6], x[7], 0])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose([x[6, 0], x[7, 0], x[8, 0]])
+        robot_body.set_dof({'arm': x[:5, 0], 'gripper': x[5, 0]})
 
     def set_active_dof_inds(self, robot_body, reset = False):
         robot = robot_body.env_body
@@ -1148,7 +1271,7 @@ class HSRRSelfCollides(robot_predicates.RSelfCollides):
             self.dof_cache = None
         elif not reset and self.dof_cache is None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(0,8)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(const.COLLISION_DOF_INDICES, DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
@@ -1348,15 +1471,15 @@ class HSRCollidesWasher(HSRRCollides):
             self.dof_cache = None
         elif not reset and self.dof_cache is None:
             self.dof_cache = robot.GetActiveDOFIndices()
-            robot.SetActiveDOFs(list(range(0,8)), DOFAffine.RotationAxis, [0,0,1])
+            robot.SetActiveDOFs(const.COLLISION_DOF_INDICES, DOFAffine.RotationAxis, [0,0,1])
         else:
             raise PredicateException("Incorrect Active DOF Setting")
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
         base_pose = x[16]
-        robot_body.set_pose([x[6], x[7], 0])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose([x[6, 0], x[7, 0], x[8, 0]])
+        robot_body.set_dof({'arm': x[:5, 0], 'gripper': x[5, 0]})
 
 '''
 EEReachable Family
@@ -1366,7 +1489,7 @@ class HSREEReachable(robot_predicates.EEReachable):
     def __init__(self, name, params, expected_param_types, active_range = (-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
                                  (params[2], list(ATTRMAP[params[2]._type]))])
-        self.attr_dim = 12
+        self.attr_dim = 15
         self.coeff = const.EEREACHABLE_COEFF
         self.rot_coeff = const.EEREACHABLE_ROT_COEFF
         self.eval_f = self.stacked_f
@@ -1388,8 +1511,8 @@ class HSREEReachable(robot_predicates.EEReachable):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose(x[6:9])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose(x[6:9].flatten())
+        robot_body.set_dof({'arm': x[:5, 0], 'gripper': x[5, 0]})
 
     #@profile
     def get_robot_info(self, robot_body, arm):
@@ -1421,6 +1544,8 @@ class HSREEReachable(robot_predicates.EEReachable):
             rel_pt = self.get_rel_pt(s)
             f_res.append(self.coeff * self.rel_ee_pos_check_f(x[i:i+self.attr_dim], rel_pt))
             i += self.attr_dim
+            if s == 0:
+                f_res.append(np.zeros((3,1)))
 
         return np.vstack(f_res)
 
@@ -1446,8 +1571,39 @@ class HSREEReachable(robot_predicates.EEReachable):
             grad[j:j+dim, i:i+self.attr_dim] = self.coeff *  self.rel_ee_pos_check_jac(x[i:i+self.attr_dim], rel_pt)
             j += dim
             i += self.attr_dim
+            if s == 0:
+                grad[j:j+3, i:i+self.attr_dim] = 0
+                j += dim
 
         return grad
+
+    def rel_pos_error_jac(self, obj_trans, robot_trans, axises, arm_joints, rel_pt):
+        """
+            This function calculates the jacobian of the displacement between center of gripper and a point relative to the object
+
+            obj_trans: object's rave_body transformation
+            robot_trans: robot gripper's rave_body transformation
+            axises: rotational axises of the object
+            arm_joints: list of robot joints
+            rel_pt: offset between your target point and object's pose
+        """
+        gp = rel_pt
+        robot_pos = robot_trans[:3, 3]
+        obj_pos = np.dot(obj_trans, np.r_[gp, 1])[:3]
+        # Calculate the joint jacobian
+        arm_jac = np.array([np.cross(joint.GetAxis(), robot_pos - joint.GetAnchor()) for joint in arm_joints]).T.copy()
+        arm_jac[0] = obj_pos[2] - robot_pos[2]
+        # Calculate jacobian for the robot base
+        base_pos_jac = np.r_[np.diag(obj_pos[:2] - robot_pos[:2]), np.zeros((1,2))]
+        base_rot_jac = np.cross(np.array([0, 0, 1]), robot_pos).reshape((3,1))
+        base_jac = np.c_[base_pos_jac, base_rot_jac]
+        # Calculate object jacobian
+        obj_jac = -1 * np.array([np.cross(axis, obj_pos - obj_trans[:3,3]) for axis in axises]).T
+        obj_jac = np.c_[-np.eye(3), obj_jac]
+        # Create final 3x26 jacobian matrix -> (Gradient checked to be correct)
+        dist_jac = self.get_arm_jac(arm_jac, base_jac, obj_jac, self.arm)
+
+        return dist_jac
 
 class HSREEReachableVer(HSREEReachable):
 
@@ -1465,7 +1621,7 @@ class HSREEReachableHor(HSREEReachable):
 
     def get_rel_pt(self, rel_step):
         if rel_step <= 0:
-            return rel_step*np.array([, 0, -const.APPROACH_DIST])
+            return rel_step*np.array([0, 0, -const.APPROACH_DIST])
         else:
             return rel_step*np.array([0, 0, const.RETREAT_DIST])
 
@@ -1479,21 +1635,23 @@ class HSRInGripper(robot_predicates.InGripper):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
-                                 (params[1], list(ATTRMAP[params[1]._type]))])
+                                 (params[1], list(ATTRMAP[params[1]._type][:1]))])
         self.coeff = const.IN_GRIPPER_COEFF
         self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
         self.arm = 'center'
+        self.eval_dim = 3
+        self.rel_pt = np.array([0, 0, -const.HAND_DIST])
         super(HSRInGripper, self).__init__(name, params, expected_param_types, env, debug)
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose(x[6:9])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose(x[6:9].flatten())
+        robot_body.set_dof({'arm': x[:5, 0], 'gripper': x[5, 0]})
 
     def get_robot_info(self, robot_body, arm):
-        tool_link = robot_body.env_body.GetLink("gripper")
+        tool_link = robot_body.env_body.GetLink("hand")
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
@@ -1501,11 +1659,97 @@ class HSRInGripper(robot_predicates.InGripper):
         arm_inds = list(range(0,5))
         return robot_trans, arm_inds
 
+    def get_arm_jac(self, arm_jac, base_jac, obj_jac, arm):
+        if not arm == "right" and not arm == "left":
+            assert PredicateException("Invalid Arm Specified")
+
+        dim = arm_jac.shape[0]
+        jacobian = np.hstack((arm_jac, np.zeros((dim, 3)), base_jac, obj_jac[:,:3]))
+        return jacobian
+
     def stacked_f(self, x):
-        return np.vstack([self.coeff * self.pos_check_f(x)])
+        res = np.vstack([self.coeff * self.pos_check_f(x, rel_pt=self.rel_pt)])
+        return res
 
     def stacked_grad(self, x):
-        return np.vstack([self.coeff * self.pos_check_jac(x)])
+        jac = self.pos_check_jac(x, rel_pt=self.rel_pt)
+        return np.vstack([self.coeff * jac])
+
+    def resample(self, negated, t, plan):
+        JOINT_STEP = 20
+        STEP_DECREASE_FACTOR = 1.5
+        ATTEMPT_SIZE = 7
+        LIN_SAMP_RANGE = 5
+
+        attr_inds = OrderedDict()
+        res = OrderedDict()
+        obj = self.obj
+        robot = self.robot
+        obj.openrave_body.set_pose(obj.pose[:,t], obj.rotation[:, t])
+        obj_trans = obj.openrave_body.env_body.GetTransform()
+        self.set_robot_poses(np.r_[self.robot.arm[:,t], self.robot.gripper[:,t], self.robot.pose[:,t]].reshape((9,1)), self.robot.openrave_body)
+        robot_trans, arm_inds = self.get_robot_info(self.robot.openrave_body, 'center')
+        disp = self.rel_pos_error_f(obj_trans, robot_trans, self.rel_pt).flatten()
+        robot_pos = self.robot.pose[:, t]
+        pos = robot_pos.copy()
+        pos[:2] -= disp[:2]
+        arm_pose = self.robot.arm[:,t].copy()
+        arm_pose[0] = np.maximum(arm_pose[0]-disp[2], 0)
+
+        start, end = 0, plan.horizon-1
+        for action in plan.actions:
+            if action.active_timesteps[0] <= t and action.active_timesteps[1] > t:
+                start, end = action.active_timesteps
+                for act_pred in plan.actions[0].preds:
+                    if act_pred['pred'].spacial_anchor == True:
+                        if act_pred['active_timesteps'][0] + act_pred['pred'].active_range[0] > t:
+                            end = min(end, act_pred['active_timesteps'][0] + act_pred['pred'].active_range[0])
+                        if act_pred['active_timesteps'][1] + act_pred['pred'].active_range[1] < t:
+                            start = max(start, act_pred['active_timesteps'][1] + act_pred['pred'].active_range[1])
+
+        obj_pos = self.obj.pose[:, t]
+        for act in plan.actions:
+            if act.active_timesteps[1] == t:
+                obj_pos = self.obj.pose[:, t] + disp
+        add_to_attr_inds_and_res(t, attr_inds, res, self.robot, [('pose', pos), ('arm', arm_pose)])
+        add_to_attr_inds_and_res(t, attr_inds, res, self.obj, [('pose', obj_pos)])
+
+        start, end = max(start, t-LIN_SAMP_RANGE), min(t+LIN_SAMP_RANGE, end)
+        arm_traj = np.hstack([lin_interp_traj(robot.arm[:, start], arm_pose, t-start), lin_interp_traj(arm_pose, robot.arm[:, end], end - t)[:, 1:]]).T
+        base_traj = np.hstack([lin_interp_traj(robot.pose[:, start], pos, t-start), lin_interp_traj(pos, robot.pose[:, end], end - t)[:, 1:]]).T
+        i = start + 1
+        for traj in arm_traj[1:-1]:
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('arm', traj)])
+            i +=1
+        i = start + 1
+        for traj in base_traj[1:-1]:
+            add_to_attr_inds_and_res(i, attr_inds, res, robot, [('pose', traj)])
+            i +=1
+
+        return res, attr_inds
+
+    def robot_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        # Setting the poses for forward kinematics to work
+        self.set_robot_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        ee_pos, ee_rot = x[-3:], np.zeros((3,))
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return obj_trans, robot_trans, axises, arm_joints
+
+
 
 class HSRCanInGripper(HSRInGripper):
     pass
@@ -1526,11 +1770,11 @@ class HSRGripperAt(robot_predicates.GripperAt):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose(x[6:9])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose(x[6:9].flatten())
+        robot_body.set_dof({'arm': x[:5, 0], 'gripper': x[5, 0]})
 
     def get_robot_info(self, robot_body, arm):
-        tool_link = robot_body.env_body.GetLink("gripper")
+        tool_link = robot_body.env_body.GetLink("hand")
         manip_trans = tool_link.GetTransform()
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
@@ -1560,10 +1804,97 @@ class HSRGripperAt(robot_predicates.GripperAt):
         return obj_trans, robot_trans, axises, arm_joints
 
     def stacked_f(self, x):
-        return np.vstack([self.coeff * self.pos_check_f(x)])
+        return np.vstack([self.coeff * self.pos_check_f(x, rel_pt=np.array([0, 0, -const.HAND_DIST]))])
 
     def stacked_grad(self, x):
-        return np.vstack([10*self.coeff * self.pos_check_jac(x)])
+        return np.vstack([10*self.coeff * self.pos_check_jac(x, rel_pt=np.array([0, 0, -const.HAND_DIST]))])
+
+
+class HSRAlmostInGripper(robot_predicates.AlmostInGripper):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])),
+                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        self.arm = "center"
+        self.coeff = const.IN_GRIPPER_COEFF
+        self.eval_dim = 3
+        self.max_dist = np.array([0.02, 0.01, 0.02, 0.02, 0.01, 0.02])
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        self.rel_pt = np.array([0, 0, -const.HAND_DIST])
+        super(HSRAlmostInGripper, self).__init__(name, params, expected_param_types, env, debug)
+
+    # def resample(self, negated, t, plan):
+    #     print "resample {}".format(self.get_type())
+    #     return baxter_sampling.resample_cloth_in_gripper(self, negated, t, plan)
+
+    def stacked_f(self, x):
+        pos_check = self.pos_check_f(x, rel_pt=np.array([0, 0, -const.HAND_DIST]))
+        return self.coeff * np.r_[pos_check, -pos_check]
+
+    def stacked_grad(self, x):
+        pos_jac = self.pos_check_jac(x, rel_pt=np.array([0, 0, -const.HAND_DIST]))
+        return self.coeff * np.r_[pos_jac, pos_jac]
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        robot_body.set_pose(x[6:9].flatten())
+        robot_body.set_dof({'arm': x[:5, 0], 'gripper': x[5, 0]})
+
+    def get_robot_info(self, robot_body, arm):
+        tool_link = robot_body.env_body.GetLink("hand")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        arm_inds = list(range(0,5))
+        return robot_trans, arm_inds
+
+    def get_arm_jac(self, arm_jac, base_jac, obj_jac, arm):
+        if not arm == "right" and not arm == "left":
+            assert PredicateException("Invalid Arm Specified")
+
+        dim = arm_jac.shape[0]
+        jacobian = np.hstack((arm_jac, np.zeros((dim, 3)), base_jac, obj_jac))
+        return jacobian
+
+    def resample(self, negated, t, plan):
+        attr_inds = OrderedDict()
+        res = OrderedDict()
+        obj = self.obj
+        obj.openrave_body.set_pose(obj.pose[:,t], obj.rotation[:, t])
+        obj_trans = obj.openrave_body.env_body.GetTransform()
+        self.set_robot_poses(np.r_[self.robot.arm[:,t], self.robot.gripper[:,t], self.robot.pose[:,t]].reshape((9,1)), self.robot.openrave_body)
+        robot_trans, arm_inds = self.get_robot_info(self.robot.openrave_body, 'center')
+        disp = self.rel_pos_error_f(obj_trans, robot_trans, self.rel_pt).flatten()
+        pos = obj.pose[:,t] + disp
+        add_to_attr_inds_and_res(t, attr_inds, res, self.obj, [('pose', pos)])
+
+        return res, attr_inds
+
+    def robot_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        # Setting the poses for forward kinematics to work
+        self.set_robot_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        ee_pos, ee_rot = x[-6:-3], x[-3:]
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return obj_trans, robot_trans, axises, arm_joints
+
+
+class HSRCanAlmostInGripper(HSRAlmostInGripper):
+    pass
 
 '''
 Other Constraints
@@ -1629,8 +1960,8 @@ class HSRGripperLevel(robot_predicates.GrippersLevel):
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
-        robot_body.set_pose(x[6:9])
-        robot_body.set_dof({'arm': x[:5], 'gripper': x[5]})
+        robot_body.set_pose(x[6:9].flatten())
+        robot_body.set_dof({'arm': x[:5, 0], 'gripper': x[5, 0]})
 
     def get_robot_info(self, robot_body, arm):
         tool_link = robot_body.env_body.GetLink("hand")
@@ -1638,7 +1969,7 @@ class HSRGripperLevel(robot_predicates.GrippersLevel):
         # This manip_trans is off by 90 degree
         pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
         robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
-            arm_inds = list(range(0,5))
+        arm_inds = list(range(0,5))
         return robot_trans, arm_inds
 
     def arm_rot_check(self, x):

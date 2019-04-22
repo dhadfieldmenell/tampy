@@ -204,7 +204,6 @@ class FFSolver(HLSolver):
                 step, action = plan_str[i].split(':')
                 plan_str[i] = str(len(prefix) + int(step)) + ':' + action
             plan_str = prefix + plan_str
-        print plan_str
         plan = self.get_plan(plan_str, domain, concr_prob)
         plan.plan_str = plan_str
         return plan

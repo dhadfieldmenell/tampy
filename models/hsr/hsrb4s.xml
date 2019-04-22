@@ -1,0 +1,10 @@
+<robot file="simple_hsrb4s.dae">
+ <Manipulator name="arm">
+    <base>base_link</base>
+    <effector>hand</effector>
+  </Manipulator>
+  <Manipulator name="free_base">
+    <base>base_footprint</base>
+    <effector>hand</effector>
+  </Manipulator>
+</robot>
