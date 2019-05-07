@@ -57,6 +57,34 @@ class optimal_pol:
 
 
 class NAMOSortingAgent(TAMPAgent):
+    def __init__(self, hyperparams):
+        super(NAMOSortingAgent, self).__init__(hyperparams)
+
+        self.robot_height = 0.05
+        wall_dims = OpenRAVEBody.get_wall_dims('closet')
+        config = {
+            'obs_include': ['overhead_camera'],
+            'include_files': [],
+            'include_items': [
+                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, self.robot_height/2.), 'dimensions': (0.03, self.robot_height/2.), 'rgba': (1, 1, 1, 1)},
+            ],
+            'view': False,
+            'image_dimensions': (hyperparams['im_wid'], hyperparams['im_height'])
+        }
+
+        self.main_camera_id = 0
+        colors = [[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0.5, 0.5, 0.5, 1], [0.5, 0.5, 0, 1], [0.5, 0, 0.5, 1], [0.5, 0, 0, 1], [0, 0.5, 0, 1], [0, 0, 0.5, 1]]
+        items = congif['include_items']
+        prim_options = self.get_prim_choices()
+        for name in prim_options[OBJ_ENUM]:
+            cur_color = colors.pop(0)
+            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0), 'dimensions': (0.02, 0.05), 'rgba': tuple(cur_color)})
+        for i in range(len(wall_dims)):
+            next_dim, next_trans = wall_dims[i]
+            items.append({'name': name, 'type': 'box', 'is_fixed': True, 'pos': next_trans[:3,3], 'dimensions': next_dim, 'rgba': (0, 0, 0, 1)})
+        self.mjc_env = MJCEnv.load_config(config)
+
+
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True):
         x0 = state[self._x_data_idx[STATE_ENUM]]
         task = tuple(task)

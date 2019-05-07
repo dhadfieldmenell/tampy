@@ -127,6 +127,7 @@ class MCTS:
         self._simulate_from_next = self._default_simulate_from_next if sim_from_next is None else sim_from_next 
         self._value_f = value_f
         self._prob_f = prob_f
+        self.gmms = gmms
         # self.node_check_f = lambda n: n.value/n.n_explored+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
 
         self._opt_cache = {}

@@ -218,8 +218,8 @@ config = {
     'mcts_early_stop_prob': 0.5,
     'hl_timeout': HL_TIMEOUT,
     'multi_polciy': False,
-    'image_width': 200,
-    'image_height': 150,
+    'image_width': 96,
+    'image_height': 64,
     'image_channels': 3,
 
     'state_include': [utils.STATE_ENUM],
