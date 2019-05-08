@@ -63,7 +63,7 @@ class VAETampRolloutServer(VAERolloutServer):
         self.id = hyperparams['id']
         np.random.seed(int(time.time()/100000))
         rospy.init_node('vae_rollout_server_'+str(self.id))
-        self.mcts = hyperparams['mcts']
+        self.mcts = hyperparams['mcts'][0]
         self.num_samples = 1
         self.rollout_len = hyperparams.get('rollout_len', 20)
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
@@ -87,3 +87,4 @@ class VAETampRolloutServer(VAERolloutServer):
         seed = int(1000*time.time()) % 1000
         np.random.seed(seed)
         random.seed(seed)
+

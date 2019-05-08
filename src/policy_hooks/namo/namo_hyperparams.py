@@ -38,7 +38,7 @@ from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_OBJS = 10
+NUM_OBJS = 5
 NUM_CONDS = 100
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
@@ -218,8 +218,8 @@ config = {
     'mcts_early_stop_prob': 0.5,
     'hl_timeout': HL_TIMEOUT,
     'multi_polciy': False,
-    'image_width': 96,
-    'image_height': 64,
+    'image_width': 107,
+    'image_height': 80,
     'image_channels': 3,
 
     'state_include': [utils.STATE_ENUM],

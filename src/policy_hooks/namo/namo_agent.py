@@ -22,6 +22,8 @@ from gps.agent.config import AGENT
 #from gps.sample.sample import Sample
 from gps.sample.sample_list import SampleList
 
+from baxter_gym.envs import MJCEnv
+
 import core.util_classes.baxter_constants as const
 import core.util_classes.items as items
 from core.util_classes.namo_predicates import dsafe
@@ -60,28 +62,30 @@ class NAMOSortingAgent(TAMPAgent):
     def __init__(self, hyperparams):
         super(NAMOSortingAgent, self).__init__(hyperparams)
 
-        self.robot_height = 0.05
+        self.robot_height = 1
         wall_dims = OpenRAVEBody.get_wall_dims('closet')
         config = {
             'obs_include': ['overhead_camera'],
             'include_files': [],
             'include_items': [
-                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, self.robot_height/2.), 'dimensions': (0.03, self.robot_height/2.), 'rgba': (1, 1, 1, 1)},
+                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0), 'dimensions': (0.3, self.robot_height/2.), 'rgba': (1, 1, 1, 1)},
             ],
             'view': True,
-            'image_dimensions': (hyperparams['im_wid'], hyperparams['im_height'])
+            'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
         }
 
         self.main_camera_id = 0
         colors = [[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0.5, 0.5, 0.5, 1], [0.5, 0.5, 0, 1], [0.5, 0, 0.5, 1], [0.5, 0, 0, 1], [0, 0.5, 0, 1], [0, 0, 0.5, 1]]
-        items = congif['include_items']
-        prim_options = self.get_prim_choices()
+
+        items = config['include_items']
+        prim_options = self.prob.get_prim_choices()
         for name in prim_options[OBJ_ENUM]:
+            if name =='pr2': continue
             cur_color = colors.pop(0)
-            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0), 'dimensions': (0.02, 0.05), 'rgba': tuple(cur_color)})
+            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0), 'dimensions': (0.3, 1.), 'rgba': tuple(cur_color)})
         for i in range(len(wall_dims)):
             next_dim, next_trans = wall_dims[i]
-            items.append({'name': name, 'type': 'box', 'is_fixed': True, 'pos': next_trans[:3,3], 'dimensions': next_dim, 'rgba': (0, 0, 0, 1)})
+            items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': next_trans[:3,3], 'dimensions': next_dim, 'rgba': (0.1, 0.1, 0.1, 1)})
         self.mjc_env = MJCEnv.load_config(config)
 
 
@@ -316,18 +320,18 @@ class NAMOSortingAgent(TAMPAgent):
         for target in self.targets[condition]:
             plan.params[target].value[:,0] = self.targets[condition][target]
 
-        if targ.name in self.targets[condition]:
-            plan.params['{0}_end_target'.format(obj.name)].value[:,0] = self.targets[condition][targ.name]
+        if targets[1] in self.targets[condition]:
+            plan.params['{0}_end_target'.format(targets[0])].value[:,0] = self.targets[condition][targets[1]]
 
         if task == 'grasp':
-            plan.params[targ.name].value[:,0] = plan.params[obj.name].pose[:,0]
+            plan.params[targets[1]].value[:,0] = plan.params[targets[0]].pose[:,0]
         
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        dist = plan.params['pr2'].geom.radius + targets[0].geom.radius + dsafe
+        dist = plan.params['pr2'].geom.radius + plan.params[targets[0]].geom.radius + dsafe
         if task == 'putdown':
-            plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist]
+            plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1]].value[:,0] - [0, dist]
         if task == 'grasp':
-            plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1].name].value[:,0] - [0, dist+0.2]
+            plan.params['robot_end_pose'].value[:,0] = plan.params[targets[1]].value[:,0] - [0, dist+0.2]
 
 
         prim_vals = self.get_prim_value(condition, state, task) 
@@ -546,12 +550,18 @@ class NAMOSortingAgent(TAMPAgent):
         pass
 
 
-    def reset(self, m):
-        pass
+    def reset(self, m=0):
+        x0 = self.x0[m]
+        self.reset_to_state(x0)
 
 
     def reset_to_state(self, x):
-        pass
+        self.cur_state = x
+        for param_name, attr_name in self.state_inds:
+            if self.plans.values()[0].params[param_name].is_symbol(): continue
+            pos = x[self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, attr_name]]
+            self.mjc_env.set_item_pos(param_name, np.r_[pos, 0], forward=False)
+        self.mjc_env.physics.forward()
 
 
     def perturb_solve(self, sample, perturb_var=0.05, inf_f=None):

@@ -9,20 +9,20 @@ class AgentEnvWrapper(object):
         self.agent = agent
         self.use_solver = use_solver
         self.seed = 1234
-        self.sub_env = agent.env if env is None else env
+        self.sub_env = agent.mjc_env if env is None else env
 
         # VAE specific
         self.sub_env.im_height = 80
         self.sub_env.im_wid = 107
 
-        self.task_options = agent.get_prim_options() if agent is not None else {}
+        self.task_options = agent.prob.get_prim_choices() if agent is not None else {}
         self.num_tasks = len(agent.task_list) if agent is not None \
                          else env.action_space.n if hasattr(env.action_space, 'n') \
                          else env.action_space.nvec[0]
         self.tol = 0.03
         self.init_state = agent.x0[0] if agent is not None else env.physics.data.qpos.copy()
-        self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([self.num_tasks]+self.task_options.values())
-        self.observation_space = spaces.Box(0, 255, [self.sub_env.im_height, self.sub_env.im_wid, 3])
+        self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([len(opts) for opts in self.task_options.values()])
+        self.observation_space = spaces.Box(0, 255, [self.sub_env.im_height, self.sub_env.im_wid, 3], dtype='uint8')
         self.cur_state = env.physics.data.qpos.copy() if env is not None else self.agent.x0[0]
         self.goal = None
 
@@ -30,11 +30,14 @@ class AgentEnvWrapper(object):
     def encode_action(self, task):
         if self.agent is not None:
             # act = np.zeros(self.num_tasks*np.prod([len(opts) for opts in self.task_options.values()]))
-            act = np.zeros((self.num_tasks+np.sum([len(opts) for opts in self.task_options.values()])))
-            act[task[0]] += 1.
-            cur_ind = self.num_tasks
+            # act = np.zeros((self.num_tasks+np.sum([len(opts) for opts in self.task_options.values()])))
+            # act[task[0]] += 1.
+            # cur_ind = self.num_tasks
+
+            act = np.zeros(np.sum([len(opts) for opts in self.task_options.values()]))
+            cur_ind = 0
             for i, opt in enumerate(self.task_options.keys()):
-                act[cur_ind+task[i+1]] = 1.
+                act[cur_ind+task[i]] = 1.
                 cur_ind += len(self.task_options[opt])
         elif type(task) is not int:
             act = np.zeros(np.prod(self.sub_env.action_space.nvec))

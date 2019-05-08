@@ -70,6 +70,9 @@ class MultiProcessMain(object):
         self.config = config
         prob = config['prob']
 
+        if 'num_objs' in config:
+            prob.NUM_OBJS = config['num_objs']
+
         conditions = self.config['num_conds']
         self.task_list = tuple(get_tasks(self.config['task_map_file']).keys())
 
@@ -139,6 +142,8 @@ class MultiProcessMain(object):
 
         self.config['task_durations'] = self.task_durations
 
+        self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
+        self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
         self.config['agent'] = {
             'type': self.config['agent_type'],
             'x0': x0,
@@ -275,7 +280,7 @@ class MultiProcessMain(object):
         self.config['time_log'] = 'tf_saved/'+self.config['weight_dir']+'/timing_info.txt'
 
         self.config['vae'] = {}
-        self.config['vae']['task_dims'] =int(len(self.task_list) * np.prod(self.prim_dims.values()))
+        self.config['vae']['task_dims'] = int(len(self.task_list) + np.sum(self.prim_dims.values()))
         self.config['vae']['obs_dims'] = (utils.IM_W, utils.IM_H, 3)
         self.config['vae']['weight_dir'] = 'tf_saved/'+self.weight_dir
 

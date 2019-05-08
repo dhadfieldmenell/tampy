@@ -267,6 +267,35 @@ class OpenRAVEBody(object):
         wall.InitFromGeometries(box_infos)
         return wall
 
+
+    @staticmethod
+    def get_wall_dims(wall_type='closet'):
+        wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
+        dims = []
+        for i, (start, end) in enumerate(zip(wall_endpoints[0:-1], wall_endpoints[1:])):
+            dim_x, dim_y = 0, 0
+            thickness = WALL_THICKNESS
+            if start[0] == end[0]:
+                ind_same, ind_diff = 0, 1
+                length = abs(start[ind_diff] - end[ind_diff])
+                dim_x, dim_y = thickness, length/2 + thickness
+            elif start[1] == end[1]:
+                ind_same, ind_diff = 1, 0
+                length = abs(start[ind_diff] - end[ind_diff])
+                dim_x, dim_y = length/2 + thickness, thickness
+            else:
+                raise NotImplemented, 'Can only create axis-aligned walls'
+
+            transform = np.eye(4)
+            transform[ind_same, 3] = start[ind_same]
+            if start[ind_diff] < end[ind_diff]:
+                transform[ind_diff, 3] = start[ind_diff] + length/2
+            else:
+                transform[ind_diff, 3] = end[ind_diff] + length/2
+            dims.append(([dim_x, dim_y, 1], transform))
+        return dims
+
+
     @staticmethod
     def create_basket_col(env):
 

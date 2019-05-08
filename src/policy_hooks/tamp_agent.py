@@ -437,3 +437,65 @@ class TAMPAgent(Agent):
                 target_p = self.plans.values()[0].params[target_name]
                 self.targets[c][target_name] += np.random.normal(0, perturb_var, target_p.value.shape[0])
                 self.target_vecs[c][self.target_inds[target_name, 'value']] = self.targets[c][target_name]
+
+
+    def get_prim_options(self, cond, state):
+        mp_state = state[self._x_data_idx[STATE_ENUM]]
+        out = {}
+        out[TASK_ENUM] = copy.copy(self.task_list)
+        options = self.prob.get_prim_choices()
+        plan = self.plans.values()[0]
+        for enum in self.prim_dims:
+            if enum == TASK_ENUM: continue
+            out[enum] = []
+            for item in options[enum]:
+                if item in plan.params:
+                    param = plan.params[item]
+                    if param.is_symbol():
+                        out[enum].append(param.value[:,0].copy())
+                    else:
+                        out[enum].append(mp_state[self.state_inds[item, 'pose']].copy())
+                    continue
+
+                # val = self.env.get_pos_from_label(item, mujoco_frame=False)
+                # if val is not None:
+                #     out[enum] = val
+                # out[enum].append(val)
+            out[enum] = np.array(out[enum])
+        return out
+
+
+    def get_prim_value(self, cond, state, task):
+        mp_state = state[self._x_data_idx[STATE_ENUM]]
+        out = {}
+        out[TASK_ENUM] = self.task_list[task[0]]
+        plan = self.plans[task]
+        options = self.prob.get_prim_choices()
+        for i in range(1, len(task)):
+            enum = self.prim_dims.keys()[i-1]
+            item = options[enum][task[i]]
+            if item in plan.params:
+                param = plan.params[item]
+                if param.is_symbol():
+                    out[enum] = param.value[:,0]
+                else:
+                    out[enum] = mp_state[self.state_inds[item, 'pose']]
+                continue
+
+            # val = self.env.get_pos_from_label(item, mujoco_frame=False)
+            # if val is not None:
+            #     out[enum] = val
+
+        return out
+
+
+    def get_prim_index(self, enum, name):
+        prim_options = self.prob.get_prim_choices()
+        return prim_options[enum].index(name)
+
+
+    def get_prim_indices(self, names):
+        task = [self.task_list.index(names[0])]
+        for i in range(1, len(names)):
+            task.append(self.get_prim_index(self.prim_dims.keys()[i-1], names[i]))
+        return tuple(task)
