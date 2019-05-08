@@ -82,11 +82,11 @@ class MultiProcessMain(object):
         goal_states = []
         targets = []
         for _ in range(conditions):
-            targets.append(prob.get_end_targets())
+            targets.append(prob.get_end_targets(prob.NUM_OBJS))
 
         plans, openrave_bodies, env = prob.get_plans()
 
-        state_vector_include, action_vector_include, target_vector_include = self.config['get_vector'](self.config)
+        state_vector_include, action_vector_include, target_vector_include = prob.get_vector(self.config)
 
         self.dX, self.state_inds, self.dU, self.action_inds, self.symbolic_bound = utils.get_state_action_inds(plans.values()[0], self.config['robot_name'], self.config['attr_map'], state_vector_include, action_vector_include)
 
@@ -228,7 +228,8 @@ class MultiProcessMain(object):
         #                                         'type': CostSum,
         #                                         'costs': [traj_cost, action_cost],
         #                                         'weights': [1.0, 1.0],
-        #     
+        #
+        self.agent = self.config['agent']['type'](self.config['agent'])
         self.weight_dir = self.config['weight_dir']
 
         self.traj_opt_steps = self.config['traj_opt_steps']
@@ -236,7 +237,7 @@ class MultiProcessMain(object):
 
         self.mcts = []
 
-        for condition in range(len(self.agent.x0)):
+        for condition in range(len(x0)):
             self.mcts.append(MCTS(
                                   self.task_list,
                                   self.prim_dims,
@@ -287,7 +288,7 @@ class MultiProcessMain(object):
     def no_config_load(cls, env, name, config):
         main = cls(None)
         config['env'] = env
-        config['rollout_len'] = 20
+        config['rollout_len'] = 50
         config['weight_dir'] = 'tf_saved/'+name+'_vae_data/'
         temp_env = env()
         act_space = temp_env.action_space

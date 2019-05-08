@@ -62,6 +62,10 @@ class VAERolloutServer(object):
 
         self.prior = multivariate_normal
 
+        seed = int(1000*time.time()) % 1000
+        np.random.seed(seed)
+        random.seed(seed)
+
 
     def end(self, msg):
         self.stopped = True
@@ -113,7 +117,7 @@ class VAERolloutServer(object):
         obs = self.env.get_obs()
         for n in range(self.rollout_len):
             acts = set()
-            for _ in range(20):
+            for _ in range(30):
                 next_act = self.env.action_space.sample()
                 if type(next_act) is int:
                     acts.add(next_act)

@@ -83,3 +83,7 @@ class VAETampRolloutServer(VAERolloutServer):
         self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
 
         self.prior = multivariate_normal
+        
+        seed = int(1000*time.time()) % 1000
+        np.random.seed(seed)
+        random.seed(seed)

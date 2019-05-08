@@ -76,7 +76,7 @@ class TAMPAgent(Agent):
         self.dU = self._hyperparams['dU']
         self.symbolic_bound = self._hyperparams['symbolic_bound']
         self.solver = self._hyperparams['solver']
-        self.num_cans = self._hyperparams['num_cans']
+        self.num_obj = self._hyperparams['num_objs']
         self.init_vecs = self._hyperparams['x0']
         self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
         self.targets = self._hyperparams['targets']
@@ -403,8 +403,8 @@ class TAMPAgent(Agent):
     def replace_conditions(self, conditions, keep=(0.2, 0.5)):
         self.targets = []
         for i in range(conditions):
-            self.targets.append(self.prob.get_end_targets(self.num_cans))
-        self.init_vecs = self.prob.get_random_initial_state_vec(self.num_cans, self.targets, self.dX, self.state_inds, conditions)
+            self.targets.append(self.prob.get_end_targets(self.num_objs))
+        self.init_vecs = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, conditions)
         self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
         self.target_vecs = []
         for condition in range(len(self.x0)):

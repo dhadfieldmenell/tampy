@@ -2,6 +2,7 @@
 Defines utility functions for planning in the sorting domain
 """
 import copy
+from collections import OrderedDict
 import itertools
 import numpy as np
 import random
@@ -12,7 +13,7 @@ from core.util_classes.namo_predicates import dsafe
 from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
-
+import policy_hooks.utils.policy_solver_utils as utils
 
 NUM_OBJS = 10
 
@@ -61,7 +62,7 @@ def get_vector(config):
     state_vector_include = {
         'pr2': ['pose', 'gripper'] ,
     }
-    for i in rangR(NUM_OBJS):
+    for i in range(NUM_OBJS):
         state_vector_include['can{0}'.format(i)] = ['pose']
 
     action_vector_include = {
@@ -69,11 +70,16 @@ def get_vector(config):
     }
 
     target_vector_include = {
-        'can{0}_end_target': ['value'] for i in range(NUM_OBJS)
+        'can{0}_end_target'.format(i): ['value'] for i in range(NUM_OBJS)
     }
-
+    target_vector_include['middle_target'] = ['value']
+    target_vector_include['left_target_1'] = ['value']
+    target_vector_include['left_target_2'] = ['value']
+    target_vector_include['right_target_1'] = ['value']
+    target_vector_include['right_target_2'] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include
+
 
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     # Information is track by the environment
@@ -98,6 +104,26 @@ def parse_hl_plan(hl_plan):
         plan.append((task, next_params))
     return plan
 
+# def get_plans():
+#     tasks = get_tasks(mapping_file)
+#     prim_options = get_prim_choices()
+#     plans = {}
+#     openrave_bodies = {}
+#     env = None
+#     for task in tasks:
+#         next_task_str = copy.deepcopy(tasks[task])
+#         plan = plan_from_str(next_task_str, prob_file, domain_file, env, openrave_bodies)
+
+#         for i in range(len(prim_options[utils.OBJ_ENUM])):
+#             for j in range(len(prim_options[utils.TARG_ENUM])):
+#                 plans[(tasks.keys().index(task), i, j)] = plan
+#         if env is None:
+#             env = plan.env
+#             for param in plan.params.values():
+#                 if not param.is_symbol() and param.openrave_body is not None:
+#                     openrave_bodies[param.name] = param.openrave_body
+#     return plans, openrave_bodies, env
+
 def get_plans():
     tasks = get_tasks(mapping_file)
     prim_options = get_prim_choices()
@@ -106,18 +132,21 @@ def get_plans():
     env = None
     for task in tasks:
         next_task_str = copy.deepcopy(tasks[task])
-        plan = plan_from_str(next_task_str, prob_file, domain_file, env, openrave_bodies)
-
         for i in range(len(prim_options[utils.OBJ_ENUM])):
             for j in range(len(prim_options[utils.TARG_ENUM])):
+                obj = prim_options[utils.OBJ_ENUM][i]
+                targ = prim_options[utils.TARG_ENUM][j]
+                new_task_str = []
+                for step in next_task_str:
+                    new_task_str.append(step.format(obj, targ))
+                plan = plan_from_str(new_task_str, prob_file, domain_file, env, openrave_bodies)
                 plans[(tasks.keys().index(task), i, j)] = plan
-        if env is None:
-            env = plan.env
-            for param in plan.params.values():
-                if not param.is_symbol() and param.openrave_body is not None:
-                    openrave_bodies[param.name] = param.openrave_body
+                if env is None:
+                    env = plan.env
+                    for param in plan.params.values():
+                        if not param.is_symbol() and param.openrave_body is not None:
+                            openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
-
 
 
 # CODE FROM OLDER VERSION OF PROB FILE BELOW THIS

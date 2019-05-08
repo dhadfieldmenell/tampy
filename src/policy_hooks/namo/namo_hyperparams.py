@@ -235,7 +235,7 @@ config = {
                         utils.TASK_ENUM,
                         utils.OBJ_ENUM,
                         utils.TARG_ENUM],
-    'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM]
+    'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM],
     'sensor_dims': {
             utils.OBJ_POSE_ENUM: 2,
             utils.TARG_POSE_ENUM: 2,

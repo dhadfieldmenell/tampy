@@ -68,7 +68,7 @@ class NAMOSortingAgent(TAMPAgent):
             'include_items': [
                 {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, self.robot_height/2.), 'dimensions': (0.03, self.robot_height/2.), 'rgba': (1, 1, 1, 1)},
             ],
-            'view': False,
+            'view': True,
             'image_dimensions': (hyperparams['im_wid'], hyperparams['im_height'])
         }
 
@@ -585,6 +585,6 @@ class NAMOSortingAgent(TAMPAgent):
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
         targets = get_prim_choices[TARG_ENUM]
         state = state[self._x_data_idx[STATE_ENUM]]
-        params = self.plans.values()_[0].params
+        params = self.plans.values()[0].params
 
         return hl_plan_for_state(state, targets, plan_id, params, self.state_inds, failed_preds)
