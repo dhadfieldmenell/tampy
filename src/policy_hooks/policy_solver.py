@@ -281,7 +281,8 @@ def get_base_solver(parent_class):
                     # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                     #     break
 
-                    print "resample attempt: {0} | priority: {1}".format(attempt, priority),
+                    print "resample attempt: {0} | priority: {1}".format(attempt, priority)
+                    # print plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)
 
                     try:
                         if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
@@ -290,7 +291,6 @@ def get_base_solver(parent_class):
 
                     assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
-                print 'Success:', success
                 if not success:
                     return False
 

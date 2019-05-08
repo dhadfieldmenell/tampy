@@ -1,5 +1,6 @@
 import copy
 import sys
+import time
 import traceback
 
 import cPickle as pickle
@@ -68,31 +69,34 @@ class NAMOSortingAgent(TAMPAgent):
             'obs_include': ['overhead_camera'],
             'include_files': [],
             'include_items': [
-                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0), 'dimensions': (0.3, self.robot_height/2.), 'rgba': (1, 1, 1, 1)},
+                {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.6, 1.), 'rgba': (1, 1, 1, 1)},
             ],
             'view': True,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
         }
 
         self.main_camera_id = 0
-        colors = [[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0.5, 0.5, 0.5, 1], [0.5, 0.5, 0, 1], [0.5, 0, 0.5, 1], [0.5, 0, 0, 1], [0, 0.5, 0, 1], [0, 0, 0.5, 1]]
+        colors = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0.5, 0.75, 0.25, 1], [0.75, 0.5, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
 
         items = config['include_items']
         prim_options = self.prob.get_prim_choices()
         for name in prim_options[OBJ_ENUM]:
             if name =='pr2': continue
             cur_color = colors.pop(0)
-            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0), 'dimensions': (0.3, 1.), 'rgba': tuple(cur_color)})
+            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': tuple(cur_color)})
         for i in range(len(wall_dims)):
-            next_dim, next_trans = wall_dims[i]
-            items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': next_trans[:3,3], 'dimensions': next_dim, 'rgba': (0.1, 0.1, 0.1, 1)})
+            dim, next_trans = wall_dims[i]
+            next_trans[0,3] -= 3.5
+            next_dim = dim # [dim[1], dim[0], dim[2]]
+            pos = next_trans[:3,3] # [next_trans[1,3], next_trans[0,3], next_trans[2,3]]
+            items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
         self.mjc_env = MJCEnv.load_config(config)
 
 
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True):
         x0 = state[self._x_data_idx[STATE_ENUM]]
         task = tuple(task)
-        plan = self.plans[task[:2]]
+        plan = self.plans[task]
         for (param, attr) in self.state_inds:
             if plan.params[param].is_symbol(): continue
             getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
@@ -101,6 +105,11 @@ class NAMOSortingAgent(TAMPAgent):
         self.T = plan.horizon - 1
         sample = Sample(self)
         sample.init_t = 0
+        prim_choices = self.prob.get_prim_choices()
+        obj = prim_choices[OBJ_ENUM][task[1]]
+        targ = prim_choices[TARG_ENUM][task[2]]
+        obj_param = plan.params[obj]
+        targ_param = plan.params[targ]
 
         target_vec = np.zeros((self.target_dim,))
 
@@ -128,23 +137,23 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(NOISE_ENUM, noise[t], t)
             # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
             task_vec = np.zeros((len(self.task_list)), dtype=np.float32)
-            task_vec[self.task_list.index(task[0])] = 1.
-            sample.task_ind = self.task_list.index(task[0])
+            task_vec[task[0]] = 1.
+            sample.task_ind = task[0]
             sample.set(TASK_ENUM, task_vec, t)
             sample.set(TARGETS_ENUM, target_vec.copy(), t)
 
-            obj_vec = np.zeros((len(self.obj_list)), dtype='float32')
-            targ_vec = np.zeros((len(self.targ_list)), dtype='float32')
-            obj_vec[self.obj_list.index(task[1])] = 1.
-            targ_vec[self.targ_list.index(task[2])] = 1.
-            sample.obj_ind = self.obj_list.index(task[1])
-            sample.targ_ind = self.targ_list.index(task[2])
+            obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
+            targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
+            obj_vec[task[1]] = 1.
+            targ_vec[task[2]] = 1.
+            sample.obj_ind = task[1]
+            sample.targ_ind = task[2]
             sample.set(OBJ_ENUM, obj_vec, t)
             sample.set(TARG_ENUM, targ_vec, t)
 
             ee_pose = X[self.state_inds['pr2', 'pose']]
-            obj_pose = X[self.state_inds[task[1], 'pose']] - X[self.state_inds['pr2', 'pose']]
-            targ_pose = self.targets[condition][task[2]] - X[self.state_inds['pr2', 'pose']]
+            obj_pose = X[self.state_inds[obj, 'pose']] - X[self.state_inds['pr2', 'pose']]
+            targ_pose = self.targets[condition][targ] - X[self.state_inds['pr2', 'pose']]
             sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
             sample.set(TARG_POSE_ENUM, targ_pose.copy(), t)
             sample.set(EE_ENUM, ee_pose, t)
@@ -190,9 +199,8 @@ class NAMOSortingAgent(TAMPAgent):
             # while len(self.traj_hist) > self.hist_len:
             #     self.traj_hist.pop(0)
 
-            obj = task[1] if fixed_obj else None
 
-            self.run_policy_step(U, X, self.plans[task[:2]], t, obj)
+            self.run_policy_step(U, X, self.plans[task], t, obj)
             # if np.any(np.abs(U) > 1e10):
             #     import ipdb; ipdb.set_trace()
 
@@ -323,6 +331,15 @@ class NAMOSortingAgent(TAMPAgent):
         if targets[1] in self.targets[condition]:
             plan.params['{0}_end_target'.format(targets[0])].value[:,0] = self.targets[condition][targets[1]]
 
+        run_solve = True
+        for param_name in plan.params:
+            if param_name == 'pr2': continue
+            param = plan.params[param_name]
+            if param.is_symbol(): continue
+            if np.all(np.abs(param.pose[:,0] - self.targets[condition][targets[1]]) < 0.01):
+                run_solve = False
+                break
+
         if task == 'grasp':
             plan.params[targets[1]].value[:,0] = plan.params[targets[0]].pose[:,0]
         
@@ -336,9 +353,11 @@ class NAMOSortingAgent(TAMPAgent):
 
         prim_vals = self.get_prim_value(condition, state, task) 
 
-        
         try:
-            success = self.solver._backtrack_solve(plan, n_resamples=5, traj_mean=traj_mean, inf_f=inf_f)
+            if run_solve:
+                success = self.solver._backtrack_solve(plan, n_resamples=3, traj_mean=traj_mean, inf_f=inf_f, time_limit=90)
+            else:
+                success = False
         except Exception as e:
             print e
             traceback.print_exception(*sys.exc_info())
@@ -346,11 +365,12 @@ class NAMOSortingAgent(TAMPAgent):
             raise e
 
         if not success:
-            for action in plan.actions:
-                try:
-                    print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
-                except:
-                    pass
+            print state
+            # for action in plan.actions:
+                # try:
+                #     print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
+                # except:
+                #     pass
             print '\n\n'
 
         try:
@@ -370,8 +390,8 @@ class NAMOSortingAgent(TAMPAgent):
                 sample.set(enum, vec, 0)
 
             sample.set(STATE_ENUM, x0.copy(), 0)
-            sample.set(OBJ_POSE_ENUM, x0[self.state_inds[targets[0].name, 'pose']], 0)
-            sample.set(TARG_POSE_ENUM, self.targets[condition][targets[1].name], 0)
+            sample.set(OBJ_POSE_ENUM, x0[self.state_inds[targets[0], 'pose']], 0)
+            sample.set(TARG_POSE_ENUM, self.targets[condition][targets[1]], 0)
             sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), 0)
             sample.set(TARGETS_ENUM, self.target_vecs[condition].copy(), 0)
             sample.condition = condition
@@ -382,13 +402,15 @@ class NAMOSortingAgent(TAMPAgent):
             def act(self, X, O, t, noise):
                 U = np.zeros((plan.dU), dtype=np.float32)
                 if t < plan.horizon - 1:
-                    fill_vector(plan.params, plan.action_inds, U, t+1)
-                else:
-                    fill_vector(plan.params, plan.action_inds, U, t)
+                    for param, attr in plan.action_inds:
+                        U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t+1] - getattr(plan.params[param], attr)[:, t]
+                    # U[plan.action_inds['pr2', 'pose']] = plan.params['pr2'].pose[:, t+1] - plan.params['pr2'].pose[:, t]
+                    # U[plan.action_inds['pr2', 'gripper']] = plan.params['pr2'].gripper[:, t+1]
+
                 return U
 
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
-        self.optimal_samples[task].append(sample)
+        # self.optimal_samples[task].append(sample)
         return sample, failed_preds, success
 
     # def get_sample_constr_cost(self, sample):
@@ -544,24 +566,35 @@ class NAMOSortingAgent(TAMPAgent):
                     pass
 
         return cost
-
+    
 
     def reset_to_sample(self, sample):
-        pass
+        self.reset_to_state(sample.get_X(sample.T-1))
 
 
-    def reset(self, m=0):
-        x0 = self.x0[m]
-        self.reset_to_state(x0)
+    def reset(self, m):
+        self.reset_to_state(self.x0[m])
 
 
     def reset_to_state(self, x):
-        self.cur_state = x
-        for param_name, attr_name in self.state_inds:
-            if self.plans.values()[0].params[param_name].is_symbol(): continue
-            pos = x[self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, attr_name]]
-            self.mjc_env.set_item_pos(param_name, np.r_[pos, 0], forward=False)
+        mp_state = x[self._x_data_idx[STATE_ENUM]]
+        for param_name, attr in self.state_inds:
+            if attr == 'pose':
+                pos = mp_state[self.state_inds[param_name, 'pose']].copy()
+                self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], mujoco_frame=False, forward=False)
         self.mjc_env.physics.forward()
+
+
+    def get_image(self, x, depth=False):
+        self.reset_to_state(x)
+        im = self.mjc_env.render(camera_id=0, depth=depth, view=False)
+        return im
+
+
+    def get_mjc_obs(self, x):
+        self.reset_to_state(x)
+        # return self.mjc_env.get_obs(view=False)
+        return self.mjc_env.render()
 
 
     def perturb_solve(self, sample, perturb_var=0.05, inf_f=None):
@@ -586,7 +619,7 @@ class NAMOSortingAgent(TAMPAgent):
         act_traj[-1] = act_traj[-2]
 
         sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False,)
-        self.optimal_samples[task].append(sample)
+        # self.optimal_samples[task].append(sample)
         sample.set_ref_X(opt_traj)
         sample.set_ref_U(sample.get_U())
         return sample

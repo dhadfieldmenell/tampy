@@ -15,7 +15,7 @@ from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 
-NUM_OBJS = 10
+NUM_OBJS = 5
 
 prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
 domain_file = "../domains/namo_domain/namo.domain"
@@ -52,9 +52,10 @@ def get_prim_choices():
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
     out[utils.TARG_ENUM] = ['middle_target', 
                             'left_target_1', 
-                            'left_target_2', 
+                            # 'left_target_2', 
                             'right_target_1',
-                            'right_target_2'] + ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
+                            # 'right_target_2'
+                            ] + ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
     return out
 
 
@@ -74,9 +75,9 @@ def get_vector(config):
     }
     target_vector_include['middle_target'] = ['value']
     target_vector_include['left_target_1'] = ['value']
-    target_vector_include['left_target_2'] = ['value']
+    # target_vector_include['left_target_2'] = ['value']
     target_vector_include['right_target_1'] = ['value']
-    target_vector_include['right_target_2'] = ['value']
+    # target_vector_include['right_target_2'] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include
 
@@ -158,8 +159,8 @@ def get_end_targets(num_cans):
     target_map['middle_target'] = np.array([0., 0.])
     target_map['left_target_1'] = np.array([-1., 0.])
     target_map['right_target_1'] = np.array([1., 0.])
-    target_map['left_target_2'] = np.array([-2., 0.])
-    target_map['right_target_2'] = np.array([2., 0.])
+    # target_map['left_target_2'] = np.array([-2., 0.])
+    # target_map['right_target_2'] = np.array([2., 0.])
     return target_map
 
 

@@ -110,6 +110,7 @@ class CollisionPredicate(ExprPredicate):
         val = col_val
         jac = jac01
         # self._cache[flattened] = (val.copy(), jac.copy())
+
         return val, jac
 
 
