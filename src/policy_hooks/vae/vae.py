@@ -275,7 +275,7 @@ class VAE(object):
 
             obs1 = next_obs_batch[:-1].reshape([-1]+list(self.obs_dims))
             obs2 = next_obs_batch[1:].reshape([-1]+list(self.obs_dims))
-            task = next_obs_batch[:-1].reshape([-1, self.task_dim])
+            task = next_task_batch[:-1].reshape([-1, self.task_dim])
 
             self.sess.run(self.train_op, feed_dict={self.x_in: obs1, 
                                                     self.offset_in: obs2, 
