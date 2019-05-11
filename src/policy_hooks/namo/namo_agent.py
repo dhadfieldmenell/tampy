@@ -364,14 +364,14 @@ class NAMOSortingAgent(TAMPAgent):
             success = False
             raise e
 
-        if not success:
-            print state
-            # for action in plan.actions:
-                # try:
-                #     print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
-                # except:
-                #     pass
-            print '\n\n'
+        # if not success:
+        #     print state
+        #     # for action in plan.actions:
+        #         # try:
+        #         #     print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
+        #         # except:
+        #         #     pass
+        #     print '\n\n'
 
         try:
             if not len(failed_preds):
