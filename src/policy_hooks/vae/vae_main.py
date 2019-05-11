@@ -297,7 +297,7 @@ class MultiProcessMain(object):
         config['env'] = env
         if config['rollout_len'] <= 0:
             config['rollout_len'] = 50
-        config['weight_dir'] = 'tf_saved/'+name.lower()+'_vae_data' if config['weight_dir'] == '' else config['weight_dir']
+        config['weight_dir'] = 'tf_saved/'+name.lower()+'_t{0}_vae_data'.format(config['rollout_len']) if config['weight_dir'] == '' else config['weight_dir']
         temp_env = env()
         act_space = temp_env.action_space
         prim_dims =  {'prim{}'.format(i): act_space.nvec[i] for i in range(1, len(act_space.nvec))} if hasattr(act_space, 'nvec') else {}
