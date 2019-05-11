@@ -61,23 +61,24 @@ class VAE(object):
         assert self.train_mode in ['online', 'conditional', 'unconditional']
 
         if hyperparams.get('load_data', True):
-            f_mode = 'r'
-            while not os.path.isfile(self.weight_dir+'/vae_buffer.hdf5'):
-                time.sleep(1)
-        else:
             f_mode = 'a'
+            self.data_file = self.weight_dir+'/vae_buffer.hdf5'
+            self.data = h5py.File(self.data_file, f_mode, swmr=True)
 
-        self.data_file = self.weight_dir+'/vae_buffer.hdf5'
-        self.data = h5py.File(self.data_file, f_mode)
+            try:
+                self.obs_data = self.data['obs_data']
+                self.task_data = self.data['task_data']
+            except:
+                obs_data = np.zeros([0, self.T]+list(self.obs_dims))
+                task_data = np.zeros((0, self.T, self.task_dim))
+                self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
+                self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
 
-        try:
-            self.obs_data = self.data['obs_data']
-            self.task_data = self.data['task_data']
-        except:
-            obs_data = np.zeros([0, self.T]+list(self.obs_dims))
-            task_data = np.zeros((0, self.T, self.task_dim))
-            self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
-            self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
+        else:
+            f_mode = 'r'
+            # while not os.path.isfile(self.weight_dir+'/vae_buffer.hdf5'):
+            #     time.sleep(1)
+
 
         # self.data_file = self.weight_dir+'/vae_buffer.npz'
         # try:
@@ -112,7 +113,8 @@ class VAE(object):
             print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
 
         self.update_count = 0
-        self.update_size = self.config.get('update_size', 10)
+        self.n_updates = 0
+        self.update_size = self.config.get('update_size', 1)
 
 
     def serialize_weights(self):
@@ -183,12 +185,16 @@ class VAE(object):
             self.task_data = self.task_data[-self.max_buffer:]
 
         self.update_count += 1
-        if self.update_count > self.update_size:
+        if self.update_count > self.update_size and len(self.obs_data) > 10:
             print 'Updating vae'
             self.update()
+            self.n_updates += 1
+            self.update_count = 0
+
+        if self.n_updates > 10:
             self.store_scope_weights(scopes=['vae'])
             self.save_buffers()
-            self.update_count = 0
+            self.n_updates = 0
             return True
 
         return False
@@ -281,7 +287,7 @@ class VAE(object):
 
 
     def update(self):
-        for i in range(self.train_iters):
+        for step in range(1000):
             inds = np.random.choice(range(len(self.obs_data)), 1)#self.batch_size)
             next_obs_batch = np.array([self.obs_data[i] for i in inds])[0]
             next_task_batch = np.array([self.task_data[i] for i in inds])[0]
@@ -296,8 +302,7 @@ class VAE(object):
                                                     self.lr: self.cur_lr,
                                                     self.training: True})
             self.cur_lr *= 0.9998
-            if not i % 1000:
-                print('Training vae, iteration:', i)
+        print 'Updated VAE'
 
 
     def get_latents(self, obs):

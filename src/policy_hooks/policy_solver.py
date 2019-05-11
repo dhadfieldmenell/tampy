@@ -260,7 +260,7 @@ def get_base_solver(parent_class):
                 return True
 
             for priority in priorities:
-                print 'Solver priority:', priority
+                # print 'Solver priority:', priority
                 for attempt in range(n_resamples):
                     ## refinement loop
                     success = self._solve_opt_prob(plan, priority=priority,

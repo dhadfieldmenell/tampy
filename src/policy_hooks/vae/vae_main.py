@@ -320,7 +320,7 @@ class MultiProcessMain(object):
         config['vae']['task_dims'] = int(n * np.prod(prim_dims.values()))
         config['vae']['obs_dims'] = (temp_env.im_height, temp_env.im_wid, 3)
         config['vae']['weight_dir'] = config['weight_dir']
-        config['vae']['rollout_len' = config['rollout_len']]
+        config['vae']['rollout_len'] = config['rollout_len']
         temp_env.close()
 
         main.rollout_type = VAERolloutServer
