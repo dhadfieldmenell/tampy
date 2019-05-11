@@ -76,6 +76,7 @@ class VAETampRolloutServer(VAERolloutServer):
 
         self.updaters = {}
         self.updaters['vae'] = rospy.Publisher('vae_update', VAEUpdate, queue_size=5)
+        hyperparams['vae']['load_data'] = False
         self.vae = VAE(hyperparams['vae'])
         self.weights_to_store = {}
 

@@ -58,7 +58,7 @@ class VAE(object):
 
         if hyperparams.get('load_data', True):
             self.data_file = self.weight_dir+'/vae_buffer.hdf5'
-            self.data = h5py.File(self.data_file)
+            self.data = h5py.File(self.data_file, 'a')
 
             try:
                 self.obs_data = self.data['obs_data']
