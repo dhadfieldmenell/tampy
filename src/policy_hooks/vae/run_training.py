@@ -24,7 +24,7 @@ def load_config(args, reload_module=None):
     if 'common' in config:
         config['common']['num_conds'] = config['num_conds']
     config['num_objs'] = args.nobjs if args.nobjs > 0 else config['num_objs'] if 'num_objs' in config else 1
-    config['weight_dir'] = config['base_weight_dir'] + str(config['num_objs']) if 'base_weight_dir' in config else ''
+    config['weight_dir'] = config['base_weight_dir'] + str(config['num_objs']) if 'base_weight_dir' in config else args.weight_dir
     config['log_timing'] = args.timing
     config['hl_timeout'] = 0
     config['rollout_server'] = args.rollout_server or args.all_servers
@@ -51,6 +51,7 @@ def load_env(args, reload_module=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, default='')
+    parser.add_argument('-wd', '--weight_dir', type=str, default='')
     parser.add_argument('-nf', '--nofull', action='store_true', default=False)
     parser.add_argument('-n', '--nconds', type=int, default=0)
     parser.add_argument('-o', '--nobjs', type=int, default=0)

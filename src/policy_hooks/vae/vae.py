@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import tempfile
+import time
 import traceback
 
 import h5py
@@ -56,18 +57,27 @@ class VAE(object):
 
         self.weight_dir = hyperparams['weight_dir']
 
-        if hyperparams.get('load_data', True):
-            self.data_file = self.weight_dir+'/vae_buffer.hdf5'
-            self.data = h5py.File(self.data_file, 'a')
+        self.train_mode = hyperparams.get('train_mode', 'online')
+        assert self.train_mode in ['online', 'conditional', 'unconditional']
 
-            try:
-                self.obs_data = self.data['obs_data']
-                self.task_data = self.data['task_data']
-            except:
-                obs_data = np.zeros([0, self.T]+list(self.obs_dims))
-                task_data = np.zeros((0, self.T, self.task_dim))
-                self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
-                self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
+        if hyperparams.get('load_data', True):
+            f_mode = 'r'
+            while not os.path.isfile(self.weight_dir+'/vae_buffer.hdf5'):
+                time.sleep(1)
+        else:
+            f_mode = 'a'
+
+        self.data_file = self.weight_dir+'/vae_buffer.hdf5'
+        self.data = h5py.File(self.data_file, f_mode)
+
+        try:
+            self.obs_data = self.data['obs_data']
+            self.task_data = self.data['task_data']
+        except:
+            obs_data = np.zeros([0, self.T]+list(self.obs_dims))
+            task_data = np.zeros((0, self.T, self.task_dim))
+            self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
+            self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
 
         # self.data_file = self.weight_dir+'/vae_buffer.npz'
         # try:
@@ -222,14 +232,15 @@ class VAE(object):
         self.decode_mu, self.decode_logvar = self.decoder.get_net(self.decoder_in, self.training, config=DECODER_CONFIG)
         self.decode_posterior = tf.distributions.Normal(self.decode_mu, tf.sqrt(tf.exp(self.decode_logvar)))
 
-        self.latent_dynamics = LatentDynamics()
+        if 'unconditional' not in self.train_mode:
+            self.latent_dynamics = LatentDynamics()
 
-        self.conditional_encode_mu, self.conditional_encode_logvar = self.latent_dynamics.get_net(self.decoder_in, self.task_in, self.training, config=LATENT_DYNAMICS_CONFIG)
-        self.conditional_encode_posterior = tf.distributions.Normal(self.conditional_encode_mu, tf.sqrt(tf.exp(self.conditional_encode_logvar)))
+            self.conditional_encode_mu, self.conditional_encode_logvar = self.latent_dynamics.get_net(self.decoder_in, self.task_in, self.training, config=LATENT_DYNAMICS_CONFIG)
+            self.conditional_encode_posterior = tf.distributions.Normal(self.conditional_encode_mu, tf.sqrt(tf.exp(self.conditional_encode_logvar)))
 
-        self.conditional_decoder_in = self.conditional_encode_mu +  tf.sqrt(tf.exp(self.conditional_encode_logvar)) * tf.random_normal(tf.shape(self.conditional_encode_mu), 0, 1)
-        self.conditional_decode_mu, self.conditional_decode_logvar = self.decoder.get_net(self.conditional_decoder_in, self.training, config=DECODER_CONFIG, reuse=True)
-        self.conditional_decode_posterior = tf.distributions.Normal(self.conditional_decode_mu, tf.sqrt(tf.exp(self.conditional_decode_logvar)))
+            self.conditional_decoder_in = self.conditional_encode_mu +  tf.sqrt(tf.exp(self.conditional_encode_logvar)) * tf.random_normal(tf.shape(self.conditional_encode_mu), 0, 1)
+            self.conditional_decode_mu, self.conditional_decode_logvar = self.decoder.get_net(self.conditional_decoder_in, self.training, config=DECODER_CONFIG, reuse=True)
+            self.conditional_decode_posterior = tf.distributions.Normal(self.conditional_decode_mu, tf.sqrt(tf.exp(self.conditional_decode_logvar)))
 
         self.latent_prior = tf.distributions.Normal(tf.zeros_initializer()(tf.shape(self.encode_mu)), 1.)
 
@@ -240,14 +251,16 @@ class VAE(object):
         # self.decoder_loss = -tf.reduce_sum(tf.log(ecode_posterior.prob(self.x_in)+1e-6), axis=tuple(range(1, len(self.decode_mu.shape))))
         self.decoder_loss = tf.reduce_mean((self.x_in - self.decode_mu)**2, axis=tuple(range(1, len(self.decode_mu.shape))))
         self.kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.encode_posterior, self.latent_prior), axis=tuple(range(1, len(self.encode_mu.shape))))
-        elbo = self.decoder_loss + beta * self.kl_loss
+        self.elbo = self.decoder_loss + beta * self.kl_loss
+        self.loss = self.elbo
 
-        # self.conditional_decoder_loss = -tf.reduce_sum(tf.log(conditional_decode_posterior.prob(self.offset_in)+1e-6), axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
-        self.conditional_decoder_loss = tf.reduce_mean((self.offset_in - self.decode_mu)**2, axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
-        self.conditional_kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.conditional_encode_posterior, self.latent_prior), axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
-        conditional_elbo = self.conditional_decoder_loss + beta * self.conditional_kl_loss
+        if 'unconditional' not in self.train_mode:
+            # self.conditional_decoder_loss = -tf.reduce_sum(tf.log(conditional_decode_posterior.prob(self.offset_in)+1e-6), axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
+            self.conditional_decoder_loss = tf.reduce_mean((self.offset_in - self.decode_mu)**2, axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
+            self.conditional_kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.conditional_encode_posterior, self.latent_prior), axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
+            self.conditional_elbo = self.conditional_decoder_loss + beta * self.conditional_kl_loss
 
-        self.loss = elbo #+ conditional_elbo
+            self.loss += self.conditional_elbo
 
         # if self.dist_constraint:
         #     offset_loss = tf.reduce_sum((self.encode_mu-self.offset_encode_mu)**2 axis=tuple(range(1, len(self.encode_mu.shape))))

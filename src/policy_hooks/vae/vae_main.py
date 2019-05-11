@@ -294,7 +294,7 @@ class MultiProcessMain(object):
         main = cls(None)
         config['env'] = env
         config['rollout_len'] = 50
-        config['weight_dir'] = 'tf_saved/'+name.lower()+'_vae_data'
+        config['weight_dir'] = 'tf_saved/'+name.lower()+'_vae_data' if config['weight_dir'] == '' else config['weight_dir']
         temp_env = env()
         act_space = temp_env.action_space
         prim_dims =  {'prim{}'.format(i): act_space.nvec[i] for i in range(1, len(act_space.nvec))} if hasattr(act_space, 'nvec') else {}
@@ -320,6 +320,7 @@ class MultiProcessMain(object):
         config['vae']['task_dims'] = int(n * np.prod(prim_dims.values()))
         config['vae']['obs_dims'] = (temp_env.im_height, temp_env.im_wid, 3)
         config['vae']['weight_dir'] = config['weight_dir']
+        config['vae']['rollout_len' = config['rollout_len']]
         temp_env.close()
 
         main.rollout_type = VAERolloutServer
