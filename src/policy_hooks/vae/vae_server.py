@@ -15,7 +15,7 @@ from policy_hooks.vae.vae import VAE
 class VAEServer(object):
     def __init__(self, hyperparams):
 
-        self.task = hyperparams['scope']
+        self.task = 'vae' # hyperparams['scope']
         rospy.init_node(self.task+'_update_server')
 
         self.update_listener = rospy.Subscriber('vae_update', VAEUpdate, self.update, queue_size=2, buff_size=2**25)

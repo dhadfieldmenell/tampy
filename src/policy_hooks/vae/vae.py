@@ -56,16 +56,18 @@ class VAE(object):
 
         self.weight_dir = hyperparams['weight_dir']
 
-        self.data_file = self.weight_dir+'/vae_buffer.hdf5'
-        self.data = h5py.File(self.data_file)
-        try:
-            self.obs_data = self.data['obs_data']
-            self.task_data = self.data['task_data']
-        except:
-            obs_data = np.zeros([0, self.T]+list(self.obs_dims))
-            task_data = np.zeros((0, self.T, self.task_dim))
-            self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
-            self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
+        if hyperparams.get('load_data', True):
+            self.data_file = self.weight_dir+'/vae_buffer.hdf5'
+            self.data = h5py.File(self.data_file)
+
+            try:
+                self.obs_data = self.data['obs_data']
+                self.task_data = self.data['task_data']
+            except:
+                obs_data = np.zeros([0, self.T]+list(self.obs_dims))
+                task_data = np.zeros((0, self.T, self.task_dim))
+                self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
+                self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
 
         # self.data_file = self.weight_dir+'/vae_buffer.npz'
         # try:
@@ -100,7 +102,7 @@ class VAE(object):
             print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
 
         self.update_count = 0
-        self.update_size = self.config.get('update_size', 100)
+        self.update_size = self.config.get('update_size', 50)
 
 
     def serialize_weights(self):
@@ -157,13 +159,13 @@ class VAE(object):
         obs = obs[:self.T]
         task_list = task_list[:self.T]
 
-        obs = obs.reshape([1]+obs.shape)
-        task_list = task_list.reshape([1]+task_list.shape)
+        obs = obs.reshape((1,)+obs.shape)
+        task_list = task_list.reshape((1,)+task_list.shape)
 
         self.obs_data.resize((len(self.obs_data)+1,) + obs.shape[1:])
         self.obs_data[-1] = obs
 
-        self.task_data.resize((len(self.task_data)+1,) + task.shape[1:])
+        self.task_data.resize((len(self.task_data)+1,) + task_list.shape[1:])
         self.task_data[-1] = task_list
 
         if len(self.obs_data) > self.max_buffer:
@@ -172,9 +174,9 @@ class VAE(object):
 
         self.update_count += 1
         if self.update_count > self.update_size:
-            print 'Updating', net
+            print 'Updating vae'
             self.update()
-            self.store_scope_weights(scopes=[net])
+            self.store_scope_weights(scopes=['vae'])
             self.save_buffers()
             self.update_count = 0
             return True
@@ -182,16 +184,17 @@ class VAE(object):
         return False
 
 
-    # def save_buffers(self):
-    #     np.savez(self.data_file, task_data=self.task_data, obs_data=self.obs_data)
+    def save_buffers(self):
+        # np.savez(self.data_file, task_data=self.task_data, obs_data=self.obs_data)
+        pass
 
 
     def init_network(self):
         import tensorflow as tf
-        self.x_in = tf.placeholder(tf.float32, shape=[None]+self.obs_dims)
+        self.x_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
         self.task_in = tf.placeholder(tf.float32, shape=[None]+[self.task_dim])
-        self.offset_in = tf.placeholder(tf.float32, shape=[None]+self.obs_dims)
-        self.far_offset_in = tf.placeholder(tf.float32, shape=[None]+self.obs_dims)
+        self.offset_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
+        self.far_offset_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
         self.training = tf.placeholder(tf.bool)
 
         if len(self.obs_dims) == 1:
@@ -270,8 +273,8 @@ class VAE(object):
             next_obs_batch = self.obs_data[inds][0]
             next_task_batch = self.task_data[inds][0]
 
-            obs1 = next_obs_batch[:,:-1].reshape([-1]+self.obs_dims)
-            obs2 = next_obs_batch[:,1:].reshape([-1]+self.obs_dims)
+            obs1 = next_obs_batch[:,:-1].reshape([-1]+list(self.obs_dims))
+            obs2 = next_obs_batch[:,1:].reshape([-1]+list(self.obs_dims))
             task = next_obs_batch[:,:-1].reshape([-1, self.task_dim])
 
             self.sess.run(self.train_op, feed_dict={self.x_in: obs1, 
@@ -280,6 +283,8 @@ class VAE(object):
                                                     self.lr: self.cur_lr,
                                                     self.training: True})
             self.cur_lr *= 0.9998
+            if not i % 1000:
+                print('Training vae, iteration:', i)
 
 
     def get_latents(self, obs):

@@ -194,7 +194,7 @@ config = {
 
     'n_optimizers': 8,
     'n_rollout_servers': 1,
-    'base_weight_dir': 'namo_',
+    'base_weight_dir': 'tf_saved/namo_',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
     'max_sample_queue': 1e3,

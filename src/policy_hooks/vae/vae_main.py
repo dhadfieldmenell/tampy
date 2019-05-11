@@ -277,12 +277,12 @@ class MultiProcessMain(object):
         self.config['target_inds'] = self.target_inds
         self.config['target_dim'] = self.target_dim
         self.config['task_list'] = self.task_list
-        self.config['time_log'] = 'tf_saved/'+self.config['weight_dir']+'/timing_info.txt'
+        self.config['time_log'] = self.config['weight_dir']+'/timing_info.txt'
 
         self.config['vae'] = {}
         self.config['vae']['task_dims'] = int(len(self.task_list) + np.sum(self.prim_dims.values()))
         self.config['vae']['obs_dims'] = (utils.IM_W, utils.IM_H, 3)
-        self.config['vae']['weight_dir'] = 'tf_saved/'+self.weight_dir
+        self.config['vae']['weight_dir'] = self.weight_dir
 
         self.rollout_type = VAETampRolloutServer
 
@@ -294,7 +294,7 @@ class MultiProcessMain(object):
         main = cls(None)
         config['env'] = env
         config['rollout_len'] = 50
-        config['weight_dir'] = 'tf_saved/'+name+'_vae_data/'
+        config['weight_dir'] = 'tf_saved/'+name.lower()+'_vae_data'
         temp_env = env()
         act_space = temp_env.action_space
         prim_dims =  {'prim{}'.format(i): act_space.nvec[i] for i in range(1, len(act_space.nvec))} if hasattr(act_space, 'nvec') else {}
@@ -320,6 +320,7 @@ class MultiProcessMain(object):
         config['vae']['task_dims'] = int(n * np.prod(prim_dims.values()))
         config['vae']['obs_dims'] = (temp_env.im_height, temp_env.im_wid, 3)
         config['vae']['weight_dir'] = config['weight_dir']
+        temp_env.close()
 
         main.rollout_type = VAERolloutServer
         main.config = config
@@ -398,10 +399,10 @@ class MultiProcessMain(object):
 
 
     def check_dirs(self):
-        if not os.path.exists('tf_saved/'+self.config['weight_dir']):
-            os.makedirs('tf_saved/'+self.config['weight_dir'])
-        if not os.path.exists('tf_saved/'+self.config['weight_dir']+'_trained'):
-            os.makedirs('tf_saved/'+self.config['weight_dir']+'_trained')
+        if not os.path.exists(self.config['weight_dir']):
+            os.makedirs(self.config['weight_dir'])
+        if not os.path.exists(self.config['weight_dir']+'_trained'):
+            os.makedirs(self.config['weight_dir']+'_trained')
 
 
     def start_ros(self):

@@ -104,6 +104,7 @@ class AgentEnvWrapper(object):
             self.agent.reset(0)
         self.sub_env.reset()
         self.cur_state = self.sub_env.physics.data.qpos.copy() if self.agent is None else self.agent.x0[0]
+        self.render()
 
 
     def reset_init_state(self):

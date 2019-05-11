@@ -54,6 +54,7 @@ class VAERolloutServer(object):
 
         self.updaters = {}
         self.updaters['vae'] = rospy.Publisher('vae_update', VAEUpdate, queue_size=5)
+        hyperparams['vae']['load_data'] = False
         self.vae = VAE(hyperparams['vae'])
         self.weights_to_store = {}
 
@@ -117,7 +118,7 @@ class VAERolloutServer(object):
         obs = self.env.get_obs()
         for n in range(self.rollout_len):
             acts = set()
-            for _ in range(30):
+            for _ in range(100):
                 next_act = self.env.action_space.sample()
                 if type(next_act) is int:
                     acts.add(next_act)
