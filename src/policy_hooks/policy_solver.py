@@ -84,7 +84,7 @@ def get_base_solver(parent_class):
 
             start_time = time.time()
             a = plan.actions[anum]
-            print "backtracking Solve on {}".format(a.name)
+            # print "backtracking Solve on {}".format(a.name)
             active_ts = a.active_timesteps
             inits = {}
             rs_param = self.get_resample_param(a)
@@ -281,7 +281,7 @@ def get_base_solver(parent_class):
                     # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                     #     break
 
-                    print "resample attempt: {0} | priority: {1}".format(attempt, priority)
+                    # print "resample attempt: {0} | priority: {1}".format(attempt, priority)
                     # print plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)
 
                     try:

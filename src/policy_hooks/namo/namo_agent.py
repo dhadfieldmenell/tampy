@@ -363,6 +363,8 @@ class NAMOSortingAgent(TAMPAgent):
             traceback.print_exception(*sys.exc_info())
             success = False
 
+        print 'Planning succeeded' if success else 'Planning failed'
+
         # if not success:
         #     print state
         #     # for action in plan.actions:

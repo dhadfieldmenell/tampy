@@ -50,7 +50,7 @@ class VAE(object):
         self.tf_iter = 0
         self.batch_size = self.config.get('batch_size', 128)
         self.train_iters = self.config.get('train_iters', 10000)
-        self.T = self.config.get('rollout_len', 20)
+        self.T = self.config['rollout_len']
 
         self.obs_dims = [80, 107, 3] # list(hyperparams['obs_dims'])
         self.task_dim = hyperparams['task_dims']
@@ -164,12 +164,12 @@ class VAE(object):
     def store(self, obs, task_list):
         print 'Storing data for', self.scope
         assert len(obs) == len(task_list)
-        self.T = len(obs)
+        # self.T = len(obs)
 
         # self.obs_data = np.r_[self.obs_data, obs]
         # self.task_data = np.r_[self.task_data, task_list]
-        obs = obs[:self.T]
-        task_list = task_list[:self.T]
+        # obs = obs[:self.T]
+        # task_list = task_list[:self.T]
 
         obs = obs.reshape((1,)+obs.shape)
         task_list = task_list.reshape((1,)+task_list.shape)

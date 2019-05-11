@@ -33,6 +33,7 @@ def load_config(args, reload_module=None):
     config['server_id'] = args.server_id if args.server_id != '' else str(random.randint(0,2**32))
     config['n_rollout_servers'] = args.n_rollout_servers
     config['no_child_process'] = args.no_child_process
+    config['rollout_len'] = args.rollout_len
     return config, config_module
 
 
@@ -69,7 +70,8 @@ def main():
     parser.add_argument('-env', '--environment', type=str, default='')
     parser.add_argument('-tamp', '--use_tamp', type=str, default='')
     parser.add_argument('-nrs', '--n_rollout_servers', type=int, default=1)
-    parser.add_argument('-ncp', '--no_child_process', action='store_true', default=False),
+    parser.add_argument('-ncp', '--no_child_process', action='store_true', default=False)
+    parser.add_argument('-rl', '--rollout_len', type=int, default=0)
 
     args = parser.parse_args()
     config, config_module = load_config(args)

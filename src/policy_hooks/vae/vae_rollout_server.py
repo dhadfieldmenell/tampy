@@ -43,7 +43,7 @@ class VAERolloutServer(object):
         rospy.init_node('vae_rollout_server_'+str(self.id))
         self.mcts = hyperparams['mcts']
         self.num_samples = 1
-        self.rollout_len = hyperparams.get('rollout_len', 20)
+        self.rollout_len = hyperparams['rollout_len']
         sub_env = hyperparams['env']()
         self.env = AgentEnvWrapper(env=sub_env, agent=None, use_solver=False)
         self.mcts.num_samples = self.num_samples

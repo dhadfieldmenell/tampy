@@ -65,7 +65,7 @@ class VAETampRolloutServer(VAERolloutServer):
         rospy.init_node('vae_rollout_server_'+str(self.id))
         self.mcts = hyperparams['mcts'][0]
         self.num_samples = 1
-        self.rollout_len = hyperparams.get('rollout_len', 20)
+        self.rollout_len = hyperparams['rollout_len']
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.env = AgentEnvWrapper(agent=self.agent, use_solver=True)
         self.mcts.num_samples = self.num_samples

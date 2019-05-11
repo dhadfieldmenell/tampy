@@ -279,10 +279,12 @@ class MultiProcessMain(object):
         self.config['task_list'] = self.task_list
         self.config['time_log'] = self.config['weight_dir']+'/timing_info.txt'
 
+        self.config['rollout_len'] = np.maximum(self.config['rollout_len'], 25)
         self.config['vae'] = {}
         self.config['vae']['task_dims'] = int(len(self.task_list) + np.sum(self.prim_dims.values()))
         self.config['vae']['obs_dims'] = (utils.IM_W, utils.IM_H, 3)
         self.config['vae']['weight_dir'] = self.weight_dir
+        self.config['vae']['rollout_len'] = self.config['rollout_len']
 
         self.rollout_type = VAETampRolloutServer
 
@@ -293,7 +295,8 @@ class MultiProcessMain(object):
     def no_config_load(cls, env, name, config):
         main = cls(None)
         config['env'] = env
-        config['rollout_len'] = 50
+        if config['rollout_len'] <= 0:
+            config['rollout_len'] = 50
         config['weight_dir'] = 'tf_saved/'+name.lower()+'_vae_data' if config['weight_dir'] == '' else config['weight_dir']
         temp_env = env()
         act_space = temp_env.action_space
