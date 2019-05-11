@@ -76,7 +76,7 @@ class TAMPAgent(Agent):
         self.dU = self._hyperparams['dU']
         self.symbolic_bound = self._hyperparams['symbolic_bound']
         self.solver = self._hyperparams['solver']
-        self.num_obj = self._hyperparams['num_objs']
+        self.num_objs = self._hyperparams['num_objs']
         self.init_vecs = self._hyperparams['x0']
         self.x0 = [x[:self.symbolic_bound] for x in self.init_vecs]
         self.targets = self._hyperparams['targets']
