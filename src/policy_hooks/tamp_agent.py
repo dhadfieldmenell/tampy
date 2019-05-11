@@ -88,7 +88,6 @@ class TAMPAgent(Agent):
             for target_name in self.targets[condition]:
                 target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
-            print target_vec
         # self.targ_list = self.targets[0].keys()
         # self.obj_list = self._hyperparams['obj_list']
 
