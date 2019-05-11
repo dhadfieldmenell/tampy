@@ -400,9 +400,9 @@ class TAMPAgent(Agent):
     #     raise NotImplementedError
 
 
-    def randomize_init_state(self, condiiton=0):
+    def randomize_init_state(self, condition=0):
         self.targets[condition] = self.prob.get_end_targets(self.num_objs)
-        self.init_vecs[condition] = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, conditions)[0]
+        self.init_vecs[condition] = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
         self.x0[condition] = self.init_vecs[condition][:self.symbolic_bound]
         target_vec = np.zeros((self.target_dim,))
         for target_name in self.targets[condition]:

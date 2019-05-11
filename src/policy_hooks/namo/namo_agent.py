@@ -362,7 +362,6 @@ class NAMOSortingAgent(TAMPAgent):
             print e
             traceback.print_exception(*sys.exc_info())
             success = False
-            raise e
 
         # if not success:
         #     print state

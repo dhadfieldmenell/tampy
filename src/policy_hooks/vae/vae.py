@@ -273,9 +273,9 @@ class VAE(object):
             next_obs_batch = np.array([self.obs_data[i] for i in inds])[0]
             next_task_batch = np.array([self.task_data[i] for i in inds])[0]
 
-            obs1 = next_obs_batch[:,:-1].reshape([-1]+list(self.obs_dims))
-            obs2 = next_obs_batch[:,1:].reshape([-1]+list(self.obs_dims))
-            task = next_obs_batch[:,:-1].reshape([-1, self.task_dim])
+            obs1 = next_obs_batch[:-1].reshape([-1]+list(self.obs_dims))
+            obs2 = next_obs_batch[1:].reshape([-1]+list(self.obs_dims))
+            task = next_obs_batch[:-1].reshape([-1, self.task_dim])
 
             self.sess.run(self.train_op, feed_dict={self.x_in: obs1, 
                                                     self.offset_in: obs2, 
