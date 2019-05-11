@@ -102,7 +102,7 @@ class VAE(object):
             print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
 
         self.update_count = 0
-        self.update_size = self.config.get('update_size', 50)
+        self.update_size = self.config.get('update_size', 10)
 
 
     def serialize_weights(self):
@@ -270,8 +270,8 @@ class VAE(object):
     def update(self):
         for i in range(self.train_iters):
             inds = np.random.choice(range(len(self.obs_data)), 1)#self.batch_size)
-            next_obs_batch = self.obs_data[inds][0]
-            next_task_batch = self.task_data[inds][0]
+            next_obs_batch = np.array([self.obs_data[inds[i]] for i in inds])[0]
+            next_task_batch = np.array([self.task_data[inds[i]] for i in inds])[0]
 
             obs1 = next_obs_batch[:,:-1].reshape([-1]+list(self.obs_dims))
             obs2 = next_obs_batch[:,1:].reshape([-1]+list(self.obs_dims))
