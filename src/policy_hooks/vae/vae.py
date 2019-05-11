@@ -217,7 +217,7 @@ class VAE(object):
         # self.offset_encode_mu, self.offset_encode_logvar = self.encoder.get_net(self.offset_in, self.training, fc_in=self.offset_fc_in, reuse=True, config=ENCODER_CONFIG)
         # self.far_offset_encode_mu, self.far_offset_encode_logvar = self.encoder.get_net(self.far_offset_in, self.training, fc_in=self.far_offset_fc_in, reuse=True, config=ENCODER_CONFIG)
 
-        self.decoder_in = self.encode_mu +  tf.sqrt(tf.exp(self.encode_logvar)) * tf.random.normal(tf.shape(self.encode_mu), 0, 1)
+        self.decoder_in = self.encode_mu +  tf.sqrt(tf.exp(self.encode_logvar)) * tf.random_normal(tf.shape(self.encode_mu), 0, 1)
         self.decoder = Decoder()
         self.decode_mu, self.decode_logvar = self.decoder.get_net(self.decoder_in, self.training, config=DECODER_CONFIG)
         self.decode_posterior = tf.distributions.Normal(self.decode_mu, tf.sqrt(tf.exp(self.decode_logvar)))
@@ -227,7 +227,7 @@ class VAE(object):
         self.conditional_encode_mu, self.conditional_encode_logvar = self.latent_dynamics.get_net(self.decoder_in, self.task_in, self.training, config=LATENT_DYNAMICS_CONFIG)
         self.conditional_encode_posterior = tf.distributions.Normal(self.conditional_encode_mu, tf.sqrt(tf.exp(self.conditional_encode_logvar)))
 
-        self.conditional_decoder_in = self.conditional_encode_mu +  tf.sqrt(tf.exp(self.conditional_encode_logvar)) * tf.random.normal(tf.shape(self.conditional_encode_mu), 0, 1)
+        self.conditional_decoder_in = self.conditional_encode_mu +  tf.sqrt(tf.exp(self.conditional_encode_logvar)) * tf.random_normal(tf.shape(self.conditional_encode_mu), 0, 1)
         self.conditional_decode_mu, self.conditional_decode_logvar = self.decoder.get_net(self.conditional_decoder_in, self.training, config=DECODER_CONFIG, reuse=True)
         self.conditional_decode_posterior = tf.distributions.Normal(self.conditional_decode_mu, tf.sqrt(tf.exp(self.conditional_decode_logvar)))
 
