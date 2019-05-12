@@ -209,7 +209,7 @@ class VAE(object):
 
     def save_buffers(self):
         # np.savez(self.data_file, task_data=self.task_data, obs_data=self.obs_data)
-        self.data_file.flush()
+        self.data.flush()
 
 
     def init_network(self):
