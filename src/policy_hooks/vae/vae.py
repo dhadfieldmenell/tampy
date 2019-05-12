@@ -135,7 +135,7 @@ class VAE(object):
         for var in variables:
             var.load(var_to_val[var.name], session=self.sess)
 
-        if save: self.store_scope_weights(scopes='vae')
+        if save: self.store_scope_weights()
         # print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
 
 
@@ -158,7 +158,7 @@ class VAE(object):
 
 
     def store_weights(self, weight_dir=None):
-        self.store_scope_weights('vae', weight_dir)
+        self.store_scope_weights(weight_dir)
 
 
     def store(self, obs, task_list):
@@ -192,7 +192,7 @@ class VAE(object):
             self.update_count = 0
 
         if self.n_updates > 10:
-            self.store_scope_weights(scopes=['vae'])
+            self.store_scope_weights()
             self.save_buffers()
             self.n_updates = 0
             return True
