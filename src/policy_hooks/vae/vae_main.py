@@ -303,7 +303,7 @@ class MultiProcessMain(object):
         n = act_space.nvec[0] if hasattr(act_space, 'nvec') else act_space.n
         config['weight_dir'] = 'tf_saved/'+name.lower()+'_t{0}_vae_data'.format(config['rollout_len']) if config['weight_dir'] == '' else config['weight_dir']
         if hasattr(temp_env, 'n_blocks'):
-            config['weight_dir'] += '_{0}_blocks'.format(env.n_blocks)
+            config['weight_dir'] += '_{0}_blocks'.format(temp_env.n_blocks)
             
         config['mcts'] = MCTS(
                               ['task{0}'.format(i) for i in range(n)],
