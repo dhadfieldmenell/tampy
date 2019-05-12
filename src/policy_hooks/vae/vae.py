@@ -71,8 +71,8 @@ class VAE(object):
             except:
                 obs_data = np.zeros([0, self.T]+list(self.obs_dims))
                 task_data = np.zeros((0, self.T, self.task_dim))
-                self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
-                self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
+                self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None), dtype='uint8')
+                self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None), dtype='uint8')
 
         elif hyperparams.get('data_read_only', False):
             f_mode = 'r'
@@ -182,10 +182,10 @@ class VAE(object):
         task_list = task_list.reshape((1,)+task_list.shape)
 
         self.obs_data.resize((len(self.obs_data)+1,) + obs.shape[1:])
-        self.obs_data[-1] = obs
+        self.obs_data[-1] = obs.astype(np.uint8)
 
         self.task_data.resize((len(self.task_data)+1,) + task_list.shape[1:])
-        self.task_data[-1] = task_list
+        self.task_data[-1] = task_list.astype(np.uint8)
 
         if len(self.obs_data) > self.max_buffer:
             self.obs_data = self.obs_data[-self.max_buffer:]
