@@ -49,7 +49,7 @@ class VAE(object):
 
         self.tf_iter = 0
         self.batch_size = self.config.get('batch_size', 128)
-        self.train_iters = self.config.get('train_iters', 10000)
+        self.train_iters = self.config.get('train_iters', 1000)
         self.T = self.config['rollout_len']
 
         self.obs_dims = [80, 107, 3] # list(hyperparams['obs_dims'])
@@ -74,8 +74,12 @@ class VAE(object):
                 self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
                 self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
 
-        else:
+        elif hyperparams.get('data_read_only', False):
             f_mode = 'r'
+            self.data_file = self.weight_dir+'/vae_buffer.hdf5'
+            self.data = h5py.File(self.data_file, f_mode, swmr=True)
+            self.obs_data = self.data['obs_data']
+            self.task_data = self.data['task_data']
             # while not os.path.isfile(self.weight_dir+'/vae_buffer.hdf5'):
             #     time.sleep(1)
 
@@ -107,7 +111,7 @@ class VAE(object):
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
         self.saver = tf.train.Saver(variables)
         try:
-            self.saver.restore(self.sess, self.weight_dir+'/vae.ckpt')
+            self.saver.restore(self.sess, self.weight_dir+'/vae_{0}.ckpt'.format(self.train_mode))
         except Exception as e:
             self.sess.run(init_op)
             print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
@@ -142,16 +146,19 @@ class VAE(object):
     def update_weights(self, weight_dir=None):
         if weight_dir is None:
             weight_dir = self.weight_dir
-        self.saver.restore(self.sess, weight_dir+'/vae.ckpt')
+        self.saver.restore(self.sess, weight_dir+'/vae_{0}.ckpt'.format(self.train_mode))
 
 
-    def store_scope_weights(self, weight_dir=None):
+    def store_scope_weights(self, weight_dir=None, addendum=None):
         if weight_dir is None:
             weight_dir = self.weight_dir
         try:
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='vae')
             saver = tf.train.Saver(variables)
-            saver.save(self.sess, weight_dir+'/vae.ckpt')
+            if addendum is None:
+                saver.save(self.sess, weight_dir+'/vae_{0}.ckpt'.format(self.train_mode))
+            else:
+                saver.save(self.sess, weight_dir+'/vae_{0}_{1}.ckpt'.format(self.train_mode, addendum))
         except:
             print 'Saving variables encountered an issue but it will not crash:'
             traceback.print_exception(*sys.exc_info())
@@ -202,7 +209,7 @@ class VAE(object):
 
     def save_buffers(self):
         # np.savez(self.data_file, task_data=self.task_data, obs_data=self.obs_data)
-        pass
+        self.data_file.flush()
 
 
     def init_network(self):
@@ -287,7 +294,7 @@ class VAE(object):
 
 
     def update(self):
-        for step in range(1000):
+        for step in range(self.train_iters):
             inds = np.random.choice(range(len(self.obs_data)), 1)#self.batch_size)
             next_obs_batch = np.array([self.obs_data[i] for i in inds])[0]
             next_task_batch = np.array([self.task_data[i] for i in inds])[0]
