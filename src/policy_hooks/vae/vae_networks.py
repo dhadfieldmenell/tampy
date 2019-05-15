@@ -117,9 +117,10 @@ class LatentDynamics(object):
         import tensorflow as tf
         if config is not None:
             fc_dims = config.get('fc_dims', fc_dims)
-            
+        
+        self.weights = []
         with tf.variable_scope('latent_dynamics', reuse=reuse):
-            out = x_in
+            out = tf.concat([x_in, task_in], axis=-1)
             if len(out.shape) > 2:
                 # for i, n, fs in zip(range(len(channels)), n_channels, filter_sizes):
                 #     out = conv2d(out, n, fs, padding='SAME', name='conv_{0}'.fomrat(i), reuse=reuse)
@@ -128,16 +129,40 @@ class LatentDynamics(object):
                 # out_mu, out_logvar = tf.split(out, 2, -1)
                 out = tf.reshape(out, [-1, np.prod([out.shape[i].value  for i in range(1, 4)])])
 
+            prev_d = out.shape[-1].value
             for i, d in enumerate(fc_dims):
-                out = dense(out, d, 'dynamics_dense_{0}'.format(i), reuse)
-                out = tf.nn.elu(out)
+                # out = dense(out, d, 'dynamics_dense_{0}'.format(i), reuse)
+                # out = tf.nn.relu(out)
+                w = tf.get_variable(name='dense_w_{0}'.format(i), shape=[prev_d, d])
+                b = tf.get_variable(name='dense_b_{0}'.format(i), initializer=tf.zeros([2*x_in.shape[-1]]))
+                prev_d = d
+                out = tf.nn.bias_add(tf.matmul(out, w), b)
+                out = tf.nn.relu(out)
+                self.weights.append((w, b))
 
-            out = dense(out, 2*x_in.shape[-1], 'dynamics_out', reuse)
+            # out = dense(out, 2*x_in.shape[-1], 'dynamics_out', reuse)
+            w = tf.get_variable(name='dense_w_out'.format(i), shape=[prev_d, 2*x_in.shape[-1]])
+            b = tf.get_variable(name='dense_b_out'.format(i), initializer=tf.zeros([2*x_in.shape[-1]]))
+            out = tf.nn.bias_add(tf.matmul(out, w), b)
+            self.weights.append(w, b)
+
             out_mu, out_logvar = tf.split(out, 2, axis=-1)
+
             if len(x_in.shape) > 2:
                 out_mu = tf.reshape(out_mu, tf.shape(x_in))
                 out_logvar = tf.reshape(out_logvar, tf.shape(x_in))
         return out_mu, out_logvar
+
+
+    def apply(self, z_in):
+        out = z_in
+        for w, b in self.weights[-1]:
+            out = tf.matmul(out, w)
+            out = tf.nn.bias_add(outm, b)
+        w, b = self.weights[-1]
+        out = tf.matmul(out, w)
+        out = tf.nn.bias_add(outm, b)
+        return out
 
 
 class RecurrentLatentDynamics(object):
@@ -145,17 +170,20 @@ class RecurrentLatentDynamics(object):
         import tensorflow as tf
 
         with tf.variable_scope('latent_dynamics', reuse=reuse):
+            out = tf.concat([x_in, task_in], axis=-1)
             if len(x_in.shape) > 3:
                 out = tf.reshape(out, [-1, T, np.prod([out.shape[i].value  for i in range(1, 4)])])
             out = tf.concatenate([x_in, task_in], axis=-1)
-            lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(layer_norm=False, dropout_keep_prob=0., reuse=reuse)
-            initial_state = lstm_cell.zero_state(batch_size=x_in[0].shape[0].value, dtype=tf.float32) 
-            out, last_state = tf.nn.dynamic_rnn(cell, out, initial_state=initial_state,
+            self.lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(layer_norm=False, dropout_keep_prob=0., reuse=reuse, name='lstm_cell')
+            self.initial_state = lstm_cell.zero_state(batch_size=x_in[0].shape[0].value, dtype=tf.float32) 
+            out, self.last_state = tf.nn.dynamic_rnn(self.lstm_cell, out, initial_state=self.initial_state,
                                            time_major=False, swap_memory=True, dtype=tf.float32, 
                                            scope="RNN", reuse=reuse)
-            out = dense(out, 2*x_in.shape[-1], 'dynamics_out', reuse)
+            self.weights = tf.get_variable(name='dense_w', shape=[out.shape[-1].value, 2*x_in.shape[-1]])
+            self.bias = tf.get_variable(name='dense_b', initializer=tf.zeros([2*x_in.shape[-1]]))
+            out = tf.nn.bias_add(tf.matmul(out, self.weights), self.bias)
             out_mu, out_logvar = tf.split(out, 2, axis=-1)
             if len(x_in.shape) > 2:
                 out_mu = tf.reshape(out_mu, tf.shape(x_in))
                 out_logvar = tf.reshape(out_logvar, tf.shape(x_in))
-        return out_mu, out_logvar initial_state, final_state
+        return out_mu, out_logvar, self.initial_state, self.last_state

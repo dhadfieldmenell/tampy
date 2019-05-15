@@ -61,11 +61,17 @@ class VAE(object):
 
         self.train_mode = hyperparams.get('train_mode', 'online')
         assert self.train_mode in ['online', 'conditional', 'unconditional']
+        self.use_recurrent_dynamics = hyperparams.get('use_recurrent_dynamics', False)
+        self.use_overshooting = hyperparams.get('use_overshooting', False)
         self.load_step = hyperparams.get('load_step', -1)
+
         if self.load_step < 0:
-            self.ckpt_name = self.weight_dir+'/vae_{0}.ckpt'.format(self.train_mode)
+            is_rnn = 'rnn' if self.use_recurrent_dynamics else 'fc'
+            overshoot = 'overshoot' if self.use_overshooting else 'onestep'
+            self.ckpt_name = self.weight_dir+'/vae_{0}_{1}_{2}.ckpt'.format(self.train_mode, is_rnn, overshoot)
         else:
-            self.ckpt_name = self.weight_dir+'/vae_{0}_{1}.ckpt'.format(self.train_mode, self.load_step)
+            self.ckpt_name = self.weight_dir+'/vae_{0}_{1}_{2}.ckpt'.format(self.train_mode, is_rnn, overshoot, load_step)
+
 
         if hyperparams.get('load_data', True):
             f_mode = 'a'
@@ -103,7 +109,6 @@ class VAE(object):
         # self.task_data = np.zeros((0, self.dT, self.dU))
         self.max_buffer = hyperparams.get('max_buffer', 1e6)
         self.dist_constraint = hyperparams.get('distance_constraint', False)
-        self.use_recurrent_dynamics = hyperparams.get('use_recurrent_dynamics', False)
 
         self.cur_lr = 1e-3
         with tf.variable_scope('vae', reuse=False):
@@ -166,9 +171,11 @@ class VAE(object):
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='vae')
             saver = tf.train.Saver(variables)
             if addendum is None:
-                saver.save(self.sess, weight_dir+'/vae_{0}.ckpt'.format(self.train_mode))
+                is_rnn = 'rnn' if self.use_recurrent_dynamics else 'fc'
+                overshoot = 'overshoot' if self.use_overshooting else 'onestep'
+                saver.save(self.sess, weight_dir+'/vae_{0}_{1}_{2}.ckpt'.format(self.train_mode, is_rnn, overshoot))
             else:
-                saver.save(self.sess, weight_dir+'/vae_{0}_{1}.ckpt'.format(self.train_mode, addendum))
+                saver.save(self.sess, weight_dir+'/vae_{0}_{1}_{2}_{3}.ckpt'.format(self.train_mode, is_rnn, overshoot, addendum))
             print('Saved vae weights for', self.train_mode, 'in', self.weight_dir)
         except:
             print('Saving variables encountered an issue but it will not crash:')
@@ -264,8 +271,8 @@ class VAE(object):
             if self.use_recurrent_dynamics:
                 self.latent_dynamics = RecurrentLatentDynamics()
                 in_shape = tf.shape(self.decoder_in)
-                z_in = self.decoder_in.reshape((self.batch_size, self.T, -1))
-                task_in = self.task_in.reshape((self.batch_size, self.T, -1))
+                z_in = self.decoder_in.reshape((self.batch_size, self.T, LATENT_DIM))
+                task_in = self.task_in.reshape((self.batch_size, self.T, self.task_dim))
 
                 mu, logvar, self.rnn_initial_state, self.rnn_final_state = self.latent_dynamics.get_net(z_in, task_in, T, self.training, config=LATENT_DYNAMICS_CONFIG)
                 self.conditional_encode_mu = tf.reshape(mu, in_shape)
@@ -284,7 +291,7 @@ class VAE(object):
                 self.conditional_encode_mu, self.conditional_encode_logvar = self.latent_dynamics.get_net(self.decoder_in, self.task_in, self.training, config=LATENT_DYNAMICS_CONFIG)
                 self.conditional_encode_posterior = tf.distributions.Normal(self.conditional_encode_mu, tf.sqrt(tf.exp(self.conditional_encode_logvar)))
 
-                self.latent_trans_mu, self.latent_trans_logvar = self.latent_dynamics.get_net(tf.reshape(self.latent_in, (1, LATENT_DIM)), tf.reshape(self.task_in, (1, self.task_dim)), self.training, config=LATENT_DYNAMICS_CONFIG, reuse=True)
+                self.latent_trans_mu, self.latent_trans_logvar = self.latent_dynamics.get_net(tf.reshape(self.latent_in, (1, LATENT_DIM)), tf.reshape(self.latent_task_in, (1, self.task_dim)), self.training, config=LATENT_DYNAMICS_CONFIG, reuse=True)
                 self.latent_trans_posterior = tf.distributions.Normal(self.latent_trans_mu, tf.sqrt(tf.exp(self.latent_trans_logvar)))
 
             self.conditional_decoder_in = self.conditional_encode_mu +  tf.sqrt(tf.exp(self.conditional_encode_logvar)) * tf.random_normal(tf.shape(self.conditional_encode_mu), 0, 1)
@@ -298,25 +305,82 @@ class VAE(object):
         self.fitted_prior = tf.distributions.Normal(tf.zeros_initializer()(LATENT_DIM), 1.)
 
 
+    def overshoot_latents(self):
+        if self.use_recurrent_dynamics:
+            latent_in = tf.reshape(self.decoder_in, [self.batch_size, self.T, LATENT_DIM])
+            task_in = tf.reshape(self.task_in, [self.batch_size, self.T, self.task_dim])
+            z_in = tf.concat([latent_in, task_in], axis=-1)
+            latent_mu = tf.reshape(self.conditional_encode_mu, [self.batch_size, self.T, LATENT_DIM])
+            latent_logvar= tf.reshape(self.conditional_encode_logvar, [self.batch_size, self.T, LATENT_DIM])
+            cell = self.latent_dynamics.lstm_cell
+            w = self.latent_dynamics.weights
+            b = self.latent_dynamics.bias
+            init_state = self.latent_dynamics.initial_state
+            last_state = self.latent_dynamics.last_state
+            zero_state = cell.zero_state(batch_size=self.batch_size, dtype=tf.float32)
+
+            outs = {i: [] for i in range(self.T)}
+            cur_state = zero_state
+            for i in range(self.T):
+                cur_out = z_in[:, i, :]
+                for j in range(i+1, self.T):
+                    cur_out, cur_state = cell(cur_out, cur_state)
+                    if j == i+1:
+                        next_state = cur_state
+                    cur_out = tf.nn.bias_add(tf.matmul(cur_out, w), b)
+                    outs[j].append(cur_out)
+                cur_state = next_state
+        else:
+            z_in = tf.reshape(self.decoder_in, [self.batch_size, self.T, LATENT_DIM])
+            task_in = tf.reshape(self.task_in, [self.batch_size, self.T, self.task_dim])
+            z_in = tf.concat([latent_in, task_in], axis=-1)
+            latent_mu = tf.reshape(self.conditional_encode_mu, [self.batch_size, self.T, LATENT_DIM])
+            latent_logvar= tf.reshape(self.conditional_encode_logvar, [self.batch_size, self.T, LATENT_DIM])
+            outs = {i: [] for i in range(self.T)}
+            for i in range(self.T):
+                cur_out = z_in[:, i, :]
+                for j in range(i+1, self.T):
+                    cur_out = self.latent_dynamics.apply(cur_out)
+                    outs[j].append(cur_out)
+
+        return outs
+
+
     def init_solver(self):
         import tensorflow as tf
-        beta = self.config.get('beta', 1)
+        beta = self.config.get('beta', 5)
+        beta_d = self.config.get('beta', 0.5)
         # self.decoder_loss = -tf.reduce_sum(tf.log(ecode_posterior.prob(self.x_in)+1e-6), axis=tuple(range(1, len(self.decode_mu.shape))))
-        self.decoder_loss = tf.reduce_mean((self.x_in / 255. - self.decode_mu)**2, axis=tuple(range(1, len(self.decode_mu.shape))))
-        self.kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.encode_posterior, self.latent_prior), axis=tuple(range(1, len(self.encode_mu.shape))))
+        self.decoder_loss = tf.reduce_sum((self.x_in / 255. - self.decode_mu)**2)#, axis=tuple(range(1, len(self.decode_mu.shape))))
+        self.kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.encode_posterior, self.latent_prior))#, axis=tuple(range(1, len(self.encode_mu.shape))))
         self.elbo = self.decoder_loss + beta * self.kl_loss
         self.loss = self.elbo
 
         if 'unconditional' not in self.train_mode:
             # self.conditional_decoder_loss = -tf.reduce_sum(tf.log(conditional_decode_posterior.prob(self.offset_in)+1e-6), axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
-            self.conditional_decoder_loss = tf.reduce_mean((self.offset_in / 255. - self.decode_mu)**2, axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
-            # self.conditional_kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.conditional_encode_posterior, self.latent_prior), axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
+            self.conditional_decoder_loss = tf.reduce_sum((self.offset_in / 255. - self.decode_mu)**2)#, axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
+            self.conditional_kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.conditional_encode_posterior, self.latent_prior))#, axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
             # self.conditional_elbo = self.conditional_decoder_loss + beta * self.conditional_kl_loss
             self.loss += self.conditional_decoder_loss
+            self.loss += self.conditional_kl_loss
 
             self.conditional_prediction_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.conditional_encode_posterior, self.offset_encode_posterior), axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
             self.loss += self.conditional_prediction_loss
 
+            if self.use_overshooting:
+                outs = self.overshoot_latents()
+                for t in range(1, self.T):
+                    true_mu, true_logvar = tf.split(self.offset_encode_mu[t*self.batch_size:(t+1)*self.batch_size], 2, -1)
+                    true_mu = tf.stop_gradient(true_mu)
+                    true_logvar = tf.stop_gradient(true_logvar)
+                    prior = tf.distributions.Normal(true_mu, tf.sqrt(tf.exp(true_logvar)))
+                    for out in outs[t]:
+                        mu, logvar = tf.split(out, 2, axis=-1)
+                        posterior = tf.distributions.Normal(mu, tf.sqrt(tf.exp(logvar)))
+                        self.loss += 1./(self.T) * beta_d * tf.reduce_sum(tf.distributions.kl_divergence(posterior, prior))#, axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
+                        # self.loss += 1./(self.T) * beta_d * tf.reduce_sum(tf.distributions.kl_divergence(posterior, self.latent_prior))#, axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
+
+        self.loss /= self.batch_size * self.T
         # if self.dist_constraint:
         #     offset_loss = tf.reduce_sum((self.encode_mu-self.offset_encode_mu)**2 axis=tuple(range(1, len(self.encode_mu.shape))))
         #     self.loss += offset_loss

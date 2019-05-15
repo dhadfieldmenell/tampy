@@ -71,7 +71,7 @@ class NAMOSortingAgent(TAMPAgent):
             'include_items': [
                 {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.6, 1.), 'rgba': (1, 1, 1, 1)},
             ],
-            'view': True,
+            'view': False,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
         }
 
