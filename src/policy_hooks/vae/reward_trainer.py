@@ -10,6 +10,8 @@ import h5py
 import numpy as np
 import tensorflow as tf
 
+from policy_hooks.vae.vae import VAE
+
 
 ENCODER_CONFIG = {
     'n_channels': [16, 32, 32],
@@ -34,26 +36,28 @@ LATENT_DIM = 16
 
 
 class LatentOffsetPredictor(object):
-    def __init__(self, x_in, y, reuse):
+    def __init__(self, x1_in, x2_in, y, reuse):
         with tf.variable_scope('latent_offsets'):
-            out = x_in
+            out = tf.concat([x1_in, x2_in], axis=1)
             out = tf.layers.dense(out, 64, activation=tf.nn.relu, name='dense1', reuse=reuse)
             out = tf.layers.dense(out, 1, activation=None, name='dense_out', reuse=reuse)
-        self.x_in = x_in
+        self.x1_in = x1_in
+        self.x2_in = x2_in
         self.y = y
         self.pred = out
         self.loss = tf.reduce_sum((self.pred - y)**2, axis=1)
         self.lr = tf.placeholder(tf.float32)
         self.opt = tf.train.AdamOptimizer(self.lr)
+        self.train_op = self.opt.minimize(self.loss)
 
 
-    def train_step(self, data, labels, sess):
-        _, loss = sess.run([self.train_op, self.loss], feed_dict={self.x_in: data, self.y: labels})
+    def train_step(self, obs1, obs2, labels, lr, sess):
+        _, loss = sess.run([self.train_op, self.loss], feed_dict={self.x1_in: obs1, self.x2_in: obs2, self.y: labels, self.lr: lr})
         return loss
 
 
-    def pred(self, data):
-        return sess.run(self.pred, feed_dict={self.x_in: data})
+    def pred(self, obs1, obs2):
+        return sess.run(self.pred, feed_dict={self.x1_in: obs1, self.x2_in: obs2})
 
 
 class RewardTrainer(object):
@@ -66,23 +70,24 @@ class RewardTrainer(object):
         self.batch_size = self.config.get('batch_size', 128)
         self.train_iters = self.config.get('train_iters', 10000)
         self.T = self.config.get('rollout_len', 20)
+        self.vae = VAE(self.config['vae'])
 
-        self.obs_dims = [2*LATENT_DIM] # list(hyperparams['obs_dims'])
-        self.task_dim = hyperparams['task_dims']
+        self.obs_dims = [LATENT_DIM]
+        self.task_dim = hyperparams['vae']['task_dims']
 
-        self.weight_dir = hyperparams['weight_dir']
+        self.weight_dir = hyperparams['vae']['weight_dir']
+        self.load_step = hyperparams.get('load_step', -1)
+        self.train_mode = hyperparams['vae'].get('train_mode', 'conditional')
+        if self.load_step < 0:
+            self.ckpt_name = self.weight_dir+'/reward.ckpt'.format(self.train_mode)
+        else:
+            self.ckpt_name = self.weight_dir+'/reward_{0}_{1}.ckpt'.format(self.train_mode, self.load_step)
 
-        self.data_file = self.weight_dir+'/reward_data_buffer.hdf5'
-        self.data = h5py.File(self.data_file)
-        try:
-            self.obs_data = self.data['obs_data']
-            self.task_data = self.data['task_data']
-        except:
-            obs_data = np.zeros([0, self.T]+list(self.obs_dims))
-            task_data = np.zeros((0, self.T, self.task_dim))
-            self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None))
-            self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None))
 
+        self.data_file = self.weight_dir+'/vae_buffer.hdf5'
+        self.data = h5py.File(self.data_file, 'r')
+        self.obs_data = self.data['obs_data']
+        self.task_data = self.data['task_data']
         # self.data_file = self.weight_dir+'/vae_buffer.npz'
         # try:
         #     data = np.load(self.data_file, mmap_mode='w+')
@@ -95,7 +100,7 @@ class RewardTrainer(object):
         self.dist_constraint = hyperparams.get('distance_constraint', False)
 
         self.cur_lr = 5e-4
-        with tf.variable_scope('vae', reuse=False):
+        with tf.variable_scope('reward', reuse=False):
             self.init_network()
             self.init_solver()
 
@@ -107,10 +112,10 @@ class RewardTrainer(object):
             gpu_options = tf.GPUOptions(allow_growth=True)
         self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True))
         init_op = tf.initialize_all_variables()
-        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         self.saver = tf.train.Saver(variables)
         try:
-            self.saver.restore(self.sess, self.weight_dir+'/reward.ckpt')
+            self.saver.restore(self.sess, self.ckpt_name)
         except Exception as e:
             self.sess.run(init_op)
             print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
@@ -204,36 +209,46 @@ class RewardTrainer(object):
 
     def init_network(self):
         import tensorflow as tf
-        self.x_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
+        self.x1_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
+        self.x2_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
+        self.x_in = tf.concat([self.x1_in, self.x2_in], axis=1)
         self.y = tf.placeholder(tf.float32, shape=[None])
 
         self.task_in = tf.placeholder(tf.float32, shape=[None, self.task_dim])
         self.training = tf.placeholder(tf.bool)
 
-        self.net = LatentOffsetPredictor(self.x_in, self.y, reuse=False)
+        self.net = LatentOffsetPredictor(self.x1_in, self.x2_in, self.y, reuse=False)
 
 
     def init_solver(self):
         pass
 
 
+    def train(self):
+        for i in range(10000):
+            self.update()
+            self.saver.save(self.sess, self.ckpt_name)
+
+
     def update(self):
         for i in range(self.train_iters):
-            inds = np.random.choice(range(len(self.obs_data)), 1)#self.batch_size)
-            next_obs_batch = self.obs_data[inds][0]
-            next_task_batch = self.task_data[inds][0]
+            next_batch1 = []
+            next_batch2 = []
+            ts = []
+            for j in range(self.batch_size):
+                ind = np.random.choice(range(len(self.obs_data)), 1)[0]
+                next_obs_batch = np.array(self.obs_data[ind])
+                t1 = np.random.randint(0, len(next_obs_batch)-1)
+                t2 = np.random.randint(t1+1, len(next_obs_batch))
+                next_batch1.append(next_obs_batch[t1])
+                next_batch2.append(next_obs_batch[t2])
+                ts.append(t2 - t1)
+            next_batch1 = self.vae.get_latents(next_batch1)
+            next_batch2 = self.vae.get_latents(next_batch2)
 
-            obs1 = next_obs_batch[:,:-1].reshape([-1]+list(self.obs_dims))
-            obs2 = next_obs_batch[:,1:].reshape([-1]+list(self.obs_dims))
-            task = next_obs_batch[:,:-1].reshape([-1, self.task_dim])
-
-            self.sess.run(self.train_op, feed_dict={self.x_in: obs1, 
-                                                    self.offset_in: obs2, 
-                                                    self.task_in: task, 
-                                                    self.lr: self.cur_lr,
-                                                    self.training: True})
-            self.cur_lr *= 0.9998
+            self.net.train_step(next_batch1, next_batch2, ts, self.cur_lr, self.sess)
+            print(i)
 
 
     def get_offsets(self, obs, goals):
-        return self.net.pred(np.c_[obs, goals])
+        return self.net.pred(obs, goals)

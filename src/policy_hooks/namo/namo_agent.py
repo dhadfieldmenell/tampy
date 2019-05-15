@@ -71,7 +71,7 @@ class NAMOSortingAgent(TAMPAgent):
             'include_items': [
                 {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.6, 1.), 'rgba': (1, 1, 1, 1)},
             ],
-            'view': False,
+            'view': True,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
         }
 
@@ -355,7 +355,7 @@ class NAMOSortingAgent(TAMPAgent):
 
         try:
             if run_solve:
-                success = self.solver._backtrack_solve(plan, n_resamples=3, traj_mean=traj_mean, inf_f=inf_f, time_limit=90)
+                success = self.solver._backtrack_solve(plan, n_resamples=4, traj_mean=traj_mean, inf_f=inf_f, time_limit=120)
             else:
                 success = False
         except Exception as e:
@@ -584,6 +584,27 @@ class NAMOSortingAgent(TAMPAgent):
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
                 self.mjc_env.set_item_pos(param_name, np.r_[pos, 0.5], mujoco_frame=False, forward=False)
         self.mjc_env.physics.forward()
+
+
+    def set_to_targets(self, condition=0):
+        prim_choices = self.prob.get_prim_choices()
+        objs = prim_choices[OBJ_ENUM]
+        for obj_name in objs:
+            self.mjc_env.set_item_pos(obj_name, np.r_[self.targets[condition]['{0}_end_target'.format(obj_name)], 0], forward=False)
+        self.mjc_env.physics.forward()
+
+
+    def check_targets(self, x, condition=0):
+        mp_state = x[self._x_data_idx]
+        prim_choices = self.prob.get_prim_choices()
+        objs = prim_choices[OBJ_ENUM]
+        correct = 0
+        for obj_name in objs:
+            target = self.targets[condition]['{0}_end_target'.format(obj_name)]
+            obj_pos = mp_state[self.state_inds[obj_name, 'pose']]
+            if np.linalg.norm(obj_pos - target) < 0.6:
+                correct += 1
+        return correct
 
 
     def get_image(self, x, depth=False):

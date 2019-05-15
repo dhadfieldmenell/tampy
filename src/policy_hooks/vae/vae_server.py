@@ -16,15 +16,16 @@ class VAEServer(object):
     def __init__(self, hyperparams):
 
         self.task = 'vae' # hyperparams['scope']
-        rospy.init_node(self.task+'_update_server')
+        topic = hyperparams.get('topic', '')
+        rospy.init_node(self.task+'_update_server{0}'.format(topic))
 
-        self.update_listener = rospy.Subscriber('vae_update', VAEUpdate, self.update, queue_size=2, buff_size=2**25)
-        self.weight_publisher = rospy.Publisher('vae_weights', UpdateTF, queue_size=1)
+        self.update_listener = rospy.Subscriber('vae_update{0}'.format(topic), VAEUpdate, self.update, queue_size=2, buff_size=2**25)
+        self.weight_publisher = rospy.Publisher('vae_weights{0}'.format(topic), UpdateTF, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = False
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
-        self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
+        # self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
         self.vae = VAE(hyperparams['vae'])
 
         self.update_queue = []

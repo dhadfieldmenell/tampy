@@ -22,7 +22,7 @@ domain_file = "../domains/namo_domain/namo.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_2"
 pddl_file = "../domains/namo_domain/sorting_domain_2.pddl"
 
-END_TARGETS = [(0., 6.), 
+END_TARGETS = [(0., 5.8), 
            (0., 5.), 
            (0., 4.), 
            (2., -2.), 
@@ -33,7 +33,7 @@ END_TARGETS = [(0., 6.),
            (-4., -2.),
            (-2., -2.)]
 
-possible_can_locs = [(0, 60), (0, 50), (0, 45), (0, 40), (0, 35)]
+possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)]
 possible_can_locs.extend(list(itertools.product(range(-65, 65), range(-45, 25))))
 for i in range(-25, 25):
     for j in range(-10, 10):
@@ -152,10 +152,17 @@ def get_plans():
 
 # CODE FROM OLDER VERSION OF PROB FILE BELOW THIS
 
-def get_end_targets(num_cans):
+def get_end_targets(num_cans, randomize=False):
     target_map = {}
+    inds = np.random.permutation(range(num_cans))
     for n in range(num_cans):
-        target_map['can{0}_end_target'.format(n)] = np.array(END_TARGETS[n])
+        if randomize:
+            ind = inds[n]
+        else:
+            ind = n
+
+        target_map['can{0}_end_target'.format(n)] = np.array(END_TARGETS[ind])
+
     target_map['middle_target'] = np.array([0., 0.])
     target_map['left_target_1'] = np.array([-1., 0.])
     target_map['right_target_1'] = np.array([1., 0.])
@@ -270,7 +277,7 @@ def parse_initial_state(can_locs, targets, pr2, grasp, failed_preds=[]):
 
 
     hl_init_state += ")\n"
-    print hl_init_state
+    # print hl_init_state
     return hl_init_state
 
 def get_hl_plan(prob, plan_id):

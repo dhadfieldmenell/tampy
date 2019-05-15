@@ -34,6 +34,10 @@ def load_config(args, reload_module=None):
     config['n_rollout_servers'] = args.n_rollout_servers
     config['no_child_process'] = args.no_child_process
     config['rollout_len'] = args.rollout_len
+    config['train_vae'] = args.train_vae
+    config['unconditional'] = args.unconditional
+    config['train_reward'] = args.train_reward
+    config['load_step'] = args.load_step
     return config, config_module
 
 
@@ -72,6 +76,10 @@ def main():
     parser.add_argument('-nrs', '--n_rollout_servers', type=int, default=1)
     parser.add_argument('-ncp', '--no_child_process', action='store_true', default=False)
     parser.add_argument('-rl', '--rollout_len', type=int, default=0)
+    parser.add_argument('-tv', '--train_vae', action='store_true', default=False)
+    parser.add_argument('-uncond', '--unconditional', action='store_true', default=False)
+    parser.add_argument('-tr', '--train_reward', action='store_true', default=False)
+    parser.add_argument('-loadstep', '--load_step', type=int, default=-1)
 
     args = parser.parse_args()
     config, config_module = load_config(args)

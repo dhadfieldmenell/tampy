@@ -25,22 +25,20 @@ class VAETrainer(object):
         self.id = hyperparams['id']
         np.random.seed(int(time.time()/100000))
         self.num_samples = 1
-        self.rollout_len = hyperparams['rollout_len']
-        sub_env = hyperparams['env']()
+        # sub_env = hyperparams['env']()
         self.stopped = False
 
         hyperparams['vae']['data_read_only'] = True
-        hyperparams['vae']['train_mode'] = 'conditional'
         self.vae = VAE(hyperparams['vae'])
-        self.weights_to_store = {}
-        self.prior = multivariate_normal
 
         seed = int(1000*time.time()) % 1000
         np.random.seed(seed)
         random.seed(seed)
 
+
     def train(self):
-        for i in range(10000):
+        for i in range(50000):
             self.vae.update()
+            print np.mean([self.vae.check_loss() for _ in range(10)])
             if not i % 10:
                 self.vae.store_scope_weights(addendum=i*self.vae.train_iters)

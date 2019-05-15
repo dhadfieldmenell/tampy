@@ -62,7 +62,8 @@ class VAETampRolloutServer(VAERolloutServer):
     def __init__(self, hyperparams):
         self.id = hyperparams['id']
         np.random.seed(int(time.time()/100000))
-        rospy.init_node('vae_rollout_server_'+str(self.id))
+        topic = hyperparams.get('topic', '')
+        rospy.init_node('vae_rollout_server_'+str(self.id)+'{0}'.format(topic))
         self.mcts = hyperparams['mcts'][0]
         self.num_samples = 1
         self.rollout_len = hyperparams['rollout_len']
@@ -75,12 +76,12 @@ class VAETampRolloutServer(VAERolloutServer):
         self.stopped = False
 
         self.updaters = {}
-        self.updaters['vae'] = rospy.Publisher('vae_update', VAEUpdate, queue_size=5)
+        self.updaters['vae'] = rospy.Publisher('vae_update{0}'.format(topic), VAEUpdate, queue_size=5)
         hyperparams['vae']['load_data'] = False
         self.vae = VAE(hyperparams['vae'])
         self.weights_to_store = {}
 
-        self.weight_subscriber = rospy.Subscriber('vae_weights', UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
+        self.weight_subscriber = rospy.Subscriber('vae_weights{0}'.format(topic), UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
         self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
 
         self.prior = multivariate_normal

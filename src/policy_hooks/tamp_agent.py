@@ -395,6 +395,15 @@ class TAMPAgent(Agent):
         self.targets[condition] = targets
 
 
+    def replace_targets(self, condition=0):
+        new_targets = self.prob.get_end_targets(self.prob.NUM_OBJS, randomize=True)
+        self.targets[condition] = new_targets
+        target_vec = np.zeros((self.target_dim,))
+        for target_name in self.targets[condition]:
+            target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
+        self.target_vecs[condition]= target_vec
+
+
     # @abstractmethod
     # def get_sample_constr_cost(self, sample):
     #     raise NotImplementedError

@@ -40,7 +40,8 @@ class VAERolloutServer(object):
     def __init__(self, hyperparams):
         self.id = hyperparams['id']
         np.random.seed(int(time.time()/100000))
-        rospy.init_node('vae_rollout_server_'+str(self.id))
+        topic = hyperparams.get('topic', '')
+        rospy.init_node('vae_rollout_server_'+str(self.id)+'{0}'.format(topic))
         self.mcts = hyperparams['mcts']
         self.num_samples = 1
         self.rollout_len = hyperparams['rollout_len']
@@ -53,12 +54,12 @@ class VAERolloutServer(object):
         self.stopped = False
 
         self.updaters = {}
-        self.updaters['vae'] = rospy.Publisher('vae_update', VAEUpdate, queue_size=5)
+        self.updaters['vae'] = rospy.Publisher('vae_update{0}'.format(topic), VAEUpdate, queue_size=5)
         hyperparams['vae']['load_data'] = False
         self.vae = VAE(hyperparams['vae'])
         self.weights_to_store = {}
 
-        self.weight_subscriber = rospy.Subscriber('vae_weights', UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
+        self.weight_subscriber = rospy.Subscriber('vae_weights{0}'.format(topic), UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
         self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
 
         self.prior = multivariate_normal
@@ -116,6 +117,9 @@ class VAERolloutServer(object):
         obs_path = []
         task_path = []
         obs = self.env.get_obs()
+        times_sampled = {}
+        switch_to_stack = np.random.uniform() < 0.25
+        stack_only = False
         for n in range(self.rollout_len):
             acts = set()
             for _ in range(100):
@@ -125,9 +129,17 @@ class VAERolloutServer(object):
                 else:
                     acts.add(tuple(next_act))
             acts = list(acts)
+            stack_only = stack_only or (switch_to_stack and np.random.uniform() > 0.5)
+            if stack_only:
+                for i in range(len(acts)):
+                    act = list(acts[i])
+                    act[0] = 0
+                    acts[i] = tuple(act)
+
             encode_acts = list(acts)
             for i in range(len(acts)):
                 encode_acts[i] = self.env.encode_action(acts[i])
+                
             # latent_preds = self.vae.get_next_latents(np.tile(obs, [len(acts), 1, 1, 1]), np.array(acts))
             # p = np.array([1./self.prior.pdf(latent_preds[i], 
             #                                 mean=np.zeros(len(latent_preds[i])), 
@@ -135,8 +147,9 @@ class VAERolloutServer(object):
             #               for i in range(len(latent_preds))])
 
             temp = 1 # Softmax temperature
-            p = np.exp(-temp*self.vae.next_latents_kl_pentalty(np.tile(obs, [len(acts), 1, 1, 1]), np.array(encode_acts)))
-            p = p / np.sum(p)
+            # p = np.exp(-temp*self.vae.next_latents_kl_pentalty(np.tile(obs, [len(acts), 1, 1, 1]), np.array(encode_acts)))
+            # p = p / np.sum(p)
+            p = np.ones((len(acts)), dtype=np.float32) / len(acts)
             # ind = np.argmax(p)
             if np.any(np.isnan(p)):
                 p = np.ones(len(acts), dtype=np.float64) / len(acts)

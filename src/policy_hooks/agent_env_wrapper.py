@@ -24,7 +24,9 @@ class AgentEnvWrapper(object):
         self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([len(opts) for opts in self.task_options.values()])
         self.observation_space = spaces.Box(0, 255, [self.sub_env.im_height, self.sub_env.im_wid, 3], dtype='uint8')
         self.cur_state = env.physics.data.qpos.copy() if env is not None else self.agent.x0[0]
-        self.goal = None
+        self.reset_goal()
+        self.render()
+        self.render()
 
 
     def encode_action(self, task):
@@ -83,8 +85,15 @@ class AgentEnvWrapper(object):
         return obs, reward, done, info
 
 
-    def get_obs(self):
-        return self.agent.get_mjc_obs(self.cur_state) if self.agent is not None else self.sub_env.get_obs()
+    def reset_goal(self):
+        if self.agent is not None:
+            self.agent.replace_targets()
+            self.agent.set_to_targets()
+            obs = self.render()
+        else:
+            obs = self.sub_env.reset_goal()
+        self.reset()
+        self.goal_obs = obs
 
 
     def check_goal(self):

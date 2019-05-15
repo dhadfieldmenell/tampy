@@ -52,7 +52,9 @@ from policy_hooks.utils.load_task_definitions import *
 # from policy_hooks.rollout_server import RolloutServer
 # from policy_hooks.tf_models import tf_network, multi_modal_network_fp
 # from policy_hooks.view_server import ViewServer
+from policy_hooks.vae.reward_trainer import RewardTrainer
 from policy_hooks.vae.vae_server import VAEServer
+from policy_hooks.vae.vae_trainer import VAETrainer
 from policy_hooks.vae.vae_rollout_server import VAERolloutServer
 from policy_hooks.vae.vae_tamp_rollout_server import VAETampRolloutServer
 
@@ -304,7 +306,7 @@ class MultiProcessMain(object):
         config['weight_dir'] = 'tf_saved/'+name.lower()+'_t{0}_vae_data'.format(config['rollout_len']) if config['weight_dir'] == '' else config['weight_dir']
         if hasattr(temp_env, 'n_blocks'):
             config['weight_dir'] += '_{0}_blocks'.format(temp_env.n_blocks)
-            
+
         config['mcts'] = MCTS(
                               ['task{0}'.format(i) for i in range(n)],
                               prim_dims,
@@ -327,6 +329,8 @@ class MultiProcessMain(object):
         config['vae']['obs_dims'] = (temp_env.im_height, temp_env.im_wid, 3)
         config['vae']['weight_dir'] = config['weight_dir']
         config['vae']['rollout_len'] = config['rollout_len']
+        config['vae']['load_step'] = config['load_step']
+        config['topic'] = name
         temp_env.close()
 
         main.rollout_type = VAERolloutServer
@@ -423,13 +427,24 @@ class MultiProcessMain(object):
 
 
     def start(self, kill_all=False):
-        self.check_dirs()
-        if 'log_timing' in self.config and self.config['log_timing']:
-            with open(self.config['time_log'], 'a+') as f:
-                f.write('\n\nTiming info for {0}:'.format(datetime.now()))
-        self.start_ros()
-        time.sleep(1)
-        self.spawn_servers(self.config)
-        self.start_servers()
-        self.watch_processes(kill_all)
-        if self.roscore is not None: self.roscore.shutdown()
+        if self.config['train_vae']:
+            self.config['id'] = 0
+            self.config['vae']['train_mode'] = 'unconditional' if self.config['unconditional'] else 'conditional'
+            trainer = VAETrainer(self.config)
+            trainer.train()
+        elif self.config['train_reward']:
+            self.config['id'] = 0
+            self.config['vae']['train_mode'] = 'conditional'
+            trainer = RewardTrainer(self.config)
+            trainer.train()
+        else:
+            self.check_dirs()
+            if 'log_timing' in self.config and self.config['log_timing']:
+                with open(self.config['time_log'], 'a+') as f:
+                    f.write('\n\nTiming info for {0}:'.format(datetime.now()))
+            self.start_ros()
+            time.sleep(1)
+            self.spawn_servers(self.config)
+            self.start_servers()
+            self.watch_processes(kill_all)
+            if self.roscore is not None: self.roscore.shutdown()

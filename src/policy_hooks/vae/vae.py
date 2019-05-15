@@ -22,11 +22,13 @@ Random things to remember:
  - Constrain conditional encoding (i.e. latent output) against prior?
 '''
 
+LATENT_DIM = 16
+
 ENCODER_CONFIG = {
     'n_channels': [16, 32, 32],
     'filter_sizes': [5, 5, 5],
     'strides': [3, 3, 3],
-    'fc_dims': [16] # [2 * 3 * 32]
+    'fc_dims': [LATENT_DIM] # [2 * 3 * 32]
 }
 
 DECODER_CONFIG = {
@@ -38,7 +40,7 @@ DECODER_CONFIG = {
 }
 
 LATENT_DYNAMICS_CONFIG = {
-    'fc_dims': [16, 16],
+    'fc_dims': [LATENT_DIM, LATENT_DIM],
 }
 
 class VAE(object):
@@ -59,11 +61,16 @@ class VAE(object):
 
         self.train_mode = hyperparams.get('train_mode', 'online')
         assert self.train_mode in ['online', 'conditional', 'unconditional']
+        self.load_step = hyperparams.get('load_step', -1)
+        if self.load_step < 0:
+            self.ckpt_name = self.weight_dir+'/vae_{0}.ckpt'.format(self.train_mode)
+        else:
+            self.ckpt_name = self.weight_dir+'/vae_{0}_{1}.ckpt'.format(self.train_mode, self.load_step)
 
         if hyperparams.get('load_data', True):
             f_mode = 'a'
             self.data_file = self.weight_dir+'/vae_buffer.hdf5'
-            self.data = h5py.File(self.data_file, f_mode, swmr=True)
+            self.data = h5py.File(self.data_file, f_mode)
 
             try:
                 self.obs_data = self.data['obs_data']
@@ -73,6 +80,8 @@ class VAE(object):
                 task_data = np.zeros((0, self.T, self.task_dim))
                 self.obs_data = self.data.create_dataset('obs_data', data=obs_data, maxshape=(None, None, None, None, None), dtype='uint8')
                 self.task_data = self.data.create_dataset('task_data', data=task_data, maxshape=(None, None, None), dtype='uint8')
+
+            # self.data.swmr_mode=True
 
         elif hyperparams.get('data_read_only', False):
             f_mode = 'r'
@@ -95,7 +104,7 @@ class VAE(object):
         self.max_buffer = hyperparams.get('max_buffer', 1e6)
         self.dist_constraint = hyperparams.get('distance_constraint', False)
 
-        self.cur_lr = 5e-4
+        self.cur_lr = 1e-3
         with tf.variable_scope('vae', reuse=False):
             self.init_network()
             self.init_solver()
@@ -111,10 +120,10 @@ class VAE(object):
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
         self.saver = tf.train.Saver(variables)
         try:
-            self.saver.restore(self.sess, self.weight_dir+'/vae_{0}.ckpt'.format(self.train_mode))
+            self.saver.restore(self.sess, self.ckpt_name)
         except Exception as e:
             self.sess.run(init_op)
-            print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
+            print('\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir))
 
         self.update_count = 0
         self.n_updates = 0
@@ -122,7 +131,7 @@ class VAE(object):
 
 
     def serialize_weights(self):
-        print 'Serializing vae weights'
+        print('Serializing vae weights')
         var_to_val = {}
         variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='vae')
         for v in variables:
@@ -159,8 +168,9 @@ class VAE(object):
                 saver.save(self.sess, weight_dir+'/vae_{0}.ckpt'.format(self.train_mode))
             else:
                 saver.save(self.sess, weight_dir+'/vae_{0}_{1}.ckpt'.format(self.train_mode, addendum))
+            print('Saved vae weights for', self.train_mode, 'in', self.weight_dir)
         except:
-            print 'Saving variables encountered an issue but it will not crash:'
+            print('Saving variables encountered an issue but it will not crash:')
             traceback.print_exception(*sys.exc_info())
 
 
@@ -169,7 +179,7 @@ class VAE(object):
 
 
     def store(self, obs, task_list):
-        print 'Storing data for', self.scope
+        print('Storing data for', self.scope)
         assert len(obs) == len(task_list)
         # self.T = len(obs)
 
@@ -187,20 +197,22 @@ class VAE(object):
         self.task_data.resize((len(self.task_data)+1,) + task_list.shape[1:])
         self.task_data[-1] = task_list.astype(np.uint8)
 
-        if len(self.obs_data) > self.max_buffer:
-            self.obs_data = self.obs_data[-self.max_buffer:]
-            self.task_data = self.task_data[-self.max_buffer:]
+        # if len(self.obs_data) > self.max_buffer:
+        #     self.obs_data = self.obs_data[-self.max_buffer:]
+        #     self.task_data = self.task_data[-self.max_buffer:]
 
         self.update_count += 1
         if self.update_count > self.update_size and len(self.obs_data) > 10:
-            print 'Updating vae'
-            self.update()
+            print('Updating vae')
+            # self.update()
             self.n_updates += 1
             self.update_count = 0
 
+        if not self.n_updates % 5:
+            self.save_buffers()
+
         if self.n_updates > 10:
             self.store_scope_weights()
-            self.save_buffers()
             self.n_updates = 0
             return True
 
@@ -215,6 +227,7 @@ class VAE(object):
     def init_network(self):
         import tensorflow as tf
         self.x_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
+        self.latent_in = tf.placeholder(tf.float32, shape=[None, LATENT_DIM])
         self.task_in = tf.placeholder(tf.float32, shape=[None]+[self.task_dim])
         self.offset_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
         self.far_offset_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
@@ -234,7 +247,7 @@ class VAE(object):
         # self.far_offset_loss_mask = tf.constant(mask.reshape([self.batch_size*self.T]))
 
         self.encoder = Encoder()
-        self.encode_mu, self.encode_logvar = self.encoder.get_net(self.x_in, self.training, fc_in=self.fc_in, config=ENCODER_CONFIG)
+        self.encode_mu, self.encode_logvar = self.encoder.get_net(self.x_in / 255., self.training, fc_in=self.fc_in, config=ENCODER_CONFIG)
         self.encode_posterior = tf.distributions.Normal(self.encode_mu, tf.sqrt(tf.exp(self.encode_logvar)))
 
         # self.offset_encode_mu, self.offset_encode_logvar = self.encoder.get_net(self.offset_in, self.training, fc_in=self.offset_fc_in, reuse=True, config=ENCODER_CONFIG)
@@ -255,25 +268,34 @@ class VAE(object):
             self.conditional_decode_mu, self.conditional_decode_logvar = self.decoder.get_net(self.conditional_decoder_in, self.training, config=DECODER_CONFIG, reuse=True)
             self.conditional_decode_posterior = tf.distributions.Normal(self.conditional_decode_mu, tf.sqrt(tf.exp(self.conditional_decode_logvar)))
 
+            self.latent_trans_mu, self.latent_trans_logvar = self.latent_dynamics.get_net(self.latent_in, self.task_in, self.training, config=LATENT_DYNAMICS_CONFIG, reuse=True)
+            self.latent_trans_posterior = tf.distributions.Normal(self.latent_trans_mu, tf.sqrt(tf.exp(self.latent_trans_logvar)))
+
+            self.offset_encode_mu, self.offset_encode_logvar = self.encoder.get_net(self.offset_in / 255., self.training, fc_in=self.offset_fc_in, config=ENCODER_CONFIG, reuse=True)
+            self.offset_encode_posterior = tf.distributions.Normal(self.offset_encode_mu, tf.sqrt(tf.exp(self.offset_encode_logvar)))
+
         self.latent_prior = tf.distributions.Normal(tf.zeros_initializer()(tf.shape(self.encode_mu)), 1.)
+        self.fitted_prior = tf.distributions.Normal(tf.zeros_initializer()(LATENT_DIM), 1.)
 
 
     def init_solver(self):
         import tensorflow as tf
-        beta = self.config.get('beta', 5)
+        beta = self.config.get('beta', 1)
         # self.decoder_loss = -tf.reduce_sum(tf.log(ecode_posterior.prob(self.x_in)+1e-6), axis=tuple(range(1, len(self.decode_mu.shape))))
-        self.decoder_loss = tf.reduce_mean((self.x_in - self.decode_mu)**2, axis=tuple(range(1, len(self.decode_mu.shape))))
+        self.decoder_loss = tf.reduce_mean((self.x_in / 255. - self.decode_mu)**2, axis=tuple(range(1, len(self.decode_mu.shape))))
         self.kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.encode_posterior, self.latent_prior), axis=tuple(range(1, len(self.encode_mu.shape))))
         self.elbo = self.decoder_loss + beta * self.kl_loss
         self.loss = self.elbo
 
         if 'unconditional' not in self.train_mode:
             # self.conditional_decoder_loss = -tf.reduce_sum(tf.log(conditional_decode_posterior.prob(self.offset_in)+1e-6), axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
-            self.conditional_decoder_loss = tf.reduce_mean((self.offset_in - self.decode_mu)**2, axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
-            self.conditional_kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.conditional_encode_posterior, self.latent_prior), axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
-            self.conditional_elbo = self.conditional_decoder_loss + beta * self.conditional_kl_loss
+            self.conditional_decoder_loss = tf.reduce_mean((self.offset_in / 255. - self.decode_mu)**2, axis=tuple(range(1, len(self.conditional_decode_mu.shape))))
+            # self.conditional_kl_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.conditional_encode_posterior, self.latent_prior), axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
+            # self.conditional_elbo = self.conditional_decoder_loss + beta * self.conditional_kl_loss
+            self.loss += self.conditional_decoder_loss
 
-            self.loss += self.conditional_elbo
+            self.conditional_prediction_loss = tf.reduce_sum(tf.distributions.kl_divergence(self.conditional_encode_posterior, self.offset_encode_posterior), axis=tuple(range(1, len(self.conditional_encode_mu.shape))))
+            self.loss += self.conditional_prediction_loss
 
         # if self.dist_constraint:
         #     offset_loss = tf.reduce_sum((self.encode_mu-self.offset_encode_mu)**2 axis=tuple(range(1, len(self.encode_mu.shape))))
@@ -295,21 +317,51 @@ class VAE(object):
 
     def update(self):
         for step in range(self.train_iters):
-            inds = np.random.choice(range(len(self.obs_data)), 1)#self.batch_size)
+            inds = np.random.choice(range(len(self.task_data)), 1)#self.batch_size)
             next_obs_batch = np.array([self.obs_data[i] for i in inds])[0]
             next_task_batch = np.array([self.task_data[i] for i in inds])[0]
 
-            obs1 = next_obs_batch[:-1].reshape([-1]+list(self.obs_dims))
-            obs2 = next_obs_batch[1:].reshape([-1]+list(self.obs_dims))
-            task = next_task_batch[:-1].reshape([-1, self.task_dim])
+            obs1 = next_obs_batch[:self.T-1].reshape([-1]+list(self.obs_dims))
+            obs2 = next_obs_batch[1:self.T].reshape([-1]+list(self.obs_dims))
+            task = next_task_batch[:self.T-1].reshape([-1, self.task_dim])
 
             self.sess.run(self.train_op, feed_dict={self.x_in: obs1, 
                                                     self.offset_in: obs2, 
                                                     self.task_in: task, 
                                                     self.lr: self.cur_lr,
                                                     self.training: True})
-            self.cur_lr *= 0.9998
-        print 'Updated VAE'
+            self.cur_lr *= 0.99999
+        print('Updated VAE')
+
+
+    def fit_prior(self):
+        latents = []
+        inds = np.random.choice(range(len(self.obs_data)), np.minimum(1000, len(self.obs_data)))
+        for i in range(len(inds)):
+            print i
+            batch = self.obs_data[inds[i]]
+            latents.extend(self.get_latents(batch))
+        self.prior_mean = np.mean(latents, axis=0)
+        self.prior_std = np.std(latents, axis=0)
+        self.fitted_prior = tf.distributions.Normal(self.prior_mean, self.prior_std)
+
+
+    def sample_prior(self):
+        return self.sess.run(self.fitted_prior.sample())
+
+
+    def check_loss(self):
+        inds = np.random.choice(range(len(self.obs_data)), 1)
+        next_obs_batch = np.array([self.obs_data[i] for i in inds])[0]
+        next_task_batch = np.array([self.task_data[i] for i in inds])[0]
+
+        obs1 = next_obs_batch[:self.T-1].reshape([-1]+list(self.obs_dims))
+        obs2 = next_obs_batch[1:self.T].reshape([-1]+list(self.obs_dims))
+        task = next_task_batch[:self.T-1].reshape([-1, self.task_dim])
+        return self.sess.run(self.loss, feed_dict={self.x_in: obs1, 
+                                                    self.offset_in: obs2, 
+                                                    self.task_in: task, 
+                                                    self.training: True})
 
 
     def get_latents(self, obs):
