@@ -103,6 +103,7 @@ class VAE(object):
         # self.task_data = np.zeros((0, self.dT, self.dU))
         self.max_buffer = hyperparams.get('max_buffer', 1e6)
         self.dist_constraint = hyperparams.get('distance_constraint', False)
+        self.use_recurrent_dynamics = hyperparams.get('use_recurrent_dynamics', False)
 
         self.cur_lr = 1e-3
         with tf.variable_scope('vae', reuse=False):
@@ -226,11 +227,12 @@ class VAE(object):
 
     def init_network(self):
         import tensorflow as tf
-        self.x_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
-        self.latent_in = tf.placeholder(tf.float32, shape=[None, LATENT_DIM])
-        self.task_in = tf.placeholder(tf.float32, shape=[None]+[self.task_dim])
-        self.offset_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
-        self.far_offset_in = tf.placeholder(tf.float32, shape=[None]+list(self.obs_dims))
+        self.x_in = tf.placeholder(tf.float32, shape=[self.batch_size*self.T]+list(self.obs_dims))
+        self.latent_in = tf.placeholder(tf.float32, shape=[1, 1, LATENT_DIM])
+        self.task_in = tf.placeholder(tf.float32, shape=[self.batch_size*self.T]+[self.task_dim])
+        self.latent_task_in = tf.placeholder(tf.float32, shape=[1, 1, self.task_dim])
+        self.offset_in = tf.placeholder(tf.float32, shape=[self.batch_size*self.T]+list(self.obs_dims))
+        self.far_offset_in = tf.placeholder(tf.float32, shape=[self.batch_size*self.T]+list(self.obs_dims))
         self.training = tf.placeholder(tf.bool)
 
         if len(self.obs_dims) == 1:
@@ -259,17 +261,35 @@ class VAE(object):
         self.decode_posterior = tf.distributions.Normal(self.decode_mu, tf.sqrt(tf.exp(self.decode_logvar)))
 
         if 'unconditional' not in self.train_mode:
-            self.latent_dynamics = LatentDynamics()
+            if self.use_recurrent_dynamics:
+                self.latent_dynamics = RecurrentLatentDynamics()
+                in_shape = tf.shape(self.decoder_in)
+                z_in = self.decoder_in.reshape((self.batch_size, self.T, -1))
+                task_in = self.task_in.reshape((self.batch_size, self.T, -1))
 
-            self.conditional_encode_mu, self.conditional_encode_logvar = self.latent_dynamics.get_net(self.decoder_in, self.task_in, self.training, config=LATENT_DYNAMICS_CONFIG)
-            self.conditional_encode_posterior = tf.distributions.Normal(self.conditional_encode_mu, tf.sqrt(tf.exp(self.conditional_encode_logvar)))
+                mu, logvar, self.rnn_initial_state, self.rnn_final_state = self.latent_dynamics.get_net(z_in, task_in, T, self.training, config=LATENT_DYNAMICS_CONFIG)
+                self.conditional_encode_mu = tf.reshape(mu, in_shape)
+                self.conditional_encode_logvar = tf.reshape(logvar, in_shape)
+                self.conditional_encode_posterior = tf.distributions.Normal(self.conditional_encode_mu, tf.sqrt(tf.exp(self.conditional_encode_logvar)))
+
+                trans_mu, trans_logvar, self.trans_rnn_initial_state, self.trans_rnn_final_state = self.latent_dynamics.get_net(self.latent_in, self.latent_task_in, 1, self.training, config=LATENT_DYNAMICS_CONFIG, reuse=True)
+                self.latent_trans_mu = tf.reshape(trans_mu, in_shape)
+                self.latent_trans_logvar = tf.reshape(trans_logvar, in_shape)
+                self.latent_trans_posterior = tf.distributions.Normal(self.latent_trans_mu, tf.sqrt(tf.exp(self.latent_trans_logvar)))
+
+
+            else:
+                self.latent_dynamics = LatentDynamics()
+
+                self.conditional_encode_mu, self.conditional_encode_logvar = self.latent_dynamics.get_net(self.decoder_in, self.task_in, self.training, config=LATENT_DYNAMICS_CONFIG)
+                self.conditional_encode_posterior = tf.distributions.Normal(self.conditional_encode_mu, tf.sqrt(tf.exp(self.conditional_encode_logvar)))
+
+                self.latent_trans_mu, self.latent_trans_logvar = self.latent_dynamics.get_net(tf.reshape(self.latent_in, (1, LATENT_DIM)), tf.reshape(self.task_in, (1, self.task_dim)), self.training, config=LATENT_DYNAMICS_CONFIG, reuse=True)
+                self.latent_trans_posterior = tf.distributions.Normal(self.latent_trans_mu, tf.sqrt(tf.exp(self.latent_trans_logvar)))
 
             self.conditional_decoder_in = self.conditional_encode_mu +  tf.sqrt(tf.exp(self.conditional_encode_logvar)) * tf.random_normal(tf.shape(self.conditional_encode_mu), 0, 1)
             self.conditional_decode_mu, self.conditional_decode_logvar = self.decoder.get_net(self.conditional_decoder_in, self.training, config=DECODER_CONFIG, reuse=True)
             self.conditional_decode_posterior = tf.distributions.Normal(self.conditional_decode_mu, tf.sqrt(tf.exp(self.conditional_decode_logvar)))
-
-            self.latent_trans_mu, self.latent_trans_logvar = self.latent_dynamics.get_net(self.latent_in, self.task_in, self.training, config=LATENT_DYNAMICS_CONFIG, reuse=True)
-            self.latent_trans_posterior = tf.distributions.Normal(self.latent_trans_mu, tf.sqrt(tf.exp(self.latent_trans_logvar)))
 
             self.offset_encode_mu, self.offset_encode_logvar = self.encoder.get_net(self.offset_in / 255., self.training, fc_in=self.offset_fc_in, config=ENCODER_CONFIG, reuse=True)
             self.offset_encode_posterior = tf.distributions.Normal(self.offset_encode_mu, tf.sqrt(tf.exp(self.offset_encode_logvar)))
@@ -351,25 +371,44 @@ class VAE(object):
 
 
     def check_loss(self):
-        inds = np.random.choice(range(len(self.obs_data)), 1)
-        next_obs_batch = np.array([self.obs_data[i] for i in inds])[0]
-        next_task_batch = np.array([self.task_data[i] for i in inds])[0]
+        inds = np.random.choice(range(len(self.obs_data)), self.batch_size)
 
-        obs1 = next_obs_batch[:self.T-1].reshape([-1]+list(self.obs_dims))
-        obs2 = next_obs_batch[1:self.T].reshape([-1]+list(self.obs_dims))
-        task = next_task_batch[:self.T-1].reshape([-1, self.task_dim])
-        return self.sess.run(self.loss, feed_dict={self.x_in: obs1, 
-                                                    self.offset_in: obs2, 
-                                                    self.task_in: task, 
+        obs = []
+        next_obs = []
+        task_path = []
+        for i in inds:
+            next_obs_batch = np.array([self.obs_data[i] for i in inds])[0]
+            next_task_batch = np.array([self.task_data[i] for i in inds])[0]
+
+            obs1 = next_obs_batch[:self.T-1].reshape([self.T-1]+list(self.obs_dims))
+            obs.append(tf.concat([obs1, tf.zeros([1]+list(self.obs_dims))], 0))
+            obs2 = next_obs_batch[1:self.T].reshape([self.T-1]+list(self.obs_dims))
+            next_obs.append(tf.concat([tf.zeros([1]+list(self.obs_dims)), obs2], 0))
+            task = next_task_batch[:self.T-1].reshape([1, self.task_dim])
+            task_path.append(tf.concat([task, -1*tf.ones([1, self.task_dim])], 0))
+
+        return self.sess.run(self.loss, feed_dict={self.x_in: tf.concat(obs, 0), 
+                                                    self.offset_in: tf.concat(next_obs, 0), 
+                                                    self.task_in: tf.concat(task_path, 0), 
                                                     self.training: True})
 
 
     def get_latents(self, obs):
+        if len(obs) < self.batch_size*self.T:
+            s = obs.shape
+            obs = np.r[obs, np.zeros((self.batch_size*self.T-s[0], s[1], s[2], s[3]))]
         return self.sess.run(self.encode_mu, feed_dict={self.x_in: obs, self.training: False})
 
 
-    def get_next_latents(self, obs, task):
-        return self.sess.run(self.conditional_encode_mu, feed_dict={self.x_in: obs, self.task_in: task, self.training: False})
+    def get_next_latents(self, z, task, reset=False):
+        if self.use_recurrent_dynamics:
+            z = z.reshape((1, 1, LATENT_DIM))
+            task = task.reshape((1, 1, self.task_dim))
+            z, h = self.sess.run([self.latent_trans_mu, self.trans_rnn_final_state], feed_dict={self.latent_in: z, self.latent_task_in: task, self.training: False})
+        else:
+            z = self.sess.run(self.latent_trans_mu, feed_dict={self.latent_in: z, self.latent_task_in: task, self.training: False})
+            h = None
+        return z.reshape(LATENT_DIM), h
 
 
     def next_latents_kl_pentalty(self, obs, task):

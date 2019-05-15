@@ -138,3 +138,24 @@ class LatentDynamics(object):
                 out_mu = tf.reshape(out_mu, tf.shape(x_in))
                 out_logvar = tf.reshape(out_logvar, tf.shape(x_in))
         return out_mu, out_logvar
+
+
+class RecurrentLatentDynamics(object):
+    def get_net(self, x_in, task_in, T, training, fc_dims=None, reuse=False, config=None):
+        import tensorflow as tf
+
+        with tf.variable_scope('latent_dynamics', reuse=reuse):
+            if len(x_in.shape) > 3:
+                out = tf.reshape(out, [-1, T, np.prod([out.shape[i].value  for i in range(1, 4)])])
+            out = tf.concatenate([x_in, task_in], axis=-1)
+            lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(layer_norm=False, dropout_keep_prob=0., reuse=reuse)
+            initial_state = lstm_cell.zero_state(batch_size=x_in[0].shape[0].value, dtype=tf.float32) 
+            out, last_state = tf.nn.dynamic_rnn(cell, out, initial_state=initial_state,
+                                           time_major=False, swap_memory=True, dtype=tf.float32, 
+                                           scope="RNN", reuse=reuse)
+            out = dense(out, 2*x_in.shape[-1], 'dynamics_out', reuse)
+            out_mu, out_logvar = tf.split(out, 2, axis=-1)
+            if len(x_in.shape) > 2:
+                out_mu = tf.reshape(out_mu, tf.shape(x_in))
+                out_logvar = tf.reshape(out_logvar, tf.shape(x_in))
+        return out_mu, out_logvar initial_state, final_state
