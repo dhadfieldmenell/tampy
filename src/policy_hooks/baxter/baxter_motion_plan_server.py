@@ -26,7 +26,7 @@ class DummyPolicyOpt(object):
 
 class BaxterMotionPlanServer(AbstractMotionPlanServer):
     def __init__(self, hyperparams):
-        self.solver = NAMOPolicySolver(hyperparams)
+        self.solver = BaxterPolicySolver(hyperparams)
         super(NAMOMotionPlanServer, self).__init__(hyperparams)
 
     def sample_optimal_trajectory(self, state, task_tuple, condition, traj_mean=[], fixed_targets=[]):

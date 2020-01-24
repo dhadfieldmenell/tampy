@@ -1,4 +1,5 @@
-def get_vector(num_cans):
+def get_vector(config):
+    
     state_vector_include = {
         'pr2': ['pose', 'gripper'] 
     }

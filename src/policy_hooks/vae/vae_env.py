@@ -25,26 +25,41 @@ class VAEEnvWrapper(AgentEnvWrapper):
         self.tol = 0.03
         self.init_state = agent.x0[0] if agent is not None else env.physics.data.qpos.copy()
         self.action_space = env.action_space if env is not None else spaces.MultiDiscrete([len(opts) for opts in self.task_options.values()])
-        self.observation_space = spaces.Box(0, 256, [self.sub_env.im_height, self.sub_env.im_wid, 3], dtype='uint8')
+        self.observation_space = spaces.Box(0, 255, [self.sub_env.im_height, self.sub_env.im_wid, 3], dtype='uint8')
         self.cur_state = env.physics.data.qpos.copy() if env is not None else self.agent.x0[0]
         self.goal = None
         config['vae']['data_read_only'] = True
         self.vae = VAE(config['vae'])
         self.vae.fit_prior()
         self.cur_latent_obs = self.vae.get_latents([self.render()])
+        self._t = 0
+        self.max_t = 20
         self.reset_goal()
+        self.reset()
 
 
-    def step(self, action, encoded=False):
+    def step(self, action, real_act=False, encoded=False):
         # if encoded:
         #     action = self.decode_action(action)
 
-        next_latent = self.vae.get_next_latents([self.cur_latent_obs], [self.encode_action(action)])[0]
+        if real_act:
+            obs, reward, done, info = self.sub_env.step(action)
+            next_latent = self.vae.get_latents(np.array([obs]))[0]
+        else:
+            if self.vae.use_recurrent_dynamics:
+                next_latent, self.h = self.vae.get_next_latents([self.cur_latent_obs], [self.encode_action(action)], self.h)[0]
+            else:
+                next_latent, _ = self.vae.get_next_latents([self.cur_latent_obs], [self.encode_action(action)])[0]
+                
         self.cur_latent_obs = next_latent
         obs = np.r_[next_latent, self.goal_latent]
         reward = self.check_goal()
         done = False
         info = {}
+        self._t += 1
+        if self._t > 0:
+            self.reset_goal()
+            self.reset_init_state()
 
         return obs, reward, done, info
 
@@ -54,7 +69,10 @@ class VAEEnvWrapper(AgentEnvWrapper):
         return np.r_[obs, self.goal_latent]
 
 
-    def check_goal(self):
+    def check_goal(self, test=False):
+        if test:
+            return self.sub_env.check_goal()
+
         return -np.sum((self.goal_latent-self.cur_latent_obs)**2)
 
 
@@ -65,6 +83,9 @@ class VAEEnvWrapper(AgentEnvWrapper):
         self.cur_state = self.sub_env.physics.data.qpos.copy() if self.agent is None else self.agent.x0[0]
         self.render()
         self.cur_latent_obs = self.vae.get_latents([self.render()])[0]
+        self._t = 0
+        if self.vae.use_recurrent_dynamics:
+            self.h = self.vae.zero_state
 
 
     def reset_init_state(self):
@@ -77,8 +98,8 @@ class VAEEnvWrapper(AgentEnvWrapper):
 
 
     def reset_goal(self, test=False):
+        super(VAEEnvWrapper, self).reset_goal()
         if test:
-            super(VAEEnvWrapper, self).reset_goal()
             self.goal_latent = self.vae.get_latents([self.goal_obs])[0]
         else:
             self.goal_latent = self.vae.sample_prior()

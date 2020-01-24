@@ -4,7 +4,6 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
-from openravepy import Environment
 import sys
 import traceback
 import ctrajoptpy
@@ -98,6 +97,9 @@ class ExprPredicate(Predicate):
             ## this happens with an invalid time
             traceback.print_exception(*sys.exc_info())
             raise PredicateException("Out of range time for predicate '%s'."%self)
+        except Exception as err:
+            print(self, 'threw error')
+            raise err
 
     def unpack(self, y):
         """

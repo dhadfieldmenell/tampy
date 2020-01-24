@@ -39,7 +39,7 @@ def get_base_solver(parent_class):
             self.config = None
             self.gps = None
             self.transfer_coeff = 1e0
-            self.strong_transfer_coeff = 1e2
+            self.strong_transfer_coeff = 1e0
             self.rs_coeff = 2e2
             self.trajopt_coeff = 1e3 # 1e2
             self.policy_pred = None
@@ -69,7 +69,7 @@ def get_base_solver(parent_class):
             raise NotImplementedError
 
 
-        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None, total_time=None, time_limit=TIME_LIMIT):
+        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None, total_time=None, time_limit=TIME_LIMIT, max_priority=MAX_PRIORITY):
             if amax is None:
                 amax = len(plan.actions) - 1
 
@@ -80,6 +80,7 @@ def get_base_solver(parent_class):
                 total_time = 0
 
             if total_time > time_limit:
+                print('Solver timed out')
                 return False
 
             start_time = time.time()
@@ -89,7 +90,7 @@ def get_base_solver(parent_class):
             inits = {}
             rs_param = self.get_resample_param(a)
 
-            base_t = active_ts[0]
+            base_t = active_ts[0]+1
             if len(traj_mean):
                 self.transfer_always = True
                 for t in range(base_t, min(active_ts[1], len(traj_mean))):
@@ -97,7 +98,7 @@ def get_base_solver(parent_class):
                         param = plan.params[param_name]
                         if hasattr(param, attr):
                             if param.is_symbol(): continue
-                            getattr(param, attr)[:, base_t+1] = traj_mean[t, plan.state_inds[param_name, attr]]
+                            getattr(param, attr)[:, t] = traj_mean[t, plan.state_inds[param_name, attr]]
             else:
                 self.transfer_always = False
 
@@ -134,7 +135,7 @@ def get_base_solver(parent_class):
                 self.child_solver.robot_name = self.robot_name
                 new_time = time.time() - start_time + total_time
                 success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, 
-                                                             n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, time_limit=time_limit)
+                                                             n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, time_limit=time_limit, max_priority=max_priority)
 
                 # reset free_attrs
                 for p in plan.params.itervalues():
@@ -172,7 +173,7 @@ def get_base_solver(parent_class):
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts=active_ts, verbose=verbose, force_init=True, 
                                                   inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, 
-                                                  time_limit=time_limit)
+                                                  time_limit=time_limit, priorities=range(-2, max_priority+1))
                 if not success:
                     ## if planning fails we're done
                     return False
@@ -201,7 +202,7 @@ def get_base_solver(parent_class):
 
             success = False
             for rp in robot_poses:
-                for attr, val in rp.iteritems():
+                for attr, val in rp.items():
                     setattr(rs_param, attr, val)
 
                 success = False
@@ -224,7 +225,7 @@ def get_base_solver(parent_class):
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts = active_ts, verbose=verbose,
                                                   force_init=True, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time,
-                                                  time_limit=time_limit)
+                                                  time_limit=time_limit, priorities=range(-2, max_priority+1))
                 if success:
                     if recursive_solve():
                         break
@@ -235,11 +236,45 @@ def get_base_solver(parent_class):
             return success
 
 
+        def sort_poses(self, robot_poses, plan, traj, anum, add_pos=False):
+            if not len(traj): return
+            a = plan.actions[anum]
+            active_ts = a.active_timesteps
+            robot = a.params[0]
+            robot_name = robot.name
+            traj_step = traj[active_ts[1]]
+            def pos_dist(rp):
+                dist = 0
+                for attr, val in rp.items():
+                    attr = 'pose' if attr == 'value' else attr
+                    if (robot_name, attr) in plan.state_inds:
+                        dist += np.linalg.norm(val.flatten() - traj_step[self.state_inds[robot_name, attr]])
+                return dist
+
+            robot_poses.sort(key=pos_dist)
+            if not add_pos: return robot_name
+
+            rp = robot_poses[0]
+            new_pos = []
+            for attr, val in rp.items():
+                attr = 'pose' if attr == 'value' else attr
+                if (robot_name, attr) in plan.state_inds:
+                    new_pos.append((attr, traj_step[self.state_inds[robot_name, attr]].reshape(val.shape)))
+                else:
+                    add_pos = False
+                    break
+
+            if add_pos:
+                robot_poses.insert(0, new_pos)
+            return robot_poses
+
+
         def solve(self, plan, callback=None, n_resamples=5, active_ts=None,
                   verbose=False, force_init=False, inf_f=None, traj_mean=[], task=None,
                   total_time=0, time_limit=TIME_LIMIT, priorities=None):
             success = False
             if total_time > time_limit:
+                print('Solver timed out')
                 return False
 
             start_time = time.time()
@@ -273,6 +308,8 @@ def get_base_solver(parent_class):
                         print "error in predicate checking"
 
                     if success or total_time + time.time() - start_time > time_limit:
+                        if total_time + time.time() - start_time > time_limit:
+                            print('Solver timed out')
                         break
 
                     self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, 
@@ -384,8 +421,8 @@ def get_base_solver(parent_class):
                 state[self.state_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
 
             sample.set(STATE_ENUM, state.T)
-            # for t in range(0, T):
-            #     sample = self.agent.fill_sample(0, sample, state[:,t], t, task)
+            for t in range(0, T):
+                sample = self.agent.fill_sample(0, sample, state[:,t], t, task)
 
             mu, sig, use_state, use_action = inf_f(sample)
             def attr_moments(param, attr_name, inds, sample):
@@ -442,7 +479,7 @@ def get_base_solver(parent_class):
                         Q[t:t+1,t:t+1] = prec[t]
 
                     coeff = self.policy_inf_coeff / T
-                    quad_expr = inf_Expr(Q, v)
+                    quad_expr = inf_expr(Q, v)
 
                     bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
                     transfer_objs.append(bexpr)
@@ -499,8 +536,8 @@ def get_base_solver(parent_class):
                 self._add_all_timesteps_of_actions(plan, priority=3,
                     add_nonlin=True, active_ts=active_ts)
                 obj_bexprs.extend(rs_obj)
-                if inf_f is not None:
-                    obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]), inf_F)
+                if task is not None and inf_f is not None:
+                    obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1], inf_f))
                 self._add_obj_bexprs(obj_bexprs)
                 initial_trust_region_size = 1e3
             else:
@@ -510,8 +547,8 @@ def get_base_solver(parent_class):
                 obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 if self.transfer_always:
                     obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm, coeff=self.strong_transfer_coeff))
-                if task is not None:
-                    obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1]))
+                if task is not None and inf_f is not None:
+                    obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1], inf_f))
 
                 if priority == -2:
                     """
@@ -545,7 +582,7 @@ def get_base_solver(parent_class):
             solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
             success = solv.solve(self._prob, method='penalty_sqp', tol=tol)
-            if priority == MAX_PRIORITY:
+            if True or priority == MAX_PRIORITY:
                 success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
             self._update_ll_params()
 

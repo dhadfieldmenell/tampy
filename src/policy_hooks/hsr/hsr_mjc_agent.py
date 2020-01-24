@@ -219,7 +219,7 @@ class HSRMJCAgent(TAMPAgent):
         plan = self.plans.values()[0]
         for param_name, attr in self.state_inds:
             if attr == 'pose' and plan.params[param_name]._type == 'Can':
-                self.env.set_item_pose(param_name, mp_state[self.state_inds[param_name, attr]], False)
+                self.env.set_item_pos(param_name, mp_state[self.state_inds[param_name, attr]], False)
         
 
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):

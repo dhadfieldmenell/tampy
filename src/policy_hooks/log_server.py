@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 import pickle
+import pprint
 import rospy
 import time
 
@@ -24,14 +25,16 @@ class LogServer(object):
         self.traj_init_costs = {}
         self.postcondition_costs = {}
         self.tree_sizes = []
+        self.passes_per_tree = []
         self.ckpts = []
+        self.log_file = 'tf_saved/'+hyperparams['weight_dir']+'/master_log.pkl'
         self.updater = rospy.Subscriber('log_update', String, self.update, queue_size=10)
         # rospy.spin()
 
 
     def checkpoint(self):
         self.ckpts.append({
-            'time': time.time()
+            'time': time.time(),
             'n_opt_calls': copy.deepcopy(self.n_opt_calls),
             'n_hl_calls': self.n_hl_calls,
             'traj_init_costs': copy.deepcopy(self.traj_init_costs),
@@ -42,6 +45,7 @@ class LogServer(object):
         with open(self.log_file, 'wb') as f:
             pickle.dump(self.ckpts, f)
         self.last_ckpt = time.time()
+
 
     # def end(self, msg):
     #     self.stopped = True
@@ -81,7 +85,7 @@ class LogServer(object):
         while len(self.update_queue):
             update = eval(msg.data)
             if 'rollouts' in update: self.update_rollout(update['rollouts'])
-            if 'motion_planning' in update: self.update_mp(update['motion_planning'])
+            if 'motion_plan' in update: self.update_mp(update['motion_plan'])
             if 'high_level' in update: self.update_hl(update['high_level'])
 
         if time.time() - self.last_ckpt > 60:

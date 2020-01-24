@@ -15,22 +15,33 @@ from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 
-NUM_OBJS = 5
+NUM_OBJS = 2
 
 prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
 domain_file = "../domains/namo_domain/namo.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_2"
 pddl_file = "../domains/namo_domain/sorting_domain_2.pddl"
 
+# END_TARGETS = [(0., 5.8), 
+#            (0., 5.), 
+#            (0., 4.), 
+#            (2., -2.), 
+#            (0., -2.),
+#            (4., 0.),
+#            (-4, 0.),
+#            (4., -2.),
+#            (-4., -2.),
+#            (-2., -2.)]
+
 END_TARGETS = [(0., 5.8), 
            (0., 5.), 
            (0., 4.), 
-           (2., -2.), 
-           (0., -2.),
-           (4., 0.),
-           (-4, 0.),
-           (4., -2.),
-           (-4., -2.),
+           (2., 2.5), 
+           (1., 2.5),
+           (-1., 2.5),
+           (-2, 2.5),
+           (-3., 2.5),
+           (3., 2.5),
            (-2., -2.)]
 
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)]
@@ -92,6 +103,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         can_locs = can_locs[:NUM_OBJS]
         for i in range(NUM_OBJS):
             x0[state_inds['can{0}'.format(i), 'pose']] = can_locs[i]
+
         x0s.append(x0)
     return x0s
 
@@ -152,7 +164,7 @@ def get_plans():
 
 # CODE FROM OLDER VERSION OF PROB FILE BELOW THIS
 
-def get_end_targets(num_cans, randomize=False):
+def get_end_targets(num_cans=NUM_OBJS, randomize=False):
     target_map = {}
     inds = np.random.permutation(range(num_cans))
     for n in range(num_cans):

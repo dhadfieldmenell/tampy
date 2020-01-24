@@ -281,12 +281,13 @@ class MultiProcessMain(object):
         self.config['task_list'] = self.task_list
         self.config['time_log'] = self.config['weight_dir']+'/timing_info.txt'
 
-        self.config['rollout_len'] = np.maximum(self.config['rollout_len'], 25)
+        self.config['rollout_len'] =self.config.get('rollout_len', 20)
         self.config['vae'] = {}
         self.config['vae']['task_dims'] = int(len(self.task_list) + np.sum(self.prim_dims.values()))
         self.config['vae']['obs_dims'] = (utils.IM_W, utils.IM_H, 3)
         self.config['vae']['weight_dir'] = self.weight_dir
         self.config['vae']['rollout_len'] = self.config['rollout_len']
+        self.config['vae'].update(self.config['train_params'])
 
         self.rollout_type = VAETampRolloutServer
 
@@ -325,11 +326,12 @@ class MultiProcessMain(object):
                               opt_strength=0,
                               )
         config['vae'] = {}
-        config['vae']['task_dims'] = int(n * np.prod(prim_dims.values()))
+        config['vae']['task_dims'] = int(n * np.sum(prim_dims.values()))
         config['vae']['obs_dims'] = (temp_env.im_height, temp_env.im_wid, 3)
         config['vae']['weight_dir'] = config['weight_dir']
         config['vae']['rollout_len'] = config['rollout_len']
         config['vae']['load_step'] = config['load_step']
+        config['vae'].update(config['train_params'])
         config['topic'] = name
         temp_env.close()
 
@@ -431,6 +433,8 @@ class MultiProcessMain(object):
             self.config['id'] = 0
             self.config['vae']['train_mode'] = 'unconditional' if self.config['unconditional'] else 'conditional'
             trainer = VAETrainer(self.config)
+            # o, d, d2 = trainer.vae.test_decode()
+            # import ipdb; ipdb.set_trace()
             trainer.train()
         elif self.config['train_reward']:
             self.config['id'] = 0

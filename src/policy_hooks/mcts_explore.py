@@ -8,7 +8,6 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 
 
-
 class MCTSNode():
     def __init__(self, label, value, parent, nvec):
         self.label = label

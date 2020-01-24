@@ -1,6 +1,7 @@
 from datetime import datetime
 import numpy as np
 import os
+import pprint
 import random
 import sys
 import time
@@ -24,7 +25,16 @@ class DummyPolicy:
         self.policy_call = policy_call
 
     def act(self, x, obs, t, noise):
-        return self.policy_call(x, obs, t, noise, self.task)
+        U = self.policy_call(x, obs, t, noise, self.task)
+        if np.any(np.isnan(x)):
+            raise Exception('Nans in policy call state.')
+        if np.any(np.isnan(obs)):
+            raise Exception('Nans in policy call obs.')
+        if np.any(np.isnan(noise)):
+            raise Exception('Nans in policy call noise.')
+        if np.any(np.isnan(U)):
+            raise Exception('Nans in policy call action.')
+        return U
 
 
 class DummyPolicyOpt:
@@ -36,11 +46,17 @@ class DummyPolicyOpt:
 class RolloutServer(object):
     def __init__(self, hyperparams):
         self.id = hyperparams['id']
+        self.num_conds = hyperparams['num_conds']
         np.random.seed(int(time.time()/100000))
         rospy.init_node('rollout_server_'+str(self.id))
         self.mcts = hyperparams['mcts']
+        self.run_mcts_rollouts = hyperparams.get('run_mcts_rollouts', True)
+        self.run_alg_updates = hyperparams.get('run_alg_updates', True)
         self.prim_dims = hyperparams['prim_dims']
+        self.solver = hyperparams['solver_type'](hyperparams)
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
+        self.agent.solver = self.solver
+        self.solver.agent = self.agent
         for m in self.mcts:
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
@@ -71,18 +87,12 @@ class RolloutServer(object):
         self.sample_queue = []
         self.current_id = 0
         self.cur_step = 0
-        self.opt_samples = {task: [] for task in self.task_list}
-        self.max_sample_queue = hyperparams['max_sample_queue']
-        self.max_opt_sample_queue = hyperparams['max_opt_sample_queue']
+        self.rollout_opt_pairs = {task: [] for task in self.task_list}
+        self.max_sample_queue = int(hyperparams['max_sample_queue'])
+        self.max_opt_sample_queue = int(hyperparams['max_opt_sample_queue'])
         self.early_stop_prob = hyperparams['mcts_early_stop_prob']
         self.run_hl_prob = hyperparams['run_hl_prob'] if 'run_hl_prob' in hyperparams else 0
         self.opt_prob = hyperparams['opt_prob'] if 'opt_prob' in hyperparams else 0.05
-
-        # self.policy_proxies = {task: rospy.ServiceProxy(task+'_policy_act', PolicyAct, persistent=True) for task in self.task_list}
-        # self.value_proxy = rospy.ServiceProxy('qvalue', QValue, persistent=True)
-        # self.primitive_proxy = rospy.ServiceProxy('primitive', Primitive, persistent=True)
-        # self.prob_proxies = {task: rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True) for task in self.task_list}
-        # self.mp_proxies = {mp_id: rospy.ServiceProxy('motion_planner_'+str(mp_id), MotionPlan, persistent=True) for mp_id in range(self.n_optimizers)}
 
         self.use_local = hyperparams['use_local']
         if self.use_local:
@@ -110,17 +120,17 @@ class RolloutServer(object):
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}.txt'.format(self.id)
         state_info = []
         params = self.agent.plans.values()[0].params
-        for x in self.agent.x0:
-            info = []
-            for param_name, attr in self.agent.state_inds:
-                if params[param_name].is_symbol(): continue
-                value = x[self.agent._x_data_idx[STATE_ENUM]][self.agent.state_inds[param_name, attr]]
-                info.append((param_name, attr, value))
-            state_info.append(info)
-        with open(self.rollout_log, 'w+') as f:
-            for i in range(len(state_info)):
-                f.write(str(i)+': '+str(state_info)+'\n')
-            f.write('\n\n\n')
+        # for x in self.agent.x0:
+        #     info = []
+        #     for param_name, attr in self.agent.state_inds:
+        #         if params[param_name].is_symbol(): continue
+        #         value = x[self.agent._x_data_idx[STATE_ENUM]][self.agent.state_inds[param_name, attr]]
+        #         info.append((param_name, attr, value))
+        #     state_info.append(info)
+        # with open(self.rollout_log, 'w+') as f:
+        #     for i in range(len(state_info)):
+        #         f.write(str(i)+': '+str(state_info)+'\n')
+        #     f.write('\n\n\n')
 
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
@@ -167,12 +177,16 @@ class RolloutServer(object):
         msg.dU = mu.shape[-1]
         msg.n = len(mu)
         msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
-        if task in self.pol_list:
-            print 'Sent update to', task, 'policy'
+
+        # if task != 'value':
+        #     print('Sending update on', task)
+
+        if task in self.updaters:
+            # print 'Sent update to', task, 'policy'
             self.updaters[task].publish(msg)
         else:
             # Assume that if we don't have a policy for this task we're using a single control policy
-            print 'Sent update to control policy'
+            # print 'Sent update to control policy'
             self.updaters['control'].publish(msg)
 
 
@@ -325,45 +339,45 @@ class RolloutServer(object):
             del self.sample_queue[0]
 
 
-    def store_opt_sample(self, sample, plan_id, waiters=[]):
-        samples = waiters
+    def store_opt_sample(self, sample, plan_id, samples=[]):
         if plan_id in self.waiting_for_opt:
-            if len(self.waiting_for_opt[plan_id]):
+            if not len(samples) and len(self.waiting_for_opt[plan_id]):
                 samples = self.waiting_for_opt[plan_id]
             del self.waiting_for_opt[plan_id]
 
         for s in samples:
             s.set_ref_X(sample.get_ref_X())
 
-        task = self.task_list[sample.task[0]]
-        self.opt_samples[task].append((sample, samples))
-        while len(self.opt_samples[task]) > self.max_opt_sample_queue:
-            del self.opt_samples[task][0]
+        task_name = self.task_list[sample.task[0]]
+        self.rollout_opt_pairs[task_name].append((sample, samples))
+        self.rollout_opt_pairs[task_name] = self.rollout_opt_pairs[task_name][-self.max_opt_sample_queue:]
 
 
     def sample_mp(self, msg):
+        ### If this server isn't running algorithm updates, it doesn't need to store the mp results
+        # print('Received motion plan', self.id)
+        if not self.run_alg_updates:
+            return
+
         plan_id = msg.plan_id
         traj = np.array([msg.traj[i].data for i in range(len(msg.traj))])
         state = np.array(msg.state)
         success = msg.success
         task = eval(msg.task)
         condition = msg.cond
-        # print "Received trajectory, success:", success
         if success:
             waiters = []
             if plan_id in self.waiting_for_opt:
                 waiters = self.waiting_for_opt[plan_id]
-                # del self.waiting_for_opt[plan_id]
 
+            # print('Stored motion plan', self.id)
             self.opt_queue.append((plan_id, state, task, condition, traj, waiters))
-            # print 'Sampling optimal trajectory on rollout server {0}.'.format(self.id)
-            # opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, opt_traj=traj, traj_mean=[])
-            # self.store_opt_sample(opt_sample, plan_id)
+
 
 
     def choose_mp_problems(self, samples):
         Xs = samples.get_X()[:,:,self.agent._x_data_idx[STATE_ENUM]]
-        if self.traj_centers <= 1:
+        if self.traj_centers <= 1 or len(samples) == 1:
             return [[np.mean(Xs, axis=0), samples]]
         flat_Xs = Xs.reshape((Xs.shape[0], np.prod(Xs.shape[1:])))
         centroids, labels = kmeans(flat_Xs, k=self.traj_centers, minit='points')
@@ -403,7 +417,7 @@ class RolloutServer(object):
         prob.prob_id = self.current_id
         prob.solver_id = np.random.randint(0, self.n_optimizers)
         prob.server_id = self.id
-        self.store_for_opt(s_list)
+        # self.store_for_opt(s_list)
 
         if self.alg_map[next_sample.task_name].mp_policy_prior.gmm.sigma is None:
             prob.use_prior = False
@@ -423,36 +437,43 @@ class RolloutServer(object):
         self.test_publisher.publish('MCTS sent motion plan.')
 
 
-    def parse_state(self, xs):
-        state_info = []
+    def parse_state(self, sample):
+        state_info = {}
         params = self.agent.plans.values()[0].params
-        for x in xs:
-            info = []
-            for param_name, attr in self.agent.state_inds:
-                if params[param_name].is_symbol(): continue
-                value = x[self.agent._x_data_idx[STATE_ENUM]][self.agent.state_inds[param_name, attr]]
-                info.append((param_name, attr, value))
-            state_info.append(info)
+        state = sample.get(STATE_ENUM)
+        for param_name, attr in self.agent.state_inds:
+            if params[param_name].is_symbol(): continue
+            value = state[:, self.agent.state_inds[param_name, attr]]
+            state_info[param_name, attr] = value
         return state_info
 
 
     def run_opt_queue(self):
-        if len(self.opt_queue):
-            # print 'Running optimal trajectory.'
+        ### Guard against accidentally storing optimized results
+        if not self.run_alg_updates:
+            self.opt_queue = []
+
+        while len(self.opt_queue):
+            # print('Server', self.id, 'running opt queue')
             plan_id, state, task, condition, traj, waiters = self.opt_queue.pop()
             opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, opt_traj=traj, traj_mean=[])
-            self.store_opt_sample(opt_sample, plan_id, waiters)
+            samples = self.get_rollouts([opt_sample], self.task_list[task[0]])
+            assert len(samples) == 1
+            self.store_opt_sample(opt_sample, plan_id, samples[0])
             info = self.parse_state(opt_sample)
             with open(self.rollout_log, 'a+') as f:
-                f.write("Optimal rollout:\n")
-                for line in info:
-                    f.write(str(line))
-                    f.write('\n')
-                f.write('\n\n\n\n')
+                f.write("Optimal rollout for {0} {1}:\n".format(self.task_list[opt_sample.task[0]], opt_sample.task))
+                pp_info = pprint.pformat(info, width=50)
+                f.write(pp_info)
+                f.write('\n\n')
 
 
     def run_hl_opt_queue(self, mcts):
-        if len(self.hl_opt_queue):
+        ### Guard against accidentally storing optimized results
+        if not self.run_alg_updates:
+            self.hl_opt_queue = []
+
+        while len(self.hl_opt_queue):
             samples = []
             path_to, success, opt_queue = self.hl_opt_queue.pop()
             mcts.update_vals(path_to, success)
@@ -465,6 +486,25 @@ class RolloutServer(object):
             self.update_primitive(samples)
 
 
+    def get_rollouts(self, init_samples, task_name):
+        policy = DummyPolicy(task_name, self.policy_call)
+        return self.agent.resample(init_samples, policy, self.num_samples)
+
+
+    # def run_gps(self):
+    #     rollout_policies = {task: DummyPolicy(task, self.policy_call) for task in self.agent.task_list}
+    #     for task in self.task_list:
+    #         inds = np.random.choice(range(len(self.rollout_opt_pairs[task])), min(self.num_conds, len(self.rollout_opt_pairs[task])), replace=False)
+    #         opt_samples = []
+    #         for i in inds:
+    #             opt_sample, old_samples = self.rollout_opt_pairs[task][i]
+    #             opt_samples.append(opt_sample)
+
+    #         for i in range(self.traj_opt_steps):
+    #             samples = self.agent.resample(opt_samples, rollout_policies[task], self.num_samples)
+    #             self.alg_map[task].iteration([(opt_samples[j], samples[j]) for j in range(len(samples))], reset=i==0)
+
+
     def step(self):
         # print '\n\nTaking tree search step.\n\n'
         self.cur_step += 1
@@ -472,74 +512,92 @@ class RolloutServer(object):
 
         start_time = time.time()
         all_samples = []
-        if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
-            print "\n\nRestarting dead ros node: rollout server\n\n", self.id
-            rospy.init_node('rollout_server_'+str(self.id))
+        # if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
+        #     print "\n\nRestarting dead ros node: rollout server\n\n", self.id
+        #     rospy.init_node('rollout_server_'+str(self.id))
         
-        self.renew_publisher()
-        random.shuffle(self.mcts) # If rospy hangs, don't want it to always be for the same trees
-        for mcts in self.mcts:
-            self.update_weights()
-            # print os.popen("rosnode list").read(), "\n", self.id, "\n\n"
-            val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=False)
-            self.run_opt_queue()
-            self.run_hl_opt_queue(mcts)
-            self.test_publisher.publish('MCTS Step')
-            if np.random.uniform() < self.run_hl_prob and val > 0:
-                init_state = self.agent.x0[mcts.condition]
-                prob = HLProblem()
-                prob.server_id = self.id
-                prob.solver_id = np.random.randint(0, self.n_optimizers)
-                prob.init_state = init_state.tolist()
-                prob.cond = mcts.condition
-                gmms = {}
-                for task in self.task_list:
-                    gmm = self.alg_map[task].mp_policy_prior.gmm
-                    if gmm.sigma is None: continue
-                    gmms[task] = {}
-                    gmms[task]['mu'] = gmm.mu.flatten()
-                    gmms[task]['sigma'] = gmm.sigma.flatten()
-                    gmms[task]['logmass'] = gmm.logmass.flatten()
-                    gmms[task]['mass'] = gmm.mass.flatten()
-                    gmms[task]['N'] = len(gmm.mu)
-                    gmms[task]['K'] = len(gmm.mass)
-                    gmms[task]['Do'] = gmm.sigma.shape[1]
-                prob.gmms = str(gmms)
+        # self.renew_publisher()
 
-                path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
-                path_tuples = []
-                for step in path:
-                    path_tuples.append(step.task)
-                prob.path_to = str(path_tuples)
-                self.hl_publisher.publish(prob)
 
-            sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
-            self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=0.0)
-            n_probs = 0
+        if self.run_mcts_rollouts:
+            ### If rospy hangs, don't want it to always be for the same trees
+            random.shuffle(self.mcts)
 
-            if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
-                print "\n\nRestarting dead ros node:", 'rollout_server_'+str(self.id), '\n\n'
-                rospy.init_node('rollout_server_'+str(self.id))
+            # print('Running MCTS for server', self.id)
+            for mcts in self.mcts:
+                self.update_weights()
+                val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=False)
+                self.run_opt_queue()
+                # self.run_hl_opt_queue(mcts)
+                # self.test_publisher.publish('MCTS Step')
 
-            for task in sample_lists:
-                for s_list in sample_lists[task]:
-                    mp_prob = np.random.uniform()
-                    # print 'Checking for sample list for', task
-                    # print mp_prob < self.opt_prob, mp_prob, self.opt_prob
-                    if mp_prob < self.opt_prob:
-                        # print 'Choosing mp problems.'
-                        all_samples.extend(s_list._samples)
-                        probs = self.choose_mp_problems(s_list)
-                        n_probs += len(probs)
-                        for p in probs:
-                            self.send_mp_problem(*p)
-            for task in self.agent.task_list:
-                if len(self.opt_samples[task]) > 0:
-                    sample_lists[task] = self.alg_map[task].iteration(self.opt_samples[task], reset=False)
-            self.renew_publisher()
+                ### Used for DAgger
+                # if np.random.uniform() < self.run_hl_prob and val > 0:
+                #     init_state = self.agent.x0[mcts.condition]
+                #     prob = HLProblem()
+                #     prob.server_id = self.id
+                #     prob.solver_id = np.random.randint(0, self.n_optimizers)
+                #     prob.init_state = init_state.tolist()
+                #     prob.cond = mcts.condition
+                #     gmms = {}
+                #     for task in self.task_list:
+                #         gmm = self.alg_map[task].mp_policy_prior.gmm
+                #         if gmm.sigma is None: continue
+                #         gmms[task] = {}
+                #         gmms[task]['mu'] = gmm.mu.flatten()
+                #         gmms[task]['sigma'] = gmm.sigma.flatten()
+                #         gmms[task]['logmass'] = gmm.logmass.flatten()
+                #         gmms[task]['mass'] = gmm.mass.flatten()
+                #         gmms[task]['N'] = len(gmm.mu)
+                #         gmms[task]['K'] = len(gmm.mass)
+                #         gmms[task]['Do'] = gmm.sigma.shape[1]
+                #     prob.gmms = str(gmms)
+                #     path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
+                #     path_tuples = []
+                #     for step in path:
+                #         path_tuples.append(step.task)
+                #     prob.path_to = str(path_tuples)
+                #     self.hl_publisher.publish(prob)
+
+
+                ### Collect observed samples from MCTS
+                sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
+                self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=0.0)
+                n_probs = 0
+
+                ### Check to see if ros node is dead; restart if so
+                # if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
+                #     print "\n\nRestarting dead ros node:", 'rollout_server_'+str(self.id), '\n\n'
+                #     rospy.init_node('rollout_server_'+str(self.id))
+
+                ### Stochastically choose subset of observed init states/problems to solve the motion planning problem for
+                for task in sample_lists:
+                    for ind, s_list in enumerate(sample_lists[task]):
+                        mp_prob = np.random.uniform()
+                        if mp_prob < self.opt_prob:
+                            all_samples.extend(s_list._samples)
+
+                            ### If multiple rollouts were taken per state, can extract multiple mean-trajectories
+                            probs = self.choose_mp_problems(s_list)
+                            n_probs += len(probs)
+
+                            ### Send each chosen problem to the MP server
+                            for p in probs:
+                                self.send_mp_problem(*p)
+
+                ### Run an update step of the algorithm if there are any waiting rollouts that already have an optimized result from the MP server
+                for task in self.agent.task_list:
+                    if len(self.rollout_opt_pairs[task]) > 1:
+                        # sample_lists[task] = self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=False)
+                        sample_inds = np.random.choice(range(len(self.rollout_opt_pairs[task])), min(self.num_conds, len(self.rollout_opt_pairs[task])), replace=False)
+                        samples = [self.rollout_opt_pairs[task][ind] for ind in sample_inds]
+                        self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=False)
+
+                ### Publisher might be dead
+                self.renew_publisher()
+            # print('Ran through MCTS, for server', self.id)
+
         end_time = time.time()
-
-
         start_time_2 = time.time()
         end_time_2 = time.time()
 
@@ -549,6 +607,8 @@ class RolloutServer(object):
         #         f.write('Time to complete: {0}\n'.format(end_time-start_time))
         #         f.write('Time to select problems through kmeans and send to supervised learner: {0}\n\n'.format(end_time_2-start_time_2))
 
+
+        ### Look for saved successful HL rollout paths and send them to update the HL options policy
         path_samples = []
         for path in self.agent.get_task_paths():
             path_samples.extend(path)
@@ -557,22 +617,14 @@ class RolloutServer(object):
         self.update_qvalue(all_samples)
 
         start_time = time.time()
-        for task in self.agent.task_list:
-            if len(self.opt_samples[task]):
-                sample_lists[task] = self.alg_map[task].iteration(self.opt_samples[task], reset=False)
 
-        # for step in range(self.traj_opt_steps-1):
-        #     for task in self.agent.task_list:
-        #         try:
-        #             sample_lists[task] = self.alg_map[task].iteration(sample_lists[task], self.opt_samples[task], reset=True)
-        #             if len(sample_lists[task]):
-        #                 sample_lists[task] = self.agent.resample(sample_lists[task], rollout_policies[task], self.n_samples)
-        #             else:
-        #                 continue
-        #             self.agent._samples[task] = sample_lists[task]
-        #         except:
-        #             traceback.print_exception(*sys.exc_info())
-        # self.agent.reset_sample_refs()
+        ### Run an update step of the algorithm if there are any waiting rollouts that already have an optimized result from the MP server
+        for task in self.agent.task_list:
+            if len(self.rollout_opt_pairs[task]) > 1:
+                sample_inds = np.random.choice(range(len(self.rollout_opt_pairs[task])), min(self.num_conds, len(self.rollout_opt_pairs[task])), replace=False)
+                samples = [self.rollout_opt_pairs[task][ind] for ind in sample_inds]
+                self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=False)
+
         end_time = time.time()
         if self.log_timing:
             with open(self.time_log, 'a+') as f:
@@ -588,22 +640,20 @@ class RolloutServer(object):
 
 
     def update_qvalue(self, samples, first_ts_only=False):
-        dV, dO = 2, self.agent.dVal
+        dV, dO = 1, self.agent.dVal
 
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dV))
         tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
         for sample in samples:
             if not hasattr(sample, 'success'): continue
-            for t in range(sample.T):
-                obs = [sample.get_val_obs(t=t)]
-                mu = [sample.success]
-                prc = [np.eye(dV)]
-                wt = [1.] # [10. / (t+1)]
-                tgt_mu = np.concatenate((tgt_mu, mu))
-                tgt_prc = np.concatenate((tgt_prc, prc))
-                tgt_wt = np.concatenate((tgt_wt, wt))
-                obs_data = np.concatenate((obs_data, obs))
-                if first_ts_only: break
+            mu = sample.success * np.ones((sample.T, dV))
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            wt = np.ones((sample.T,))
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs = sample.get_val_obs()
+            obs_data = np.concatenate((obs_data, obs))
+            prc = np.tile(np.eye(dV), (sample.T,1))
+            tgt_prc = np.concatenate((tgt_prc, prc))
 
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'value', 1)
@@ -611,19 +661,18 @@ class RolloutServer(object):
 
     def update_primitive(self, samples):
         dP, dO = self.agent.dPrimOut, self.agent.dPrim
-        # Compute target mean, cov, and weight for each sample.
+        ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         for sample in samples:
-            for t in range(sample.T):
-                obs = [sample.get_prim_obs(t=t)]
-                mu = [np.concatenate([sample.get(enum, t=t) for enum in self.prim_dims])]
-                prc = [np.eye(dP)]
-                wt = [1.] # [np.exp(-sample.task_cost)]
-                tgt_mu = np.concatenate((tgt_mu, mu))
-                tgt_prc = np.concatenate((tgt_prc, prc))
-                tgt_wt = np.concatenate((tgt_wt, wt))
-                obs_data = np.concatenate((obs_data, obs))
+            mu = np.concatenate([sample.get(enum) for enum in self.prim_dims], axis=-1)
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            wt = np.ones((sample.T,))
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs = sample.sample.get_prim_obs()
+            obs_data = np.concatenate((obs_data, obs))
+            prc = np.tile(np.eye(dP), (sample.T,1))
+            tgt_prc = np.concatenate((tgt_prc, prc))
 
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1)

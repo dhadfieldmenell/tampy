@@ -23,7 +23,7 @@ class PrimitivePredicates(object):
     def get_str(self):
         prim_str = 'Primitive Predicates: '
         first = True
-        for name, attrs in self.attr_dict.iteritems():
+        for name, attrs in self.attr_dict.items():
             for attr_name, attr_type in attrs:
                 pred_str = attr_name + ', ' + name + ', ' + attr_type
                 if first:
@@ -63,7 +63,7 @@ class DerivatedPredicates(object):
         prim_str = 'Derived Predicates: '
 
         first = True
-        for name, args in self.pred_dict.iteritems():
+        for name, args in self.pred_dict.items():
             pred_str = name
             for arg in args:
                 pred_str += ', ' + arg

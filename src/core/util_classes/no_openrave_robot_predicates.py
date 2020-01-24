@@ -1705,9 +1705,8 @@ class AlmostInGripper(PosePredicate):
         self._param_to_body = {
         self.robot: self.lazy_spawn_or_body(self.robot, self.robot.name, self.robot.geom),
         self.obj: self.lazy_spawn_or_body(self.obj, self.obj.name, self.obj.geom)}
-        
-        e = EqExpr(Expr(self.eval_f, self.eval_grad), np.zeros((self.eval_dim, 1)))
-        # e = LEqExpr(Expr(self.eval_f, self.eval_grad), self.max_dist.reshape(-1,1))
+
+        e = LEqExpr(Expr(self.eval_f, self.eval_grad), self.max_dist.reshape(-1,1))
         super(AlmostInGripper, self).__init__(name, e, self.attr_inds, params, expected_param_types, ind0=0, ind1=1, priority = 2)
         self.spacial_anchor = True
 

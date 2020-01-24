@@ -29,22 +29,23 @@ import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
-from policy_hooks.namo.vector_include import *
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
 import policy_hooks.namo.sorting_prob_2 as prob
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
+from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
+from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_OBJS = 5
+NUM_OBJS = prob.NUM_OBJS
 NUM_CONDS = 100
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
 N_SAMPLES = 20
-N_TRAJ_CENTERS = N_SAMPLES
+N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 
 
@@ -150,10 +151,17 @@ algorithm['traj_opt'] = {
 # }
 
 algorithm['policy_prior'] = {
-    'type': PolicyPrior,
+    'type': PolicyPriorGMM,
     'max_clusters': 20,
     'min_samples_per_cluster': 40,
-    'max_samples': 20,
+    'max_samples': 100,
+}
+
+algorithm['mp_policy_prior'] = {
+    'type': PolicyMPPriorGMM,
+    'max_clusters': 20,
+    'min_samples_per_cluster': 40,
+    'max_samples': 100,
 }
 
 config = {
@@ -172,14 +180,14 @@ config = {
     'sample_on_policy': True,
     'hist_len': 3,
     'take_optimal_sample': True,
-    'num_rollouts': 3,
-    'max_tree_depth': 6*NUM_OBJS,
+    'num_rollouts': 10,
+    'max_tree_depth': 3*NUM_OBJS,
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
     'lr': 1e-3,
 
-    'train_iterations': 100000,
+    'train_iterations': 100,
     'weight_decay': 0.00001,
     'batch_size': 1000,
     'n_layers': 2,
@@ -193,8 +201,8 @@ config = {
     # New for multiprocess, transfer to sequential version as well.
 
     'n_optimizers': 8,
-    'n_rollout_servers': 1,
-    'base_weight_dir': 'tf_saved/namo_',
+    'n_rollout_servers': 16,
+    'base_weight_dir': 'namo_',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
     'max_sample_queue': 1e3,
@@ -202,7 +210,7 @@ config = {
     'hl_plan_for_state': prob.hl_plan_for_state,
     'task_map_file': 'policy_hooks/namo/sorting_task_mapping_2',
     'prob': prob,
-    'get_vector': get_vector,
+    'get_vector': prob.get_vector,
     'robot_name': 'pr2',
     'obj_type': 'can',
     'num_objs': NUM_OBJS,
@@ -210,7 +218,7 @@ config = {
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
     'solver_type': NAMOPolicySolver,
-    'update_size': 5e3,
+    'update_size': 500,
     'use_local': True,
     'n_dirs': 16,
     'domain': 'namo',

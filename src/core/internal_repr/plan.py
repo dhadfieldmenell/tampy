@@ -46,7 +46,7 @@ class Plan(object):
 
     def _determine_free_attrs(self):
         for p in self.params.itervalues():
-            for k, v in p.__dict__.iteritems():
+            for k, v in p.__dict__.items():
                 if type(v) == np.ndarray:
                     ## free variables are indicated as numpy arrays of NaNs
                     arr = np.zeros(v.shape, dtype=np.int)
@@ -58,7 +58,7 @@ class Plan(object):
             active_ts = (0, self.horizon-1)
 
         for p in self.params.itervalues():
-            for k, v in p.__dict__.iteritems():
+            for k, v in p.__dict__.items():
                 if type(v) == np.ndarray:
                     if p.is_symbol() and np.any(np.isnan(v)):
                         print 'Nan found in', p.name, k, v
@@ -103,7 +103,7 @@ class Plan(object):
         for p in self.get_preds(incl_negated = negated):
             has_partial_assignment = True
             if p.get_type() != pred_type: continue
-            for idx, v in partial_assignment.iteritems():
+            for idx, v in partial_assignment.items():
                 if p.params[idx] != v:
                     has_partial_assignment = False
                     break
@@ -202,6 +202,9 @@ class Plan(object):
 
                 try:
                     viol = failed[1].check_pred_violation(t, negated=failed[0], tol=tol)
+                    # if np.any(np.isnan(viol)):
+                    #     print('Nan constr violation for {0} at ts {1}'.format(failed, t))
+
                     if viol is not None:
                         cost += np.max(viol)
                 except:

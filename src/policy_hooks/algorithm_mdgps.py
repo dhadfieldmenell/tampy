@@ -124,8 +124,8 @@ class AlgorithmMDGPS(Algorithm):
             self._update_policy()
 
         # Update policy linearizations.
-        for m in range(self.M):
-            self._update_policy_fit(m)
+        # for m in range(self.M):
+        #     self._update_policy_fit(m)
 
         # C-step
         if self.iteration_count > 0:
@@ -140,7 +140,7 @@ class AlgorithmMDGPS(Algorithm):
 
     def _update_policy(self, optimal_samples=[]):
         """ Compute the new policy. """
-        print 'Updating policy'
+        print('Updating policy')
         dU, dO, T = self.dU, self.dO, self.T
         data_len = int(self.sample_ts_prob * T)
         # Compute target mean, cov, and weight for each sample.
@@ -197,9 +197,10 @@ class AlgorithmMDGPS(Algorithm):
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
         if len(tgt_mu):
+            print('Updating on', self.task)
             self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
         else:
-            print 'Update called with no data.'
+            print('Update called with no data.')
 
     # def _update_policy(self):
     #     """ Compute the new policy. """
@@ -268,15 +269,16 @@ class AlgorithmMDGPS(Algorithm):
         mode = self._hyperparams['policy_sample_mode']
         try:
             policy_prior.update(samples, self.policy_opt, mode, self.task)
-        except Exception as e:
-            print 'Policy prior update threw exception: ', e, '\n'
 
-        # Fit linearization and store in pol_info.
-        pol_info.pol_K, pol_info.pol_k, pol_info.pol_S = \
-                policy_prior.fit(X, pol_mu, pol_sig)
-        for t in range(T):
-            pol_info.chol_pol_S[t, :, :] = \
+            # Fit linearization and store in pol_info.
+            pol_info.pol_K, pol_info.pol_k, pol_info.pol_S = \
+                    policy_prior.fit(X, pol_mu, pol_sig)
+
+            for t in range(T):
+                pol_info.chol_pol_S[t, :, :] = \
                 sp.linalg.cholesky(pol_info.pol_S[t, :, :])
+        except:
+            print 'Policy fit threw exception: ', e, '\n'
 
     def _eval_cost(self, cond):
         """

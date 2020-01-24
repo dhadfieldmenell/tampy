@@ -2,6 +2,7 @@
 import numpy as np
 
 from gps.proto.gps_pb2 import ACTION
+from policy_hooks.utils.policy_solver_utils import ACTION_ENUM
 
 
 class Sample(object):
@@ -81,7 +82,8 @@ class Sample(object):
 
     def get_U(self, t=None):
         """ Get the action. """
-        return self._data[ACTION] if t is None else self._data[ACTION][t, :]
+        # return self._data[ACTION] if t is None else self._data[ACTION][t, :]
+        return self._data[ACTION_ENUM] if t is None else self._data[ACTION_ENUM][t, :]
 
     def get_obs(self, t=None):
         """ Get the observation. Put it together if not precomputed. """

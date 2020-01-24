@@ -1,5 +1,14 @@
-from openravepy import IkParameterizationType, databases
+import core.util_classes.common_constants as const
+
+if const.USE_OPENRAVE:
+    from openravepy import IkParameterizationType, databases
+else:
+    import pybullet as p
+    from baxter_gym.util_classes.ik_controller import *
+
 import numpy as np
+
+
 class Robot(object):
     """
     Base class of every robot parameter
@@ -74,21 +83,25 @@ class Baxter(Robot):
         """
         Need to setup iksolver for baxter
         """
-        iktype = IkParameterizationType.Transform6D
-        ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
-        if not ikmodel.load():
-            print 'Something went wrong when loading ikmodel'
-        #   ikmodel.autogenerate()
-        right_manip = robot.GetManipulator('right_arm')
-        ikmodel.manip = right_manip
-        right_manip.SetIkSolver(ikmodel.iksolver)
+        if const.USE_OPENRAVE:
+            iktype = IkParameterizationType.Transform6D
+            ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
+            if not ikmodel.load():
+                print 'Something went wrong when loading ikmodel'
+            #   ikmodel.autogenerate()
+            right_manip = robot.GetManipulator('right_arm')
+            ikmodel.manip = right_manip
+            right_manip.SetIkSolver(ikmodel.iksolver)
 
-        ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
-        if not ikmodel.load():
-            print 'Something went wrong'
-        left_manip = robot.GetManipulator('left_arm')
-        ikmodel.manip = left_manip
-        left_manip.SetIkSolver(ikmodel.iksolver)
+            ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, IkParameterizationType.Transform6D, True)
+            if not ikmodel.load():
+              print 'Something went wrong'
+            left_manip = robot.GetManipulator('left_arm')
+            ikmodel.manip = left_manip
+            left_manip.SetIkSolver(ikmodel.iksolver)
+        else:
+            self.ik_solver = BaxterIKController(lambda: np.zeros(14))
+            self.col_links = set([self.ik_solver.name2id(name) for name in self.col_links])
 
 
 class HSR(Robot):
@@ -115,14 +128,18 @@ class HSR(Robot):
         """
         Need to setup iksolver for baxter
         """
-        iktype = IkParameterizationType.Translation3D
-        ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, iktype, True)
-        if not ikmodel.load():
-            print 'Something went wrong when loading ikmodel'
-            ikmodel.autogenerate()
-        manip = robot.GetManipulator('arm')
-        ikmodel.manip = manip
-        manip.SetIkSolver(ikmodel.iksolver)
+        if const.USE_OPENRAVE:
+            iktype = IkParameterizationType.Translation3D
+            ikmodel = databases.inversekinematics.InverseKinematicsModel(robot, iktype, True)
+            if not ikmodel.load():
+                print 'Something went wrong when loading ikmodel'
+                ikmodel.autogenerate()
+            manip = robot.GetManipulator('arm')
+            ikmodel.manip = manip
+            manip.SetIkSolver(ikmodel.iksolver)
+        else:
+            self.ik_solver = HSRIKController(lambda: np.zeros(14))
+            self.col_links = set([self.ik_solver.name2id(name) for name in self.col_links])
 
 
 class Washer(Robot):

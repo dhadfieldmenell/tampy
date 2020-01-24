@@ -52,19 +52,14 @@ class BaxterMJCSortingAgent(TAMPAgent):
             self.x0[m] = sample.get_X(t=0).copy()
             for param_name, attr in self.state_inds:
                 if attr == 'pose':
-                    self.env.set_item_pose(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False)
+                    self.env.set_item_pos(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False)
 
         for m in range(len(self.x0)):
             for param_name in self.plans.values()[0].params:
                 if (param_name, 'pose') in self.state_inds:
                     pose = self.env.get_pos_from_label(param_name, mujoco_frame=False)
-                    if pose is not None:
-                        # print param_name, pose
-                        self.x0[m][self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, 'pose']] = pose
+                    if pose is not None:                        self.x0[m][self._x_data_idx[STATE_ENUM]][self.state_inds[param_name, 'pose']] = pose
             self.x0[m].setflags(write=False)
-        # for i in range(5):
-        #     print "\n\n\n\n"
-        #     print self.x0[0][self._x_data_idx[STATE_ENUM]][self.state_inds["cloth{0}".format(i), 'pose']]
 
 
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True):
@@ -105,6 +100,11 @@ class BaxterMJCSortingAgent(TAMPAgent):
             X[self.state_inds['baxter', 'rGripper']] = grip_joints[0]
             X[self.state_inds['baxter', 'lArmPose']] = arm_joints[7:]
             X[self.state_inds['baxter', 'lGripper']] = grip_joints[1]
+            if ('baxter', 'ee_left_pos') in self.state_inds:
+                X[self.state_inds['baxter', 'ee_left_pos']] = self.env.get_left_ee_pos(mujoco_frame=False)
+            if ('baxter', 'ee_right_pos') in self.state_inds:
+                X[self.state_inds['baxter', 'ee_right_pos']] = self.env.get_right_ee_pos(mujoco_frame=False)
+
             prim_val = self.get_prim_value(condition, state, task)
             for param_name in plan.params:
                 if (param_name, 'pose') in self.state_inds and plan.params[param_name]._type == 'Cloth':
@@ -115,6 +115,21 @@ class BaxterMJCSortingAgent(TAMPAgent):
                         X[self.state_inds[param_name, 'pose']] = pose
 
             sample.set(STATE_ENUM, X.copy(), t)
+            if np.any(np.isnan(X)):
+                raise Exception('Nans in state: {0}'.format(X))
+            if OVERHEAD_IMAGE_ENUM in self._hyperparams['obs_include']:
+                self.reset_to_state(sample.get_X(t=t))
+                im = self.mjc_env.render(height=self.image_height, width=self.image_width)
+                sample.set(IM_ENUM, im.flatten(), t)
+            if LEFT_IMAGE_ENUM in self._hyperparams['obs_include']:
+                self.reset_to_state(sample.get_X(t=t))
+                im = self.mjc_env.render(height=self.image_height, width=self.image_width)
+                sample.set(IM_ENUM, im.flatten(), t)
+            if RIGHT_IMAGE_ENUM in self._hyperparams['obs_include']:
+                self.reset_to_state(sample.get_X(t=t))
+                im = self.mjc_env.render(height=self.image_height, width=self.image_width)
+                sample.set(IM_ENUM, im.flatten(), t)
+
             sample.set(NOISE_ENUM, noise[t], t)
             sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), t)
             self.fill_sample(condition, sample, X, t, task, fill_obs=True)
@@ -126,10 +141,21 @@ class BaxterMJCSortingAgent(TAMPAgent):
             else:
                 obs = sample.get_obs(t=t)
 
+            if np.any(np.isnan(obs)):
+                raise Exception('Nans in obs: {0}'.format(obs))
+
             U = policy.act(state, obs, t, noise[t])
             if np.any(np.isnan(U)):
+                raise Exception('Nans in action: {0}'.format(U))
+
+            if np.any(np.isnan(U)):
+                raise Exception('Nans in action passed to env.')
                 U[np.isnan(U)] = 0
+
             sample.set(ACTION_ENUM, U.copy(), t)
+            if np.any(np.isnan(sample.get(ACTION_ENUM, t=t))):
+                raise Exception('Nans in action from time {0}'.format(t))
+
             self.env.step(np.r_[U[self.action_inds['baxter', 'ee_right_pos']],
                                 U[self.action_inds['baxter', 'rGripper']],
                                 U[self.action_inds['baxter', 'ee_left_pos']],
@@ -143,6 +169,8 @@ class BaxterMJCSortingAgent(TAMPAgent):
         fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
         sample.end_state = X
         # print 'Sample time:', time.time() - start_time
+        if np.any(np.isnan(sample.get_U(t=1))):
+            raise Exception('Nans in final sample action.')
         return sample
 
 
@@ -220,7 +248,10 @@ class BaxterMJCSortingAgent(TAMPAgent):
         if not success:
             for action in plan.actions:
                 try:
-                    print plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)
+                    print('Solve failed on action:')
+                    print(action, plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps))
+                    print(['{0}: {1}\n'.format(p.name, p.pose[:,0]) for p in plan.params.values() if not p.is_symbol()])
+                    print('\n')
                 except:
                     pass
             print '\n\n'
@@ -234,27 +265,30 @@ class BaxterMJCSortingAgent(TAMPAgent):
 
         if not success:
             sample = Sample(self)
-            vec = np.zeros(len(self.task_list))
-            vec[task[0]] = 1.
-            sample.set(TASK_ENUM, vec, 0)
-            for i in range(len(self.prim_dims.keys())):
-                enum = self.prim_dims.keys()[i]
-                vec = np.zeros((self.prim_dims[enum]))
-                vec[task[i+1]] = 1.
-                sample.set(enum, vec, 0)
-            
-            set_params_attrs(plan.params, plan.state_inds, x0, 0)
-            
-            sample.set(OBJ_POSE_ENUM, plan.params[obj_name].pose[:,0].copy(), 0)
-            sample.set(TARG_POSE_ENUM, plan.params[targ_name].value[:,0].copy(), 0)
+            self.fill_sample(condition, sample, x0, 0, task, fill_obs=True)
 
-            sample.set(STATE_ENUM, x0.copy(), 0)
-            for data_type in self._x_data_idx:
-                sample.set(data_type, state[self._x_data_idx[data_type]], 0)
-            sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), 0)
-            sample.condition = condition
-            sample.task = task
+            # vec = np.zeros(len(self.task_list))
+            # vec[task[0]] = 1.
+            # sample.set(TASK_ENUM, vec, 0)
+            # for i in range(len(self.prim_dims.keys())):
+            #     enum = self.prim_dims.keys()[i]
+            #     vec = np.zeros((self.prim_dims[enum]))
+            #     vec[task[i+1]] = 1.
+            #     sample.set(enum, vec, 0)
+            
+            # set_params_attrs(plan.params, plan.state_inds, x0, 0)
+            
+            # sample.set(OBJ_POSE_ENUM, plan.params[obj_name].pose[:,0].copy(), 0)
+            # sample.set(TARG_POSE_ENUM, plan.params[targ_name].value[:,0].copy(), 0)
+
+            # sample.set(STATE_ENUM, x0.copy(), 0)
+            # for data_type in self._x_data_idx:
+            #     sample.set(data_type, state[self._x_data_idx[data_type]], 0)
+            # sample.set(TRAJ_HIST_ENUM, np.array(self.traj_hist).flatten(), 0)
+            # sample.condition = condition
+            # sample.task = task
             return sample, failed_preds, success
+            
         return self._sample_opt_traj(plan, state, task, condition)
 
 
@@ -320,9 +354,9 @@ class BaxterMJCSortingAgent(TAMPAgent):
         self.env.physics.data.qacc[:] = 0
         for param_name, attr in self.state_inds:
             if attr == 'pose':
-                # print param_name, mp_state[self.state_inds[param_name, 'pose']], self.env.get_item_pose(param_name, mujoco_frame=False)
-                self.env.set_item_pose(param_name, mp_state[self.state_inds[param_name, 'pose']].copy(), mujoco_frame=False, forward=False)
-                # print self.env.get_item_pose(param_name, mujoco_frame=False), '\n\n\n'
+                # print param_name, mp_state[self.state_inds[param_name, 'pose']], self.env.get_item_pos(param_name, mujoco_frame=False)
+                self.env.set_item_pos(param_name, mp_state[self.state_inds[param_name, 'pose']].copy(), mujoco_frame=False, forward=False)
+                # print self.env.get_item_pos(param_name, mujoco_frame=False), '\n\n\n'
         self.env.physics.forward()
 
 
@@ -337,7 +371,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         self.env.physics.data.qpos[17:19] = lGripper
         for param_name, attr in self.state_inds:
             if attr == 'pose':
-                self.env.set_item_pose(param_name, x[self.state_inds[param_name, 'pose']], mujoco_frame=False)
+                self.env.set_item_pos(param_name, x[self.state_inds[param_name, 'pose']], mujoco_frame=False)
 
 
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
@@ -372,17 +406,6 @@ class BaxterMJCSortingAgent(TAMPAgent):
         # sample.set(LEFT_EE_QUAT_ENUM, left_ee['quat'], t)
         U = np.zeros(self.dU)
 
-        # Assumes sample is filled in chronological order
-        if t > 0:
-            ee_right_1 = sample.get(RIGHT_EE_POS_ENUM, t=t-1)
-            ee_left_1 = sample.get(LEFT_EE_POS_ENUM, t=t-1)
-            U[self.action_inds['baxter', 'ee_right_pos']] = right_ee['pos'] - ee_right_1
-            U[self.action_inds['baxter', 'ee_left_pos']] = left_ee['pos'] - ee_left_1
-            U[self.action_inds['baxter', 'rGripper']] = mp_state[self.state_inds['baxter', 'rGripper']]
-            U[self.action_inds['baxter', 'lGripper']] = mp_state[self.state_inds['baxter', 'lGripper']]
-            sample.set(ACTION_ENUM, U, t-1)
-            sample.set(ACTION_ENUM, U, t)            
-
         sample.task = task
         sample.task_name = self.task_list[task[0]]
 
@@ -397,20 +420,50 @@ class BaxterMJCSortingAgent(TAMPAgent):
             vec[task[i]] = 1.
             sample.set(enum, vec, t)
 
+        # How state is represented:
+        # - Obj is absolute pos
+        # - Targ is displacement from absolute targ pos to obj pos
+        # - EE pose is displacement from absolute ee pos to obj pos
         obj = prim_choices[OBJ_ENUM][task[1]]
         targ = prim_choices[TARG_ENUM][task[2]]
-        param = plan.params[targ]
-        sample.set(TARG_POSE_ENUM, plan.params[targ].value[:,0].copy(), t)
-
         param = plan.params[obj]
-        sample.set(OBJ_POSE_ENUM, plan.params[targ].value[:,0] - plan.params[obj].pose[:,0], t)
+        obj_pose = mp_state[self.state_inds[obj, 'pose']]
+        sample.set(OBJ_POSE_ENUM, obj_pose, t)
+        param.pose[:, t] = obj_pose
           
-        sample.set(RIGHT_EE_POS_ENUM, plan.params[obj].pose[:,0] - right_ee['pos'], t)
+        param = plan.params[targ]
+        sample.set(TARG_POSE_ENUM, obj_pose - plan.params[targ].value[:,0], t)
+
+        sample.set(RIGHT_EE_POS_ENUM, obj_pose - right_ee['pos'], t)
         sample.set(RIGHT_EE_QUAT_ENUM, right_ee['quat'], t)
-        sample.set(LEFT_EE_POS_ENUM, plan.params[obj].pose[:,0] - left_ee['pos'], t)
+        sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds['baxter', 'rGripper']], t)
+        sample.set(LEFT_EE_POS_ENUM, obj_pose - left_ee['pos'], t)
         sample.set(LEFT_EE_QUAT_ENUM, left_ee['quat'], t)
+        sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds['baxter', 'lGripper']], t)
+
+        if np.any(np.isnan(sample.get_X(t=t))):
+            raise Exception('Nans in state: {0}'.format(sample.get_X(t=t)))
+
+        # Assumes sample is filled in chronological order
+        if t > 0:
+            ee_right_1 = plan.params[obj].pose[:,t-1] - sample.get(RIGHT_EE_POS_ENUM, t=t-1)
+            ee_left_1 = plan.params[obj].pose[:,t-1] - sample.get(LEFT_EE_POS_ENUM, t=t-1)
+            U[self.action_inds['baxter', 'ee_right_pos']] = right_ee['pos'] - ee_right_1
+            U[self.action_inds['baxter', 'ee_left_pos']] = left_ee['pos'] - ee_left_1
+            U[self.action_inds['baxter', 'rGripper']] = mp_state[self.state_inds['baxter', 'rGripper']]
+            U[self.action_inds['baxter', 'lGripper']] = mp_state[self.state_inds['baxter', 'lGripper']]
+            sample.set(ACTION_ENUM, U, t-1)
+            sample.set(ACTION_ENUM, U, t)
  
         if fill_obs:
+            for param_name, attr in self.state_inds:
+                param = plan.params[param_name]
+                if param.is_symbol(): continue
+                if attr == 'pose':
+                    self.env.set_item_pos(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False)
+                if attr == 'rotation':
+                    self.env.set_item_rot(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False, use_euler=True)
+
             if OVERHEAD_IMAGE_ENUM in self._hyperparams['obs_include'] or OVERHEAD_IMAGE_ENUM in self._hyperparams['prim_obs_include']:
                 sample.set(OVERHEAD_IMAGE_ENUM, self.env.render(height=self.im_h, width=self.im_w, camera_id=0, view=False).flatten(), t)
             if LEFT_IMAGE_ENUM in self._hyperparams['obs_include'] or LEFT_IMAGE_ENUM in self._hyperparams['prim_obs_include']:
@@ -483,7 +536,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
         return tuple(task)
 
 
-    def _cost_f(self, Xs, task, condition, active_ts=None, debug=False):
+    def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False):
         if len(Xs.shape) == 1:
             Xs = Xs.reshape(1, Xs.shape[0])
         Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
@@ -521,7 +574,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
     def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
         if active_ts == None:
             active_ts = (1, plan.horizon-1)
-        failed_preds = self._cost_f(Xs, task, condition, active_ts=active_ts, debug=debug)
+        failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug)
         prim_choices = self.prob.get_prim_choices()
 
         cost = 0
@@ -549,7 +602,6 @@ class BaxterMJCSortingAgent(TAMPAgent):
                     if targ_param.value[1,0] < -0.1:
                         cost += 1e1
 
-        # print plan.actions, failed_preds
         for failed in failed_preds:
             for t in range(active_ts[0], active_ts[1]+1):
                 if t + failed[1].active_range[1] > active_ts[1]:
@@ -557,6 +609,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
 
                 try:
                     viol = failed[1].check_pred_violation(t, negated=failed[0], tol=tol)
+                    # print viol, failed
                     if viol is not None:
                         cost += np.max(viol)
                 except:
@@ -566,7 +619,7 @@ class BaxterMJCSortingAgent(TAMPAgent):
 
 
     def cost_info(self, Xs, task, cond, active_ts=(0,0)):
-        failed_preds = self._cost_f(Xs, task, cond, active_ts=active_ts)
+        failed_preds = self._failed_preds(Xs, task, cond, active_ts=active_ts)
         plan = self.plans[task]
         if active_ts[0] == -1:
             active_ts = (plan.horizon-1, plan.horizon-1)
@@ -665,12 +718,25 @@ class BaxterMJCSortingAgent(TAMPAgent):
             cur_ee = next_ee
         act_traj[-1] = act_traj[-2]
 
-        print 'Beginning optimal sample.'
         sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False)
-        print 'Finished optimal sample.'
         self.optimal_samples[self.task_list[task[0]]].append(sample)
         while len(self.optimal_samples[self.task_list[task[0]]]) > 25:
             del self.optimal_samples[self.task_list[task[0]]][0]
         sample.set_ref_X(opt_traj)
         sample.set_ref_U(sample.get_U())
         return sample
+
+
+    def animate_sample(self, sample):
+        for t in range(sample.T):
+            mp_state = sample.get(STATE_ENUM, t)
+            for param_name, attr in self.state_inds:
+                if param_name == 'baxter': continue
+                if attr == 'pose':
+                    self.mjc_env.set_item_pos(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False)
+                elif attr == 'rotation':
+                    self.mjc_env.set_item_rot(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False, use_euler=True)
+            self.mjc_env.set_arm_joint_angles(np.r_[mp_state[self.state_inds['baxter', 'rArmPose']], mp_state[self.state_inds['baxter', 'lArmPose']]])
+            self.mjc_env.set_gripper_joint_angles(np.r_[mp_state[self.state_inds['baxter', 'rGripper']], mp_state[self.state_inds['baxter', 'lGripper']]])
+            self.mjc_env.render(view=True)
+            time.sleep(0.2)

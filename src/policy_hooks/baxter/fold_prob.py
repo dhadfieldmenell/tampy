@@ -84,7 +84,7 @@ def get_prim_choices():
 
 def get_vector(config):
     state_vector_include = {
-        'baxter': ['lArmPose', 'lGripper', 'rArmPose', 'rGripper'] ,
+        'baxter': ['lArmPose', 'lGripper', 'rArmPose', 'rGripper', 'ee_left_pos', 'ee_right_pos'] ,
         'left_corner': ['pose'],
         'right_corner': ['pose'],
         'leftmost': ['pose'],

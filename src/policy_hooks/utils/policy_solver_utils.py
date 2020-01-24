@@ -35,18 +35,30 @@ LEFT_IMAGE_ENUM = 29
 RIGHT_IMAGE_ENUM = 30
 JOINTS_ENUM = 31
 POS_ENUM = 32
+LEFT_GRIPPER_ENUM = 33
+RIGHT_GRIPPER_ENUM = 34
 
 IM_H = 96
 IM_W = 64
 IM_C = 3
 
-FAIL_LABEL = (1, 0)
-SUCCESS_LABEL = (0, 1)
+# FAIL_LABEL = (1, 0)
+# SUCCESS_LABEL = (0, 1)
+FAIL_LABEL = 0.
+SUCCESS_LABEL = 1.
 
 GPS_RATIO = 1e3
 
 MUJOCO_STEPS_PER_SECOND = 200
 POLICY_STEPS_PER_SECOND = 1
+
+# Use these to help delineate modes
+POSE_DELTA = 0
+JOINT_DELTA = 1
+POSE = 2
+VEL = 3
+ACC = 4
+JOINT = 5
 
 
 def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
@@ -68,23 +80,23 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
     ee_pos_attrs = ['ee_left_pos', 'ee_right_pos']
     ee_rot_attrs = ['ee_left_rot', 'ee_right_rot']
     for attr in robot_x_attrs:
-        if attr in ee_pos_attrs:
-            x_inds = np.array([0, 1, 2]) + cur_x_ind
-            cur_x_ind = x_inds[-1] + 1
-            params_to_x_inds[(robot_name, attr)] = x_inds
-            continue
+        # if attr in ee_pos_attrs:
+        #     x_inds = np.array([0, 1, 2]) + cur_x_ind
+        #     cur_x_ind = x_inds[-1] + 1
+        #     params_to_x_inds[(robot_name, attr)] = x_inds
+        #     continue
 
-        if attr in ee_rot_attrs:
-            x_inds = np.array([0, 1, 2, 3]) + cur_x_ind
-            cur_x_ind = x_inds[-1] + 1
-            params_to_x_inds[(robot_name, attr)] = x_inds
-            continue
+        # if attr in ee_rot_attrs:
+        #     x_inds = np.array([0, 1, 2, 3]) + cur_x_ind
+        #     cur_x_ind = x_inds[-1] + 1
+        #     params_to_x_inds[(robot_name, attr)] = x_inds
+        #     continue
 
-        if attr in ee_all_attrs:
-            x_inds = np.array(range(7)) + cur_x_ind
-            cur_x_ind = x_inds[-1] + 1
-            params_to_x_inds[(robot_name, attr)] = x_inds
-            continue
+        # if attr in ee_all_attrs:
+        #     x_inds = np.array(range(7)) + cur_x_ind
+        #     cur_x_ind = x_inds[-1] + 1
+        #     params_to_x_inds[(robot_name, attr)] = x_inds
+        #     continue
 
         inds = filter(lambda p: p[0]==attr, robot_attr_map)[0][1]
         x_inds = inds + cur_x_ind
@@ -92,23 +104,23 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
         params_to_x_inds[(robot_name, attr)] = x_inds
 
     for attr in robot_u_attrs:
-        if attr in ee_pos_attrs:
-            u_inds = np.array([0, 1, 2]) + cur_u_ind
-            cur_u_ind = u_inds[-1] + 1
-            params_to_u_inds[(robot_name, attr)] = u_inds
-            continue
+        # if attr in ee_pos_attrs:
+        #     u_inds = np.array([0, 1, 2]) + cur_u_ind
+        #     cur_u_ind = u_inds[-1] + 1
+        #     params_to_u_inds[(robot_name, attr)] = u_inds
+        #     continue
 
-        if attr in ee_rot_attrs:
-            u_inds = np.array([0, 1, 2, 3]) + cur_u_ind
-            cur_u_ind = u_inds[-1] + 1
-            params_to_u_inds[(robot_name, attr)] = u_inds
-            continue
+        # if attr in ee_rot_attrs:
+        #     u_inds = np.array([0, 1, 2, 3]) + cur_u_ind
+        #     cur_u_ind = u_inds[-1] + 1
+        #     params_to_u_inds[(robot_name, attr)] = u_inds
+        #     continue
 
-        if attr in ee_all_attrs:
-            u_inds = np.array(range(7)) + cur_u_ind
-            cur_u_ind = u_inds[-1] + 1
-            params_to_u_inds[(robot_name, attr)] = u_inds
-            continue
+        # if attr in ee_all_attrs:
+        #     u_inds = np.array(range(7)) + cur_u_ind
+        #     cur_u_ind = u_inds[-1] + 1
+        #     params_to_u_inds[(robot_name, attr)] = u_inds
+        #     continue
 
         inds = filter(lambda p: p[0]==attr, robot_attr_map)[0][1]
         u_inds = inds + cur_u_ind
@@ -195,22 +207,23 @@ def get_plan_to_policy_mapping(plan, robot_name, x_params=[], u_params=[], x_att
         u_inds = attr[1] + cur_u_ind
         cur_u_ind = u_inds[-1] + 1
         params_to_u_inds[(robot.name, attr[0])] = u_inds
-    for attr in ee_pos_attrs:
-        if attr not in u_attrs: continue
-        x_inds = np.array([0, 1, 2]) + cur_x_ind
-        cur_x_ind = x_inds[-1] + 1
-        params_to_x_inds[(robot.name, attr)] = x_inds
-        u_inds = np.array([0, 1, 2]) + cur_u_ind
-        cur_u_ind = u_inds[-1] + 1
-        params_to_u_inds[(robot.name, attr)] = u_inds
-    for attr in ee_rot_attrs:
-        if attr not in u_attrs: continue
-        x_inds = np.array([0, 1, 2, 3]) + cur_x_ind
-        cur_x_ind = x_inds[-1] + 1
-        params_to_x_inds[(robot.name, attr)] = x_inds
-        u_inds = np.array([0, 1, 2, 3]) + cur_u_ind
-        cur_u_ind = u_inds[-1] + 1
-        params_to_u_inds[(robot.name, attr)] = u_inds
+    # for attr in ee_pos_attrs:
+    #     if attr not in u_attrs: continue
+    #     x_inds = np.array([0, 1, 2]) + cur_x_ind
+    #     cur_x_ind = x_inds[-1] + 1
+    #     params_to_x_inds[(robot.name, attr)] = x_inds
+    #     u_inds = np.array([0, 1, 2]) + cur_u_ind
+    #     cur_u_ind = u_inds[-1] + 1
+    #     params_to_u_inds[(robot.name, attr)] = u_inds
+    # for attr in ee_rot_attrs:
+    #     if attr not in u_attrs: continue
+    #     x_inds = np.array([0, 1, 2, 3]) + cur_x_ind
+    #     cur_x_ind = x_inds[-1] + 1
+    #     params_to_x_inds[(robot.name, attr)] = x_inds
+    #     u_inds = np.array([0, 1, 2, 3]) + cur_u_ind
+    #     cur_u_ind = u_inds[-1] + 1
+    #     params_to_u_inds[(robot.name, attr)] = u_inds
+
     # for attr in robot_attr_map:
     #     if len(u_attrs) and attr[0] not in u_attrs: continue
     #     # if attr[0] != 'lArmPose' and attr[0] != 'rArmPose' and attr[0] != 'lGripper' and attr[0] != 'rGripper':

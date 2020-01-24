@@ -20,6 +20,8 @@ from tamp_ros.msg import *
 from tamp_ros.srv import *
 
 
+PLAN_COST_THRESHOLD = 1e-2
+
 class DummyPolicyOpt(object):
     def __init__(self, prob):
         self.traj_prob = prob
@@ -81,9 +83,12 @@ class AbstractMotionPlanServer(object):
         self.n_time_samples_per_log = 10 if 'n_time_samples_per_log' not in hyperparams else hyperparams['n_time_samples_per_log']
         self.time_samples = []
         self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
-        self.mp_plans_since_log = 0
+        self.mp_plans_since_log = {task: 0 for task in self.task_list}
         self.hl_plans_since_log = 0
-        self.avg_traj_init_since_log = 0
+        self.total_traj_init_since_log = {task: 0 for task in self.task_list}
+        self.total_planning_time_since_log = {task: 0 for task in self.task_list}
+        self.n_successful_trajs_since_log = {task: 0 for task in self.task_list}
+        self.failed_per_task = {}
 
         self.mp_queue = []
         self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=1, buff_size=2**19)
@@ -100,13 +105,28 @@ class AbstractMotionPlanServer(object):
             while len(self.mp_queue):
                 self.solve_motion_plan(self.mp_queue.pop())
             i += 1
-            if not i % 100:
-                self.test_publisher.publish('MP {0} alive.'.format(self.id))
+            # if not i % 10:
+            #     self.test_publisher.publish('MP {0} alive.'.format(self.id))
 
 
     def end(self, msg):
         self.stopped = True
         rospy.signal_shutdown('Received notice to terminate.')
+
+
+    def publish_log_info(self):
+        info = {}
+        info['avg_init_cost'] = {task: self.total_traj_init_since_log[task] / float(self.mp_plans_since_log[task]) for task in self.task_list if self.mp_plans_since_log[task] > 0}
+        info['avg_plan_time'] = {task: self.total_planning_time_since_log[task] / float(self.mp_plans_since_log[task]) for task in self.task_list if self.mp_plans_since_log[task] > 0}
+        info['failed_preds'] = str({self.failed_per_task})
+        info['successes'] = str(self.n_successful_trajs_since_log)
+        info['num_mp'] = self.mp_plans_since_log
+        self.mp_plans_since_log = {task: 0 for task in self.task_list}
+        self.total_planning_time_since_log = {task: 0 for task in self.task_list}
+        self.total_traj_init_since_log = {task: 0 for task in self.task_list}
+        self.n_successful_trajs_since_log = {task: 0 for task in self.task_list}
+        self.failed_per_task = {}
+        self.log_publisher.publish(str({'motion_plan': info}))
 
 
     def store_weights(self, msg):
@@ -118,6 +138,7 @@ class AbstractMotionPlanServer(object):
     def publish_mp(self, msg, server_id):
         if server_id not in self.mp_publishers:
             self.mp_publishers[server_id] = rospy.Publisher('motion_plan_result_'+str(server_id), MotionPlanResult, queue_size=5)
+            time.sleep(1)
         self.mp_publishers[server_id].publish(msg)
 
 
@@ -195,7 +216,7 @@ class AbstractMotionPlanServer(object):
     def publish_motion_plan(self, msg):
         if msg.solver_id != self.id: return
         self.mp_queue.append(msg)
-        if len(self.mp_queue) > 1:
+        while len(self.mp_queue) > 5:
             self.mp_queue.pop(0)
 
 
@@ -205,11 +226,11 @@ class AbstractMotionPlanServer(object):
         #     return
         if msg.solver_id != self.id: return
         # self.busy = True
-        print 'Server {0} solving motion plan for rollout server {1}.'.format(self.id, msg.server_id)
-        self.mp_plans_since_log += 1
+        print('Server {0} solving motion plan on task{1} for rollout server {2}.'.format(self.id, msg.task, msg.server_id))
         state = np.array(msg.state)
         task = eval(msg.task)
         task_tuple = eval(msg.task)
+        task_name = self.task_list[task[0]]
         cond = msg.cond
         mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
 
@@ -220,17 +241,34 @@ class AbstractMotionPlanServer(object):
             inf_f = None
 
         plan = self.agent.plans[task]
-        self.log_init_traj_cost(mean, task)
-        sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f)
+        init_cost, failed_preds = self.log_init_traj_cost(mean, task)
+        self.total_traj_init_since_log[task_name] += init_cost
+        failed_info = self.failed_per_task.get(task_name, [])
+        failed_info.append(([str(pred) for pred in failed_preds], state.tolist()))
+        self.failed_per_task[task_name] = failed_info
+
+        start_t = time.clock()
+        if np.isnan(init_cost) or init_cost > PLAN_COST_THRESHOLD and len(failed_preds) > 0:
+            sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f)
+            out = sample.get(STATE_ENUM)
+        else:
+            out = mean
+            failed =  []
+            success = True
+            self.n_successful_trajs_since_log[task_name] += 1
+
+        self.total_planning_time_since_log[task_name] += time.clock() - start_t
+        self.mp_plans_since_log[task_name] += 1
         self.opt_count_publisher.publish("Ran solve for motion plan.")
+
         failed = str(failed)
         resp = MotionPlanResult()
         resp.traj = []
-        out = sample.get(STATE_ENUM)
         for t in range(len(out)):
             next_line = Float32MultiArray()
             next_line.data = out[t]
             resp.traj.append(next_line)
+
         resp.failed = failed
         resp.success = success
         resp.plan_id = msg.prob_id
@@ -239,35 +277,37 @@ class AbstractMotionPlanServer(object):
         resp.state = state.tolist()
         # self.mp_publishers[msg.server_id].publish(resp)
         self.publish_mp(resp, msg.server_id)
-        print 'Succeeded:', success, failed
-
         if success:
-            for _ in range(self.perturb_steps):
-                out, failed, success = self.agent.perturb_solve(sample, inf_f=inf_f)
-                failed = str(failed)
-                resp = MotionPlanResult()
-                resp.traj = []
-                state = out.get_X(t=0)
-                out_traj = sample.get(STATE_ENUM)
-                for t in range(len(out_traj)):
-                    next_line = Float32MultiArray()
-                    next_line.data = out_traj[t]
-                    resp.traj.append(next_line)
-                resp.failed = failed
-                resp.success = success
-                resp.plan_id = msg.prob_id
-                resp.cond = msg.cond
-                resp.task = msg.task
-                resp.state = state.tolist()
-                # self.mp_publishers[msg.server_id].publish(resp)
-                self.publish_mp(resp, msg.server_id)
+            print('Succeeded:', success, failed)
+            print('\n')
+
+        # if success:
+        #     for _ in range(self.perturb_steps):
+        #         out, failed, success = self.agent.perturb_solve(sample, inf_f=inf_f)
+        #         failed = str(failed)
+        #         resp = MotionPlanResult()
+        #         resp.traj = []
+        #         state = out.get_X(t=0)
+        #         out_traj = sample.get(STATE_ENUM)
+        #         for t in range(len(out_traj)):
+        #             next_line = Float32MultiArray()
+        #             next_line.data = out_traj[t]
+        #             resp.traj.append(next_line)
+        #         resp.failed = failed
+        #         resp.success = success
+        #         resp.plan_id = msg.prob_id
+        #         resp.cond = msg.cond
+        #         resp.task = msg.task
+        #         resp.state = state.tolist()
+        #         # self.mp_publishers[msg.server_id].publish(resp)
+        #         self.publish_mp(resp, msg.server_id)
         # self.busy = False
-        print 'Server {0} free.'.format(self.id, msg.server_id)
+        print('Server {0} free.'.format(self.id, msg.server_id))
 
 
     def publish_hl_plan(self, msg):
         if self.busy:
-            print 'Server', self.id, 'busy, rejecting request for motion plan.'
+            print('Server', self.id, 'busy, rejecting request for motion plan.')
         if msg.solver_id != self.id or self.busy: return
         self.busy = True
         self.hl_plans_since_log += 1
@@ -331,7 +371,7 @@ class AbstractMotionPlanServer(object):
                 cur_state = cur_sample.get_X(t=cur_sample.T-1)
                 opt_hl_plan.append(step)
 
-            if self.config['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans.values()[0]) == 0:
+            if self.config['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans_list()[0]) == 0:
                 for sample in cur_path:
                     sample.success = SUCCESS_LABEL
                 break
@@ -378,11 +418,16 @@ class AbstractMotionPlanServer(object):
                 if hasattr(param, attr):
                     getattr(param, attr)[:, t] = traj[t, plan.state_inds[param_name, attr]]
                     param.fix_attr(attr, (t,t))
-                    if attr == 'pose' and (param_name, 'rotation') not in plan.state_inds:
+                    if attr == 'pose' and (param_name, 'rotation') not in plan.state_inds and hasattr(param, 'rotation'):
                         param.rotation[:, t] = 0
+                    
+                    if attr == 'pose':
+                        init_target = '{0}_init_target'.format(param_name)
+                        if init_target in plan.params:
+                            plan.params[init_target].value[:, 0] = param.pose[:, 0]
 
         # Take a quick solve to resolve undetermined symbolic values
-        self.solver.solve(plan, time_limit=10)
+        self.solver._backtrack_solve(plan, time_limit=10, max_priority=-1)
         plan.store_free_attrs(old_free_attrs)
         
         plan_total_violation = np.sum(plan.check_total_cnt_violation())
@@ -392,18 +437,20 @@ class AbstractMotionPlanServer(object):
 
     def log_init_traj_cost(self, mean, task):
         plan = self.agent.plans[task]
+        '''
         for t in range(0, len(mean)):
             for param_name, attr in plan.state_inds:
                 param = plan.params[param_name]
                 if param.is_symbol(): continue
                 if hasattr(param, attr):
                     getattr(param, attr)[:, t] = mean[t, plan.state_inds[param_name, attr]]
-        
+        '''
         plan_actions = str(plan.actions)
         plan_total_violation, plan_failed_constrs = self.check_traj_cost(mean, task)
         with open(self.traj_init_log, 'a+') as f:
             f.write(str((plan_actions, plan_total_violation, plan_failed_constrs)))
             f.write('\n\n\n')
+        return plan_total_violation, plan_failed_constrs
         
 
     def update_weight(self, msg):
@@ -415,5 +462,5 @@ class AbstractMotionPlanServer(object):
 
 
     def gmm_inf(self, gmm, sample):
-        mu, sig = gmm.inference(np.concatenate[sample.get(STATE_ENUM), sample.get_U()])
+        mu, sig = gmm.inference(np.concatenate([sample.get(STATE_ENUM), sample.get_U()]))
         return mu, sig, True, True

@@ -47,7 +47,13 @@ class Parameter(object):
             return dict
         elif attr_name == '_saved_free_attrs':
             return dict
-        return self._attr_types[attr_name]
+
+        try:
+            attr = self._attr_types[attr_name]
+        except Exception as e:
+            print(self, self.name)
+            raise e
+        return attr
 
     def get_type(self):
         return self._type
@@ -69,7 +75,7 @@ class Parameter(object):
 
     def save_free_attrs(self):
         self._saved_free_attrs = {}
-        for k, v in self._free_attrs.iteritems():
+        for k, v in self._free_attrs.items():
             self._saved_free_attrs[k] = v.copy()
 
     def restore_free_attrs(self):
@@ -77,7 +83,7 @@ class Parameter(object):
 
     def get_free_attrs(self):
         free_attrs = {}
-        for k, v in self._free_attrs.iteritems():
+        for k, v in self._free_attrs.items():
             free_attrs[k] = v.copy()
         return free_attrs
 

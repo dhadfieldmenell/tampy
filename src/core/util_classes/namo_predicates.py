@@ -5,11 +5,17 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
-from openravepy import Environment
-import ctrajoptpy
+
+from core.util_classes.common_constants import USE_OPENRAVE
+if USE_OPENRAVE:
+    import ctrajoptpy
+else:
+    import pybullet as p
+
 from collections import OrderedDict
 
 from pma.ll_solver import NAMOSolver
+
 
 """
 This file implements the predicates for the 2D NAMO domain.
@@ -25,7 +31,9 @@ N_DIGS = 5
 
 ATTRMAP = {
     "Robot":     (("pose", np.array(range(2), dtype=np.int)),
-                  ("gripper", np.array(range(1), dtype=np.int))),
+                  ("gripper", np.array(range(1), dtype=np.int)),
+                  ("vel", np.array(range(2), dtype=np.int)),
+                  ("acc", np.array(range(2), dtype=np.int))),
     "Can":       (("pose", np.array(range(2), dtype=np.int)),),
     "Target":    (("value", np.array(range(2), dtype=np.int)),),
     "RobotPose": (("value", np.array(range(2), dtype=np.int)),
@@ -33,6 +41,7 @@ ATTRMAP = {
     "Obstacle":  (("pose", np.array(range(2), dtype=np.int)),),
     "Grasp":     (("value", np.array(range(2), dtype=np.int)),),
 }
+
 
 def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
     if param.is_symbol():
@@ -46,6 +55,104 @@ def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
         else:
             res[param] = val[inds].flatten().tolist()
             attr_inds[param] = [(attr_name, inds, t)]
+
+def process_traj(raw_traj, timesteps):
+    """
+        Process raw_trajectory so that it's length is desired timesteps
+        when len(raw_traj) > timesteps
+            sample Trajectory by space to reduce trajectory size
+        when len(raw_traj) < timesteps
+            append last timestep pose util the size fits
+
+        Note: result_traj includes init_dof and end_dof
+    """
+    result_traj = []
+    if len(raw_traj) == timesteps:
+        result_traj = raw_traj.copy()
+    else:
+        traj_arr = [0]
+        result_traj.append(raw_traj[0])
+        #calculate accumulative distance
+        for i in range(len(raw_traj)-1):
+            traj_arr.append(traj_arr[-1] + np.linalg.norm(raw_traj[i+1] - raw_traj[i]))
+        step_dist = traj_arr[-1]/(timesteps - 1)
+        process_dist, i = 0, 1
+        while i < len(traj_arr)-1:
+            if traj_arr[i] == process_dist + step_dist:
+                result_traj.append(raw_traj[i])
+                process_dist += step_dist
+            elif traj_arr[i] < process_dist+step_dist < traj_arr[i+1]:
+                dist = process_dist+step_dist - traj_arr[i]
+                displacement = (raw_traj[i+1] - raw_traj[i])/(traj_arr[i+1]-traj_arr[i])*dist
+                result_traj.append(raw_traj[i]+displacement)
+                process_dist += step_dist
+            else:
+                i += 1
+    result_traj.append(raw_traj[-1])
+    return np.array(result_traj).T
+
+
+def get_rrt_traj(env, robot, active_dof, init_dof, end_dof):
+    # assert body in env.GetRobot()
+    active_dofs = robot.GetActiveDOFIndices()
+    robot.SetActiveDOFs(active_dof)
+    robot.SetActiveDOFValues(init_dof)
+
+    params = Planner.PlannerParameters()
+    params.SetRobotActiveJoints(robot)
+    params.SetGoalConfig(end_dof) # set goal to all ones
+    # # forces parabolic planning with 40 iterations
+    # import ipdb; ipdb.set_trace()
+    params.SetExtraParameters("""<_postprocessing planner="parabolicsmoother">
+        <_nmaxiterations>20</_nmaxiterations>
+    </_postprocessing>""")
+
+    planner=RaveCreatePlanner(env,'birrt')
+    planner.InitPlan(robot, params)
+
+    traj = RaveCreateTrajectory(env,'')
+    result = planner.PlanPath(traj)
+    if result == False:
+        robot.SetActiveDOFs(active_dofs)
+        return None
+    traj_list = []
+    for i in range(traj.GetNumWaypoints()):
+        # get the waypoint values, this holds velocites, time stamps, etc
+        data=traj.GetWaypoint(i)
+        # extract the robot joint values only
+        dofvalues = traj.GetConfigurationSpecification().ExtractJointValues(data,robot,robot.GetActiveDOFIndices())
+        # raveLogInfo('waypint %d is %s'%(i,np.round(dofvalues, 3)))
+        traj_list.append(np.round(dofvalues, 3))
+    robot.SetActiveDOFs(active_dofs)
+    return np.array(traj_list)
+
+
+def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
+    # assert body in env.GetRobot()
+    dof_inds = robot.GetActiveDOFIndices()
+    robot.SetActiveDOFs(active_dof)
+    robot.SetActiveDOFValues(init_dof)
+
+    params = Planner.PlannerParameters()
+    params.SetRobotActiveJoints(robot)
+    params.SetGoalConfig(end_dof) # set goal to all ones
+    # forces parabolic planning with 40 iterations
+    planner=RaveCreatePlanner(env,'OMPL_RRTConnect')
+    planner.InitPlan(robot, params)
+    traj = RaveCreateTrajectory(env,'')
+    planner.PlanPath(traj)
+
+    traj_list = []
+    for i in range(traj.GetNumWaypoints()):
+        # get the waypoint values, this holds velocites, time stamps, etc
+        data=traj.GetWaypoint(i)
+        # extract the robot joint values only
+        dofvalues = traj.GetConfigurationSpecification().ExtractJointValues(data,robot,robot.GetActiveDOFIndices())
+        # raveLogInfo('waypint %d is %s'%(i,np.round(dofvalues, 3)))
+        traj_list.append(np.round(dofvalues, 3))
+    robot.SetActiveDOFs(dof_inds)
+    return traj_list
+
 
 class CollisionPredicate(ExprPredicate):
     def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
@@ -88,7 +195,6 @@ class CollisionPredicate(ExprPredicate):
         flattened = tuple(x.round(N_DIGS).flatten())
         # if flattened in self._cache and self._debug is False:
         #     return self._cache[flattened]
-        self._cc.SetContactDistance(np.Inf)
         p0 = self.params[self.ind0]
         p1 = self.params[self.ind1]
         b0 = self._param_to_body[p0]
@@ -98,9 +204,14 @@ class CollisionPredicate(ExprPredicate):
         b0.set_pose(pose0)
         b1.set_pose(pose1)
 
-        assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
+        if USE_OPENRAVE:
+            assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
 
-        collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
+            self._cc.SetContactDistance(np.Inf)
+            collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
+        else:
+            collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
+
 
         # if p1.name == 'obs0':
         #     print b1.env_body.GetLinks()[0].GetCollisionData().vertices
@@ -126,22 +237,48 @@ class CollisionPredicate(ExprPredicate):
         n_cols = len(collisions)
         assert n_cols <= self.n_cols
         jac = np.zeros((1, 4))
+        
+        p0 = filter(lambda p: p.name == name0, self._param_to_body.keys())[0]
+        p1 = filter(lambda p: p.name == name1, self._param_to_body.keys())[0]
+        
+        b0 = self._param_to_body[p0]
+        b1 = self._param_to_body[p1]
         for i, c in enumerate(collisions):
-            linkA = c.GetLinkAParentName()
-            linkB = c.GetLinkBParentName()
+            if USE_OPENRAVE:
+                linkA = c.GetLinkAParentName()
+                linkB = c.GetLinkBParentName()
 
-            if linkA == name0 and linkB == name1:
-                pt0 = c.GetPtA()
-                pt1 = c.GetPtB()
-            elif linkB == name0 and linkA == name1:
-                pt0 = c.GetPtB()
-                pt1 = c.GetPtA()
+                if linkA == name0 and linkB == name1:
+                    pt0 = c.GetPtA()
+                    pt1 = c.GetPtB()
+                elif linkB == name0 and linkA == name1:
+                    pt0 = c.GetPtB()
+                    pt1 = c.GetPtA()
+                else:
+                    continue
+
+                distance = c.GetDistance()
+                normal = c.GetNormal()
             else:
-                continue
+                linkA, linkB = c.linkIndexA, c.linkIndexB
+                linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
+                sign = 0
+                if linkAParent == b0.body_id and linkBParent == b1.body_id:
+                    pt0, pt1 = c.positionOnA, c.positionOnB
+                    linkRobot, linkObj = linkA, linkB
+                    sign = -1
+                elif linkBParent == b0.body_id and linkAParent == b1.body_id:
+                    pt0, pt1 = c.positionOnB, c.positionOnA
+                    linkRobot, linkObj = linkB, linkA
+                    sign = 1
+                else:
+                    continue
 
-            distance = c.GetDistance()
-            normal = c.GetNormal()
+                distance = c.contactDistance
+                normal = c.contactNormalOnB # Pointing towards A
             results.append((pt0, pt1, distance))
+            # if distance < self.dsafe and 'obs0' in [name0, name1] and not np.any(np.isnan(pose0)) and not np.any(np.isnan(pose1)):
+            #     print(name0, name1, distance, pose0, pose1)
 
             # plotting
             if self._debug:
@@ -207,6 +344,9 @@ class RobotAt(At):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class BoxAt(At):
+    pass
 
 class RobotNear(At):
 
@@ -342,7 +482,6 @@ class Collides(CollisionPredicate):
         def grad_neg(x):
             # print self.distance_from_obj(x)
             return -self.distance_from_obj(x)[1]
-
 
         N_COLS = 8
 
@@ -718,9 +857,12 @@ class ObstructsHolding(CollisionPredicate):
         b0.set_pose(pose_r)
         b1.set_pose(pose_obstr)
 
-        assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
+        if USE_OPENRAVE:
+            assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
 
-        collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
+            collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
+        else:
+            collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
         col_val1, jac01 = self._calc_grad_and_val(self.r.name, self.obstr.name, pose_r, pose_obstr, collisions1)
 
         if self.obstr.name == self.held.name:
@@ -735,7 +877,12 @@ class ObstructsHolding(CollisionPredicate):
             pose_held = x[4:6]
             b2.set_pose(pose_held)
 
-            collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
+            
+            if USE_OPENRAVE:
+                collisions2 = self._cc.BodyVsBody(b2.env_body, b1.env_body)
+            else:
+                collisions2 = p.getClosestPoints(b2.body_id, b1.body_id, contact_dist)
+
             col_val2, jac21 = self._calc_grad_and_val(self.held.name, self.obstr.name, pose_held, pose_obstr, collisions2)
 
             if col_val1 > col_val2:
@@ -820,6 +967,7 @@ class StationaryNEq(ExprPredicate):
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryNEq, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
+
 class StationaryW(ExprPredicate):
 
     # StationaryW, Wall(Obstacle)
@@ -832,7 +980,6 @@ class StationaryW(ExprPredicate):
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), b)
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
-
 
 
 class IsMP(ExprPredicate):
@@ -852,3 +999,83 @@ class IsMP(ExprPredicate):
 
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
+class VelWithinBounds(At):
+
+    # RobotAt Robot Can
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("vel", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.eye(2), -np.eye(2)]
+        b = np.zeros((4, 1))
+        val = dmove * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
+class AccWithinBounds(At):
+
+    # RobotAt Robot Can
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("acc", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.eye(2), -np.eye(2)]
+        b = np.zeros((4, 1))
+        val = 2.5e1 * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+
+class AccWithinBounds(ExprPredicate):
+
+    # IsVelMP Robot
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+        self.r, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))])])
+        A = np.array([[1, 0, -1, 0],
+                      [0, 1, 0, -1],
+                      [-1, 0, 1, 0],
+                      [0, -1, 0, 1]])
+        b = np.zeros((4, 1))
+
+        e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
+        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
+class VelValid(ExprPredicate):
+
+    # VelValid Robot
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+        self.r, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)), ("vel", np.array([0, 1], dtype=np.int))]),])
+        A = np.array([[-1, 0, 1, 0, 1, 0, 0, 0],
+                      [0, -1, 0, 1, 0, 1, 0, 0],])
+        b = np.zeros((4, 1))
+
+        e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
+        super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
+
+class AccValid(VelValid):
+
+    # AccValid Robot
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+        super(AccValid, self).__init__(name, params, expected_param_types, env, debug, dmove)
+        self.attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int)), ("acc", np.array([0, 1], dtype=np.int))]),])

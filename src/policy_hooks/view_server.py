@@ -169,10 +169,10 @@ class ViewServer(object):
                 self.cur_condition_text.set_text('Current condition: {0}'.format(self.cur_condition))
                 self.output_text.set_text('')
             else:
-                print 'Not a valid condition number.'
+                print('Not a valid condition number.')
                 self.output_text.set_text('Not a valid condition.')
         except ValueError:
-            print 'Not a valid integer.'
+            print('Not a valid integer.')
             self.output_text.set_text('Not a valid integer.')
         plt.draw()
 
@@ -191,7 +191,7 @@ class ViewServer(object):
         task = self.agent.task_list[task_ind]
         obj = self.agent.obj_list[obj_ind]
         targ = self.agent.targ_list[targ_ind]
-        print 'Executing {0} on {1} to {2}'.format(task, obj, targ)
+        print('Executing {0} on {1} to {2}'.format(task, obj, targ))
 
         policy = self.rollout_policies[task]
         sample = self.agent.sample_task(policy, cond, state, (task, obj, targ), noisy=False)
@@ -208,7 +208,7 @@ class ViewServer(object):
         steps = 5 
         cond = self.cur_condition
         if cond not in range(len(self.agent.x0)):
-            print 'Condition {0} does not exist.'.format(cond)
+            print('Condition {0} does not exist.'.format(cond))
             return
 
         state = self.agent.x0[cond]

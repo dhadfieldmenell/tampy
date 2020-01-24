@@ -86,7 +86,7 @@ def test_cloth_grasp():
     d_c = main.parse_file_to_dict(domain_fname)
     domain = parse_domain_config.ParseDomainConfig.parse(d_c)
     hls = hl_solver.FFSolver(d_c)
-    p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/folding.prob')
+    p_c = main.parse_file_to_dict('../domains/laundry_domain/laundry_probs/sort5.prob')
     problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain)
 
     plan_str = [
@@ -95,32 +95,33 @@ def test_cloth_grasp():
     ]
 
     plan = hls.get_plan(plan_str, domain, problem)
-    c_wid = 7
-    c_len = 4
-    c_rad = 0.015
-    c_spac = 0.1
-    cloth = get_deformable_cloth(c_wid, c_len, c_spac, c_rad, (0.5, -0.4, 0.65+MUJOCO_MODEL_Z_OFFSET))
-    table = get_param_xml(plan.params['table'])
-    cloth_info={'width': c_wid, 'length': c_len, 'radius': c_rad, 'spacing': c_spac}
-    env = BaxterMJCEnv(items=[cloth, table], view=True, cloth_info=cloth_info)
-    env.render(camera_id=1)
-    print dir(env.physics.model)
-    print dir(env.physics.data)
+    # c_wid = 7
+    # c_len = 4
+    # c_rad = 0.015
+    # c_spac = 0.1
+    # cloth = get_deformable_cloth(c_wid, c_len, c_spac, c_rad, (0.5, -0.4, 0.65+MUJOCO_MODEL_Z_OFFSET))
+    # table = get_param_xml(plan.params['table'])
+    # cloth_info={'width': c_wid, 'length': c_len, 'radius': c_rad, 'spacing': c_spac}
+    # env = BaxterMJCEnv(items=[cloth, table], view=True, cloth_info=cloth_info)
+    # env.render(camera_id=1)
+    # print dir(env.physics.model)
+    # print dir(env.physics.data)
     # for i in range(7):
     #     for j in range(4):
     #         ind = env.physics.model.name2id('B{0}_{1}'.format(j, i), 'body')
     #         print env.physics.data.xpos[ind]
 
     baxter, cloth = plan.params['baxter'], plan.params['cloth0']
-    arm_jnts = env.get_arm_joint_angles()
-    baxter.lArmPose[:,0] = arm_jnts[7:]
-    baxter.rArmPose[:,0] = arm_jnts[:7]
-    plan.params['robot_init_pose'].lArmPose[:,0] = arm_jnts[7:]
-    plan.params['robot_init_pose'].rArmPose[:,0] = arm_jnts[:7]
-    cloth.pose[:2,0] = (0.57, 0.2)
-    plan.params['cloth0_init_target'].value[:2,0] = cloth.pose[:2,0]
+    # arm_jnts = env.get_arm_joint_angles()
+    baxter.lArmPose[:,0] = 0 # arm_jnts[7:]
+    baxter.rArmPose[:,0] = 0 # arm_jnts[:7]
+    plan.params['robot_init_pose'].lArmPose[:,0] = 0 # arm_jnts[7:]
+    plan.params['robot_init_pose'].rArmPose[:,0] = 0 # arm_jnts[:7]
+    cloth.pose[:,0] = (0.57, 0.2, 0.725)
+    plan.params['cloth0_init_target'].value[:,0] = cloth.pose[:,0]
     solver = robot_ll_solver.RobotLLSolver()
-    result = solver.backtrack_solve(plan, callback = None, verbose=False)
+    result = solver._backtrack_solve(plan, callback = None, verbose=False, n_resamples=1)
+    import ipdb; ipdb.set_trace()
 
     for t in range(plan.horizon):
         rGrip = 0 if baxter.rGripper[:, t] < 0.016 else 0.02
@@ -254,7 +255,7 @@ def test_pick_place():
     baxter.rArmPose[:,0] = arm_jnts[:7]
     plan.params['robot_init_pose'].lArmPose[:,0] = arm_jnts[7:]
     plan.params['robot_init_pose'].rArmPose[:,0] = arm_jnts[:7]
-    env.set_item_pose('cloth0', cloth.pose[:,0], mujoco_frame=False)
+    env.set_item_pos('cloth0', cloth.pose[:,0], mujoco_frame=False)
     solver = robot_ll_solver.RobotLLSolver()
     result = solver.backtrack_solve(plan, callback=None, verbose=False)
 
@@ -285,10 +286,10 @@ def test_pick_place():
         env.step(act, debug=False)
         env.render(camera_id=1)
         print env.get_left_ee_pos()
-        print env.get_item_pose('cloth0')
+        print env.get_item_pos('cloth0')
 
 # test_move()
-# test_cloth_grasp()
+test_cloth_grasp()
 # test_ee_ctrl_cloth_grasp()
 # test_reward()
-test_pick_place()
+# test_pick_place()

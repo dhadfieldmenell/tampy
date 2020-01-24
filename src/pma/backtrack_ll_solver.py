@@ -160,7 +160,7 @@ class BacktrackLLSolver(LLSolver):
             callback_a = None
 
         for rp in robot_poses:
-            for attr, val in rp.iteritems():
+            for attr, val in rp.items():
                 setattr(rs_param, attr, val)
 
             success = False

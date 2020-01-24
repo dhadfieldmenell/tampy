@@ -34,10 +34,19 @@ for i in range(40, 70, 3):
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     # Information is track by the environment
     x0s = []
+    baxter = plans.values()[0].params['baxter']
+    robot_body = baxter.openrave_body
+    baxter.lArmPose[:, 0] = [0.39620987, -0.97739414, -0.04612781, 1.74220501, 0.03562036, 0.8089644, -0.45207411]
+    baxter.rArmPose[:, 0] = [-0.3962099, -0.97739413, 0.04612799, 1.742205 , -0.03562013, 0.8089644, 0.45207395]
     for i in range(conditions):
         x0 = np.zeros((dX,))
         x0[state_inds['baxter', 'lArmPose']] = [0.39620987, -0.97739414, -0.04612781, 1.74220501, 0.03562036, 0.8089644, -0.45207411]
         x0[state_inds['baxter', 'rArmPose']] = [-0.3962099, -0.97739413, 0.04612799, 1.742205 , -0.03562013, 0.8089644, 0.45207395]
+        ee_pose = robot_body.param_fwd_kinematics(baxter, ['left_gripper', 'right_gripper'], 0)
+        if ('baxter', 'ee_left_pos') in state_inds:
+            x0[state_inds['baxter', 'ee_left_pos']] = ee_pose['left_gripper']['pos']
+        if ('baxter', 'ee_right_pos') in state_inds:
+            x0[state_inds['baxter', 'ee_right_pos']] = ee_pose['right_gripper']['pos']
         x0s.append(x0)
         locs = np.random.choice(range(len(POSSIBLE_CLOTH_LOCS)), NUM_CLOTHS, replace=False)
         for j in range(NUM_CLOTHS):
@@ -108,7 +117,7 @@ def get_prim_choices():
 
 def get_vector(config):
     state_vector_include = {
-        'baxter': ['lArmPose', 'lGripper', 'rArmPose', 'rGripper'],
+        'baxter': ['lArmPose', 'lGripper', 'rArmPose', 'rGripper', 'ee_left_pos', 'ee_right_pos'],
     }
     for i in range(NUM_CLOTHS):
         state_vector_include['cloth{0}'.format(i)] = ['pose']

@@ -159,7 +159,7 @@ class DrivingSolver(LLSolver):
             callback_a = None
 
         for rp in vehicle_poses:
-            for attr, val in rp.iteritems():
+            for attr, val in rp.items():
                 setattr(rs_param, attr, val)
 
             success = False

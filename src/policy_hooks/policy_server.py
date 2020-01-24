@@ -13,6 +13,8 @@ from tamp_ros.msg import *
 from tamp_ros.srv import *
 
 
+MAX_QUEUE_SIZE = 500
+
 class PolicyServer(object):
     def __init__(self, hyperparams):
         import tensorflow as tf
@@ -76,10 +78,12 @@ class PolicyServer(object):
         wt_dims = (msg.n, msg.rollout_len) if msg.rollout_len > 1 else (msg.n,)
         wt = np.array(msg.wt).reshape(wt_dims)
         self.update_queue.append((obs, mu, prc, wt))
+        self.update_queue = self.update_queue[-MAX_QUEUE_SIZE:]
 
 
     def parse_update_queue(self):
-        while len(self.update_queue):
+        queue_len = len(self.update_queue)
+        for _ in range(queue_len):
             obs, mu, prc, wt = self.update_queue.pop()
             start_time = time.time()
             update = self.policy_opt.store(obs, mu, prc, wt, self.task)

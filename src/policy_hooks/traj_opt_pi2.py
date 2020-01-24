@@ -69,6 +69,11 @@ class TrajOptPI2(TrajOpt):
         X = cur_data.get_X()
         U = cur_data.get_U()
         T = prev_traj_distr.T
+        if np.any(np.isnan(X)):
+            raise Exception('Nans in state: {0}'.format(X))
+
+        if np.any(np.isnan(U)):
+            raise Exception('Nans in action: {0}'.format(U))
 
         # We only optimize feedforward controls with PI2. Subtract the feedback
         # part from the sampled controls using feedback gain matrix and states.       
@@ -101,7 +106,7 @@ class TrajOptPI2(TrajOpt):
             traj_distr.k, traj_distr.pol_covar = k, pS
             traj_distr.inv_pol_covar, traj_distr.chol_pol_covar = ipS, cpS
         except ValueError as e:
-            print "Error: VALUEERROR IN PI^2 UPDATE"
+            print("Error: VALUEERROR IN PI^2 UPDATE")
             traj_distr = prev_traj_distr
         # print cur_data[0].task, cur_data[0].obj_ind, cur_data[0].targ_ind
         # print cur_data[0].agent.state_inds

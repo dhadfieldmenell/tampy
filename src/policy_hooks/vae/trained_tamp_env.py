@@ -20,6 +20,8 @@ import traceback
 import numpy as np
 # import tensorflow as tf
 
+from gym import spaces
+
 from roslaunch.core import RLException
 from roslaunch.parent import ROSLaunchParent
 import rosgraph
@@ -44,6 +46,9 @@ from baxter_gym.envs import MJCEnv
 from policy_hooks.vae.vae_env import VAEEnvWrapper
 
 class NAMOSortenv(VAEEnvWrapper):
+    action_space = spaces.MultiDiscrete([1, 4, 7])
+    observation_space = spaces.Box(0, 255, [80, 107, 3], dtype='uint8')
+
     def __init__(self):
         # self.config = namo_config
         # prob = config['prob']

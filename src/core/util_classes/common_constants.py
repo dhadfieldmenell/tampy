@@ -5,6 +5,8 @@ This file is refferenced in:
     common_predicates
 """
 
+USE_OPENRAVE = True
+
 """
 Constants used in robot_predicates
 """

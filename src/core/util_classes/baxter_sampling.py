@@ -3,7 +3,13 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes import robot_predicates
 from core.util_classes.items import Item
 from core.util_classes.robots import Robot
-from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, IkFilterOptions, Environment, Planner, RaveCreatePlanner, RaveCreateTrajectory, matrixFromAxisAngle, CollisionReport, RaveCreateCollisionChecker
+
+from core.util_classes.openrave_body import USE_OPENRAVE
+if USE_OPENRAVE:
+    from openravepy import matrixFromAxisAngle, IkParameterization, IkParameterizationType, \
+                           IkFilterOptions, Environment, Planner, RaveCreatePlanner, \
+                           RaveCreateTrajectory, matrixFromAxisAngle, CollisionReport, \
+                           RaveCreateCollisionChecker
 import core.util_classes.baxter_constants as const
 from collections import OrderedDict
 from sco.expr import Expr
@@ -1108,7 +1114,8 @@ def resample_gripper_at(pred, negated, t, plan):
         return attr_inds, res
 
     arm_pose = closest_arm_pose(arm_poses, robot.lArmPose[:,t-1])
-    add_to_attr_inds_and_res(t, attr_inds, res, robot, [('lArmPose', arm_pose)])
+    arm_name = 'lArmPose' if arm =='left' else 'rArmPose'
+    add_to_attr_inds_and_res(t, attr_inds, res, robot, [(arm_name, arm_pose)])
 
     if DEBUG: assert pred.test(t, negated = negated, tol = 1e-3)
     return res, attr_inds

@@ -1,5 +1,6 @@
 """ This file defines the state target cost. """
 import copy
+import time
 
 import numpy as np
 
@@ -23,6 +24,7 @@ class StateTrajCost(Cost):
         Args:
             sample:  A single sample
         """
+
         T = sample.T
         Du = sample.dU
         Dx = sample.dX
@@ -35,8 +37,10 @@ class StateTrajCost(Cost):
         final_lux = np.zeros((T, Du, Dx))
 
         for data_type in self._hyperparams['data_types']:
+            start_t = time.time()
             config = self._hyperparams['data_types'][data_type]
             wp = config['wp']
+            orig_wp = wp
             tgt = sample.get_ref_X().copy()
             if np.any(np.isnan(tgt)):
                 import ipdb; ipdb.set_trace()
@@ -52,16 +56,21 @@ class StateTrajCost(Cost):
             dist = x - tgt
 
             # Evaluate penalty term.
-            l, ls, lss = evall1l2term(
-                wp, dist, np.tile(np.eye(dim_sensor), [T, 1, 1]),
-                np.zeros((T, dim_sensor, dim_sensor, dim_sensor)),
-                self._hyperparams['l1'], self._hyperparams['l2'],
-                self._hyperparams['alpha']
-            )
+            # l, ls, lss = evall1l2term(
+            #     wp, dist, np.tile(np.eye(dim_sensor), [T, 1, 1]),
+            #     np.zeros((T, dim_sensor, dim_sensor, dim_sensor)),
+            #     self._hyperparams['l1'], self._hyperparams['l2'],
+            #     self._hyperparams['alpha']
+            # )
+            l = np.sum(0.5 * wp * dist**2, axis=1)
+            ls = wp * (x - tgt)
+            lss = np.tile(np.diag(orig_wp), [T, 1, 1]) * np.expand_dims(np.expand_dims(wpm, axis=-1), axis=-1)
+
 
             final_l += l
 
             sample.agent.pack_data_x(final_lx, ls, data_types=[data_type])
             sample.agent.pack_data_x(final_lxx, lss,
                                      data_types=[data_type, data_type])
+        # print('Cost eval time:', time.time() - start_t)
         return final_l, final_lx, final_lu, final_lxx, final_luu, final_lux

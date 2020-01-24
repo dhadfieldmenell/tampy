@@ -12,51 +12,7 @@ import core.util_classes.baxter_constants as const
 from core.util_classes.items import Box, Can, Sphere
 from core.util_classes.param_setup import ParamSetup
 # Attribute map used in baxter domain. (Tuple to avoid changes to the attr_inds)
-ATTRMAP = {"Robot": (("lArmPose", np.array(range(7), dtype=np.int)),
-                     ("lGripper", np.array([0], dtype=np.int)),
-                     ("rArmPose", np.array(range(7), dtype=np.int)),
-                     ("rGripper", np.array([0], dtype=np.int)),
-                     ("pose", np.array([0], dtype=np.int)),
-                     ("time", np.array([0], dtype=np.int))),
-           "RobotPose": (("lArmPose", np.array(range(7), dtype=np.int)),
-                         ("lGripper", np.array([0], dtype=np.int)),
-                         ("rArmPose", np.array(range(7), dtype=np.int)),
-                         ("rGripper", np.array([0], dtype=np.int)),
-                         ("value", np.array([0], dtype=np.int))),
-           "Rotation": [("value", np.array([0], dtype=np.int))],
-           "Distance": [("value", np.array([0], dtype=np.int))],
-           "Can": (("pose", np.array([0,1,2], dtype=np.int)),
-                   ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Edge": (("pose", np.array([0,1,2], dtype=np.int)),
-                    ("rotation", np.array([0,1,2], dtype=np.int)),
-                    ("length", np.array([0], dtype=np.int))),
-           "EEPose": (("value", np.array([0,1,2], dtype=np.int)),
-                      ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Target": (("value", np.array([0,1,2], dtype=np.int)),
-                      ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Table": (("pose", np.array([0,1,2], dtype=np.int)),
-                     ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Obstacle": (("pose", np.array([0,1,2], dtype=np.int)),
-                        ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Basket": (("pose", np.array([0,1,2], dtype=np.int)),
-                      ("rotation", np.array([0,1,2], dtype=np.int))),
-           "BasketTarget": (("value", np.array([0,1,2], dtype=np.int)),
-                            ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Washer": (("pose", np.array([0,1,2], dtype=np.int)),
-                      ("rotation", np.array([0,1,2], dtype=np.int)),
-                      ("door", np.array([0], dtype=np.int))),
-           "WasherPose": (("value", np.array([0,1,2], dtype=np.int)),
-                          ("rotation", np.array([0,1,2], dtype=np.int)),
-                          ("door", np.array([0], dtype=np.int))),
-           "Cloth": (("pose", np.array([0,1,2], dtype=np.int)),
-                     ("rotation", np.array([0,1,2], dtype=np.int))),
-           "ClothTarget": (("value", np.array([0,1,2], dtype=np.int)),
-                     ("rotation", np.array([0,1,2], dtype=np.int))),
-           "Fabric": (("gripleft", np.array([0,1,2], dtype=np.int)),
-                      ("gripright", np.array([0,1,2], dtype=np.int))),
-           "EEVel": (("value", np.array([0], dtype=np.int))),
-           "Region": [("value", np.array([0,1], dtype=np.int))]
-          }
+ATTRMAP = const.ATTRMAP
 
 """
     Movement Constraints Family
@@ -83,9 +39,19 @@ class BaxterRobotAt(robot_predicates.RobotAt):
 
     def __init__(self, name, params, expected_param_types, env=None):
         self.attr_dim = 17
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
-                                 (params[1], list(ATTRMAP[params[1]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
+                                 (params[1], list(ATTRMAP[params[1]._type][:5]))])
         super(BaxterRobotAt, self).__init__(name, params, expected_param_types, env)
+
+# class BaxterEEAt(robot_predicates.RobotAt):
+
+#     # RobotAt, Robot, RobotPose
+
+#     def __init__(self, name, params, expected_param_types, env=None):
+#         self.attr_dim = 6
+#         self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][6:8])),
+#                                  (params[1], list(ATTRMAP[params[1]._type][5:7]))])
+#         super(BaxterRobotAt, self).__init__(name, params, expected_param_types, env)
 
 class BaxterPoseAtRotation(robot_predicates.RobotAt):
 
@@ -286,7 +252,7 @@ class BaxterWithinJointLimit(robot_predicates.WithinJointLimit):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.dof_cache = None
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-2]))])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:4]))])
         super(BaxterWithinJointLimit, self).__init__(name, params, expected_param_types, env, debug)
 
     def setup_mov_limit_check(self):
@@ -361,7 +327,7 @@ class BaxterStationaryBase(robot_predicates.StationaryBase):
     # StationaryBase, Robot (Only Robot Base)
 
     def __init__(self, name, params, expected_param_types, env=None):
-        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][-2]])])
+        self.attr_inds = OrderedDict([(params[0], [ATTRMAP[params[0]._type][4]])])
         self.attr_dim = const.BASE_DIM
         super(BaxterStationaryBase, self).__init__(name, params, expected_param_types, env)
 
@@ -370,7 +336,7 @@ class BaxterStationaryArms(robot_predicates.StationaryArms):
     # StationaryArms, Robot (Only Robot Arms)
 
     def __init__(self, name, params, expected_param_types, env=None):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-2]))])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:4]))])
         self.attr_dim = const.TWOARMDIM
         super(BaxterStationaryArms, self).__init__(name, params, expected_param_types, env)
 
@@ -1140,7 +1106,7 @@ class BaxterObstructs(robot_predicates.Obstructs):
         self.dof_cache = None
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = const.DIST_SAFE
@@ -1189,7 +1155,7 @@ class BaxterObstructsWasher(BaxterObstructs):
         self.dof_cache = None
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[3], list(ATTRMAP[params[3]._type]))])
         super(BaxterObstructs, self).__init__(name, params, expected_param_types, env, debug, tol)
         self.dsafe = 1e-2 # const.DIST_SAFE
@@ -1391,7 +1357,7 @@ class BaxterObstructsHolding(robot_predicates.ObstructsHolding):
         self.dof_cache = None
         self.coeff = -const.OBSTRUCTS_COEFF
         self.neg_coeff = const.OBSTRUCTS_COEFF
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[3], list(ATTRMAP[params[3]._type])),
                                  (params[4], list(ATTRMAP[params[4]._type]))])
         super(BaxterObstructsHolding, self).__init__(name, params, expected_param_types, env, debug, tol)
@@ -1474,7 +1440,7 @@ class BaxterRCollides(robot_predicates.RCollides):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 17
         self.dof_cache = None
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
@@ -1516,7 +1482,7 @@ class BaxterRSelfCollides(robot_predicates.RSelfCollides):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.attr_dim = 17
         self.dof_cache = None
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1]))])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5]))])
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
         super(BaxterRSelfCollides, self).__init__(name, params, expected_param_types, env, debug)
@@ -1555,7 +1521,7 @@ class BaxterCollidesWasher(BaxterRCollides):
         self.dof_cache = None
         self.coeff = -const.RCOLLIDE_COEFF
         self.neg_coeff = const.RCOLLIDE_COEFF
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         super(BaxterRCollides, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = 1e-2 # const.RCOLLIDES_DSAFE
@@ -1707,7 +1673,7 @@ class BaxterCollidesWasher(BaxterRCollides):
 
 class BaxterEEReachable(robot_predicates.EEReachable):
     def __init__(self, name, params, expected_param_types, active_range = (-const.EEREACHABLE_STEPS, const.EEREACHABLE_STEPS), env=None, debug=False):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[2], list(ATTRMAP[params[2]._type]))])
         self.attr_dim = 23
         self.coeff = const.EEREACHABLE_COEFF
@@ -2025,7 +1991,7 @@ class BaxterInGripper(robot_predicates.InGripper):
     # InGripper, Robot, Object
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.coeff = const.IN_GRIPPER_COEFF
         self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
@@ -2102,7 +2068,7 @@ class BaxterBothEndsInGripper(robot_predicates.InGripper):
     # BaxterBothEndsInGripper Robot, Can
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.coeff = const.IN_GRIPPER_COEFF
         self.rot_coeff = const.IN_GRIPPER_ROT_COEFF
@@ -2435,11 +2401,11 @@ class BaxterClothAlmostInGripperLeft(robot_predicates.AlmostInGripper):
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.arm = "left"
         self.coeff = const.IN_GRIPPER_COEFF
-        self.eval_dim = 6
-        self.max_dist = np.array([0.02, 0.01, 0.02, 0.02, 0.01, 0.02])
+        self.eval_dim = 3
+        self.max_dist = np.array([0.02, 0.01, 0.02])
         self.eval_f = self.stacked_f
         self.eval_grad = self.stacked_grad
-        self.attr_inds = OrderedDict([(params[0], ATTRMAP[params[0]._type][:-1]),
+        self.attr_inds = OrderedDict([(params[0], ATTRMAP[params[0]._type][:5]),
                                       (params[1], ATTRMAP[params[1]._type])])
         super(BaxterClothAlmostInGripperLeft, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -2449,11 +2415,16 @@ class BaxterClothAlmostInGripperLeft(robot_predicates.AlmostInGripper):
 
     def stacked_f(self, x):
         pos_check = self.pos_check_f(x)
-        return self.coeff * np.r_[pos_check, -pos_check]
+        if np.all(np.abs(pos_check) <= self.max_dist):
+            pos_check = np.zeros((3,1))
+        return self.coeff * pos_check
+
+        # return self.coeff * np.r_[pos_check, -pos_check]
 
     def stacked_grad(self, x):
         pos_jac = self.pos_check_jac(x)
-        return self.coeff * np.r_[pos_jac, pos_jac]
+        return pos_jac
+        # return self.coeff * np.r_[pos_jac, pos_jac]
 
     def set_robot_poses(self, x, robot_body):
         # Provide functionality of setting robot poses
@@ -2503,7 +2474,7 @@ class BaxterGripperAt(robot_predicates.GripperAt):
     # InGripper, Robot, EEPose
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.coeff = const.GRIPPER_AT_COEFF
         self.rot_coeff = const.GRIPPER_AT_ROT_COEFF
@@ -2584,12 +2555,90 @@ class BaxterGripperAtRight(BaxterGripperAt):
         self.eval_dim = 3
         super(BaxterGripperAtRight, self).__init__(name, params, expected_param_types, env, debug)
 
+class BaxterEELeftValid(robot_predicates.EEAt):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        self.arm = "left"
+        self.eval_dim = 3
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5]+ATTRMAP[params[0]._type][6:8]))])
+        self.coeff = const.EE_VALID_COEFF
+        self.rot_coeff = const.EE_VALID_COEFF
+        self.eval_f = self.stacked_f
+        self.eval_grad = self.stacked_grad
+        super(BaxterEELeftValid, self).__init__(name, params, expected_param_types, env, debug)
+
+    def set_robot_poses(self, x, robot_body):
+        # Provide functionality of setting robot poses
+        l_arm_pose, l_gripper = x[0:7], x[7]
+        r_arm_pose, r_gripper = x[8:15], x[15]
+        base_pose = x[16]
+        robot_body.set_pose([0,0,base_pose])
+
+        dof_value_map = {"lArmPose": l_arm_pose.reshape((7,)),
+                         "lGripper": l_gripper,
+                         "rArmPose": r_arm_pose.reshape((7,)),
+                         "rGripper": r_gripper}
+        robot_body.set_dof(dof_value_map)
+
+    def get_robot_info(self, robot_body, arm):
+        if not arm == "right" and not arm == "left":
+            PredicateException("Invalid Arm Specified")
+        # Provide functionality of Obtaining Robot information
+        if arm == "right":
+            tool_link = robot_body.env_body.GetLink("right_gripper")
+        else:
+            tool_link = robot_body.env_body.GetLink("left_gripper")
+        manip_trans = tool_link.GetTransform()
+        # This manip_trans is off by 90 degree
+        pose = OpenRAVEBody.obj_pose_from_transform(manip_trans)
+        robot_trans = OpenRAVEBody.get_ik_transform(pose[:3], pose[3:])
+        if arm == "right":
+            arm_inds = list(range(10,17))
+        else:
+            arm_inds = list(range(2,9))
+        return robot_trans, arm_inds
+
+    def robot_obj_kinematics(self, x):
+        """
+            This function is used to check whether End Effective pose's position is at robot gripper's center
+
+            Note: Child classes need to provide set_robot_poses and get_robot_info functions.
+        """
+        # Getting the variables
+        robot_body = self.robot.openrave_body
+        body = robot_body.env_body
+        # Setting the poses for forward kinematics to work
+        self.set_robot_poses(x, robot_body)
+        robot_trans, arm_inds = self.get_robot_info(robot_body, self.arm)
+        arm_joints = [body.GetJointFromDOFIndex(ind) for ind in arm_inds]
+
+        ee_pos, ee_rot = x[-6:-3], x[-3:]
+        obj_trans = OpenRAVEBody.transform_from_obj_pose(ee_pos)
+        Rz, Ry, Rx = OpenRAVEBody._axis_rot_matrices(ee_pos, ee_rot)
+        axises = [[0,0,1], np.dot(Rz, [0,1,0]), np.dot(Rz, np.dot(Ry, [1,0,0]))] # axises = [axis_z, axis_y, axis_x]
+        # Obtain the pos and rot val and jac from 2 function calls
+        return obj_trans, robot_trans, axises, arm_joints
+
+    def stacked_f(self, x):
+        return np.vstack([self.coeff * self.pos_check_f(x)])
+
+    def stacked_grad(self, x):
+        return np.vstack([10*self.coeff * self.pos_check_jac(x)])
+
+    # def resample(self, negated, t, plan):
+    #     return baxter_sampling.resample_gripper_at(self, negated, t, plan)
+
+class BaxterEERightValid(BaxterEELeftValid):
+    def __init__(self, name, params, expected_param_types, env = None, debug = False):
+        super(BaxterEERightValid, self).__init__(name, params, expected_param_types, env, debug)
+        self.arm = 'right'
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5]+ATTRMAP[params[0]._type][8:10]))])
+
 class BaxterPushWasher(robot_predicates.IsPushing):
 
     def __init__(self, name, params, expected_param_types, env = None, debug = False):
         self.eval_dim = 4
         self.arm = 'left'
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:-1])),
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5])),
                                  (params[1], list(ATTRMAP[params[1]._type]))])
         self.coeff = 1#const.IN_GRIPPER_COEFF
         self.rot_coeff = 1#const.IN_GRIPPER_ROT_COEFF
@@ -2831,7 +2880,7 @@ class BaxterGrippersLevel(robot_predicates.GrippersLevel):
         self.opt_coeff = 1
         self.eval_f = lambda x: self.both_arm_pos_check(x)[0]
         self.eval_grad = lambda x: self.both_arm_pos_check(x)[1]
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type]))])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type][:5]))])
         self.eval_dim = 6
         self.grip_offset = const.BASKET_GRIP_OFFSET
         super(BaxterGrippersLevel, self).__init__(name, params, expected_param_types, env, debug)
@@ -3153,7 +3202,7 @@ class BaxterGrippersDownRot(robot_predicates.GrippersLevel):
         self.opt_coeff = 0.01
         self.eval_f = lambda x: self.coeff*self.both_arm_rot_check_f(x)
         self.eval_grad = lambda x: self.coeff*self.both_arm_rot_check_jac(x)
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:5])])
         self.eval_dim = 6
         super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -3255,7 +3304,7 @@ class BaxterLeftGripperDownRot(robot_predicates.GrippersLevel):
         self.opt_coeff = 0.1
         self.eval_f = lambda x: self.left_arm_rot_check(x)
         self.eval_grad = lambda x: self.left_arm_rot_jac(x)
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:5])])
         self.eval_dim = 2
         super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -3334,7 +3383,7 @@ class BaxterRightGripperDownRot(robot_predicates.GrippersLevel):
         self.opt_coeff = 0.1
         self.eval_f = lambda x: self.left_arm_rot_check(x)
         self.eval_grad = lambda x: self.left_arm_rot_jac(x)
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:5])])
         self.eval_dim = 2
         super(BaxterGrippersDownRot, self).__init__(name, params, expected_param_types, env, debug)
 
@@ -3412,7 +3461,7 @@ class BaxterGrippersWithinDistance(BaxterInGripper):
         self.opt_coeff = 0.1
         self.eval_f = lambda x: self.both_arm_pos_check_f(x)
         self.eval_grad = lambda x: self.both_arm_pos_check_jac(x)
-        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:-1])])
+        self.attr_inds = OrderedDict([(params[0], list(ATTRMAP[params[0]._type])[:5])])
         self.eval_dim = 1
         self.edge_len = params[1].geom.height
         self.arm = "left"

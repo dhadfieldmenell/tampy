@@ -3,14 +3,14 @@ import sys
 import time
 import traceback
 from baxter_gym.envs import *
+from baxter_gym.util_classes.mjc_xml_utils import *
 
 from gps.agent.agent_utils import generate_noise
 from gps.sample.sample_list import SampleList
 
-from policy_hooks.baxter.baxter_mjc_env import BaxterMJCEnv
+from policy_hooks.baxter.baxter_mjc_sorting_agent import BaxterMJCSortingAgent
 from policy_hooks.sample import Sample
 from policy_hooks.tamp_agent import TAMPAgent
-from policy_hooks.utils.mjc_xml_utils import *
 from policy_hooks.utils.policy_solver_utils import *
 
 
@@ -29,7 +29,7 @@ class optimal_pol:
 
 
 class BaxterMJCFoldingAgent(TAMPAgent):
-    def __init__(self, hyperparams):
+    def __init__(self, BaxterMJCSortingAgent):
         plans = hyperparams['plans']
         table = get_table()
         cloth_wid = hyperparams['cloth_width']
@@ -118,6 +118,11 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             X[self.state_inds['baxter', 'rGripper']] = grip_joints[0]
             X[self.state_inds['baxter', 'lArmPose']] = arm_joints[7:]
             X[self.state_inds['baxter', 'lGripper']] = grip_joints[1]
+            if 'ee_left_pos' in self.state_inds:
+                X[self.state_inds['baxter', 'ee_left_pos']] = self.env.get_left_ee_pos()
+            if 'ee_right_pos' in self.state_inds:
+                X[self.state_inds['baxter', 'ee_right_pos']] = self.env.get_right_ee_pos()
+
             prim_val = self.get_prim_value(condition, state, task)
             X[self.state_inds['right_corner', 'pose']] = prim_val[RIGHT_TARG_ENUM]
             X[self.state_inds['left_corner', 'pose']] = prim_val[LEFT_TARG_ENUM]
@@ -395,22 +400,11 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         right_ee = baxter.openrave_body.fwd_kinematics('right_gripper')
         left_ee = baxter.openrave_body.fwd_kinematics('left_gripper')
 
-        sample.set(RIGHT_EE_POS_ENUM, right_ee['pos'], t)
-        sample.set(RIGHT_EE_QUAT_ENUM, right_ee['quat'], t)
-        sample.set(LEFT_EE_POS_ENUM, left_ee['pos'], t)
-        sample.set(LEFT_EE_QUAT_ENUM, left_ee['quat'], t)
+        # sample.set(RIGHT_EE_POS_ENUM, right_ee['pos'], t)
+        # sample.set(RIGHT_EE_QUAT_ENUM, right_ee['quat'], t)
+        # sample.set(LEFT_EE_POS_ENUM, left_ee['pos'], t)
+        # sample.set(LEFT_EE_QUAT_ENUM, left_ee['quat'], t)
         U = np.zeros(self.dU)
-
-        # Assumes sample is filled in chronological order
-        if t > 0:
-            ee_right_1 = sample.get(RIGHT_EE_POS_ENUM, t=t-1)
-            ee_left_1 = sample.get(LEFT_EE_POS_ENUM, t=t-1)
-            U[self.action_inds['baxter', 'ee_right_pos']] = right_ee['pos'] - ee_right_1
-            U[self.action_inds['baxter', 'ee_left_pos']] = left_ee['pos'] - ee_left_1
-            U[self.action_inds['baxter', 'rGripper']] = mp_state[self.state_inds['baxter', 'rGripper']]
-            U[self.action_inds['baxter', 'lGripper']] = mp_state[self.state_inds['baxter', 'lGripper']]
-            sample.set(ACTION_ENUM, U, t-1)
-            sample.set(ACTION_ENUM, U, t)            
 
         sample.task = task
         sample.task_name = self.task_list[task[0]]
@@ -426,8 +420,10 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             vec[task[i]] = 1.
             sample.set(enum, vec, t)
 
+        
         right_targ = prim_choices[RIGHT_TARG_ENUM][task[1]]
         left_targ = prim_choices[LEFT_TARG_ENUM][task[2]]
+
         if right_targ not in plan.params:
             sample.set(RIGHT_TARG_POSE_ENUM, mp_state[self.state_inds['right_corner', 'pose']], t)
         else:
@@ -446,9 +442,39 @@ class BaxterMJCFoldingAgent(TAMPAgent):
             else:
                 sample.set(LEFT_TARG_POSE_ENUM, plan.params[left_targ].pose[:,0].copy(), t)
 
+
         sample.set(CLOTH_POINTS_ENUM, self.env.get_cloth_points().flatten(), t)
         sample.set(CLOTH_JOINTS_ENUM, self.env.get_cloth_joints().flatten(), t)
+        sample.set(RIGHT_EE_POS_ENUM, right_ee['pos'], t)
+        sample.set(RIGHT_EE_QUAT_ENUM, right_ee['quat'], t)
+        sample.set(RIGHT_GRIPPER_ENUM, mp_state[self.state_inds['baxter', 'rGripper']], t)
+        sample.set(LEFT_EE_POS_ENUM, left_ee['pos'], t)
+        sample.set(LEFT_EE_QUAT_ENUM, left_ee['quat'], t)
+        sample.set(LEFT_GRIPPER_ENUM, mp_state[self.state_inds['baxter', 'lGripper']], t)
+
+        if np.any(np.isnan(sample.get_X(t=t))):
+            raise Exception('Nans in state: {0}'.format(sample.get_X(t=t)))
+
+        # Assumes sample is filled in chronological order
+        if t > 0:
+            ee_right_1 = plan.params[obj].pose[:,t-1] - sample.get(RIGHT_EE_POS_ENUM, t=t-1)
+            ee_left_1 = plan.params[obj].pose[:,t-1] - sample.get(LEFT_EE_POS_ENUM, t=t-1)
+            U[self.action_inds['baxter', 'ee_right_pos']] = right_ee['pos'] - ee_right_1
+            U[self.action_inds['baxter', 'ee_left_pos']] = left_ee['pos'] - ee_left_1
+            U[self.action_inds['baxter', 'rGripper']] = mp_state[self.state_inds['baxter', 'rGripper']]
+            U[self.action_inds['baxter', 'lGripper']] = mp_state[self.state_inds['baxter', 'lGripper']]
+            sample.set(ACTION_ENUM, U, t-1)
+            sample.set(ACTION_ENUM, U, t)
+ 
         if fill_obs:
+            for param_name, attr in self.state_inds:
+                param = plan.params[param_name]
+                if param.is_symbol(): continue
+                if attr == 'pose':
+                    self.env.set_item_pos(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False)
+                if attr == 'rotation':
+                    self.env.set_item_rot(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False, use_euler=True)
+
             if OVERHEAD_IMAGE_ENUM in self._hyperparams['obs_include'] or OVERHEAD_IMAGE_ENUM in self._hyperparams['prim_obs_include']:
                 sample.set(OVERHEAD_IMAGE_ENUM, self.env.render(height=self.im_h, width=self.im_w, camera_id=0, view=False).flatten(), t)
             if LEFT_IMAGE_ENUM in self._hyperparams['obs_include'] or LEFT_IMAGE_ENUM in self._hyperparams['prim_obs_include']:
@@ -521,7 +547,7 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         return tuple(task)
 
 
-    def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
+    def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False):
         if len(Xs.shape) == 1:
             Xs = Xs.reshape(1, Xs.shape[0])
         Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
@@ -550,8 +576,18 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         if debug:
             print failed_preds
 
+        return failed_preds
+
+
+    def cost_f(self, Xs, task, condition, active_ts=None, debug=False):
+        if active_ts == None:
+            active_ts = (1, plan.horizon-1)
+        failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug)
+
         cost = 0
-        print plan.actions, failed_preds
+        tol = 1e-3
+
+        # print plan.actions, failed_preds
         for failed in failed_preds:
             for t in range(active_ts[0], active_ts[1]+1):
                 if t + failed[1].active_range[1] > active_ts[1]:
@@ -617,3 +653,21 @@ class BaxterMJCFoldingAgent(TAMPAgent):
         sample.set_ref_X(opt_traj)
         sample.set_ref_U(sample.get_U())
         return sample
+
+
+    def animate_sample(self, sample):
+        for t in range(sample.T):
+            mp_state = sample.get(STATE_ENUM, t)
+            for param_name, attr in self.state_inds:
+                if param_name == 'baxter': continue
+                if attr == 'pose'
+                    self.mjc_env.set_item_pos(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False)
+                elif attr == 'rotation'
+                    self.mjc_env.set_item_rot(param_name, mp_state[self.state_inds[param_name, attr]], mujoco_frame=False, use_euler=True)
+            try:
+                cloth_joints = sample.get(CLOTH_JOINTS_ENUM, t)
+                self.mjc_env.set_cloth_joints(cloth_joints)
+            self.mjc_env.set_arm_joint_angles(np.r_[mp_state[self.state_inds['baxter', 'rArmPose']], mp_state[self.state_inds['baxter', 'lArmPose']]])
+            self.mjc_env.set_gripper_joint_angles(np.r_[mp_state[self.state_inds['baxter', 'rGripper']], mp_state[self.state_inds['baxter', 'lGripper']]])
+            self.mjc_env.render(view=True)
+            time.sleep(0.2)

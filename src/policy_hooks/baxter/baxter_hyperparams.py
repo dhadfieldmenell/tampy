@@ -186,7 +186,7 @@ config = {
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
 
-    'train_iterations': 100000,
+    'train_iterations': 100,
     'weight_decay': 0.0001,
     'batch_size': 1000,
     'n_layers': 2,
@@ -216,7 +216,7 @@ config = {
     'agent_type': BaxterMJCFoldingAgent,
     'opt_server_type': FoldingMotionPlanServer,
     'solver_type': BaxterPolicySolver,
-    'update_size': 5e3,
+    'update_size': 500,
     'use_local': True,
     'n_dirs': 16,
     'domain': 'baxter',

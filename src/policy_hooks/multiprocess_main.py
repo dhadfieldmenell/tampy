@@ -38,7 +38,7 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
-from policy_hooks.task_net import tf_binary_network, tf_classification_network
+from policy_hooks.task_net import tf_value_network, tf_binary_network, tf_classification_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
 from policy_hooks.action_traj_cost import ActionTrajCost
@@ -51,6 +51,7 @@ from policy_hooks.value_server import ValueServer
 from policy_hooks.primitive_server import PrimitiveServer
 from policy_hooks.policy_server import PolicyServer
 from policy_hooks.rollout_server import RolloutServer
+from policy_hooks.log_server import LogServer
 from policy_hooks.tf_models import tf_network, multi_modal_network_fp
 from policy_hooks.view_server import ViewServer
 
@@ -163,7 +164,7 @@ class MultiProcessMain(object):
             'val_obs_include': self.config['val_obs_include'],
             'conditions': self.config['num_conds'],
             'solver': None,
-            'num_cans': 1,
+            'num_objs': self.config['num_objs'],
             'obj_list': [],
             'stochastic_conditions': False,
             'image_width': utils.IM_W,
@@ -240,7 +241,7 @@ class MultiProcessMain(object):
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
-                'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
@@ -263,7 +264,7 @@ class MultiProcessMain(object):
             'primitive_network_params': {
                 'obs_include': self.config['agent']['prim_obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
-                'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
@@ -277,7 +278,7 @@ class MultiProcessMain(object):
             'value_network_params': {
                 'obs_include': self.config['agent']['val_obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
-                'obs_image_data': [OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
+                'obs_image_data': [IM_ENUM, OVERHEAD_IMAGE_ENUM, LEFT_IMAGE_ENUM, RIGHT_IMAGE_ENUM],
                 'image_width': self.config['image_width'],
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
@@ -290,7 +291,7 @@ class MultiProcessMain(object):
             'network_model': tf_network,
             'distilled_network_model': tf_network,
             'primitive_network_model': tf_classification_network,
-            'value_network_model': tf_binary_network,
+            'value_network_model': tf_value_network,
             'image_network_model': multi_modal_network_fp if 'image' in self.config['agent']['obs_include'] else None,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
@@ -362,7 +363,7 @@ class MultiProcessMain(object):
                                   self.config['branching_factor'],
                                   self.config['num_samples'],
                                   self.config['num_distilled_samples'],
-                                  soft_decision=1.0,
+                                  soft_decision=True,
                                   C=2,
                                   max_depth=self.config['max_tree_depth'],
                                   explore_depth=5,
@@ -407,6 +408,8 @@ class MultiProcessMain(object):
             self.create_pol_servers(config)
         if self.config['mcts_server']:
             self.create_rollout_servers(config)
+        if self.config['log_server']:
+            self.create_log_server(config)
         if self.config['view_server']:
             self.create_view_server(config)
 
@@ -441,6 +444,7 @@ class MultiProcessMain(object):
 
     def create_pol_servers(self, hyperparams):
         for task in self.pol_list+('value', 'primitive'):
+            # print task
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
             # new_hyperparams['id'] = config['server_id']+'_'+str(task)
@@ -455,10 +459,32 @@ class MultiProcessMain(object):
         # self.create_server(PrimitiveServer, new_hyperparams)
 
     def create_rollout_servers(self, hyperparams):
-        for n in range(hyperparams['n_rollout_servers']):
-            new_hyperparams = copy.copy(hyperparams)
-            new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
+        split_mcts_alg = hyperparams.get('split_mcts_alg', False)
+        if split_mcts_alg:
+            hyperparams['run_mcts_rollouts'] = True
+            hyperparams['run_alg_updates'] = False
+            for n in range(hyperparams['n_rollout_servers']):
+                new_hyperparams = copy.copy(hyperparams)
+                new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
+                self.create_server(RolloutServer, new_hyperparams)
+
+            hyperparams['run_mcts_rollouts'] = False
+            hyperparams['run_alg_updates'] = True
+            for n in range(hyperparams['n_rollout_servers']):
+                new_hyperparams = copy.copy(hyperparams)
+                new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
             self.create_server(RolloutServer, new_hyperparams)
+        else:
+            for n in range(hyperparams['n_rollout_servers']):
+                new_hyperparams = copy.copy(hyperparams)
+                new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
+                self.create_server(RolloutServer, new_hyperparams)
+
+    def create_log_server(self, hyperparams):
+        new_hyperparams = copy.copy(hyperparams)
+        spawn_server(LogServer, new_hyperparams)
+        if self.roscore is not None: self.roscore.shutdown()
+        sys.exit(0)
 
     def create_view_server(self, hyperparams):
         new_hyperparams = copy.copy(hyperparams)

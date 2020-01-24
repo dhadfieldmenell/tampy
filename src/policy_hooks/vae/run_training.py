@@ -38,6 +38,16 @@ def load_config(args, reload_module=None):
     config['unconditional'] = args.unconditional
     config['train_reward'] = args.train_reward
     config['load_step'] = args.load_step
+
+    config['train_params'] = {
+        'use_recurrent_dynamics': args.use_recurrent_dynamics,
+        'use_overshooting': args.use_overshooting,
+        'data_limit': args.train_samples if args.train_samples > 0 else None,
+        'beta': args.beta,
+        'overshoot_beta': args.overshoot_beta,
+        'dist_constraint': args.dist_constraint,
+    }
+
     return config, config_module
 
 
@@ -80,6 +90,13 @@ def main():
     parser.add_argument('-uncond', '--unconditional', action='store_true', default=False)
     parser.add_argument('-tr', '--train_reward', action='store_true', default=False)
     parser.add_argument('-loadstep', '--load_step', type=int, default=-1)
+
+    parser.add_argument('-beta', '--beta', type=int, default=1)
+    parser.add_argument('-beta_d', '--overshoot_beta', type=int, default=1)
+    parser.add_argument('-nts', '--train_samples', type=int, default=-1)
+    parser.add_argument('-rnn', '--use_recurrent_dynamics', action='store_true', default=False)
+    parser.add_argument('-over', '--use_overshooting', action='store_true', default=False)
+    parser.add_argument('-dist', '--dist_constraint', action='store_true', default=False)
 
     args = parser.parse_args()
     config, config_module = load_config(args)

@@ -35,7 +35,7 @@ class TestCanSolver(unittest.TestCase):
             # robot = problem.init_state.params['pr2']
             # table = problem.init_state.params['table']
             # cans = []
-            # for param_name, param in problem.init_state.params.iteritems():
+            # for param_name, param in problem.init_state.params.items():
             #     if "can" in param_name:
             #         cans.append(param)
             # objs = [robot, table]

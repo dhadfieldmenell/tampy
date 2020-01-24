@@ -16,6 +16,8 @@ from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
 
+MAX_QUEUE_SIZE = 5000
+
 class ControlAttentionPolicyOpt(PolicyOpt):
     """ Policy optimization using tensor flow for DAG computations/nonlinear function approximation. """
     def __init__(self, hyperparams, dO, dU, dPrimObs, dValObs, primBounds):
@@ -133,9 +135,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def serialize_weights(self, scopes=None):
         if scopes is None:
-            scopes = ('contorl', 'value', 'primitive', 'image')
+            scopes = ('control', 'value', 'primitive', 'image')
 
-        print 'Serializing', scopes
+        # print 'Serializing', scopes
         var_to_val = {}
         for scope in scopes:
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
@@ -199,7 +201,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.store_scope_weights([self.scope], weight_dir)
 
     def store(self, obs, mu, prc, wt, net):
-        print 'Storing data for', self.scope
+        # print 'Storing data for', self.scope
         if net not in self.mu or net not in self.obs or net not in self.prc or net not in self.wt:
             self.mu[net] = np.array(mu)
             self.obs[net] = np.array(obs)
@@ -207,22 +209,26 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.wt[net] = np.array(wt)
         else:
             self.mu[net] = np.r_[self.mu[net], np.array(mu)]
+            self.mu[net] = self.mu[net][-MAX_QUEUE_SIZE:]
             self.obs[net] = np.r_[self.obs[net], np.array(obs)]
+            self.obs[net] = self.obs[net][-MAX_QUEUE_SIZE:]
             self.prc[net] = np.r_[self.prc[net], np.array(prc)]
+            self.prc[net] = self.prc[net][-MAX_QUEUE_SIZE:]
             self.wt[net] = np.r_[self.wt[net], np.array(wt)]
+            self.wt[net] = self.wt[net][-MAX_QUEUE_SIZE:]
 
         self.update_count += len(mu)
         if self.update_count > self.update_size:
-            print 'Updating', net
+            # print 'Updating', net
             # Possibility that no good information has come yet
             if not np.all(self.mu[net] == self.mu[net][0]):
                 self.update(self.obs[net].copy(), self.mu[net].copy(), self.prc[net].copy(), self.wt[net].copy(), net)
                 self.store_scope_weights(scopes=[net])
                 self.update_count = 0
-            del self.mu[net]
-            del self.obs[net]
-            del self.prc[net]
-            del self.wt[net]
+            # del self.mu[net]
+            # del self.obs[net]
+            # del self.prc[net]
+            # del self.wt[net]
             return True
 
         return False
@@ -649,7 +655,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         """
         # print 'Updating value network...'
         N = obs.shape[0]
-        dP, dO = 2, self._dValObs
+        dP, dO = 1, self._dValObs
 
         # TODO - Make sure all weights are nonzero?
 

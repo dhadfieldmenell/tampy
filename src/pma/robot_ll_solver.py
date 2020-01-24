@@ -29,12 +29,13 @@ DEBUG = True
 RESAMPLE_FACTOR = baxter_constants.RESAMPLE_FACTOR
 DOWN_ROT = [0, np.pi/2, 0]
 
-attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose'],
-            'RobotPose':['lArmPose', 'lGripper','rArmPose', 'rGripper', 'value'],
-            'EEPose': ['value', 'rotation'],
-            'Can': ['pose', 'rotation'],
-            'Target': ['value', 'rotation'],
-            'Obstacle': ['pose', 'rotation']}
+attr_map = baxter_constants.ATTRMAP 
+# attr_map = {'Robot': ['lArmPose', 'lGripper','rArmPose', 'rGripper', 'pose', ],
+#             'RobotPose':['lArmPose', 'lGripper','rArmPose', 'rGripper', 'value'],
+#             'EEPose': ['value', 'rotation'],
+#             'Can': ['pose', 'rotation'],
+#             'Target': ['value', 'rotation'],
+#             'Obstacle': ['pose', 'rotation']}
 
 class RobotLLSolver(LLSolver):
     def __init__(self, early_converge=False, transfer_norm='min-vel'):
@@ -221,6 +222,8 @@ class RobotLLSolver(LLSolver):
                     p_attrs = {}
                     old_params_free[p] = p_attrs
                     for attr in p._free_attrs:
+                        # EE pos are uniquely determined by arm pos, no need to freeze; easier to manage if not frozen
+                        if attr in ['ee_left_pos', 'ee_right_pos']: continue
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                         p._free_attrs[attr][:, active_ts[1]] = 0
             self.child_solver = RobotLLSolver()
@@ -233,6 +236,7 @@ class RobotLLSolver(LLSolver):
                     p._free_attrs = old_params_free[p]
                 else:
                     for attr in p._free_attrs:
+                        if attr in ['ee_left_pos', 'ee_right_pos']: continue
                         p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
             return success
 
@@ -259,6 +263,7 @@ class RobotLLSolver(LLSolver):
         rs_free = rs_param._free_attrs
         rs_param._free_attrs = {}
         for attr in rs_free.keys():
+            if attr in ['ee_left_pos', 'ee_right_pos']: continue
             rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
 
         """
@@ -280,7 +285,7 @@ class RobotLLSolver(LLSolver):
             callback_a = None
 
         for rp in robot_poses:
-            for attr, val in rp.iteritems():
+            for attr, val in rp.items():
                 setattr(rs_param, attr, val)
 
             success = False
@@ -1481,10 +1486,15 @@ class RobotLLSolver(LLSolver):
                 raise NotImplementedError
         if not robot_pose:
             if not baxter_constants.PRODUCTION:
-                print target_pos
+                print target.name, target_pos
                 print "Unable to find IK"
             # import ipdb; ipdb.set_trace()
 
+        # for pose in robot_pose:
+        #     if 'ee_left_pos' not in pose:
+        #         pose['ee_left_pos'] = np.zeros((3,1))
+        #     if 'ee_right_pos' not in pose:
+        #         pose['ee_right_pos'] = np.zeros((3,1))
         return robot_pose
 
     #@profile
@@ -1523,6 +1533,7 @@ class RobotLLSolver(LLSolver):
                 #     break
 
                 print "resample attempt: {}".format(attempt)
+                print(plan.get_failed_preds(active_ts=active_ts, priority=priority, tol=1e-3))
 
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)

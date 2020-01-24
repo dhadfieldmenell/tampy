@@ -1,11 +1,16 @@
 import numpy as np
 
+from gym.spaces import *
+
 from baxter_gym.envs import BaxterLeftBlockStackEnv
 
 from policy_hooks.vae.vae_env import VAEEnvWrapper
 
 
 class BlockSortEnv(VAEEnvWrapper):
+    action_space = spaces.MultiDiscrete([3, 4, 4])
+    observation_space = spaces.Box(0, 255, [80, 107, 3], dtype='uint8')
+
     def __init__(self):
         env = BaxterLeftBlockStackEnv()
         config = {}

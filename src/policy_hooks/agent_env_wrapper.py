@@ -1,9 +1,11 @@
 import numpy as np
 
+from gym import Env
 from gym import spaces
 
 
-class AgentEnvWrapper(object):
+class AgentEnvWrapper(Env):
+    metadata = {'render.modes': ['rgb_array', 'human']}
     def __init__(self, agent=None, env=None, use_solver=False):
         assert agent is not None or env is not None
         self.agent = agent
@@ -42,7 +44,7 @@ class AgentEnvWrapper(object):
                 act[cur_ind+task[i]] = 1.
                 cur_ind += len(self.task_options[opt])
         elif type(task) is not int:
-            act = np.zeros(np.prod(self.sub_env.action_space.nvec))
+            act = np.zeros(np.sum(self.sub_env.action_space.nvec))
             cur_ind = 0
             for i, d in enumerate(self.sub_env.action_space.nvec):
                 act[cur_ind+task[i]] = 1.

@@ -40,6 +40,10 @@ def get_baxter_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, 
     s += "(rArmPose {} {}), ".format(name, RArm)
     s += "(rGripper {} {}), ".format(name, G)
     s += "(pose {} {}), ".format(name, Pos)
+    s += "(ee_left_pos {} {}), ".format(name, [0, 0, 0])
+    s += "(ee_left_rot {} {}), ".format(name, [0, 0, 0])
+    s += "(ee_right_pos {} {}), ".format(name, [0, 0, 0])
+    s += "(ee_right_rot {} {}), ".format(name, [0, 0, 0])
     return s
 
 def get_robot_pose_str(name, LArm = L_ARM_INIT, RArm = R_ARM_INIT, G = INT_GRIPPER, Pos = BAXTER_INIT_POSE):

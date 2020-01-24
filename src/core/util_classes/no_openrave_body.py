@@ -1,48 +1,34 @@
 import numpy as np
 from math import cos, sin, atan2
-
-import core.util_classes.common_constants as const
-USE_OPENRAVE = const.USE_OPENRAVE
-
-if USE_OPENRAVE:
-    from errors_exceptions import OpenRAVEException
-    from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
-    axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
-    RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
-    IkFilterOptions, matrixFromAxisAngle, quatFromRotationMatrix
-else:
-    import pybullet as P
-    import baxter_gym.util_classes.transform_utils as T
-
+from errors_exceptions import OpenRAVEException
+from openravepy import quatFromAxisAngle, matrixFromPose, poseFromMatrix, \
+axisAngleFromRotationMatrix, KinBody, GeometryType, RaveCreateRobot, \
+RaveCreateKinBody, TriMesh, Environment, DOFAffine, IkParameterization, IkParameterizationType, \
+IkFilterOptions, matrixFromAxisAngle, quatFromRotationMatrix
 from core.util_classes.robots import Robot, PR2, Baxter, Washer
 
 from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, BlueCircle, RedCircle, GreenCircle, Obstacle, Wall, Table, Basket
 
 WALL_THICKNESS = 1
 
-
 class OpenRAVEBody(object):
-    def __init__(self, env, name, geom, ik_solver=None):
+    def __init__(self, env, name, geom):
         assert env is not None
         self.name = name
         self._env = env
         self._geom = geom
 
-        if USE_OPENRAVE:
-            if env.GetKinBody(name) == None and env.GetRobot(name) == None:
-                if isinstance(geom, Robot):
-                    self._add_robot(geom)
-                elif  isinstance(geom, Item):
-                    self._add_item(geom)
-                else:
-                    raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
-            elif env.GetKinBody(name) != None:
-                self.env_body = env.GetKinBody(name)
+        if env.GetKinBody(name) == None and env.GetRobot(name) == None:
+            if isinstance(geom, Robot):
+                self._add_robot(geom)
+            elif  isinstance(geom, Item):
+                self._add_item(geom)
             else:
-                self.env_body = env.GetRobot(name)
+                raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
+        elif env.GetKinBody(name) != None:
+            self.env_body = env.GetKinBody(name)
         else:
-            self.ik_solver = ik_solver
-
+            self.env_body = env.GetRobot(name)
         self.set_transparency(0.5)
 
     def delete(self):
@@ -75,12 +61,9 @@ class OpenRAVEBody(object):
         elif hasattr(geom, "color") and geom.color == 'red':
             color = [1, 0, 0]
 
-        if USE_OPENRAVE:
-            self.env_body = OpenRAVEBody.create_cylinder(self._env, self.name, np.eye(4),
-                    [geom.radius, 2], color)
-            self._env.AddKinBody(self.env_body)
-        else:
-            self.body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=2)
+        self.env_body = OpenRAVEBody.create_cylinder(self._env, self.name, np.eye(4),
+                [geom.radius, 2], color)
+        self._env.AddKinBody(self.env_body)
 
     def _add_can(self, geom):
         color = [1,0,0]
@@ -91,12 +74,9 @@ class OpenRAVEBody(object):
         elif hasattr(geom, "color") and geom.color == 'red':
             color = [1, 0, 0]
 
-        if USE_OPENRAVE:
-            self.env_body = OpenRAVEBody.create_cylinder(self._env, self.name, np.eye(4),
-                    [geom.radius, geom.height], color)
-            self._env.AddKinBody(self.env_body)
-        else:
-            self.body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=geom.height)
+        self.env_body = OpenRAVEBody.create_cylinder(self._env, self.name, np.eye(4),
+                [geom.radius, geom.height], color)
+        self._env.AddKinBody(self.env_body)
 
     def _add_obstacle(self, geom):
         obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
@@ -122,24 +102,18 @@ class OpenRAVEBody(object):
         self._env.AddKinBody(body)
 
     def _add_box(self, geom):
-        if USE_OPENRAVE:
-            infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, geom.dim, [0.5, 0.2, 0.1])
-            self.env_body = RaveCreateKinBody(self._env,'')
-            self.env_body.InitFromGeometries([infobox])
-            self.env_body.SetName(self.name)
-            self._env.Add(self.env_body)
-        else:
-            self.body_id = P.createCollisionShape(shapeType=P.GEOM_BOX, half_extents=geom.dim)
+        infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Box, geom.dim, [0.5, 0.2, 0.1])
+        self.env_body = RaveCreateKinBody(self._env,'')
+        self.env_body.InitFromGeometries([infobox])
+        self.env_body.SetName(self.name)
+        self._env.Add(self.env_body)
 
     def _add_sphere(self, geom):
-        if USE_OPENRAVE:
-            infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Sphere, [geom.radius], [0, 0, 1])
-            self.env_body = RaveCreateKinBody(self._env,'')
-            self.env_body.InitFromGeometries([infobox])
-            self.env_body.SetName(self.name)
-            self._env.Add(self.env_body)
-        else:
-            self.body_id = P.createCollisionShape(shapeType=P.GEOM_SPHERE, radius=geom.radius)
+        infobox = OpenRAVEBody.create_body_info(KinBody.Link.GeomType.Sphere, [geom.radius], [0, 0, 1])
+        self.env_body = RaveCreateKinBody(self._env,'')
+        self.env_body.InitFromGeometries([infobox])
+        self.env_body.SetName(self.name)
+        self._env.Add(self.env_body)
 
     def _add_wall(self, geom):
         self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
@@ -165,25 +139,13 @@ class OpenRAVEBody(object):
         trans = None
         if np.any(np.isnan(base_pose)) or np.any(np.isnan(rotation)):
             return
-        if USE_OPENRAVE:
-            if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer):
-                trans = OpenRAVEBody.base_pose_to_mat(base_pose)
-            elif len(base_pose) == 2:
-                trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
-            else:
-                trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
-            self.env_body.SetTransform(trans)
+        if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer):
+            trans = OpenRAVEBody.base_pose_to_mat(base_pose)
+        elif len(base_pose) == 2:
+            trans = OpenRAVEBody.base_pose_2D_to_mat(base_pose)
         else:
-            if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer):
-                pos = np.r_[base_pose[:2], 0]
-                quat = T.euler_to_quaternion([0, 0, base_pose[2]], order='xyzw')
-            elif len(base_pose) == 2:
-                pos = np.r_[base_pose, 0]
-                quat = [0, 0, 0, 1]
-            else:
-                pos = base_pose
-                quat = T.euler_to_quaternion(rotation, order='xyzw')
-            P.resetBasePositionAndOrientation(self.body_id, pos, quat)
+            trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
+        self.env_body.SetTransform(trans)
 
     def set_dof(self, dof_value_map):
         """
@@ -193,21 +155,18 @@ class OpenRAVEBody(object):
         # assert isinstance(self._geom, Robot)
         if not isinstance(self._geom, Robot): return
 
-        if USE_OPENRAVE:
-            # Get current dof value for each joint
-            dof_val = self.env_body.GetActiveDOFValues()
+        # Get current dof value for each joint
+        dof_val = self.env_body.GetActiveDOFValues()
 
-            for k, v in dof_value_map.items():
-                if k not in self._geom.dof_map or np.any(np.isnan(v)): continue
-                inds = self._geom.dof_map[k]
-                try:
-                    dof_val[inds] = v
-                except IndexError:
-                    print('\n\n\nBad index in set dof:', inds, k, v, self._geom, '\n\n\n')
-            # Set new DOF value to the robot
-            self.env_body.SetActiveDOFValues(dof_val)
-        else:
-            self.ik_solver.sync_ik_from_attrs(dof_value_map)
+        for k, v in dof_value_map.iteritems():
+            if k not in self._geom.dof_map or np.any(np.isnan(v)): continue
+            inds = self._geom.dof_map[k]
+            try:
+                dof_val[inds] = v
+            except IndexError:
+                print('\n\n\nBad index in set dof:', inds, k, v, self._geom, '\n\n\n')
+        # Set new DOF value to the robot
+        self.env_body.SetActiveDOFValues(dof_val)
 
     def _set_active_dof_inds(self, inds = None):
         """
@@ -215,22 +174,21 @@ class OpenRAVEBody(object):
         This function is implemented to simplify jacobian calculation in the CollisionPredicate
         inds: Optional list of index specifying dof index we are interested in
         """
-        if USE_OPENRAVE:
-            robot = self.env_body
-            if inds == None:
-                dof_inds = np.ndarray(0, dtype=np.int)
-                if robot.GetJoint("torso_lift_joint") != None:
-                    dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
-                dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
-                dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
-                dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
-                dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
-                robot.SetActiveDOFs(
-                                    dof_inds,
-                                    DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
-                                    [0, 0, 1])
-            else:
-                robot.SetActiveDOFs(inds)
+        robot = self.env_body
+        if inds == None:
+            dof_inds = np.ndarray(0, dtype=np.int)
+            if robot.GetJoint("torso_lift_joint") != None:
+                dof_inds = np.r_[dof_inds, robot.GetJoint("torso_lift_joint").GetDOFIndex()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("leftarm").GetGripperIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetArmIndices()]
+            dof_inds = np.r_[dof_inds, robot.GetManipulator("rightarm").GetGripperIndices()]
+            robot.SetActiveDOFs(
+                                dof_inds,
+                                DOFAffine.X + DOFAffine.Y + DOFAffine.RotationAxis,
+                                [0, 0, 1])
+        else:
+            robot.SetActiveDOFs(inds)
 
     @staticmethod
     def create_cylinder(env, body_name, t, dims, color=[0, 1, 1]):
@@ -279,13 +237,6 @@ class OpenRAVEBody(object):
         box_infos = []
         if wall_type == 'closet':
             wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
-        elif wall_type == 'three_room':
-            wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[-1.5,4.0],
-                              [-1.5,2.0],[-1.5,4.0],[6.0,4.0],
-                              [6.0,2.0],[6.0,4.0],[13.0,4.0],
-                              [13.0,-8.0],[6.0,-8.0],[6.0,-1.5],
-                              [6.0,-8.0],[-1.5,-8.0],[-1.5,-1.5],
-                              [-1.5,-8.0], [-6.0,-8.0]]
         else:
             raise NotImplemented
         for i, (start, end) in enumerate(zip(wall_endpoints[0:-1], wall_endpoints[1:])):
@@ -309,35 +260,17 @@ class OpenRAVEBody(object):
             else:
                 transform[ind_diff, 3] = end[ind_diff] + length/2
             dims = [dim_x, dim_y, 1]
-            if USE_OPENRAVE:
-                box_info = OpenRAVEBody.create_body_info(component_type, dims, wall_color)
-                box_info._t = transform
-                box_infos.append(box_info)
-            else:
-                next_id = P.createCollisionShape(shapeType=P.GEOM_BOX, half_extents=dims)
-                box_infos.append(next_id)
-        if USE_OPENRAVE:
-            wall = RaveCreateKinBody(env, '')
-            wall.InitFromGeometries(box_infos)
-        else:
-            wall = box_infos
+            box_info = OpenRAVEBody.create_body_info(component_type, dims, wall_color)
+            box_info._t = transform
+            box_infos.append(box_info)
+        wall = RaveCreateKinBody(env, '')
+        wall.InitFromGeometries(box_infos)
         return wall
 
 
     @staticmethod
     def get_wall_dims(wall_type='closet'):
-        if wall_type == 'closet':
-            wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
-        elif wall_type == 'three_room':
-            wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[-1.5,4.0],
-                              [-1.5,2.0],[-1.5,4.0],[6.0,4.0],
-                              [6.0,2.0],[6.0,4.0],[13.0,4.0],
-                              [13.0,-8.0],[6.0,-8.0],[6.0,-1.5],
-                              [6.0,-8.0],[-1.5,-8.0],[-1.5,-1.5],
-                              [-1.5,-8.0], [-6.0,-8.0]]
-        else:
-            raise NotImplemented
-
+        wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
         dims = []
         for i, (start, end) in enumerate(zip(wall_endpoints[0:-1], wall_endpoints[1:])):
             dim_x, dim_y = 0, 0
@@ -432,14 +365,11 @@ class OpenRAVEBody(object):
         assert len(pose) == 2
         x = pose[0]
         y = pose[1]
-        pos = [x, y, 0]
         rot = 0
-        if USE_OPENRAVE:
-            q = quatFromAxisAngle((0, 0, rot)).tolist()
-            # pos = np.vstack((x,y,np.zeros(1)))
-            matrix = matrixFromPose(q + pos)
-        else:
-            matrix = T.pose2mat((pos, [1, 0, 0, 0]))
+        q = quatFromAxisAngle((0, 0, rot)).tolist()
+        pos = [x, y, 0]
+        # pos = np.vstack((x,y,np.zeros(1)))
+        matrix = matrixFromPose(q + pos)
         return matrix
 
     @staticmethod
@@ -449,25 +379,19 @@ class OpenRAVEBody(object):
         x = pose[0]
         y = pose[1]
         z = pose[2]
-        pos = [x, y, z]
         rot = 0
-        if USE_OPENRAVE:
-            q = quatFromAxisAngle((0, 0, rot)).tolist()
-            # pos = np.vstack((x,y,np.zeros(1)))
-            matrix = matrixFromPose(q + pos)
-        else:
-            matrix = T.pose2mat((pos, [0, 0, 0, 1]))
+        q = quatFromAxisAngle((0, 0, rot)).tolist()
+        pos = [x, y, z]
+        # pos = np.vstack((x,y,np.zeros(1)))
+        matrix = matrixFromPose(q + pos)
         return matrix
 
     @staticmethod
     def mat_to_base_pose_2D(mat):
-        if USE_OPENRAVE:
-            pose = poseFromMatrix(mat)
-            x = pose[4]
-            y = pose[5]
-            return np.array([x,y])
-        else:
-            return T.mat2pose(mat)[0][:2]
+        pose = poseFromMatrix(mat)
+        x = pose[4]
+        y = pose[5]
+        return np.array([x,y])
 
     @staticmethod
     def base_pose_to_mat(pose):
@@ -476,27 +400,18 @@ class OpenRAVEBody(object):
         x = pose[0]
         y = pose[1]
         rot = pose[2]
+        q = quatFromAxisAngle((0, 0, rot)).tolist()
         pos = [x, y, 0]
-        if USE_OPENRAVE:
-            q = quatFromAxisAngle((0, 0, rot)).tolist()
-            # pos = np.vstack((x,y,np.zeros(1)))
-            matrix = matrixFromPose(q + pos)
-        else:
-            quat = T.euler_to_quaternion([0, 0, rot], order='xyzw')
-            matrix = T.pose2mat((pos, quat))
+        # pos = np.vstack((x,y,np.zeros(1)))
+        matrix = matrixFromPose(q + pos)
         return matrix
 
-    # @staticmethod
-    # def angle_pose_to_mat(pose):
-    #     assert len(pose) == 1
-    #     if USE_OPENRAVE:
-    #         q = quatFromAxisAngle((0, 0, pose)).tolist()
-    #         matrix = matrixFromPose(q + pos)
-    #     else:
-    #         quat = T.euler_to_quaternion([0, 0, pose], order='xyzw')
-    #         matrix = T.pose2mat((pos, quat))
-
-    #     return matrix
+    @staticmethod
+    def angle_pose_to_mat(pose):
+        assert len(pose) == 1
+        q = quatFromAxisAngle((0, 0, pose)).tolist()
+        matrix = matrixFromPose(q + pos)
+        return matrix
 
     @staticmethod
     def mat_to_base_pose(mat):
@@ -557,17 +472,10 @@ class OpenRAVEBody(object):
     def get_ik_transform(pos, rot, right_arm = True):
         trans = OpenRAVEBody.transform_from_obj_pose(pos, rot)
         # Openravepy flip the rotation axis by 90 degree, thus we need to change it back
-        if USE_OPENRAVE:
-            if right_arm:
-                rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
-            else:
-                rot_mat = matrixFromAxisAngle([0, -np.pi/2, 0])
+        if right_arm:
+            rot_mat = matrixFromAxisAngle([0, np.pi/2, 0])
         else:
-            if right_arm:
-                quat = T.euler_to_quaternion([0, np.pi/2, 0], order='xyzw')
-            else:
-                quat = T.euler_to_quaternion([0, -np.pi/2, 0], order='xyzw')
-            rot_mat = T.pose2mat([[0, 0, 0], quat])
+            rot_mat = matrixFromAxisAngle([0, -np.pi/2, 0])
         trans_mat = trans[:3, :3].dot(rot_mat[:3, :3])
         trans[:3, :3] = trans_mat
         return trans
@@ -582,86 +490,49 @@ class OpenRAVEBody(object):
         solutions = self.get_ik_solutions(manip_name, trans, use6d)
         return solutions
 
-    def get_ik_solutions(self, manip_name, trans, use6d=True, multiple=True):
-        if USE_OPENRAVE:
-            manip = self.env_body.GetManipulator(manip_name)
-            if use6d:
-                iktype = IkParameterizationType.Transform6D
-            else:
-                iktype = IkParameterizationType.Translation3D
-            solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
-            return solutions if multiple else solutions[0]
+    def get_ik_solutions(self, manip_name, trans, use6d=True):
+        manip = self.env_body.GetManipulator(manip_name)
+        if use6d:
+            iktype = IkParameterizationType.Transform6D
         else:
-            use_right = 'right' in manip_name
-            pos = trans[:3, 3]
-            quat = T.mat2pose(trans)[1]
-            cur_jnts = self.ik_solver.get_jnt_angles(use_right)
-            ik_sol = self.ik_solver.inverse_kinematics(pos, quat, use_right, cur_jnts)
-            if not multiple:
-                return ik_sol
-
-            ik_sol = [ik_sol]
-            lower, upper = self.ik_solver.get_jnt_bounds(use_right)
-            jnt_range = np.array(upper) - np.array(lower)
-            for _ in range(10):
-                rest_pose = cur_jnts + 0.5 * (np.random.uniform(size=7) - 0.5) * jnt_range
-                ik_sol.append(self.ik_solver.inverse_kinematics(pos, quat, use_right, rest_pose))
-            return ik_sol
+            iktype = IkParameterizationType.Translation3D
+        solutions = manip.FindIKSolutions(IkParameterization(trans, iktype),IkFilterOptions.CheckEnvCollisions)
+        return solutions
 
     def get_close_ik_solution(self, manip_name, trans, dof_map=None):
         if dof_map is not None:
             self.set_dof(dof_map)
 
-        if USE_OPENRAVE:
-            manip = self.env_body.GetManipulator(manip_name)
-            iktype = IkParameterizationType.Transform6D
-            ik_param = IkParameterization(trans, iktype)
-            solution = manip.FindIKSolution(ik_param, IkFilterOptions.IgnoreSelfCollisions)
-        else:
-            use_right = 'right' in manip_name
-            pos = trans[:3, 3]
-            quat = T.mat2pose(trans)[1]
-            cur_jnts = self.ik_solver.get_jnt_angles(use_right)
-            solution = self.ik_solver.inverse_kinematics(pos, quat, use_right, cur_jnts)
-
+        manip = self.env_body.GetManipulator(manip_name)
+        iktype = IkParameterizationType.Transform6D
+        ik_param = IkParameterization(trans, iktype)
+        solution = manip.FindIKSolution(ik_param, IkFilterOptions.IgnoreSelfCollisions)
         return solution
 
     def fwd_kinematics(self, manip_name, dof_map=None, mat_result=False):
         if dof_map is not None:
             self.set_dof(dof_map)
 
-        if USE_OPENRAVE:
-            trans = self.env_body.GetLink(manip_name).GetTransform()
-            if mat_result:
-                return trans
+        trans = self.env_body.GetLink(manip_name).GetTransform()
+        if mat_result:
+            return trans
 
-            pos = trans[:3, 3]
-            quat = quatFromRotationMatrix(trans[:3, :3])
-        else:
-            trans = self.ik_solver.get_manip_trans(right='right' in manip_name)
-            if mat_result:
-                return trans
-            pos = trans[:3, 3]
-            quat = T.mat2pose(trans)[1]
-            quat = [quat[3], quat[0], quat[1], quat[2]]
+        pos = trans[:3, 3]
+        quat = quatFromRotationMatrix(trans[:3, :3])
         return {'pos': pos, 'quat': quat}
 
     def param_fwd_kinematics(self, param, manip_names, t, mat_result=False):
         if not isinstance(self._geom, Robot): return
 
         attrs = param._attr_types.keys()
-        if USE_OPENRAVE:
-            dof_val = self.env_body.GetActiveDOFValues()
-            for attr in attrs:
-                if attr not in self._geom.dof_map: continue
-                val = getattr(param, attr)[:, t]
-                if np.any(np.isnan(val)): continue
-                inds = self._geom.dof_map[attr]
-                dof_val[inds] = val
-            self.env_body.SetActiveDOFValues(dof_val)
-        else:
-            attr_vals = {attr: getattr(param, attr)[:, t] for attr in attrs if attr in self._geom.dof_map}
-            self.ik_solver.sync_ik_from_attrs(attr_vals)
+        dof_val = self.env_body.GetActiveDOFValues()
+        for attr in attrs:
+            if attr not in self._geom.dof_map: continue
+            val = getattr(param, attr)[:, t]
+            if np.any(np.isnan(val)): continue
+            inds = self._geom.dof_map[attr]
+            dof_val[inds] = val
+        self.env_body.SetActiveDOFValues(dof_val)
 
         result = {}
         for manip_name in manip_names:

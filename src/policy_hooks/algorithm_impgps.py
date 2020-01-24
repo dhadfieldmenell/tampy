@@ -6,6 +6,9 @@ Path Integral Guided Policy Search. 2016. https://arxiv.org/abs/1610.00529.
 """
 import copy
 import logging
+import sys
+import time
+import traceback
 
 import numpy as np
 
@@ -43,12 +46,12 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
         AlgorithmMDGPS.__init__(self, config)
 
-    def iteration(self, optimal_samples, reset=True):
+    def iteration(self, samples_with_opt, reset=True):
         all_opt_samples = []
         individual_opt_samples = []
         sample_lists = []
         all_samples = []
-        for opt_s, s_list in optimal_samples:
+        for opt_s, s_list in samples_with_opt:
             all_opt_samples.append(SampleList([opt_s]))
             individual_opt_samples.append(opt_s)
             all_samples.append(opt_s)
@@ -59,12 +62,33 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             sample_lists.append(s_list)
             all_samples.extend(s_list)
 
+        # for m in range(len(self.cur)):
+        #     s = sample_lists[m][0]
+        #     for t in range(s.T):
+        #         if np.any(np.isnan(s.get_U(t))):
+        #             raise Exception('nans in samples at time {0} out of {1}'.format(t, s.T))
+
+        # for s in individual_opt_samples:
+        #     if np.any(np.isnan(s.get_U())):
+        #         raise Exception('nans in opt samples')
+
         # if len(self.cur) != len(all_opt_samples) or reset:
         #     self.set_conditions(len(all_opt_samples))
 
-        print '\nAlgorithm for {0} updating on {1} rollouts\n'.format(self.task, len(all_opt_samples))
-        self._update_prior(self.policy_prior, SampleList(all_samples))
-        self._update_prior(self.mp_policy_prior, SampleList(all_samples))
+        print('\nAlgorithm for {0} updating on {1} rollouts\n'.format(self.task, len(all_opt_samples)))
+        start_t = time.time()
+        try:
+            self._update_prior(self.policy_prior, SampleList(all_samples))
+        except Exception as e:
+            traceback.print_exception(*sys.exc_info())
+            print('Failed to update policy prior, alg iteration continuing')
+
+        try:
+            self._update_prior(self.mp_policy_prior, SampleList(all_samples))
+        except Exception as e:
+            traceback.print_exception(*sys.exc_info())
+            print('Failed to update mp policy prior, alg iteration continuing')
+        print('Time to update priors', time.time() - start_t)
 
         # if len(sample_lists) and self.traj_centers >= len(sample_lists[0]):
         if not len(sample_lists) or self.traj_centers >= len(sample_lists[0]):
@@ -80,37 +104,44 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         if len(self.cur) != len(sample_lists) or reset:
             self.set_conditions(len(sample_lists))
 
+
+        start_t = time.time()
         for m in range(len(self.cur)):
             if type(sample_lists[m]) is list:
                 sample_lists[m] = SampleList(sample_lists[m])
             self.cur[m].sample_list = sample_lists[m]
             self._eval_cost(m)
+        print('Time to eval cost', time.time() - start_t)
 
         # Update dynamics linearizations.
         # self._update_dynamics()
 
         # On the first iteration, need to catch policy up to init_traj_distr.
-        # if self.iteration_count == 0:
-        #     self.new_traj_distr = [
-        #         self.cur[cond].traj_distr for cond in range(len(self.cur))
-        #     ]
-        #     self._update_policy(optimal_samples)
+        start_t = time.time()
+        if self.iteration_count == 0:
+            self.new_traj_distr = [
+                self.cur[cond].traj_distr for cond in range(len(self.cur))
+            ]
+            self._update_policy(individual_opt_samples)
+            print('Time to update policy', time.time() - start_t)
 
         # Update policy linearizations.
-        for m in range(len(self.cur)):
-            self._update_policy_fit(m)
+        # for m in range(len(self.cur)):
+        #     self._update_policy_fit(m)
 
-        # C-step        
+        # C-step
+        start_t = time.time()  
         self._update_trajectories()
+        print('Time to update trajs', time.time() - start_t)
 
         # S-step
-        print 'Sending data to update policy.'
         self._update_policy(individual_opt_samples)
 
         # Prepare for next iteration
         self._advance_iteration_variables()
 
         return sample_lists
+
 
     def preiteration_step(self, sample_lists):
         if not self.local_policy_opt.policy_initialized(self.task): return
@@ -127,12 +158,12 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         try:
             prior.update(samples, self.local_policy_opt, mode, self.task)
         except Exception as e:
-            print 'Policy prior update threw exception: ', e, '\n'
+            print('Policy prior update threw exception: ', e, '\n')
 
 
     def _update_policy_no_cost(self):
         """ Compute the new policy. """
-        print 'Calling update polcicy without PI^2'
+        print('Calling update policy without PI^2')
         dU, dO, T = self.dU, self.dO, self.T
         data_len = int(self.sample_ts_prob * T)
         # Compute target mean, cov, and weight for each sample.
@@ -187,4 +218,4 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         if len(tgt_mu):
             self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
         else:
-            print 'Update no cost called with no data.'
+            print('Update no cost called with no data.')
