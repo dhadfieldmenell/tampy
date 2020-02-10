@@ -1,0 +1,39 @@
+# Configuration file for NAMO domain. Blank lines and lines beginning with # are filtered out.
+
+# implicity, all types require a name
+Types: Can, Target, RobotPose, Robot, Grasp, Obstacle
+
+# Define the class location of each non-standard attribute type used
+# in the above parameter type description.
+
+Attribute Import Paths: RedCircle core.util_classes.items, BlueCircle core.util_classes.items, GreenCircle core.util_classes.items, Vector1d core.util_classes.matrix, Vector2d core.util_classes.matrix, Wall core.util_classes.items
+
+Predicates Import Path: core.util_classes.namo_predicates
+
+Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; value, Target, Vector2d; value, RobotPose, Vector2d; gripper, RobotPose, Vector1d; geom, Robot, GreenCircle; pose, Robot, Vector2d; gripper, Robot, Vector1d; value, Grasp, Vector2d; geom, Obstacle, Wall; pose, Obstacle, Vector2d
+
+Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; InContact, Robot, RobotPose, Target; Obstructs, Robot, RobotPose, RobotPose, Can; ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can; GraspValid, RobotPose, Target, Grasp; Stationary, Can; StationaryNEq, Can, Can; IsMP, Robot; StationaryW, Obstacle; Collides, Can, Obstacle; RCollides, Robot, Obstacle; GripperClosed, Robot; RobotNear, Robot, Can; RobotWithinReach, Robot, Target; RobotNearGrasp, Robot, Can, Grasp; RobotWithinBounds, Robot
+
+
+# The first set of parentheses after the colon contains the
+# parameters. The second contains preconditions and the third contains
+# effects. This split between preconditions and effects is only used
+# for task planning purposes. Our system treats all predicates
+# similarly, using the numbers at the end, which specify active
+# timesteps during which each predicate must hold.
+
+
+
+Action moveto 25: (?robot - Robot ?start - RobotPose ?end - RobotPose) (and (forall (?c - Can) (forall (?g - Grasp) (not (InGripper ?robot ?c ?g)))) (RobotAt ?robot ?start) (not (GripperClosed ?robot)) (forall (?obj - Can ) (not (Obstructs ?robot ?start ?end ?obj))) (forall (?obj - Can) (Stationary ?obj)) (forall (?w - Obstacle) (StationaryW ?w)) (IsMP ?robot) (forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w)))) (forall (?w - Obstacle) (not (RCollides ?robot ?w))) ) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 0:0 1:23 0:24 0:23 0:23 0:23 0:24 0:24 24:23 24:24
+
+Action movetoholding 20: (?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?g - Grasp) (and (RobotAt ?robot ?start) (GripperClosed ?robot) (InGripper ?robot ?c ?g) (forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c))) (forall (?obj - Can) (StationaryNEq ?obj ?c)) (forall (?w - Obstacle) (StationaryW ?w)) (IsMP ?robot) (forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w)))) (forall (?w - Obstacle) (not (RCollides ?robot ?w))) ) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end)) 0:0 1:18 0:19 1:19 0:18 0:18 0:18 1:19 1:19 19:18 19:19
+
+Action grasp 25: (?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp) (and (At ?can ?target)  (RobotAt ?robot ?sp)  (InContact ?robot ?gp ?target) (not (GripperClosed ?robot)) (GraspValid ?gp ?target ?g) (forall (?obj - Can) (Stationary ?obj)) (forall (?w - Obstacle) (StationaryW ?w)) (IsMP ?robot) (forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w)))) (forall (?w - Obstacle) (not (RCollides ?robot ?w))) (forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj))) (forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?obj ?can))) ) (and (not (At ?can ?target)) (not (RobotAt ?robot ?sp)) (RobotAt ?robot ?gp) (InGripper ?robot ?can ?g) (forall (?sym1 - RobotPose) (forall (?sym2 - RobotPose) (not (Obstructs ?robot ?sym1 ?sym2 ?can)))) (forall (?sym1 - Robotpose) (forall (?sym2 - RobotPose) (forall (?obj - Can) (not (ObstructsHolding ?robot ?sym1 ?sym2 ?can ?obj)))))) 0:0 0:0 24:23 0:24 24:24 0:23 0:23 0:23 0:23 0:5 0:15 16:24 24:23 24:23 24:24 24:24 24:23 24:23
+
+Action movetograsp 15: (?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp ?end - Target) (and (At ?can ?target) (RobotWithinReach ?robot ?target) (RobotAt ?robot ?sp) (InContact ?robot ?gp ?target) (not (GripperClosed ?robot)) (GraspValid ?gp ?target ?g) (forall (?obj - Can) (Stationary ?obj)) (forall (?w - Obstacle) (StationaryW ?w)) (IsMP ?robot) (forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w)))) (forall (?w - Obstacle) (not (RCollides ?robot ?w))) (forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj))) (forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?obj ?can))) ) (and (not (At ?can ?target)) (not (RobotAt ?robot ?sp)) (RobotAt ?robot ?gp) (RobotNear ?robot ?can) (forall (?sym1 - RobotPose) (forall (?sym2 - RobotPose) (not (Obstructs ?robot ?sym1 ?sym2 ?can)))) (forall (?sym1 - Robotpose) (forall (?sym2 - RobotPose) (forall (?obj - Can) (not (ObstructsHolding ?robot ?sym1 ?sym2 ?can ?obj)))))) 0:0 0:0 0:0 14:13 1:14 14:13 0:13 0:13 0:13 0:13 1:14 1:14 8:14 14:13 14:13 14:14 14:14 14:13 14:13
+
+Action putdown 20: (?robot - Robot ?can - Can ?target - Target ?pdp - RobotPose ?endp - RobotPose ?g - Grasp) (and (RobotAt ?robot ?pdp) (InContact ?robot ?pdp ?target) (GraspValid ?pdp ?target ?g) (InGripper ?robot ?can ?g) (not (InContact ?robot ?endp ?target)) (forall (?obj - Can) (Stationary ?obj)) (forall (?w - Obstacle) (StationaryW ?w)) (IsMP ?robot) (forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w)))) (forall (?w - Obstacle) (not (RCollides ?robot ?w))) (forall (?obj - Can) (not (ObstructsHolding ?robot ?pdp ?endp ?obj ?can))) (forall (?obj - Can) (not (Obstructs ?robot ?pdp ?endp ?obj))) (GripperClosed ?robot) ) (and (not (RobotAt ?robot ?pdp)) (RobotAt ?robot ?endp) (At ?can ?target) (not (InGripper ?robot ?can ?g)) (not (GripperClosed ?robot))) 0:0 0:0 0:0 0:0 0:0 0:18 0:18 0:18 0:18 0:19 0:19 19:19 0:18  19:19 19:19 19:19 19:19 19:19
+
+Action place 25: (?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?g - Grasp) (and (RobotAt ?robot ?start) (RobotNearGrasp ?robot ?c ?g) (not (GripperClosed ?robot)) (GripperClosed ?robot) (InGripper ?robot ?c ?g) (forall (?obj - Can) (Stationary ?obj)) (forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c))) (forall (?obj - Can ) (not (Obstructs ?robot ?start ?end ?obj))) (forall (?obj - Can) (StationaryNEq ?obj ?c)) (forall (?w - Obstacle) (StationaryW ?w)) (IsMP ?robot) (forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w)))) (forall (?w - Obstacle) (not (RCollides ?robot ?w))) ) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) (not (GripperClosed ?robot))) 0:0 0:0 0:2 3:23 3:24 0:3 3:24 0:2 0:23 0:23 0:23 3:24 3:24 24:23 24:24 24:24
+
+Action place_at 15: (?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp) (and (RobotAt ?robot ?start) (RobotNearGrasp ?robot ?c ?g) (not (GripperClosed ?robot)) (GripperClosed ?robot) (InGripper ?robot ?c ?g) (forall (?obj - Can) (Stationary ?obj)) (forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c))) (forall (?obj - Can ) (not (Obstructs ?robot ?start ?end ?obj))) (forall (?obj - Can) (StationaryNEq ?obj ?c)) (forall (?w - Obstacle) (StationaryW ?w)) (IsMP ?robot) (forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w)))) (forall (?w - Obstacle) (not (RCollides ?robot ?w))) ) (and (not (RobotAt ?robot ?start)) (RobotAt ?robot ?end) (not (GripperClosed ?robot)) (At ?c ?t)) 0:0 0:0 0:2 3:13 3:14 0:3 3:14 0:3 0:13 0:13 0:13 3:14 1:14 14:13 14:14 14:14 14:14

@@ -40,11 +40,11 @@ BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
 NUM_OBJS = prob.NUM_OBJS
-NUM_CONDS = 100
+NUM_CONDS = 50
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
-N_SAMPLES = 20
+N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 
@@ -64,7 +64,7 @@ algorithm = {
     'conditions': common['conditions'],
     'policy_sample_mode': 'add',
     'sample_on_policy': True,
-    'iterations': 1e5,
+    'iterations': 1e4,
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
@@ -83,14 +83,14 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.0025,
+    'init_var': 0.01,
     'pos_gains': 0.0,
 }
 
 algorithm['traj_opt'] = {
     'type': TrajOptPI2,
     'kl_threshold': 1e0,
-    'covariance_damping': 0.001,
+    'covariance_damping': 0.00,
     'min_temperature': 0.0001,
 }
 
@@ -185,10 +185,10 @@ config = {
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
-    'lr': 1e-3,
+    'lr': 1e-4,
 
-    'train_iterations': 100,
-    'weight_decay': 0.00001,
+    'train_iterations': 10000,
+    'weight_decay': 1e-6,
     'batch_size': 1000,
     'n_layers': 2,
     'dim_hidden': [64, 64],
@@ -205,8 +205,8 @@ config = {
     'base_weight_dir': 'namo_',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
-    'max_sample_queue': 1e3,
-    'max_opt_sample_queue': 1e3,
+    'max_sample_queue': 5e2,
+    'max_opt_sample_queue': 5e2,
     'hl_plan_for_state': prob.hl_plan_for_state,
     'task_map_file': 'policy_hooks/namo/sorting_task_mapping_2',
     'prob': prob,
@@ -218,7 +218,7 @@ config = {
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
     'solver_type': NAMOPolicySolver,
-    'update_size': 500,
+    'update_size': 1000,
     'use_local': True,
     'n_dirs': 16,
     'domain': 'namo',
@@ -249,5 +249,6 @@ config = {
             utils.TARG_POSE_ENUM: 2,
             utils.LIDAR_ENUM: 16,
             utils.EE_ENUM: 2,
-        }
+        },
+    'visual': False,
 }

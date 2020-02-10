@@ -109,16 +109,14 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=True, C=2, max_depth=20, explore_depth=5, opt_strength=0.0, log_file=None):
+    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=True, C=2, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None):
         self.tasks = tasks
         self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
         self.prim_order = list(prim_dims.keys())
         self.num_prims = list(prim_dims.values())
-        self.root = MCTSNode((-1, -1, -1), 0, None, len(tasks), prim_dims)
         self.max_depth = max_depth
         self.explore_depth = explore_depth
-        self.condition = condition
         self.agent = agent
         self.soft_decision = soft_decision
         self.C = C
@@ -129,16 +127,14 @@ class MCTS:
         self._simulate_from_next = self._default_simulate_from_next if sim_from_next is None else sim_from_next 
         self._value_f = value_f
         self._prob_f = prob_f
-        self.gmms = gmms
         # self.node_check_f = lambda n: n.value/n.n_explored+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
-
-        self._opt_cache = {}
         self.opt_strength = opt_strength
 
-        self.n_success = 0
-        self.n_runs = 0
+        self.reset(gmms, condition)
 
-        self.log_file = log_file
+        '''
+        self.log_file = log_prefix + '_paths.txt' if log_prefix is not None else None
+        self.log_prefix = log_prefix
         if self.log_file is not None:
             init_state = []
             x = self.agent.x0[self.condition][self.agent._x_data_idx[STATE_ENUM]]
@@ -146,10 +142,28 @@ class MCTS:
                 inds = self.agent.state_inds[param_name, attr]
                 if inds[-1] < len(x):
                     init_state.append((param_name, attr, x[inds]))
-            with open(log_file, 'w+') as f:
+            with open(self.log_file, 'w+') as f:
                 f.write('Data for MCTS on initial state:')
                 f.write(str(init_state))
                 f.write('\n\n')
+        '''
+
+
+    def reset(self, gmms=None, condition=None):
+        self.root = MCTSNode((-1, -1, -1), 0, None, len(self.tasks), self.prim_dims)
+        self.gmms = gmms
+        self.condition = condition if condition is not None else self.condition
+        self.n_success = 0
+        self.n_runs = 0
+        self.n_fixed_rollouts = 0
+        self.val_per_run = []
+        self.x0 = None
+        self.node_history = {}
+
+
+    def get_new_problem(self):
+        self.reset()
+        self.agent.replace_conditions([self.condition])
 
 
     def prob_func(self, prim_obs):
@@ -230,11 +244,13 @@ class MCTS:
         print('End of MCTS rollout.\n\n')
 
 
-    def run(self, state, num_rollouts=20, use_distilled=True, hl_plan=None, new_policies=None, debug=False):
+    def run(self, state, num_rollouts=20, use_distilled=True, hl_plan=None, new_policies=None, fixed_paths=[], debug=False):
         if new_policies != None:
             self.rollout_policy = new_policies
         opt_val = -np.inf
         paths = []
+        self.x0 = state
+
         for n in range(num_rollouts):
             self.agent.reset_to_state(state)
             self.n_runs += 1
@@ -242,16 +258,17 @@ class MCTS:
             #     self.max_depth += 1
             # self.agent.reset_hist()
             # print("MCTS Rollout {0} for condition {1}.\n".format(n, self.condition))
-            new_opt_value, next_path = self.simulate(state.copy(), use_distilled, debug=debug)
+            new_opt_val, next_path = self.simulate(state.copy(), use_distilled, fixed_paths=fixed_paths, debug=debug)
             # print("Finished Rollout {0} for condition {1}.\n".format(n, self.condition))
+
+            opt_val = np.maximum(new_opt_val, opt_val)
+            self.val_per_run.append(new_opt_val)
             if len(next_path) and new_opt_value > 1. - 1e-3:
                 paths.append(next_path)
-                self.n_sucess += 1
+                self.n_success += 1
                 end = next_path[-1]
-                opt_val = np.mmaximum(new_opt_value, opt_val)
+                print('\nSUCCESS! Tree {0}\n'.format(self.id))
 
-            if not self.n_runs % 20:
-                self.log_path(next_path)
         self.agent.add_task_paths(paths)
         return opt_val
 
@@ -308,6 +325,26 @@ class MCTS:
 
         return value, None, next_sample
 
+    
+    def _simulate_fixed_path(self, cur_state, node, task, fixed_path):
+        next_node = node.get_child(task)
+        if next_node is None:
+            next_node = MCTSNode(tuple(task),
+                                 0,
+                                 node,
+                                 len(self.tasks),
+                                 self.prim_dims)
+        plan = self.agent.plans[task]
+        if fixed_path is None:
+            next_sample = None
+            end_state = cur_state
+            value = 0
+        else:
+            next_sample, end_state = self.sample(task, cur_state, plan, num_samples=1, use_distilled=use_distilled, fixed_path=fixed_path, debug=debug)
+            value = 1 - self.agent.goal_f(self.condition, end_state)
+        self.n_fixed_rollouts += 1
+        return value, next_node, next_sample
+
 
     def _select_from_explored(self, state, node, exclude_hl=[], label=None, debug=False):
         if debug:
@@ -331,7 +368,7 @@ class MCTS:
             if debug:
                 print('Chose explored child.')
             plan = self.agent.plans[label]
-            next_sample, cur_state = self.sample(label, cur_state, plan, self.num_samples, use_distilled, debug=debug)
+            next_sample, next_state = self.sample(label, state, plan, self.num_samples, use_distilled, debug=debug)
             return value, children[next_ind], next_sample
         else:
             return 0, None, None
@@ -390,7 +427,7 @@ class MCTS:
             return self._select_from_explored(state, node, exclude_hl, label=p, debug=debug)
 
 
-    def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, debug=False):
+    def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, fixed_path=None, debug=False):
         if debug:
             print("SAMPLING")
         samples = []
@@ -408,22 +445,26 @@ class MCTS:
             else:
                 pol.opt_strength = 0
 
-        for n in range(self.num_samples):
-            # self.agent.reset_hist(deepcopy(old_traj_hist))
-            samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
-            if success:
-                samples[-1].set_ref_X(s.get_ref_X())
-                samples[-1].set_ref_U(s.get_ref_U())
+        if fixed_path is None:
+            for n in range(self.num_samples):
+                # self.agent.reset_hist(deepcopy(old_traj_hist))
+                samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
+                if success:
+                    samples[-1].set_ref_X(s.get_ref_X())
+                    samples[-1].set_ref_U(s.get_ref_U())
+        else:
+            samples.append(self.agent.sample_opt_traj(cur_state, task, self.condition, fixed_path))
 
         lowest_cost_sample = samples[0]
-
         opt_fail = False
 
+        # if np.random.uniform() > 0.99: print(lowest_cost_sample.get(STATE_ENUM), task)
         if save:
             self.agent.add_sample_batch(samples, task)
         cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
         # self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
+        '''
         if self.log_file is not None:
             mp_state = []
             x = cur_state[self.agent._x_data_idx[STATE_ENUM]]
@@ -435,14 +476,20 @@ class MCTS:
             task_name = self.tasks[task[0]]
             with open(self.log_file, 'w+') as f:
                 f.write('Data for MCTS after step for {0} on {1}:'.format(task_name, task))
+                f.write('Using fixed path: {0}'.format(fixed_path is not None))
                 f.write(str(mp_state))
                 f.write(str(cost_info))
                 f.write('\n\n')
-            
+        '''
+
         return lowest_cost_sample, cur_state
 
 
-    def simulate(self, state, use_distilled=True, early_stop_prob=0.0, debug=False):
+    def get_path_info(self, x0, node, task, actions):
+        return [x0, node, task, actions]
+
+
+    def simulate(self, state, use_distilled=True, early_stop_prob=0.0, fixed_paths=[], debug=False):
         current_node = self.root
         path = []
         samples = []
@@ -461,24 +508,27 @@ class MCTS:
             if self.agent.goal_f(self.condition, state) == 0: # or current_node.depth >= self.max_depth:
                 break
 
-            value, next_node, next_sample = self._choose_next(cur_state, current_node, prev_sample, exclude_hl, use_distilled, debug=debug)
+            if len(fixed_paths) <= iteration:
+                value, next_node, next_sample = self._choose_next(cur_state, current_node, prev_sample, exclude_hl, use_distilled, debug=debug)
+            else:
+                path_info = fixed_paths[iteration]
+                value, next_node, next_sample = self._simulate_fixed_path(*path_info)
+            
             path_value = np.maximum(value, path_value)
+            self.node_history[tuple(cur_state)] = current_node
+             
             if next_node is None or next_sample is None:
                 break
-
 
             current_node.sample_links[next_sample] = prev_sample # Used to retrace paths
             prev_sample = next_sample
             cur_state = next_sample.get_X(t=sample.T-1)
- 
             current_node = next_node
-            path.append(current_node)
             # exclude_hl += [self._encode_f(cur_state, plan, self.agent.targets[self.condition])]
 
             iteration += 1
             if np.random.uniform() < early_stop_prob:
                 break
-
 
         if path_value is None:
             path_value = 1 - self.agent.goal_f(self.condition, cur_state)
@@ -561,6 +611,17 @@ class MCTS:
         next_label = tuple(next_label)
         next_path_value, samples = self._default_simulate_from_next(next_label, depth+1, init_depth, end_state, prob_func, samples, num_samples=num_samples, save=False, use_distilled=use_distilled, debug=debug)
         return max(path_value, next_path_value), samples
+
+
+    def get_data(self):
+       data = {'x0': self.x0,
+               'data': self.val_per_run,
+               'n_success': self.n_success,
+               'n_runs': self.n_runs,
+               'goal': self.agent.get_goal(self.condition),
+               'targets:': self.agent.get_target_dict(self.condition)
+               } 
+       return data
 
 
     def log_path(self, path):

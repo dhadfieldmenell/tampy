@@ -32,6 +32,7 @@ def load_config(args, reload_module=None):
     config['pretrain_steps'] = args.pretrain_steps if args.pretrain_steps > 0 else config['pretrain_steps']
     config['viewer'] = args.viewer
     config['server_id'] = args.server_id if args.server_id != '' else str(random.randint(0,2**32))
+    print(args.view_server)
     return config, config_module
 
 

@@ -75,7 +75,6 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         # if len(self.cur) != len(all_opt_samples) or reset:
         #     self.set_conditions(len(all_opt_samples))
 
-        print('\nAlgorithm for {0} updating on {1} rollouts\n'.format(self.task, len(all_opt_samples)))
         start_t = time.time()
         try:
             self._update_prior(self.policy_prior, SampleList(all_samples))
@@ -214,7 +213,6 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 obs_data = np.concatenate((obs_data, obs))
-
         if len(tgt_mu):
             self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
         else:

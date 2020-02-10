@@ -4,6 +4,7 @@
 *.pyc
 *.hdf5
 *.log
+*.swp
 src/experiments/
 src/tf_saved/
 src/temp/*

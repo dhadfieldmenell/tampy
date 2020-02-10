@@ -278,7 +278,7 @@ class AlgorithmMDGPS(Algorithm):
                 pol_info.chol_pol_S[t, :, :] = \
                 sp.linalg.cholesky(pol_info.pol_S[t, :, :])
         except:
-            print 'Policy fit threw exception: ', e, '\n'
+            print('Policy fit threw exception: ', e, '\n')
 
     def _eval_cost(self, cond):
         """

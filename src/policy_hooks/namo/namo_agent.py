@@ -98,7 +98,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True):
-        x0 = state[self._x_data_idx[STATE_ENUM]]
+        x0 = state[self._x_data_idx[STATE_ENUM]].copy()
         task = tuple(task)
         plan = self.plans[task]
         for (param, attr) in self.state_inds:
@@ -127,7 +127,7 @@ class NAMOSortingAgent(TAMPAgent):
         # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
 
         if noisy:
-            noise = 5e0 * generate_noise(self.T, self.dU, self._hyperparams)
+            noise = generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
 
@@ -172,7 +172,6 @@ class NAMOSortingAgent(TAMPAgent):
             #     U[plan.action_inds['pr2', 'pose']] = robot_start + 0.1 * robot_vec / np.linalg.norm(robot_vec)
             sample.set(ACTION_ENUM, U.copy(), t)
                 # import ipdb; ipdb.set_trace()
-            
             # self.traj_hist.append(U)
             # while len(self.traj_hist) > self.hist_len:
             #     self.traj_hist.pop(0)
@@ -187,7 +186,6 @@ class NAMOSortingAgent(TAMPAgent):
         else:
             self.n_policy_calls[policy] += 1
         # print 'Called policy {0} times.'.format(self.n_policy_calls[policy])
-
         X = np.zeros((plan.symbolic_bound))
         fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
         sample.end_state = X
@@ -396,15 +394,15 @@ class NAMOSortingAgent(TAMPAgent):
             print(['{0}: {1}\n'.format(p.name, p.pose[:,0]) for p in plan.params.values() if not p.is_symbol()])
             print(['{0}: {1}\n'.format(p.name, p.value[:,0]) for p in plan.params.values() if p.is_symbol()])
             print('\n\n')
-            # for action in plan.actions:
-            #     try:
-            #         print('Solve failed on action:')
-            #         print(action, plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps))
-            #         print(['{0}: {1}\n'.format(p.name, p.pose[:,0]) for p in plan.params.values() if not p.is_symbol()])
-            #         print('\n')
-            #     except:
-            #         pass
-            # print '\n\n'
+            for action in plan.actions:
+                try:
+                    print('Solve failed on action:')
+                    print(action, plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps))
+                    print(['{0}: {1}\n'.format(p.name, p.pose[:,0]) for p in plan.params.values() if not p.is_symbol()])
+                    print('\n')
+                except:
+                    pass
+            print '\n\n'
 
         try:
             if not len(failed_preds):
@@ -424,12 +422,16 @@ class NAMOSortingAgent(TAMPAgent):
                 U = np.zeros((plan.dU), dtype=np.float32)
                 if t < plan.horizon - 1:
                     for param, attr in plan.action_inds:
-                        U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t+1] - getattr(plan.params[param], attr)[:, t]
+                        if attr == 'pose':
+                            U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t+1] - getattr(plan.params[param], attr)[:, t]
+                        elif attr == 'gripper':
+                            U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t+1]
+                        else:
+                            raise NotImplementedError
                     # U[plan.action_inds['pr2', 'pose']] = plan.params['pr2'].pose[:, t+1] - plan.params['pr2'].pose[:, t]
                     # U[plan.action_inds['pr2', 'gripper']] = plan.params['pr2'].gripper[:, t+1]
 
                 return U
-
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
         # self.optimal_samples[task].append(sample)
         return sample, failed_preds, success
@@ -758,13 +760,15 @@ class NAMOSortingAgent(TAMPAgent):
         exclude_targets = []
         plan = self.plans[task]
         act_traj = np.zeros((plan.horizon, self.dU))
-        pr2 = plan.params['pr2']
         for t in range(plan.horizon-1):
-            act_traj[t, self.action_inds['pr2', 'pose']] = pr2.pose[:,t+1] - pr2.pose[:,t]
-            act_traj[t, self.action_inds['pr2', 'gripper']] = pr2.gripper[:,t+1]
+            pos_traj = opt_traj[:, self.state_inds['pr2', 'pose']]
+            grip_traj = opt_traj[:, self.state_inds['pr2', 'gripper']]
+            act_traj[t, self.action_inds['pr2', 'pose']] = pos_traj[t+1] - pos_traj[t]
+            act_traj[t, self.action_inds['pr2', 'gripper']] = grip_traj[t+1]
         act_traj[-1] = act_traj[-2]
-
-        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False,)
+        # print(act_traj, '<-- traj in sampleopt')
+        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False)
+        # print(sample.get(STATE_ENUM), '<--- traj after rollout')
         # self.optimal_samples[task].append(sample)
         sample.set_ref_X(opt_traj)
         sample.set_ref_U(sample.get_U())

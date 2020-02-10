@@ -61,8 +61,8 @@ class RolloutServer(object):
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
             m.agent = self.agent
-            m.log_file = 'tf_saved/'+hyperparams['weight_dir']+'mcts_log_{0}_cond{1}.txt'.format(self.id, m.condition)
-            with open(m.log_file, 'w+') as f: f.write('')
+            # m.log_file = 'tf_saved/'+hyperparams['weight_dir']+'/mcts_log_{0}_cond{1}.txt'.format(self.id, m.condition)
+            # with open(m.log_file, 'w+') as f: f.write('')
         self.alg_map = hyperparams['alg_map']
         self.task_list = self.agent.task_list
         self.pol_list = tuple(hyperparams['policy_list']) + ('value', 'primitive')
@@ -87,6 +87,7 @@ class RolloutServer(object):
         self.sample_queue = []
         self.current_id = 0
         self.cur_step = 0
+        self.n_opt_calls = 0
         self.rollout_opt_pairs = {task: [] for task in self.task_list}
         self.max_sample_queue = int(hyperparams['max_sample_queue'])
         self.max_opt_sample_queue = int(hyperparams['max_opt_sample_queue'])
@@ -160,12 +161,13 @@ class RolloutServer(object):
 
     def update(self, obs, mu, prc, wt, task, rollout_len=0):
         assert(len(mu) == len(obs))
-        prc[np.where(prc > 1e20)] = 1e20
-        wt[np.where(wt > 1e20)] = 1e20
-        prc[np.where(prc < -1e20)] = -1e20
-        wt[np.where(wt < -1e20)] = -1e20
-        mu[np.where(np.abs(mu)) > 1e15] = 0
-        obs[np.where(np.abs(obs)) > 1e15] = 0
+
+        prc[np.where(prc > 1e10)] = 1e10
+        wt[np.where(wt > 1e10)] = 1e10
+        prc[np.where(prc < -1e10)] = -1e10
+        wt[np.where(wt < -1e10)] = -1e10
+        mu[np.where(np.abs(mu) > 1e10)] = 0
+        obs[np.where(np.abs(obs) > 1e10)] = 0
         msg = PolicyUpdate()
         msg.obs = obs.flatten().tolist()
         msg.mu = mu.flatten().tolist()
@@ -177,7 +179,6 @@ class RolloutServer(object):
         msg.dU = mu.shape[-1]
         msg.n = len(mu)
         msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
-
         # if task != 'value':
         #     print('Sending update on', task)
 
@@ -374,7 +375,6 @@ class RolloutServer(object):
             self.opt_queue.append((plan_id, state, task, condition, traj, waiters))
 
 
-
     def choose_mp_problems(self, samples):
         Xs = samples.get_X()[:,:,self.agent._x_data_idx[STATE_ENUM]]
         if self.traj_centers <= 1 or len(samples) == 1:
@@ -394,7 +394,6 @@ class RolloutServer(object):
 
         for p in probs:
             p[1] = SampleList(p[1])
-
 
         return probs
 
@@ -435,7 +434,7 @@ class RolloutServer(object):
         # print '\n\nSending motion plan problem to server {0}.\n\n'.format(prob.solver_id)
         self.async_plan_publisher.publish(prob)
         self.test_publisher.publish('MCTS sent motion plan.')
-
+        self.n_opt_calls += 1
 
     def parse_state(self, sample):
         state_info = {}
@@ -461,12 +460,13 @@ class RolloutServer(object):
             assert len(samples) == 1
             self.store_opt_sample(opt_sample, plan_id, samples[0])
             info = self.parse_state(opt_sample)
+            '''
             with open(self.rollout_log, 'a+') as f:
                 f.write("Optimal rollout for {0} {1}:\n".format(self.task_list[opt_sample.task[0]], opt_sample.task))
                 pp_info = pprint.pformat(info, width=50)
                 f.write(pp_info)
                 f.write('\n\n')
-
+            '''
 
     def run_hl_opt_queue(self, mcts):
         ### Guard against accidentally storing optimized results
@@ -509,9 +509,10 @@ class RolloutServer(object):
         # print '\n\nTaking tree search step.\n\n'
         self.cur_step += 1
         rollout_policies = {task: DummyPolicy(task, self.policy_call) for task in self.agent.task_list}
-
         start_time = time.time()
         all_samples = []
+        tree_data = []
+
         # if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
         #     print "\n\nRestarting dead ros node: rollout server\n\n", self.id
         #     rospy.init_node('rollout_server_'+str(self.id))
@@ -593,6 +594,9 @@ class RolloutServer(object):
                         samples = [self.rollout_opt_pairs[task][ind] for ind in sample_inds]
                         self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=False)
 
+                ### Save information on current performance
+                tree_data.append(mcts.get_data)
+
                 ### Publisher might be dead
                 self.renew_publisher()
             # print('Ran through MCTS, for server', self.id)
@@ -623,10 +627,12 @@ class RolloutServer(object):
             if len(self.rollout_opt_pairs[task]) > 1:
                 sample_inds = np.random.choice(range(len(self.rollout_opt_pairs[task])), min(self.num_conds, len(self.rollout_opt_pairs[task])), replace=False)
                 samples = [self.rollout_opt_pairs[task][ind] for ind in sample_inds]
+
+
                 self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=False)
 
         end_time = time.time()
-        if self.log_timing:
+        if False: # self.log_timing:
             with open(self.time_log, 'a+') as f:
                 f.write('Time to update algorithms for {0} iterations on data: {1}\n\n'.format(self.traj_opt_steps, end_time-start_time))
 
@@ -652,7 +658,7 @@ class RolloutServer(object):
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_val_obs()
             obs_data = np.concatenate((obs_data, obs))
-            prc = np.tile(np.eye(dV), (sample.T,1))
+            prc = np.tile(np.eye(dV), (sample.T,1,1))
             tgt_prc = np.concatenate((tgt_prc, prc))
 
         if len(tgt_mu):
@@ -676,3 +682,4 @@ class RolloutServer(object):
 
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1)
+            

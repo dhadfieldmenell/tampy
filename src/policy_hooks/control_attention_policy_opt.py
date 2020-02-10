@@ -70,7 +70,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.sess.run(init_op)
         self.init_policies(dU)
         if self.scope is not None:
-            print self.scope
             variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
             self.saver = tf.train.Saver(variables)
             try:
@@ -79,6 +78,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     self.task_map[self.scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_scale.npy')
                     self.task_map[self.scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_bias.npy')
                     self.var[self.scope] = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_variance.npy')
+                    self.task_map[self.scope]['policy'].chol_pol_covar = np.diag(np.sqrt(self.var[self.scope]))
             except Exception as e:
                 print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
 
@@ -93,6 +93,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                             self.task_map[scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale.npy')
                             self.task_map[scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias.npy')
                             self.var[scope] = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_variance.npy')
+                            self.task_map[scope]['policy'].chol_pol_covar = np.diag(np.sqrt(self.var[scope]))
                     except Exception as e:
                         print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir)
         
@@ -165,6 +166,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             #     np.save('tf_saved/'+self.weight_dir+'/control'+'_scale', scales['control'])
             #     np.save('tf_saved/'+self.weight_dir+'/control'+'_bias', biases['control'])
             #     np.save('tf_saved/'+self.weight_dir+'/control'+'_variance', variances['control'])
+            self.task_map['control']['policy'].chol_pol_covar = np.diag(np.sqrt(np.array(variances['control'])))
             self.task_map['control']['policy'].scale = np.array(scales['control'])
             self.task_map['control']['policy'].bias = np.array(biases['control'])
             self.var['control'] = np.array(variances['control'])
@@ -221,10 +223,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if self.update_count > self.update_size:
             # print 'Updating', net
             # Possibility that no good information has come yet
-            if not np.all(self.mu[net] == self.mu[net][0]):
-                self.update(self.obs[net].copy(), self.mu[net].copy(), self.prc[net].copy(), self.wt[net].copy(), net)
-                self.store_scope_weights(scopes=[net])
-                self.update_count = 0
+            if np.all(self.mu[net] == self.mu[net][0]):
+                print('Insufficient variance for update')
+                return False
+            self.update(self.obs[net].copy(), self.mu[net].copy(), self.prc[net].copy(), self.wt[net].copy(), net)
+            self.store_scope_weights(scopes=[net])
+            self.update_count = 0
             # del self.mu[net]
             # del self.obs[net]
             # del self.prc[net]
@@ -550,7 +554,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # TODO - Use dense covariance?
         self.var[task] = 1 / np.diag(A)
         policy.chol_pol_covar = np.diag(np.sqrt(self.var[task]))
-
         return policy
 
     def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt):
@@ -900,7 +903,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             pol_sigma = np.tile(np.diag(var), [N, T, 1, 1])
             pol_prec = np.tile(np.diag(1.0 / var), [N, T, 1, 1])
             pol_det_sigma = np.tile(np.prod(var), [N, T])
-
 
         return output, pol_sigma, pol_prec, pol_det_sigma
 

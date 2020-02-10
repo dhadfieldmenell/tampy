@@ -342,6 +342,7 @@ class MultiProcessMain(object):
         # self.policy_opt.sess = None
 
         self.weight_dir = self.config['weight_dir']
+        self.check_dirs()
 
         self.traj_opt_steps = self.config['traj_opt_steps']
         self.num_samples = self.config['num_samples']
@@ -368,6 +369,7 @@ class MultiProcessMain(object):
                                   max_depth=self.config['max_tree_depth'],
                                   explore_depth=5,
                                   opt_strength=0,
+                                  log_prefix='tf_saved/'+self.config['weight_dir']+'/rollouts'
                                   ))
 
         self.config['mcts'] = self.mcts

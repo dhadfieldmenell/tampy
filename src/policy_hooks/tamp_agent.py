@@ -95,6 +95,7 @@ class TAMPAgent(Agent):
             for target_name in self.targets[condition]:
                 target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
+        self.goals = self.target_vecs
         # self.targ_list = self.targets[0].keys()
         # self.obj_list = self._hyperparams['obj_list']
 
@@ -141,6 +142,14 @@ class TAMPAgent(Agent):
 
     def get_init_state(self, condition):
         return self.x0[condition][self._x_data_idx[STATE_ENUM]].copy()
+
+    
+    def get_goal(self, condition):
+        return self.goals[condition].copy()
+
+
+    def get_x0(self, condition):
+        return self.x0[condition].copy()
 
 
     def add_viewer(self):
@@ -309,14 +318,15 @@ class TAMPAgent(Agent):
         samples = []
         for slist in sample_lists:
             if hasattr(slist, '__len__') and not len(slist): continue
-            samples.append([])
+            new_samples = []
             for i in range(num_samples):
                 s = slist[0] if hasattr(slist, '__getitem__') else slist
                 if np.any(np.isnan(s.get_X(t=0))):
                     raise Exception('Nans in resample step state.')
                 # self.reset_hist(s.get(TRAJ_HIST_ENUM, t=0).reshape((self.hist_len, 3)).tolist())
-                samples[-1].append(self.sample_task(policy, s.condition, s.get_X(t=0), s.task, noisy=True))
-            samples[-1] = SampleList(samples[-1])
+                s = self.sample_task(policy, s.condition, s.get_X(t=0), s.task, noisy=True)
+                new_samples.append(s)
+            samples.append(new_samples)
         s = samples[0][0]
         if np.any(np.isnan(s.get_U(t=1))):
             raise Exception('Nans in resample step action.')
@@ -448,7 +458,7 @@ class TAMPAgent(Agent):
         self.target_vecs[condition] = target_vec
 
 
-    def replace_conditions(self, conditions, keep=(0.2, 0.5)):
+    def replace_conditions(self, conditions, keep=(0., 0.)):
         self.targets = []
         for i in range(conditions):
             self.targets.append(self.prob.get_end_targets(self.num_objs))

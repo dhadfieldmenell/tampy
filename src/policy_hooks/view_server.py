@@ -33,8 +33,9 @@ class DummyPolicy:
 class ViewServer(object):
     def __init__(self, hyperparams):
         rospy.init_node('view_server')
-        self.agent = hyperparams['agent']
-        if self.agent.viewer is None:
+        self.agent = hyperparams['agent']['type'](hyperparams['agent'])
+        self.visual = hyperparams.get('visual', True)
+        if self.agent.viewer is None and self.visual:
             self.agent.add_viewer()
         self.task_list = self.agent.task_list
         self.stopped = False
@@ -215,17 +216,25 @@ class ViewServer(object):
         for _ in range(steps):
             if self.stopped: break
             sample = self.sample_current_policies(state, cond)
-            self.agent.animate_sample(sample)
+            if self.visual:
+                self.agent.animate_sample(sample)
+            else:
+                print(sample.get(STATE_ENUM))
             state = sample.end_state
         self.stopped = False
 
  
     def run(self):
-        ctrl_thread = Thread(target=self.gen_controls)
-        ctrl_thread.daemon = True
-        ctrl_thread.start()
-        while ctrl_thread.is_alive():
-            time.sleep(0.1)
+        if self.visual:
+            ctrl_thread = Thread(target=self.gen_controls)
+            ctrl_thread.daemon = True
+            ctrl_thread.start()
+            while ctrl_thread.is_alive():
+                time.sleep(0.1)
+        else:
+            while not self.stopped:
+                self.run_condition()
+                time.sleep(3)
 
 
     def exit(self, event):
