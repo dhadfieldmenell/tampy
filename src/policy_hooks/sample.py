@@ -30,6 +30,8 @@ class Sample(object):
         self._X.fill(np.nan)
         self._obs = np.empty((self.T, self.dO))
         self._obs.fill(np.nan)
+        self._prim_out = np.empty((self.T, self.dPrimOut))
+        self._prim_out.fill(np.nan)
         self._prim_obs = np.empty((self.T, self.dPrim))
         self._prim_obs.fill(np.nan)
         self._val_obs = np.empty((self.T, self.dVal))

@@ -15,7 +15,7 @@ from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 
-NUM_OBJS = 2
+NUM_OBJS = 1
 SORT_CLOSET = False
 
 prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
@@ -48,7 +48,6 @@ END_TARGETS.extend([(2., 2.5),
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25 if SORT_CLOSET else 10
 possible_can_locs.extend(list(itertools.product(range(-65, 65), range(-45, MAX_Y))))
-
 
 # for i in range(-25, 25):
 for i in range(-10, 10):
@@ -109,7 +108,8 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     x0s = []
     for i in range(conditions):
         x0 = np.zeros((dX,))
-        can_locs = copy.deepcopy(END_TARGETS)
+        can_locs = copy.deepcopy(END_TARGETS) if SORT_CLOSET else copy.deepcopy(possible_can_locs)
+        # can_locs = copy.deepcopy(END_TARGETS)
         random.shuffle(can_locs)
         can_locs = can_locs[:NUM_OBJS]
         for i in range(NUM_OBJS):

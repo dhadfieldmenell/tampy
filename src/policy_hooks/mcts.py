@@ -269,13 +269,17 @@ class MCTS:
 
             opt_val = np.maximum(new_opt_val, opt_val)
             self.val_per_run.append(new_opt_val)
+
+            '''
             if len(next_path) and new_opt_value > 1. - 1e-3:
                 paths.append(next_path)
                 self.n_success += 1
                 end = next_path[-1]
-                print('\nSUCCESS! Tree {0}\n'.format(self.id))
-
+                print('\nSUCCESS! Tree {0}\n'.format(state))
+    
         self.agent.add_task_paths(paths)
+            '''
+
         return opt_val
 
 
@@ -375,7 +379,7 @@ class MCTS:
             if debug:
                 print('Chose explored child.')
             plan = self.agent.plans[label]
-            next_sample, next_state = self.sample(label, state, plan, self.num_samples, use_distilled, node=node, debug=debug)
+            next_sample, next_state = self.sample(label, state, plan, self.num_samples, node=node, debug=debug)
             return value, next_node, next_sample
         else:
             return 0, None, None
@@ -536,7 +540,7 @@ class MCTS:
             if next_node is None or next_sample is None:
                 break
 
-            if len(fixed_paths) <= iteration and current_node is self.root and np.random.uniform() > 0.95:
+            if len(fixed_paths) <= iteration and current_node is self.root and np.random.uniform() > 0.9:
                 print(next_sample.get_X(), '<---- sampled path at root')
 
             next_sample.node = next_node
@@ -566,6 +570,12 @@ class MCTS:
             current_node = current_node.parent
 
         path.reverse()
+        if len(path) and path_value > 1. - 1e-3:
+            self.n_success += 1
+            end = path[-1]
+            print('\nSUCCESS! Tree {0} using fixed: {1}\n'.format(state, len(fixed_paths)))
+            self.agent.add_task_paths([path])
+ 
         return path_value, path
 
 
