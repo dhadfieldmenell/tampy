@@ -142,7 +142,7 @@ class RolloutServer(object):
         self.hl_subscriber = rospy.Subscriber('hl_result_'+str(self.id), HLPlanResult, self.update_hl, queue_size=1)
         self.weight_subscriber = rospy.Subscriber('tf_weights', UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
         self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
-
+        self.node_ref = {}
 
 
     def end(self, msg):
@@ -167,6 +167,8 @@ class RolloutServer(object):
         prc[np.where(prc < -1e10)] = -1e10
         wt[np.where(wt < -1e10)] = -1e10
         mu[np.where(np.abs(mu) > 1e10)] = 0
+        assert not np.any(np.isnan(obs))
+        assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
         msg = PolicyUpdate()
         msg.obs = obs.flatten().tolist()
@@ -330,27 +332,30 @@ class RolloutServer(object):
         traj = np.array([resp.traj[i].data for i in range(len(resp.traj))])
 
 
-    def store_for_opt(self, samples):
-        self.waiting_for_opt[self.current_id] = samples
-        self.sample_queue.append(self.current_id)
-        self.current_id += 1
-        while len(self.sample_queue) > self.max_sample_queue:
-            if self.sample_queue[0] in self.waiting_for_opt:
-                del self.waiting_for_opt[self.sample_queue[0]]
-            del self.sample_queue[0]
+    # def store_for_opt(self, samples):
+    #     self.waiting_for_opt[self.current_id] = samples
+    #     self.sample_queue.append(self.current_id)
+    #     self.current_id += 1
+    #     while len(self.sample_queue) > self.max_sample_queue:
+    #         if self.sample_queue[0] in self.waiting_for_opt:
+    #             del self.waiting_for_opt[self.sample_queue[0]]
+    #         del self.sample_queue[0]
 
 
-    def store_opt_sample(self, sample, plan_id, samples=[]):
+    def store_opt_sample(self, opt_sample, plan_id, samples=[]):
         if plan_id in self.waiting_for_opt:
             if not len(samples) and len(self.waiting_for_opt[plan_id]):
                 samples = self.waiting_for_opt[plan_id]
             del self.waiting_for_opt[plan_id]
 
+        assert not np.all(np.abs(opt_sample.get_U() < 1e-4))
         for s in samples:
-            s.set_ref_X(sample.get_ref_X())
+            s.set_ref_X(opt_sample.get_ref_X())
+            s.set_ref_U(opt_sample.get_ref_U())
+            assert not np.all(np.abs(s.get_U() < 1e-4))
 
-        task_name = self.task_list[sample.task[0]]
-        self.rollout_opt_pairs[task_name].append((sample, samples))
+        task_name = self.task_list[opt_sample.task[0]]
+        self.rollout_opt_pairs[task_name].append((opt_sample, samples))
         self.rollout_opt_pairs[task_name] = self.rollout_opt_pairs[task_name][-self.max_opt_sample_queue:]
 
 
@@ -366,13 +371,14 @@ class RolloutServer(object):
         success = msg.success
         task = eval(msg.task)
         condition = msg.cond
+        node = self.node_ref.get(plan_id, None)
         if success:
             waiters = []
             if plan_id in self.waiting_for_opt:
                 waiters = self.waiting_for_opt[plan_id]
 
             # print('Stored motion plan', self.id)
-            self.opt_queue.append((plan_id, state, task, condition, traj, waiters))
+            self.opt_queue.append((plan_id, state, task, condition, traj, waiters, node))
 
 
     def choose_mp_problems(self, samples):
@@ -414,6 +420,8 @@ class RolloutServer(object):
         prob.cond = cond
         prob.traj_mean = traj_mean
         prob.prob_id = self.current_id
+        self.node_ref[self.current_id] = next_sample.node if hasattr(next_sample, 'node') else None
+        self.current_id += 1
         prob.solver_id = np.random.randint(0, self.n_optimizers)
         prob.server_id = self.id
         # self.store_for_opt(s_list)
@@ -454,9 +462,13 @@ class RolloutServer(object):
 
         while len(self.opt_queue):
             # print('Server', self.id, 'running opt queue')
-            plan_id, state, task, condition, traj, waiters = self.opt_queue.pop()
+            plan_id, state, task, condition, traj, waiters, node = self.opt_queue.pop()
             opt_sample = self.agent.sample_optimal_trajectory(state, task, condition, opt_traj=traj, traj_mean=[])
             samples = self.get_rollouts([opt_sample], self.task_list[task[0]])
+            if node is not None:
+                path = node.tree.get_path_info(opt_sample.get_X(t=0), node, opt_sample.task, opt_sample.get_X())
+                val = node.tree.simulate(state, fixed_paths=[path], debug=False)
+
             assert len(samples) == 1
             self.store_opt_sample(opt_sample, plan_id, samples[0])
             info = self.parse_state(opt_sample)

@@ -399,7 +399,7 @@ class TAMPAgent(Agent):
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
         self.optimal_samples[self.task_list[task[0]]].append(sample)
         sample.set_ref_X(state_traj)
-        sample.set_ref_U(sample.get(ACTION_ENUM))
+        sample.set_ref_U(sample.get_U())
         return sample, [], True
 
 

@@ -64,7 +64,7 @@ algorithm = {
     'conditions': common['conditions'],
     'policy_sample_mode': 'add',
     'sample_on_policy': True,
-    'iterations': 1e4,
+    'iterations': 5e4,
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
@@ -74,7 +74,7 @@ algorithm = {
     'min_step_mult': 0.5,
     'max_step_mult': 5.0,
     'sample_ts_prob': 1.0,
-    'opt_wt': 1e1,
+    'opt_wt': N_SAMPLES * 0.1,
     'fail_value': 50,
     'use_centroids': True,
     'n_traj_centers': N_TRAJ_CENTERS,
@@ -83,7 +83,7 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.01,
+    'init_var': 0.04,
     'pos_gains': 0.0,
 }
 
@@ -91,7 +91,7 @@ algorithm['traj_opt'] = {
     'type': TrajOptPI2,
     'kl_threshold': 1e0,
     'covariance_damping': 0.00,
-    'min_temperature': 0.0001,
+    'min_temperature': 1e-3,
 }
 
 # algorithm['policy_prior'] = {

@@ -36,8 +36,8 @@ class ActionTrajCost(Cost):
             config = self._hyperparams['data_types'][data_type]
             wp = config['wp']
             tgt = sample.get_ref_U().copy()
-            if np.any(np.isnan(tgt)):
-                import ipdb; ipdb.set_trace()
+            # if np.any(np.isnan(tgt)):
+            #     import ipdb; ipdb.set_trace()
             x = sample.get_U()
             _, dim_sensor = x.shape
 

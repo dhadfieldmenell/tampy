@@ -16,11 +16,14 @@ from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 
 NUM_OBJS = 2
+SORT_CLOSET = False
 
 prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
 domain_file = "../domains/namo_domain/namo.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_2"
 pddl_file = "../domains/namo_domain/sorting_domain_2.pddl"
+
+descriptor = 'namo_{0}_obj_sort_{1}_closet'.format(NUM_OBJS, 'with' if SORT_CLOSET else 'without')
 
 # END_TARGETS = [(0., 5.8), 
 #            (0., 5.), 
@@ -33,28 +36,36 @@ pddl_file = "../domains/namo_domain/sorting_domain_2.pddl"
 #            (-4., -2.),
 #            (-2., -2.)]
 
-END_TARGETS = [(0., 5.8), 
-           (0., 5.), 
-           (0., 4.), 
-           (2., 2.5), 
-           (1., 2.5),
-           (-1., 2.5),
-           (-2, 2.5),
-           (-3., 2.5),
-           (3., 2.5),
-           (-2., -2.)]
+END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
+END_TARGETS.extend([(2., 2.5), 
+                   (1., 2.5),
+                   (-1., 2.5),
+                   (-2, 2.5),
+                   (-3., 2.5),
+                   (3., 2.5),
+                   (-2., -2.)])
 
-possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)]
-possible_can_locs.extend(list(itertools.product(range(-65, 65), range(-45, 25))))
-for i in range(-25, 25):
+possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
+MAX_Y = 25 if SORT_CLOSET else 10
+possible_can_locs.extend(list(itertools.product(range(-65, 65), range(-45, MAX_Y))))
+
+
+# for i in range(-25, 25):
+for i in range(-10, 10):
     for j in range(-10, 10):
         if (i, j) in possible_can_locs:
             possible_can_locs.remove((i, j))
+            
 for i in range(len(possible_can_locs)):
     loc = list(possible_can_locs[i])
     loc[0] *= 0.1
     loc[1] *= 0.1
     possible_can_locs[i] = tuple(loc)
+
+if not SORT_CLOSET:
+    for target in END_TARGETS:
+        if target in possible_can_locs:
+            possible_can_locs.remove(target)
 
 
 def get_prim_choices():
@@ -161,9 +172,6 @@ def get_plans():
                             openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
 
-
-# CODE FROM OLDER VERSION OF PROB FILE BELOW THIS
-
 def get_end_targets(num_cans=NUM_OBJS, randomize=False):
     target_map = {}
     inds = np.random.permutation(range(num_cans))
@@ -181,6 +189,9 @@ def get_end_targets(num_cans=NUM_OBJS, randomize=False):
     # target_map['left_target_2'] = np.array([-2., 0.])
     # target_map['right_target_2'] = np.array([2., 0.])
     return target_map
+
+# CODE FROM OLDER VERSION OF PROB FILE BELOW THIS
+
 
 
 def get_sorting_problem(can_locs, targets, pr2, grasp, failed_preds=[]):

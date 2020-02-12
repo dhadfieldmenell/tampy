@@ -204,6 +204,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def store(self, obs, mu, prc, wt, net):
         # print 'Storing data for', self.scope
+        assert not np.all(np.abs(mu) < 1e-5)
         if net not in self.mu or net not in self.obs or net not in self.prc or net not in self.wt:
             self.mu[net] = np.array(mu)
             self.obs[net] = np.array(obs)
@@ -426,7 +427,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         value = self.sess.run(self.value_act_op, feed_dict={self.value_obs_tensor:obs}).flatten()
         return value.flatten()
 
-    def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task="control"):
+    def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task="control", val_ratio=0.2):
         """
         Update policy.
         Args:
@@ -443,8 +444,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             return self.update_value(obs, tgt_mu, tgt_prc, tgt_wt)
         if task == 'image':
             return self.update_image_net(obs, tgt_mu, tgt_prc, tgt_wt)
-        if np.any(np.isnan(tgt_mu)) or np.any(np.abs(tgt_mu) == np.inf):
-            import ipdb; ipdb.set_trace()
+        # if np.any(np.isnan(tgt_mu)) or np.any(np.abs(tgt_mu) == np.inf):
+        #     import ipdb; ipdb.set_trace()
         N, T = obs.shape[:2]
         dU, dO = self._dU, self._dO
 
@@ -556,7 +557,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         policy.chol_pol_covar = np.diag(np.sqrt(self.var[task]))
         return policy
 
-    def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt):
+    def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt, val_ratio=0.2):
         """
         Update policy.
         Args:
@@ -645,7 +646,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # print 'Updated primitive network.\n'
 
 
-    def update_value(self, obs, tgt_mu, tgt_prc, tgt_wt):
+    def update_value(self, obs, tgt_mu, tgt_prc, tgt_wt, val_ratio=0.2):
         """
         Update policy.
         Args:
