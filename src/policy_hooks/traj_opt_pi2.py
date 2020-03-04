@@ -69,6 +69,10 @@ class TrajOptPI2(TrajOpt):
         X = cur_data.get_X()
         U = cur_data.get_U()
         T = prev_traj_distr.T
+        use_ts = np.ones((T,))
+        # for t in range(T):
+        #     if len([1. for s in cur_data if s.use_ts[t] > 1e-3]) >= 5: use_ts[t] = 1.
+
         if np.any(np.isnan(X)):
             raise Exception('Nans in state: {0}'.format(X))
 
@@ -99,7 +103,8 @@ class TrajOptPI2(TrajOpt):
         # print "\nEntering PI^2 Update"
         k, pS, ipS, cpS, eta = self.update_pi2(
             ffw_controls, costs, prev_traj_distr.k, prev_traj_distr.pol_covar,
-            fixed_eta, use_fixed_eta
+            fixed_eta, use_fixed_eta,
+            None, prev_traj_distr
         )
         # print "Leaving PI^2 Update\n"
         try:
@@ -117,7 +122,7 @@ class TrajOptPI2(TrajOpt):
         return traj_distr, eta
 
     def update_pi2(self, samples, costs, mean_old, cov_old,
-                   fixed_eta=None, use_fixed_eta=False):
+                   fixed_eta=None, use_fixed_eta=False, use_ts=None, prev_traj_distr=None):
         """
         Perform optimization with PI2. Computes new mean and covariance matrices
         of the policy parameters given policy samples and their costs.
@@ -144,6 +149,7 @@ class TrajOptPI2(TrajOpt):
         # Iterate over time steps.
         T = samples.shape[1]
         etas = np.zeros(T)
+        if use_ts is None: use_ts = np.ones((T,))
 
         del_ = self._hyperparams['del0']
         if self._hyperparams['pi2_cons_per_step']:
@@ -153,7 +159,13 @@ class TrajOptPI2(TrajOpt):
         while fail:
             fail = False
             for t in xrange(T):
-
+                if use_ts[t] < 1e-3:
+                    print('Skipped', t, samples[:, t, :])
+                    mean_new[t] = prev_traj_distr.k[t]
+                    cov_new[t] = prev_traj_distr.pol_covar[t]
+                    inv_cov_new[t] = prev_traj_distr.inv_pol_covar[t]
+                    chol_cov_new[t] = prev_traj_distr.chol_pol_covar[t]
+                    continue
                 # Compute cost-to-go for each time step for each sample.
                 cost_to_go = np.sum(costs[:, t:T], axis=1)
 
@@ -205,7 +217,15 @@ class TrajOptPI2(TrajOpt):
                     LOGGER.debug('Increasing eta %d: %f -> %f', t, old_eta, eta[t])
                     del_[t] *= 2
                     if eta[t] >= 1e16:
+                        print(cov_new[t], t)
+                        print(samples[:, t], '<-- Value Error')
+                        # use_ts[t] = 0.
                         raise ValueError
+                        # mean_new[t] = prev_traj_distr.k[t]
+                        cov_new[t] = prev_traj_distr.pol_covar[t]
+                        inv_cov_new[t] = prev_traj_distr.inv_pol_covar[t]
+                        chol_cov_new[t] = prev_traj_distr.chol_pol_covar[t]
+                        fail = False
 
         return mean_new, cov_new, inv_cov_new, chol_cov_new, etas
 

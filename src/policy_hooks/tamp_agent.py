@@ -304,6 +304,27 @@ class TAMPAgent(Agent):
             for attr in self.saved_params_free[p]:
                 plan.params[p]._free_attrs[attr] = self.saved_params_free[p][attr].copy()
 
+    def retime_sample(self, sample, dx=1e-3):
+        '''
+        Collapse steps below dx separation together
+        Assumes transitivity of action space; i.e. (x0, u0, x1) and (x1, u1, x2) equals (x0, u1+u2, x2)
+        Mutates samples in place
+        '''
+        cur_step = 0
+        sample.use_ts[:] = 0.
+        for t in range(sample.T):
+            cur_X = sample.get_X(t=cur_step)
+            next_X = cur_X
+            full_U = sample.get_U(t=cur_step)
+            while cur_step < sample.T - 1 and np.all(np.abs(cur_X - next_X) < dx):
+                cur_step += 1
+                next_X = sample.get_X(t=cur_step)
+                full_U += sample.geT_U(t=cur_step)
+            sample.set_X(next_X, t=t)
+            smaple.set_U(full_U, t=t)
+            sample.use_ts[t] = 1.
+        return sample
+
 
     def sample(self, policy, condition, save_global=False, verbose=False, noisy=False):
         raise NotImplementedError
@@ -403,7 +424,7 @@ class TAMPAgent(Agent):
         return sample, [], True
 
 
-    def perturb_solve(self, sample, perturb_var=0.02):
+    def perturb_solve(self, sample, perturb_var=0.02, inf_f=None):
         x0 = sample.get(STATE_ENUM, t=0)
         saved_targets = {}
         cond = sample.condition
@@ -419,11 +440,11 @@ class TAMPAgent(Agent):
             self.targets[cond][target_name] = old_value + np.random.normal(0, perturb_var, old_value.shape)
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
         target_params = [self.plans_list[0].params[sample.obj], self.plans_list[0].params[sample.targ]]
-        out = self.solve_sample_opt_traj(x0, sample.task, sample.condition, sample.get_U(), target_params)
+        out, success, failed = self.solve_sample_opt_traj(x0, sample.task, sample.condition, sample.get_U(), target_params, inf_f=inf_f)
         for target_name in self.targets[cond]:
             self.targets[cond][target_name] = saved_targets[target_name]
         self.target_vecs[cond] = saved_target_vec
-        return out
+        return out, failed, success
 
 
     def get_hl_plan(self, state, condition, failed_preds, plan_id=''):
@@ -473,6 +494,16 @@ class TAMPAgent(Agent):
 
         if keep != (1., 1.):
             self.clear_samples(*keep)
+
+
+
+    def replace_cond(self, cond):
+        self.targets[cond] = self.prob.get_end_targets(self.num_objs)
+        self.init_vecs[cond] = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
+        self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
+        self.target_vecs[cond] = np.zeros((self.target_dim,))
+        for target_name in self.targets[cond]:
+            self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
 
 
     def perturb_conditions(self, perturb_var=0.02):

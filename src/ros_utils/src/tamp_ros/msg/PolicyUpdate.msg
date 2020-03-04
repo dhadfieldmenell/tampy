@@ -2,6 +2,7 @@ float32[] obs
 float32[] mu
 float32[] prc
 float32[] wt
+string task
 
 int32 dO
 int32 dPrimObs

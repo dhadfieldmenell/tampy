@@ -17,14 +17,13 @@ from gps.algorithm.traj_opt.traj_opt_pilqr import TrajOptPILQR
 from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
 # from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
-from gps.algorithm.policy.policy_prior import PolicyPrior
+# from gps.algorithm.policy.policy_prior import PolicyPrior
 from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.gui.config import generate_experiment_info
 
 # from policy_hooks.algorithm_pigps import AlgorithmPIGPS
 from policy_hooks.algorithm_impgps import AlgorithmIMPGPS
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
-from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.traj_opt_pi2 import TrajOptPI2
 from core.util_classes.namo_predicates import ATTRMAP
@@ -40,13 +39,17 @@ BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
 NUM_OBJS = prob.NUM_OBJS
-NUM_CONDS = 50
+NUM_CONDS = 10 # Per rollout server
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
-N_SAMPLES = 10
+N_SAMPLES = 20
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
+OPT_WT_MULT = 2e1
+N_ROLLOUT_SERVERS = 20
+N_OPTIMIZERS = 10
+N_DIRS = 16
 
 
 common = {
@@ -64,7 +67,7 @@ algorithm = {
     'conditions': common['conditions'],
     'policy_sample_mode': 'add',
     'sample_on_policy': True,
-    'iterations': 5e4,
+    'iterations': 1e3, #5e4,
     'max_ent_traj': 0.0,
     'fit_dynamics': False,
     'stochastic_conditions': True,
@@ -74,7 +77,7 @@ algorithm = {
     'min_step_mult': 0.5,
     'max_step_mult': 5.0,
     'sample_ts_prob': 1.0,
-    'opt_wt': N_SAMPLES * 0.1,
+    'opt_wt': OPT_WT_MULT,
     'fail_value': 50,
     'use_centroids': True,
     'n_traj_centers': N_TRAJ_CENTERS,
@@ -83,8 +86,8 @@ algorithm = {
 
 algorithm['init_traj_distr'] = {
     'type': init_pd,
-    'init_var': 0.04,
-    'pos_gains': 0.0,
+    'init_var': 0.0025,
+    'pos_gains': 0.00,
 }
 
 algorithm['traj_opt'] = {
@@ -154,15 +157,18 @@ algorithm['policy_prior'] = {
     'type': PolicyPriorGMM,
     'max_clusters': 20,
     'min_samples_per_cluster': 40,
-    'max_samples': 100,
+    'max_samples': 50,
 }
 
 algorithm['mp_policy_prior'] = {
     'type': PolicyMPPriorGMM,
     'max_clusters': 20,
     'min_samples_per_cluster': 40,
-    'max_samples': 100,
+    'max_samples': 50,
 }
+
+cost_wp_mult = np.ones((3 + 2 * NUM_OBJS))
+cost_wp_mult[2] = 2.
 
 config = {
     'gui_on': False,
@@ -185,13 +191,15 @@ config = {
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
-    'lr': 1e-4,
+    'lr': 2e-4,
+    'solver_type': 'rmsprop',
+    'cost_wp_mult': cost_wp_mult,
 
-    'train_iterations': 10000,
-    'weight_decay': 1e-6,
-    'batch_size': 1000,
-    'n_layers': 2,
-    'dim_hidden': [64, 64],
+    'train_iterations': 5000,
+    'weight_decay': 2.5e-5,
+    'batch_size': 100,
+    'n_layers': 1,
+    'dim_hidden': [512],
     'n_traj_centers': algorithm['n_traj_centers'],
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
@@ -200,8 +208,8 @@ config = {
 
     # New for multiprocess, transfer to sequential version as well.
 
-    'n_optimizers': 8,
-    'n_rollout_servers': 16,
+    'n_optimizers': N_OPTIMIZERS,
+    'n_rollout_servers': N_ROLLOUT_SERVERS,
     'base_weight_dir': 'namo_',
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
@@ -218,9 +226,9 @@ config = {
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
     'solver_type': NAMOPolicySolver,
-    'update_size': 1000,
+    'update_size': 100,#200,
     'use_local': True,
-    'n_dirs': 16,
+    'n_dirs': N_DIRS,
     'domain': 'namo',
     'perturb_steps': 3,
     'mcts_early_stop_prob': 0.5,
@@ -247,7 +255,7 @@ config = {
     'sensor_dims': {
             utils.OBJ_POSE_ENUM: 2,
             utils.TARG_POSE_ENUM: 2,
-            utils.LIDAR_ENUM: 16,
+            utils.LIDAR_ENUM: N_DIRS,
             utils.EE_ENUM: 2,
         },
     'visual': False,

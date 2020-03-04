@@ -1,6 +1,7 @@
 """ This file defines a GMM prior for policy linearization. """
 import copy
 import logging
+import time
 
 import numpy as np
 
@@ -110,7 +111,8 @@ class PolicyPriorGMM(object):
         N, T, dX = X.shape
         dU = pol_mu.shape[2]
         if N == 1:
-            raise ValueError("Cannot fit dynamics on 1 sample")
+            print('WARNING: FITTING PRIOR TO 1 SAMPLE')
+            # raise ValueError("Cannot fit dynamics on 1 sample")
 
         # Collapse policy covariances. (This is only correct because
         # the policy doesn't depend on state).
@@ -131,10 +133,13 @@ class PolicyPriorGMM(object):
             mu0, Phi, mm, n0 = self.eval(Ts, Ps)
             sig_reg = np.zeros((dX+dU, dX+dU))
             # Slightly regularize on first timestep.
+            start_t = time.time()
             if t == 0:
                 sig_reg[:dX, :dX] = 1e-8
             pol_K[t, :, :], pol_k[t, :], pol_S[t, :, :] = \
                     gauss_fit_joint_prior(Ys,
                             mu0, Phi, mm, n0, dwts, dX, dU, sig_reg)
+            # print('Time to run fit prior step:', time.time() - start_t)
         pol_S += pol_sig
         return pol_K, pol_k, pol_S
+

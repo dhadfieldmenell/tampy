@@ -106,6 +106,7 @@ class Algorithm(object):
                 self.cur[cond].traj_distr for cond in range(self.M)
             ]
         for cond in range(self.M):
+            if not len(self.cur[cond].sample_list): continue
             self.new_traj_distr[cond], self.cur[cond].eta = \
                     self.traj_opt.update(cond, self)
 

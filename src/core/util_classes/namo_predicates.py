@@ -22,11 +22,13 @@ This file implements the predicates for the 2D NAMO domain.
 """
 
 dsafe = 1e-3 # 1e-1
-dmove = 5e-1
+dmove = 1.19e0 # 5e-1
 contact_dist = 1e-2
 
 RS_SCALE = 0.5
 N_DIGS = 5
+GRIP_TOL = 5e-1
+COL_TS = 3
 
 
 ATTRMAP = {
@@ -154,8 +156,28 @@ def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
     return traj_list
 
 
+def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
+    if grad:
+        res = []
+        jac = np.zeros((0, 2 * dim))
+        for t in range(pts):
+            coeff = float(pts - t) / pts
+            next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
+            res.append(dist(next_pos)[1])
+            jac = np.r_[jac, np.c_[coeff*res[t], (1-coeff)*res[t]]]
+        return jac
+
+    else:
+        res = []
+        for t in range(pts):
+            coeff = float(pts - t) / pts
+            next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
+            res.append(dist(next_pos)[0])
+        return np.concatenate(res, axis=0)
+
+
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1)):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
@@ -167,7 +189,7 @@ class CollisionPredicate(ExprPredicate):
         self._cache = {}
         self.n_cols = 1
 
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, priority=3)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=active_range, priority=3)
 
     def test(self, time, negated=False, tol=1e-4):
         # This test is overwritten so that collisions can be calculated correctly
@@ -191,7 +213,7 @@ class CollisionPredicate(ExprPredicate):
 
 
     # @profile
-    def distance_from_obj(self, x):
+    def distance_from_obj(self, x, n_steps=0):
         flattened = tuple(x.round(N_DIGS).flatten())
         # if flattened in self._cache and self._debug is False:
         #     return self._cache[flattened]
@@ -365,6 +387,23 @@ class RobotNear(At):
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
+class NotRobotNear(At):
+
+    # RobotAt Robot Can
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = -2 * dmove * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
 class RobotWithinBounds(At):
 
     # RobotAt Robot Can
@@ -422,13 +461,15 @@ class GripperClosed(ExprPredicate):
         attr_inds = OrderedDict([(self.robot, [("gripper", np.array([0], dtype=np.int))])])
         A = np.ones((1, 1))
         b = np.zeros((1, 1))
-        val = np.ones((1,1))
+        val = np.ones((1,1)) # (GRIP_TOL + 1e-1) * -np.ones((1,1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
+        #e = LEqExpr(aff_e, val)
 
-        neg_val = np.zeros((1,1))
+        neg_val = -np.ones((1,1)) # (GRIP_TOL - 1e-1) * np.ones((1,1))
         neg_aff_e = AffExpr(A, b)
         self.neg_expr = EqExpr(neg_aff_e, neg_val)
+        #self.neg_expr = LEqExpr(neg_aff_e, neg_val)
         super(GripperClosed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
     def get_expr(self, negated):
@@ -457,7 +498,7 @@ class InContact(CollisionPredicate):
         val = np.ones((1, 1))*dsafe*INCONTACT_COEFF
         # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
+        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2, active_range=(0,0))
 
     def test(self, time, negated=False, tol=1e-4):
         return super(CollisionPredicate, self).test(time, negated, tol)
@@ -474,19 +515,31 @@ class Collides(CollisionPredicate):
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        def f(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+        def grad(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+        def f_neg(x):
+            return -f(x)
+
+        def grad_neg(x):
+            return grad(x)
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.distance_from_obj(x)[0]
-        def grad_neg(x):
-            # print self.distance_from_obj(x)
-            return -self.distance_from_obj(x)[1]
+        # f_neg = lambda x: self.distance_from_obj(x)[0]
+        # def grad_neg(x):
+        #     # print self.distance_from_obj(x)
+        #     return -self.distance_from_obj(x)[1]
 
         N_COLS = 8
 
         col_expr = Expr(f, grad)
-        val = np.zeros((N_COLS,1))
+        val = np.zeros((COL_TS*N_COLS,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -517,12 +570,13 @@ class RCollides(CollisionPredicate):
         self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
 
         neg_coeff = 1e4
         neg_grad_coeff = 1e-3
 
+        '''
         ## so we have an expr for the negated predicate
         def f_neg(x):
             d = neg_coeff * self.distance_from_obj(x)[0]
@@ -534,10 +588,30 @@ class RCollides(CollisionPredicate):
         def grad_neg(x):
             # print self.distance_from_obj(x)
             return -neg_grad_coeff * self.distance_from_obj(x)[1]
+        '''
+
+        def f(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+        def grad(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+
+        def f_neg(x):
+            return -neg_coeff * f(x)
+
+        def grad_neg(x):
+            return neg_grad_coeff * grad(x)
+
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+
 
         N_COLS = 8
         col_expr = Expr(f, grad)
-        val = np.zeros((N_COLS,1))
+        val = np.zeros((COL_TS*N_COLS,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -564,7 +638,7 @@ class RCollides(CollisionPredicate):
         act = plan.actions[a]
 
         x = self.get_param_vector(time)
-        jac = self.distance_from_obj(x)[1][0,:2]
+        jac = self.distance_from_obj(x, 0)[1][0,:2]
         jac = jac / np.linalg.norm(jac)
 
         new_robot_pose = self.r.pose[:, time] + 1e-1 * jac
@@ -600,16 +674,31 @@ class Obstructs(CollisionPredicate):
 
         self.rs_scale = RS_SCALE
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
 
         neg_coeff = 1e2
         neg_grad_coeff = 1e-3
+        '''
         ## so we have an expr for the negated predicate
         f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
         def grad_neg(x):
             # print self.distance_from_obj(x)
             return neg_grad_coeff*self.distance_from_obj(x)[1]
+        '''
+
+        def f(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+        def grad(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+        def f_neg(x):
+            return -neg_coeff * f(x)
+
+        def grad_neg(x):
+            return neg_grad_coeff * grad(x)
+
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
@@ -760,14 +849,34 @@ class ObstructsHolding(CollisionPredicate):
                                obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
                                held: self.lazy_spawn_or_body(held, held.name, held.geom)}
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
 
         neg_coeff = 1e2
         neg_grad_coeff = 1e-3
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
-        grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
+        #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
+        #grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
+
+        def f(x):
+            if self.obstr.name == self.held.name:
+                return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+            else:
+                return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6)
+
+
+        def grad(x):
+            if self.obstr.name == self.held.name:
+                return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+            else:
+                return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
+
+        def f_neg(x):
+            return -neg_coeff * f(x)
+
+        def grad_neg(x):
+            return neg_grad_coeff * grad(x)
+
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
@@ -776,9 +885,9 @@ class ObstructsHolding(CollisionPredicate):
         if self.held != self.obstr:
             col_expr_neg = Expr(f_neg, grad_neg)
         else:
-            f_neg = lambda x: 0. * self.distance_from_obj(x)[0]
-            grad_neg = lambda x: self.distance_from_obj(x)[1]
-            col_expr_neg = Expr(f_neg, grad_neg)
+            new_f_neg = lambda x: 0. * f(x)#self.distance_from_obj(x)[0]
+            new_grad_neg = lambda x: -grad(x) # self.distance_from_obj(x)[1]
+            col_expr_neg = Expr(new_f_neg, new_grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -845,7 +954,7 @@ class ObstructsHolding(CollisionPredicate):
         else:
             return None
 
-    def distance_from_obj(self, x):
+    def distance_from_obj(self, x, n_steps=0):
         # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
         self._cc.SetContactDistance(np.Inf)
         b0 = self._param_to_body[self.r]
@@ -893,6 +1002,7 @@ class ObstructsHolding(CollisionPredicate):
                 jac = np.c_[np.zeros((1, 2)), jac21[:, 2:], jac21[:, :2]].reshape((1, 6))
 
         return val, jac
+
 
 class InGripper(ExprPredicate):
 

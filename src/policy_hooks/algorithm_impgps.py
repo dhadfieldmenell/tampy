@@ -18,7 +18,7 @@ from gps.algorithm.config import ALG_PIGPS
 from gps.sample.sample_list import SampleList
 
 from policy_hooks.algorithm_mdgps import AlgorithmMDGPS
-from policy_hooks.utils.policy_solver_utils import OBJ_ENUM, STATE_ENUM, TARG_ENUM
+from policy_hooks.utils.policy_solver_utils import OBJ_ENUM, STATE_ENUM, TARG_ENUM, ACTION_ENUM
 
 
 LOGGER = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         self.fail_value = hyperparams['fail_value']
         self.traj_centers = hyperparams['n_traj_centers']
         self.use_centroids = hyperparams['use_centroids']
+        self.mp_opt = hyperparams.get('mp_opt', False)
 
         policy_prior = hyperparams['policy_prior']
         mp_policy_prior = hyperparams['mp_policy_prior']
@@ -52,13 +53,15 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         sample_lists = []
         all_samples = []
         for opt_s, s_list in samples_with_opt:
-            all_opt_samples.append(SampleList([opt_s]))
-            individual_opt_samples.append(opt_s)
-            all_samples.append(opt_s)
-            for s in s_list:
-                s.set_ref_X(opt_s.get_ref_X())
-                s.set_ref_U(opt_s.get_ref_U())
+            if opt_s is not None:
+                all_opt_samples.append(SampleList([opt_s]))
+                individual_opt_samples.append(opt_s)
+                all_samples.append(opt_s)
+                for s in s_list:
+                    s.set_ref_X(opt_s.get_ref_X())
+                    s.set_ref_U(opt_s.get_ref_U())
             if not len(s_list): continue
+            # s_list.append(opt_s)
             sample_lists.append(s_list)
             all_samples.extend(s_list)
 
@@ -75,11 +78,13 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         # if len(self.cur) != len(all_opt_samples) or reset:
         #     self.set_conditions(len(all_opt_samples))
 
+        '''
         start_t = time.time()
         try:
             self._update_prior(self.policy_prior, SampleList(all_samples))
         except Exception as e:
             traceback.print_exception(*sys.exc_info())
+            print(SampleList(all_samples).get_X())
             print('Failed to update policy prior, alg iteration continuing')
 
         try:
@@ -87,8 +92,10 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         except Exception as e:
             traceback.print_exception(*sys.exc_info())
             print('Failed to update mp policy prior, alg iteration continuing')
-        print('Time to update priors', time.time() - start_t)
+        # print('Time to update priors', time.time() - start_t)
+        '''
 
+        '''
         # if len(sample_lists) and self.traj_centers >= len(sample_lists[0]):
         if not len(sample_lists) or self.traj_centers >= len(sample_lists[0]):
             if len(self.cur) != len(all_opt_samples) or reset:
@@ -99,9 +106,32 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             self.T = all_opt_samples[0][0].T
             self._update_policy_no_cost()
             return all_opt_samples
+        '''
 
         if len(self.cur) != len(sample_lists) or reset:
             self.set_conditions(len(sample_lists))
+
+        if self.mp_opt:
+            train_data = []
+            for m in range(len(self.cur)):
+                sample = sample_lists[m][0]
+                pol_info = self.cur[m].pol_info
+                try:
+                    inf_f = None # (pol_info.pol_K, pol_info.pol_k, np.linalg.inv(pol_info.pol_S))
+                except:
+                    inf_f = None
+
+                start_t = time.time()
+                out, failed, success = self.agent.solve_sample_opt_traj(sample.get_X(t=0), sample.task, sample.condition, sample.get_X(), inf_f, t_limit=5, n_resamples=1, out_coeff=1e3, smoothing=True)
+                # print('Time in quick solve:', time.time() - start_t)
+
+                train_data.append(out)
+                for t in range(sample.T):
+                    sample.set(ACTION_ENUM, out.get(ACTION_ENUM, t), t)
+                # self.cur[m].sample_list = [sample]
+                self.cur[m].sample_list = [out]
+            # individual_opt_samples.extend(train_data)
+            return self._update_policy_no_cost(individual_opt_samples)
 
 
         start_t = time.time()
@@ -109,8 +139,12 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             if type(sample_lists[m]) is list:
                 sample_lists[m] = SampleList(sample_lists[m])
             self.cur[m].sample_list = sample_lists[m]
-            self._eval_cost(m)
-        print('Time to eval cost', time.time() - start_t)
+            if len(sample_lists[m]) > 1:
+                self._eval_cost(m)
+            else:
+                individual_opt_samples.extend(sample_lists[m])
+                self.cur[m].sample_list = []
+        # print('Time to eval cost', time.time() - start_t)
 
         # Update dynamics linearizations.
         # self._update_dynamics()
@@ -122,23 +156,25 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 self.cur[cond].traj_distr for cond in range(len(self.cur))
             ]
             self._update_policy(individual_opt_samples)
-            print('Time to update policy', time.time() - start_t)
+            # print('Time to update policy', time.time() - start_t)
 
         # Update policy linearizations.
         # for m in range(len(self.cur)):
         #     self._update_policy_fit(m)
 
         # C-step
-        start_t = time.time()  
-        self._update_trajectories()
-        print('Time to update trajs', time.time() - start_t)
+        try:
+            start_t = time.time()  
+            self._update_trajectories()
+            # print('Time to update trajs', time.time() - start_t)
 
-        # S-step
-        self._update_policy(individual_opt_samples)
+            # S-step
+            self._update_policy(individual_opt_samples)
 
-        # Prepare for next iteration
-        self._advance_iteration_variables()
-
+            # Prepare for next iteration
+            self._advance_iteration_variables()
+        except:
+            self._update_policy(individual_opt_samples)
         return sample_lists
 
 
@@ -154,15 +190,12 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
     def _update_prior(self, prior, samples):
         if not self.local_policy_opt.policy_initialized(self.task): return
         mode = self._hyperparams['policy_sample_mode']
-        try:
-            prior.update(samples, self.local_policy_opt, mode, self.task)
-        except Exception as e:
-            print('Policy prior update threw exception: ', e, '\n')
+        prior.update(samples, self.local_policy_opt, mode, self.task)
 
 
-    def _update_policy_no_cost(self):
+    def _update_policy_no_cost(self, optimal_samples=[]):
         """ Compute the new policy. """
-        print('Calling update policy without PI^2')
+        # print('Calling update policy without PI^2')
         dU, dO, T = self.dU, self.dO, self.T
         data_len = int(self.sample_ts_prob * T)
         # Compute target mean, cov, and weight for each sample.
@@ -193,17 +226,21 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
         for m in range(len(self.cur)):
             samples = self.cur[m].sample_list
+            if m == 0:
+                samples.extend(optimal_samples)
+
             for sample in samples:
                 mu = np.zeros((1, data_len, dU))
                 prc = np.zeros((1, data_len, dU, dU))
                 wt = np.zeros((1, data_len))
                 obs = np.zeros((1, data_len, dO))
 
+                traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
                 ts = np.random.choice(xrange(T), data_len, replace=False)
                 ts.sort()
                 for t in range(data_len):
-                    prc[0,t] = 1e0 * np.eye(dU)
-                    wt[:,t] = self._hyperparams['opt_wt'] # * sample.use_ts[ts[t]]
+                    prc[:, t, :, :] = np.tile(traj.inv_pol_covar[ts[t], :, :], [1, 1, 1])
+                    wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
 
                 for i in range(data_len):
                     t = ts[i]

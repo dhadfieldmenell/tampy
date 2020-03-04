@@ -1,6 +1,7 @@
 """ This file defines a GMM prior for policy linearization. """
 import copy
 import logging
+import time
 
 import numpy as np
 
@@ -134,8 +135,12 @@ class PolicyMPPriorGMM(object):
             # Slightly regularize on first timestep.
             if t == 0:
                 sig_reg[:dX, :dX] = 1e-8
+
+            start_t = time.time()
             pol_K[t, :, :], pol_k[t, :], pol_S[t, :, :] = \
                     gauss_fit_joint_prior(Ys,
                             mu0, Phi, mm, n0, dwts, dX, dU, sig_reg)
+            print('Time to run mp prior fit step:', time.time() - start_t)
         pol_S += pol_sig
         return pol_K, pol_k, pol_S
+

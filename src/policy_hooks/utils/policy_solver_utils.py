@@ -37,6 +37,7 @@ JOINTS_ENUM = 31
 POS_ENUM = 32
 LEFT_GRIPPER_ENUM = 33
 RIGHT_GRIPPER_ENUM = 34
+INIT_OBJ_POSE_ENUM = 35
 
 IM_H = 96
 IM_W = 64
@@ -139,6 +140,7 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
 
     symbolic_boundary = cur_x_ind # Used to differntiate parameters from symbols in the state vector
 
+    '''
     for param in plan.params.values():
         if not param.is_symbol(): continue
         param_attr_map = attr_map[param._type]
@@ -147,6 +149,7 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
             inds = attr[1] + cur_x_ind
             cur_x_ind = inds[-1] + 1
             params_to_x_inds[(param.name, attr[0])] = inds
+    '''
 
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary

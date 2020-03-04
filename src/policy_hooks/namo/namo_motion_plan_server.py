@@ -13,7 +13,7 @@ from policy_hooks.abstract_motion_plan_server import AbstractMotionPlanServer
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.utils.tamp_eval_funcs import *
-from policy_hooks.namo.sorting_prob_2 import *
+from policy_hooks.namo.sorting_prob_3 import *
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
 
 from tamp_ros.msg import *

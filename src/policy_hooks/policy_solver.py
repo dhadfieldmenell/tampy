@@ -41,7 +41,7 @@ def get_base_solver(parent_class):
             self.transfer_coeff = 1e0
             self.strong_transfer_coeff = 1e0
             self.rs_coeff = 2e2
-            self.trajopt_coeff = 1e3 # 1e2
+            self.trajopt_coeff = 1e2
             self.policy_pred = None
             self.transfer_always = False
             self.gps = None
@@ -56,7 +56,7 @@ def get_base_solver(parent_class):
                 self.symbolic_bound = hyperparams['symbolic_bound']
                 self.state_inds = hyperparams['state_inds']
                 self.action_inds = hyperparams['action_inds']
-                self.policy_out_coeff = hyperparams['policy_out_coeff']
+                self.strong_transfer_coeff = hyperparams['policy_out_coeff']
                 self.policy_inf_coeff = hyperparams['policy_inf_coeff']
                 self.target_inds = hyperparams['target_inds']
                 self.target_dim = hyperparams['target_dim']
@@ -69,7 +69,7 @@ def get_base_solver(parent_class):
             raise NotImplementedError
 
 
-        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None, total_time=None, time_limit=TIME_LIMIT, max_priority=MAX_PRIORITY):
+        def _backtrack_solve(self, plan, callback=None, anum=0, verbose=False, amax=None, n_resamples=5, inf_f=None, traj_mean=[], task=None, total_time=None, time_limit=TIME_LIMIT, max_priority=MAX_PRIORITY, min_priority=-2):
             if amax is None:
                 amax = len(plan.actions) - 1
 
@@ -125,7 +125,7 @@ def get_base_solver(parent_class):
                 self.child_solver.state_inds = self.state_inds
                 self.child_solver.action_inds = self.action_inds
                 self.child_solver.agent = self.agent
-                self.child_solver.policy_out_coeff = self.policy_out_coeff
+                self.child_solver.strong_transfer_coeff = self.strong_transfer_coeff
                 self.child_solver.policy_inf_coeff = self.policy_inf_coeff
                 self.child_solver.gps = self.gps
                 self.child_solver.policy_fs = self.policy_fs
@@ -133,9 +133,10 @@ def get_base_solver(parent_class):
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
                 self.child_solver.robot_name = self.robot_name
+                self.child_solver.transfer_always = self.transfer_always
                 new_time = time.time() - start_time + total_time
                 success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax=amax, 
-                                                             n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, time_limit=time_limit, max_priority=max_priority)
+                                                             n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, time_limit=time_limit, max_priority=max_priority, min_priority=min_priority)
 
                 # reset free_attrs
                 for p in plan.params.itervalues():
@@ -161,19 +162,20 @@ def get_base_solver(parent_class):
                 self.child_solver.state_inds = self.state_inds
                 self.child_solver.action_inds = self.action_inds
                 self.child_solver.agent = self.agent
-                self.child_solver.policy_out_coeff = self.policy_out_coeff
+                self.child_solver.strong_transfer_coeff = self.strong_transfer_coeff
                 self.child_solver.policy_inf_coeff = self.policy_inf_coeff
                 self.child_solver.gps = self.gps
                 self.child_solver.policy_fs = self.policy_fs
                 self.child_solver.policy_inf_fs = self.policy_inf_fs
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
+                self.child_solver.transfer_always = self.transfer_always
                 self.child_solver.robot_name = self.robot_name
                 new_time = time.time() - start_time + total_time
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts=active_ts, verbose=verbose, force_init=True, 
                                                   inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, 
-                                                  time_limit=time_limit, priorities=range(-2, max_priority+1))
+                                                  time_limit=time_limit, priorities=range(min_priority, max_priority+1))
                 if not success:
                     ## if planning fails we're done
                     return False
@@ -213,7 +215,7 @@ def get_base_solver(parent_class):
                 self.child_solver.state_inds = self.state_inds
                 self.child_solver.action_inds = self.action_inds
                 self.child_solver.agent = self.agent
-                self.child_solver.policy_out_coeff = self.policy_out_coeff
+                self.child_solver.strong_transfer_coeff = self.strong_transfer_coeff
                 self.child_solver.policy_inf_coeff = self.policy_inf_coeff
                 self.child_solver.gps = self.gps
                 self.child_solver.policy_fs = self.policy_fs
@@ -221,11 +223,12 @@ def get_base_solver(parent_class):
                 self.child_solver.target_inds = self.target_inds
                 self.child_solver.target_dim = self.target_dim
                 self.child_solver.robot_name = self.robot_name
+                self.child_solver.transfer_always = self.transfer_always
                 new_time = time.time() - start_time + total_time
                 success = self.child_solver.solve(plan, callback=callback_a, n_resamples=n_resamples,
                                                   active_ts = active_ts, verbose=verbose,
                                                   force_init=True, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time,
-                                                  time_limit=time_limit, priorities=range(-2, max_priority+1))
+                                                  time_limit=time_limit, priorities=range(min_priority, max_priority+1))
                 if success:
                     if recursive_solve():
                         break
@@ -286,7 +289,7 @@ def get_base_solver(parent_class):
 
             if force_init or not plan.initialized:
                 self._solve_opt_prob(plan, priority=-2, callback=callback,
-                    active_ts=active_ts, traj_mean=traj_mean, verbose=verbose, task=task)
+                    active_ts=active_ts, traj_mean=traj_mean, verbose=verbose, task=task, inf_f=inf_f)
                 # self._solve_opt_prob(plan, priority=-1, callback=callback,
                 #     active_ts=active_ts, verbose=verbose)
                 plan.initialized=True
@@ -413,86 +416,147 @@ def get_base_solver(parent_class):
             transfer_objs = []
 
             T = end_t-start_t+1
-            sample = Sample(self.agent)
-            state = np.zeros((self.symbolic_bound, T))
+            state = np.zeros((T, self.symbolic_bound))
             for p_name, a_name in self.state_inds:
                 p = plan.params[p_name]
                 if p.is_symbol(): continue
-                state[self.state_inds[p_name, a_name], :] = getattr(p, a_name)[:, start_t:end_t+1]
-
+                state[:, self.state_inds[p_name, a_name]] = getattr(p, a_name)[:, start_t:end_t+1].T
+            
+            '''
+            self.agent.T = T
+            sample = Sample(self.agent)
+            sample.T = T
             sample.set(STATE_ENUM, state.T)
             for t in range(0, T):
-                sample = self.agent.fill_sample(0, sample, state[:,t], t, task)
+                self.agent.fill_sample(0, sample, state[:,t], t, task)
+            self.agent.fill_action(sample)
+            '''
 
-            mu, sig, use_state, use_action = inf_f(sample)
-            def attr_moments(param, attr_name, inds, sample):
-                attr_mu = mu[:, inds]
-                attr_sig = sig[:, inds][:, :, inds]
-                active_ts = (start_t, end_t)
-                if not hasattr(param, attr_name):
-                    attr_name, attr_mu, attr_sig = self.convert_attrs(attr_name, attr_mu, attr_sig, param, active_ts, sample)
-                prec = np.linalg.inv(attr_sig)
-                attr_type = param.get_attr_type(attr_name)
-                return attr_name, attr_type.dim, attr_attr_mu, attr_sig, prec
-
-            def inf_expr(Q, v):
-                return QuadExpr(coeff*Q, -2*coeff*v.T.dot(Q), coeff*v.T.dot(Q).dot(v))
-
-            if use_action:
+            if type(inf_f) is tuple:
+                pol_K, pol_k, chol_pol_S = inf_f
                 for param_name, attr_name in self.action_inds:
-                    act_inds = self.action_inds[(param_name, attr_name)]
-                    start_ind = sample.dX if use_state else 0
+                    inds = self.action_inds[(param_name, attr_name)]
                     param = plan.params[param_name]
                     param_ll = self._param_to_ll[param]
-
-                    attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, start_ind+act_inds, sample)
                     attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
-                    attr_val[:, :-1] -= attr_val[:, 1:]
-
+                    attr_type = param.get_attr_type(attr_name)
+                    K = attr_type.dim
                     KT = K*T
+                    local_K = pol_K[start_t:end_t+1][:, inds, :]
+                    local_k = pol_k[start_t:end_t+1][:, inds]
+                    q = chol_pol_S[start_t:end_t+1, inds][:, :, inds]
 
-                    Q = np.zeros(KT, KT)
-                    v = attr_mu.reshape((KT, 1))
-                    for t in range(T-1):
-                        Q[t:t+1,t:t+1] = prec[t]
+                    mean_U = np.matmul(local_K, state.reshape((T, -1, 1))) + local_k.reshape((T, -1, 1))
+                    mean_U = mean_U.reshape((T, -1, 1))
 
+                    c = np.matmul(q, mean_U)
+                    c = np.matmul(np.transpose(mean_U, (0,2,1)), c)
+
+                    l = np.matmul(q, mean_U)
+
+                    Q = np.zeros((KT, KT))
+                    L = np.zeros((KT, 1))
+                    for i in range(T):
+                        Q[i::T, i::T] = chol_pol_S[start_t+i, inds][:, inds]
+                        L[i::T] = l[i]
+                    
+                    C = np.zeros((1,1))
+                    C[:] = c.sum()
+
+                    if attr_name != 'GRIPPER':
+                        D = -np.eye(KT)
+                        D += np.eye(KT, k=1)
+                        D[::T] = 0
+                    else:
+                        D = np.eye(KT)
+
+                    Q = D.T.dot(Q).dot(D)
                     coeff = self.policy_inf_coeff / T
-                    quad_expr = inf_expr(Q, v)
-
-                    bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
+                    quad_expr = QuadExpr(coeff*Q, -2*coeff*L.T, coeff*C)
+                    bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr, attr_val)
                     transfer_objs.append(bexpr)
 
-            if use_state:
-                for param_name, attr_name in self.state_inds:
-                    state_inds = self.state_inds[param_name, attr_name]
-                    param = plan.params[param_name]
-                    param_ll = self._param_to_ll[param]
+            else:
+                mu, sig, use_state, use_action = inf_f(sample)
+                def attr_moments(param, attr_name, inds, sample):
+                    attr_mu = mu[:, inds]
+                    attr_sig = sig[:, inds][:, :, inds]
+                    active_ts = (start_t, end_t)
+                    if not hasattr(param, attr_name):
+                        attr_name, attr_mu, attr_sig = self.convert_attrs(attr_name, attr_mu, attr_sig, param, active_ts, sample)
+                    prec = np.linalg.inv(attr_sig)
+                    attr_type = param.get_attr_type(attr_name)
+                    return attr_name, attr_type.dim, attr_mu, attr_sig, prec
 
-                    attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, state_inds)
-                    attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
+                def inf_expr(Q, v):
+                    return QuadExpr(coeff*Q, -2*coeff*v.T.dot(Q), coeff*v.T.dot(Q).dot(v))
 
-                    KT = K*T
+                if use_action:
+                    for param_name, attr_name in self.action_inds:
+                        act_inds = self.action_inds[(param_name, attr_name)]
+                        start_ind = sample.dX if use_state else 0
+                        param = plan.params[param_name]
+                        param_ll = self._param_to_ll[param]
 
-                    Q = np.zeros(KT, KT)
-                    v = attr_mu.reshape((KT, 1))
-                    for t in range(T):
-                        Q[t:t+1,t:t+1] = prec[t]
+                        attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, [start_ind+i for i in act_inds], sample)
+                        attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
 
-                    coeff = self.policy_inf_coeff / T
-                    quad_expr = inf_expr(Q, v)
+                        KT = K*T
 
-                    bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr)
-                    transfer_objs.append(bexpr)
+                        if attr_name != 'GRIPPER':
+                            D = -np.eye(KT)
+                            D += np.eye(KT, k=1)
+                            D[::T] = 0
+                        else:
+                            D = np.eye(KT)
+                        Q = np.zeros((KT, KT))
+                        v = attr_mu.reshape((KT, 1))
+                        for t in range(T-1):
+                            # Q[t:t+1,t:t+1] = prec[t]
+                            Q[t::T, t::T] = prec[t]
+
+                        Q = D.T.dot(Q).dot(D)
+                        coeff = self.policy_inf_coeff / T
+                        quad_expr = inf_expr(Q, v)
+
+                        bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr, attr_val)
+                        transfer_objs.append(bexpr)
+
+                if use_state:
+                    pass
+                    for param_name, attr_name in self.state_inds:
+                        state_inds = self.state_inds[param_name, attr_name]
+                        param = plan.params[param_name]
+                        param_ll = self._param_to_ll[param]
+
+                        attr_name, K, attr_mu, attr_sig, prec = attr_moments(param, attr_name, state_inds)
+                        attr_val = getattr(param, attr_name)[:, start_t:end_t+1]
+
+                        KT = K*T
+
+                        Q = np.zeros(KT, KT)
+                        v = attr_mu.reshape((KT, 1))
+                        for t in range(T-1):
+                            # Q[t:t+1,t:t+1] = prec[t]
+                            Q[t::T, t::T] = prec[t]
+
+                        coeff = self.policy_inf_coeff / T
+                        quad_expr = inf_expr(Q, v)
+
+                        bexpr = self.gen_bexpr(param_ll, attr_name, KT, quad_expr, attr_val)
+                        transfer_objs.append(bexpr)
+
+                        raise Exception('{0}_{1}'.format(prec, attr_name))
 
             return transfer_objs
 
 
-        def gen_bexpr(self, param_ll, attr_name, KT, expr):
+        def gen_bexpr(self, param_ll, attr_name, KT, expr, attr_val):
             ll_attr_val = getattr(param_ll, attr_name)
             param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
             cur_val = attr_val.reshape((KT, 1), order='F')
             sco_var = self.create_variable(param_ll_grb_vars, cur_val)
-            return BoundExpr(quad_expr, sco_var)
+            return BoundExpr(expr, sco_var)
 
 
         def _policy_inf_func(self, obs, x0, task):
@@ -517,7 +581,7 @@ def get_base_solver(parent_class):
         #         print '{0} has no attribute agent; not setting policy functions.'.format(self.__class__)
 
 
-        def _solve_opt_prob(self, plan, active_ts, priority, inf_f=None, traj_mean=[], task=None, resample=False, callback=None, verbose=False):
+        def _solve_opt_prob(self, plan, active_ts, priority, inf_f=None, traj_mean=[], task=None, resample=False, callback=None, verbose=False, tol=1e-3):
             self.plan = plan
             plan.save_free_attrs()
             model = grb.Model()
@@ -526,7 +590,6 @@ def get_base_solver(parent_class):
             self._spawn_parameter_to_ll_mapping(model, plan, active_ts)
             model.update()
             initial_trust_region_size = self.initial_trust_region_size
-            tol=1e-3
 
             if resample:
                 obj_bexprs = []
@@ -546,7 +609,7 @@ def get_base_solver(parent_class):
 
                 obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 if self.transfer_always:
-                    obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm, coeff=self.strong_transfer_coeff))
+                    obj_bexprs.extend(self._get_fixed_transfer_obj(plan, self.transfer_norm, traj_mean, coeff=self.strong_transfer_coeff))
                 if task is not None and inf_f is not None:
                     obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1], inf_f))
 
@@ -557,7 +620,6 @@ def get_base_solver(parent_class):
                     self._add_obj_bexprs(obj_bexprs)
                     self._add_first_and_last_timesteps_of_actions(plan,
                         priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose, add_nonlin=False)
-                    tol = 1e-3
                     initial_trust_region_size = 1e3
                 elif priority == -1:
                     """
@@ -567,12 +629,10 @@ def get_base_solver(parent_class):
                     self._add_first_and_last_timesteps_of_actions(plan,
                         priority=MAX_PRIORITY, active_ts=active_ts, verbose=verbose,
                         add_nonlin=True)
-                    tol = 1e-3
                 elif priority >= 0:
                     self._add_obj_bexprs(obj_bexprs)
                     self._add_all_timesteps_of_actions(plan, priority=priority, add_nonlin=True,
                                                        active_ts=active_ts, verbose=verbose)
-                    tol=1e-3
 
             solv = Solver()
             solv.initial_trust_region_size = initial_trust_region_size
@@ -654,5 +714,133 @@ def get_base_solver(parent_class):
             v = v.reshape((-1,1))
 
             return Variable(x, v)
+
+        def quick_solve(self, plan, callback=None, n_resamples=5, traj_mean=[], verbose=False, step=1):
+            # plan.save_free_attrs()
+            if len(traj_mean):
+                self.transfer_always = True
+                for t in range(0, len(traj_mean)):
+                    for param_name, attr in plan.state_inds:
+                        param = plan.params[param_name]
+                        if hasattr(param, attr):
+                            if param.is_symbol(): continue
+                            getattr(param, attr)[:, t] = traj_mean[t, plan.state_inds[param_name, attr]]
+            else:
+                self.transfer_always = False
+ 
+            self._solve_opt_prob(plan, priority=-2, callback=None, active_ts=(0, plan.horizon-1), traj_mean=traj_mean)
+            a_num = 0
+            success = True
+            while a_num < len(plan.actions):
+                rs_param = self.get_resample_param(plan.actions[a_num])
+                robot_poses = self.obj_pose_suggester(plan, a_num, resample_size=1)
+                rp = robot_poses[0]
+                for attr, val in rp.items():
+                    setattr(rs_param, attr, val)
+
+                act_1 = plan.actions[a_num]
+                # act_2 = plan.actions[a_num+1]
+                active_ts = (act_1.active_timesteps[0], act_1.active_timesteps[1])
+                old_params_free = {}
+                for p in plan.params.itervalues():
+                    if p.is_symbol():
+                        if p not in act_1.params: continue
+                        old_params_free[p] = p._free_attrs
+                        p._free_attrs = {}
+                        for attr in old_params_free[p].keys():
+                            p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                    else:
+                        p_attrs = {}
+                        old_params_free[p] = p_attrs
+                        for attr in p._free_attrs:
+                            p_attrs[attr] = [p._free_attrs[attr][:, :active_ts[0]+1].copy(), p._free_attrs[attr][:, active_ts[1]:].copy()]
+                            p._free_attrs[attr][:, active_ts[1]:] = 0
+                            p._free_attrs[attr][:, :active_ts[0]+1] = 0
+                success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose, traj_mean[active_ts[0]:active_ts[1]+1])
+                # reset free_attrs
+                for p in plan.params.itervalues():
+                    if p.is_symbol():
+                        if p not in act_1.params: continue
+                        p._free_attrs = old_params_free[p]
+                    else:
+                        for attr in p._free_attrs:
+                            p._free_attrs[attr][:, :active_ts[0]+1] = old_params_free[p][attr][0]
+                            p._free_attrs[attr][:, active_ts[1]:] = old_params_free[p][attr][1]
+
+                if not success:
+                    return success
+                a_num += 1
+            # try:
+            #     success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose)
+            # except:
+            #     print "Error occured during planning, but not catched"
+            #     return False
+            # plan.restore_free_attrs()
+            return success
+        
+        def _traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, traj_mean=[]):
+            priorities = [-2, -1, 3]
+            for priority in priorities:
+                for attempt in range(n_resamples):
+                    # refinement loop
+                    success = self._solve_opt_prob(plan, priority=priority,
+                                    callback=callback, active_ts=active_ts, verbose=verbose, resample=False, tol=1e-3, traj_mean=traj_mean)
+                    if success:
+                        break
+                    # plan.check_cnt_violation(tol = 1e-3)
+                    self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True, traj_mean=traj_mean)
+            return success
+
+        def _get_fixed_transfer_obj(self, plan, norm, mean, coeff=None):
+            """
+                This function returns the expression e(x) = P|x - cur|^2
+                Which says the optimized trajectory should be close to the
+                previous trajectory.
+                Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
+            """
+            if not len(mean):
+                print('Cannot add fixed transfer; no data')
+                return []
+
+            if coeff is None:
+                coeff = self.transfer_coeff
+
+            transfer_objs = []
+            if norm == 'min-vel':
+                for p_name, attr_name in self.state_inds:
+                    param = plan.params[p_name]
+                    if param.is_symbol(): continue
+                    attr_type = param.get_attr_type(attr_name)
+                    param_ll = self._param_to_ll[param]
+                    attr_val = mean[param_ll.active_ts[0]:param_ll.active_ts[1]+1][:, self.state_inds[p_name, attr_name]]
+                    K = attr_type.dim
+                    T = param_ll._horizon
+
+                    if DEBUG: assert (K, T) == attr_val.shape
+                    KT = K*T
+                    v = -1 * np.ones((KT - K, 1))
+                    d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+                    # [:,0] allows numpy to see v and d as one-dimensional so
+                    # that numpy will create a diagonal matrix with v and d as a diagonal
+                    P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+                    # P = np.eye(KT)
+                    Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
+                    cur_val = attr_val.reshape((KT, 1), order='F')
+                    A = -2*cur_val.T.dot(Q)
+                    b = cur_val.T.dot(Q.dot(cur_val))
+                    transfer_coeff = coeff/float(plan.horizon)
+
+                    # QuadExpr is 0.5*x^Tx + Ax + b
+                    quad_expr = QuadExpr(2*transfer_coeff*Q,
+                                         transfer_coeff*A, transfer_coeff*b)
+                    ll_attr_val = getattr(param_ll, attr_name)
+                    param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+                    sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+                    bexpr = BoundExpr(quad_expr, sco_var)
+                    transfer_objs.append(bexpr)
+            else:
+                pass
+
+            return transfer_objs
 
     return PolicySolver

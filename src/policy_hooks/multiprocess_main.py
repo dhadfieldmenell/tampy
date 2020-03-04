@@ -1,4 +1,5 @@
 from multiprocessing import Process, Pool
+import multiprocessing as mp
 import atexit
 from collections import OrderedDict
 import subprocess
@@ -62,14 +63,16 @@ def spawn_server(cls, hyperparams):
 
 class MultiProcessMain(object):
     def __init__(self, config):
+        self.monitor = True
         self.config = config
         prob = config['prob']
+        self.config['group_id'] = config.get('group_id', 0)
 
         conditions = self.config['num_conds']
         self.task_list = tuple(get_tasks(self.config['task_map_file']).keys())
 
         if 'multi_policy' not in self.config: self.config['multi_policy'] = False
-        self.pol_list = self.task_list if self.config['multi_policy'] else ('control',)
+        self.pol_list = self.task_list if self.config.get('split_nets', False) else ('control',)
         self.config['policy_list'] = self.pol_list
         self.task_durations = get_task_durations(self.config['task_map_file'])
         self.config['task_list'] = self.task_list
@@ -133,7 +136,6 @@ class MultiProcessMain(object):
         # self.config['cost_f'] = prob.cost_f
         self.config['target_f'] = None # prob.get_next_target
         self.config['encode_f'] = None # prob.sorting_state_encode
-        # self.config['weight_file'] = 'tf_saved/2018-09-12 23:43:45.748906_namo_5.ckpt'
 
         self.config['task_durations'] = self.task_durations
 
@@ -172,7 +174,7 @@ class MultiProcessMain(object):
             'image_channels': utils.IM_C,
             'hist_len': self.config['hist_len'],
             'T': 1,
-            'viewer': config['viewer'],
+            'viewer': config.get('viewer', False),
             'model': None,
             'get_hl_plan': None,
             'env': env,
@@ -197,14 +199,14 @@ class MultiProcessMain(object):
             self.config['agent']['cloth_radius'] = self.config['cloth_radius']
 
         # action_cost_wp = np.ones((self.config['agent']['T'], self.dU), dtype='float64')
-        state_cost_wp = np.ones((self.symbolic_bound), dtype='float64')
+        state_cost_wp = np.ones((self.symbolic_bound), dtype='float64') if 'cost_wp_mult' not in self.config else self.config['cost_wp_mult']
         traj_cost = {
                         'type': StateTrajCost,
                         'data_types': {
                             utils.STATE_ENUM: {
                                 'wp': state_cost_wp,
                                 'target_state': np.zeros((1, self.symbolic_bound)),
-                                'wp_final_multiplier': 1.0,
+                                'wp_final_multiplier': 5e1,
                             }
                         },
                         'ramp_option': RAMP_CONSTANT
@@ -311,6 +313,7 @@ class MultiProcessMain(object):
             self.config['algorithm']['T'] = self.task_durations[task]
             alg_map[task] = self.config['algorithm']
         self.config['policy_opt'] = self.config['algorithm']['policy_opt']
+        self.config['policy_opt']['split_nets'] = self.config.get('split_nets', False)
 
         self.config['algorithm'] = alg_map
 
@@ -368,8 +371,8 @@ class MultiProcessMain(object):
                                   C=2,
                                   max_depth=self.config['max_tree_depth'],
                                   explore_depth=5,
-                                  opt_strength=0,
-                                  log_prefix='tf_saved/'+self.config['weight_dir']+'/rollouts'
+                                  opt_strength=self.config.get('opt_strength', 0),
+                                  log_prefix=None,#'tf_saved/'+self.config['weight_dir']+'/rollouts'
                                   ))
 
         self.config['mcts'] = self.mcts
@@ -399,6 +402,26 @@ class MultiProcessMain(object):
 
         self.roscore = None
 
+    def allocate_shared_buffers(self, config):
+        buffers = {}
+        buf_sizes = {}
+        if self.config['policy_opt'].get('split_nets', False):
+            for scope in self.task_list:
+                buffers[scope] = mp.Array('c', 20 * (2**20))
+                buf_sizes[scope] = mp.Value('i')
+        else:
+            buffers['control'] = mp.Array('c', 20 * (2**20))
+            buf_sizes['control'] = mp.Value('i')
+        buffers['image'] = mp.Array('c', 20 * (2**20))
+        buffers['primitive'] = mp.Array('c', 20 * (2**20))
+        buf_sizes['image'] = mp.Value('i')
+        buf_sizes['primitive'] = mp.Value('i')
+        config['share_buffer'] = True
+        config['policy_opt']['share_buffer'] = True
+        config['policy_opt']['buffers'] = buffers
+        config['policy_opt']['buffer_sizes'] = buf_sizes
+
+
     def spawn_servers(self, config):
         self.processes = []
         self.process_info = []
@@ -418,14 +441,14 @@ class MultiProcessMain(object):
     def start_servers(self):
         for p in self.processes:
             p.start()
-            time.sleep(1)
+            time.sleep(0.5)
         for t in self.threads:
             t.start()
-
 
     def create_server(self, server_cls, hyperparams, process=True):
         if process:
             p = Process(target=spawn_server, args=(server_cls, hyperparams))
+            p.name = str(server_cls) + '_run_training'
             p.daemon = True
             self.processes.append(p)
             server_id = hyperparams['id'] if 'id' in hyperparams else hyperparams['scope']
@@ -445,7 +468,7 @@ class MultiProcessMain(object):
             self.create_server(new_hyperparams['opt_server_type'], new_hyperparams)
 
     def create_pol_servers(self, hyperparams):
-        for task in self.pol_list+('value', 'primitive'):
+        for task in self.pol_list+('primitive',): # ('value', 'primitive'):
             # print task
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task
@@ -461,21 +484,21 @@ class MultiProcessMain(object):
         # self.create_server(PrimitiveServer, new_hyperparams)
 
     def create_rollout_servers(self, hyperparams):
-        split_mcts_alg = hyperparams.get('split_mcts_alg', False)
+        split_mcts_alg = hyperparams.get('split_mcts_alg', True)
         if split_mcts_alg:
             hyperparams['run_mcts_rollouts'] = True
             hyperparams['run_alg_updates'] = False
             for n in range(hyperparams['n_rollout_servers']):
                 new_hyperparams = copy.copy(hyperparams)
-                new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
+                new_hyperparams['id'] = str(n) # hyperparams['server_id']+'_'+str(n)
                 self.create_server(RolloutServer, new_hyperparams)
 
             hyperparams['run_mcts_rollouts'] = False
             hyperparams['run_alg_updates'] = True
-            for n in range(hyperparams['n_rollout_servers']):
+            for n in range(hyperparams['n_alg_servers']):
                 new_hyperparams = copy.copy(hyperparams)
-                new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
-            self.create_server(RolloutServer, new_hyperparams)
+                new_hyperparams['id'] = str(n) # hyperparams['server_id']+'_'+str(n)
+                self.create_server(RolloutServer, new_hyperparams)
         else:
             for n in range(hyperparams['n_rollout_servers']):
                 new_hyperparams = copy.copy(hyperparams)
@@ -493,6 +516,17 @@ class MultiProcessMain(object):
         spawn_server(ViewServer, new_hyperparams)
         if self.roscore is not None: self.roscore.shutdown()
         sys.exit(0)
+
+    def kill_processes(self):
+        for p in self.processes:
+            p.terminate()
+
+    def check_processes(self):
+        states = []
+        for n in range(len(self.processes)):
+            p = self.processes[n]
+            states.append(p.exitcode)
+        return states
 
     def watch_processes(self, kill_all=False):
         exit = False
@@ -522,24 +556,29 @@ class MultiProcessMain(object):
 
     def start_ros(self):
         if self.roscore is not None or rosgraph.is_master_online(): return
+        print('STARTING ROSCORE FROM PYTHON')
         try:
             self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
             self.roscore.start()
         except RLException as e:
-            
+            print(e)
             pass
 
     def start(self, kill_all=False):
         self.check_dirs()
-        if self.config['log_timing']:
+        if self.config.get('log_timing', False):
             with open(self.config['time_log'], 'a+') as f:
                 f.write('\n\nTiming info for {0}:'.format(datetime.now()))
         self.start_ros()
-        time.sleep(1)
+        if self.config.get('share_buffer', False):
+            self.allocate_shared_buffers(self.config)
+
         self.spawn_servers(self.config)
         self.start_servers()
-        self.watch_processes(kill_all)
-        if self.roscore is not None: self.roscore.shutdown()
+
+        if self.monitor:
+            self.watch_processes(kill_all)
+            if self.roscore is not None: self.roscore.shutdown()
 
     def log_mem_info(self):
         '''

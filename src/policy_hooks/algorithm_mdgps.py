@@ -1,6 +1,8 @@
 """ This file defines the MD-based GPS algorithm. """
 import copy
 import logging
+import sys
+import traceback
 
 import numpy as np
 import scipy as sp
@@ -12,6 +14,7 @@ from gps.utility.general_utils import extract_condition
 from gps.sample.sample_list import SampleList
 
 LOGGER = logging.getLogger(__name__)
+SAMPLES_PER_UPDATE = 10
 
 
 class AlgorithmMDGPS(Algorithm):
@@ -140,7 +143,7 @@ class AlgorithmMDGPS(Algorithm):
 
     def _update_policy(self, optimal_samples=[]):
         """ Compute the new policy. """
-        print('Updating policy')
+        # print('Updating policy')
         dU, dO, T = self.dU, self.dO, self.T
         data_len = int(self.sample_ts_prob * T)
         # Compute target mean, cov, and weight for each sample.
@@ -148,17 +151,26 @@ class AlgorithmMDGPS(Algorithm):
         tgt_prc, tgt_wt = np.zeros((0, data_len, dU, dU)), np.zeros((0, data_len))
         
         # Optimize global polciies with optimal samples as well
-        for sample in optimal_samples:
+        for m in range(len(optimal_samples)):
+            sample = optimal_samples[m]
             mu = np.zeros((1, data_len, dU))
             prc = np.zeros((1, data_len, dU, dU))
             wt = np.zeros((1, data_len))
             obs = np.zeros((1, data_len, dO))
+            traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
 
             ts = np.random.choice(xrange(T), data_len, replace=False)
             ts.sort()
-            for t in range(data_len):
-                prc[0,t] = 1e0 * np.eye(dU)
-                wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
+            # for t in range(data_len):
+            #     prc[0,t] = 1e0 * np.eye(dU)
+            #     wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
+            
+            for j in range(data_len):
+                t = ts[j]
+                # Compute actions along this trajectory.
+                prc[:, j, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
+                                          [1, 1, 1])
+                wt[:, j].fill(self._hyperparams['opt_wt'] * pol_info.pol_wt[t] * sample.use_ts[t])
 
             for i in range(data_len):
                 t = ts[i]
@@ -171,7 +183,9 @@ class AlgorithmMDGPS(Algorithm):
             obs_data = np.concatenate((obs_data, obs))
 
         for m in range(len(self.cur)):
-            samples = self.cur[m].sample_list
+            samples = self.cur[m].sample_list#[:SAMPLES_PER_UPDATE]
+            if type(samples) is not SampleList:
+                samples = SampleList(samples)
             X = samples.get_X()
             N = len(samples)
             traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
@@ -190,16 +204,20 @@ class AlgorithmMDGPS(Algorithm):
                 prc[:, j, :, :] = np.tile(traj.inv_pol_covar[t, :, :],
                                           [N, 1, 1])
                 for i in range(N):
-                    mu[i, j, :] = (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])
+                    #mu[i, j, :] = (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])
+                    traj_mu = (traj.K[t, :, :].dot(X[i, t, :]) + traj.k[t, :])
+                    opt_mu = samples[i].get_ref_U()[t]
+                    coeff = (float(t) / T + 1.) / 2.
+                    mu[i, j, :] = (coeff * traj_mu + (1 - coeff) * opt_mu) / 2.
                 wt[:, j].fill(pol_info.pol_wt[t] * sample.use_ts[t])
                 obs[:, j, :] = full_obs[:, t, :]
-                # print(mu[i])
             tgt_mu = np.concatenate((tgt_mu, mu))
             tgt_prc = np.concatenate((tgt_prc, prc))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs_data = np.concatenate((obs_data, obs))
+        
         if len(tgt_mu):
-            print('Updating on', self.task)
+            # print('Updating on', self.task)
             self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
         else:
             print('Update called with no data.')
@@ -279,7 +297,8 @@ class AlgorithmMDGPS(Algorithm):
             for t in range(T):
                 pol_info.chol_pol_S[t, :, :] = \
                 sp.linalg.cholesky(pol_info.pol_S[t, :, :])
-        except:
+        except Exception as e:
+            traceback.print_exception(*sys.exc_info())
             print('Policy fit threw exception: ', e, '\n')
 
     def _eval_cost(self, cond):
@@ -343,6 +362,21 @@ class AlgorithmMDGPS(Algorithm):
         for cond in range(len(self.cur)):
             self.new_traj_distr[cond], self.cur[cond].eta = \
                     self.traj_opt.update(cond, self)
+
+            '''
+            disp = []
+            disp2 = []
+            s = self.cur[cond].sample_list[0]
+            ref_X = s.get_ref_X()
+            ref_U = s.get_ref_U()
+
+            for t in range(s.T):
+                u = self.new_traj_distr[cond].K[t].dot(ref_X[t]) + self.new_traj_distr[cond].k[t]
+                disp.append(ref_U[t] - u)
+                disp2.append(s.get_U(t) - u)
+            print(disp, '<- opt', disp2, '<- actual')
+            '''
+
 
     def _update_dynamics(self):
         """

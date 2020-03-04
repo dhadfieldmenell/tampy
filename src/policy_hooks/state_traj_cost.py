@@ -63,7 +63,7 @@ class StateTrajCost(Cost):
             #     self._hyperparams['l1'], self._hyperparams['l2'],
             #     self._hyperparams['alpha']
             # )
-            l = np.sum(0.5 * wp * dist**2, axis=1)
+            l = np.sum(0.5 * wp * dist**2, axis=1) / (T**2)
             ls = wp * (x - tgt)
             lss = np.tile(np.diag(orig_wp), [T, 1, 1]) * np.expand_dims(np.expand_dims(wpm, axis=-1), axis=-1)
 

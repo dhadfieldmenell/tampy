@@ -1,3 +1,4 @@
+import random
 import threading
 import time
 
@@ -13,14 +14,20 @@ from tamp_ros.msg import *
 from tamp_ros.srv import *
 
 
-MAX_QUEUE_SIZE = 500
+MAX_QUEUE_SIZE = 100
+UPDATE_TIME = 60
 
 class PolicyServer(object):
     def __init__(self, hyperparams):
         import tensorflow as tf
+        self.group_id = hyperparams['group_id']
         self.task = hyperparams['scope']
+        self.task_list = hyperparams['task_list']
+        self.seed = int(time.time() % 10000.)
+        np.random.seed(self.seed)
+        random.seed(self.seed)
         hyperparams['policy_opt']['scope'] = self.task
-        rospy.init_node(self.task+'_update_server')
+        rospy.init_node(self.task+'_update_server_{0}'.format(self.group_id))
         self.policy_opt = hyperparams['policy_opt']['type'](
             hyperparams['policy_opt'], 
             hyperparams['dO'],
@@ -31,30 +38,34 @@ class PolicyServer(object):
         )
         # self.policy_opt = policy_opt
         # self.policy_opt.hyperparams['scope'] = task
-        self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
-        self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
-        self.update_listener = rospy.Subscriber(self.task+'_update', PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
-        self.weight_publisher = rospy.Publisher('tf_weights', UpdateTF, queue_size=1)
+        # self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
+        # self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
+        self.weight_publisher = rospy.Publisher('tf_weights_{0}'.format(self.group_id), UpdateTF, queue_size=1)
         self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = False
-        self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
+        self.time_log = 'tf_saved/' + hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
-        self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
+        # self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
+
+        self.update_listener = rospy.Subscriber('{0}_update_{1}'.format(self.task, self.group_id), PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
+        self.poicy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
+        self.n_updates = 0
+        self.full_N = 0
+        self.start_t = time.time()
+        self.update_t = time.time()
 
         self.update_queue = []
-
-        # rospy.spin()
 
 
     def run(self):
         while not self.stopped:
-            rospy.sleep(0.01)
             self.parse_update_queue()
 
 
     def end(self, msg):
+        print('SHUTTING DOWN')
         self.stopped = True
-        rospy.signal_shutdown('Received notice to terminate.')
+        # rospy.signal_shutdown('Received notice to terminate.')
 
 
     def update(self, msg):
@@ -77,29 +88,31 @@ class PolicyServer(object):
 
         wt_dims = (msg.n, msg.rollout_len) if msg.rollout_len > 1 else (msg.n,)
         wt = np.array(msg.wt).reshape(wt_dims)
-        self.update_queue.append((obs, mu, prc, wt))
+        self.update_queue.append((obs, mu, prc, wt, msg.task))
         self.update_queue = self.update_queue[-MAX_QUEUE_SIZE:]
 
 
     def parse_update_queue(self):
         queue_len = len(self.update_queue)
-        for _ in range(queue_len):
-            obs, mu, prc, wt = self.update_queue.pop()
+        for i in range(queue_len):
+            obs, mu, prc, wt, task_name = self.update_queue.pop()
             start_time = time.time()
-            update = self.policy_opt.store(obs, mu, prc, wt, self.task)
+            self.full_N += len(mu)
+            update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)))
             end_time = time.time()
 
-            if update and self.log_timing:
-                with open(self.time_log, 'a+') as f:
-                    f.write('Time to update {0} neural net on {1} data points: {2}\n'.format(self.task, self.policy_opt.update_size, end_time-start_time))
-
-            rospy.sleep(0.01)
-            print 'Weights updated:', update, self.task
-            if update:
-                msg = UpdateTF()
-                msg.scope = str(self.task)
-                msg.data = self.policy_opt.serialize_weights([self.task])
-                self.weight_publisher.publish(msg)
+            # print 'Weights updated:', update, self.task
+            if update: #  and time.time() - self.update_t > UPDATE_TIME:
+                self.n_updates += 1
+                if self.policy_opt.share_buffers:
+                    self.policy_opt.write_shared_weights([self.task])
+                else:
+                    msg = UpdateTF()
+                    msg.scope = str(self.task)
+                    msg.data = self.policy_opt.serialize_weights([self.task])
+                    self.weight_publisher.publish(msg)
+                self.update_t = time.time()
+                print('Updated weights for {0}'.format(self.task))
 
 
     def prob(self, req):

@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import copy
+import random
 import sys
 import time
 import traceback
@@ -31,8 +32,13 @@ class AbstractMotionPlanServer(object):
 
     def __init__(self, hyperparams):
         self.id =  hyperparams['id']
+        self.group_id = hyperparams['group_id']
+        self.seed = int(time.time() % 10000.)
+        np.random.seed(self.seed)
+        random.seed(self.seed)
+
         self.config = hyperparams
-        rospy.init_node(hyperparams['domain']+'_mp_solver_'+str(self.id))
+        rospy.init_node(hyperparams['domain']+'_mp_solver_{0}_{1}'.format(self.id, self.group_id))
         self.task_list = hyperparams['task_list']
         self.on_policy = hyperparams['on_policy']
         self.problem = hyperparams['prob']
@@ -60,6 +66,9 @@ class AbstractMotionPlanServer(object):
         self.opt_count_publisher = rospy.Publisher('optimization_counter', String, queue_size=1)
 
         # self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
+        
+        self.use_local = False
+        '''
         self.use_local = hyperparams['use_local']
         if self.use_local:
             hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] + '_trained'
@@ -75,6 +84,7 @@ class AbstractMotionPlanServer(object):
                 hyperparams['dValObs'],
                 hyperparams['prim_bounds']
             )
+        '''
         self.perturb_steps = hyperparams['perturb_steps']
 
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
@@ -82,7 +92,7 @@ class AbstractMotionPlanServer(object):
         self.log_timing = hyperparams['log_timing']
         self.n_time_samples_per_log = 10 if 'n_time_samples_per_log' not in hyperparams else hyperparams['n_time_samples_per_log']
         self.time_samples = []
-        self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
+        # self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
         self.mp_plans_since_log = {task: 0 for task in self.task_list}
         self.hl_plans_since_log = 0
         self.total_traj_init_since_log = {task: 0 for task in self.task_list}
@@ -91,17 +101,19 @@ class AbstractMotionPlanServer(object):
         self.failed_per_task = {}
 
         self.mp_queue = []
-        self.async_planner = rospy.Subscriber('motion_plan_prob', MotionPlanProblem, self.publish_motion_plan, queue_size=1, buff_size=2**19)
-        self.async_hl_planner = rospy.Subscriber('hl_prob', HLProblem, self.publish_hl_plan, queue_size=2, buff_size=2**20)
-        self.weight_subscriber = rospy.Subscriber('tf_weights', UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
-        self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets, queue_size=1)
+        self.async_publisher = rospy.Publisher('motion_plan_result_{0}'.format(self.group_id), MotionPlanResult, queue_size=1)
+        self.async_planner = rospy.Subscriber('motion_plan_prob_{0}'.format(self.group_id), MotionPlanProblem, self.publish_motion_plan, queue_size=1, buff_size=2**19)
+        # self.async_hl_planner = rospy.Subscriber('hl_prob_{0}'.format(self.group_id), HLProblem, self.publish_hl_plan, queue_size=2, buff_size=2**20)
+        self.weight_subscriber = rospy.Subscriber('tf_weights_{0}'.format(self.group_id), UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
+        # self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets, queue_size=1)
+        rospy.sleep(1)
 
 
     def run(self):
         # rospy.spin()
         i = 0
         while not self.stopped:
-            rospy.sleep(0.01)
+            time.sleep(0.1)
             while len(self.mp_queue):
                 self.solve_motion_plan(self.mp_queue.pop())
             i += 1
@@ -111,7 +123,7 @@ class AbstractMotionPlanServer(object):
 
     def end(self, msg):
         self.stopped = True
-        rospy.signal_shutdown('Received notice to terminate.')
+        # rospy.signal_shutdown('Received notice to terminate.')
 
 
     def publish_log_info(self):
@@ -126,7 +138,7 @@ class AbstractMotionPlanServer(object):
         self.total_traj_init_since_log = {task: 0 for task in self.task_list}
         self.n_successful_trajs_since_log = {task: 0 for task in self.task_list}
         self.failed_per_task = {}
-        self.log_publisher.publish(str({'motion_plan': info}))
+        # self.log_publisher.publish(str({'motion_plan': info}))
 
 
     def store_weights(self, msg):
@@ -136,10 +148,13 @@ class AbstractMotionPlanServer(object):
 
 
     def publish_mp(self, msg, server_id):
+        self.async_publisher.publish(msg)
+        '''
         if server_id not in self.mp_publishers:
             self.mp_publishers[server_id] = rospy.Publisher('motion_plan_result_'+str(server_id), MotionPlanResult, queue_size=5)
             time.sleep(1)
         self.mp_publishers[server_id].publish(msg)
+        '''
 
 
     def publish_hl(self, msg, server_id):
@@ -163,10 +178,10 @@ class AbstractMotionPlanServer(object):
 
     def gen_gmm(self, msg):
         gmm = GMM()
-        sigma = np.array(msg.sigma).reshape(msg.K, msg.Do, msg.Do)
-        mu = np.array(msg.mu).reshape(msg.K, msg.Do)
-        logmass = np.array(msg.logmass).reshape(msg.K, 1)
-        mass = np.array(msg.mass).reshape(msg.K, 1)
+        sigma = np.array(msg.sigma).reshape((msg.K, msg.Do, msg.Do))
+        mu = np.array(msg.mu).reshape((msg.K, msg.Do))
+        logmass = np.array(msg.logmass).reshape((msg.K, 1))
+        mass = np.array(msg.mass).reshape((msg.K, 1))
         gmm.sigma = sigma
         gmm.mu = mu
         gmm.logmass = logmass
@@ -183,10 +198,10 @@ class AbstractMotionPlanServer(object):
             N = info[task]['N']
             K = info[task]['K']
             Do = info[task]['Do']
-            sigma = np.array(info[task]['sigma']).reshape(K, Do, Do)
-            mu = np.array(info[task]['mu']).reshape(K, Do)
-            logmass = np.array(info[task]['logmass']).reshape(K, 1)
-            mass = np.array(info[task]['mass']).reshape(K, 1)
+            sigma = np.array(info[task]['sigma']).reshape((K, Do, Do))
+            mu = np.array(info[task]['mu']).reshape((K, Do))
+            logmass = np.array(info[task]['logmass']).reshape((K, 1))
+            mass = np.array(info[task]['mass']).reshape((K, 1))
             gmm.sigma = sigma
             gmm.mu = mu
             gmm.logmass = logmass
@@ -216,17 +231,18 @@ class AbstractMotionPlanServer(object):
     def publish_motion_plan(self, msg):
         if msg.solver_id != self.id: return
         self.mp_queue.append(msg)
-        while len(self.mp_queue) > 5:
+        while len(self.mp_queue) > 10:
             self.mp_queue.pop(0)
 
 
     def solve_motion_plan(self, msg):
+        # print(self.id, 'got message for', msg.solver_id)
         # if self.busy:
         #     print 'Server', self.id, 'busy, rejecting request for motion plan.'
         #     return
         if msg.solver_id != self.id: return
         # self.busy = True
-        print('Server {0} solving motion plan on task{1} for rollout server {2}.'.format(self.id, msg.task, msg.server_id))
+        print('Server {0} solving motion plan on task{1} for rollout server {2}{3}.'.format(self.id, msg.task, msg.server_id, ' using prior' if msg.use_prior else ' no prior'))
         state = np.array(msg.state)
         task = eval(msg.task)
         task_tuple = eval(msg.task)
@@ -235,9 +251,15 @@ class AbstractMotionPlanServer(object):
         mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
 
         if msg.use_prior:
-            gmm = self.gen_gmm(msg)
-            inf_f = lambda s: self.gmm_inf(gmm, s)
+            T, dU, dX = msg.T, msg.dU, msg.dX
+            K = np.array(msg.pol_K).reshape((T, dU, dX))
+            k = np.array(msg.pol_k).reshape((T, dU))
+            chol_pol_S = np.array(msg.chol).reshape((T, dU, dU))
+            # gmm = self.gen_gmm(msg)
+            # inf_f = lambda s: self.gmm_inf(gmm, s)
+            inf_f = (K, k, chol_pol_S)
         else:
+            K, k, chol_pol_S = None, None, None
             inf_f = None
 
         plan = self.agent.plans[task]
@@ -249,7 +271,10 @@ class AbstractMotionPlanServer(object):
 
         start_t = time.clock()
         if np.isnan(init_cost) or init_cost > PLAN_COST_THRESHOLD and len(failed_preds) > 0:
-            sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f)
+            mean = []
+            start_t = time.time()
+            sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f, x_only=True)
+            print('Time in full solve:', time.time() - start_t)
             out = sample.get(STATE_ENUM)
         else:
             out = mean
@@ -275,33 +300,38 @@ class AbstractMotionPlanServer(object):
         resp.cond = msg.cond
         resp.task = msg.task
         resp.state = state.tolist()
+        resp.server_id = msg.server_id
+        resp.alg_id = msg.alg_id
         # self.mp_publishers[msg.server_id].publish(resp)
         self.publish_mp(resp, msg.server_id)
         if success:
             print('Succeeded:', success, failed)
             print('\n')
 
-        # if success:
-        #     for _ in range(self.perturb_steps):
-        #         out, failed, success = self.agent.perturb_solve(sample, inf_f=inf_f)
-        #         failed = str(failed)
-        #         resp = MotionPlanResult()
-        #         resp.traj = []
-        #         state = out.get_X(t=0)
-        #         out_traj = sample.get(STATE_ENUM)
-        #         for t in range(len(out_traj)):
-        #             next_line = Float32MultiArray()
-        #             next_line.data = out_traj[t]
-        #             resp.traj.append(next_line)
-        #         resp.failed = failed
-        #         resp.success = success
-        #         resp.plan_id = msg.prob_id
-        #         resp.cond = msg.cond
-        #         resp.task = msg.task
-        #         resp.state = state.tolist()
-        #         # self.mp_publishers[msg.server_id].publish(resp)
-        #         self.publish_mp(resp, msg.server_id)
-        # self.busy = False
+        if success and self.agent.prob.USE_PERTURB:
+            for _ in range(self.perturb_steps):
+                out, failed, success = self.agent.perturb_solve(sample, inf_f=inf_f)
+                if success:
+                    failed = str(failed)
+                    resp = MotionPlanResult()
+                    resp.traj = []
+                    state = out.get_X(t=0)
+                    out_traj = out.get(STATE_ENUM)
+                    for t in range(len(out_traj)):
+                        next_line = Float32MultiArray()
+                        next_line.data = out_traj[t]
+                        resp.traj.append(next_line)
+                    resp.failed = failed
+                    resp.success = success
+                    resp.plan_id = 'no_id'
+                    resp.cond = msg.cond
+                    resp.task = msg.task
+                    resp.state = state.tolist()
+                    # self.mp_publishers[msg.server_id].publish(resp)
+                    resp.server_id = msg.server_id
+                    resp.alg_id = msg.alg_id
+                    self.publish_mp(resp, msg.server_id)
+        self.busy = False
         print('Server {0} free.'.format(self.id, msg.server_id))
 
 
@@ -368,7 +398,7 @@ class AbstractMotionPlanServer(object):
 
                 cur_path.append(next_sample)
                 cur_sample = next_sample
-                cur_state = cur_sample.get_X(t=cur_sample.T-1)
+                cur_state = cur_sample.end_state # get_X(t=cur_sample.T-1)
                 opt_hl_plan.append(step)
 
             if self.config['goal_f'](cur_state, self.agent.targets[cond], self.agent.plans_list()[0]) == 0:
@@ -408,7 +438,7 @@ class AbstractMotionPlanServer(object):
 
     def check_traj_cost(self, traj, task):
         if np.any(np.isnan(np.array(traj))):
-           raise Excpetion('Nans in trajectory passed')
+           raise Exception('Nans in trajectory passed')
         plan = self.agent.plans[task]
         old_free_attrs = plan.get_free_attrs()
         for t in range(0, len(traj)):
@@ -427,7 +457,7 @@ class AbstractMotionPlanServer(object):
                             plan.params[init_target].value[:, 0] = param.pose[:, 0]
 
         # Take a quick solve to resolve undetermined symbolic values
-        self.solver._backtrack_solve(plan, time_limit=10, max_priority=-1)
+        self.solver._backtrack_solve(plan, time_limit=10, max_priority=-1, task=task)
         plan.store_free_attrs(old_free_attrs)
         
         plan_total_violation = np.sum(plan.check_total_cnt_violation())
@@ -454,6 +484,7 @@ class AbstractMotionPlanServer(object):
         
 
     def update_weight(self, msg):
+        if not self.use_local(): return
         scope = msg.scope
         weight_dir = self.weight_dir
         variables = tf.get_colleciton(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
@@ -461,6 +492,16 @@ class AbstractMotionPlanServer(object):
         saver.restore(self.policy_opt.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
 
 
+    # def gmm_inf(self, gmm, sample):
+    #     mu, sig = gmm.inference(np.concatenate([sample.get(STATE_ENUM)[:, :-1], sample.get(STATE_ENUM)[:,1:]]))
+    #     return mu, sig, True, False
+   
     def gmm_inf(self, gmm, sample):
-        mu, sig = gmm.inference(np.concatenate([sample.get(STATE_ENUM), sample.get_U()]))
-        return mu, sig, True, True
+        dux = self.agent.symbolic_bound + self.agent.dU
+        mu, sig = np.zeros((sample.T, dux)), np.zeros((sample.T, dux, dux))
+        for t in range(sample.T):
+            mu0, sig0, _, _ = gmm.inference(np.concatenate([sample.get(STATE_ENUM, t=t), sample.get_U(t=t)], axis=-1).reshape((1, -1)))
+            mu[t] = mu0
+            sig[t] = sig0
+        return mu, sig, False, True
+
