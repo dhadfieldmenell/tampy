@@ -73,6 +73,7 @@ class RolloutServer(object):
         self.agent.solver = self.solver
         #self.agent.replace_conditions(len(self.agent.x0))
         for mcts in self.mcts:
+            mcts.agent = self.agent
             mcts.reset()
         # for c in range(len(self.agent.x0)):
         #     self.agent.replace_cond(c, curric_step=(1 if hyperparams.get('curric_thresh', 0) > 0 else 0))
@@ -82,7 +83,6 @@ class RolloutServer(object):
             m = self.mcts[i]
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
-            m.agent = self.agent
             m.add_log_file('tf_saved/'+hyperparams['weight_dir']+'/mcts_{0}_{1}'.format(i, self.id))
             # m.log_file = 'tf_saved/'+hyperparams['weight_dir']+'/mcts_log_{0}_cond{1}.txt'.format(self.id, m.condition)
             # with open(m.log_file, 'w+') as f: f.write('')
