@@ -30,7 +30,7 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.sorting_prob_5 as prob
+import policy_hooks.namo.sorting_prob_3 as prob
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
@@ -47,10 +47,10 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 1e2
-N_ROLLOUT_SERVERS = 5
-N_ALG_SERVERS = 15
-N_OPTIMIZERS = 15
-N_DIRS = 12
+N_ROLLOUT_SERVERS = 10
+N_ALG_SERVERS = 25
+N_OPTIMIZERS = 5
+N_DIRS = 16
 
 
 common = {
@@ -188,7 +188,7 @@ config = {
     'hist_len': 3,
     'take_optimal_sample': True,
     'num_rollouts': 10,
-    'max_tree_depth': 5 + NUM_OBJS*2,
+    'max_tree_depth': 10,
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
@@ -239,7 +239,7 @@ config = {
     'image_width': 107,
     'image_height': 80,
     'image_channels': 3,
-    'opt_prob': 0.5,
+    'opt_prob': 0.1,
     'opt_smooth': False,
     'share_buffer': True,
     'split_nets': False,

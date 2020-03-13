@@ -94,11 +94,23 @@ class Parameter(object):
         if self.is_symbol():
             active_ts = (0,0)
         self._free_attrs[attr][:,active_ts[0]:active_ts[1]+1] = 0
-    
+     
     def free_attr(self, attr, active_ts):
         if self.is_symbol():
             active_ts = (0,0)
         self._free_attrs[attr][:,active_ts[0]:active_ts[1]+1] = 1
+
+    def fix_all_attr(self, active_ts):
+        if self.is_symbol():
+            active_ts = (0,0)
+        for attr in self._free_attrs:
+            self._free_attrs[attr][:,active_ts[0]:active_ts[1]+1] = 0
+
+    def free_all_attr(self, active_ts):
+        if self.is_symbol():
+            active_ts = (0,0)
+        for attr in self._free_attrs:
+            self._free_attrs[attr][:,active_ts[0]:active_ts[1]+1] = 1
 
     def __repr__(self):
         return "%s - %s"%(self.name, self.get_type())

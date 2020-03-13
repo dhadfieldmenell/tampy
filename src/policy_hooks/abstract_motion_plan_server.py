@@ -33,9 +33,11 @@ class AbstractMotionPlanServer(object):
     def __init__(self, hyperparams):
         self.id =  hyperparams['id']
         self.group_id = hyperparams['group_id']
-        self.seed = int(time.time() % 10000.)
+        self.seed = int((1e2*time.time()) % 1000.)
         np.random.seed(self.seed)
         random.seed(self.seed)
+        self.start_t = hyperparams['start_t']
+        self.last_opt_t = time.time()
 
         self.config = hyperparams
         rospy.init_node(hyperparams['domain']+'_mp_solver_{0}_{1}'.format(self.id, self.group_id))
@@ -113,13 +115,15 @@ class AbstractMotionPlanServer(object):
         # rospy.spin()
         i = 0
         while not self.stopped:
-            time.sleep(0.1)
-            while len(self.mp_queue):
+            if len(self.mp_queue):
                 self.solve_motion_plan(self.mp_queue.pop())
             i += 1
+            if time.time() - self.start_t > self.config['time_limit'] or (self.id > 3 and time.time() - self.last_opt_t > 600): #TODO: variables for when to kill process
+                break
             # if not i % 10:
             #     self.test_publisher.publish('MP {0} alive.'.format(self.id))
 
+        # self.policy_opt.sess.close()
 
     def end(self, msg):
         self.stopped = True
@@ -244,6 +248,7 @@ class AbstractMotionPlanServer(object):
         # self.busy = True
         print('Server {0} solving motion plan on task{1} for rollout server {2}{3}.'.format(self.id, msg.task, msg.server_id, ' using prior' if msg.use_prior else ' no prior'))
         state = np.array(msg.state)
+        targets = np.array(msg.targets)
         task = eval(msg.task)
         task_tuple = eval(msg.task)
         task_name = self.task_list[task[0]]
@@ -263,17 +268,20 @@ class AbstractMotionPlanServer(object):
             inf_f = None
 
         plan = self.agent.plans[task]
+
+        '''
         init_cost, failed_preds = self.log_init_traj_cost(mean, task)
         self.total_traj_init_since_log[task_name] += init_cost
         failed_info = self.failed_per_task.get(task_name, [])
         failed_info.append(([str(pred) for pred in failed_preds], state.tolist()))
         self.failed_per_task[task_name] = failed_info
+        '''
 
         start_t = time.clock()
-        if np.isnan(init_cost) or init_cost > PLAN_COST_THRESHOLD and len(failed_preds) > 0:
+        if True or np.isnan(init_cost) or init_cost > PLAN_COST_THRESHOLD and len(failed_preds) > 0:
             mean = []
             start_t = time.time()
-            sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f, x_only=True)
+            sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f, targets=targets, x_only=True)
             print('Time in full solve:', time.time() - start_t)
             out = sample.get(STATE_ENUM)
         else:
@@ -333,6 +341,7 @@ class AbstractMotionPlanServer(object):
                     self.publish_mp(resp, msg.server_id)
         self.busy = False
         print('Server {0} free.'.format(self.id, msg.server_id))
+        self.last_opt_t = time.time()
 
 
     def publish_hl_plan(self, msg):
@@ -460,7 +469,7 @@ class AbstractMotionPlanServer(object):
         self.solver._backtrack_solve(plan, time_limit=10, max_priority=-1, task=task)
         plan.store_free_attrs(old_free_attrs)
         
-        plan_total_violation = np.sum(plan.check_total_cnt_violation())
+        plan_total_violation = np.sum(plan.check_total_cnt_violation(active_ts=(1,plan.horizon-1)))
         plan_failed_constrs = plan.get_failed_preds_by_type()
         return plan_total_violation, plan_failed_constrs
 

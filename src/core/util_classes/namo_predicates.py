@@ -22,7 +22,7 @@ This file implements the predicates for the 2D NAMO domain.
 """
 
 dsafe = 1e-3 # 1e-1
-dmove = 1.19e0 # 5e-1
+dmove = 1.1e0 # 5e-1
 contact_dist = 1e-2
 
 RS_SCALE = 0.5
@@ -350,6 +350,27 @@ class At(ExprPredicate):
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
+class AtNEq(ExprPredicate):
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Can Target
+        self.can, self.eq, self.targ = params
+        attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.targ, [("value", np.array([0,1], dtype=np.int))])])
+
+        if self.can is not self.eq:
+            A = np.c_[np.eye(2), -np.eye(2)]
+            b = np.zeros((2, 1))
+            val = np.zeros((2, 1))
+        else:
+            A = np.zeros((2,4))
+            b = np.ones((2,1))
+            val = np.zeros((2,1))
+
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(AtNEq, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+
 class RobotAt(At):
 
     # RobotAt Robot RobotPose
@@ -415,7 +436,7 @@ class RobotWithinBounds(At):
 
         A = np.c_[np.eye(2), -np.eye(2)]
         b = np.zeros((4, 1))
-        val = 2.5e1 * np.ones((4, 1))
+        val = 1.5e1 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -433,7 +454,7 @@ class RobotNearGrasp(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 2 * dmove * np.ones((4, 1))
+        val = dmove * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -450,7 +471,7 @@ class RobotWithinReach(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 20 * dmove * np.ones((4, 1))
+        val = 8 * dmove * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -641,7 +662,7 @@ class RCollides(CollisionPredicate):
         jac = self.distance_from_obj(x, 0)[1][0,:2]
         jac = jac / np.linalg.norm(jac)
 
-        new_robot_pose = self.r.pose[:, time] + 1e-1 * jac
+        new_robot_pose = self.r.pose[:, time] + np.random.uniform(0.1, 0.4) * jac
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         for i in range(st, et):
@@ -742,7 +763,8 @@ class Obstructs(CollisionPredicate):
             orth = np.array([1./disp[0], -1./disp[1]])
         orth *= np.random.choice([-1., 1.])
         orth = orth / np.linalg.norm(orth)
-        orth *= 1.5 * (self.c.geom.radius + self.r.geom.radius)
+        orth *= np.random.uniform(1.2, 1.8) * (self.c.geom.radius + self.r.geom.radius + self.dsafe)
+        orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
         new_robot_pose = self.r.pose[:, time] + orth
         st = max(max(time-3,0), act.active_timesteps[0])
@@ -762,6 +784,11 @@ class Obstructs(CollisionPredicate):
             return self.neg_expr
         else:
             return None
+
+class WideObstructs(Obstructs):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
+        self.dsafe = 0.1
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -915,7 +942,9 @@ class ObstructsHolding(CollisionPredicate):
             orth = np.array([1./disp[0], -1./disp[1]])
         orth *= np.random.choice([-1., 1.])
         orth = orth / np.linalg.norm(orth)
-        orth *= 1.5 * (self.held.geom.radius + self.obstr.geom.radius)
+        orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
+        orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
+
         # ## assumes that self.startp, self.endp and target are all symbols
         # t_local = 0
         # for param in [self.startp, self.endp]:

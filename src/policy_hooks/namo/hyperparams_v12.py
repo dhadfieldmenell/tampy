@@ -30,7 +30,7 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.sorting_prob_5 as prob
+import policy_hooks.namo.sorting_prob_6 as prob
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
@@ -48,9 +48,10 @@ N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 1e2
 N_ROLLOUT_SERVERS = 5
-N_ALG_SERVERS = 15
-N_OPTIMIZERS = 15
+N_ALG_SERVERS = 10
+N_OPTIMIZERS = 20
 N_DIRS = 12
+TIME_LIMIT = 3600
 
 
 common = {
@@ -192,15 +193,15 @@ config = {
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
-    'lr': 5e-3,
+    'lr': 1e-3,
     'solver_type': 'rmsprop',
     'cost_wp_mult': cost_wp_mult,
 
     'train_iterations': 100,
-    'weight_decay': 0,
-    'batch_size': 100,
+    'weight_decay': 5e-5,
+    'batch_size': 1000,
     'n_layers': 2,
-    'dim_hidden': [32, 16],
+    'dim_hidden': [64, 32],
     'n_traj_centers': algorithm['n_traj_centers'],
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
@@ -224,6 +225,7 @@ config = {
     'robot_name': 'pr2',
     'obj_type': 'can',
     'num_objs': NUM_OBJS,
+    'num_targs': prob.NUM_TARGS,
     'attr_map': ATTRMAP,
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
@@ -242,7 +244,7 @@ config = {
     'opt_prob': 0.5,
     'opt_smooth': False,
     'share_buffer': True,
-    'split_nets': False,
+    'split_nets': True, #False,
     'split_mcts_alg': True,
 
     'state_include': [utils.STATE_ENUM],
@@ -270,4 +272,5 @@ config = {
             # utils.INIT_OBJ_POSE_ENUM: 2,
         },
     'visual': False,
+    'time_limit': TIME_LIMIT,
 }

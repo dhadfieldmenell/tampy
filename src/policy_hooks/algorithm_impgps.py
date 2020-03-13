@@ -22,6 +22,7 @@ from policy_hooks.utils.policy_solver_utils import OBJ_ENUM, STATE_ENUM, TARG_EN
 
 
 LOGGER = logging.getLogger(__name__)
+RETIME = True
 
 
 class AlgorithmIMPGPS(AlgorithmMDGPS):
@@ -116,20 +117,31 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             for m in range(len(self.cur)):
                 sample = sample_lists[m][0]
                 pol_info = self.cur[m].pol_info
+                assert not np.any(np.isnan(sample.get_obs()))
                 try:
                     inf_f = None # (pol_info.pol_K, pol_info.pol_k, np.linalg.inv(pol_info.pol_S))
                 except:
                     inf_f = None
 
                 start_t = time.time()
-                out, failed, success = self.agent.solve_sample_opt_traj(sample.get_X(t=0), sample.task, sample.condition, sample.get_X(), inf_f, t_limit=5, n_resamples=1, out_coeff=1e3, smoothing=True)
+                out, failed, success = self.agent.solve_sample_opt_traj(sample.get_X(t=0), sample.task, sample.condition, sample.get_X(), inf_f, t_limit=5, n_resamples=1, out_coeff=1e3, smoothing=True, targets=sample.targets)
                 # print('Time in quick solve:', time.time() - start_t)
 
                 train_data.append(out)
                 for t in range(sample.T):
                     sample.set(ACTION_ENUM, out.get(ACTION_ENUM, t), t)
+                # self.cur[m].sample_list = []
                 # self.cur[m].sample_list = [sample]
-                self.cur[m].sample_list = [out]
+                # if RETIME: self.agent.retime_sample(sample)
+                # if RETIME: self.agent.retime_sample(out)
+                if np.any(np.isnan(out.get_U())) or np.any(np.isnan(out.get_obs())):
+                    print(out.get_U())
+                    print(out.get_obs())
+                    print(success)
+                    self.cur[m].sample_list = []
+                else:
+                    # self.cur[m].sample_list = [out, sample]
+                    self.cur[m].sample_list = [out]
             # individual_opt_samples.extend(train_data)
             return self._update_policy_no_cost(individual_opt_samples)
 
@@ -196,6 +208,8 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
     def _update_policy_no_cost(self, optimal_samples=[]):
         """ Compute the new policy. """
         # print('Calling update policy without PI^2')
+        if not len(self.cur): return
+
         dU, dO, T = self.dU, self.dO, self.T
         data_len = int(self.sample_ts_prob * T)
         # Compute target mean, cov, and weight for each sample.
@@ -224,10 +238,32 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         #     tgt_wt = np.concatenate((tgt_wt, wt))
         #     obs_data = np.concatenate((obs_data, obs))
 
+        for sample in optimal_samples:
+            mu = np.zeros((1, data_len, dU))
+            prc = np.zeros((1, data_len, dU, dU))
+            wt = np.zeros((1, data_len))
+            obs = np.zeros((1, data_len, dO))
+
+            m = 0
+            traj, pol_info = self.new_traj_distr[m], self.cur[m].pol_info
+            ts = np.random.choice(xrange(T), data_len, replace=False)
+            ts.sort()
+            for t in range(data_len):
+                prc[:, t, :, :] = np.tile(traj.inv_pol_covar[ts[t], :, :], [1, 1, 1])
+                wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
+
+            for i in range(data_len):
+                t = ts[i]
+                mu[0, i, :] = sample.get_U(t=t)
+                obs[0, i, :] = sample.get_obs(t=t)
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            tgt_prc = np.concatenate((tgt_prc, prc))
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs_data = np.concatenate((obs_data, obs))
+   
+
         for m in range(len(self.cur)):
             samples = self.cur[m].sample_list
-            if m == 0:
-                samples.extend(optimal_samples)
 
             for sample in samples:
                 mu = np.zeros((1, data_len, dU))
@@ -240,7 +276,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 ts.sort()
                 for t in range(data_len):
                     prc[:, t, :, :] = np.tile(traj.inv_pol_covar[ts[t], :, :], [1, 1, 1])
-                    wt[:,t] = self._hyperparams['opt_wt'] * sample.use_ts[ts[t]]
+                    wt[:,t] = 1. * sample.use_ts[ts[t]]
 
                 for i in range(data_len):
                     t = ts[i]
@@ -254,3 +290,4 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
             self.policy_opt.update(obs_data, tgt_mu, tgt_prc, tgt_wt, self.task)
         else:
             print('Update no cost called with no data.')
+

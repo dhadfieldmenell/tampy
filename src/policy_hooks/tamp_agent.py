@@ -456,7 +456,7 @@ class TAMPAgent(Agent):
 
 
     def replace_targets(self, condition=0):
-        new_targets = self.prob.get_end_targets(self.prob.NUM_OBJS, randomize=True)
+        new_targets = self.prob.get_end_targets(self.prob.NUM_OBJS, randomize=False)
         self.targets[condition] = new_targets
         target_vec = np.zeros((self.target_dim,))
         for target_name in self.targets[condition]:
@@ -497,11 +497,22 @@ class TAMPAgent(Agent):
 
 
 
-    def replace_cond(self, cond):
+    def replace_cond(self, cond, curric_step=-1):
         self.targets[cond] = self.prob.get_end_targets(self.num_objs)
         self.init_vecs[cond] = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
+        prim_choices = self.prob.get_prim_choices()
+        if OBJ_ENUM in prim_choices and curric_step > 0:
+            i = 0
+            inds = np.random.permutation(range(len(prim_choices[OBJ_ENUM])))
+            for j in inds:
+                obj = prim_choices[OBJ_ENUM][j]
+                if '{0}_end_target'.format(obj) not in self.targets[cond]: continue
+                if i >= len(prim_choices[OBJ_ENUM]) - curric_step: break
+                self.x0[cond][self.state_inds[obj, 'pose']] = self.targets[cond]['{0}_end_target'.format(obj)]
+                i += 1
+
         for target_name in self.targets[cond]:
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
 

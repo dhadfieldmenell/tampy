@@ -7,6 +7,7 @@ import logging
 import imp
 import os
 import os.path
+import psutil
 import sys
 import copy
 import argparse
@@ -64,13 +65,15 @@ def spawn_server(cls, hyperparams):
 class MultiProcessMain(object):
     def __init__(self, config):
         self.monitor = True
+        self.cpu_use = []
         self.config = config
         prob = config['prob']
         self.config['group_id'] = config.get('group_id', 0)
+        time_limit = config.get('time_limit', 3600)
 
         conditions = self.config['num_conds']
         self.task_list = tuple(get_tasks(self.config['task_map_file']).keys())
-
+        self.cur_n_rollout = 0
         if 'multi_policy' not in self.config: self.config['multi_policy'] = False
         self.pol_list = self.task_list if self.config.get('split_nets', False) else ('control',)
         self.config['policy_list'] = self.pol_list
@@ -81,9 +84,6 @@ class MultiProcessMain(object):
         plans = {}
         task_breaks = []
         goal_states = []
-        targets = []
-        for _ in range(conditions):
-            targets.append(prob.get_end_targets())
 
         plans, openrave_bodies, env = prob.get_plans()
 
@@ -94,6 +94,12 @@ class MultiProcessMain(object):
         self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], self.config['attr_map'], target_vector_include)
         
         x0 = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
+
+        targets = []
+        cur_targs = {pname: x0[self.state_inds[pname, 'pose']] for pname in self.state_inds if (pname, 'pose') in self.state_inds}
+        for _ in range(conditions):
+            targets.append(prob.get_end_targets())
+
 
         for plan in plans.values():
             plan.state_inds = self.state_inds
@@ -372,7 +378,8 @@ class MultiProcessMain(object):
                                   max_depth=self.config['max_tree_depth'],
                                   explore_depth=5,
                                   opt_strength=self.config.get('opt_strength', 0),
-                                  log_prefix=None,#'tf_saved/'+self.config['weight_dir']+'/rollouts'
+                                  log_prefix=None,#'tf_saved/'+self.config['weight_dir']+'/rollouts',
+                                  curric_thresh=self.config.get('curric_thresh', -1)
                                   ))
 
         self.config['mcts'] = self.mcts
@@ -393,6 +400,8 @@ class MultiProcessMain(object):
         self.config['target_dim'] = self.target_dim
         self.config['task_list'] = self.task_list
         self.config['time_log'] = 'tf_saved/'+self.config['weight_dir']+'/timing_info.txt'
+        self.config['time_limit'] = time_limit
+        self.config['start_t'] = time.time()
 
         with open('memory_info.txt', 'w+') as f:
             f.write('Process memory info:\n')
@@ -454,10 +463,12 @@ class MultiProcessMain(object):
             server_id = hyperparams['id'] if 'id' in hyperparams else hyperparams['scope']
             self.process_info.append((server_cls, server_id))
             self.process_configs[p.pid] = (server_cls, hyperparams)
+            return p
         else:
             t = Thread(target=spawn_server, args=(server_cls, hyperparams))
             t.daemon = True
             self.threads.append(t)
+            return t
 
     def create_mp_servers(self, hyperparams):
         for n in range(hyperparams['n_optimizers']):
@@ -483,27 +494,32 @@ class MultiProcessMain(object):
         # new_hyperparams['scope'] = 'primitive'
         # self.create_server(PrimitiveServer, new_hyperparams)
 
-    def create_rollout_servers(self, hyperparams):
+    def create_rollout_servers(self, hyperparams, start_idx=0):
         split_mcts_alg = hyperparams.get('split_mcts_alg', True)
         if split_mcts_alg:
             hyperparams['run_mcts_rollouts'] = True
             hyperparams['run_alg_updates'] = False
             for n in range(hyperparams['n_rollout_servers']):
-                new_hyperparams = copy.copy(hyperparams)
-                new_hyperparams['id'] = str(n) # hyperparams['server_id']+'_'+str(n)
-                self.create_server(RolloutServer, new_hyperparams)
+                self._create_rollout_server(hyperparams, start_idx+n)
 
             hyperparams['run_mcts_rollouts'] = False
             hyperparams['run_alg_updates'] = True
             for n in range(hyperparams['n_alg_servers']):
-                new_hyperparams = copy.copy(hyperparams)
-                new_hyperparams['id'] = str(n) # hyperparams['server_id']+'_'+str(n)
-                self.create_server(RolloutServer, new_hyperparams)
+                self._create_rollout_server(hyperparams, start_idx+n)
         else:
             for n in range(hyperparams['n_rollout_servers']):
                 new_hyperparams = copy.copy(hyperparams)
                 new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
                 self.create_server(RolloutServer, new_hyperparams)
+
+
+    def _create_rollout_server(self, hyperparams, idx):
+        hyperparams = copy.copy(hyperparams)
+        hyperparams['id'] = str(idx)
+        p = self.create_server(RolloutServer, hyperparams)
+        self.cur_n_rollout += 1
+        return p
+
 
     def create_log_server(self, hyperparams):
         new_hyperparams = copy.copy(hyperparams)
@@ -579,6 +595,25 @@ class MultiProcessMain(object):
         if self.monitor:
             self.watch_processes(kill_all)
             if self.roscore is not None: self.roscore.shutdown()
+
+    
+    def expand_rollout_servers(self):
+        if time.time() - self.config['start_t'] < 1200: return
+        self.cpu_use.append(psutil.cpu_percent())
+        if np.mean(self.cpu_use[-5:]) < 90:
+            hyp = copy.copy(self.config)
+            hyp['split_mcts_alg'] = True
+            hyp['run_alg_updates'] = False
+            hyp['run_mcts_rollouts'] = True
+            hyp['start_t'] = time.time()
+            p = self._create_rollout_server(hyp, idx=self.cur_n_rollout)
+            try:
+                p.start()
+            except Exception as e:
+                print(e)
+                print('Failed to expand rollout servers')
+            time.sleep(1.)
+
 
     def log_mem_info(self):
         '''

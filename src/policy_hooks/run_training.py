@@ -23,7 +23,10 @@ def load_multi(exp_list):
             c = exp[i]
             config_module = importlib.import_module('policy_hooks.'+c)
             next_config = config_module.config.copy()
-            next_config['weight_dir'] = next_config['base_weight_dir'] + 'objs{0}/exp_id{1}'.format(next_config['num_objs'], i)
+            if 'num_targs' in next_config:
+                next_config['weight_dir'] = next_config['base_weight_dir'] + 'objs{0}_{1}/exp_id{2}'.format(next_config['num_objs'], next_config['num_targs'], i)
+            else:
+                next_config['weight_dir'] = next_config['base_weight_dir'] + 'objs{0}/exp_id{1}'.format(next_config['num_objs'], i)
             next_config['server_id'] = '{0}'.format(str(random.randint(0, 2**16)))
             next_config['mp_server'] = True 
             next_config['pol_server'] = True
@@ -107,6 +110,7 @@ def main():
             for c, cm in exp:
                 print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
                 c['group_id'] = current_id
+                c['weight_dir'] = c['weight_dir']+'{0}'.format(current_id)
                 m = MultiProcessMain(c)
                 m.monitor = False # If true, m will wait to finish before moving on
                 m.group_id = current_id
@@ -121,19 +125,18 @@ def main():
             
             start_t = time.time()
             while active:
+                time.sleep(60.)
                 print('RUNNING...')
                 active = False
                 for m in mains:
                     p_info = m.check_processes()
                     print('PINFO {0}'.format(p_info))
-                    for code in p_info:
-                        active = active or (code is None) # None means process is alive
-                time.sleep(60.)
-                if time.time() - start_t > TIME_LIMIT:
-                    time.sleep(1.)
+                    active = active or any([code is None for code in p_info])
+                    m.expand_rollout_servers()
+
+                if not active:
                     for m in mains:
                         m.kill_processes()
-                    active = False
 
         print('\n\n\n\n\n\n\n\nEXITING')
         sys.exit(0)

@@ -15,7 +15,8 @@ from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 
-NUM_OBJS = 2
+NUM_OBJS = 4
+NUM_TARGS = 4
 SORT_CLOSET = False
 USE_PERTURB = False
 OPT_MCTS_FEEDBACK = True
@@ -43,19 +44,20 @@ END_TARGETS.extend([(2., 1.5),
                    (1., 1.5),
                    (-1., 1.5),
                    (-2, 1.5),
-                   (-3., 1.5),
-                   (2.9, 1.5),
-                   (-2., -2.)])
+                   (-2.8, 1.5),
+                   (2.8, 1.5),
+                   (3.6, 1.5),
+                   (-3.6, 1.5),
+                   (4.4, 1.5),
+                   (-4.4, 1.5)
+                   ])
 
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25 if SORT_CLOSET else 10
-possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
+# possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
+possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-20, MAX_Y, 2))))
+# possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-40, -20, 2))))
 
-# for i in range(-25, 25):
-for i in range(-12, 13):
-    for j in range(-50, 0):
-        if (i, j) in possible_can_locs:
-            possible_can_locs.remove((i, j))
             
 for i in range(len(possible_can_locs)):
     loc = list(possible_can_locs[i])
@@ -73,12 +75,14 @@ def get_prim_choices():
     out = OrderedDict({})
     out[utils.TASK_ENUM] = get_tasks(mapping_file).keys()
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
-    out[utils.TARG_ENUM] = ['middle_target', 
-                            'left_target_1', 
-                            # 'left_target_2', 
-                            'right_target_1',
-                            # 'right_target_2'
-                            ] + ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
+    out[utils.TARG_ENUM] = ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
+    if SORT_CLOSET:
+        out[utils.TARG_ENUM] += ['middle_target', 
+                                'left_target_1', 
+                                # 'left_target_2', 
+                                'right_target_1',
+                                # 'right_target_2'
+                                ]
     return out
 
 
@@ -96,11 +100,12 @@ def get_vector(config):
     target_vector_include = {
         'can{0}_end_target'.format(i): ['value'] for i in range(NUM_OBJS)
     }
-    target_vector_include['middle_target'] = ['value']
-    target_vector_include['left_target_1'] = ['value']
-    # target_vector_include['left_target_2'] = ['value']
-    target_vector_include['right_target_1'] = ['value']
-    # target_vector_include['right_target_2'] = ['value']
+    if SORT_CLOSET:
+        target_vector_include['middle_target'] = ['value']
+        target_vector_include['left_target_1'] = ['value']
+        # target_vector_include['left_target_2'] = ['value']
+        target_vector_include['right_target_1'] = ['value']
+        # target_vector_include['right_target_2'] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include
 
@@ -108,16 +113,33 @@ def get_vector(config):
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     # Information is track by the environment
     x0s = []
-    for _ in range(conditions):
+    for i in range(conditions):
         x0 = np.zeros((dX,))
-        x0[state_inds['pr2', 'pose']] = np.random.uniform([-1, -5], [1, 1]) # [0, -2]
+        x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -6], [3, -3]) # [0, -2]
+        # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -1], [3, 1])
         can_locs = copy.deepcopy(END_TARGETS) if SORT_CLOSET else copy.deepcopy(possible_can_locs)
         # can_locs = copy.deepcopy(END_TARGETS)
-        random.shuffle(can_locs)
-        can_locs = can_locs[:NUM_OBJS]
-        for i in range(NUM_OBJS):
-            x0[state_inds['can{0}'.format(i), 'pose']] = can_locs[i]
+        locs = []
+        while len(locs) < NUM_OBJS:
+            locs = []
+            random.shuffle(can_locs)
+            #print('gen for', ide)
+            valid = [1 for _ in range(len(can_locs))]
+            for j in range(NUM_OBJS):
+                for n in range(len(can_locs)):
+                    if valid[n]:
+                        locs.append(can_locs[n])
+                        valid[n] = 0
+                        for m in range(n+1, len(can_locs)):
+                            if not valid[m]: continue
+                            if np.linalg.norm(np.array(can_locs[n]) - np.array(can_locs[m])) < 1.5:
+                                valid[m] = 0
+                        break
 
+        can_locs = locs
+        for o in range(NUM_OBJS):
+            x0[state_inds['can{0}'.format(o), 'pose']] = can_locs[o]
+        # print(x0)
         x0s.append(x0)
     return x0s
 
@@ -175,22 +197,26 @@ def get_plans():
                             openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
 
-def get_end_targets(num_cans=NUM_OBJS, randomize=False):
+def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False):
     target_map = {}
-    inds = np.random.permutation(range(num_cans))
+    inds = range(NUM_TARGS) # np.random.permutation(range(num_targs))
     for n in range(num_cans):
-        if randomize:
-            ind = inds[n]
+        if n > num_targs and targs is not None:
+            target_map['can{0}_end_target'.format(n)] = np.array(targs[n])
         else:
-            ind = n
+            if randomize:
+                ind = inds[n]
+            else:
+                ind = n
 
-        target_map['can{0}_end_target'.format(n)] = np.array(END_TARGETS[ind])
+            target_map['can{0}_end_target'.format(n)] = np.array(END_TARGETS[ind])
 
-    target_map['middle_target'] = np.array([0., 0.])
-    target_map['left_target_1'] = np.array([-1., 0.])
-    target_map['right_target_1'] = np.array([1., 0.])
-    # target_map['left_target_2'] = np.array([-2., 0.])
-    # target_map['right_target_2'] = np.array([2., 0.])
+    if SORT_CLOSET:
+        target_map['middle_target'] = np.array([0., 0.])
+        target_map['left_target_1'] = np.array([-1., 0.])
+        target_map['right_target_1'] = np.array([1., 0.])
+        # target_map['left_target_2'] = np.array([-2., 0.])
+        # target_map['right_target_2'] = np.array([2., 0.])
     return target_map
 
 # CODE FROM OLDER VERSION OF PROB FILE BELOW THIS

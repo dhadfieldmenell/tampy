@@ -179,13 +179,16 @@ class Plan(object):
                 res.extend(a.get_active_preds(t))
         return res
 
-    def check_cnt_violation(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-4):
+    def check_cnt_violation(self, active_ts=None, priority = MAX_PRIORITY, tol = 1e-3):
         if active_ts is None:
             active_ts = (0, self.horizon-1)
         preds = [(negated, pred, t) for negated, pred, t in self.get_failed_preds(active_ts=active_ts, priority = priority, tol = tol)]
         cnt_violations = []
         for negated, pred, t in preds:
-            cnt_violations.append(np.max(pred.check_pred_violation(t, negated=negated, tol=tol)))
+            viol = np.max(pred.check_pred_violation(t, negated=negated, tol=tol))
+            cnt_violations.append(viol)
+            if np.isnan(viol):
+                print(negated, pred, t, 'NAN viol')
             # print ("{}-{}\n".format(pred.get_type(), t), cnt_violations[-1])
 
         return cnt_violations

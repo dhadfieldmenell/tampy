@@ -15,7 +15,8 @@ from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 
-NUM_OBJS = 2
+NUM_OBJS = 8
+NUM_TARGS = 4
 SORT_CLOSET = False
 USE_PERTURB = False
 OPT_MCTS_FEEDBACK = True
@@ -43,17 +44,22 @@ END_TARGETS.extend([(2., 1.5),
                    (1., 1.5),
                    (-1., 1.5),
                    (-2, 1.5),
-                   (-3., 1.5),
-                   (2.9, 1.5),
-                   (-2., -2.)])
+                   (-2.8, 1.5),
+                   (2.8, 1.5),
+                   (3.6, 1.5),
+                   (-3.6, 1.5),
+                   (4.4, 1.5),
+                   (-4.4, 1.5)
+                   ])
 
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25 if SORT_CLOSET else 10
-possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
+# possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
+possible_can_locs.extend(list(itertools.product(range(-45, 46, 2), range(-50, MAX_Y, 2))))
 
 # for i in range(-25, 25):
 for i in range(-12, 13):
-    for j in range(-50, 0):
+    for j in range(-50, 11):
         if (i, j) in possible_can_locs:
             possible_can_locs.remove((i, j))
             
@@ -108,16 +114,32 @@ def get_vector(config):
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     # Information is track by the environment
     x0s = []
-    for _ in range(conditions):
+    for i in range(conditions):
         x0 = np.zeros((dX,))
         x0[state_inds['pr2', 'pose']] = np.random.uniform([-1, -5], [1, 1]) # [0, -2]
         can_locs = copy.deepcopy(END_TARGETS) if SORT_CLOSET else copy.deepcopy(possible_can_locs)
         # can_locs = copy.deepcopy(END_TARGETS)
-        random.shuffle(can_locs)
-        can_locs = can_locs[:NUM_OBJS]
-        for i in range(NUM_OBJS):
-            x0[state_inds['can{0}'.format(i), 'pose']] = can_locs[i]
+        locs = []
+        ide = np.random.uniform(1e4)
+        while len(locs) < NUM_OBJS:
+            random.shuffle(can_locs)
+            #print('gen for', ide)
+            valid = [1 for _ in range(len(can_locs))]
+            for j in range(NUM_OBJS):
+                for n in range(len(can_locs)):
+                    if valid[n]:
+                        locs.append(can_locs[n])
+                        valid[n] = 0
+                        for m in range(len(can_locs)):
+                            if not valid[m] or n==m: continue
+                            if np.linalg.norm(np.array(can_locs[n]) - np.array(can_locs[m])) < 1.5:
+                                valid[m] = 0
+                        break
 
+        can_locs = locs
+        for j in range(NUM_OBJS):
+            x0[state_inds['can{0}'.format(j), 'pose']] = can_locs[j]
+        print(x0)
         x0s.append(x0)
     return x0s
 
@@ -175,16 +197,19 @@ def get_plans():
                             openrave_bodies[param.name] = param.openrave_body
     return plans, openrave_bodies, env
 
-def get_end_targets(num_cans=NUM_OBJS, randomize=False):
+def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False):
     target_map = {}
-    inds = np.random.permutation(range(num_cans))
+    inds = np.random.permutation(range(num_targs))
     for n in range(num_cans):
-        if randomize:
-            ind = inds[n]
+        if n > num_targs and targs is not None:
+            target_map['can{0}_end_target'.format(n)] = np.array(targs[n])
         else:
-            ind = n
+            if randomize:
+                ind = inds[n]
+            else:
+                ind = n
 
-        target_map['can{0}_end_target'.format(n)] = np.array(END_TARGETS[ind])
+            target_map['can{0}_end_target'.format(n)] = np.array(END_TARGETS[ind])
 
     target_map['middle_target'] = np.array([0., 0.])
     target_map['left_target_1'] = np.array([-1., 0.])

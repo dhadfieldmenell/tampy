@@ -4,8 +4,10 @@ string server_id
 string alg_id
 string task
 float32[] state
+float32[] targets
 int32 cond
 std_msgs/Float32MultiArray[] traj_mean
+std_msgs/Float32MultiArray[] obs
 
 float32[] pol_K
 float32[] pol_k

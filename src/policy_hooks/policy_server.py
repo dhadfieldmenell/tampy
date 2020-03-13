@@ -23,9 +23,11 @@ class PolicyServer(object):
         self.group_id = hyperparams['group_id']
         self.task = hyperparams['scope']
         self.task_list = hyperparams['task_list']
-        self.seed = int(time.time() % 10000.)
+        self.seed = int((1e2*time.time()) % 1000.)
         np.random.seed(self.seed)
         random.seed(self.seed)
+        self.start_t = hyperparams['start_t']
+        self.config = hyperparams
         hyperparams['policy_opt']['scope'] = self.task
         rospy.init_node(self.task+'_update_server_{0}'.format(self.group_id))
         self.policy_opt = hyperparams['policy_opt']['type'](
@@ -48,18 +50,23 @@ class PolicyServer(object):
         # self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
 
         self.update_listener = rospy.Subscriber('{0}_update_{1}'.format(self.task, self.group_id), PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
-        self.poicy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
+        self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
         self.n_updates = 0
         self.full_N = 0
-        self.start_t = time.time()
         self.update_t = time.time()
 
         self.update_queue = []
+        with open(self.policy_opt_log, 'w+') as f:
+            f.write('')
 
 
     def run(self):
         while not self.stopped:
             self.parse_update_queue()
+            self.update_network()
+            if time.time() - self.start_t > self.config['time_limit']:
+                break
+        self.policy_opt.sess.close()
 
 
     def end(self, msg):
@@ -86,7 +93,7 @@ class PolicyServer(object):
         prc_dims = (msg.n, msg.rollout_len, msg.dU, msg.dU)
         prc = prc.reshape(prc_dims)
 
-        wt_dims = (msg.n, msg.rollout_len) if msg.rollout_len > 1 else (msg.n,)
+        wt_dims = (msg.n, msg.rollout_len, 1) if msg.rollout_len > 1 else (msg.n,1)
         wt = np.array(msg.wt).reshape(wt_dims)
         self.update_queue.append((obs, mu, prc, wt, msg.task))
         self.update_queue = self.update_queue[-MAX_QUEUE_SIZE:]
@@ -101,18 +108,26 @@ class PolicyServer(object):
             update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)))
             end_time = time.time()
 
-            # print 'Weights updated:', update, self.task
-            if update: #  and time.time() - self.update_t > UPDATE_TIME:
-                self.n_updates += 1
-                if self.policy_opt.share_buffers:
-                    self.policy_opt.write_shared_weights([self.task])
-                else:
-                    msg = UpdateTF()
-                    msg.scope = str(self.task)
-                    msg.data = self.policy_opt.serialize_weights([self.task])
-                    self.weight_publisher.publish(msg)
-                self.update_t = time.time()
-                print('Updated weights for {0}'.format(self.task))
+
+    def update_network(self):
+        update = self.policy_opt.run_update([self.task])
+        # print 'Weights updated:', update, self.task
+        if update:
+            self.n_updates += 1
+            if self.policy_opt.share_buffers:
+                self.policy_opt.write_shared_weights([self.task])
+            else:
+                msg = UpdateTF()
+                msg.scope = str(self.task)
+                msg.data = self.policy_opt.serialize_weights([self.task])
+                self.weight_publisher.publish(msg)
+            self.update_t = time.time()
+            print('Updated weights for {0}'.format(self.task))
+
+            incr = 10
+            lossess = [self.policy_opt.average_losses[::incr], self.policy_opt.average_val_losses[::incr]]
+            with open(self.policy_opt_log, 'w+') as f:
+                f.write(str(lossess))
 
 
     def prob(self, req):

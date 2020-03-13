@@ -1,18 +1,26 @@
 import numpy as np
-import time
+pr2_disp = np.array([-1, 1])
 
-a = np.ones((40, 1, 37, 1, 37))
-b = np.ones((40, 1, 37, 1, 37))
-c = np.ones((40, 1, 37, 1, 37))
+dx, dy = 1e1 * pr2_disp
+zx, zy = 0, 0
+x1, y1 = np.array([0., 0.3]) - [0.5*dx, 0.5*dy] - [zx, zy]
+x2, y2 = x1 + dx, y1 + dy
+dr = np.sqrt(dx**2 + dy**2)
+D = x1 * y2 - x2 * y1
+r = 1
+sy = -1. if dy < 0 else 1.
 
-start_t = time.time()
+if dx > 0 and dy > 0:
+    x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+    y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+elif dx < 0 and dy < 0:
+    x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+    y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+elif dx > 0 and dy < 0:
+    x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+    y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+elif dx < 0 and dy > 0:
+    x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+    y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
 
-d = a*b*c
-
-print(time.time()-start_t)
-e = np.sum(d, axis=1)
-print(time.time()-start_t)
-f = np.sum(e, axis=1)
-print(time.time()-start_t)
-
-
+print(x,y)

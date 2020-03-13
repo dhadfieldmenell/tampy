@@ -58,12 +58,21 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif act.name.find('movetograsp') >= 0:
                 target = act.params[2]
                 grasp = act.params[5]
-                target_pos = target.value + grasp.value + np.array([[0.], [-0.25]])# + [[np.random.normal(0, 0.05)], [-np.random.uniform(0.1, 0.3)]]
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
+                if i > 0:
+                    target_pos = target.value + grasp.value + [[np.random.normal(0, 0.05)], [-np.random.uniform(0.1, 0.3)]]
+                else:
+                    # target_pos = target.value + grasp.value + np.array([[0.], [-0.4]])# + [[np.random.normal(0, 0.05)], [-np.random.uniform(0.1, 0.3)]]
+                    target_pos = target.value + grasp.value + np.array([[0.], [-0.05]])# + [[np.random.normal(0, 0.05)], [-np.random.uniform(0.1, 0.3)]]
+                    # disp = np.linalg.norm(old_pose - target_pos)
+                    # if disp > 3:
+                    #     target_pos = old_pose + np.random.uniform(2, disp)*(target_pos - old_pose) / disp
+                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
             elif act.name.find('place_at') >= 0:
                 target = act.params[4]
                 grasp = act.params[5]
-                target_pos = target.value + grasp.value
+                # target_pos = target.value + grasp.value
+                target_pos = target.value + grasp.value # + np.array([[0.], [-0.05]])
+                #robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
             elif act.name == 'grasp' or act.name == 'putdown':
                 target = act.params[2]

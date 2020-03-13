@@ -39,7 +39,7 @@ BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
 NUM_OBJS = prob.NUM_OBJS
-NUM_CONDS = 5 # Per rollout server
+NUM_CONDS = 3 # Per rollout server
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
@@ -47,10 +47,11 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 1e2
-N_ROLLOUT_SERVERS = 5
-N_ALG_SERVERS = 15
-N_OPTIMIZERS = 15
+N_ROLLOUT_SERVERS = 20
+N_ALG_SERVERS = 0
+N_OPTIMIZERS = 0
 N_DIRS = 12
+TIME_LIMIT = 7200
 
 
 common = {
@@ -192,15 +193,15 @@ config = {
     'branching_factor': 4,
     'opt_wt': algorithm['opt_wt'],
     'fail_value': algorithm['fail_value'],
-    'lr': 5e-3,
+    'lr': 1e-3,
     'solver_type': 'rmsprop',
     'cost_wp_mult': cost_wp_mult,
 
     'train_iterations': 100,
-    'weight_decay': 0,
-    'batch_size': 100,
+    'weight_decay': 1e-4,
+    'batch_size': 1000,
     'n_layers': 2,
-    'dim_hidden': [32, 16],
+    'dim_hidden': [256, 32],
     'n_traj_centers': algorithm['n_traj_centers'],
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
@@ -242,7 +243,7 @@ config = {
     'opt_prob': 0.5,
     'opt_smooth': False,
     'share_buffer': True,
-    'split_nets': False,
+    'split_nets': True,
     'split_mcts_alg': True,
 
     'state_include': [utils.STATE_ENUM],
@@ -270,4 +271,5 @@ config = {
             # utils.INIT_OBJ_POSE_ENUM: 2,
         },
     'visual': False,
+    'time_limit': TIME_LIMIT,
 }

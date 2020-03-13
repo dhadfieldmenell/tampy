@@ -140,7 +140,6 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
 
     symbolic_boundary = cur_x_ind # Used to differntiate parameters from symbols in the state vector
 
-    '''
     for param in plan.params.values():
         if not param.is_symbol(): continue
         param_attr_map = attr_map[param._type]
@@ -149,7 +148,6 @@ def get_state_action_inds(plan, robot_name, attr_map, x_params={}, u_params={}):
             inds = attr[1] + cur_x_ind
             cur_x_ind = inds[-1] + 1
             params_to_x_inds[(param.name, attr[0])] = inds
-    '''
 
     # dX, state index map, dU, (policy) action map
     return cur_x_ind, params_to_x_inds, cur_u_ind, params_to_u_inds, symbolic_boundary
@@ -522,3 +520,40 @@ def closest_arm_pose(arm_poses, cur_arm_pose):
             chosen_arm_pose = arm_pose
             min_change = change
     return chosen_arm_pose
+
+
+
+def check_traj_cost(plan, solver, traj, task):
+    if np.any(np.isnan(np.array(traj))):
+       raise Exception('Nans in trajectory passed')
+    old_free_attrs = plan.get_free_attrs()
+    for t in range(0, len(traj)):
+        for param_name, attr in plan.state_inds:
+            param = plan.params[param_name]
+            if param.is_symbol(): continue
+            if hasattr(param, attr):
+                getattr(param, attr)[:, t] = traj[t, plan.state_inds[param_name, attr]]
+                param.fix_attr(attr, (t,t))
+                if attr == 'pose' and (param_name, 'rotation') not in plan.state_inds and hasattr(param, 'rotation'):
+                    param.rotation[:, t] = 0
+                
+                if attr == 'pose':
+                    init_target = '{0}_init_target'.format(param_name)
+                    if init_target in plan.params:
+                        plan.params[init_target].value[:, 0] = param.pose[:, 0]
+
+    for p in plan.params.values():
+        if p.is_symbol():
+            p.free_all_attr((t,t))
+    # Take a quick solve to resolve undetermined symbolic values
+    solver._backtrack_solve(plan, time_limit=2, max_priority=-1, task=task)
+    plan.store_free_attrs(old_free_attrs)
+   
+    viols = plan.check_cnt_violation()
+    for i in range(len(viols)):
+        if np.isnan(viols[i]):
+            viols[i] = 1e3
+    plan_total_violation = np.sum(viols) / plan.horizon
+    plan_failed_constrs = plan.get_failed_preds_by_type()
+    return plan_total_violation, plan_failed_constrs
+

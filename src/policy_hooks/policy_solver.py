@@ -727,7 +727,7 @@ def get_base_solver(parent_class):
                             getattr(param, attr)[:, t] = traj_mean[t, plan.state_inds[param_name, attr]]
             else:
                 self.transfer_always = False
- 
+
             self._solve_opt_prob(plan, priority=-2, callback=None, active_ts=(0, plan.horizon-1), traj_mean=traj_mean)
             a_num = 0
             success = True
