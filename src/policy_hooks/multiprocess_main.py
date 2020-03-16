@@ -374,7 +374,6 @@ class MultiProcessMain(object):
                                   self.config['num_samples'],
                                   self.config['num_distilled_samples'],
                                   soft_decision=True,
-                                  C=2,
                                   max_depth=self.config['max_tree_depth'],
                                   explore_depth=5,
                                   opt_strength=self.config.get('opt_strength', 0),

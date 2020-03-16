@@ -49,7 +49,7 @@ MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
 MIN_STEP = 1e-2
 # LIDAR_DIST = 2.0
-LIDAR_DIST = 2.
+LIDAR_DIST = 4.
 DSAFE = 2e-1
 MAX_STEP = 1.5
 
@@ -403,15 +403,18 @@ class NAMOSortingAgent(TAMPAgent):
                     # if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and dist >= radius1 + radius2 - 0.5 * DSAFE and dist <= radius1 + radius2 + DSAFE and np.abs(disp[0]) < 0.5 * DSAFE and disp[1] < 0:
                     #if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and np.abs(disp[0]) < 0.5 * DSAFE and disp[1] <= -(radius1 + radius2 - 0.5 * DSAFE) and disp[1] >= -(radius1 + radius2 + DSAFE):
                         param.pose[:, t] = plan.params['pr2'].pose[:, t] - disp
-                        in_gripper.append(param.name)
+                        in_gripper.append((param.name, disp))
                     elif np.linalg.norm(new_disp) <= radius1 + radius2:
-                        dx, dy = 1e1 * pr2_disp
-                        zx, zy = plan.params['pr2'].pose[:,t]
-                        x1, y1 = param.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
+                        dx, dy = -1e1 * pr2_disp
+                        zx, zy = param.pose[:,t]
+                        x1, y1 = plan.params['pr2'].pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
+                        # zx, zy = plan.params['pr2'].pose[:,t]
+                        # x1, y1 = param.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
+                        # dx, dy = 1e1 * pr2_disp
                         x2, y2 = x1 + dx, y1 + dy
                         dr = np.sqrt(dx**2 + dy**2)
                         D = x1 * y2 - x2 * y1
-                        r = radius1 + radius2 + 1e-2
+                        r = radius1 + radius2 + 2e-2
                         sy = -1. if dy < 0 else 1.
 
                         if dx >= 0 and dy >= 0:
@@ -427,7 +430,10 @@ class NAMOSortingAgent(TAMPAgent):
                             x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
                             y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
 
-                        param.pose[:, t] = [zx + x, zy + y]
+                        # param.pose[:, t] = [zx + x, zy + y]
+                        plan.params['pr2'].pose[:, t] = [zx + x, zy + y]
+                        for p, disp in in_gripper:
+                            plan.params[p].pose[:, t] = plan.params['pr2'].pose[:, t] - disp
                     else:
                         pass
                         # param.pose[:, t] = param.pose[:, t]
@@ -483,7 +489,7 @@ class NAMOSortingAgent(TAMPAgent):
         col = False
         for p in plan.params:
             param = plan.params[p]
-            if param.is_symbol() or p in ignore or param._type == 'can': continue
+            if param.is_symbol() or param._type == 'can': continue
             param.openrave_body.set_pose(param.pose[:,t])
             next_col = self.env.CheckCollision(pr2.openrave_body.env_body, param.openrave_body.env_body)
             if next_col: return True
@@ -620,6 +626,9 @@ class NAMOSortingAgent(TAMPAgent):
                     U[:] = 0.
                 return U
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
+
+        for t in range(sample.T):
+            if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 5e-3: sample.use_ts[t] = 0.
 
         traj = sample.get(STATE_ENUM)
         for param_name, attr in self.state_inds:
@@ -819,7 +828,8 @@ class NAMOSortingAgent(TAMPAgent):
             if param._type == 'Can':
                 dist = np.linalg.norm(state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])
                 # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
-                cost -= 1 if dist < 0.3 else 0
+                # cost -= 1 if dist < 0.3 else 0
+                cost -= 1 if dist < 0.5 else 0
 
         # return cost / float(self.prob.NUM_OBJS)
         return 1. if cost > 0 else 0.
@@ -1041,6 +1051,10 @@ class NAMOSortingAgent(TAMPAgent):
         # self.optimal_samples[task].append(sample)
         sample.set_ref_X(opt_traj)
         sample.set_ref_U(sample.get_U())
+     
+        for t in range(sample.T):
+            if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 5e-3: sample.use_ts[t] = 0.
+
         return sample
 
 

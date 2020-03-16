@@ -92,7 +92,7 @@ class RolloutServer(object):
         for alg in self.alg_map.values():
             alg.set_conditions(len(self.agent.x0))
         self.task_list = self.agent.task_list
-        self.pol_list = tuple(hyperparams['policy_list']) + ('value', 'primitive')
+        self.pol_list = tuple(hyperparams['policy_list'])
         self.traj_opt_steps = hyperparams['traj_opt_steps']
         self.num_samples = hyperparams['num_samples']
         for mcts in self.mcts:
@@ -726,11 +726,11 @@ class RolloutServer(object):
                 chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
             else:
                 chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
-           
+          
         rollout_policies = {task: DummyPolicy(task, 
                                               self.policy_call, 
                                               chol_pol_covar=chol_pol_covar[task],
-                                              scale=self.policy_opt.task_map[task]['policy'].scale) 
+                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale) 
                                   for task in self.agent.task_list}
         start_time = time.time()
         all_samples = []
@@ -762,8 +762,8 @@ class RolloutServer(object):
                 self.n_steps += 1
                 self.n_success += 1 if val > 1 - 1e-2 else 0
 
-                if mcts.n_runs > self.steps_to_replace or mcts.n_success > self.success_to_replace:
-                    mcts.reset()
+                # if mcts.n_runs > self.steps_to_replace or mcts.n_success > self.success_to_replace:
+                #     mcts.reset()
                 # self.run_hl_opt_queue(mcts)
                 # self.test_publisher.publish('MCTS Step')
 
@@ -802,7 +802,6 @@ class RolloutServer(object):
                 self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=0.0)
                 n_probs = 0
 
-                if val >= 1 - 1e-2 or np.mean(mcts.val_per_run[-10:]) > 0.2: continue # TODO: set variables for when to optimize
                 ### Check to see if ros node is dead; restart if so
                 # if 'rollout_server_'+str(self.id) not in os.popen("rosnode list").read():
                 #     print "\n\nRestarting dead ros node:", 'rollout_server_'+str(self.id), '\n\n'
@@ -812,6 +811,15 @@ class RolloutServer(object):
                 for task in sample_lists:
                     task_costs[task] = []
                     for ind, s_list in enumerate(sample_lists[task]):
+                        cost = 1.
+                        if len(s_list):
+                            s = s_list[0]
+                            Xs = s.get_X(t=s.T-1)
+                            t = self.agent.plans[s.task].horizon-1
+                            cost = self.agent.cost_f(Xs, s.task, s.condition, active_ts=(t, t))
+                            if s.task_cost < 1e-3: cost = 0.
+                            if s.opt_strength > 0.5: cost = 1.
+                        if cost < 1e-3: continue
                         # viol, failed = self.check_traj_cost(s_list[0].get(STATE_ENUM), s_list[0].task)
                         # task_costs[task].append(viol)
 
@@ -828,6 +836,9 @@ class RolloutServer(object):
                                 self.send_prob(*p)
                             #     self.send_mp_problem(*p)
 
+                if mcts.n_runs > self.steps_to_replace or mcts.n_success > self.success_to_replace:
+                    mcts.reset()
+                
             ### Run an update step of the algorithm if there are any waiting rollouts that already have an optimized result from the MP server
             # self.run_opt_queue()
             # for task in self.agent.task_list:
@@ -848,7 +859,7 @@ class RolloutServer(object):
 
             self.update_primitive(path_samples)
             # self.update_qvalue(all_samples)
-            # print('Time to finish all MCTS step:', time.time() - start_t)
+            print('Time to finish all MCTS step:', time.time() - start_t)
 
         self.run_opt_queue()
         costs = {}
@@ -969,10 +980,12 @@ class RolloutServer(object):
         return mu, sig, False, True
 
 
-    def check_traj_cost(self, traj, task, targets=[]):
+    def check_traj_cost(self, traj, task, targets=[], active_ts=None):
         if np.any(np.isnan(np.array(traj))):
            raise Exception('Nans in trajectory passed')
         plan = self.agent.plans[task]
+        if active_ts is None:
+            active_ts = (1, plan.horizon-1)
         old_free_attrs = plan.get_free_attrs()
         if len(targets):
             for targ, val in self.agent.target_inds:
@@ -1000,11 +1013,11 @@ class RolloutServer(object):
         self.solver._backtrack_solve(plan, time_limit=2, max_priority=-1, task=task)
         plan.store_free_attrs(old_free_attrs)
        
-        viols = plan.check_cnt_violation(active_ts=(1,plan.horizon-1))
+        viols = plan.check_cnt_violation(active_ts=active_ts)
         for i in range(len(viols)):
             if np.isnan(viols[i]):
                 viols[i] = 1e3
         plan_total_violation = np.sum(viols) / plan.horizon
-        plan_failed_constrs = plan.get_failed_preds_by_type(active_ts=(1,plan.horizon-1))
+        plan_failed_constrs = plan.get_failed_preds_by_type(active_ts=active_ts)
         return plan_total_violation, plan_failed_constrs
 

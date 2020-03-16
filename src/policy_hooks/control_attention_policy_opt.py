@@ -612,21 +612,22 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # TODO: Find entries with very low weights?
 
         # Normalize obs, but only compute normalzation at the beginning.
-        policy = self.task_map[task]['policy']
-        if policy.scale is None or policy.bias is None:
-            policy.x_idx = self.x_idx
-            # 1e-3 to avoid infs if some state dimensions don't change in the
-            # first batch of samples
-            # policy.scale = np.diag(
-            #     1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-3))
-            policy.scale = np.diag(
-                1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-1))
-            policy.bias = - np.mean(
-                obs[:, self.x_idx].dot(policy.scale), axis=0)
+        if task != 'primitive':
+            policy = self.task_map[task]['policy']
+            if policy.scale is None or policy.bias is None:
+                policy.x_idx = self.x_idx
+                # 1e-3 to avoid infs if some state dimensions don't change in the
+                # first batch of samples
+                # policy.scale = np.diag(
+                #     1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-3))
+                policy.scale = np.diag(
+                    1.0 / np.maximum(np.std(obs[:, self.x_idx], axis=0), 1e-1))
+                policy.bias = - np.mean(
+                    obs[:, self.x_idx].dot(policy.scale), axis=0)
 
-            np.save('tf_saved/'+self.weight_dir+'/'+task+'_scale', policy.scale)
-            np.save('tf_saved/'+self.weight_dir+'/'+task+'_bias', policy.bias)
-        obs[:, self.x_idx] = obs[:, self.x_idx].dot(policy.scale) + policy.bias
+                np.save('tf_saved/'+self.weight_dir+'/'+task+'_scale', policy.scale)
+                np.save('tf_saved/'+self.weight_dir+'/'+task+'_bias', policy.bias)
+            obs[:, self.x_idx] = obs[:, self.x_idx].dot(policy.scale) + policy.bias
         assert not np.any(np.isnan(obs))
         assert not np.any(np.isnan(tgt_mu))
         assert not np.any(np.isnan(tgt_prc))
@@ -644,10 +645,16 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             start_idx = int(i * self.batch_size %
                             (batches_per_epoch * self.batch_size))
             idx_i = idx[start_idx:start_idx+self.batch_size]
-            feed_dict = {self.task_map[task]['obs_tensor']: obs[idx_i],
-                         self.task_map[task]['action_tensor']: tgt_mu[idx_i],
-                         self.task_map[task]['precision_tensor']: tgt_prc[idx_i]}
-            val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)
+            if task == 'primitive':
+                feed_dict = {self.primitive_obs_tensor: obs[idx_i],
+                             self.primitive_action_tensor: tgt_mu[idx_i],
+                             self.primitive_precision_tensor: tgt_prc[idx_i]}
+                val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
+            else:
+                feed_dict = {self.task_map[task]['obs_tensor']: obs[idx_i],
+                             self.task_map[task]['action_tensor']: tgt_mu[idx_i],
+                             self.task_map[task]['precision_tensor']: tgt_prc[idx_i]}
+                val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)
             average_loss += val_loss
 
         self.average_val_losses.append({

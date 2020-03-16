@@ -1,5 +1,3 @@
 [
 ['namo.hyperparams_v10'],
-['namo.hyperparams_v11'],
-['namo.hyperparams_v12'],
 ]

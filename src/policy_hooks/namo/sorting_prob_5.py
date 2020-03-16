@@ -40,22 +40,24 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(2., 1.5), 
-                   (1., 1.5),
-                   (-1., 1.5),
-                   (-2, 1.5),
-                   (-2.8, 1.5),
-                   (2.8, 1.5),
-                   (3.6, 1.5),
-                   (-3.6, 1.5),
-                   (4.4, 1.5),
-                   (-4.4, 1.5)
+END_TARGETS.extend([(2., 2.5), 
+                   (1., 2.5),
+                   (-1., 2.5),
+                   (-2, 2.5),
+                   (-2.8, 2.5),
+                   (2.8, 2.5),
+                   (3.6, 2.5),
+                   (-3.6, 2.5),
+                   (4.4, 2.5),
+                   (-4.4, 2.5)
                    ])
 
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25 if SORT_CLOSET else 10
 # possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
+
 possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-20, MAX_Y, 2))))
+# possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-5, 25, 2))))
 # possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-40, -20, 2))))
 
             
@@ -115,7 +117,9 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
     x0s = []
     for i in range(conditions):
         x0 = np.zeros((dX,))
-        x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -6], [3, -3]) # [0, -2]
+        x0[state_inds['pr2', 'pose']] = np.random.uniform([-4, -4.5], [4, -3]) # [0, -2]
+        
+        # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -4], [3, -2]) # [0, -2]
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -1], [3, 1])
         can_locs = copy.deepcopy(END_TARGETS) if SORT_CLOSET else copy.deepcopy(possible_can_locs)
         # can_locs = copy.deepcopy(END_TARGETS)

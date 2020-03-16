@@ -39,17 +39,17 @@ BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
 NUM_OBJS = prob.NUM_OBJS
-NUM_CONDS = 4 # Per rollout server
+NUM_CONDS = 2 # Per rollout server
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
 N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
-OPT_WT_MULT = 1e2
+OPT_WT_MULT = 2e2
 N_ROLLOUT_SERVERS = 5
-N_ALG_SERVERS = 12
-N_OPTIMIZERS = 18
+N_ALG_SERVERS = 15
+N_OPTIMIZERS = 15
 N_DIRS = 12
 TIME_LIMIT = 7200
 
@@ -197,9 +197,9 @@ config = {
     'solver_type': 'rmsprop',
     'cost_wp_mult': cost_wp_mult,
 
-    'train_iterations': 100,
-    'weight_decay': 5e-5,
-    'batch_size': 1000,
+    'train_iterations': 50,
+    'weight_decay': 1e-6,
+    'batch_size': 500,
     'n_layers': 2,
     'dim_hidden': [64, 32],
     'n_traj_centers': algorithm['n_traj_centers'],
@@ -230,7 +230,7 @@ config = {
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
     'solver_type': NAMOPolicySolver,
-    'update_size': 1000,
+    'update_size': 500,
     'use_local': True,
     'n_dirs': N_DIRS,
     'domain': 'namo',
@@ -244,7 +244,7 @@ config = {
     'opt_prob': 0.5,
     'opt_smooth': False,
     'share_buffer': True,
-    'split_nets': True, #False,
+    'split_nets': False,
     'split_mcts_alg': True,
 
     'state_include': [utils.STATE_ENUM],
@@ -252,7 +252,7 @@ config = {
                     # utils.EE_ENUM,
                     utils.TASK_ENUM,
                     utils.OBJ_POSE_ENUM,
-                    utils.GRIPPER_ENUM,
+                    #utils.GRIPPER_ENUM,
                     #utils.INIT_OBJ_POSE_ENUM,
                     utils.TARG_POSE_ENUM],
     'prim_obs_include': [utils.STATE_ENUM,
@@ -274,6 +274,6 @@ config = {
     'visual': False,
     'time_limit': TIME_LIMIT,
     'success_to_replace': 10,
-    'steps_to_replace': 1000,
+    'steps_to_replace': NUM_OBJS * 50,
     'curric_thresh': 3,
 }

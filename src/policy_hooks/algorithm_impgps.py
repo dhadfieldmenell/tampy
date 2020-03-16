@@ -141,7 +141,8 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                     self.cur[m].sample_list = []
                 else:
                     # self.cur[m].sample_list = [out, sample]
-                    self.cur[m].sample_list = [out]
+                    # self.cur[m].sample_list = [out]
+                    self.cur[m].sample_list = [sample]
             # individual_opt_samples.extend(train_data)
             return self._update_policy_no_cost(individual_opt_samples)
 
