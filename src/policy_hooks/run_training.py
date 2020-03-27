@@ -27,6 +27,7 @@ def load_multi(exp_list):
                 next_config['weight_dir'] = next_config['base_weight_dir'] + 'objs{0}_{1}/exp_id{2}'.format(next_config['num_objs'], next_config['num_targs'], i)
             else:
                 next_config['weight_dir'] = next_config['base_weight_dir'] + 'objs{0}/exp_id{1}'.format(next_config['num_objs'], i)
+            next_config['weight_dir'] = next_config['weight_dir'] + next_config.get('descr', '')
             next_config['server_id'] = '{0}'.format(str(random.randint(0, 2**16)))
             next_config['mp_server'] = True 
             next_config['pol_server'] = True
@@ -125,14 +126,14 @@ def main():
             
             start_t = time.time()
             while active:
-                time.sleep(60.)
+                time.sleep(120.)
                 print('RUNNING...')
                 active = False
                 for m in mains:
                     p_info = m.check_processes()
                     print('PINFO {0}'.format(p_info))
                     active = active or any([code is None for code in p_info])
-                    m.expand_rollout_servers()
+                    if active: m.expand_rollout_servers()
 
                 if not active:
                     for m in mains:

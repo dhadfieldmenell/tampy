@@ -8,6 +8,7 @@ float32[] targets
 int32 cond
 std_msgs/Float32MultiArray[] traj_mean
 std_msgs/Float32MultiArray[] obs
+std_msgs/Float32MultiArray[] U
 
 float32[] pol_K
 float32[] pol_k

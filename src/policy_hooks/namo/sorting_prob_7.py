@@ -52,11 +52,13 @@ END_TARGETS.extend([(2., 2.5),
                    (-4.4, 2.5)
                    ])
 
+n_aux = 2
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 # possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
 
-possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-35, 15, 4))))
+possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-45, -10, 4))))
+possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-35, MAX_Y, 6))))
 # possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-5, 25, 2))))
 # possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-40, -20, 2))))
@@ -80,12 +82,8 @@ def get_prim_choices():
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
     out[utils.TARG_ENUM] = ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
     if SORT_CLOSET:
-        out[utils.TARG_ENUM] += ['middle_target', 
-                                'left_target_1', 
-                                # 'left_target_2', 
-                                'right_target_1',
-                                # 'right_target_2'
-                                ]
+        for i in range(n_aux):
+            out[utils.TARG_ENUM] += ['aux_target_{0}'.format(i)] 
     return out
 
 
@@ -104,11 +102,8 @@ def get_vector(config):
         'can{0}_end_target'.format(i): ['value'] for i in range(NUM_OBJS)
     }
     if SORT_CLOSET:
-        target_vector_include['middle_target'] = ['value']
-        target_vector_include['left_target_1'] = ['value']
-        # target_vector_include['left_target_2'] = ['value']
-        target_vector_include['right_target_1'] = ['value']
-        # target_vector_include['right_target_2'] = ['value']
+        for i in range(n_aux):
+            target_vector_include['aux_target_{0}'.format(i)] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include
 
@@ -122,13 +117,13 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -4], [3, -2]) # [0, -2]
         # x0[state_inds['pr2', 'pose']] = np.random.uniform([-3, -1], [3, 1])
-        can_locs = copy.deepcopy(END_TARGETS) if SORT_CLOSET else copy.deepcopy(possible_can_locs)
+        can_locs = copy.deepcopy(possible_can_locs)
         # can_locs = copy.deepcopy(END_TARGETS)
         locs = []
         pr2_loc = None
         spacing = 2.5
         valid = [1 for _ in range(len(can_locs))]
-        while len(locs) < NUM_OBJS + 1 + NUM_TARGS:
+        while len(locs) < NUM_OBJS + 1:
             locs = []
             random.shuffle(can_locs)
             pr2_loc = can_locs[0]
@@ -138,7 +133,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             for m in range(1, len(can_locs)):
                 if np.linalg.norm(np.array(pr2_loc) - np.array(can_locs[m])) < spacing:
                     valid[m] = 0
-            for j in range(NUM_OBJS + NUM_TARGS):
+            for j in range(NUM_OBJS):
                 for n in range(1, len(can_locs)):
                     if valid[n]:
                         locs.append(can_locs[n])
@@ -148,9 +143,33 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
                             if np.linalg.norm(np.array(can_locs[n]) - np.array(can_locs[m])) < spacing:
                                 valid[m] = 0
                         break
+            spacing -= 0.1
+
+        spacing = 2.5
+        targs = []
+        can_targs = can_locs
+        while len(targs) < NUM_TARGS + 1:
+            targs = []
+            pr2_loc = locs[0]
+            targs.append(pr2_loc)
+            valid = [1 for _ in range(len(can_targs))]
+            for m in range(0, len(can_targs)):
+                if np.linalg.norm(np.array(pr2_loc) - np.array(can_targs[m])) < spacing:
+                    valid[m] = 0
+            for j in range(NUM_TARGS):
+                for n in range(1, len(can_targs)):
+                    if valid[n]:
+                        targs.append(can_targs[n])
+                        valid[n] = 0
+                        for m in range(n+1, len(can_targs)):
+                            if not valid[m]: continue
+                            if np.linalg.norm(np.array(can_targs[n]) - np.array(can_targs[m])) < spacing:
+                                valid[m] = 0
+                        break
 
             spacing -= 0.1
 
+        can_targs.pop(0)
         for l in range(len(locs)):
             locs[l] = np.array(locs[l])
         x0[state_inds['pr2', 'pose']] = locs[0]
@@ -159,7 +178,14 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         x0s.append(x0)
         can_locs = [can_locs[c] for c in range(len(can_locs)) if valid[c]]
         # targ_maps.append(get_end_targets(NUM_OBJS, NUM_TARGS, randomize=True, possible_locs=can_locs)) 
-        next_map = {'can{0}_end_target'.format(o): locs[1+NUM_OBJS+o] for o in range(NUM_TARGS)}
+        next_map = {'can{0}_end_target'.format(o): targs[o] for o in range(NUM_TARGS)}
+        for i in range(n_aux):
+            if i == 0:
+                next_map['aux_target_{0}'.format(i)] = (0, 0)
+            elif i % 2:
+                next_map['aux_target_{0}'.format(i)] = (-int(i/2.+0.5), 0)
+            else:
+                next_map['aux_target_{0}'.format(i)] = (int(i/2.+0.5), 0)
         if NUM_TARGS < NUM_OBJS:
             next_map = {'can{0}_end_target'.format(o): locs[o+1] for o in range(NUM_TARGS, NUM_OBJS)}
         targ_maps.append(next_map)

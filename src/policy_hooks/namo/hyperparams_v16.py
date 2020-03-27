@@ -46,7 +46,7 @@ NUM_TRAJ_OPT_STEPS = 1
 N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
-OPT_WT_MULT = 5e2
+OPT_WT_MULT = 2e1
 N_ROLLOUT_SERVERS = 5
 N_ALG_SERVERS = 10
 N_OPTIMIZERS = 20
@@ -85,8 +85,6 @@ algorithm = {
     'n_traj_centers': N_TRAJ_CENTERS,
     'num_samples': N_SAMPLES,
     'mp_opt': True,
-    'her': True,
-    'rollout_opt': False,
 }
 
 algorithm['init_traj_distr'] = {
@@ -219,7 +217,7 @@ config = {
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
     'max_sample_queue': 5e2,
-    'max_opt_sample_queue': 10,
+    'max_opt_sample_queue': 5e2,
     'hl_plan_for_state': prob.hl_plan_for_state,
     'task_map_file': prob.mapping_file,
     'prob': prob,
@@ -232,7 +230,7 @@ config = {
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
     'solver_type': NAMOPolicySolver,
-    'update_size': 2000,
+    'update_size': 5000,
     'use_local': True,
     'n_dirs': N_DIRS,
     'domain': 'namo',
@@ -243,22 +241,20 @@ config = {
     'image_width': 107,
     'image_height': 80,
     'image_channels': 3,
-    'opt_prob': 1.,
+    'opt_prob': 0.5,
     'opt_smooth': False,
     'share_buffer': True,
-    'split_nets': True, # False,
+    'split_nets': False,
     'split_mcts_alg': True,
 
     'state_include': [utils.STATE_ENUM],
     'obs_include': [utils.LIDAR_ENUM,
                     # utils.EE_ENUM,
                     utils.TASK_ENUM,
-                    # utils.OBJ_POSE_ENUM,
+                    utils.OBJ_POSE_ENUM,
                     #utils.GRIPPER_ENUM,
                     #utils.INIT_OBJ_POSE_ENUM,
-                    # utils.TARG_POSE_ENUM,
-                    utils.END_POSE_ENUM,
-                    ],
+                    utils.TARG_POSE_ENUM],
     'prim_obs_include': [utils.STATE_ENUM,
                          utils.TARGETS_ENUM],
     'val_obs_include': [utils.STATE_ENUM,
@@ -272,7 +268,6 @@ config = {
             utils.TARG_POSE_ENUM: 2,
             utils.LIDAR_ENUM: N_DIRS,
             utils.EE_ENUM: 2,
-            utils.END_POSE_ENUM: 2,
             utils.GRIPPER_ENUM: 1,
             # utils.INIT_OBJ_POSE_ENUM: 2,
         },
@@ -280,8 +275,5 @@ config = {
     'time_limit': TIME_LIMIT,
     'success_to_replace': 10,
     'steps_to_replace': NUM_OBJS * 50,
-    'curric_thresh': -1,
-    'expand_process': True,
-    'descr': '_expand_hyp10',
-    'her': False,
+    'curric_thresh': 3,
 }

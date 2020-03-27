@@ -22,13 +22,15 @@ This file implements the predicates for the 2D NAMO domain.
 """
 
 dsafe = 1e-3 # 1e-1
-dmove = 1.1e0 # 5e-1
+# dmove = 1.1e0 # 5e-1
+dmove = 1.4e0 # 5e-1
 contact_dist = 1e-2
 
 RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_TOL = 5e-1
-COL_TS = 3
+COL_TS = 4 # 3
+NEAR_TOL = 0.4
 
 
 ATTRMAP = {
@@ -399,7 +401,23 @@ class Near(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 0.3 * np.ones((4, 1))
+        val = NEAR_TOL * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class RobotNearTarget(At):
+
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.t = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.t, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = 0.25 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -416,7 +434,7 @@ class RobotNear(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 2 * dmove * np.ones((4, 1))
+        val = 2 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -433,7 +451,7 @@ class NotRobotNear(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = -2 * dmove * np.ones((4, 1))
+        val = -2 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -467,7 +485,7 @@ class RobotNearGrasp(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 1.5 * dmove * np.ones((4, 1))
+        val = 1.5 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -485,7 +503,7 @@ class RobotAtGrasp(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 0.25 * dmove * np.ones((4, 1))
+        val = NEAR_TOL * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -502,7 +520,7 @@ class RobotWithinReach(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 8 * dmove * np.ones((4, 1))
+        val = 20 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -792,6 +810,7 @@ class Obstructs(CollisionPredicate):
             orth = np.array([0., 1.])
         else:
             orth = np.array([1./disp[0], -1./disp[1]])
+        disp += 1e-4
 
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
@@ -800,26 +819,27 @@ class Obstructs(CollisionPredicate):
         d1, d2 = long_disp.dot(orth), long_disp.dot(-orth)
 
         if d1 > d2:
-            w1, w2 = 0.25, 0.75
+            w1, w2 = 0.1, 0.9
         else:
-            w1, w2 = 0.75, 0.25
+            w1, w2 = 0.9, 0.1
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
 
-        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe) * disp / np.linalg.norm(disp)
-        orth = rdisp + np.random.uniform(0.2, 0.5) * orth
+        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 5e-2) * disp / np.linalg.norm(disp)
+        orth = rdisp + np.random.uniform(0.5, 2.0) * orth
         # orth *= np.random.uniform(0.7, 1.5) * (self.c.geom.radius + self.r.geom.radius + self.dsafe)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
         new_robot_pose = self.r.pose[:, time] + orth
+        disp = orth
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
-                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * new_robot_pose
+                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, st] + disp)
             else:
-                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * new_robot_pose
+                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, et] + disp) 
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
         return res, attr_inds
@@ -833,7 +853,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.15
+        self.dsafe = 0.1
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -978,14 +998,17 @@ class ObstructsHolding(CollisionPredicate):
 
         res = OrderedDict()
         attr_inds = OrderedDict()
-        disp = self.obstr.pose[:, time] - self.held.pose[:,time]
+        disp1 = self.obstr.pose[:, time] - self.held.pose[:,time]
+        disp2 = self.obstr.pose[:, time] - self.r.pose[:,time]
+        disp = disp1 if np.linalg.norm(disp1) < np.linalg.norm(disp2) else disp2
         if disp[0] == 0:
             orth = np.array([1., 0.])
         elif disp[1] == 0:
             orth = np.array([0., 1.])
         else:
             orth = np.array([1./disp[0], -1./disp[1]])
-        
+        disp += 1e-4
+
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         long_disp = self.r.pose[:,et] - self.r.pose[:, st]
@@ -993,14 +1016,14 @@ class ObstructsHolding(CollisionPredicate):
         d1, d2 = long_disp.dot(orth), long_disp.dot(-orth)
 
         if d1 > d2:
-            w1, w2 = 0.25, 0.75
+            w1, w2 = 0.1, 0.9
         else:
-            w1, w2 = 0.75, 0.25
+            w1, w2 = 0.9, 0.1
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
         
-        rdisp = (self.obstr.geom.radius + self.held.geom.radius + self.dsafe) * disp / np.linalg.norm(disp)
-        orth = rdisp + np.random.uniform(0.2, 1) * orth
+        rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + 2e-1) * disp / np.linalg.norm(disp)
+        orth = rdisp + np.random.uniform(0.5, 2.0) * orth
         # orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -1026,11 +1049,11 @@ class ObstructsHolding(CollisionPredicate):
         for i in range(st, et):
             dist = float(np.abs(i - time))
             if i <= time:
-                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * new_robot_pose
-                inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * new_held_pose
+                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, st] + orth)
+                inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * (self.held.pose[:, st] + orth)
             else:
-                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * new_robot_pose
-                inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * new_held_pose
+                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, et] + orth)
+                inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * (self.held.pose[:, et] + orth)
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
             add_to_attr_inds_and_res(i, attr_inds, res, self.held, [('pose', inter_rp)])
@@ -1115,7 +1138,7 @@ class InGripper(ExprPredicate):
         e = AffExpr(A, b)
         e = EqExpr(e, np.zeros((2,1)))
 
-        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-1)
 
 class GraspValid(ExprPredicate):
 
@@ -1213,7 +1236,6 @@ class IsMP(ExprPredicate):
                       [-1, 0, 1, 0],
                       [0, -1, 0, 1]])
         b = np.zeros((4, 1))
-
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 

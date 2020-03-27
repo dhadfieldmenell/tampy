@@ -34,6 +34,8 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
         config = copy.deepcopy(ALG_PIGPS)
         config.update(hyperparams)
         self.task = hyperparams['task']
+        self.her = hyperparams.get('her', False)
+        self.rollout_opt = hyperparams.get('rollout_opt', False)
         self.fail_value = hyperparams['fail_value']
         self.traj_centers = hyperparams['n_traj_centers']
         self.use_centroids = hyperparams['use_centroids']
@@ -124,24 +126,39 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                     inf_f = None
 
                 start_t = time.time()
-                out, failed, success = self.agent.solve_sample_opt_traj(sample.get_X(t=0), sample.task, sample.condition, sample.get_X(), inf_f, t_limit=5, n_resamples=1, out_coeff=1e3, smoothing=True, targets=sample.targets)
+                if self.agent.postcond_cost(sample) > 0:
+                    sample.node = None
+                    sample.next_sample = None
+                    new_sample = copy.deepcopy(sample)
+                    new_sample.agent = self.agent
+                    attr_dict = self.agent.relabel_traj(new_sample)
+                    init_x = sample.get_X()
+                    tol = 1e1
+                    out, failed, success = self.agent.solve_sample_opt_traj(sample.get_X(t=0), sample.task, sample.condition, sample.get_X(), inf_f, t_limit=5, n_resamples=1, out_coeff=tol, smoothing=True, targets=sample.targets)
+
+                    '''
+                    if self.agent.precond_cost(sample) < 1e-2:
+                        new_out, new_failed, new_success = self.agent.solve_sample_opt_traj(sample.get_X(t=0), sample.task, sample.condition, sample.get_X(), inf_f, t_limit=5, n_resamples=1, out_coeff=1e2, smoothing=True, targets=new_sample.targets, attr_dict=attr_dict)
+                        for t in range(sample.T):
+                            new_sample.set(ACTION_ENUM, new_out.get(ACTION_ENUM, t), t)
+                    '''
                 # print('Time in quick solve:', time.time() - start_t)
 
-                train_data.append(out)
-                for t in range(sample.T):
-                    sample.set(ACTION_ENUM, out.get(ACTION_ENUM, t), t)
-                # self.cur[m].sample_list = []
-                # self.cur[m].sample_list = [sample]
-                # if RETIME: self.agent.retime_sample(sample)
-                # if RETIME: self.agent.retime_sample(out)
-                if np.any(np.isnan(out.get_U())) or np.any(np.isnan(out.get_obs())):
-                    print(out.get_U())
-                    print(out.get_obs())
-                    print(success)
                     self.cur[m].sample_list = []
+                    if self.her:
+                        new_sample = copy.deepcopy(sample)
+                        new_sample.agent = self.agent
+                        attr_dict = self.agent.relabel_traj(new_sample)
+                        if self.agent.precond_cost(new_sample) < 1e-2:
+                            self.cur[m].sample_list.append(new_sample)
+                    if not np.any(np.isnan(out.get_U())):
+                        if self.rollout_opt:
+                            self.cur[m].sample_list.append(out)
+                        else:
+                            for t in range(sample.T):
+                                sample.set(ACTION_ENUM, out.get(ACTION_ENUM, t), t)
+                            self.cur[m].sample_list.append(sample)
                 else:
-                    # self.cur[m].sample_list = [out, sample]
-                    # self.cur[m].sample_list = [out]
                     self.cur[m].sample_list = [sample]
             # individual_opt_samples.extend(train_data)
             return self._update_policy_no_cost(individual_opt_samples)
@@ -265,6 +282,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
         for m in range(len(self.cur)):
             samples = self.cur[m].sample_list
+                # print(samples[0].get_obs() - samples[1].get_obs(), samples[0].get(STATE_ENUM) - samples[1].get(STATE_ENUM), samples[0].get(ACTION_ENUM) - samples[1].get(ACTION_ENUM), samples[0].get(ACTION_ENUM), samples[1].get(ACTION_ENUM), 'UPDATE')
 
             for sample in samples:
                 mu = np.zeros((1, data_len, dU))

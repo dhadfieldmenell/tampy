@@ -30,7 +30,7 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.sorting_prob_6 as prob
+import policy_hooks.namo.sorting_prob_5 as prob
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
@@ -39,18 +39,18 @@ BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
 NUM_OBJS = prob.NUM_OBJS
-NUM_CONDS = 2 # Per rollout server
+NUM_CONDS = 4 # Per rollout server
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
 N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
-OPT_WT_MULT = 5e2
+OPT_WT_MULT = 2e2
 N_ROLLOUT_SERVERS = 5
 N_ALG_SERVERS = 10
 N_OPTIMIZERS = 20
-N_DIRS = 16
+N_DIRS = 12
 TIME_LIMIT = 7200
 
 
@@ -85,8 +85,6 @@ algorithm = {
     'n_traj_centers': N_TRAJ_CENTERS,
     'num_samples': N_SAMPLES,
     'mp_opt': True,
-    'her': True,
-    'rollout_opt': False,
 }
 
 algorithm['init_traj_distr'] = {
@@ -199,11 +197,11 @@ config = {
     'solver_type': 'rmsprop',
     'cost_wp_mult': cost_wp_mult,
 
-    'train_iterations': 50,
-    'weight_decay': 1e-3,
-    'batch_size': 500,
+    'train_iterations': 100,
+    'weight_decay': 1e-4,
+    'batch_size': 1000,
     'n_layers': 2,
-    'dim_hidden': [32, 32],
+    'dim_hidden': [64, 32],
     'n_traj_centers': algorithm['n_traj_centers'],
     'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
     'pretrain_steps': NUM_PRETRAIN_STEPS,
@@ -219,9 +217,9 @@ config = {
     'policy_out_coeff': algorithm['policy_out_coeff'],
     'policy_inf_coeff': algorithm['policy_inf_coeff'],
     'max_sample_queue': 5e2,
-    'max_opt_sample_queue': 10,
+    'max_opt_sample_queue': 5e2,
     'hl_plan_for_state': prob.hl_plan_for_state,
-    'task_map_file': prob.mapping_file,
+    'task_map_file': 'policy_hooks/namo/sorting_task_mapping_3',
     'prob': prob,
     'get_vector': prob.get_vector,
     'robot_name': 'pr2',
@@ -232,7 +230,7 @@ config = {
     'agent_type': NAMOSortingAgent,
     'opt_server_type': NAMOMotionPlanServer,
     'solver_type': NAMOPolicySolver,
-    'update_size': 2000,
+    'update_size': 5000,
     'use_local': True,
     'n_dirs': N_DIRS,
     'domain': 'namo',
@@ -243,22 +241,20 @@ config = {
     'image_width': 107,
     'image_height': 80,
     'image_channels': 3,
-    'opt_prob': 1.,
+    'opt_prob': 0.5,
     'opt_smooth': False,
     'share_buffer': True,
-    'split_nets': True, # False,
+    'split_nets': True,
     'split_mcts_alg': True,
 
     'state_include': [utils.STATE_ENUM],
     'obs_include': [utils.LIDAR_ENUM,
                     # utils.EE_ENUM,
                     utils.TASK_ENUM,
-                    # utils.OBJ_POSE_ENUM,
-                    #utils.GRIPPER_ENUM,
+                    utils.OBJ_POSE_ENUM,
+                    utils.GRIPPER_ENUM,
                     #utils.INIT_OBJ_POSE_ENUM,
-                    # utils.TARG_POSE_ENUM,
-                    utils.END_POSE_ENUM,
-                    ],
+                    utils.TARG_POSE_ENUM],
     'prim_obs_include': [utils.STATE_ENUM,
                          utils.TARGETS_ENUM],
     'val_obs_include': [utils.STATE_ENUM,
@@ -272,16 +268,12 @@ config = {
             utils.TARG_POSE_ENUM: 2,
             utils.LIDAR_ENUM: N_DIRS,
             utils.EE_ENUM: 2,
-            utils.END_POSE_ENUM: 2,
             utils.GRIPPER_ENUM: 1,
             # utils.INIT_OBJ_POSE_ENUM: 2,
         },
     'visual': False,
     'time_limit': TIME_LIMIT,
     'success_to_replace': 10,
-    'steps_to_replace': NUM_OBJS * 50,
-    'curric_thresh': -1,
-    'expand_process': True,
-    'descr': '_expand_hyp10',
-    'her': False,
+    'steps_to_replace': 1000,
+    'curric_thresh': 3,
 }

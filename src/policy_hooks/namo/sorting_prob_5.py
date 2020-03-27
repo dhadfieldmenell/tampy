@@ -23,7 +23,7 @@ OPT_MCTS_FEEDBACK = True
 
 prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
 domain_file = "../domains/namo_domain/namo.domain"
-mapping_file = "policy_hooks/namo/sorting_task_mapping_3"
+mapping_file = "policy_hooks/namo/sorting_task_mapping_5"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
@@ -53,10 +53,10 @@ END_TARGETS.extend([(2., 2.5),
                    ])
 
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
-MAX_Y = 25 if SORT_CLOSET else 10
+MAX_Y = 25 if SORT_CLOSET else 5
 # possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
 
-possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-20, MAX_Y, 2))))
+possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-20, MAX_Y, 3))))
 # possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-5, 25, 2))))
 # possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-40, -20, 2))))
 
@@ -145,7 +145,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             x0[state_inds['can{0}'.format(o), 'pose']] = can_locs[o]
         # print(x0)
         x0s.append(x0)
-    return x0s
+    return x0s, [get_end_targets() for _ in range(len(x0s))]
 
 def parse_hl_plan(hl_plan):
     plan = []

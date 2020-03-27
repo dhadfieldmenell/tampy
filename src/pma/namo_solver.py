@@ -10,20 +10,23 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         elif a.name == 'movetoholding':
             ## find possible values for the final pose
             rs_param = None # a.params[2]
-        elif a.name == 'grasp':
+        elif a.name.find('grasp') >= 0:
             ## sample the grasp/grasp_pose
             rs_param = a.params[4]
         elif a.name == 'putdown':
             ## sample the end pose
             rs_param = None # a.params[4]
-        elif a.name == 'place':
+        elif a.name.find('place') >= 0:
             rs_param = a.params[2]
-        elif a.name.find('movetograsp') >= 0:
+        elif a.name.find('moveto') >= 0:
             rs_param = a.params[4]
             # rs_param = None
         elif a.name.find('place_at') >= 0:
             # rs_param = None
             rs_param = a.params[2]
+        elif a.name == 'short_grasp':
+            rs_param = a.params[4]
+            # rs_param = None
         elif a.name == 'short_movetograsp':
             rs_param = a.params[4]
             # rs_param = None
@@ -31,7 +34,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             # rs_param = None
             rs_param = a.params[2]
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
         return rs_param
 
@@ -55,22 +58,32 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = next_act.params[2]
                 target_pos = target.value - [[0], [0.]]
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]]) if next_act.name == 'putdown' else np.array([[1.]])})
+            elif act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
+                target = act.params[2]
+                grasp = act.params[5]
+                target_pos = target.value + grasp.value
+                robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
             elif act.name == 'short_movetograsp':
                 target = act.params[2]
                 grasp = act.params[5]
-                target_pos = target.value + grasp.value + np.array([[0.], [-0.5]])
+                target_pos = target.value + grasp.value + np.array([[0.], [-0.3]])
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
             elif act.name == 'short_grasp':
                 target = act.params[2]
                 grasp = act.params[5]
-                target_pos = target.value + grasp.value + np.array([[0.], [-0.25]])
+                target_pos = target.value + grasp.value + np.array([[0.], [-0.1]])
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
             elif act.name == 'grasp':
                 target = act.params[2]
                 grasp = act.params[5]
                 target_pos = target.value + grasp.value + np.array([[0.], [-0.5]])
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
-            elif act.name == 'shot_place_at':
+            elif act.name == 'new_quick_place_at':
+                target = act.params[4]
+                grasp = act.params[5]
+                target_pos = target.value + grasp.value
+                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
+            elif act.name == 'short_place_at':
                 target = act.params[4]
                 grasp = act.params[5]
                 target_pos = target.value + grasp.value

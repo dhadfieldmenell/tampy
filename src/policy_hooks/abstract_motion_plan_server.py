@@ -32,6 +32,7 @@ class AbstractMotionPlanServer(object):
 
     def __init__(self, hyperparams):
         self.id =  hyperparams['id']
+        self.task_name =  hyperparams['task_name']
         self.group_id = hyperparams['group_id']
         self.seed = int((1e2*time.time()) % 1000.)
         np.random.seed(self.seed)
@@ -233,6 +234,7 @@ class AbstractMotionPlanServer(object):
 
 
     def publish_motion_plan(self, msg):
+        task_name = self.task_list[eval(msg.task)[0]]
         if msg.solver_id != self.id: return
         self.mp_queue.append(msg)
         while len(self.mp_queue) > 10:
@@ -278,7 +280,7 @@ class AbstractMotionPlanServer(object):
         '''
 
         start_t = time.clock()
-        if True or np.isnan(init_cost) or init_cost > PLAN_COST_THRESHOLD and len(failed_preds) > 0:
+        if True or (np.isnan(init_cost) or init_cost > PLAN_COST_THRESHOLD and len(failed_preds) > 0):
             mean = []
             start_t = time.time()
             sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f, targets=targets, x_only=True)
@@ -310,6 +312,7 @@ class AbstractMotionPlanServer(object):
         resp.state = state.tolist()
         resp.server_id = msg.server_id
         resp.alg_id = msg.alg_id
+        resp.targets = targets
         # self.mp_publishers[msg.server_id].publish(resp)
         self.publish_mp(resp, msg.server_id)
         if success:
@@ -330,6 +333,7 @@ class AbstractMotionPlanServer(object):
                         next_line.data = out_traj[t]
                         resp.traj.append(next_line)
                     resp.failed = failed
+                    resp.targets = targets
                     resp.success = success
                     resp.plan_id = 'no_id'
                     resp.cond = msg.cond

@@ -3,6 +3,7 @@ import copy
 import json
 import logging
 import os
+import pickle
 import sys
 import tempfile
 import time
@@ -319,8 +320,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             mu = np.concatenate(self.mu[net].values(), axis=0)
             prc = np.concatenate(self.prc[net].values(), axis=0)
             wt = np.concatenate(self.wt[net].values(), axis=0)
+            use = True
+            for t in [net]:# self.mu:
+                if len(np.concatenate(self.mu[t].values(), axis=0)) < self.update_size:
+                    use = False
             
-            if len(mu) > self.update_size:
+            if use:
                 print('TF got data for', net, 'will update?', update)
                 self.update(obs, mu, prc, wt, net)
                 if net in self.val_obs:
@@ -338,6 +343,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             # del self.wt[net]
 
         return False
+
+
+    def get_data(self):
+        return [self.mu, self.obs, self.prc, self.wt, self.val_mu, self.val_obs, self.val_prc, self.val_wt]
 
 
     def run_update(self, nets=None):
@@ -474,7 +483,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                base_lr=self._hyperparams['lr'],
                                                lr_policy=self._hyperparams['lr_policy'],
                                                momentum=self._hyperparams['momentum'],
-                                               weight_decay=0.,
+                                               weight_decay=self._hyperparams['weight_decay'],
                                                fc_vars=self.primitive_fc_vars,
                                                last_conv_vars=self.primitive_last_conv_vars,
                                                vars_to_opt=vars_to_opt)

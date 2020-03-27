@@ -38,7 +38,8 @@ class Algorithm(object):
 
         # Grab a few values from the agent.
         agent = self._hyperparams['agent']
-        self.T = self._hyperparams['T'] = agent.T
+        self.T = self._hyperparams['T'] # self._hyperparams['T'] = agent.T
+        print(self.T, self._hyperparams['task'])
         self.dU = self._hyperparams['dU'] = agent.dU
         self.dX = self._hyperparams['dX'] = agent.dX
         self.dO = self._hyperparams['dO'] = agent.dO

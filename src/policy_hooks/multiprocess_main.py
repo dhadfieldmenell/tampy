@@ -93,12 +93,14 @@ class MultiProcessMain(object):
 
         self.target_dim, self.target_inds = utils.get_target_inds(plans.values()[0], self.config['attr_map'], target_vector_include)
         
-        x0 = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
+        x0, targets = prob.get_random_initial_state_vec(self.config, plans, self.dX, self.state_inds, conditions)
 
+        '''
         targets = []
         cur_targs = {pname: x0[self.state_inds[pname, 'pose']] for pname in self.state_inds if (pname, 'pose') in self.state_inds}
         for _ in range(conditions):
             targets.append(prob.get_end_targets())
+        '''
 
 
         for plan in plans.values():
@@ -317,7 +319,7 @@ class MultiProcessMain(object):
         alg_map = {}
         for task in self.task_list:
             self.config['algorithm']['T'] = self.task_durations[task]
-            alg_map[task] = self.config['algorithm']
+            alg_map[task] = copy.copy(self.config['algorithm'])
         self.config['policy_opt'] = self.config['algorithm']['policy_opt']
         self.config['policy_opt']['split_nets'] = self.config.get('split_nets', False)
 
@@ -330,10 +332,10 @@ class MultiProcessMain(object):
         self.fail_value = self.config['fail_value']
         self.alg_map = {}
         self.policy_opt = None
-        self.config['algorithm'][task]['policy_opt']['scope'] = 'value'
-        self.config['algorithm'][task]['policy_opt']['weight_dir'] = self.config['weight_dir']
         self.task_durations = self.config['task_durations']
         for task in self.task_list:
+            self.config['algorithm'][task]['policy_opt']['scope'] = 'value'
+            self.config['algorithm'][task]['policy_opt']['weight_dir'] = self.config['weight_dir']
             self.config['algorithm'][task]['policy_opt']['prev'] = 'skip'
             self.config['algorithm'][task]['agent'] = self.agent
             self.config['algorithm'][task]['init_traj_distr']['T'] = self.task_durations[task]
@@ -373,12 +375,13 @@ class MultiProcessMain(object):
                                   self.config['branching_factor'],
                                   self.config['num_samples'],
                                   self.config['num_distilled_samples'],
-                                  soft_decision=True,
+                                  soft_decision=False,
                                   max_depth=self.config['max_tree_depth'],
                                   explore_depth=5,
                                   opt_strength=self.config.get('opt_strength', 0),
                                   log_prefix=None,#'tf_saved/'+self.config['weight_dir']+'/rollouts',
-                                  curric_thresh=self.config.get('curric_thresh', -1)
+                                  curric_thresh=self.config.get('curric_thresh', -1),
+                                  her=self.config.get('her', False),
                                   ))
 
         self.config['mcts'] = self.mcts
@@ -470,9 +473,11 @@ class MultiProcessMain(object):
             return t
 
     def create_mp_servers(self, hyperparams):
+        n_tasks = len(hyperparams['task_list'])
         for n in range(hyperparams['n_optimizers']):
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['id'] = n
+            new_hyperparams['task_name'] = hyperparams['task_list'][n % n_tasks]
             if 'scope' in new_hyperparams:
                 new_hyperparams['policy_opt']['scope'] = new_hyperparams['scope']
             self.create_server(new_hyperparams['opt_server_type'], new_hyperparams)
@@ -510,6 +515,12 @@ class MultiProcessMain(object):
                 new_hyperparams = copy.copy(hyperparams)
                 new_hyperparams['id'] = hyperparams['server_id']+'_'+str(n)
                 self.create_server(RolloutServer, new_hyperparams)
+
+        hyperparams['run_mcts_rollouts'] = False
+        hyperparams['run_alg_updates'] = False
+        hyperparams['run_hl_test'] = True
+        hyperparams['id'] = hyperparams['server_id']+'_test'
+        self.create_server(RolloutServer, hyperparams)
 
 
     def _create_rollout_server(self, hyperparams, idx):
@@ -598,13 +609,13 @@ class MultiProcessMain(object):
     
     def expand_rollout_servers(self):
         if time.time() - self.config['start_t'] < 1200: return
-        self.cpu_use.append(psutil.cpu_percent())
-        if np.mean(self.cpu_use[-5:]) < 90:
+        self.cpu_use.append(psutil.cpu_percent(interval=1.))
+        if np.mean(self.cpu_use[-1:]) < 92.5:
             hyp = copy.copy(self.config)
             hyp['split_mcts_alg'] = True
             hyp['run_alg_updates'] = False
             hyp['run_mcts_rollouts'] = True
-            hyp['start_t'] = time.time()
+            print('Starting rollout server {0}'.format(self.cur_n_rollout))
             p = self._create_rollout_server(hyp, idx=self.cur_n_rollout)
             try:
                 p.start()

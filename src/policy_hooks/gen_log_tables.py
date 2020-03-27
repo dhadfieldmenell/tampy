@@ -129,6 +129,7 @@ def gen_traj_cost_plots(x_var='time'):
 
 def gen_first_success_plots(x_var='time'):
     exp_probs = os.listdir(LOG_DIR)
+    master_plot = []
     for exp_name in exp_probs:
         dir_prefix = LOG_DIR + exp_name + '/'
         exp_dirs = os.listdir(dir_prefix)
@@ -157,6 +158,7 @@ def gen_first_success_plots(x_var='time'):
                 data = np.array(costs)
                 x_pts = data[:,0]
                 y_pts = data[:,1]
+                master_plot.append((x_pts, y_pts, r.split('.')[0], exp_name, dir_name))
                 plt.title('Steps to first success')
                 plt.xlabel(x_var)
                 plt.ylabel('Step of first success')
@@ -164,6 +166,13 @@ def gen_first_success_plots(x_var='time'):
                 plt.plot(x, y)
                 plt.savefig(full_dir+'/'+r.split('.')[0]+'_goal_vs_{0}.png'.format(x_var), pad_inches=0.01)
                 plt.clf()
+    plt.title('Steps to first success')
+    plt.xlabel(x_var)
+    plt.ylabel('Avg. step of first success')
+    for pnt in master_plot:
+        plt.plot(pnt[0], pnt[1], label='{0}_{1}'.format(pnt[2], pnt[3]))
+    plt.savefig(LOG_DIR+'/goal_vs_{0}.png'.format(x_var), pad_inches=0.01)
+    plt.clf()
 
 
 def gen_plots(x_var, y_var, overlay=True, mode='scalar', val=0.):

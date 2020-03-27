@@ -3,6 +3,7 @@ from datetime import datetime
 import itertools
 import numpy as np
 import pprint
+import random
 import time
 
 from policy_hooks.sample import Sample
@@ -69,6 +70,7 @@ class MCTSNode():
             parent.add_child(self)
             self.tree = parent.tree
         self.valid = True
+        self.failures = {}
 
 
     def erase(self):
@@ -80,6 +82,7 @@ class MCTSNode():
             if child is not None:
                 child.erase()
         self.children = {}
+        self.failures = []
 
 
     def is_root(self):
@@ -144,7 +147,7 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1):
+    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, her=False):
         self.tasks = tasks
         self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
@@ -165,6 +168,7 @@ class MCTS:
         self._prob_f = prob_f
         # self.node_check_f = lambda n: n.value/n.n_explored+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
         self.opt_strength = opt_strength
+        self.her = her
         self.curric_thresh = curric_thresh
         self.cur_curric = 1 if curric_thresh > 0 else 0
         if self.cur_curric != 0:
@@ -173,9 +177,10 @@ class MCTS:
         self.n_resets = 0
         self.reset(gmms, condition)
 
-        label_options = itertools.product(range(self.num_tasks), *[range(n) for n in self.num_prims])
+        label_options = list(itertools.product(range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.n_explored = {tuple(l): 0 for l in label_options}
 
+        self.label_options = label_options
         self.log_file = log_prefix + '_paths.txt' if log_prefix is not None else None
         self.verbose_log_file = log_prefix + '_verbose.txt' if log_prefix is not None else None
         self.log_prefix = log_prefix
@@ -208,12 +213,20 @@ class MCTS:
             with open(self.verbose_log_file, 'w+') as f:
                 f.write('\n')
 
+    
+    def mark_failure(self, node, task):
+        if node is self.root:
+            self.root.failures[tuple(task)] = True
+            if len(self.root.failures.keys()) == len(self.root.children.keys()):
+                print('BAD ROOT STATE; RESETING ON {0}'.format(self.agent.x0[self.condition]))
+                self.reset()
 
 
     def reset(self, gmms=None, condition=None):
         if hasattr(self, 'root'):
             self.root.erase()
         self.root = MCTSNode((-1, -1, -1), 0, None, len(self.tasks), self.prim_dims, self)
+        self.root.parent = self.root
         self.gmms = gmms
         self.condition = condition if condition is not None else self.condition
         self.n_success = 0
@@ -228,7 +241,8 @@ class MCTS:
         self.n_resets += 1
         if 1.0 in self.val_per_run and self.val_per_run.find(1.0) < self.curric_thresh:
             self.cur_curric += 1
-            self.max_depth = min(self._max_depth, int(2 * self.max_depth))
+            # self.max_depth = min(self._max_depth, int(2 * self.max_depth))
+            self.max_depth = min(self._max_depth, self.max_depth + 3)
         self.agent.replace_cond(self.condition, curric_step=self.cur_curric)
 
 
@@ -299,10 +313,10 @@ class MCTS:
             # val_obs = sample.get_val_obs(t=0)
             # q_value = self.value_func(val_obs)[0] if child is None else child.value
             q_value = 0 if child is None else child.value
-            #vals.append(q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + parent.n_child_explored[label])))
-            vals.append(q_value + \
-                        self.C * np.sqrt(np.log(parent.n_explored) / (1 + parent.n_child_explored[label])) + \
-                        self.C * np.sqrt(np.log(self.n_samples) / (1 + self.n_explored[label])))
+            vals.append(q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + parent.n_child_explored[label])))
+            # vals.append(q_value + \
+            #             self.C * np.sqrt(np.log(parent.n_explored) / (1 + parent.n_child_explored[label])) + \
+            #             self.C * np.sqrt(np.log(self.n_samples) / (1 + self.n_explored[label])))
 
         return vals
 
@@ -355,21 +369,8 @@ class MCTS:
             print 'Simulating from unexplored children.'
 
         if label is None:
-            sample = Sample(self.agent)
-            sample.set_X(state.copy(), 0)
-            sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
             dummy_label = tuple(np.zeros(len(self.num_prims)+1, dtype='int32'))
-            self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, dummy_label, fill_obs=True)
-            distrs = self.prob_func(sample.get_prim_obs(t=0))
-            while all([np.any(distr > 0) for distr in distrs]):
-                label = []
-                for d in distrs:
-                    label.append(np.argmax(d))
-                    d[np.argmax(d)] = 0
-
-                label = tuple(label)
-                precond_cost = self.agent.cost_f(state, label, self.condition, active_ts=(0,0), debug=debug)
-                if node.get_child(label) is None and precond_cost > 0: break
+            label = self.iter_labels(state, dummy_label)
 
             if label is None: 
                 return 0, None, None
@@ -387,7 +388,8 @@ class MCTS:
         value, next_sample = self.simulate_from_next(next_node, state, prev_sample, num_samples=5, use_distilled=use_distilled, save=True, exclude_hl=exclude_hl, debug=debug)
         node.add_child(next_node)
         next_node.update_value(value)
-        next_sample.node = next_node
+        if next_sample is not None:
+            next_sample.node = next_node.parent
         # node.update_child_explored(label)
         # while node != self.root:
         #     node.update_value(int(cost==0))
@@ -470,15 +472,11 @@ class MCTS:
 
         cost = 1.
         if all([node.get_child(p) is None for p in parameterizations]):
-            sample = Sample(self.agent)
-            sample.set_X(state.copy(), t=0)
-            self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True)
-            distrs = self.prob_func(sample.get_prim_obs(t=0))
-            next_label = []
-            for d in distrs:
-                next_label.append(np.argmax(d))
-            p = tuple(next_label)
-            cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
+            p = self.iter_labels(state, label)
+            if p is None:
+                cost = 1.
+            else:
+                cost = 0.
 
         if cost > 0:
             values = self.multi_node_check_f(parameterizations, state, node)
@@ -505,6 +503,7 @@ class MCTS:
                 p = parameterizations[ind]
                 values[ind] = -np.inf
                 cost = self.agent.cost_f(state, p, self.condition, active_ts=(0,0), debug=False)
+                if cost > 0: node.failures[tuple(p)] = True
         
         child = node.get_child(p)
         node.update_child_explored(p)
@@ -539,11 +538,12 @@ class MCTS:
         else:
             new_opt_strength = self.opt_strength
 
+        use = True
         pol = MixedPolicy(self.rollout_policy[task_name], self.agent.dU, self.agent.action_inds, self.agent.state_inds, None, new_opt_strength)
         if new_opt_strength > 0:
             gmm = self.gmms[task_name] if self.gmms is not None else None
             inf_f = None # if gmm is None or gmm.sigma is None else lambda s: gmm.inference(np.concatenate[s.get(STATE_ENUM), s.get_U()])
-            s, failed, success = self.agent.solve_sample_opt_traj(cur_state, task, self.condition, inf_f=inf_f)
+            s, failed, success = self.agent.solve_sample_opt_traj(cur_state.copy(), task, self.condition, inf_f=inf_f, targets=self.agent.target_vecs[self.condition].copy())
             pol.opt_traj = s.get(ACTION_ENUM).copy()
             s.opt_strength = new_opt_strength
             if success:
@@ -551,6 +551,7 @@ class MCTS:
             else:
                 s = None
                 pol.opt_strength = 0
+                use = False
 
         # if success:
         #     samples.append(s)
@@ -573,6 +574,8 @@ class MCTS:
         # if np.random.uniform() > 0.99: print(lowest_cost_sample.get(STATE_ENUM), task)
         for s in samples:
             s.node = node
+            if not use:
+                s.use_ts[:] = 0.
 
         if save and fixed_path is None:
             self.agent.add_sample_batch(samples, task)
@@ -641,7 +644,7 @@ class MCTS:
             # if len(fixed_paths) <= iteration and np.random.uniform() > 0.9:
             #     print(next_sample.get_X(), '<---- sampled path in tree')
 
-            next_sample.node = next_node
+            next_sample.node = next_node.parent
             next_node.sample_links[next_sample] = prev_sample # Used to retrace paths
             prev_sample = next_sample
             cur_state = next_sample.end_state # get_X(t=next_sample.T-1)
@@ -678,7 +681,9 @@ class MCTS:
                 end_sample.task_cost = 1. - path_value
             n = end_sample
             while hasattr(n, 'next_sample') and n.next_sample is not None:
-                n = n.next_sample
+                next_n = n.next_sample
+                n.next_sample = None
+                n = next_n
                 n.success = path_value
                 n.task_cost = 1. - path_value
                 path.append(n)
@@ -690,6 +695,15 @@ class MCTS:
             end = path[-1]
             print('\nSUCCESS! Tree {0} {1} using fixed: {2}\n'.format(self.log_file, state, len(fixed_paths) != 0))
             self.agent.add_task_paths([path])
+        elif self.her:
+            old_nodes = [path[i].node for i in range(len(path))]
+            for s in path:
+                s.node = None
+                s.next_sample = None
+            new_path = self.agent.relabel_path(path)
+            self.agent.add_task_paths([new_path])
+            for i in range(len(path)):
+                path[i].node = old_nodes[i]
 
         self.log_path(path, len(fixed_paths))
         return path_value, path
@@ -710,6 +724,65 @@ class MCTS:
             samples[i].next_sample = samples[i+1]
 
         return value, samples[0]
+
+
+    def test_run(self, state, targets, max_t=20):
+        old_opt = self.opt_strength
+        self.opt_strength = 1.
+        path = []
+        val = 0
+        l = (0,0,0)
+        t = 0
+        while t < max_t and val < 1-1e-2 and l is not None:
+            l = self.iter_labels(state, l, targets=targets)
+            plan = self.agent.plans[l]
+            s = sef.sample_task(l, state, plan, 1)
+            val = self.agent.goal_f(0, s.get_X(s.T-1), targets)
+            t += 1
+        self.opt_strength = old_opt
+        return val, path
+
+
+    def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False):
+        sample = Sample(self.agent)
+        sample.set_X(end_state.copy(), t=0)
+        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
+        distrs = self.prob_func(sample.get_prim_obs(t=0))
+        for d in distrs:
+            for i in range(len(d)):
+                d[i] = round(d[i], 3)
+        next_label = []
+
+        cost = 1.
+        labels = [l for l in self.label_options]
+        distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
+        distr = np.array(distr)
+        for l in exclude:
+            ind = labels.index(tuple(l))
+            distr[ind] = 0.
+
+        while cost > 0 and np.any(distr > 0): 
+            next_label = []
+            if self.soft_decision:
+                expcost = self.n_runs * distr
+                expcost = expcost - np.max(expcost)
+                expcost = np.exp(expcost)
+                expcost = expcost / np.sum(expcost)
+                ind = np.random.choice(range(len(distr)), p=expcost)
+                next_label = tuple(labels[ind])
+                distr[ind] = -np.inf
+            else:
+                val = np.max(distr)
+                inds = np.array(range(len(distr)))[distr >= val - 1e-3]
+                ind = np.random.choice(inds)
+                # ind = np.argmax(distr)
+                next_label = tuple(labels[ind])
+                distr[ind] = 0.
+            cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
+        if cost > 0:
+            print('NO PATH FOR:', end_state, 'excluding:', exclude)
+            return None
+        return next_label
 
 
     def _default_simulate_from_next(self, label, depth, init_depth, state, prob_func, samples, num_samples=1, save=True, exclude_hl=[], use_distilled=True, exclude=[], debug=False):
@@ -734,45 +807,25 @@ class MCTS:
                 sample.success = path_value # (path_value, 1-path_value) # SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
             return path_value, samples
 
-        samples.append(next_sample)
+        if self.check_change(next_sample):
+            samples.append(next_sample)
+        else:
+            exclude = [label]
         path_value = 1. - self.agent.goal_f(self.condition, end_state)
         # hl_encoding = self._encode_f(end_state, self.agent.plans.values()[0], self.agent.targets[self.condition])
         # if path_value >= 1. - 1e-3 or depth >= init_depth + self.explore_depth or depth >= self.max_depth: # or hl_encoding in exclude_hl:
-        if path_value >= 1. - 1e-3 or depth >= self.max_depth: # or hl_encoding in exclude_hl:
+        if path_value >= 1. - 1e-3 or depth >= min(self.n_runs, self.max_depth): # or hl_encoding in exclude_hl:
             for sample in samples:
                 sample.task_cost = 1-path_value
                 sample.success = path_value # (path_value, 1-path_value) # SUCCESS_LABEL if path_value == 0 else FAIL_LABEL
             return path_value, samples
 
-        # exclude_hl = exclude_hl + [hl_encoding]
-        sample = Sample(self.agent)
-        sample.set_X(end_state.copy(), t=0)
-        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True)
-        distrs = self.prob_func(sample.get_prim_obs(t=0))
-        next_label = []
+        next_label = self.iter_labels(end_state, label, exclude=exclude)
+        
+        if next_label is None:
+            next_label = random.choice(self.label_options)
 
-        cost = 1.
-        while cost > 0 and np.all([np.any(d > 0) for d in distrs]):
-            next_label = []
-            if self.soft_decision:
-                for i in range(len(label)):
-                    distr = self.n_runs * distrs[i]
-                    distr = distr - np.max(distr)
-                    distr = np.exp(distr)
-                    distr = distr / sum(distr)
-                    next_label.append(np.random.choice(range(len(distr)), p=distr))
-            else:
-                for distr in distrs:
-                    next_label.append(np.argmax(distr))
-            for i in range(len(next_label)):
-                distrs[i][next_label[i]]  = 0.
-            cost = self.agent.cost_f(end_state, label, self.condition, active_ts=(0,0), debug=debug)
-            if cost > 0:
-                next_label = []
-                for d in distrs:
-                    next_label.append(np.random.randint(len(d)))
-
-            cost = 0 # TODO: find a better way to do this
+        cost = 0 # TODO: find a better way to do this
 
         next_label = tuple(next_label)
         next_path_value, samples = self._default_simulate_from_next(next_label, depth+1, init_depth, end_state, prob_func, samples, num_samples=num_samples, save=True, use_distilled=use_distilled, debug=debug)
@@ -798,7 +851,7 @@ class MCTS:
             info = {'X': X, 'task': sample.task, 'time_from_start': time.time() - self.start_t, 'n_runs': self.n_runs, 'n_resets': self.n_resets, 'value': 1.-sample.task_cost, 'fixed_samples': n_fixed, 'root_state': self.agent.x0[self.condition], 'opt_strength': sample.opt_strength if hasattr(sample, 'opt_strength') else 'N/A'}
             if verbose:
                 info['obs'] = sample.get_obs()
-                info['targets'] = self.agent.get_target_dict(self.condition)
+                info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
             data.append(info)
         return data
 
@@ -819,6 +872,8 @@ class MCTS:
             f.write(pp_info)
             f.write('\n')
 
+    def check_change(self, sample):
+        return np.linalg.norm(sample.get_X(0) - sample.get_X(sample.T-1)) > 1e-1
 
         '''    
         tasks = []

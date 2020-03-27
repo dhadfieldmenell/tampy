@@ -280,8 +280,8 @@ config = {
     'time_limit': TIME_LIMIT,
     'success_to_replace': 10,
     'steps_to_replace': NUM_OBJS * 50,
-    'curric_thresh': -1,
-    'expand_process': True,
-    'descr': '_expand_hyp10',
+    'curric_thresh': 5,
+    'expand_process': False,
+    'descr': '_currc_5_hyp21',
     'her': False,
 }

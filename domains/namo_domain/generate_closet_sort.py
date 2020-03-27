@@ -36,6 +36,11 @@ def main():
         s += "Target (name %s); "%"right_target_1"
         s += "Target (name %s); "%"left_target_2"
         s += "Target (name %s); "%"right_target_2"
+        s += "Target (name %s); "%"aux_target_1"
+        s += "Target (name %s); "%"aux_target_2"
+        s += "Target (name %s); "%"aux_target_3"
+        s += "Target (name %s); "%"aux_target_4"
+        s += "Target (name %s); "%"aux_target_5"
         s += "Obstacle (name %s) \n\n"%"obs0"
 
         s += "Init: "
@@ -60,11 +65,16 @@ def main():
         s += "(value %s [1., 0.]), "%("right_target_1")
         s += "(value %s [-2., 0.]), "%("left_target_2")
         s += "(value %s [2., 0.]), "%("right_target_2")
+        s += "(value %s [0., 0.]), "%("aux_target_1")
+        s += "(value %s [0., 0.]), "%("aux_target_2")
+        s += "(value %s [0., 0.]), "%("aux_target_3")
+        s += "(value %s [0., 0.]), "%("aux_target_4")
+        s += "(value %s [0., 0.]), "%("aux_target_5")
         s += "(pose %s [-3.5, 0]), "%"obs0"
         s += "(geom %s %s); "%("obs0", "closet")
 
-        for i in range(NUM_CANS):
-            s += "(At can{} can{}_init_target), ".format(i, i)
+        # for i in range(NUM_CANS):
+            # s += "(At can{} can{}_init_target), ".format(i, i)
             # s += "(Stationary can{}), ".format(i)
             # for j in range(NUM_CANS):
             #     s += "(StationaryNEq can{} can{}), ".format(i, j)

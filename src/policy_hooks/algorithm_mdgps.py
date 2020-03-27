@@ -7,7 +7,8 @@ import traceback
 import numpy as np
 import scipy as sp
 
-from gps.algorithm.algorithm import Algorithm
+from policy_hooks.algorithm import Algorithm
+# from gps.algorithm.algorithm import Algorithm
 from gps.algorithm.algorithm_utils import IterationData, TrajectoryInfo, PolicyInfo
 from gps.algorithm.config import ALG_MDGPS
 from gps.utility.general_utils import extract_condition

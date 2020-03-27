@@ -17,10 +17,10 @@ from core.util_classes.viewer import OpenRAVEViewer
 
 MAX_PRIORITY=3
 BASE_MOVE_COEFF = 10
-TRAJOPT_COEFF=1e-1
+TRAJOPT_COEFF=1e-2
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = True
+DEBUG = False
 
 
 class BacktrackLLSolver(LLSolver):
@@ -30,15 +30,15 @@ class BacktrackLLSolver(LLSolver):
         # (largest_coefficient/smallest_coefficient < 1e9)
         self.transfer_coeff = 1e0
         self.rs_coeff = 5e1
-        self.trajopt_coeff = 1e0
+        self.trajopt_coeff = 1e2#1e0
         self.initial_trust_region_size = 1e-2
-        self.init_penalty_coeff = 4e3
-        self.smooth_penalty_coeff = 7e4
+        self.init_penalty_coeff = 1#4e3
+        self.smooth_penalty_coeff = 1#7e4
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
         self.child_solver = None
-        self.solve_priorities = [0, 1, 2, 3]
+        self.solve_priorities = [-2, 0, 1, 2, 3]
         self.transfer_norm = transfer_norm
         self.grb_init_mapping = {}
         self.var_list = []
@@ -207,7 +207,7 @@ class BacktrackLLSolver(LLSolver):
                 if success:
                     break
 
-                failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
+                # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
                 # import ipdb; ipdb.set_trace()
 
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)

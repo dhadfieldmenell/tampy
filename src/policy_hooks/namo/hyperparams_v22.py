@@ -281,7 +281,7 @@ config = {
     'success_to_replace': 10,
     'steps_to_replace': NUM_OBJS * 50,
     'curric_thresh': -1,
-    'expand_process': True,
-    'descr': '_expand_hyp10',
+    'expand_process': False,
+    'descr': '_base_hyp22',
     'her': False,
 }

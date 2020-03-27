@@ -1,3 +1,4 @@
+import copy
 import os
 import time
 
@@ -80,7 +81,7 @@ def get_base_solver(parent_class):
                 total_time = 0
 
             if total_time > time_limit:
-                print('Solver timed out')
+                # print('Solver timed out')
                 return False
 
             start_time = time.time()
@@ -277,7 +278,7 @@ def get_base_solver(parent_class):
                   total_time=0, time_limit=TIME_LIMIT, priorities=None):
             success = False
             if total_time > time_limit:
-                print('Solver timed out')
+                # print('Solver timed out')
                 return False
 
             start_time = time.time()
@@ -311,8 +312,8 @@ def get_base_solver(parent_class):
                         print "error in predicate checking"
 
                     if success or total_time + time.time() - start_time > time_limit:
-                        if total_time + time.time() - start_time > time_limit:
-                            print('Solver timed out')
+                        # if total_time + time.time() - start_time > time_limit:
+                        #     print('Solver timed out')
                         break
 
                     self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, 
@@ -609,7 +610,7 @@ def get_base_solver(parent_class):
 
                 obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 if self.transfer_always:
-                    obj_bexprs.extend(self._get_fixed_transfer_obj(plan, self.transfer_norm, traj_mean, coeff=self.strong_transfer_coeff))
+                    obj_bexprs.extend(self._get_fixed_transfer_obj(plan, self.transfer_norm, traj_mean, coeff=self.strong_transfer_coeff, active_ts=active_ts))
                 if task is not None and inf_f is not None:
                     obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1], inf_f))
 
@@ -715,7 +716,7 @@ def get_base_solver(parent_class):
 
             return Variable(x, v)
 
-        def quick_solve(self, plan, callback=None, n_resamples=5, traj_mean=[], verbose=False, step=1):
+        def quick_solve(self, plan, callback=None, n_resamples=5, traj_mean=[], verbose=False, step=1, attr_dict=None):
             # plan.save_free_attrs()
             if len(traj_mean):
                 self.transfer_always = True
@@ -743,19 +744,29 @@ def get_base_solver(parent_class):
                 active_ts = (act_1.active_timesteps[0], act_1.active_timesteps[1])
                 old_params_free = {}
                 for p in plan.params.itervalues():
-                    if p.is_symbol():
-                        if p not in act_1.params: continue
-                        old_params_free[p] = p._free_attrs
-                        p._free_attrs = {}
-                        for attr in old_params_free[p].keys():
-                            p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
-                    else:
-                        p_attrs = {}
-                        old_params_free[p] = p_attrs
+                    if attr_dict is not None:
+                        old_param_free[p] = copy.deepcopy(p._free_attrs)
                         for attr in p._free_attrs:
-                            p_attrs[attr] = [p._free_attrs[attr][:, :active_ts[0]+1].copy(), p._free_attrs[attr][:, active_ts[1]:].copy()]
-                            p._free_attrs[attr][:, active_ts[1]:] = 0
-                            p._free_attrs[attr][:, :active_ts[0]+1] = 0
+                            if (p.name, attr) in attr_dict:
+                                p._free_attrs[attr][:] = 0.
+                            else:
+                                p._free_atts[attr][:] = 1.
+                            p._free_attrs[attr][:, active_ts[0]] = 0.
+                        getattr(p, attr)[:,-1] = attr_dict[p.name, attr]
+                    else:
+                        if p.is_symbol():
+                            if p not in act_1.params: continue
+                            old_params_free[p] = p._free_attrs
+                            p._free_attrs = {}
+                            for attr in old_params_free[p].keys():
+                                p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
+                        else:
+                            p_attrs = {}
+                            old_params_free[p] = p_attrs
+                            for attr in p._free_attrs:
+                                p_attrs[attr] = [p._free_attrs[attr][:, :active_ts[0]+1].copy(), p._free_attrs[attr][:, active_ts[1]+1:].copy()]
+                                p._free_attrs[attr][:, active_ts[1]+1:] = 0
+                                p._free_attrs[attr][:, :active_ts[0]+1] = 0
                 success = self._traj_smoother(plan, callback, n_resamples, active_ts, verbose, traj_mean[active_ts[0]:active_ts[1]+1])
                 # reset free_attrs
                 for p in plan.params.itervalues():
@@ -765,7 +776,7 @@ def get_base_solver(parent_class):
                     else:
                         for attr in p._free_attrs:
                             p._free_attrs[attr][:, :active_ts[0]+1] = old_params_free[p][attr][0]
-                            p._free_attrs[attr][:, active_ts[1]:] = old_params_free[p][attr][1]
+                            p._free_attrs[attr][:, active_ts[1]+1:] = old_params_free[p][attr][1]
 
                 if not success:
                     return success
@@ -779,7 +790,7 @@ def get_base_solver(parent_class):
             return success
         
         def _traj_smoother(self, plan, callback=None, n_resamples=5, active_ts=None, verbose=False, traj_mean=[]):
-            priorities = [-2, -1, 3]
+            priorities = [-2, 3]
             for priority in priorities:
                 for attempt in range(n_resamples):
                     # refinement loop
@@ -791,13 +802,15 @@ def get_base_solver(parent_class):
                     self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True, traj_mean=traj_mean)
             return success
 
-        def _get_fixed_transfer_obj(self, plan, norm, mean, coeff=None):
+        def _get_fixed_transfer_obj(self, plan, norm, mean, coeff=None, active_ts=None):
             """
                 This function returns the expression e(x) = P|x - cur|^2
                 Which says the optimized trajectory should be close to the
                 previous trajectory.
                 Where P is the KT x KT matrix, where Px is the difference of parameter's attributes' current value and parameter's next timestep value
             """
+            if active_ts is None:
+                active_ts = (0, plan.horizon-1)
             if not len(mean):
                 print('Cannot add fixed transfer; no data')
                 return []

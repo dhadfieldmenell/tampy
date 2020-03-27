@@ -1,3 +1,4 @@
+import pickle
 import random
 import threading
 import time
@@ -51,6 +52,7 @@ class PolicyServer(object):
 
         self.update_listener = rospy.Subscriber('{0}_update_{1}'.format(self.task, self.group_id), PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
         self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
+        self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/data.pkl'.format(self.task)
         self.n_updates = 0
         self.full_N = 0
         self.update_t = time.time()
@@ -128,6 +130,9 @@ class PolicyServer(object):
             lossess = [self.policy_opt.average_losses[::incr], self.policy_opt.average_val_losses[::incr]]
             with open(self.policy_opt_log, 'w+') as f:
                 f.write(str(lossess))
+            if not self.n_updates % 20:
+                with open(self.data_file, 'w+') as f:
+                    pickle.dump(self.policy_opt.get_data(), f)
 
 
     def prob(self, req):
