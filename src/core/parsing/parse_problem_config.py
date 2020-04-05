@@ -1,7 +1,12 @@
 from core.internal_repr import state
 from core.internal_repr import problem
 from errors_exceptions import ProblemConfigException
-from openravepy import Environment
+
+from core.util_classes.common_constants import USE_OPENRAVE
+if USE_OPENRAVE:
+    from openravepy import Environment
+else:
+    import pybullet as P
 
 class ParseProblemConfig(object):
     """
@@ -14,7 +19,10 @@ class ParseProblemConfig(object):
         # create parameter objects
         params = {}
         if env is None:
-            env = Environment()
+            if USE_OPENRAVE:
+                env = Environment()
+            else:
+                env = P.connect(P.DIRECT)
             
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")

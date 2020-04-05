@@ -134,7 +134,18 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             i += dim
 
         self.update_count = 0
-        self.update_size = self._hyperparams['update_size']
+        if self.scope == 'primitive':
+            self.update_size = self._hyperparams['prim_update_size']
+        elif self.scope == 'value':
+            self.update_size = self._hyperparams['val_update_size']
+        else:
+            self.update_size = self._hyperparams['update_size']
+
+        if self.scope == 'primitive':
+            self._hyperparams['weight_decay'] = self._hyperparams['prim_weight_decay']
+        elif self.scope == 'value':
+            self._hyperparams['weight_decay'] = self._hyperparams['val_weight_decay']
+        
         self.mu = {}
         self.obs = {}
         self.prc = {}
@@ -159,7 +170,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def write_shared_weights(self, scopes=None):
         if scopes is None:
-            scopes = self.valid_scopes + ['primitive','image']
+            scopes = self.valid_scopes + ['primitive','image','value']
 
         for scope in scopes:
             wts = self.serialize_weights([scope])
@@ -170,7 +181,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
     def read_shared_weights(self, scopes=None):
         if scopes is None:
-            scopes = self.valid_scopes + ['primitive','image']
+            scopes = self.valid_scopes + ['primitive','image','value']
 
         for scope in scopes:
             with self.buf_sizes[scope].get_lock():
@@ -180,7 +191,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.deserialize_weights(wts)
             except Exception as e:
                 pass
-                # print(e)
+                # traceback.print_exception(*sys.exc_info())
                 # print('Could not load {0} weights'.format(scope))
 
 
@@ -253,7 +264,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         else:
             self.store_scope_weights([self.scope], weight_dir)
 
-    def store(self, obs, mu, prc, wt, net, task, update=False, val_ratio=0.05):
+    def store(self, obs, mu, prc, wt, net, task, update=False, val_ratio=-1.0):
         # print('TF got data for', task, 'will update?', update)
         keep_inds = None
         store_val = np.random.uniform() < val_ratio
@@ -362,7 +373,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             mu = np.concatenate(self.mu[net].values(), axis=0)
             prc = np.concatenate(self.prc[net].values(), axis=0)
             wt = np.concatenate(self.wt[net].values(), axis=0)
-            
+           
+            if np.all(np.abs(mu - mu[0]) < 1e-3):
+                continue
+
             if len(mu) > self.update_size:
                 print('TF updating on data for', net)
                 self.update(obs, mu, prc, wt, net)
@@ -589,6 +603,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         NT = obs.shape[0]
         if task == 'primitive':
             dU, dO = self._dPrim, self._dPrimObs
+        elif task == 'value':
+            dU, dO = 1, self._dValObs
         else:
             dU, dO = self._dU, self._dO
 
@@ -616,12 +632,16 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         tgt_wt = np.reshape(tgt_wt, (NT, 1, 1))
 
         # Fold weights into tgt_prc.
-        tgt_prc = tgt_wt * tgt_prc
+        if task == 'primitive' or task == 'value':
+            tgt_prc = tgt_wt.flatten()
+        else:
+            tgt_prc = tgt_wt * tgt_prc
 
         # TODO: Find entries with very low weights?
 
+        batch_size = np.minimum(NT, self.batch_size)
         # Normalize obs, but only compute normalzation at the beginning.
-        if task != 'primitive':
+        if task != 'primitive' and task != 'value':
             policy = self.task_map[task]['policy']
             if policy.scale is None or policy.bias is None:
                 policy.x_idx = self.x_idx
@@ -640,9 +660,9 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         assert not np.any(np.isnan(obs))
         assert not np.any(np.isnan(tgt_mu))
         assert not np.any(np.isnan(tgt_prc))
-        # Assuming that N*T >= self.batch_size.
+        # Assuming that N*T >= batch_size.
 
-        batches_per_epoch = np.maximum(np.floor(NT / self.batch_size), 1)
+        batches_per_epoch = np.maximum(np.floor(NT / batch_size), 1)
         idx = range(NT)
         average_loss = 0
         np.random.shuffle(idx)
@@ -651,14 +671,19 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         for i in range(10):
             self.train_iters += 1
             # Load in data for this batch.
-            start_idx = int(i * self.batch_size %
-                            (batches_per_epoch * self.batch_size))
-            idx_i = idx[start_idx:start_idx+self.batch_size]
+            start_idx = int(i * batch_size %
+                            (batches_per_epoch * batch_size))
+            idx_i = idx[start_idx:start_idx+batch_size]
             if task == 'primitive':
                 feed_dict = {self.primitive_obs_tensor: obs[idx_i],
                              self.primitive_action_tensor: tgt_mu[idx_i],
                              self.primitive_precision_tensor: tgt_prc[idx_i]}
                 val_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
+            elif task == 'value':
+                feed_dict = {self.value_obs_tensor: obs[idx_i],
+                             self.value_action_tensor: tgt_mu[idx_i],
+                             self.value_precision_tensor: tgt_prc[idx_i]}
+                val_loss = self.value_solver(feed_dict, self.sess, device_string=self.device_string, train=False)
             else:
                 feed_dict = {self.task_map[task]['obs_tensor']: obs[idx_i],
                              self.task_map[task]['action_tensor']: tgt_mu[idx_i],
@@ -746,7 +771,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         assert not np.any(np.isnan(tgt_prc))
         # Assuming that N*T >= self.batch_size.
 
-        batches_per_epoch = np.maximum(np.floor(NT / self.batch_size), 1)
+        batch_size = np.minimum(self.batch_size, NT)
+        batches_per_epoch = np.maximum(np.floor(NT / batch_size), 1)
         idx = np.array(range(NT))
         average_loss = 0
         np.random.shuffle(idx)
@@ -754,11 +780,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if self._hyperparams['fc_only_iterations'] > 0:
             feed_dict = {self.obs_tensor: obs}
             num_values = obs.shape[0]
-            conv_values = self.task_map[task]['solver'].get_last_conv_values(self.sess, feed_dict, num_values, self.batch_size)
+            conv_values = self.task_map[task]['solver'].get_last_conv_values(self.sess, feed_dict, num_values, batch_size)
             for i in range(self._hyperparams['fc_only_iterations'] ):
-                start_idx = int(i * self.batch_size %
-                                (batches_per_epoch * self.batch_size))
-                idx_i = idx[start_idx:start_idx+self.batch_size]
+                start_idx = int(i * batch_size %
+                                (batches_per_epoch * batch_size))
+                idx_i = idx[start_idx:start_idx+batch_size]
                 feed_dict = {self.task_map[task]['last_conv_vars']: conv_values[idx_i],
                              self.task_map[task]['action_tensor']: tgt_mu[idx_i],
                              self.task_map[task]['precision_tensor']: tgt_prc[idx_i]}
@@ -776,11 +802,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         for i in range(self._hyperparams['iterations']):
             self.train_iters += 1
             # Load in data for this batch.
-            start_idx = int(i * self.batch_size %
-                            (batches_per_epoch * self.batch_size))
-            idx_i = idx[start_idx:start_idx+self.batch_size]
+            start_idx = int(i * batch_size %
+                            (batches_per_epoch * batch_size))
+            idx_i = idx[start_idx:start_idx+batch_size]
 
-            idx_i = idx[np.random.choice(idx, self.batch_size, replace=False)]
+            idx_i = idx[np.random.choice(idx, batch_size, replace=False)]
             feed_dict = {self.task_map[task]['obs_tensor']: obs[idx_i],
                          self.task_map[task]['action_tensor']: tgt_mu[idx_i],
                          self.task_map[task]['precision_tensor']: tgt_prc[idx_i]}
@@ -814,7 +840,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         feed_dict = {self.obs_tensor: obs}
         num_values = obs.shape[0]
         if self.task_map[task]['feat_op'] is not None:
-            self.task_map[task]['feat_vals'] = self.task_map[task]['solver'].get_var_values(self.sess, self.task_map[task]['feat_op'], feed_dict, num_values, self.batch_size)
+            self.task_map[task]['feat_vals'] = self.task_map[task]['solver'].get_var_values(self.sess, self.task_map[task]['feat_op'], feed_dict, num_values, batch_size)
         # Keep track of tensorflow iterations for loading solver states.
 
         # Optimize variance.
@@ -825,7 +851,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # TODO - Use dense covariance?
         self.var[task] = 1 / np.diag(A)
         policy.chol_pol_covar = np.diag(np.sqrt(self.var[task]))
-        print('Time to run policy update:', time.time() - start_t)
+        # print('Time to run policy update:', time.time() - start_t)
 
         return policy
 
@@ -861,11 +887,15 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # Reshape inputs.
         obs = np.reshape(obs, (N, dO))
         tgt_mu = np.reshape(tgt_mu, (N, dP))
+
+        '''
         tgt_prc = np.reshape(tgt_prc, (N, dP, dP))
         tgt_wt = np.reshape(tgt_wt, (N, 1, 1))
 
         # Fold weights into tgt_prc.
         tgt_prc = tgt_wt * tgt_prc
+        '''
+        tgt_prc = tgt_wt.flatten()
 
         # Assuming that N*T >= self.batch_size.
         batch_size = np.minimum(self.batch_size, N)
@@ -948,11 +978,15 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # Reshape inputs.
         obs = np.reshape(obs, (N, dO))
         tgt_mu = np.reshape(tgt_mu, (N, dP))
+
+        '''
         tgt_prc = np.reshape(tgt_prc, (N, dP, dP))
         tgt_wt = np.reshape(tgt_wt, (N, 1, 1))
 
         # Fold weights into tgt_prc.
         tgt_prc = tgt_wt * tgt_prc
+        '''
+        tgt_prc = tgt_wt
 
         # Assuming that N*T >= self.batch_size.
         batch_size = np.minimum(self.batch_size, N)

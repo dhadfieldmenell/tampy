@@ -24,7 +24,7 @@ This file implements the predicates for the 2D NAMO domain.
 dsafe = 1e-3 # 1e-1
 # dmove = 1.1e0 # 5e-1
 dmove = 1.4e0 # 5e-1
-contact_dist = 1e-2
+contact_dist = dsafe
 
 RS_SCALE = 0.5
 N_DIGS = 5
@@ -183,7 +183,9 @@ class CollisionPredicate(ExprPredicate):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
-        self._cc = ctrajoptpy.GetCollisionChecker(self._env)
+        if USE_OPENRAVE:
+            self._cc = ctrajoptpy.GetCollisionChecker(self._env)
+        
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
@@ -236,7 +238,6 @@ class CollisionPredicate(ExprPredicate):
         else:
             collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
 
-
         # if p1.name == 'obs0':
         #     print b1.env_body.GetLinks()[0].GetCollisionData().vertices
 
@@ -284,22 +285,26 @@ class CollisionPredicate(ExprPredicate):
                 distance = c.GetDistance()
                 normal = c.GetNormal()
             else:
-                linkA, linkB = c.linkIndexA, c.linkIndexB
-                linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
+                linkA, linkB = c[3], c[4]
+                #linkA, linkB = c.linkIndexA, c.linkIndexB
+                linkAParent, linkBParent = c[1], c[2]
+                #linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
                 sign = 0
                 if linkAParent == b0.body_id and linkBParent == b1.body_id:
-                    pt0, pt1 = c.positionOnA, c.positionOnB
+                    #pt0, pt1 = c.positionOnA, c.positionOnB
+                    pt0, pt1 = c[5], c[6] 
                     linkRobot, linkObj = linkA, linkB
                     sign = -1
                 elif linkBParent == b0.body_id and linkAParent == b1.body_id:
-                    pt0, pt1 = c.positionOnB, c.positionOnA
+                    # pt0, pt1 = c.positionOnB, c.positionOnA
+                    pt1, pt0 = c[5], c[6] 
                     linkRobot, linkObj = linkB, linkA
                     sign = 1
                 else:
                     continue
 
-                distance = c.contactDistance
-                normal = c.contactNormalOnB # Pointing towards A
+                distance = c[8] # c.contactDistance
+                normal = np.array(c[7]) # c.contactNormalOnB # Pointing towards A
             results.append((pt0, pt1, distance))
             # if distance < self.dsafe and 'obs0' in [name0, name1] and not np.any(np.isnan(pose0)) and not np.any(np.isnan(pose1)):
             #     print(name0, name1, distance, pose0, pose1)
@@ -557,7 +562,7 @@ class InContact(CollisionPredicate):
         self.robot, self.rp, self.targ = params
         attr_inds = OrderedDict([(self.rp, [("value", np.array([0,1], dtype=np.int))]),
                                  (self.targ, [("value", np.array([0,1], dtype=np.int))])])
-        self._param_to_body = {self.rp: self.lazy_spawn_or_body(self.rp, self.rp.name, self.robot.geom),
+        self._param_to_body = {self.rp: self.lazy_spawn_or_body(self.rp, self.rp.name, self.rp.geom),
                                self.targ: self.lazy_spawn_or_body(self.targ, self.targ.name, self.targ.geom)}
 
         INCONTACT_COEFF = 1e1
@@ -627,6 +632,55 @@ class Collides(CollisionPredicate):
             return self.neg_expr
         else:
             return None
+
+class TargetCollides(Collides):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.c, self.w = params
+        attr_inds = OrderedDict([(self.c, [("value", np.array([0, 1], dtype=np.int))]),
+                                 (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
+        self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
+                               self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
+
+        def f(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+        def grad(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+        def f_neg(x):
+            return -f(x)
+
+        def grad_neg(x):
+            return grad(x)
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+        ## so we have an expr for the negated predicate
+        # f_neg = lambda x: self.distance_from_obj(x)[0]
+        # def grad_neg(x):
+        #     # print self.distance_from_obj(x)
+        #     return -self.distance_from_obj(x)[1]
+
+        N_COLS = 8
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((COL_TS*N_COLS,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+
+
+        super(Collides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1)
+        self.n_cols = N_COLS
+        # self.priority = 1
+
+class PoseCollides(TargetCollides):
+    pass
 
 class RCollides(CollisionPredicate):
 
@@ -1067,7 +1121,6 @@ class ObstructsHolding(CollisionPredicate):
 
     def distance_from_obj(self, x, n_steps=0):
         # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
-        self._cc.SetContactDistance(np.Inf)
         b0 = self._param_to_body[self.r]
         b1 = self._param_to_body[self.obstr]
 
@@ -1080,6 +1133,7 @@ class ObstructsHolding(CollisionPredicate):
         if USE_OPENRAVE:
             assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
 
+            self._cc.SetContactDistance(np.Inf)
             collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
         else:
             collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)

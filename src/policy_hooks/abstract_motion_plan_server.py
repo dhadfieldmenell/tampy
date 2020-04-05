@@ -119,7 +119,9 @@ class AbstractMotionPlanServer(object):
             if len(self.mp_queue):
                 self.solve_motion_plan(self.mp_queue.pop())
             i += 1
-            if time.time() - self.start_t > self.config['time_limit'] or (self.id > 3 and time.time() - self.last_opt_t > 600): #TODO: variables for when to kill process
+            td = time.time() - self.last_opt_t
+            if time.time() - self.start_t > self.config['time_limit'] or (self.id > 5 and td > 300 and time.time() - self.start_t > 900): #TODO: variables for when to kill process
+                self.stopped = True
                 break
             # if not i % 10:
             #     self.test_publisher.publish('MP {0} alive.'.format(self.id))
@@ -284,7 +286,7 @@ class AbstractMotionPlanServer(object):
             mean = []
             start_t = time.time()
             sample, failed, success = self.agent.solve_sample_opt_traj(state, task, cond, mean, inf_f, targets=targets, x_only=True)
-            print('Time in full solve:', time.time() - start_t)
+            # print('Time in full solve:', time.time() - start_t)
             out = sample.get(STATE_ENUM)
         else:
             out = mean

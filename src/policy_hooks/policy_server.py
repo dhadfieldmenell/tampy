@@ -52,11 +52,12 @@ class PolicyServer(object):
 
         self.update_listener = rospy.Subscriber('{0}_update_{1}'.format(self.task, self.group_id), PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
         self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
+        self.policy_info_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
         self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/data.pkl'.format(self.task)
         self.n_updates = 0
         self.full_N = 0
         self.update_t = time.time()
-
+        self.n_data = []
         self.update_queue = []
         with open(self.policy_opt_log, 'w+') as f:
             f.write('')
@@ -107,8 +108,11 @@ class PolicyServer(object):
             obs, mu, prc, wt, task_name = self.update_queue.pop()
             start_time = time.time()
             self.full_N += len(mu)
+            self.n_data.append(self.full_N)
             update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)))
             end_time = time.time()
+        with open(self.policy_info_log, 'w+') as f:
+            f.write(str(self.n_data))
 
 
     def update_network(self):

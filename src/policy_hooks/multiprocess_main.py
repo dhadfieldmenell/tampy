@@ -102,7 +102,7 @@ class MultiProcessMain(object):
             targets.append(prob.get_end_targets())
         '''
 
-
+        self.goal_dim = sum([2 for t in targets[0] if t.find('end_target') >= 0])
         for plan in plans.values():
             plan.state_inds = self.state_inds
             plan.action_inds = self.action_inds
@@ -118,6 +118,7 @@ class MultiProcessMain(object):
             utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
+            utils.GOAL_ENUM: self.goal_dim
         }
         for enum in self.config['sensor_dims']:
             sensor_dims[enum] = self.config['sensor_dims'][enum]
@@ -150,6 +151,8 @@ class MultiProcessMain(object):
         self.policy_inf_coeff = self.config['algorithm']['policy_inf_coeff']
         self.policy_out_coeff = self.config['algorithm']['policy_out_coeff']
         self.config['agent'] = {
+            'num_objs': self.config['num_objs'],
+            'num_targs': self.config['num_targs'],
             'type': self.config['agent_type'],
             'x0': x0,
             'targets': targets,
@@ -300,12 +303,14 @@ class MultiProcessMain(object):
             'lr': self.config['lr'],
             'network_model': tf_network,
             'distilled_network_model': tf_network,
-            'primitive_network_model': tf_classification_network,
+            'primitive_network_model': tf_classification_network if self.config.get('discrete_prim', True) else tf_network,
             'value_network_model': tf_value_network,
             'image_network_model': multi_modal_network_fp if 'image' in self.config['agent']['obs_include'] else None,
             'iterations': self.config['train_iterations'],
             'batch_size': self.config['batch_size'],
             'weight_decay': self.config['weight_decay'],
+            'prim_weight_decay': self.config['prim_weight_decay'],
+            'val_weight_decay': self.config['val_weight_decay'],
             'weights_file_prefix': 'policy',
             'image_width': utils.IM_W,
             'image_height': utils.IM_H,
@@ -314,6 +319,8 @@ class MultiProcessMain(object):
             'gpu_fraction': 0.25,
             'allow_growth': True,
             'update_size': self.config['update_size'],
+            'prim_update_size': self.config['prim_update_size'],
+            'val_update_size': self.config['val_update_size'],
         }
 
         alg_map = {}
@@ -381,6 +388,7 @@ class MultiProcessMain(object):
                                   opt_strength=self.config.get('opt_strength', 0),
                                   log_prefix=None,#'tf_saved/'+self.config['weight_dir']+'/rollouts',
                                   curric_thresh=self.config.get('curric_thresh', -1),
+                                  n_thresh=self.config.get('n_thresh', 10),
                                   her=self.config.get('her', False),
                                   ))
 
@@ -425,8 +433,10 @@ class MultiProcessMain(object):
             buf_sizes['control'] = mp.Value('i')
         buffers['image'] = mp.Array('c', 20 * (2**20))
         buffers['primitive'] = mp.Array('c', 20 * (2**20))
+        buffers['value'] = mp.Array('c', 20 * (2**20))
         buf_sizes['image'] = mp.Value('i')
         buf_sizes['primitive'] = mp.Value('i')
+        buf_sizes['value'] = mp.Value('i')
         config['share_buffer'] = True
         config['policy_opt']['share_buffer'] = True
         config['policy_opt']['buffers'] = buffers
@@ -483,7 +493,7 @@ class MultiProcessMain(object):
             self.create_server(new_hyperparams['opt_server_type'], new_hyperparams)
 
     def create_pol_servers(self, hyperparams):
-        for task in self.pol_list+('primitive',): # ('value', 'primitive'):
+        for task in self.pol_list+('value', 'primitive'):
             # print task
             new_hyperparams = copy.copy(hyperparams)
             new_hyperparams['scope'] = task

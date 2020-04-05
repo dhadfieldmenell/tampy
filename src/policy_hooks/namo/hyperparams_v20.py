@@ -1,5 +1,8 @@
 from __future__ import division
 
+NUM_OBJS = 1
+NUM_TARGS = 1
+
 from datetime import datetime
 import os
 import os.path
@@ -30,7 +33,9 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.sorting_prob_6 as prob
+import policy_hooks.namo.sorting_prob_7 as prob
+prob.NUM_OBJS = NUM_OBJS
+prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
 from policy_hooks.policy_mp_prior_gmm import PolicyMPPriorGMM
 from policy_hooks.policy_prior_gmm import PolicyPriorGMM
@@ -38,8 +43,7 @@ from policy_hooks.policy_prior_gmm import PolicyPriorGMM
 BASE_DIR = os.getcwd() + '/policy_hooks/'
 EXP_DIR = BASE_DIR + 'experiments/'
 
-NUM_OBJS = prob.NUM_OBJS
-NUM_CONDS = 2 # Per rollout server
+NUM_CONDS = 1 # Per rollout server
 NUM_PRETRAIN_STEPS = 20
 NUM_PRETRAIN_TRAJ_OPT_STEPS = 1
 NUM_TRAJ_OPT_STEPS = 1
@@ -47,10 +51,11 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 5
-N_ALG_SERVERS = 10
-N_OPTIMIZERS = 20
+N_ROLLOUT_SERVERS = 20
+N_ALG_SERVERS = 7
+N_OPTIMIZERS = 8
 N_DIRS = 16
+N_GRASPS = 4
 TIME_LIMIT = 7200
 
 
@@ -172,116 +177,129 @@ algorithm['mp_policy_prior'] = {
     'max_samples': 50,
 }
 
-cost_wp_mult = np.ones((3 + 2 * NUM_OBJS))
+def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
+    cost_wp_mult = np.ones((3 + 2 * NUM_OBJS))
+    prob.NUM_OBJS = no
+    prob.NUM_TARGS = nt
+    return {
+        'gui_on': False,
+        'iterations': algorithm['iterations'],
+        'verbose_trials': 1,
+        'verbose_policy_trials': 1,
+        'common': common,
+        'algorithm': algorithm,
+        'num_samples': algorithm['num_samples'],
+        'num_distilled_samples': 0,
+        'num_conds': NUM_CONDS,
+        'mode': 'position',
+        'stochastic_conditions': algorithm['stochastic_conditions'],
+        'policy_coeff': 1e0,
+        'sample_on_policy': True,
+        'hist_len': 3,
+        'take_optimal_sample': True,
+        'num_rollouts': 10,
+        'max_tree_depth': 5 + no*2,
+        'branching_factor': 4,
+        'opt_wt': algorithm['opt_wt'],
+        'fail_value': algorithm['fail_value'],
+        'lr': 1e-3,
+        'solver_type': 'rmsprop',
+        'cost_wp_mult': cost_wp_mult,
 
-config = {
-    'gui_on': False,
-    'iterations': algorithm['iterations'],
-    'verbose_trials': 1,
-    'verbose_policy_trials': 1,
-    'common': common,
-    'algorithm': algorithm,
-    'num_samples': algorithm['num_samples'],
-    'num_distilled_samples': 0,
-    'num_conds': NUM_CONDS,
-    'mode': 'position',
-    'stochastic_conditions': algorithm['stochastic_conditions'],
-    'policy_coeff': 1e0,
-    'sample_on_policy': True,
-    'hist_len': 3,
-    'take_optimal_sample': True,
-    'num_rollouts': 10,
-    'max_tree_depth': 5 + NUM_OBJS*2,
-    'branching_factor': 4,
-    'opt_wt': algorithm['opt_wt'],
-    'fail_value': algorithm['fail_value'],
-    'lr': 1e-3,
-    'solver_type': 'rmsprop',
-    'cost_wp_mult': cost_wp_mult,
+        'train_iterations': 50,
+        'weight_decay': 1e-3,
+        'prim_weight_decay': 1e-4,
+        'val_weight_decay': 1e-4,
+        'batch_size': 500,
+        'n_layers': 2,
+        'dim_hidden': [32, 32],
+        'prim_dim_hidden': [32, 32],
+        'val_dim_hidden': [64, 64],
+        'n_traj_centers': algorithm['n_traj_centers'],
+        'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
+        'pretrain_steps': NUM_PRETRAIN_STEPS,
+        'pretrain_traj_opt_steps': NUM_PRETRAIN_TRAJ_OPT_STEPS,
+        'on_policy': True,
 
-    'train_iterations': 50,
-    'weight_decay': 1e-3,
-    'batch_size': 500,
-    'n_layers': 2,
-    'dim_hidden': [32, 32],
-    'n_traj_centers': algorithm['n_traj_centers'],
-    'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
-    'pretrain_steps': NUM_PRETRAIN_STEPS,
-    'pretrain_traj_opt_steps': NUM_PRETRAIN_TRAJ_OPT_STEPS,
-    'on_policy': True,
+        # New for multiprocess, transfer to sequential version as well.
 
-    # New for multiprocess, transfer to sequential version as well.
+        'n_optimizers': N_OPTIMIZERS,
+        'n_rollout_servers': N_ROLLOUT_SERVERS,
+        'n_alg_servers': N_ALG_SERVERS,
+        'base_weight_dir': 'namo_',
+        'policy_out_coeff': algorithm['policy_out_coeff'],
+        'policy_inf_coeff': algorithm['policy_inf_coeff'],
+        'max_sample_queue': 5e2,
+        'max_opt_sample_queue': 10,
+        'hl_plan_for_state': prob.hl_plan_for_state,
+        'task_map_file': prob.mapping_file,
+        'prob': prob,
+        'get_vector': prob.get_vector,
+        'robot_name': 'pr2',
+        'obj_type': 'can',
+        'num_objs': no,
+        'num_targs': nt,
+        'attr_map': ATTRMAP,
+        'agent_type': NAMOSortingAgent,
+        'opt_server_type': NAMOMotionPlanServer,
+        'solver_type': NAMOPolicySolver,
+        'update_size': 2000,
+        'prim_update_size': 500,
+        'val_update_size': 500,
+        'use_local': True,
+        'n_dirs': N_DIRS,
+        'domain': 'namo',
+        'perturb_steps': 3,
+        'mcts_early_stop_prob': 0.5,
+        'hl_timeout': HL_TIMEOUT,
+        'multi_policy': False,
+        'image_width': 107,
+        'image_height': 80,
+        'image_channels': 3,
+        'opt_prob': 1.,
+        'opt_smooth': False,
+        'share_buffer': True,
+        'split_nets': True, # False,
+        'split_mcts_alg': True,
 
-    'n_optimizers': N_OPTIMIZERS,
-    'n_rollout_servers': N_ROLLOUT_SERVERS,
-    'n_alg_servers': N_ALG_SERVERS,
-    'base_weight_dir': 'namo_',
-    'policy_out_coeff': algorithm['policy_out_coeff'],
-    'policy_inf_coeff': algorithm['policy_inf_coeff'],
-    'max_sample_queue': 5e2,
-    'max_opt_sample_queue': 10,
-    'hl_plan_for_state': prob.hl_plan_for_state,
-    'task_map_file': prob.mapping_file,
-    'prob': prob,
-    'get_vector': prob.get_vector,
-    'robot_name': 'pr2',
-    'obj_type': 'can',
-    'num_objs': NUM_OBJS,
-    'num_targs': prob.NUM_TARGS,
-    'attr_map': ATTRMAP,
-    'agent_type': NAMOSortingAgent,
-    'opt_server_type': NAMOMotionPlanServer,
-    'solver_type': NAMOPolicySolver,
-    'update_size': 2000,
-    'use_local': True,
-    'n_dirs': N_DIRS,
-    'domain': 'namo',
-    'perturb_steps': 3,
-    'mcts_early_stop_prob': 0.5,
-    'hl_timeout': HL_TIMEOUT,
-    'multi_policy': False,
-    'image_width': 107,
-    'image_height': 80,
-    'image_channels': 3,
-    'opt_prob': 1.,
-    'opt_smooth': False,
-    'share_buffer': True,
-    'split_nets': True, # False,
-    'split_mcts_alg': True,
-
-    'state_include': [utils.STATE_ENUM],
-    'obs_include': [utils.LIDAR_ENUM,
-                    # utils.EE_ENUM,
-                    utils.TASK_ENUM,
-                    # utils.OBJ_POSE_ENUM,
-                    #utils.GRIPPER_ENUM,
-                    #utils.INIT_OBJ_POSE_ENUM,
-                    # utils.TARG_POSE_ENUM,
-                    utils.END_POSE_ENUM,
-                    ],
-    'prim_obs_include': [utils.STATE_ENUM,
-                         utils.TARGETS_ENUM],
-    'val_obs_include': [utils.STATE_ENUM,
-                        utils.TARGETS_ENUM,
+        'state_include': [utils.STATE_ENUM],
+        'obs_include': [utils.LIDAR_ENUM,
+                        # utils.EE_ENUM,
                         utils.TASK_ENUM,
-                        utils.OBJ_ENUM,
-                        utils.TARG_ENUM],
-    'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM],
-    'sensor_dims': {
-            utils.OBJ_POSE_ENUM: 2,
-            utils.TARG_POSE_ENUM: 2,
-            utils.LIDAR_ENUM: N_DIRS,
-            utils.EE_ENUM: 2,
-            utils.END_POSE_ENUM: 2,
-            utils.GRIPPER_ENUM: 1,
-            # utils.INIT_OBJ_POSE_ENUM: 2,
-        },
-    'visual': False,
-    'time_limit': TIME_LIMIT,
-    'success_to_replace': 10,
-    'steps_to_replace': NUM_OBJS * 50,
-    'curric_thresh': -1,
-    'expand_process': False,
-    'descr': '_her_hyp20',
-    'her': True,
-}
+                        # utils.OBJ_POSE_ENUM,
+                        #utils.GRIPPER_ENUM,
+                        #utils.INIT_OBJ_POSE_ENUM,
+                        # utils.TARG_POSE_ENUM,
+                        utils.END_POSE_ENUM,
+                        ],
+        'prim_obs_include': [utils.STATE_ENUM,
+                             utils.GOAL_ENUM,],
+        'val_obs_include': [utils.STATE_ENUM,
+                            utils.TARGETS_ENUM,
+                            utils.TASK_ENUM,
+                            utils.OBJ_ENUM,
+                            utils.TARG_ENUM],
+        'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
+        'sensor_dims': {
+                utils.OBJ_POSE_ENUM: 2,
+                utils.TARG_POSE_ENUM: 2,
+                utils.LIDAR_ENUM: N_DIRS,
+                utils.EE_ENUM: 2,
+                utils.END_POSE_ENUM: 2,
+                utils.GRIPPER_ENUM: 1,
+                utils.GRASP_ENUM: N_GRASPS,
+                # utils.INIT_OBJ_POSE_ENUM: 2,
+            },
+        'visual': False,
+        'time_limit': TIME_LIMIT,
+        'success_to_replace': 1,
+        'steps_to_replace': no * 50,
+        'curric_thresh': -1,
+        'n_thresh': -1,
+        'expand_process': False,
+        'descr': 'hyp20_4grasp',
+        'her': False,
+    }
+
+config = refresh_config()
+

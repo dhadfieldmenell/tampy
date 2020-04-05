@@ -15,13 +15,17 @@ from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 
+NO_COL = True
 NUM_OBJS = 4
 NUM_TARGS = 4
 SORT_CLOSET = False
 USE_PERTURB = False
 OPT_MCTS_FEEDBACK = True
+N_GRASPS = 4
 
-prob_file = "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
+def prob_file():
+    return "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
+
 domain_file = "../domains/namo_domain/namo.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_5"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
@@ -52,7 +56,7 @@ END_TARGETS.extend([(2., 2.5),
                    (-4.4, 2.5)
                    ])
 
-n_aux = 2
+n_aux = 4
 possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 # possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
@@ -70,20 +74,15 @@ for i in range(len(possible_can_locs)):
     loc[1] *= 0.1
     possible_can_locs[i] = tuple(loc)
 
-if not SORT_CLOSET:
-    for target in END_TARGETS:
-        if target in possible_can_locs:
-            possible_can_locs.remove(target)
-
 
 def get_prim_choices():
     out = OrderedDict({})
     out[utils.TASK_ENUM] = get_tasks(mapping_file).keys()
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
     out[utils.TARG_ENUM] = ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
-    if SORT_CLOSET:
-        for i in range(n_aux):
-            out[utils.TARG_ENUM] += ['aux_target_{0}'.format(i)] 
+    for i in range(n_aux):
+        out[utils.TARG_ENUM] += ['aux_target_{0}'.format(i)] 
+    out[utils.GRASP_ENUM] = ['grasp{0}'.format(i) for i in range(N_GRASPS)]
     return out
 
 
@@ -91,7 +90,7 @@ def get_vector(config):
     state_vector_include = {
         'pr2': ['pose', 'gripper'] ,
     }
-    for i in range(NUM_OBJS):
+    for i in range(config['num_objs']):
         state_vector_include['can{0}'.format(i)] = ['pose']
 
     action_vector_include = {
@@ -99,17 +98,16 @@ def get_vector(config):
     }
 
     target_vector_include = {
-        'can{0}_end_target'.format(i): ['value'] for i in range(NUM_OBJS)
+        'can{0}_end_target'.format(i): ['value'] for i in range(config['num_objs'])
     }
-    if SORT_CLOSET:
-        for i in range(n_aux):
-            target_vector_include['aux_target_{0}'.format(i)] = ['value']
+    for i in range(n_aux):
+        target_vector_include['aux_target_{0}'.format(i)] = ['value']
 
     return state_vector_include, action_vector_include, target_vector_include
 
 
 def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
-    # Information is track by the environment
+# Information is track by the environment
     x0s = []
     targ_maps = []
     for i in range(conditions):
@@ -123,7 +121,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         pr2_loc = None
         spacing = 2.5
         valid = [1 for _ in range(len(can_locs))]
-        while len(locs) < NUM_OBJS + 1:
+        while len(locs) < config['num_objs'] + 1:
             locs = []
             random.shuffle(can_locs)
             pr2_loc = can_locs[0]
@@ -133,7 +131,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             for m in range(1, len(can_locs)):
                 if np.linalg.norm(np.array(pr2_loc) - np.array(can_locs[m])) < spacing:
                     valid[m] = 0
-            for j in range(NUM_OBJS):
+            for j in range(config['num_objs']):
                 for n in range(1, len(can_locs)):
                     if valid[n]:
                         locs.append(can_locs[n])
@@ -147,17 +145,18 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
 
         spacing = 2.5
         targs = []
-        can_targs = can_locs
-        while len(targs) < NUM_TARGS + 1:
+        can_targs = [can_locs[i] for i in range(len(can_locs)) if (valid[i] or not NO_COL)]
+        old_valid = copy.copy(valid)
+        while len(targs) < config['num_targs']:
             targs = []
             pr2_loc = locs[0]
-            targs.append(pr2_loc)
+            random.shuffle(can_targs)
             valid = [1 for _ in range(len(can_targs))]
             for m in range(0, len(can_targs)):
                 if np.linalg.norm(np.array(pr2_loc) - np.array(can_targs[m])) < spacing:
                     valid[m] = 0
-            for j in range(NUM_TARGS):
-                for n in range(1, len(can_targs)):
+            for j in range(config['num_targs']):
+                for n in range(0, len(can_targs)):
                     if valid[n]:
                         targs.append(can_targs[n])
                         valid[n] = 0
@@ -169,27 +168,24 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
 
             spacing -= 0.1
 
-        can_targs.pop(0)
         for l in range(len(locs)):
             locs[l] = np.array(locs[l])
         x0[state_inds['pr2', 'pose']] = locs[0]
-        for o in range(NUM_OBJS):
+        for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
         x0s.append(x0)
-        can_locs = [can_locs[c] for c in range(len(can_locs)) if valid[c]]
-        # targ_maps.append(get_end_targets(NUM_OBJS, NUM_TARGS, randomize=True, possible_locs=can_locs)) 
-        next_map = {'can{0}_end_target'.format(o): targs[o] for o in range(NUM_TARGS)}
-        for i in range(n_aux):
-            if i == 0:
-                next_map['aux_target_{0}'.format(i)] = (0, 0)
-            elif i % 2:
-                next_map['aux_target_{0}'.format(i)] = (-int(i/2.+0.5), 0)
+        inds = np.random.permutation(range(config['num_objs']))
+        next_map = {'can{0}_end_target'.format(o): targs[no] for no, o in enumerate(inds[:config['num_targs']])}
+        if config['num_targs'] < config['num_objs']:
+            next_map.update({'can{0}_end_target'.format(o): locs[o+1] for o in inds[config['num_targs']:config['num_objs']]})
+        for a in range(n_aux):
+            if a == 0:
+                next_map['aux_target_{0}'.format(a)] = (0, 0)
+            elif a % 2:
+                next_map['aux_target_{0}'.format(a)] = (-int(a/2.+0.5), 0)
             else:
-                next_map['aux_target_{0}'.format(i)] = (int(i/2.+0.5), 0)
-        if NUM_TARGS < NUM_OBJS:
-            next_map = {'can{0}_end_target'.format(o): locs[o+1] for o in range(NUM_TARGS, NUM_OBJS)}
+                next_map['aux_target_{0}'.format(a)] = (int(a/2.+0.5), 0)
         targ_maps.append(next_map)
-        # print(x0, targ_maps[-1])
     return x0s, targ_maps
 
 def parse_hl_plan(hl_plan):
@@ -237,16 +233,22 @@ def get_plans():
                 new_task_str = []
                 for step in next_task_str:
                     new_task_str.append(step.format(obj, targ))
-                plan = plan_from_str(new_task_str, prob_file, domain_file, env, openrave_bodies)
+                plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies)
                 plans[(tasks.keys().index(task), i, j)] = plan
                 if env is None:
                     env = plan.env
                     for param in plan.params.values():
                         if not param.is_symbol() and param.openrave_body is not None:
                             openrave_bodies[param.name] = param.openrave_body
+
+    keys = copy.deepcopy(plans.keys())
+    for i in range(64):
+        for l in keys:
+            plans[l+(i,)] = plans[l]
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):
+    raise Exception('Bad method call')
     target_map = {}
     inds = range(NUM_TARGS) # np.random.permutation(range(num_targs))
     for n in range(num_cans):
@@ -441,7 +443,7 @@ def get_plan(num_cans):
     prob, goal_state = get_sorting_problem(can_locs, end_targets)
     hl_plan = get_hl_plan(prob)
     ll_plan_str, actions_per_task = get_ll_plan_str(hl_plan, num_cans)
-    plan = plan_from_str(ll_plan_str, prob_file.format(num_cans), domain_file, None, {})
+    plan = plan_from_str(ll_plan_str, prob_file().format(num_cans), domain_file, None, {})
     for i in range(len(can_locs)):
         plan.params['can{0}'.format(i)].pose[:,0] = can_locs[i]
         plan.params['can{0}_init_target'.format(i)].value[:,0] = plan.params['can{0}'.format(i)].pose[:,0]
@@ -524,4 +526,4 @@ def get_plan_for_task(task, targets, num_cans, env, openrave_bodies):
     for j in range(len(next_task_str)):
         next_task_str[j]= next_task_str[j].format(*targets)
 
-    return plan_from_str(next_task_str, prob_file.format(num_cans), domain_file, env, openrave_bodies)
+    return plan_from_str(next_task_str, prob_file().format(num_cans), domain_file, env, openrave_bodies)

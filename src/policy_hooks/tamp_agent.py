@@ -66,6 +66,7 @@ class TAMPAgent(Agent):
     def __init__(self, hyperparams):
         Agent.__init__(self, hyperparams)
         # Note: All plans should contain identical sets of parameters
+        self.config = hyperparams
         self.prob = hyperparams['prob']
         self.plans = self._hyperparams['plans']
         self.plans_list = list(self.plans.values())
@@ -96,6 +97,7 @@ class TAMPAgent(Agent):
                 target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
         self.goals = self.target_vecs
+        self.discrete_prim = self._hyperparams.get('discrete_prim', True)
         # self.targ_list = self.targets[0].keys()
         # self.obj_list = self._hyperparams['obj_list']
 
@@ -471,7 +473,7 @@ class TAMPAgent(Agent):
 
     def randomize_init_state(self, condition=0):
         self.targets[condition] = self.prob.get_end_targets(self.num_objs)
-        self.init_vecs[condition] = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
+        self.init_vecs[condition] = self.prob.get_random_initial_state_vec(self.config, self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
         self.x0[condition] = self.init_vecs[condition][:self.symbolic_bound]
         target_vec = np.zeros((self.target_dim,))
         for target_name in self.targets[condition]:
@@ -505,7 +507,7 @@ class TAMPAgent(Agent):
     '''
     def replace_cond(self, cond, curric_step=-1):
         self.targets[cond] = self.prob.get_end_targets(self.num_objs)
-        self.init_vecs[cond] = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
+        self.init_vecs[cond] = self.prob.get_random_initial_state_vec(self.config, self.num_objs, self.targets, self.dX, self.state_inds, 1)[0]
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
         prim_choices = self.prob.get_prim_choices()
@@ -524,7 +526,7 @@ class TAMPAgent(Agent):
     '''
 
     def replace_cond(self, cond, curric_step=-1):
-        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.num_objs, self.targets, self.dX, self.state_inds, 1)
+        self.init_vecs[cond], self.targets[cond] = self.prob.get_random_initial_state_vec(self.config, self.targets, self.dX, self.state_inds, 1)
         self.init_vecs[cond], self.targets[cond] = self.init_vecs[cond][0], self.targets[cond][0]
         self.x0[cond] = self.init_vecs[cond][:self.symbolic_bound]
         self.target_vecs[cond] = np.zeros((self.target_dim,))
@@ -709,7 +711,7 @@ class TAMPAgent(Agent):
     def relabel_path(self, path):
         end = path[-1]
         end_X = end.get_X(end.T-1)
-        goal = self.relabel_goal(end)
+        goal, only_goal = self.relabel_goal(end)
         start_X = path[0].get_X(0)
         new_path = []
         cur_s = path[0]
@@ -720,6 +722,7 @@ class TAMPAgent(Agent):
             new_s.targets = goal
             for t in range(new_s.T):
                 new_s.set(TARGETS_ENUM, goal, t)
+                new_s.set(GOAL_ENUM, only_goal, t)
             new_path.append(new_s)
             start_X = new_path[-1].get_X(new_path[-1].T-1)
             i += 1

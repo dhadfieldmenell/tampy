@@ -40,7 +40,7 @@ def main():
         s += "Target (name %s); "%"aux_target_2"
         s += "Target (name %s); "%"aux_target_3"
         s += "Target (name %s); "%"aux_target_4"
-        s += "Target (name %s); "%"aux_target_5"
+        s += "Target (name %s); "%"aux_target_0"
         s += "Obstacle (name %s) \n\n"%"obs0"
 
         s += "Init: "
@@ -56,6 +56,8 @@ def main():
         s += "(gripper pr2 [0.]), "
         s += "(value %s %s), "%("robot_init_pose", [0., 0.])
         s += "(value %s %s), "%("robot_end_pose", "undefined")
+        s += "(geom %s %s), "%("robot_init_pose", 0.3)
+        s += "(geom %s %s), "%("robot_end_pose", 0.3)
         s += "(gripper %s [0.]), "%("robot_init_pose")
         s += "(gripper %s undefined), "%("robot_end_pose")
         s += "(value %s %s), "%("grasp_end_pose", "undefined")
@@ -69,7 +71,7 @@ def main():
         s += "(value %s [0., 0.]), "%("aux_target_2")
         s += "(value %s [0., 0.]), "%("aux_target_3")
         s += "(value %s [0., 0.]), "%("aux_target_4")
-        s += "(value %s [0., 0.]), "%("aux_target_5")
+        s += "(value %s [0., 0.]), "%("aux_target_0")
         s += "(pose %s [-3.5, 0]), "%"obs0"
         s += "(geom %s %s); "%("obs0", "closet")
 

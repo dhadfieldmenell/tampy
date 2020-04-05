@@ -147,7 +147,7 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, her=False):
+    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False):
         self.tasks = tasks
         self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
@@ -167,15 +167,22 @@ class MCTS:
         self._value_f = value_f
         self._prob_f = prob_f
         # self.node_check_f = lambda n: n.value/n.n_explored+self.C*np.sqrt(np.log(n.parent.n_explored)/n.n_explored) if n != None else -np.inf
+        self.start_t = time.time()
         self.opt_strength = opt_strength
         self.her = her
         self.curric_thresh = curric_thresh
+        self.n_thresh = n_thresh
         self.cur_curric = 1 if curric_thresh > 0 else 0
         if self.cur_curric != 0:
             self.max_depth = 3
-
+        self.val_per_run = []
+        self.first_suc_buf = []
+        self.use_q = False
+        self.discrete_prim = True
         self.n_resets = 0
+        self.n_runs = 0
         self.reset(gmms, condition)
+        self.first_success = self.max_depth * 50
 
         label_options = list(itertools.product(range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.n_explored = {tuple(l): 0 for l in label_options}
@@ -230,19 +237,23 @@ class MCTS:
         self.gmms = gmms
         self.condition = condition if condition is not None else self.condition
         self.n_success = 0
-        self.n_runs = 0
         self.n_fixed_rollouts = 0
         self.n_samples = 1
-        self.val_per_run = []
-        self.first_success = 3000 # TODO: Make this mor eversatile
         self.x0 = None
         self.node_history = {}
-        self.start_t = time.time()
         self.n_resets += 1
-        if 1.0 in self.val_per_run and self.val_per_run.find(1.0) < self.curric_thresh:
-            self.cur_curric += 1
-            # self.max_depth = min(self._max_depth, int(2 * self.max_depth))
-            self.max_depth = min(self._max_depth, self.max_depth + 3)
+        if 1.0 in self.val_per_run:
+            self.first_success = self.val_per_run.index(1.0)
+            self.first_suc_buf.append(self.val_per_run.index(1.0))
+            if len(self.first_suc_buf) >= self.n_thresh and np.mean(self.first_suc_buf[-self.n_thresh:]) < self.curric_thresh:
+                self.cur_curric += 1
+                self.max_depth = min(self._max_depth, int(2 * self.max_depth))
+                print('{0} updated curriculum'.format(self.log_file))
+            # self.max_depth = min(self._max_depth, self.max_depth + 3)
+        else:
+            self.first_success = self.n_runs
+        self.n_runs = 0
+        self.val_per_run = []
         self.agent.replace_cond(self.condition, curric_step=self.cur_curric)
 
 
@@ -301,7 +312,7 @@ class MCTS:
     def multi_node_check_f(self, labels, state, parent):
         sample = Sample(self.agent)
         sample.set_X(state.copy(), 0)
-        # sample.set(TARGETS_ENUM, self.agent.target_vecs[self.condition].copy(), 0)
+        sample.set(TARGETS_ENUM, self.agent.target_vecs[self.condition].copy(), 0)
         # sample.set(TRAJ_HIST_ENUM, np.array(self.agent.traj_hist).flatten(), 0)
 
         # self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, labels[0], fill_obs=True)
@@ -311,8 +322,12 @@ class MCTS:
             # self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=False)
             child = parent.get_child(label)
             # val_obs = sample.get_val_obs(t=0)
-            # q_value = self.value_func(val_obs)[0] if child is None else child.value
-            q_value = 0 if child is None else child.value
+            if self.use_q:
+                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=False)
+                val_obs = sample.get_val_obs(t=0)
+                q_value = self.value_func(val_obs)[0] if child is None else child.value
+            else:
+                q_value = 0 if child is None else child.value
             vals.append(q_value + self.C * np.sqrt(np.log(parent.n_explored) / (1 + parent.n_child_explored[label])))
             # vals.append(q_value + \
             #             self.C * np.sqrt(np.log(parent.n_explored) / (1 + parent.n_child_explored[label])) + \
@@ -471,7 +486,7 @@ class MCTS:
             # values.append(self.node_check_f(label, state, node))
 
         cost = 1.
-        if all([node.get_child(p) is None for p in parameterizations]):
+        if self.discrete_prim and all([node.get_child(p) is None for p in parameterizations]):
             p = self.iter_labels(state, label)
             if p is None:
                 cost = 1.
@@ -533,7 +548,7 @@ class MCTS:
 
         self.n_samples += 1
         s, success = None, False
-        if not hasattr(self.rollout_policy[task_name], 'scale') or self.rollout_policy[task_name].scale is None:
+        if self.opt_strength > 1-1e-2 or not hasattr(self.rollout_policy[task_name], 'scale') or self.rollout_policy[task_name].scale is None:
             new_opt_strength = 1.
         else:
             new_opt_strength = self.opt_strength
@@ -620,11 +635,15 @@ class MCTS:
         iteration = 0
         exclude_hl = []
         path_value = None
+        next_sample = None
         while True:
             if debug:
                 print("Taking simulation step")
 
-            if self.agent.goal_f(self.condition, state) == 0: # or current_node.depth >= self.max_depth:
+            if self.agent.goal_f(self.condition, cur_state) == 0: # or current_node.depth >= self.max_depth:
+                if not iteration:
+                    print(state, self.agent.targets[self.condition])
+                    print('WARNING: Should not succeed without sampling')
                 break
 
             if len(fixed_paths) <= iteration:
@@ -695,7 +714,7 @@ class MCTS:
             end = path[-1]
             print('\nSUCCESS! Tree {0} {1} using fixed: {2}\n'.format(self.log_file, state, len(fixed_paths) != 0))
             self.agent.add_task_paths([path])
-        elif self.her:
+        elif len(path) and self.her:
             old_nodes = [path[i].node for i in range(len(path))]
             for s in path:
                 s.node = None
@@ -706,6 +725,8 @@ class MCTS:
                 path[i].node = old_nodes[i]
 
         self.log_path(path, len(fixed_paths))
+        for n in range(len(path)):
+            path[n].discount = 0.9**(len(path)-n-1)
         return path_value, path
 
 
@@ -728,40 +749,63 @@ class MCTS:
 
     def test_run(self, state, targets, max_t=20):
         old_opt = self.opt_strength
-        self.opt_strength = 1.
+        # self.opt_strength = 1.
         path = []
         val = 0
-        l = (0,0,0)
+        l = (0,0,0,0)
         t = 0
         while t < max_t and val < 1-1e-2 and l is not None:
-            l = self.iter_labels(state, l, targets=targets)
+            l = self.iter_labels(state, l, targets=targets, debug=False)
+            if l is None: break
             plan = self.agent.plans[l]
-            s = sef.sample_task(l, state, plan, 1)
-            val = self.agent.goal_f(0, s.get_X(s.T-1), targets)
+            s, _ = self.sample(l, state, plan, 1)
+            val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
             t += 1
+            state = s.get_X(s.T-1)
+            path.append(s)
         self.opt_strength = old_opt
         return val, path
 
 
-    def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False):
+    def get_bad_labels(self, state):
+        labels = [l for l in self.label_options]
+        bad = []
+        for l in labels:
+            cost = self.agent.cost_f(state, l, self.condition, active_ts=(0,0), debug=debug)
+            if cost > 1e-3:
+                bad.append(l)
+        return bad
+    
+
+    def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False, find_bad=False):
         sample = Sample(self.agent)
         sample.set_X(end_state.copy(), t=0)
         self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
-        distrs = self.prob_func(sample.get_prim_obs(t=0))
-        for d in distrs:
-            for i in range(len(d)):
-                d[i] = round(d[i], 3)
-        next_label = []
-
-        cost = 1.
         labels = [l for l in self.label_options]
-        distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
-        distr = np.array(distr)
+        cost = 1.
+        bad = []
+        if self.use_q:
+            distr = np.zeros(len(labels))
+            for i in range(len(labels)):
+                l = labels[i]
+                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=True, targets=targets)
+                distr[i:i+1] = self.value_func(sample.get_val_obs(t=0))
+        elif self.discrete_prim:
+            distrs = self.prob_func(sample.get_prim_obs(t=0))
+            for d in distrs:
+                for i in range(len(d)):
+                    d[i] = round(d[i], 3)
+            next_label = []
+
+            distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
+            distr = np.array(distr)
         for l in exclude:
             ind = labels.index(tuple(l))
             distr[ind] = 0.
 
-        while cost > 0 and np.any(distr > 0): 
+        if debug:
+            print('HL WEIGHTS FOR {0}'.format(end_state), zip(labels, distr))
+        while cost > 0 and np.any(distr > -np.inf): 
             next_label = []
             if self.soft_decision:
                 expcost = self.n_runs * distr
@@ -777,11 +821,15 @@ class MCTS:
                 ind = np.random.choice(inds)
                 # ind = np.argmax(distr)
                 next_label = tuple(labels[ind])
-                distr[ind] = 0.
+                distr[ind] = -np.inf
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
+            if cost > 0:
+                bad.append(next_label)
+                next_label = None
         if cost > 0:
             print('NO PATH FOR:', end_state, 'excluding:', exclude)
-            return None
+        if find_bad:
+            return next_label, bad
         return next_label
 
 
@@ -852,6 +900,7 @@ class MCTS:
             if verbose:
                 info['obs'] = sample.get_obs()
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
+                info['cur_curric'] = self.cur_curric
             data.append(info)
         return data
 

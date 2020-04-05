@@ -23,7 +23,7 @@ WALL_THICKNESS = 1
 
 class OpenRAVEBody(object):
     def __init__(self, env, name, geom, ik_solver=None):
-        assert env is not None
+        if USE_OPENRAVE: assert env is not None
         self.name = name
         self._env = env
         self._geom = geom
@@ -41,9 +41,15 @@ class OpenRAVEBody(object):
             else:
                 self.env_body = env.GetRobot(name)
         else:
+            if isinstance(geom, Robot):
+                self._add_robot(geom)
+            elif isinstance(geom, Item):
+                self._add_item(geom)
+            else:
+                raise OpenRAVEException("Geometry not supported for %s for OpenRAVEBody"%geom)
             self.ik_solver = ik_solver
 
-        self.set_transparency(0.5)
+        # self.set_transparency(0.5)
 
     def delete(self):
         self._env.Remove(self.env_body)
@@ -63,7 +69,8 @@ class OpenRAVEBody(object):
         try:
             fun_name = "self._add_{}".format(geom._type)
             eval(fun_name)(geom)
-        except:
+        except Exception as e:
+            print(e)
             self._add_obj(geom)
 
     def _add_circle(self, geom):
@@ -81,6 +88,7 @@ class OpenRAVEBody(object):
             self._env.AddKinBody(self.env_body)
         else:
             self.body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=2)
+            self.body_id = P.createMultiBody(1, self.body_id)
 
     def _add_can(self, geom):
         color = [1,0,0]
@@ -97,6 +105,7 @@ class OpenRAVEBody(object):
             self._env.AddKinBody(self.env_body)
         else:
             self.body_id = P.createCollisionShape(shapeType=P.GEOM_CYLINDER, radius=geom.radius, height=geom.height)
+            self.body_id = P.createMultiBody(1, self.body_id)
 
     def _add_obstacle(self, geom):
         obstacles = np.matrix('-0.576036866359447, 0.918128654970760, 1;\
@@ -142,9 +151,12 @@ class OpenRAVEBody(object):
             self.body_id = P.createCollisionShape(shapeType=P.GEOM_SPHERE, radius=geom.radius)
 
     def _add_wall(self, geom):
-        self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+        if USE_OPENRAVE:
+            self.env_body = OpenRAVEBody.create_wall(self._env, geom.wall_type)
+            self.env_body.SetName(self.name)
+            self._env.Add(self.env_body)
+        else:
+            self.body_id = OpenRAVEBody.create_wall(self._env, geom.wall_type)
 
     def _add_obj(self, geom):
         self.env_body = self._env.ReadKinBodyXMLFile(geom.shape)
@@ -178,7 +190,8 @@ class OpenRAVEBody(object):
                 pos = np.r_[base_pose[:2], 0]
                 quat = T.euler_to_quaternion([0, 0, base_pose[2]], order='xyzw')
             elif len(base_pose) == 2:
-                pos = np.r_[base_pose, 0]
+                base_pose = np.array(base_pose).flatten()
+                pos = np.concatenate([base_pose, [0]]).flatten()
                 quat = [0, 0, 0, 1]
             else:
                 pos = base_pose
@@ -274,7 +287,6 @@ class OpenRAVEBody(object):
 
     @staticmethod
     def create_wall(env, wall_type):
-        component_type = KinBody.Link.GeomType.Box
         wall_color = [0.5, 0.2, 0.1]
         box_infos = []
         if wall_type == 'closet':
@@ -310,17 +322,31 @@ class OpenRAVEBody(object):
                 transform[ind_diff, 3] = end[ind_diff] + length/2
             dims = [dim_x, dim_y, 1]
             if USE_OPENRAVE:
+                component_type = KinBody.Link.GeomType.Box
                 box_info = OpenRAVEBody.create_body_info(component_type, dims, wall_color)
                 box_info._t = transform
                 box_infos.append(box_info)
             else:
-                next_id = P.createCollisionShape(shapeType=P.GEOM_BOX, half_extents=dims)
-                box_infos.append(next_id)
+                box_infos.append((dims, transform[:3,3]))
+                # next_id = P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=dims)
+                # box_infos.append(next_id)
         if USE_OPENRAVE:
             wall = RaveCreateKinBody(env, '')
             wall.InitFromGeometries(box_infos)
         else:
-            wall = box_infos
+            cols = [P.createCollisionShape(shapeType=P.GEOM_BOX, halfExtents=h) for h, t in box_infos]
+            wall = P.createMultiBody(basePosition=[0,0,0],
+                                    linkMasses=[1 for _ in cols],
+                                    linkCollisionShapeIndices=[ind for ind in cols],
+                                    linkVisualShapeIndices=[-1 for _ in cols],
+                                    linkPositions=[t[:3] for _, t in box_infos],
+                                    linkOrientations=[[0,0,0,1] for _, t in box_infos],
+                                    linkInertialFramePositions=[[0,0,0] for _ in cols],
+                                    linkInertialFrameOrientations=[[0,0,0,1] for _, t in box_infos],
+                                    linkParentIndices=[0 for _ in cols],
+                                    linkJointTypes=[P.JOINT_FIXED for _ in cols],
+                                    linkJointAxis=[[0,0,1] for _ in cols]
+                                   )
         return wall
 
 

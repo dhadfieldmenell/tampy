@@ -60,6 +60,7 @@ class RolloutServer(object):
     def __init__(self, hyperparams):
         self.id = hyperparams['id']
         self._hyperparams = hyperparams
+        self.config = hyperparams
         self.group_id = hyperparams['group_id']
         self.num_conds = hyperparams['num_conds']
         self.start_t = hyperparams['start_t']
@@ -86,6 +87,8 @@ class RolloutServer(object):
         self.solver.agent = self.agent
         for i in range(len(self.mcts)):
             m = self.mcts[i]
+            m.use_q = self.config.get('use_qfunc', False)
+            m.discrete_prim = self.config.get('discrete_prim', True)
             m.value_func = self.value_call
             m.prob_func = self.primitive_call
             m.add_log_file('tf_saved/'+hyperparams['weight_dir']+'/mcts_{0}_{1}'.format(i, self.id))
@@ -97,6 +100,7 @@ class RolloutServer(object):
         for alg in self.alg_map.values():
             alg.set_conditions(len(self.agent.x0))
         self.task_list = self.agent.task_list
+        self.label_options = self.mcts[0].label_options
         self.pol_list = tuple(hyperparams['policy_list'])
         self.traj_opt_steps = hyperparams['traj_opt_steps']
         self.num_samples = hyperparams['num_samples']
@@ -129,6 +133,7 @@ class RolloutServer(object):
         self.run_hl_prob = hyperparams.get('run_hl_prob', 0)
         self.opt_prob = hyperparams.get('opt_prob', 0.1)
         self.opt_buffer = []
+        self.add_negative = hyperparams['negative']
 
         self.use_local = hyperparams['use_local']
         if self.use_local:
@@ -415,7 +420,7 @@ class RolloutServer(object):
         task_name = self.task_list[eval(msg.task)[0]]
         if not self.run_alg_updates or msg.alg_id != '{0}_{1}'.format(self.id, self.group_id): return
 
-        print('storing ll prob for server {0} in group {1}'.format(self.id, self.group_id))
+        # print('storing ll prob for server {0} in group {1}'.format(self.id, self.group_id))
         traj_mean = []
         for t in range(len(msg.traj_mean)):
             traj_mean.append(msg.traj_mean[t].data)
@@ -854,6 +859,7 @@ class RolloutServer(object):
                 for task in sample_lists:
                     task_costs[task] = []
                     for ind, s_list in enumerate(sample_lists[task]):
+                        all_samples.extend(s_list._samples)
                         cost = 1.
                         if len(s_list):
                             s = s_list[0]
@@ -868,8 +874,6 @@ class RolloutServer(object):
 
                         mp_prob = np.random.uniform()
                         if mp_prob < self.opt_prob:
-                            all_samples.extend(s_list._samples)
-
                             ### If multiple rollouts were taken per state, can extract multiple mean-trajectories
                             probs = self.choose_mp_problems(s_list)
                             n_probs += len(probs)
@@ -902,8 +906,9 @@ class RolloutServer(object):
             self.agent.clear_task_paths()
 
             self.update_primitive(path_samples)
-            # self.update_qvalue(all_samples)
-            print('Time to finish all MCTS step:', time.time() - start_t)
+            if self.config.get('use_qfunc', False):
+                self.update_qvalue(all_samples)
+            # print('Time to finish all MCTS step:', time.time() - start_t)
 
         self.run_opt_queue()
         costs = {}
@@ -912,6 +917,8 @@ class RolloutServer(object):
             self.send_all_mp_problems()
             # print('Time to finish opt queue', time.time() - start_t)
             start_t = time.time()
+
+            '''
             for task in self.agent.task_list:
                 if len(self.rollout_opt_pairs[task]) > 1:
                     for opt, s in self.rollout_opt_pairs[task]:
@@ -921,8 +928,9 @@ class RolloutServer(object):
                             costs[task] = []
                         costs[task].append(viol)
                     # task_costs[task].append(viol)
-                    print('Server {0} in group {1} updating policy'.format(self.id, self.group_id))
+                    # print('Server {0} in group {1} updating policy'.format(self.id, self.group_id))
                     self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=True)
+            '''
 
             # if time.time() - start_t > 1:
             #     print('Time to finish alg iteration', time.time() - start_t)
@@ -957,8 +965,8 @@ class RolloutServer(object):
                         # 'x0': [list(x) for x in self.agent.x0],
                         # 'targets': [list(t) for t in self.agent.target_vecs],
                         'time': time.time() - self.start_t,
-                        'avg_value_per_run': [np.mean(mcts.val_per_run) for mcts in self.mcts],
-                        'first_success': [mcts.first_success for mcts in self.mcts],
+                        'avg_value_per_run': np.mean([np.mean(mcts.val_per_run) for mcts in self.mcts]),
+                        'avg_first_success': np.mean([mcts.first_success for mcts in self.mcts]),
                         'n_sent_probs': self.n_sent_probs,
                         'n_received_probs': self.n_received_probs,
                         'alg_server': self.run_alg_updates,
@@ -970,40 +978,92 @@ class RolloutServer(object):
             print('Finished tree search step.')
 
 
-    def run_hl_test(self):
+    def test_hl(self):
+        if self.policy_opt.share_buffers:
+            self.policy_opt.read_shared_weights()
+
+        chol_pol_covar = {}
+        for task in self.agent.task_list:
+            if task not in self.policy_opt.valid_scopes:
+                task_name = 'control'
+            else:
+                task_name = task
+
+            if self.policy_opt.task_map[task_name]['policy'].scale is None:
+                chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
+            else:
+                chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
+          
+        rollout_policies = {task: DummyPolicy(task, 
+                                              self.policy_call, 
+                                              chol_pol_covar=chol_pol_covar[task],
+                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale) 
+                                  for task in self.agent.task_list}
+        self.mcts[0].rollout_policy = rollout_policies
         prim_opts = self.agent.prob.get_prim_choices()
         if OBJ_ENUM not in prim_opts: return
         n_targs = range(len(prim_opts[OBJ_ENUM]))
         res = []
-        for n in range(n_targs):
+        ns = [self.config['num_targs']]
+        if self.config['curric_thresh'] > 0:
+            ns = list(range(1, self.config['num_targs']+1))
+        for n in ns:
             s = []
-            x0 = self.agent.x0[0]
-            for _ in range(5):
-                self.agent.replace_condition(0)
+            for _ in range(50):
+                self.agent.replace_cond(0)
+                x0 = self.agent.x0[0]
                 targets = self.agent.target_vecs[0].copy()
-                for t in range(n):
+                for t in range(n, n_targs[-1]):
                     obj_name = prim_opts[OBJ_ENUM][t]
-                    targets[self.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.state_inds[obj_name, 'pose']]
-                val, path = self.mcts[0].test_run(self.agent.x0[0], targets, 15)
-                s.append((val, len(path)))
+                    targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
+                val, path = self.mcts[0].test_run(x0, targets, 4+2*n)
+                s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
+                print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
             res.append(s)
         self.hl_data.append(res)
         np.save(self.hl_test_log, np.array(self.hl_data))
         self.last_hl_test = time.time()
+        print('TESTED HL')
 
 
     def run(self):
         step = 0
         while not self.stopped:
             if self.run_hl_test:
-                if time.time() - self.last_hl_test > 600:
-                    self.run_hl_test()
+                if time.time() - self.last_hl_test > 180:
+                    self.test_hl()
             else:
                 self.step()
             step += 1
             if time.time() - self.start_t > self._hyperparams['time_limit']:
                 break
         self.policy_opt.sess.close()
+
+
+    def find_negative_ex(self, sample):
+        bad = []
+
+        for t in range(sample.T):
+            x = sample.get(STATE_ENUM, t)
+            inds = np.random.permutation(range(len(self.label_options)))
+            for i in inds:
+                l = self.label_options[i]
+                cost = self.agent.cost_f(x, l, sample.condition, active_ts=(0,0), targets=sample.targets)
+                if cost > 0:
+                    task_vec = np.zeros(len(self.task_list))
+                    task_vec[l[0]] = 1.
+                    desc = [task_vec]
+                    for j, enum in enumerate(self.prim_dims):
+                        desc.append(np.zeros(self.prim_dims[enum]))
+                        desc[-1][l[j+1]] = 1.
+                    vec = np.concatenate(desc)
+                    bad.append(vec)
+                    break
+                elif i == inds[-1]:
+                    bad.append(np.zeros(sum(self.prim_dims.values())))
+                    break
+        return np.array(bad)
+
 
 
     def update_qvalue(self, samples, first_ts_only=False):
@@ -1015,7 +1075,7 @@ class RolloutServer(object):
             if not hasattr(sample, 'success'): continue
             mu = sample.success * np.ones((sample.T, dV))
             tgt_mu = np.concatenate((tgt_mu, mu))
-            wt = np.ones((sample.T,))
+            wt = sample.discount * np.ones((sample.T,))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_val_obs()
             obs_data = np.concatenate((obs_data, obs))
@@ -1032,15 +1092,24 @@ class RolloutServer(object):
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         for sample in samples:
-            mu = sample.get_prim_out() # np.concatenate([sample.get(enum) for enum in self.prim_dims], axis=-1)
+            mu = np.concatenate([sample.get(TASK_ENUM)]+[sample.get(enum) for enum in self.prim_dims], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
-            wt = np.ones((sample.T,))
+            wt = sample.discount * np.ones((sample.T,))
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
             obs_data = np.concatenate((obs_data, obs))
             prc = np.tile(np.eye(dP), (sample.T,1,1))
             tgt_prc = np.concatenate((tgt_prc, prc))
-
+            if self.add_negative:
+                mu = self.find_negative_ex(sample)
+                tgt_mu = np.concatenate((tgt_mu, mu))
+                wt = -np.ones((sample.T,))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                obs = sample.get_prim_obs()
+                obs_data = np.concatenate((obs_data, obs))
+                prc = np.tile(np.eye(dP), (sample.T,1,1))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+            
         if len(tgt_mu):
             print('Sending update to primitive net')
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1)
@@ -1097,18 +1166,4 @@ class RolloutServer(object):
         plan_failed_constrs = plan.get_failed_preds_by_type(active_ts=active_ts)
         return plan_total_violation, plan_failed_constrs
 
-
-    def relabel_path(self, path):
-        end = path[-1]
-        end_X = end.get_X(end.T-1)
-        goal = self.agent.relabel_goal(end)
-        start_X = path[0].get_X(0)
-        new_path = []
-        cur_s = path[0]
-        i = 0
-        while self.agent.goal_f(start_X, goal) < 1-1e-2:
-            new_path.append(path[i])
-            start_X = new_path[-1].get_X(new_path[-1].T-1)
-            i += 1
-        return new_path
 

@@ -1,4 +1,5 @@
 from core.internal_repr.predicate import Predicate
+from core.util_classes.common_constants import *
 from core.util_classes.matrix import Vector2d
 from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
@@ -6,7 +7,6 @@ from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
 import sys
 import traceback
-import ctrajoptpy
 
 """
 This file implements the classes for commonly used predicates that are useful in a wide variety of
@@ -59,7 +59,8 @@ class ExprPredicate(Predicate):
     def lazy_spawn_or_body(self, param, name, geom):
         if param.openrave_body is not None:
             assert geom == param.openrave_body._geom
-            assert self._env == param.openrave_body.env_body.GetEnv()
+            if USE_OPENRAVE:
+                assert self._env == param.openrave_body.env_body.GetEnv()
         else:
             param.openrave_body = OpenRAVEBody(self._env, name, geom)
         return param.openrave_body
