@@ -866,7 +866,7 @@ class RolloutServer(object):
                             Xs = s.get_X(t=s.T-1)
                             t = self.agent.plans[s.task].horizon-1
                             cost = s.post_cost
-                            if s.task_cost < 1e-3: cost = 0.
+                            # if s.task_cost < 1e-3: cost = 0.
                             if s.opt_strength > 0.5: cost = 1.
                         if cost < 1e-3: continue
                         # viol, failed = self.check_traj_cost(s_list[0].get(STATE_ENUM), s_list[0].task)
@@ -918,19 +918,19 @@ class RolloutServer(object):
             # print('Time to finish opt queue', time.time() - start_t)
             start_t = time.time()
 
-            '''
             for task in self.agent.task_list:
                 if len(self.rollout_opt_pairs[task]) > 1:
+                    '''
                     for opt, s in self.rollout_opt_pairs[task]:
                         if s is None or not len(s): continue
                         viol, failed = self.check_traj_cost(s[0].get(STATE_ENUM), s[0].task, s[0].targets, active_ts=(s[0].T-1, s[0].T-1))
                         if task not in costs:
                             costs[task] = []
                         costs[task].append(viol)
+                    '''
                     # task_costs[task].append(viol)
                     # print('Server {0} in group {1} updating policy'.format(self.id, self.group_id))
                     self.alg_map[task].iteration(self.rollout_opt_pairs[task], reset=True)
-            '''
 
             # if time.time() - start_t > 1:
             #     print('Time to finish alg iteration', time.time() - start_t)
@@ -1007,21 +1007,22 @@ class RolloutServer(object):
         ns = [self.config['num_targs']]
         if self.config['curric_thresh'] > 0:
             ns = list(range(1, self.config['num_targs']+1))
-        for n in ns:
-            s = []
-            for _ in range(50):
-                self.agent.replace_cond(0)
-                x0 = self.agent.x0[0]
-                targets = self.agent.target_vecs[0].copy()
-                for t in range(n, n_targs[-1]):
-                    obj_name = prim_opts[OBJ_ENUM][t]
-                    targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
-                val, path = self.mcts[0].test_run(x0, targets, 4+2*n)
-                s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
-                print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
-            res.append(s)
+        # n = np.random.choice(ns, p=[flt(i)/np.sum(ns) for i in ns])
+        n = np.random.choice(ns)
+        s = []
+        self.agent.replace_cond(0)
+        x0 = self.agent.x0[0]
+        targets = self.agent.target_vecs[0].copy()
+        for t in range(n, n_targs[-1]):
+            obj_name = prim_opts[OBJ_ENUM][t]
+            targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
+        val, path = self.mcts[0].test_run(x0, targets, 4+2*n)
+        s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
+        # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
+        res.append(s[0])
         self.hl_data.append(res)
-        np.save(self.hl_test_log, np.array(self.hl_data))
+        if not len(self.hl_data) % 20:
+            np.save(self.hl_test_log, np.array(self.hl_data))
         self.last_hl_test = time.time()
         print('TESTED HL')
 
@@ -1030,8 +1031,7 @@ class RolloutServer(object):
         step = 0
         while not self.stopped:
             if self.run_hl_test:
-                if time.time() - self.last_hl_test > 180:
-                    self.test_hl()
+                self.test_hl()
             else:
                 self.step()
             step += 1

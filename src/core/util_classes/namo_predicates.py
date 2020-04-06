@@ -164,7 +164,10 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
         jac = np.zeros((0, 2 * dim))
         for t in range(pts):
             coeff = float(pts - t) / pts
-            next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
+            if len(xs) == 2:
+                next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
+            else:
+                next_pos = xs[0]
             res.append(dist(next_pos)[1])
             jac = np.r_[jac, np.c_[coeff*res[t], (1-coeff)*res[t]]]
         return jac
@@ -173,7 +176,10 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
         res = []
         for t in range(pts):
             coeff = float(pts - t) / pts
-            next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
+            if len(xs) == 2:
+                next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
+            else:
+                next_pos = xs[0]
             res.append(dist(next_pos)[0])
         return np.concatenate(res, axis=0)
 
@@ -643,10 +649,10 @@ class TargetCollides(Collides):
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
         def f(x):
-            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+            return -self.distance_from_obj(x)[0]
 
         def grad(x):
-            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+            return self.distance_from_obj(x)[1]
 
         def f_neg(x):
             return -f(x)
@@ -666,7 +672,7 @@ class TargetCollides(Collides):
         N_COLS = 8
 
         col_expr = Expr(f, grad)
-        val = np.zeros((COL_TS*N_COLS,1))
+        val = np.zeros((N_COLS,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -675,7 +681,8 @@ class TargetCollides(Collides):
 
 
         super(Collides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, ind0=0, ind1=1,
+                                        active_range=(0,0))
         self.n_cols = N_COLS
         # self.priority = 1
 

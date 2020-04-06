@@ -817,7 +817,7 @@ class MCTS:
                 distr[ind] = -np.inf
             else:
                 val = np.max(distr)
-                inds = np.array(range(len(distr)))[distr >= val - 1e-3]
+                inds = [i for i in range(len(distr)) if distr[i] >= val - 1e-3]
                 ind = np.random.choice(inds)
                 # ind = np.argmax(distr)
                 next_label = tuple(labels[ind])

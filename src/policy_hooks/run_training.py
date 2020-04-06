@@ -2,6 +2,7 @@ import argparse
 import copy
 import imp
 import importlib
+import os
 import random
 import sys
 import time
@@ -146,12 +147,13 @@ def main():
             mains = []
             for c, cm in exp:
                 print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
+                while os.path.isdir('tf_saved/'+c['weight_dir']+str(current_id)):
+                    current_id += 1
                 c['group_id'] = current_id
                 c['weight_dir'] = c['weight_dir']+'{0}'.format(current_id)
                 m = MultiProcessMain(c)
                 m.monitor = False # If true, m will wait to finish before moving on
                 m.group_id = current_id
-                current_id += 1
                 with open('tf_saved/'+c['weight_dir']+'/exp_info.txt', 'w+') as f:
                     f.write(str(cm))
                 

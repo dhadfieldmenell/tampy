@@ -1,10 +1,11 @@
 import os
-
+import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
+import seaborn as sns
 
 nan = np.nan
 LOG_DIR = 'tf_saved/'
@@ -180,7 +181,7 @@ def gen_first_success_plots(x_var='time'):
 
 def get_hl_tests():
     exp_probs = os.listdir(LOG_DIR)
-    exp_data = []
+    exp_data = {}
     for exp_name in exp_probs:
         dir_prefix = LOG_DIR + exp_name + '/'
         exp_dirs = os.listdir(dir_prefix)
@@ -190,49 +191,36 @@ def get_hl_tests():
             d = dir_name
             if d.find('.') >= 0 or d.find('trained') >= 0: continue
             full_dir = dir_prefix + dir_name
-            print(exp_name, dir_name)
-            file_names = os.listdir(full_dir)
-            info = [f for f in file_names if f.find('test') >= 0 and f.endswith('npy')]
-            if not len(info):
-                continue
+            full_exp = full_dir[:-1]
+            i = 0
+            data = []
+            while os.path.isdir(full_exp+str(i)):
+                fnames = os.listdir(full_exp+str(i))
+                info = [f for f in fnames if f.find('test') >= 0 and f.endswith('npy')]
+                if len(info):
+                    data.append(np.load(full_exp+str(i)+'/'+info[0]))
+                i += 1
 
-            try:
-                data = np.load(full_dir+'/'+info[0])
-                xs = range(len(data))
-                vals = np.mean(data[:,:,:,0], axis=2)
-                lens = np.mean(data[:,:,:,1], axis=2)
-                n_targs = data[:,:,0,2]
-                times = np.mean(data[:,:,:,3], axis=2)
-                if data.shape[-1] <= 4:
-                    n_objs = n_targs
-                else:
-                    n_objs = data[:,:,0,4]
-                exp_data.append((exp_name+'_'+dir_name, vals, lens, xs, n_targs, times, n_objs))
-            except Exception as e:
-                print(e)
-                print('Not plotting data for', full_dir)
+            dlen = min([len(d) for d in data])
+            FRAME = 40
+            for i in range(dlen - FRAME):
+                cur_t = np.mean([d[i:i+FRAME,:,3] for d in data])
 
-    for o in range(10):
-        for t in range(10):
-            plt.clf()
-            use = False
-            plt.title('{0}-obj {1}-targ average values'.format(o, t))
-            plt.xlabel('Time')
-            plt.ylabel('Avg. Value')
-            to_plot = []
-            for j in range(len(exp_data)):
-                d, v, l, x, nt, ts, no = exp_data[j]
-                for n in range(v.shape[1]):
-                    if t == nt[0, n] and o == no[0, n]:
-                        to_plot.append((ts[:,n], v[:,n], d))
-
-            if len(to_plot):
-                colors = get_colors(len(to_plot))
-                for i, (x, v, d) in enumerate(to_plot):
-                    plt.plot(x, v, label=d, color=colors[i])
-                lgnd = plt.legend(bbox_to_anchor=(1., 1.))
-                plt.savefig(SAVE_DIR+'/hl_value_data_{0}obj_{1}targ.png'.format(o, t), pad_inchs=2, bbox_extra_artists=(lgnd,), bbox_inches='tight')
-                plt.clf()
+                for d in data:
+                    cur_fr = np.mean(d[i:i+FRAME], axis=0)
+                    for pt in cur_fr:
+                        val = pt[0]
+                        cur_t = pt[3]
+                        nt = int(pt[2])
+                        no = int(pt[4])
+                        if (no, nt) not in exp_data:
+                            exp_data[no, nt] = []
+                        exp_data[no, nt].append((full_exp, cur_t, val))
+        for no, nt in exp_data:
+            pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
+            sns.set()
+            sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', row='exp_name', data=pd_frame)
+            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val.png'.format(no, nt))
 
 
 def gen_plots(x_var, y_var, overlay=True, mode='scalar', val=0.):

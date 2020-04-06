@@ -181,6 +181,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     cost_wp_mult = np.ones((3 + 2 * NUM_OBJS))
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
+    prob.N_GRASPS = N_GRASPS
+    prob.FIX_TARGETS = True
     return {
         'gui_on': False,
         'iterations': algorithm['iterations'],
@@ -273,12 +275,14 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         utils.END_POSE_ENUM,
                         ],
         'prim_obs_include': [utils.STATE_ENUM,
-                             utils.GOAL_ENUM,],
+                             utils.ONEHOT_GOAL_ENUM,
+                             ],
         'val_obs_include': [utils.STATE_ENUM,
                             utils.TARGETS_ENUM,
                             utils.TASK_ENUM,
                             utils.OBJ_ENUM,
-                            utils.TARG_ENUM],
+                            utils.TARG_ENUM
+                            ],
         'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
         'sensor_dims': {
                 utils.OBJ_POSE_ENUM: 2,
@@ -288,6 +292,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
                 utils.GRASP_ENUM: N_GRASPS,
+                utils.ONEHOT_GOAL_ENUM: prob.n_aux + len(prob.END_TARGETS),
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,
@@ -297,7 +302,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,
-        'descr': 'hyp20_4grasp',
+        'descr': '{0}_grasps_fixed'.format(N_GRASPS),
         'her': False,
     }
 

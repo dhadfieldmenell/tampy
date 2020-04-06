@@ -108,6 +108,9 @@ class NAMOSortingAgent(TAMPAgent):
         # self.viewer = OpenRAVEViewer(self.env)
         # import ipdb; ipdb.set_trace()
         self.in_gripper = None
+        no = self._hyperparams['num_objs']
+        self.targ_labels = {i: self.prob.END_TARGETS[i] for i in range(no)}
+        self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 
     def replace_targets(self, condition=0):
@@ -834,6 +837,8 @@ class NAMOSortingAgent(TAMPAgent):
         sample.task_name = self.task_list[task[0]]
         sample.set(TARGETS_ENUM, targets.copy(), t)
         sample.set(GOAL_ENUM, np.concatenate([targets[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]]), t)
+        if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims']:
+            sample.set(ONEHOT_GOAL_ENUM, self.onehot_encode_goal(np.concatenate([targets[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])), t)
         sample.targets = targets.copy()
 
         if task[0] == 0:
@@ -987,7 +992,7 @@ class NAMOSortingAgent(TAMPAgent):
             grasp = self.set_grasp(grasp, task[3])
         plan.params['grasp0'].value[:,0] = grasp
  
-        if active_ts[0] == 0:
+        if active_ts[1] == 0:
             prim_choices = self.prob.get_prim_choices()
             obj = prim_choices[OBJ_ENUM][task[1]]
             targ = prim_choices[TARG_ENUM][task[2]]
@@ -1020,8 +1025,6 @@ class NAMOSortingAgent(TAMPAgent):
         #     plan.params['{0}_end_target'.format(obj_name)].value[:,0] = self.targets[condition][targ_name]
 
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
-        plan.params['robot_end_pose'].value[:,0] = plan.params['pr2'].pose[:,-1]
-
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
         if debug:
             print(failed_preds)
@@ -1301,7 +1304,8 @@ class NAMOSortingAgent(TAMPAgent):
                 goal[self.target_inds[('{0}_end_target'.format(pname), 'value')]] = attr
         prim_choices = self.prob.get_prim_choices()
         only_goal = np.concatenate([goal[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
-        return goal, only_goal
+        onehot_goal = self.onehot_encode_goal(only_goal)
+        return {GOAL_ENUM: only_goal, ONEHOT_GOAL_ENUM: onehot_goal, TARGETS_ENUM: goal}
 
 
     def replace_cond(self, cond, curric_step=-1):
@@ -1328,4 +1332,15 @@ class NAMOSortingAgent(TAMPAgent):
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
 
 
+    def onehot_encode_goal(self, targets, descr=None):
+        vecs = []
+        for i in range(0, len(targets), 2):
+            targ = targets[i:i+2]
+            vec = np.zeros(len(self.targ_labels.keys()))
+            for ind in self.targ_labels:
+                if np.linalg.norm(targ - self.targ_labels[ind]) < 2e-1:
+                    vec[ind] = 1.
+                    break
+            vecs.append(vec)
+        return np.concatenate(vecs)
 

@@ -711,18 +711,20 @@ class TAMPAgent(Agent):
     def relabel_path(self, path):
         end = path[-1]
         end_X = end.get_X(end.T-1)
-        goal, only_goal = self.relabel_goal(end)
+        goal_dict = self.relabel_goal(end)
         start_X = path[0].get_X(0)
         new_path = []
         cur_s = path[0]
         i = 0
-        while self.goal_f(end.condition, start_X, goal) > 1e-2:
+        while self.goal_f(end.condition, start_X, goal[TARGETS_ENUM]) > 1e-2:
             new_s = copy.deepcopy(path[i])
             new_s.agent = self
             new_s.targets = goal
             for t in range(new_s.T):
-                new_s.set(TARGETS_ENUM, goal, t)
-                new_s.set(GOAL_ENUM, only_goal, t)
+                new_s.set(TARGETS_ENUM, goal[TARGETS_ENUM], t)
+                new_s.set(GOAL_ENUM, goal[GOAL_ENUM], t)
+                if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims']:
+                    new_s.set(ONEHOT_GOAL_ENUM, goal[ONEHOT_GOAL_ENUM], t)
             new_path.append(new_s)
             start_X = new_path[-1].get_X(new_path[-1].T-1)
             i += 1

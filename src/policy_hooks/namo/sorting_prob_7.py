@@ -22,6 +22,7 @@ SORT_CLOSET = False
 USE_PERTURB = False
 OPT_MCTS_FEEDBACK = True
 N_GRASPS = 4
+FIX_TARGETS = False
 
 def prob_file():
     return "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
@@ -61,11 +62,8 @@ possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 # possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
 
-possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-45, -10, 4))))
-possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
-# possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-35, MAX_Y, 6))))
-# possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-5, 25, 2))))
-# possible_can_locs.extend(list(itertools.product(range(-45, 46, 12), range(-40, -20, 2))))
+possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-55, -10, 4))))
+# possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
             
 for i in range(len(possible_can_locs)):
@@ -175,9 +173,14 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
         x0s.append(x0)
         inds = np.random.permutation(range(config['num_objs']))
-        next_map = {'can{0}_end_target'.format(o): targs[no] for no, o in enumerate(inds[:config['num_targs']])}
-        if config['num_targs'] < config['num_objs']:
-            next_map.update({'can{0}_end_target'.format(o): locs[o+1] for o in inds[config['num_targs']:config['num_objs']]})
+        if FIX_TARGETS:
+            next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
+            for n in range(config['num_targs'], confg['num_objs']):
+                x0[state_inds['can{0}'.format(n)]] = END_TARGTS[inds[n]]
+        else:
+            next_map = {'can{0}_end_target'.format(o): targs[no] for no, o in enumerate(inds[:config['num_targs']])}
+            if config['num_targs'] < config['num_objs']:
+                next_map.update({'can{0}_end_target'.format(o): locs[o+1] for o in inds[config['num_targs']:config['num_objs']]})
         for a in range(n_aux):
             if a == 0:
                 next_map['aux_target_{0}'.format(a)] = (0, 0)
