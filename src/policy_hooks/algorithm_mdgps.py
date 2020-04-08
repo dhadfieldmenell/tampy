@@ -12,7 +12,7 @@ from policy_hooks.algorithm import Algorithm
 from gps.algorithm.algorithm_utils import IterationData, TrajectoryInfo, PolicyInfo
 from gps.algorithm.config import ALG_MDGPS
 from gps.utility.general_utils import extract_condition
-from gps.sample.sample_list import SampleList
+from policy_hooks.sample_list import SampleList
 
 LOGGER = logging.getLogger(__name__)
 SAMPLES_PER_UPDATE = 10

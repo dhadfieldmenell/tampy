@@ -1,3 +1,5 @@
+import software_constants as const
+
 """
 This file contains non-robot specific constants.
 This file is refferenced in:
@@ -5,7 +7,7 @@ This file is refferenced in:
     common_predicates
 """
 
-USE_OPENRAVE = True
+USE_OPENRAVE = const.USE_OPENRAVE
 
 """
 Constants used in robot_predicates

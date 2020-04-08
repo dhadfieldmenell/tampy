@@ -1,5 +1,7 @@
+from software_constants import *
 from openrave_body import OpenRAVEBody
-from openravepy import Environment
+if USE_ROS:
+    from openravepy import Environment
 from core.internal_repr.parameter import Object
 from core.util_classes.robots import Robot, PR2, Baxter, Washer, HSR
 from core.util_classes.items import Can, Table, Box

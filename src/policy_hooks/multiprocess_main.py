@@ -1,4 +1,4 @@
-from multiprocessing import Process, Pool
+from multiprocessing import Process, Pool, Queue
 import multiprocessing as mp
 import atexit
 from collections import OrderedDict
@@ -22,16 +22,15 @@ import traceback
 import numpy as np
 import tensorflow as tf
 
-from roslaunch.core import RLException
-from roslaunch.parent import ROSLaunchParent
-import rosgraph
-import rospy
+from software_constants import USE_ROS
+if USE_ROS:
+    from roslaunch.core import RLException
+    from roslaunch.parent import ROSLaunchParent
+    import rosgraph
 
-from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
-from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.algorithm.cost.cost_sum import CostSum
 from gps.algorithm.cost.cost_utils import *
-from gps.sample.sample_list import SampleList
+from policy_hooks.sample_list import SampleList
 
 from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.mcts import MCTS
@@ -591,7 +590,7 @@ class MultiProcessMain(object):
             os.makedirs('tf_saved/'+self.config['weight_dir']+'_trained')
 
     def start_ros(self):
-        if self.roscore is not None or rosgraph.is_master_online(): return
+        if not USE_ROS or self.roscore is not None or rosgraph.is_master_online(): return
         print('STARTING ROSCORE FROM PYTHON')
         try:
             self.roscore = ROSLaunchParent('train_roscore', [], is_core=True, num_workers=16, verbose=True)
@@ -657,4 +656,20 @@ class MultiProcessMain(object):
         with open('memory_info.txt', 'a+') as f:
             f.write(str(listOfProcObjects)) 
         return listOfProcObjects
+
+    
+    def allocate_queues(self, config):
+        queues = {}
+        for i in range(config['n_rollout_servers']):
+            queues['rollout_opt_rec{0}'.format(i)] = Queue(10)
+
+        for i in range(config['n_alg_servers']):
+            queues['alg_opt_rec{0}'.format(i)] = Queue(10)
+            queues['alg_prob_rec{0}'.format(i)] = Queue(10)
+
+        for i in range(config['n_optimizers']):
+            queues['optimizer{0}'.format(i)] = Queue(10)
+
+        config['queues'] = queues
+        return queues
 

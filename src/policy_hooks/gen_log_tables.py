@@ -202,7 +202,7 @@ def get_hl_tests():
                 i += 1
 
             dlen = min([len(d) for d in data])
-            FRAME = 40
+            FRAME = 20
             for i in range(dlen - FRAME):
                 cur_t = np.mean([d[i:i+FRAME,:,3] for d in data])
 
@@ -210,16 +210,17 @@ def get_hl_tests():
                     cur_fr = np.mean(d[i:i+FRAME], axis=0)
                     for pt in cur_fr:
                         val = pt[0]
-                        cur_t = pt[3]
+                        # cur_t = pt[3]
                         nt = int(pt[2])
                         no = int(pt[4])
                         if (no, nt) not in exp_data:
                             exp_data[no, nt] = []
                         exp_data[no, nt].append((full_exp, cur_t, val))
         for no, nt in exp_data:
+            print('Plotting', no, nt)
             pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
             sns.set()
-            sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', row='exp_name', data=pd_frame)
+            sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', data=pd_frame)
             sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val.png'.format(no, nt))
 
 

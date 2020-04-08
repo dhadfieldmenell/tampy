@@ -15,7 +15,7 @@ import numpy as np
 from scipy.cluster.vq import kmeans2 as kmeans
 
 from gps.algorithm.config import ALG_PIGPS
-from gps.sample.sample_list import SampleList
+from policy_hooks.sample_list import SampleList
 
 from policy_hooks.algorithm_mdgps import AlgorithmMDGPS
 from policy_hooks.utils.policy_solver_utils import OBJ_ENUM, STATE_ENUM, TARG_ENUM, ACTION_ENUM

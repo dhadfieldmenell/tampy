@@ -1,7 +1,5 @@
 import importlib
 from core.internal_repr import parameter
-from core.util_classes import common_predicates, namo_predicates
-from core.util_classes import pr2_predicates
 from core.internal_repr.domain import Domain
 from core.internal_repr.parameter_schema import ParameterSchema
 from core.internal_repr.predicate_schema import PredicateSchema
@@ -55,8 +53,8 @@ class ParseDomainConfig(object):
     def _create_pred_schemas(domain_config):
         try:
             pred_path = importlib.import_module(domain_config["Predicates Import Path"])
-        except KeyError:
-            pred_path = namo_predicates
+        except KeyError as e:
+            raise e
 
         pred_schemas = {}
         # for p_defn in domain_config["Derived Predicates"].split(";"):

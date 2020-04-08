@@ -2,11 +2,9 @@ from sco.prob import Prob
 from sco.variable import Variable
 from sco.expr import BoundExpr, QuadExpr, AffExpr
 from sco.solver import Solver
-from openravepy import matrixFromAxisAngle
 from core.internal_repr.parameter import Object
 from core.util_classes.matrix import Vector
 from core.util_classes.openrave_body import OpenRAVEBody
-from core.util_classes.plan_hdf5_serialization import PlanSerializer
 from ll_solver import LLSolver, LLParam
 import itertools, random
 import gurobipy as grb

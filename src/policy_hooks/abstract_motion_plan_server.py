@@ -4,24 +4,27 @@ import random
 import sys
 import time
 import traceback
+from software_constants import *
+import queue
 
 import numpy as np
 import tensorflow as tf
 
-import rospy
-from std_msgs.msg import *
+if USE_ROS:
+    import rospy
+    from std_msgs.msg import *
+    from tamp_ros.msg import *
+    from tamp_ros.srv import *
 
 from gps.utility.gmm import GMM
 
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.utils.tamp_eval_funcs import *
-
-from tamp_ros.msg import *
-from tamp_ros.srv import *
-
+from policy_hooks.msg_classes import *
 
 PLAN_COST_THRESHOLD = 1e-2
+
 
 class DummyPolicyOpt(object):
     def __init__(self, prob):
@@ -41,7 +44,7 @@ class AbstractMotionPlanServer(object):
         self.last_opt_t = time.time()
 
         self.config = hyperparams
-        rospy.init_node(hyperparams['domain']+'_mp_solver_{0}_{1}'.format(self.id, self.group_id))
+        if USE_ROS: rospy.init_node(hyperparams['domain']+'_mp_solver_{0}_{1}'.format(self.id, self.group_id))
         self.task_list = hyperparams['task_list']
         self.on_policy = hyperparams['on_policy']
         self.problem = hyperparams['prob']
@@ -55,7 +58,9 @@ class AbstractMotionPlanServer(object):
         self.solver.agent = self.agent
         self.agent.solver = self.solver
         self.weight_dir = hyperparams['weight_dir']
-        self.test_publisher = rospy.Publisher('is_alive', String, queue_size=2)
+        if USE_ROS: self.test_publisher = rospy.Publisher('is_alive', String, queue_size=2)
+        if not USE_ROS:
+            self.queues = hyperparams['queues']
 
         # self.mp_service = rospy.Service('motion_planner_'+str(self.id), MotionPlan, self.serve_motion_plan)
         self.stopped = False
@@ -64,11 +69,12 @@ class AbstractMotionPlanServer(object):
         # self.hl_publishers = {i: rospy.Publisher('hl_result_'+str(i), HLPlanResult, queue_size=5) for i in range(hyperparams['n_rollout_servers'])}
         self.mp_publishers = {}
         self.hl_publishers = {}
-        # self.policy_prior_subscriber = rospy.Subscriber('policy_prior', PolicyPriorUpdate, self.update_policy_prior)
-        self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
-        self.opt_count_publisher = rospy.Publisher('optimization_counter', String, queue_size=1)
+        if USE_ROS:
+            # self.policy_prior_subscriber = rospy.Subscriber('policy_prior', PolicyPriorUpdate, self.update_policy_prior)
+            self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
+            self.opt_count_publisher = rospy.Publisher('optimization_counter', String, queue_size=1)
 
-        # self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
+            # self.prob_proxy = rospy.ServiceProxy(task+'_policy_prob', PolicyProb, persistent=True)
         
         self.use_local = False
         '''
@@ -104,18 +110,32 @@ class AbstractMotionPlanServer(object):
         self.failed_per_task = {}
 
         self.mp_queue = []
-        self.async_publisher = rospy.Publisher('motion_plan_result_{0}'.format(self.group_id), MotionPlanResult, queue_size=1)
-        self.async_planner = rospy.Subscriber('motion_plan_prob_{0}'.format(self.group_id), MotionPlanProblem, self.publish_motion_plan, queue_size=1, buff_size=2**19)
-        # self.async_hl_planner = rospy.Subscriber('hl_prob_{0}'.format(self.group_id), HLProblem, self.publish_hl_plan, queue_size=2, buff_size=2**20)
-        self.weight_subscriber = rospy.Subscriber('tf_weights_{0}'.format(self.group_id), UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
-        # self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets, queue_size=1)
-        rospy.sleep(1)
+        if USE_ROS:
+            self.async_publisher = rospy.Publisher('motion_plan_result_{0}'.format(self.group_id), MotionPlanResult, queue_size=1)
+            self.async_planner = rospy.Subscriber('motion_plan_prob_{0}'.format(self.group_id), MotionPlanProblem, self.publish_motion_plan, queue_size=1, buff_size=2**19)
+            # self.async_hl_planner = rospy.Subscriber('hl_prob_{0}'.format(self.group_id), HLProblem, self.publish_hl_plan, queue_size=2, buff_size=2**20)
+            self.weight_subscriber = rospy.Subscriber('tf_weights_{0}'.format(self.group_id), UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
+            # self.targets_subscriber = rospy.Subscriber('targets', String, self.update_targets, queue_size=1)
+            rospy.sleep(1)
+
+
+    def parse_queue(self):
+        q = self.queues['optimizer{0}'.format(self.id)]
+        if q.Empty(): return
+        i = 0
+        while i < q.maxsize and not q.Empty():
+            try:
+                prob = q.get_nowait()
+                self.publish_motion_plan(prob)
+            except queue.Empty:
+                break
 
 
     def run(self):
         # rospy.spin()
         i = 0
         while not self.stopped:
+            if not USE_ROS: self.parse_queue()
             if len(self.mp_queue):
                 self.solve_motion_plan(self.mp_queue.pop())
             i += 1
@@ -235,9 +255,9 @@ class AbstractMotionPlanServer(object):
                 self.time_samples = []
 
 
-    def publish_motion_plan(self, msg):
+    def publish_motion_plan(self, msg, check=True):
         task_name = self.task_list[eval(msg.task)[0]]
-        if msg.solver_id != self.id: return
+        if check and msg.solver_id != self.id: return
         self.mp_queue.append(msg)
         while len(self.mp_queue) > 10:
             self.mp_queue.pop(0)
@@ -257,7 +277,10 @@ class AbstractMotionPlanServer(object):
         task_tuple = eval(msg.task)
         task_name = self.task_list[task[0]]
         cond = msg.cond
-        mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
+        if USE_ROS:
+            mean = np.array([msg.traj_mean[i].data for i in range(len(msg.traj_mean))])
+        else:
+            mean = np.array(msg.traj_mean)
 
         if msg.use_prior:
             T, dU, dX = msg.T, msg.dU, msg.dX
@@ -296,15 +319,17 @@ class AbstractMotionPlanServer(object):
 
         self.total_planning_time_since_log[task_name] += time.clock() - start_t
         self.mp_plans_since_log[task_name] += 1
-        self.opt_count_publisher.publish("Ran solve for motion plan.")
 
         failed = str(failed)
-        resp = MotionPlanResult()
-        resp.traj = []
-        for t in range(len(out)):
-            next_line = Float32MultiArray()
-            next_line.data = out[t]
-            resp.traj.append(next_line)
+        resp = MotionPlanResult() if USE_ROS else DummyMSG
+        if USE_ROS:
+            resp.traj = []
+            for t in range(len(out)):
+                next_line = Float32MultiArray()
+                next_line.data = out[t]
+                resp.traj.append(next_line)
+        else:
+            resp = out
 
         resp.failed = failed
         resp.success = success
@@ -315,13 +340,28 @@ class AbstractMotionPlanServer(object):
         resp.server_id = msg.server_id
         resp.alg_id = msg.alg_id
         resp.targets = targets
-        # self.mp_publishers[msg.server_id].publish(resp)
-        self.publish_mp(resp, msg.server_id)
+        if USE_ROS:
+            # self.mp_publishers[msg.server_id].publish(resp)
+            self.publish_mp(resp, msg.server_id)
+        else:
+            alg_q = self.queues['alg_opt_rec{0}'.format(msg.algorithm_id)]
+            rol_q = self.queues['rollout_opt_rec{0}'.format(msg.rollout_id)]
+            for q in [alg_q, rol_q]:
+                if q.full():
+                    try:
+                        q.get_nowait()
+                    except queue.Empty:
+                        pass
+                try:
+                    q.put_nowait(resp)
+                except queue.Full:
+                    pass
+
         if success:
             print('Succeeded:', success, failed)
             print('\n')
 
-        if success and self.agent.prob.USE_PERTURB:
+        if False and success and self.agent.prob.USE_PERTURB:
             for _ in range(self.perturb_steps):
                 out, failed, success = self.agent.perturb_solve(sample, inf_f=inf_f)
                 if success:

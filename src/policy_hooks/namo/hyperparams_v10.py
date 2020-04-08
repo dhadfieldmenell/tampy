@@ -9,22 +9,9 @@ import os.path
 
 import numpy as np
 
-from gps.algorithm.algorithm_mdgps import AlgorithmMDGPS
-# from gps.algorithm.algorithm_pigps import AlgorithmPIGPS
-from gps.algorithm.algorithm_traj_opt_pilqr import AlgorithmTrajOptPILQR
-from gps.algorithm.dynamics.dynamics_lr_prior import DynamicsLRPrior
-from gps.algorithm.dynamics.dynamics_prior_gmm import DynamicsPriorGMM
-from gps.algorithm.traj_opt.traj_opt_lqr_python import TrajOptLQRPython
-# from gps.algorithm.traj_opt.traj_opt_pi2 import TrajOptPI2
-from gps.algorithm.traj_opt.traj_opt_pilqr import TrajOptPILQR
-from gps.algorithm.policy_opt.policy_opt_tf import PolicyOptTf
 from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
-# from gps.algorithm.policy.policy_prior_gmm import PolicyPriorGMM
-# from gps.algorithm.policy.policy_prior import PolicyPrior
-from gps.algorithm.policy_opt.tf_model_example import tf_network
 from gps.gui.config import generate_experiment_info
 
-# from policy_hooks.algorithm_pigps import AlgorithmPIGPS
 from policy_hooks.algorithm_impgps import AlgorithmIMPGPS
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils

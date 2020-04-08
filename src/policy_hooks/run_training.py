@@ -7,9 +7,6 @@ import random
 import sys
 import time
 
-import rospy
-from std_msgs.msg import Float32MultiArray, String
-
 from policy_hooks.multiprocess_main import MultiProcessMain
 from policy_hooks.multiprocess_pretrain_main import MultiProcessPretrainMain
 

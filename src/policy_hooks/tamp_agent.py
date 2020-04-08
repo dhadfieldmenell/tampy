@@ -27,7 +27,7 @@ else:
 from gps.agent.agent_utils import generate_noise
 from gps.agent.config import AGENT
 #from gps.sample.sample import Sample
-from gps.sample.sample_list import SampleList
+from policy_hooks.sample_list import SampleList
 
 import core.util_classes.items as items
 from core.util_classes.namo_predicates import dsafe
@@ -710,16 +710,16 @@ class TAMPAgent(Agent):
 
     def relabel_path(self, path):
         end = path[-1]
-        end_X = end.get_X(end.T-1)
-        goal_dict = self.relabel_goal(end)
         start_X = path[0].get_X(0)
+        end_X = end.get_X(end.T-1)
+        goal = self.relabel_goal(end)
         new_path = []
         cur_s = path[0]
         i = 0
         while self.goal_f(end.condition, start_X, goal[TARGETS_ENUM]) > 1e-2:
             new_s = copy.deepcopy(path[i])
             new_s.agent = self
-            new_s.targets = goal
+            new_s.targets = goal[TARGETS_ENUM]
             for t in range(new_s.T):
                 new_s.set(TARGETS_ENUM, goal[TARGETS_ENUM], t)
                 new_s.set(GOAL_ENUM, goal[GOAL_ENUM], t)
@@ -728,6 +728,8 @@ class TAMPAgent(Agent):
             new_path.append(new_s)
             start_X = new_path[-1].get_X(new_path[-1].T-1)
             i += 1
-        assert self.goal_f(0, start_X, targets=goal) < 1e-2
+        
+        for i, s in enumerate(new_path):
+            s.discount = 0.9 ** (len(new_path) - i)
         return new_path
 

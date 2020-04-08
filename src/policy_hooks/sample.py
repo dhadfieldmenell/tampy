@@ -1,7 +1,6 @@
 """ This file defines the sample class. """
 import numpy as np
 
-from gps.proto.gps_pb2 import ACTION
 from policy_hooks.utils.policy_solver_utils import ACTION_ENUM
 
 

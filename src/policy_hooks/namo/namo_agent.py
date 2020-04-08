@@ -25,7 +25,7 @@ else:
 from gps.agent.agent_utils import generate_noise
 from gps.agent.config import AGENT
 #from gps.sample.sample import Sample
-from gps.sample.sample_list import SampleList
+from policy_hooks.sample_list import SampleList
 
 from baxter_gym.envs import MJCEnv
 
@@ -109,7 +109,7 @@ class NAMOSortingAgent(TAMPAgent):
         # import ipdb; ipdb.set_trace()
         self.in_gripper = None
         no = self._hyperparams['num_objs']
-        self.targ_labels = {i: self.prob.END_TARGETS[i] for i in range(no)}
+        self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(no)}
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 
@@ -838,7 +838,7 @@ class NAMOSortingAgent(TAMPAgent):
         sample.set(TARGETS_ENUM, targets.copy(), t)
         sample.set(GOAL_ENUM, np.concatenate([targets[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]]), t)
         if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims']:
-            sample.set(ONEHOT_GOAL_ENUM, self.onehot_encode_goal(np.concatenate([targets[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])), t)
+            sample.set(ONEHOT_GOAL_ENUM, self.onehot_encode_goal(sample.get(GOAL_ENUM, t)), t)
         sample.targets = targets.copy()
 
         if task[0] == 0:
@@ -1293,7 +1293,7 @@ class NAMOSortingAgent(TAMPAgent):
         return attr_dict
 
 
-    def relabel_goal(self, sample):
+    def relabel_goal(self, sample, debug=False):
         X = sample.get_X(sample.T-1)
         plan = self.plans.values()[0]
         goal = self.target_vecs[0].copy()
@@ -1304,7 +1304,7 @@ class NAMOSortingAgent(TAMPAgent):
                 goal[self.target_inds[('{0}_end_target'.format(pname), 'value')]] = attr
         prim_choices = self.prob.get_prim_choices()
         only_goal = np.concatenate([goal[self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
-        onehot_goal = self.onehot_encode_goal(only_goal)
+        onehot_goal = self.onehot_encode_goal(only_goal, debug=debug)
         return {GOAL_ENUM: only_goal, ONEHOT_GOAL_ENUM: onehot_goal, TARGETS_ENUM: goal}
 
 
@@ -1332,15 +1332,17 @@ class NAMOSortingAgent(TAMPAgent):
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
 
 
-    def onehot_encode_goal(self, targets, descr=None):
+    def onehot_encode_goal(self, targets, descr=None, debug=False):
         vecs = []
         for i in range(0, len(targets), 2):
             targ = targets[i:i+2]
             vec = np.zeros(len(self.targ_labels.keys()))
             for ind in self.targ_labels:
-                if np.linalg.norm(targ - self.targ_labels[ind]) < 2e-1:
+                if np.linalg.norm(targ - self.targ_labels[ind]) < 5e-1:
                     vec[ind] = 1.
                     break
             vecs.append(vec)
+        if debug:
+            print('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS))
         return np.concatenate(vecs)
 

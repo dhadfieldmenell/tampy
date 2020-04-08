@@ -2,24 +2,27 @@ from datetime import datetime
 import numpy as np
 import os
 import pprint
+import queue
 import random
 import sys
 import time
+from software_constants import *
 
 from numba import cuda
-import rospy
 from scipy.cluster.vq import kmeans2 as kmeans
-from std_msgs.msg import Float32MultiArray, String
 import tensorflow as tf
 
 from policy_hooks.sample import Sample
-from gps.sample.sample_list import SampleList
+from policy_hooks.sample_list import SampleList
 
-from tamp_ros.msg import *
-from tamp_ros.srv import *
+if USE_ROS:
+    import rospy
+    from std_msgs.msg import Float32MultiArray, String
+    from tamp_ros.msg import *
+    from tamp_ros.srv import *
 
 from policy_hooks.utils.policy_solver_utils import *
-
+from policy_hooks.msg_classes import *
 
 MAX_SAVED_NODES = 1000
 MAX_BUFFER = 10
@@ -70,8 +73,11 @@ class RolloutServer(object):
         self.mcts = hyperparams['mcts']
         self.run_mcts_rollouts = hyperparams.get('run_mcts_rollouts', True)
         self.run_alg_updates = hyperparams.get('run_alg_updates', True)
+        if not USE_ROS:
+            self.queues = hyperparams['queues']
+
         self.run_hl_test = hyperparams.get('run_hl_test', False)
-        rospy.init_node('rollout_server_{0}_{1}_{2}'.format(self.id, self.group_id, self.run_alg_updates))
+        if USE_ROS: rospy.init_node('rollout_server_{0}_{1}_{2}'.format(self.id, self.group_id, self.run_alg_updates))
         self.prim_dims = hyperparams['prim_dims']
         self.solver = hyperparams['solver_type'](hyperparams)
         self.opt_smooth = hyperparams.get('opt_smooth', False)
@@ -181,15 +187,16 @@ class RolloutServer(object):
         self.time_log = 'tf_saved/'+hyperparams['weight_dir']+'/timing_info.txt'
         self.log_timing = hyperparams['log_timing']
 
-        #self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
+        if USE_ROS:
+            #self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
 
-        # self.mp_subcriber = rospy.Subscriber('motion_plan_result_{0}_{1}'.format(self.id, self.group_id), MotionPlanResult, self.sample_mp, queue_size=3, buff_size=2**16)
-        self.mp_subcriber = rospy.Subscriber('motion_plan_result_{0}'.format(self.group_id), MotionPlanResult, self.sample_mp, queue_size=10, buff_size=2**16)
-        # self.prob_subcriber = rospy.Subscriber('prob_{0}_{1}'.format(self.id, self.group_id), MotionPlanProblem, self.store_prob, queue_size=3, buff_size=2**16)
-        self.prob_subcriber = rospy.Subscriber('prob_{1}'.format(self.id, self.group_id), MotionPlanProblem, self.store_prob, queue_size=10, buff_size=2**16)
-        #self.hl_subscriber = rospy.Subscriber('hl_result_{0}_{1}'.format(self.id, self.group_id), HLPlanResult, self.update_hl, queue_size=1)
-        # self.weight_subscriber = rospy.Subscriber('tf_weights_{0}'.format(self.group_id), UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
-        self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
+            # self.mp_subcriber = rospy.Subscriber('motion_plan_result_{0}_{1}'.format(self.id, self.group_id), MotionPlanResult, self.sample_mp, queue_size=3, buff_size=2**16)
+            self.mp_subcriber = rospy.Subscriber('motion_plan_result_{0}'.format(self.group_id), MotionPlanResult, self.sample_mp, queue_size=10, buff_size=2**16)
+            # self.prob_subcriber = rospy.Subscriber('prob_{0}_{1}'.format(self.id, self.group_id), MotionPlanProblem, self.store_prob, queue_size=3, buff_size=2**16)
+            self.prob_subcriber = rospy.Subscriber('prob_{1}'.format(self.id, self.group_id), MotionPlanProblem, self.store_prob, queue_size=10, buff_size=2**16)
+            #self.hl_subscriber = rospy.Subscriber('hl_result_{0}_{1}'.format(self.id, self.group_id), HLPlanResult, self.update_hl, queue_size=1)
+            # self.weight_subscriber = rospy.Subscriber('tf_weights_{0}'.format(self.group_id), UpdateTF, self.store_weights, queue_size=1, buff_size=2**22)
+            self.stop = rospy.Subscriber('terminate', String, self.end, queue_size=1)
         self.node_ref = {}
         self.node_dict = {}
 
@@ -200,6 +207,7 @@ class RolloutServer(object):
 
 
     def renew_publisher(self):
+        if not USE_ROS: return
         self.updaters = {task: rospy.Publisher(task+'_update_{0}'.format(self.group_id), PolicyUpdate, queue_size=2) for task in self.pol_list}
         self.updaters['value'] = rospy.Publisher('value_update_{0}'.format(self.group_id), PolicyUpdate, queue_size=5)
         self.updaters['primitive'] = rospy.Publisher('primitive_update_{0}'.format(self.group_id), PolicyUpdate, queue_size=5)
@@ -221,28 +229,27 @@ class RolloutServer(object):
         assert not np.any(np.isnan(obs))
         assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
-        msg = PolicyUpdate()
-        msg.obs = obs.flatten().tolist()
-        msg.mu = mu.flatten().tolist()
-        msg.prc = prc.flatten().tolist()
-        msg.wt = wt.flatten().tolist()
-        msg.dO = self.agent.dO
-        msg.dPrimObs = self.agent.dPrim
-        msg.dValObs = self.agent.dVal
-        msg.dU = mu.shape[-1]
-        msg.n = len(mu)
-        msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
-        msg.task = str(task)
-        # if task != 'value':
-        #     print('Sending update on', task)
 
-        if task in self.updaters:
-            # print 'Sent update to', task, 'policy'
-            self.updaters[task].publish(msg)
-        else:
-            # Assume that if we don't have a policy for this task we're using a single control policy
-            # print 'Sent update to control policy'
-            self.updaters['control'].publish(msg)
+        if USE_ROS:
+            msg = PolicyUpdate()
+            msg.obs = obs.flatten().tolist()
+            msg.mu = mu.flatten().tolist()
+            msg.prc = prc.flatten().tolist()
+            msg.wt = wt.flatten().tolist()
+            msg.dO = self.agent.dO
+            msg.dPrimObs = self.agent.dPrim
+            msg.dValObs = self.agent.dVal
+            msg.dU = mu.shape[-1]
+            msg.n = len(mu)
+            msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
+            msg.task = str(task)
+            # if task != 'value':
+            #     print('Sending update on', task)
+
+            if task in self.updaters:
+                self.updaters[task].publish(msg)
+            else:
+                self.updaters['control'].publish(msg)
 
 
     def store_weights(self, msg):
@@ -416,9 +423,9 @@ class RolloutServer(object):
         # self.opt_buffer = self.opt_buffer[-MAX_BUFFER:]
 
     
-    def store_prob(self, msg):
+    def store_prob(self, msg, check=True):
         task_name = self.task_list[eval(msg.task)[0]]
-        if not self.run_alg_updates or msg.alg_id != '{0}_{1}'.format(self.id, self.group_id): return
+        if check and (not self.run_alg_updates or msg.alg_id != '{0}_{1}'.format(self.id, self.group_id)): return
 
         # print('storing ll prob for server {0} in group {1}'.format(self.id, self.group_id))
         traj_mean = []
@@ -429,11 +436,11 @@ class RolloutServer(object):
         self.sampled_probs = self.sampled_probs[-MAX_BUFFER:]
 
 
-    def sample_mp(self, msg):
+    def sample_mp(self, msg, check=True):
         ### If this server isn't running algorithm updates, it doesn't need to store the mp results
         # print('Received motion plan', self.group_id, self.id, msg.alg_id, msg.server_id)
-        if (not self.run_alg_updates and msg.server_id != '{0}_{1}'.format(self.id, self.group_id)) or \
-           (self.run_alg_updates and msg.alg_id != '{0}_{1}'.format(self.id, self.group_id)):
+        if (check and not self.run_alg_updates and msg.server_id != '{0}_{1}'.format(self.id, self.group_id)) or \
+           (check and self.run_alg_updates and msg.alg_id != '{0}_{1}'.format(self.id, self.group_id)):
             return
 
         print('Server {0} in group {1} received solved plan: alg server? {2}'.format(self.id, self.group_id, self.run_alg_updates))
@@ -481,6 +488,18 @@ class RolloutServer(object):
         return probs
 
 
+    def add_to_queue(self, prob, q):
+        if q.full():
+            try:
+                q.get_nowait()
+            except queue.Empty:
+                pass
+        try:
+            q.put_nowait(prob)
+        except queue.Full:
+            pass
+
+
     def send_prob(self, centroid, s_list):
         # print('sending ll prob for server {0} in group {1}'.format(self.id, self.group_id))
         if self._hyperparams['n_alg_servers'] == 0:
@@ -491,24 +510,31 @@ class RolloutServer(object):
         state = next_sample.get_X(t=0)
         task = next_sample.task
         cond = next_sample.condition
-        traj_mean = []
-        for t in range(next_sample.T):
-            next_line = Float32MultiArray()
-            next_line.data = next_sample.get_X(t=t).tolist()
-            traj_mean.append(next_line)
-        obs = []
-        for t in range(next_sample.T):
-            next_line = Float32MultiArray()
-            next_line.data = next_sample.get_obs(t=t).tolist()
-            obs.append(next_line)
 
-        U = []
-        for t in range(next_sample.T):
-            next_line = Float32MultiArray()
-            next_line.data = next_sample.get(ACTION_ENUM, t=t).tolist()
-            U.append(next_line)
+        if USE_ROS:
+            traj_mean = []
+            for t in range(next_sample.T):
+                next_line = Float32MultiArray()
+                next_line.data = next_sample.get_X(t=t).tolist()
+                traj_mean.append(next_line)
+            obs = []
+            for t in range(next_sample.T):
+                next_line = Float32MultiArray()
+                next_line.data = next_sample.get_obs(t=t).tolist()
+                obs.append(next_line)
 
-        prob = MotionPlanProblem()
+            U = []
+            for t in range(next_sample.T):
+                next_line = Float32MultiArray()
+                next_line.data = next_sample.get(ACTION_ENUM, t=t).tolist()
+                U.append(next_line)
+
+        else:
+            traj_mean = next_sample.get_X()
+            obs = next_sample.get_obs()
+            U = next_sample.get(ACTION_ENUM)
+
+        prob = MotionPlanProblem() if USE_ROS else DummyMSG()
         prob.state = state
         prob.targets = self.agent.target_vecs[cond].tolist()
         prob.task = str(task)
@@ -516,11 +542,18 @@ class RolloutServer(object):
         prob.traj_mean = traj_mean
         prob.obs = obs
         prob.U = U
-        prob.alg_id = '{0}_{1}'.format(np.random.randint(self._hyperparams['n_alg_servers']), self.group_id)
+        alg_id = np.random.randint(self._hyperparams['n_alg_servers'])
+        prob.alg_id = '{0}_{1}'.format(alg_id, self.group_id)
         prob.server_id = str('{0}_{1}'.format(self.id, self.group_id))
         prob.prob_id = self.current_id
         self.node_dict[self.current_id] = next_sample.node if hasattr(next_sample, 'node') else None
-        self.prob_publisher.publish(prob)
+        if USE_ROS:
+            self.prob_publisher.publish(prob)
+        else:
+            prob.rollout_id = self.id
+            prob.algorithm_id = alg_id
+            q = self.queues['alg_prob_rec{0}'.format(alg_id)]
+            self.add_to_queue(prob, q)
         self.current_id += 1
         self.n_sent_probs += 1
 
@@ -547,8 +580,11 @@ class RolloutServer(object):
             if not self.alg_map[task_name].mp_opt:
                 s_list = SampleList(self.get_rollouts(s_list, task_name)[0])
 
-            for t in range(len(traj)):
-                prob.traj_mean[t].data = traj[t][self.agent._x_data_idx[STATE_ENUM]].tolist()
+            if USE_ROS:
+                for t in range(len(traj)):
+                    prob.traj_mean[t].data = traj[t][self.agent._x_data_idx[STATE_ENUM]].tolist()
+            else:
+                prob.traj_mean = traj[:,self.agent._x_data_idx[STATE_ENUM]]
 
             # prob.prob_id = self.current_id
             self.waiting_for_opt[self.current_id] = s_list
@@ -578,7 +614,12 @@ class RolloutServer(object):
             # prob.server_id = str('{0}_{1}'.format(self.id, self.group_id))
             if np.random.uniform() < 1.: # self.opt_prob:
                 self.n_sent_probs += 1
-                self.async_plan_publisher.publish(prob)
+                if USE_ROS:
+                    self.async_plan_publisher.publish(prob)
+                else:
+                    q = self.queues['optimizer{0}'.format(prob.solver_id)]
+                    self.add_to_queue(prob, q)
+
                 '''
                 prob.server_id = 'no_id'
                 prob.prob_id = -1
@@ -1027,12 +1068,45 @@ class RolloutServer(object):
         print('TESTED HL')
 
 
+    def parse_opt_queue(self):
+        i = 0
+        if self.run_alg_updates:
+            q = self.queues['alg_opt_rec{0}'.format(self.id)]
+        else:
+            q = self.queues['rollout_opt_rec{0}'.format(self.id)]
+
+        while i < q.maxsize and not q.Empty():
+            try:
+                prob = q.get_nowait()
+                self.sample_mp(prob, check=False)
+            except queue.Empty:
+                break
+        i += 1
+
+
+    def parse_prob_queue(self):
+        if not self.run_alg_updates: return
+        i = 0
+        q = self.queues['alg_prob_rec{0}'.format(self.id)]
+        while i < q.maxsize and not q.Empty():
+            try:
+                prob = q.get_nowait()
+                self.store_prob(prob, check=False)
+            except queue.Empty:
+                break
+            i += 1
+
+
     def run(self):
         step = 0
         while not self.stopped:
             if self.run_hl_test:
                 self.test_hl()
             else:
+                if not USE_ROS:
+                    self.parse_opt_queue()
+                    if self.run_alg_updtaes:
+                        self.parse_prob_queue()
                 self.step()
             step += 1
             if time.time() - self.start_t > self._hyperparams['time_limit']:

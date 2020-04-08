@@ -3,8 +3,8 @@ import abc
 import copy
 
 from gps.agent.config import AGENT
-from gps.proto.gps_pb2 import ACTION
-from gps.sample.sample_list import SampleList
+from policy_hooks.sample_list import SampleList
+from policy_hooks.utils.policy_solver_utils import ACTION_ENUM
 
 
 class Agent(object):
@@ -22,7 +22,7 @@ class Agent(object):
         # Store samples, along with size/index information for samples.
         self._samples = [[] for _ in range(self._hyperparams['conditions'])]
         self.T = self._hyperparams['T']
-        self.dU = self._hyperparams['sensor_dims'][ACTION]
+        self.dU = self._hyperparams['sensor_dims'][ACTION_ENUM]
 
         self.x_data_types = self._hyperparams['state_include']
         self.obs_data_types = self._hyperparams['obs_include']

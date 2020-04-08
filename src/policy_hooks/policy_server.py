@@ -4,15 +4,18 @@ import threading
 import time
 
 import numpy as np
-import rospy
 
-from std_msgs.msg import Float32MultiArray, String
+from software_constants import USE_ROS
+
+if USE_ROS:
+    import rospy
+    from std_msgs.msg import Float32MultiArray, String
+    from tamp_ros.msg import *
+    from tamp_ros.srv import *
 
 from policy_hooks.control_attention_policy_opt import ControlAttentionPolicyOpt
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
-
-from tamp_ros.msg import *
-from tamp_ros.srv import *
+from policy_hooks.msg_classes import *
 
 
 MAX_QUEUE_SIZE = 100
@@ -30,7 +33,7 @@ class PolicyServer(object):
         self.start_t = hyperparams['start_t']
         self.config = hyperparams
         hyperparams['policy_opt']['scope'] = self.task
-        rospy.init_node(self.task+'_update_server_{0}'.format(self.group_id))
+        if USE_ROS: rospy.init_node(self.task+'_update_server_{0}'.format(self.group_id))
         self.policy_opt = hyperparams['policy_opt']['type'](
             hyperparams['policy_opt'], 
             hyperparams['dO'],
@@ -41,16 +44,16 @@ class PolicyServer(object):
         )
         # self.policy_opt = policy_opt
         # self.policy_opt.hyperparams['scope'] = task
-        # self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
-        # self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
-        self.weight_publisher = rospy.Publisher('tf_weights_{0}'.format(self.group_id), UpdateTF, queue_size=1)
-        self.stop = rospy.Subscriber('terminate', String, self.end)
         self.stopped = False
-        self.time_log = 'tf_saved/' + hyperparams['weight_dir']+'/timing_info.txt'
-        self.log_timing = hyperparams['log_timing']
-        # self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
-
-        self.update_listener = rospy.Subscriber('{0}_update_{1}'.format(self.task, self.group_id), PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
+        if USE_ROS:
+            # self.prob_service = rospy.Service(self.task+'_policy_prob', PolicyProb, self.prob)
+            # self.act_service = rospy.Service(self.task+'_policy_act', PolicyAct, self.act)
+            self.weight_publisher = rospy.Publisher('tf_weights_{0}'.format(self.group_id), UpdateTF, queue_size=1)
+            self.stop = rospy.Subscriber('terminate', String, self.end)
+            self.time_log = 'tf_saved/' + hyperparams['weight_dir']+'/timing_info.txt'
+            self.log_timing = hyperparams['log_timing']
+            # self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
+            self.update_listener = rospy.Subscriber('{0}_update_{1}'.format(self.task, self.group_id), PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
         self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
         self.policy_info_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
         self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/data.pkl'.format(self.task)
