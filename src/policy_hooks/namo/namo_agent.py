@@ -33,7 +33,6 @@ import core.util_classes.items as items
 from core.util_classes.namo_predicates import dsafe
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
-from core.util_classes.plan_hdf5_serialization import PlanSerializer, PlanDeserializer
 
 from policy_hooks.agent import Agent
 from policy_hooks.sample import Sample
