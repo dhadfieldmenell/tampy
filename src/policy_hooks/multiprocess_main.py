@@ -588,6 +588,7 @@ class MultiProcessMain(object):
         self.start_ros()
         if self.config.get('share_buffer', False):
             self.allocate_shared_buffers(self.config)
+            self.allocate_queues(self.config)
 
         self.spawn_servers(self.config)
         self.start_servers()
