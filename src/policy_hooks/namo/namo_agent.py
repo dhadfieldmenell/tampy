@@ -341,8 +341,9 @@ class NAMOSortingAgent(TAMPAgent):
                 dists[i] = dists[i] if is_hits[i] else LIDAR_DIST
         else:
             P.stepSimulation()
-            _, _, hit_frac, hit_pos, hit_normal = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
-            dists = LIDAR_DIST * hit_frac
+            # _, _, hit_frac, hit_pos, hit_normal = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
+            hits = P.rayTestBatch(rays[:,:3], rays[:,:3]+rays[:,3:])
+            dists = LIDAR_DIST * np.array([h[2] for h in hits])
 
         # dists[np.abs(dists) > LIDAR_DIST] = LIDAR_DIST
         # dists[not np.array(is_hits)] = LIDAR_DIST

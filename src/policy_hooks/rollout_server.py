@@ -1105,7 +1105,7 @@ class RolloutServer(object):
             else:
                 if not USE_ROS:
                     self.parse_opt_queue()
-                    if self.run_alg_updtaes:
+                    if self.run_alg_updates:
                         self.parse_prob_queue()
                 self.step()
             step += 1
