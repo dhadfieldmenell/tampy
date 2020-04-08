@@ -321,7 +321,7 @@ class AbstractMotionPlanServer(object):
         self.mp_plans_since_log[task_name] += 1
 
         failed = str(failed)
-        resp = MotionPlanResult() if USE_ROS else DummyMSG
+        resp = MotionPlanResult() if USE_ROS else DummyMSG()
         if USE_ROS:
             resp.traj = []
             for t in range(len(out)):
