@@ -121,9 +121,9 @@ class AbstractMotionPlanServer(object):
 
     def parse_queue(self):
         q = self.queues['optimizer{0}'.format(self.id)]
-        if q.Empty(): return
+        if q.empty(): return
         i = 0
-        while i < q.maxsize and not q.Empty():
+        while i < q.maxsize and not q.empty():
             try:
                 prob = q.get_nowait()
                 self.publish_motion_plan(prob)
