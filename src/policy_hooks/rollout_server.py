@@ -428,9 +428,12 @@ class RolloutServer(object):
         if check and (not self.run_alg_updates or msg.alg_id != '{0}_{1}'.format(self.id, self.group_id)): return
 
         # print('storing ll prob for server {0} in group {1}'.format(self.id, self.group_id))
-        traj_mean = []
-        for t in range(len(msg.traj_mean)):
-            traj_mean.append(msg.traj_mean[t].data)
+        if USE_ROS:
+            traj_mean = []
+            for t in range(len(msg.traj_mean)):
+                traj_mean.append(msg.traj_mean[t].data)
+        else:
+            traj_mean = msg.traj_mean
 
         self.sampled_probs.append((msg, np.array(traj_mean)))
         self.sampled_probs = self.sampled_probs[-MAX_BUFFER:]
