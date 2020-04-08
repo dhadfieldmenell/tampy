@@ -1,4 +1,3 @@
-from core.util_classes.robot_predicates import CollisionPredicate
 import numpy as np
 
 # Don't change these

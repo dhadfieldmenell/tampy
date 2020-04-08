@@ -1,7 +1,6 @@
 import subprocess
 from core.internal_repr.action import Action
 from core.internal_repr.plan import Plan
-from openravepy import Environment
 
 class HLSolver(object):
     """
