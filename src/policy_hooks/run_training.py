@@ -8,7 +8,6 @@ import sys
 import time
 
 from policy_hooks.multiprocess_main import MultiProcessMain
-from policy_hooks.multiprocess_pretrain_main import MultiProcessPretrainMain
 
 
 def get_dir_name(base, no, nt, ind, descr, args=None):
@@ -176,12 +175,6 @@ def main():
 
         print('\n\n\n\n\n\n\n\nEXITING')
         sys.exit(0)
-
-    if args.pretrain:
-        pretrain = MultiProcessPretrainMain(config)
-        pretrain.run()
-        config, config_module = load_config(args, reload_module=config_module)
-        print '\n\n\nPretraining Complete.\n\n\n'
 
     if not args.nofull:
         main = MultiProcessMain(config)
