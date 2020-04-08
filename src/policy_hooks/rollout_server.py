@@ -453,7 +453,7 @@ class RolloutServer(object):
         if USE_ROS:
             traj = np.array([msg.traj[i].data for i in range(len(msg.traj))])
         else:
-            trak = np.array(msg.traj)
+            traj = np.array(msg.traj)
         state = np.array(msg.state)
         success = msg.success
         task = eval(msg.task)
