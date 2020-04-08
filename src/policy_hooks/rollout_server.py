@@ -1075,7 +1075,7 @@ class RolloutServer(object):
         else:
             q = self.queues['rollout_opt_rec{0}'.format(self.id)]
 
-        while i < q.maxsize and not q.empty():
+        while i < q._maxsize and not q.empty():
             try:
                 prob = q.get_nowait()
                 self.sample_mp(prob, check=False)
@@ -1088,7 +1088,7 @@ class RolloutServer(object):
         if not self.run_alg_updates: return
         i = 0
         q = self.queues['alg_prob_rec{0}'.format(self.id)]
-        while i < q.maxsize and not q.empty():
+        while i < q._maxsize and not q.empty():
             try:
                 prob = q.get_nowait()
                 self.store_prob(prob, check=False)
