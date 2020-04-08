@@ -49,14 +49,15 @@ class AbstractMotionPlanServer(object):
         self.on_policy = hyperparams['on_policy']
         self.problem = hyperparams['prob']
         
-        if not USE_OPENRAVE:
-            self.agent.plans, self.agent.openrave_bodies = self.agent.prob.get_plans()
-
         # self.policy_opt = hyperparams['policy_opt']
         # self.solver.policy_opt = self.policy_opt
         self.solver.policy_opt = DummyPolicyOpt(self.problem)
         self.solver.policy_priors = {task: GMM() for task in self.task_list}
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
+         
+        if not USE_OPENRAVE:
+            self.agent.plans, self.agent.openrave_bodies = self.agent.prob.get_plans()
+
         self.solver.agent = self.agent
         self.agent.solver = self.solver
         self.weight_dir = hyperparams['weight_dir']
