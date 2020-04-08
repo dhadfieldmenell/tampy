@@ -48,13 +48,9 @@ from policy_hooks.cost_product import CostProduct
 from policy_hooks.sample import Sample
 from policy_hooks.policy_solver import get_base_solver
 from policy_hooks.utils.load_task_definitions import *
-from policy_hooks.value_server import ValueServer
-from policy_hooks.primitive_server import PrimitiveServer
 from policy_hooks.policy_server import PolicyServer
 from policy_hooks.rollout_server import RolloutServer
-from policy_hooks.log_server import LogServer
 from policy_hooks.tf_models import tf_network, multi_modal_network_fp
-from policy_hooks.view_server import ViewServer
 
 
 def spawn_server(cls, hyperparams):
@@ -453,10 +449,7 @@ class MultiProcessMain(object):
             self.create_pol_servers(config)
         if self.config['mcts_server']:
             self.create_rollout_servers(config)
-        if self.config['log_server']:
-            self.create_log_server(config)
-        if self.config['view_server']:
-            self.create_view_server(config)
+
 
     def start_servers(self):
         for p in self.processes:
@@ -539,18 +532,6 @@ class MultiProcessMain(object):
         self.cur_n_rollout += 1
         return p
 
-
-    def create_log_server(self, hyperparams):
-        new_hyperparams = copy.copy(hyperparams)
-        spawn_server(LogServer, new_hyperparams)
-        if self.roscore is not None: self.roscore.shutdown()
-        sys.exit(0)
-
-    def create_view_server(self, hyperparams):
-        new_hyperparams = copy.copy(hyperparams)
-        spawn_server(ViewServer, new_hyperparams)
-        if self.roscore is not None: self.roscore.shutdown()
-        sys.exit(0)
 
     def kill_processes(self):
         for p in self.processes:
