@@ -56,7 +56,7 @@ class AbstractMotionPlanServer(object):
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
          
         if not USE_OPENRAVE:
-            self.agent.plans, self.agent.openrave_bodies = self.agent.prob.get_plans()
+            self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans()
 
         self.solver.agent = self.agent
         self.agent.solver = self.solver
