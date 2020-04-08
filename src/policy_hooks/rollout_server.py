@@ -574,8 +574,12 @@ class RolloutServer(object):
 
             for t in range(len(traj)):
                 s.set_X(traj[t], t=t)
-                s.set_obs(np.array(prob.obs[t].data), t=t)
-                s.set(ACTION_ENUM, np.array(prob.U[t].data), t=t)
+                if USE_ROS:
+                    s.set_obs(np.array(prob.obs[t].data), t=t)
+                    s.set(ACTION_ENUM, np.array(prob.U[t].data), t=t)
+                else:
+                    s.set_obs(np.array(prob.obs[t]), t=t)
+                    s.set(ACTION_ENUM, np.array(prob.U[t]), t=t)
 
             s.condition = cond
             s.task = eval(prob.task)

@@ -329,7 +329,7 @@ class AbstractMotionPlanServer(object):
                 next_line.data = out[t]
                 resp.traj.append(next_line)
         else:
-            resp = out
+            resp.traj = out
 
         resp.failed = failed
         resp.success = success
