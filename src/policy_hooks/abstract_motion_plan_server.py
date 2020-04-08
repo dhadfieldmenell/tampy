@@ -48,8 +48,10 @@ class AbstractMotionPlanServer(object):
         self.task_list = hyperparams['task_list']
         self.on_policy = hyperparams['on_policy']
         self.problem = hyperparams['prob']
-        plans, openrave_bodies, env = self.problem.get_plans()
         
+        if not USE_OPENRAVE:
+            self.agent.plans, self.agent.openrave_bodies = self.agent.prob.get_plans()
+
         # self.policy_opt = hyperparams['policy_opt']
         # self.solver.policy_opt = self.policy_opt
         self.solver.policy_opt = DummyPolicyOpt(self.problem)

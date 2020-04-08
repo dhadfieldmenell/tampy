@@ -165,6 +165,9 @@ class RolloutServer(object):
         self.hl_opt_queue = []
         self.sampled_probs = []
 
+        if not USE_OPENRAVE:
+            self.agent.plans, self.agent.openrave_bodies = self.agent.prob.get_plans()
+
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
         self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_log.npy'
         self.log_updates = []
