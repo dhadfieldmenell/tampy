@@ -167,6 +167,14 @@ class RolloutServer(object):
 
         if not USE_OPENRAVE:
             self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans()
+            for plan in self.agent.plans.values():
+                plan.state_inds = self.agent.agent.state_inds
+                plan.action_inds = self.agent.action_inds
+                plan.dX = self.agent.dX
+                plan.dU = self.agent.dU
+                plan.symbolic_bound = self.agent.symbolic_bound
+                plan.target_dim = self.agent.target_dim
+                plan.target_inds = self.agent.target_inds
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
         self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_log.npy'
