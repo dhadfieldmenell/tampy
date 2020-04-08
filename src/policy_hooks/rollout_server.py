@@ -168,7 +168,7 @@ class RolloutServer(object):
         if not USE_OPENRAVE:
             self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans()
             for plan in self.agent.plans.values():
-                plan.state_inds = self.agent.agent.state_inds
+                plan.state_inds = self.agent.state_inds
                 plan.action_inds = self.agent.action_inds
                 plan.dX = self.agent.dX
                 plan.dU = self.agent.dU
