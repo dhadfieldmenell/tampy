@@ -241,26 +241,40 @@ class RolloutServer(object):
         assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
 
-        if USE_ROS:
-            msg = PolicyUpdate()
-            msg.obs = obs.flatten().tolist()
-            msg.mu = mu.flatten().tolist()
-            msg.prc = prc.flatten().tolist()
-            msg.wt = wt.flatten().tolist()
-            msg.dO = self.agent.dO
-            msg.dPrimObs = self.agent.dPrim
-            msg.dValObs = self.agent.dVal
-            msg.dU = mu.shape[-1]
-            msg.n = len(mu)
-            msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
-            msg.task = str(task)
-            # if task != 'value':
-            #     print('Sending update on', task)
+        msg = PolicyUpdate() if USE_ROS else DummyMSG()
+        msg.obs = obs.flatten().tolist()
+        msg.mu = mu.flatten().tolist()
+        msg.prc = prc.flatten().tolist()
+        msg.wt = wt.flatten().tolist()
+        msg.dO = self.agent.dO
+        msg.dPrimObs = self.agent.dPrim
+        msg.dValObs = self.agent.dVal
+        msg.dU = mu.shape[-1]
+        msg.n = len(mu)
+        msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
+        msg.task = str(task)
+        # if task != 'value':
+        #     print('Sending update on', task)
 
+        if USE_ROS:
             if task in self.updaters:
                 self.updaters[task].publish(msg)
             else:
                 self.updaters['control'].publish(msg)
+        else:
+            if '{0}_pol'.format(task) in self.queues:
+                q = self.queues['{0}_pol'.format(task)]
+            else:
+                q = self.queues['control_pol']
+            if q.full():
+                try:
+                    q.get_nowait()
+                except queue.Empty:
+                    pass
+            try:
+                q.put_nowait(msg)
+            except queue.Full:
+                pass
 
 
     def store_weights(self, msg):
@@ -1103,7 +1117,8 @@ class RolloutServer(object):
             except queue.Empty:
                 break
             i += 1
-
+        if i > 0 and self.run_alg_updates:
+            print('Parsed {0} from opt ALG'.format(i))
 
     def parse_prob_queue(self):
         if not self.run_alg_updates: return

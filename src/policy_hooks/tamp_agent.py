@@ -712,6 +712,9 @@ class TAMPAgent(Agent):
         start_X = path[0].get_X(0)
         end_X = end.get_X(end.T-1)
         goal = self.relabel_goal(end)
+        if ONEHOT_GOAL_ENUM in self._hyperparams['sensor_dims'] and np.all(goal[ONEHOT_GOAL_ENUM] == 0.):
+            return []
+
         new_path = []
         cur_s = path[0]
         i = 0

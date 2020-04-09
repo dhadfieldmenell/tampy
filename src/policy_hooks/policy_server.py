@@ -2,7 +2,7 @@ import pickle
 import random
 import threading
 import time
-
+import queue
 import numpy as np
 
 from software_constants import USE_ROS
@@ -54,6 +54,8 @@ class PolicyServer(object):
             self.log_timing = hyperparams['log_timing']
             # self.log_publisher = rospy.Publisher('log_update', String, queue_size=1)
             self.update_listener = rospy.Subscriber('{0}_update_{1}'.format(self.task, self.group_id), PolicyUpdate, self.update, queue_size=2, buff_size=2**25)
+        else:
+            self.queues = hyperparams['queues']
         self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
         self.policy_info_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
         self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/data.pkl'.format(self.task)
@@ -68,6 +70,7 @@ class PolicyServer(object):
 
     def run(self):
         while not self.stopped:
+            if not USE_ROS: self.parse_data()
             self.parse_update_queue()
             self.update_network()
             if time.time() - self.start_t > self.config['time_limit']:
@@ -79,6 +82,17 @@ class PolicyServer(object):
         print('SHUTTING DOWN')
         self.stopped = True
         # rospy.signal_shutdown('Received notice to terminate.')
+
+    
+    def parse_data(self):
+        q = self.queues['{0}_pol'.format(self.task)]
+        i = 0
+        while i < q._maxsize and not q.empty():
+            try:
+                msg = q.get_nowait()
+                self.update(msg)
+            except queue.Empty:
+                break
 
 
     def update(self, msg):
@@ -123,7 +137,7 @@ class PolicyServer(object):
         # print 'Weights updated:', update, self.task
         if update:
             self.n_updates += 1
-            if self.policy_opt.share_buffers:
+            if not USE_ROS or self.policy_opt.share_buffers:
                 self.policy_opt.write_shared_weights([self.task])
             else:
                 msg = UpdateTF()

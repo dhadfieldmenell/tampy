@@ -169,7 +169,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.NUM_TARGS = nt
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
-    return {
+    config = {
         'gui_on': False,
         'iterations': algorithm['iterations'],
         'verbose_trials': 1,
@@ -291,6 +291,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'descr': '{0}_grasps_fixed'.format(N_GRASPS),
         'her': False,
     }
+
+    return config
 
 config = refresh_config()
 

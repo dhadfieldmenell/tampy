@@ -641,16 +641,20 @@ class MultiProcessMain(object):
 
     
     def allocate_queues(self, config):
+        queue_size = 20
         queues = {}
+        for task in self.pol_list+('value', 'primitive'):
+            queues['{0}_pol'.format(task)] = Queue(queue_size)
+
         for i in range(config['n_rollout_servers']):
-            queues['rollout_opt_rec{0}'.format(i)] = Queue(10)
+            queues['rollout_opt_rec{0}'.format(i)] = Queue(queue_size)
 
         for i in range(config['n_alg_servers']):
-            queues['alg_opt_rec{0}'.format(i)] = Queue(10)
-            queues['alg_prob_rec{0}'.format(i)] = Queue(10)
+            queues['alg_opt_rec{0}'.format(i)] = Queue(queue_size)
+            queues['alg_prob_rec{0}'.format(i)] = Queue(queue_size)
 
         for i in range(config['n_optimizers']):
-            queues['optimizer{0}'.format(i)] = Queue(10)
+            queues['optimizer{0}'.format(i)] = Queue(queue_size)
 
         config['queues'] = queues
         return queues

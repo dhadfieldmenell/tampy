@@ -77,9 +77,14 @@ def get_prim_choices():
     out = OrderedDict({})
     out[utils.TASK_ENUM] = get_tasks(mapping_file).keys()
     out[utils.OBJ_ENUM] = ['can{0}'.format(i) for i in range(NUM_OBJS)]
-    out[utils.TARG_ENUM] = ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
+    out[utils.TARG_ENUM] = []
     for i in range(n_aux):
-        out[utils.TARG_ENUM] += ['aux_target_{0}'.format(i)] 
+        out[utils.TARG_ENUM] += ['aux_target_{0}'.format(i)]
+    if FIX_TARGETS:
+        for i in range(len(END_TARGETS)):
+            out[utils.TARG_ENUM] += ['end_target_{0}'.format(i)]
+    else:
+        out[utils.TARG_ENUM] += ['can{0}_end_target'.format(i) for i in range(NUM_OBJS)]
     out[utils.GRASP_ENUM] = ['grasp{0}'.format(i) for i in range(N_GRASPS)]
     return out
 
@@ -100,6 +105,10 @@ def get_vector(config):
     }
     for i in range(n_aux):
         target_vector_include['aux_target_{0}'.format(i)] = ['value']
+    if FIX_TARGETS:
+        for i in range(len(END_TARGETS)):
+            target_vector_include['end_target_{0}'.format(i)] = ['value']
+       
 
     return state_vector_include, action_vector_include, target_vector_include
 
@@ -172,12 +181,14 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
         x0s.append(x0)
-        inds = np.random.permutation(range(config['num_objs']))
         if FIX_TARGETS:
+            inds = np.random.permutation(range(len(END_TARGETS)))
             next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
             for n in range(config['num_targs'], config['num_objs']):
                 x0[state_inds['can{0}'.format(n)]] = END_TARGTS[inds[n]]
+            next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
         else:
+            inds = np.random.permutation(range(config['num_objs']))
             next_map = {'can{0}_end_target'.format(o): targs[no] for no, o in enumerate(inds[:config['num_targs']])}
             if config['num_targs'] < config['num_objs']:
                 next_map.update({'can{0}_end_target'.format(o): locs[o+1] for o in inds[config['num_targs']:config['num_objs']]})

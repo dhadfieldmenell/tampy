@@ -9,6 +9,7 @@ from core.util_classes.namo_predicates import dsafe
 GOAL = "(RobotAt pr2 robot_end_pose)"
 HEIGHT = 5
 WIDTH = 5
+NUM_END = 20
 
 
 def main():
@@ -25,6 +26,8 @@ def main():
             s += "RobotPose (name pdp_target%d); "%(n)
             s += "Can (name can%d); "%(n)
             s += "Target (name can%d_end_target); "%(n)
+        for i in range(NUM_END):
+            s += "Target (name end_target_%d); "%(i)
 
         s += "Robot (name %s); "%"pr2"
         s += "Grasp (name {}); ".format("grasp0")
@@ -50,6 +53,8 @@ def main():
             s += "(gripper pdp_target%d undefined), "%i
             s += "(geom can%d 0.3), (pose can%d %s), "%(i, i, list(coords[i]))
             s += "(geom can%d_end_target 0.3), (value can%d_end_target %s), "%(i, i, list(coords[i]))
+        for i in range(NUM_END):
+            s += "(geom end_target_%d 0.3), (value end_target_%d %s), "%(i, i, list(coords[i]))
         # s += "(value grasp0 undefined), "
         s += "(value grasp0 [0, {0}]), ".format(-0.6-dsafe)
         s += "(geom %s 0.3), (pose %s %s), "%("pr2", "pr2", [0, 0])

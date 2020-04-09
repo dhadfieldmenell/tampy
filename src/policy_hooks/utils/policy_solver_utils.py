@@ -42,6 +42,19 @@ GOAL_ENUM = 37
 GRASP_ENUM = 38
 ONEHOT_GOAL_ENUM = 39
 
+OBJ_ENUMS = {}
+for i in range(100):
+    OBJ_ENUMS[i] = 100 + i
+
+TARG_ENUMS = {}
+for i in range(100):
+    TARG_ENUMS[i] = 200 + i
+
+
+GOAL_ENUMS = {}
+for i in range(100):
+    GOAL_ENUMS[i] = 300 + i
+
 IM_H = 96
 IM_W = 64
 IM_C = 3
