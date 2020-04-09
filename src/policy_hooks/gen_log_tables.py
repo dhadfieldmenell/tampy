@@ -202,7 +202,7 @@ def get_hl_tests():
                 i += 1
 
             dlen = min([len(d) for d in data])
-            FRAME = 20
+            FRAME = 40
             for i in range(dlen - FRAME):
                 cur_t = np.mean([d[i:i+FRAME,:,3] for d in data])
 

@@ -24,7 +24,7 @@ This file implements the predicates for the 2D NAMO domain.
 dsafe = 1e-3 # 1e-1
 # dmove = 1.1e0 # 5e-1
 dmove = 1.4e0 # 5e-1
-contact_dist = dsafe
+contact_dist = 5e-2 # dsafe
 
 RS_SCALE = 0.5
 N_DIGS = 5
@@ -337,7 +337,6 @@ class CollisionPredicate(ExprPredicate):
 
         # if jac0 is None or jac1 is None or val is None:
         #     import ipdb; ipdb.set_trace()
-
         return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
@@ -768,9 +767,20 @@ class RCollides(CollisionPredicate):
             
         act = plan.actions[a]
 
-        x = self.get_param_vector(time)
-        jac = self.distance_from_obj(x, 0)[1][0,:2]
-        jac = jac / np.linalg.norm(jac)
+        if time == plan.actions[a].active_timesteps[1]:
+            x = self.get_param_vector(time)
+            val, jac = self.distance_from_obj(x, 0)
+            jac = jac[0,:2]
+        else:
+            x1 = self.get_param_vector(time)
+            x2 = self.get_param_vector(time+1)
+            jac = -twostep_f([x1, x2], self.distance_from_obj, 4, grad=True)
+            jac = np.mean(jac[:,:2], axis=0)
+
+        if np.all(jac == 0):
+                return None, None
+        
+        jac = jac / (np.linalg.norm(jac) + 1e-3)
 
         new_robot_pose = self.r.pose[:, time] + np.random.uniform(0.1, 0.5) * jac
         st = max(max(time-3,0), act.active_timesteps[0])
