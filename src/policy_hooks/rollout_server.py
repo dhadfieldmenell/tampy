@@ -1102,7 +1102,7 @@ class RolloutServer(object):
                 self.sample_mp(prob, check=False)
             except queue.Empty:
                 break
-        i += 1
+            i += 1
 
 
     def parse_prob_queue(self):

@@ -10,8 +10,6 @@ import os.path
 import numpy as np
 
 from gps.algorithm.policy.lin_gauss_init import init_lqr, init_pd
-from gps.algorithm.policy_opt.tf_model_example import tf_network
-from gps.gui.config import generate_experiment_info
 
 from policy_hooks.algorithm_impgps import AlgorithmIMPGPS
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf

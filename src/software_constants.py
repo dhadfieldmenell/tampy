@@ -1,3 +1,3 @@
 USE_OPENRAVE = False
-USE_ROS = True
+USE_ROS = False
 
