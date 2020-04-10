@@ -754,8 +754,9 @@ class MCTS:
         val = 0
         l = (0,0,0,0)
         t = 0
+        debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
-            l = self.iter_labels(state, l, targets=targets, debug=False)
+            l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=False)
             if l is None: break
             plan = self.agent.plans[l]
             s, _ = self.sample(l, state, plan, 1)
@@ -777,7 +778,7 @@ class MCTS:
         return bad
     
 
-    def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False, find_bad=False):
+    def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False, find_bad=False, check_cost=True):
         sample = Sample(self.agent)
         sample.set_X(end_state.copy(), t=0)
         self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
@@ -785,26 +786,33 @@ class MCTS:
         cost = 1.
         bad = []
         if self.use_q:
+            obs = None
             distr = np.zeros(len(labels))
             for i in range(len(labels)):
                 l = labels[i]
-                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=True, targets=targets)
+                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=(i==0), targets=targets)
+                if i == 0:
+                    obs = sample.get_val_obs(t=0)
+                else:
+                    sample.set_val_obs(obs, t=0)
                 distr[i:i+1] = self.value_func(sample.get_val_obs(t=0))
         elif self.discrete_prim:
             distrs = self.prob_func(sample.get_prim_obs(t=0))
             for d in distrs:
                 for i in range(len(d)):
                     d[i] = round(d[i], 3)
-            next_label = []
+            next_label = [np.argmax(d) for d in distrs]
+            if not check_cost: return next_label
 
             distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
             distr = np.array(distr)
+            cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
         for l in exclude:
             ind = labels.index(tuple(l))
             distr[ind] = 0.
 
         if debug:
-            print('HL WEIGHTS FOR {0}'.format(end_state), zip(labels, distr))
+            print('HL WEIGHTS FOR {0} {1} {2}'.format(end_state, sample.get(ONEHOT_GOAL_ENUM, 0), sample.get(GOAL_ENUM, 0)), zip(labels, distr))
         while cost > 0 and np.any(distr > -np.inf): 
             next_label = []
             if self.soft_decision:

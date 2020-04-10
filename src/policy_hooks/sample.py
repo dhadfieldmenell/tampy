@@ -85,6 +85,14 @@ class Sample(object):
         for data_type in self.agent._obs_data_idx:
             self.set(data_type, obs[self.agent._obs_data_idx[data_type]], t=t)
 
+    def set_prim_obs(self, prim_obs, t):
+        for data_type in self.agent._prim_obs_data_idx:
+            self.set(data_type, prim_obs[self.agent._prim_obs_data_idx[data_type]], t=t)
+
+    def set_val_obs(self, val_obs, t):
+        for data_type in self.agent._val_obs_data_idx:
+            self.set(data_type, val_obs[self.agent._val_obs_data_idx[data_type]], t=t)
+
     def get_U(self, t=None):
         """ Get the action. """
         # return self._data[ACTION] if t is None else self._data[ACTION][t, :]

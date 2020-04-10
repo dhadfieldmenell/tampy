@@ -108,7 +108,7 @@ class NAMOSortingAgent(TAMPAgent):
         # import ipdb; ipdb.set_trace()
         self.in_gripper = None
         no = self._hyperparams['num_objs']
-        self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(no)}
+        self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
 
 

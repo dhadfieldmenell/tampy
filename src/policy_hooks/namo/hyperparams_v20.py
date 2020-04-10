@@ -169,6 +169,9 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.NUM_TARGS = nt
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
+
+    prob.END_TARGETS = prob.END_TARGETS[:6]
+    prob.n_aux = 0
     config = {
         'gui_on': False,
         'iterations': algorithm['iterations'],
@@ -278,7 +281,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
                 utils.GRASP_ENUM: N_GRASPS,
-                utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + no),
+                utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + len(prob.END_TARGETS)),
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,
