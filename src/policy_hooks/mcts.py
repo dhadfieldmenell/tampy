@@ -801,8 +801,8 @@ class MCTS:
             for d in distrs:
                 for i in range(len(d)):
                     d[i] = round(d[i], 3)
-            next_label = [np.argmax(d) for d in distrs]
-            if not check_cost: return next_label
+            next_label = tuple([np.argmax(d) for d in distrs])
+            if not check_cost: return tuple(next_label)
 
             distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
             distr = np.array(distr)
