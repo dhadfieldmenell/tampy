@@ -185,7 +185,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             inds = np.random.permutation(range(len(END_TARGETS)))
             next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
             for n in range(config['num_targs'], config['num_objs']):
-                x0[state_inds['can{0}'.format(n)]] = END_TARGTS[inds[n]]
+                x0[state_inds['can{0}'.format(n)]] = END_TARGETS[inds[n]]
             next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
         else:
             inds = np.random.permutation(range(config['num_objs']))
