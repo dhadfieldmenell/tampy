@@ -436,7 +436,7 @@ class NAMOSortingAgent(TAMPAgent):
                     radius1 = param.geom.radius
                     radius2 = plan.params['pr2'].geom.radius
                     #if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and dist >= radius1 + radius2 - 0.5 * DSAFE and dist <= radius1 + radius2 + DSAFE and (obj is None or param.name == obj):
-                    if plan.params['pr2'].gripper[0,t] > GRIP_TOL and dist >= radius1 + radius2 and dist <= radius1 + radius2 + DSAFE and np.abs(disp[0]) < DSAFE and grasp_check:
+                    if plan.params['pr2'].gripper[0,t] > GRIP_TOL and dist >= radius1 + radius2 and dist <= radius1 + radius2 + DSAFE and grasp_check:
                     # if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and dist >= radius1 + radius2 - 0.5 * DSAFE and dist <= radius1 + radius2 + DSAFE and np.abs(disp[0]) < 0.5 * DSAFE and disp[1] < 0:
                     #if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and np.abs(disp[0]) < 0.5 * DSAFE and disp[1] <= -(radius1 + radius2 - 0.5 * DSAFE) and disp[1] >= -(radius1 + radius2 + DSAFE):
                         # in_gripper.append((param.name, disp))
@@ -801,9 +801,9 @@ class NAMOSortingAgent(TAMPAgent):
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
             if task[0] == 0:
                 obj_vec[task[1]] = 1.
-                targ_vec[0] = 1.
+                targ_vec[:] = 1. / len(targ_vec)
             elif task[0] == 1:
-                obj_vec[0] = 1.
+                obj_vec[:] = 1. / len(obj_vec)
                 targ_vec[task[2]] = 1.
             sample.obj_ind = task[1]
             sample.targ_ind = task[2]
@@ -845,7 +845,9 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(END_POSE_ENUM, obj_pose + grasp, t)
         if task[0] == 1:
             sample.set(END_POSE_ENUM, targ_pose + grasp, t)
-        
+        for i, obj in enumerate(prim_choices[OBJ_ENUM]):
+            sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
+
         if fill_obs:
             if LIDAR_ENUM in self._hyperparams['obs_include']:
                 plan = self.plans.values()[0]

@@ -754,7 +754,7 @@ class MCTS:
         val = 0
         l = (0,0,0,0)
         t = 0
-        debug = np.random.uniform() < 0.1
+        debug = np.random.uniform() < 0.2
         while t < max_t and val < 1-1e-2 and l is not None:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=False)
             if l is None: break
@@ -801,18 +801,19 @@ class MCTS:
             for d in distrs:
                 for i in range(len(d)):
                     d[i] = round(d[i], 3)
-            next_label = tuple([np.argmax(d) for d in distrs])
-            if not check_cost: return tuple(next_label)
-
+            if debug:
+                print('HL weights for {0} {1}'.format(distrs, end_state))
             distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
             distr = np.array(distr)
+            next_label = tuple([np.argmax(d) for d in distrs])
+ 
+            if not check_cost: return tuple(next_label)
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
+
         for l in exclude:
             ind = labels.index(tuple(l))
             distr[ind] = 0.
 
-        if debug:
-            print('HL WEIGHTS FOR {0} {1} {2}'.format(end_state, sample.get(ONEHOT_GOAL_ENUM, 0), sample.get(GOAL_ENUM, 0)), zip(labels, distr))
         while cost > 0 and np.any(distr > -np.inf): 
             next_label = []
             if self.soft_decision:

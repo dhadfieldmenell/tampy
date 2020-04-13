@@ -37,9 +37,9 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 18
-N_ALG_SERVERS = 8
-N_OPTIMIZERS = 9
+N_ROLLOUT_SERVERS = 10
+N_ALG_SERVERS = 12
+N_OPTIMIZERS = 13
 N_DIRS = 16
 N_GRASPS = 4
 TIME_LIMIT = 7200
@@ -262,8 +262,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.INIT_OBJ_POSE_ENUM,
                         # utils.TARG_POSE_ENUM,
                         utils.END_POSE_ENUM,
+                        utils.GRASP_ENUM,
                         ],
-        'prim_obs_include': [utils.STATE_ENUM,
+        'prim_obs_include': [
+                             # utils.STATE_ENUM,
                              utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.STATE_ENUM,
@@ -295,6 +297,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'her': False,
     }
 
+    config['prim_obs_include'].append(utils.EE_ENUM)
+    for o in range(no):
+        config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
+        config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
+        config['val_obs_include'].append(utils.OBJ_ENUMS[o])
     return config
 
 config = refresh_config()

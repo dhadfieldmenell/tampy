@@ -136,12 +136,15 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
     boundaries = network_config['output_boundaries']
 
     nn_input, action, precision = get_input_layer(dim_input, dim_output)
+    fc_input = nn_input
+    if input_layer is not None:
+        nn_input = tf.concat(input_layer, nn_input)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
     prediction = multi_sotfmax_prediction_layer(mlp_applied, boundaries)
     fc_vars = weights_FC + biases_FC
     loss_out = get_loss_layer(mlp_out=mlp_applied, task=action, boundaries=boundaries, precision=precision)
 
-    return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, []
+    return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
 
 
 def tf_mixed_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None):
@@ -188,12 +191,15 @@ def tf_value_network(dim_input=27, dim_output=1, batch_size=25, network_config=N
     dim_hidden.append(dim_output)
 
     nn_input, action, precision = get_input_layer(dim_input, dim_output)
+    fc_input = nn_input
+    if input_layer is not None:
+        nn_input = tf.concat(input_layer, nn_input)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
     prediction = tf.nn.sigmoid(mlp_applied, 'sigmoid_activation')
     fc_vars = weights_FC + biases_FC
     loss_out = sigmoid_loss_layer(action, mlp_applied, precision=precision)
 
-    return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, []
+    return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
 
 
 def tf_binary_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None):

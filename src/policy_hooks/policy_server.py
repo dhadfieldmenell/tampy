@@ -58,7 +58,7 @@ class PolicyServer(object):
             self.queues = hyperparams['queues']
         self.policy_opt_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_log.txt'.format(self.task)
         self.policy_info_log = 'tf_saved/' + hyperparams['weight_dir'] + '/policy_{0}_info.txt'.format(self.task)
-        self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/data.pkl'.format(self.task)
+        self.data_file = 'tf_saved/' + hyperparams['weight_dir'] + '/{0}_data.pkl'.format(self.task)
         self.n_updates = 0
         self.full_N = 0
         self.update_t = time.time()

@@ -416,7 +416,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 # Setup the gradients
                 self.image_grads = [tf.gradients(self.image_act_op[:,u], self.image_obs_tensor)[0] for u in range(1)]
 
-                # input_tensor = self.image_act_op
+                input_tensor = self.image_act_op
 
         if self.scope is None or 'primitive' == self.scope:
             with tf.variable_scope('primitive'):
