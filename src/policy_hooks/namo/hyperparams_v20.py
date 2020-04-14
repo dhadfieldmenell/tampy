@@ -170,7 +170,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.END_TARGETS = prob.END_TARGETS[:6]
+    prob.END_TARGETS = prob.END_TARGETS[:3]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -199,12 +199,14 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
 
         'train_iterations': 50,
         'weight_decay': 1e-3,
-        'prim_weight_decay': 1e-4,
+        'prim_weight_decay': 1e-3,
         'val_weight_decay': 1e-4,
         'batch_size': 500,
         'n_layers': 2,
+        'prim_n_layers': 2,
+        'val_n_layers': 2,
         'dim_hidden': [32, 32],
-        'prim_dim_hidden': [32, 32],
+        'prim_dim_hidden': [128, 128],
         'val_dim_hidden': [64, 64],
         'n_traj_centers': algorithm['n_traj_centers'],
         'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
@@ -235,8 +237,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'opt_server_type': NAMOMotionPlanServer,
         'solver_type': NAMOPolicySolver,
         'update_size': 2000,
-        'prim_update_size': 500,
-        'val_update_size': 500,
+        'prim_update_size': 2000,
+        'val_update_size': 2000,
         'use_local': True,
         'n_dirs': N_DIRS,
         'domain': 'namo',
@@ -293,7 +295,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,
-        'descr': '{0}_grasps_fixed'.format(N_GRASPS),
+        'descr': '{0}_grasps_dyn'.format(N_GRASPS),
         'her': False,
     }
 

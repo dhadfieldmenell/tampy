@@ -125,7 +125,7 @@ class NAMOSortingAgent(TAMPAgent):
         self.target_vecs[condition]= target_vec
 
 
-    def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True):
+    def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
         assert not np.any(np.isnan(state))
         self.in_gripper = None
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
@@ -154,7 +154,7 @@ class NAMOSortingAgent(TAMPAgent):
 
         # self.traj_hist = np.zeros((self.hist_len, self.dU)).tolist()
 
-        if noisy:
+        if False: #noisy:
             noise = generate_noise(self.T, self.dU, self._hyperparams)
         else:
             noise = np.zeros((self.T, self.dU))
@@ -176,6 +176,11 @@ class NAMOSortingAgent(TAMPAgent):
                 cur_state[self.state_inds[pname, aname]] = aval
 
             self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
+            if task_f is not None:
+                distrs = task_f(sample.get_prim_obs(t=t))
+                task = tuple([np.argmax(d) for d in distrs])
+                self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
+                
             X = cur_state.copy()
             cur_noise = noise[t]
 
@@ -245,9 +250,6 @@ class NAMOSortingAgent(TAMPAgent):
                     sample.use_ts[t+1:] = 0.
                     break
 
-            fill_vector(plan.params, plan.state_inds, cur_state, t)
-            self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
-
             sample.set(NOISE_ENUM, noise_full, t)
 
             if use_prim_obs:
@@ -258,7 +260,7 @@ class NAMOSortingAgent(TAMPAgent):
             U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
             assert not np.any(np.isnan(U_full))
             sample.set(ACTION_ENUM, U_full, t)
-            self.run_policy_step(U_full, cur_state, self.plans[task], t, None)
+            self.run_policy_step(U_full, cur_state, plan, t, None)
 
             new_state = np.zeros((plan.symbolic_bound))
             # fill_vector(plan.params, plan.state_inds, cur_state, t)  
@@ -1327,7 +1329,12 @@ class NAMOSortingAgent(TAMPAgent):
                 self.x0[cond][self.state_inds[obj, 'pose']] = self.targets[cond]['{0}_end_target'.format(obj)]
                 i += 1
             if curric_step % 2 and step < len(prim_choices[OBJ_ENUM]):
-                self.x0[cond][self.state_inds['pr2', 'pose']] = self.x0[cond][self.state_inds['can{0}'.format(inds[step]), 'pose']] - np.array([0, 0.601])
+                grasp = np.array([0, -0.601])
+                if GRASP_ENUM in prim_choices:
+                    g = np.random.randint(len(prim_choice[GRASP_ENUM]))
+                    grasp = self.set_grasp(grasp, g)
+
+                self.x0[cond][self.state_inds['pr2', 'pose']] = self.x0[cond][self.state_inds['can{0}'.format(inds[step]), 'pose']] + grasp
 
 
         for target_name in self.targets[cond]:

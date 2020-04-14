@@ -493,7 +493,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if self.scope is None or 'primitive' == self.scope:
             vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive')
             self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
-                                               solver_name=self._hyperparams['solver_type'],
+                                               solver_name='adam',#self._hyperparams['solver_type'],
                                                base_lr=self._hyperparams['lr'],
                                                lr_policy=self._hyperparams['lr_policy'],
                                                momentum=self._hyperparams['momentum'],

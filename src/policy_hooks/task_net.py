@@ -50,6 +50,7 @@ def multi_softmax_loss_layer(labels, logits, boundaries, precision=None):
             loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], weights=precision)
             losses.append(loss)
 
+        losses[-1] = losses[-1] / float(end-start)
         start = end
     stacked_loss = tf.stack(losses, axis=0, name='softmax_loss_stack')
     return tf.reduce_sum(stacked_loss, axis=0)
@@ -99,7 +100,7 @@ def get_input_layer(dim_input, dim_output):
     return net_input, task, precision
 
 
-def get_mlp_layers(mlp_input, number_layers, dimension_hidden):
+def get_mlp_layers(mlp_input, number_layers, dimension_hidden, offset=0):
     """compute MLP with specified number of layers.
         math: sigma(Wx + b)
         for each layer, where sigma is by default relu"""
@@ -108,8 +109,8 @@ def get_mlp_layers(mlp_input, number_layers, dimension_hidden):
     biases = []
     for layer_step in range(0, number_layers):
         in_shape = cur_top.get_shape().dims[1].value
-        cur_weight = init_weights([in_shape, dimension_hidden[layer_step]], name='w_' + str(layer_step))
-        cur_bias = init_bias([dimension_hidden[layer_step]], name='b_' + str(layer_step))
+        cur_weight = init_weights([in_shape, dimension_hidden[layer_step]], name='w_' + str(layer_step+offset))
+        cur_bias = init_bias([dimension_hidden[layer_step]], name='b_' + str(layer_step+offset))
         weights.append(cur_weight)
         biases.append(cur_bias)
         if layer_step != number_layers-1:  # final layer has no RELU
@@ -171,18 +172,21 @@ def tf_cond_classification_network(dim_input=27, dim_output=2, batch_size=25, ne
     nn_input, action, precision = get_input_layer(dim_input, dim_output)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
     pred = []
+    offset = len(dim_hidden)
+    fc_input = nn_input
     for (st, en) in boundaries:
         dh = [dim_hidden[-1], en-st]
-        mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, 1, dh)
+        mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, 1, dh, offset)
         pred.append(mlp_applied)
-        nn_input = tf.concat(nn_input, mlp_applied)
+        nn_input = tf.concat([nn_input, mlp_applied], axis=1)
+        offset += len(dh)
 
-    mlp_applied = tf.concat(pred)
+    mlp_applied = tf.concat(pred, axis=1)
     prediction = multi_sotfmax_prediction_layer(mlp_applied, boundaries)
     fc_vars = weights_FC + biases_FC
     loss_out = get_loss_layer(mlp_out=mlp_applied, task=action, boundaries=boundaries)
 
-    return TfMap.init_from_lists([nn_input, action, precision], [prediction], [loss_out]), fc_vars, []
+    return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
 
 
 def tf_value_network(dim_input=27, dim_output=1, batch_size=25, network_config=None, input_layer=None):
@@ -193,7 +197,7 @@ def tf_value_network(dim_input=27, dim_output=1, batch_size=25, network_config=N
     nn_input, action, precision = get_input_layer(dim_input, dim_output)
     fc_input = nn_input
     if input_layer is not None:
-        nn_input = tf.concat(input_layer, nn_input)
+        nn_input = tf.concat([input_layer, nn_input], axis=1)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
     prediction = tf.nn.sigmoid(mlp_applied, 'sigmoid_activation')
     fc_vars = weights_FC + biases_FC

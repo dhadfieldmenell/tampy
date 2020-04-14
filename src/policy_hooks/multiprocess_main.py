@@ -39,7 +39,7 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 from policy_hooks.multi_head_policy_opt_tf import MultiHeadPolicyOptTf
 import policy_hooks.utils.policy_solver_utils as utils
-from policy_hooks.task_net import tf_value_network, tf_binary_network, tf_classification_network
+from policy_hooks.task_net import tf_value_network, tf_binary_network, tf_classification_network, tf_cond_classification_network
 from policy_hooks.mcts import MCTS
 from policy_hooks.state_traj_cost import StateTrajCost
 from policy_hooks.action_traj_cost import ActionTrajCost
@@ -277,9 +277,9 @@ class MultiProcessMain(object):
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': sensor_dims,
-                'n_layers': 2,
+                'n_layers': self.config['prim_n_layers'],
                 'num_filters': [5,10],
-                'dim_hidden': [40, 40],
+                'dim_hidden': self.config['prim_dim_hidden'],
                 'output_boundaries': self.prim_bounds,
                 'output_order': ['task', 'obj', 'targ'],
             },
@@ -291,9 +291,9 @@ class MultiProcessMain(object):
                 'image_height': self.config['image_height'],
                 'image_channels': self.config['image_channels'],
                 'sensor_dims': sensor_dims,
-                'n_layers': 1,
+                'n_layers': self.config['val_n_layers'],
                 'num_filters': [5,10],
-                'dim_hidden': [40]
+                'dim_hidden': self.config['val_dim_hidden'],
             },
             'lr': self.config['lr'],
             'network_model': tf_network,

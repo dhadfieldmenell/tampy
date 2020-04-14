@@ -1092,7 +1092,7 @@ class RolloutServer(object):
         for t in range(n, n_targs[-1]):
             obj_name = prim_opts[OBJ_ENUM][t]
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
-        val, path = self.mcts[0].test_run(x0, targets, 4+2*n)
+        val, path = self.mcts[0].test_run(x0, targets, 2+2*n, hl=True)
         s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])

@@ -539,7 +539,7 @@ class MCTS:
             return self._select_from_explored(state, node, exclude_hl, label=p, debug=debug)
 
 
-    def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, fixed_path=None, debug=False):
+    def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, fixed_path=None, debug=False, hl=False):
         if debug:
             print("SAMPLING")
         samples = []
@@ -574,7 +574,8 @@ class MCTS:
         if fixed_path is None:
             for n in range(num_samples):
                 # self.agent.reset_hist(deepcopy(old_traj_hist))
-                samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0)))
+                task_f = self.prob_func if hl else None
+                samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
                 # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
                 if success:
                     samples[-1].set_ref_X(s.get_ref_X())
@@ -747,19 +748,22 @@ class MCTS:
         return value, samples[0]
 
 
-    def test_run(self, state, targets, max_t=20):
+    def test_run(self, state, targets, max_t=20, hl=False):
         old_opt = self.opt_strength
         # self.opt_strength = 1.
         path = []
         val = 0
         l = (0,0,0,0)
         t = 0
-        debug = np.random.uniform() < 0.2
+        debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=False)
             if l is None: break
             plan = self.agent.plans[l]
-            s, _ = self.sample(l, state, plan, 1)
+            s, _ = self.sample(l, state, plan, 1, hl=hl)
+            if debug:
+                print('Shiftd state {0} to {1}'.format(state, s.get_X(s.T-1)))
+                print('Ran {0} at step {1} for targets {2}'.format(l, t, targets))
             val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
             t += 1
             state = s.get_X(s.T-1)
@@ -796,13 +800,15 @@ class MCTS:
                 else:
                     sample.set_val_obs(obs, t=0)
                 distr[i:i+1] = self.value_func(sample.get_val_obs(t=0))
+            if debug:
+                print('HL weights for {0} {1}'.format(end_state, zip(labels, distr)))
         elif self.discrete_prim:
             distrs = self.prob_func(sample.get_prim_obs(t=0))
             for d in distrs:
                 for i in range(len(d)):
                     d[i] = round(d[i], 3)
             if debug:
-                print('HL weights for {0} {1}'.format(distrs, end_state))
+                print('HL weights for {0} {1} {2}'.format(distrs, end_state, targets))
             distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
             distr = np.array(distr)
             next_label = tuple([np.argmax(d) for d in distrs])
