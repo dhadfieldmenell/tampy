@@ -522,7 +522,7 @@ class MultiProcessMain(object):
         hyperparams['run_alg_updates'] = False
         hyperparams['run_hl_test'] = True
         hyperparams['id'] = hyperparams['server_id']+'_test'
-        self.create_server(RolloutServer, hyperparams)
+        self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['run_hl_test'] = False
 
 
@@ -607,6 +607,7 @@ class MultiProcessMain(object):
             hyp['split_mcts_alg'] = True
             hyp['run_alg_updates'] = False
             hyp['run_mcts_rollouts'] = True
+            hyp['run_hl_test'] = False
             print('Starting rollout server {0}'.format(self.cur_n_rollout))
             p = self._create_rollout_server(hyp, idx=self.cur_n_rollout)
             try:
