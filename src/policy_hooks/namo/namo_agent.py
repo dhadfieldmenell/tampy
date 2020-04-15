@@ -179,6 +179,7 @@ class NAMOSortingAgent(TAMPAgent):
             if task_f is not None:
                 distrs = task_f(sample.get_prim_obs(t=t))
                 task = tuple([np.argmax(d) for d in distrs])
+                print('task at time {0} is {1}'.format(t, task))
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
                 
             X = cur_state.copy()

@@ -523,6 +523,7 @@ class MultiProcessMain(object):
         hyperparams['run_hl_test'] = True
         hyperparams['id'] = hyperparams['server_id']+'_test'
         self.create_server(RolloutServer, hyperparams)
+        hyperparams['run_hl_test'] = False
 
 
     def _create_rollout_server(self, hyperparams, idx):
@@ -599,7 +600,7 @@ class MultiProcessMain(object):
 
     
     def expand_rollout_servers(self):
-        if time.time() - self.config['start_t'] < 1200: return
+        if not self.config['expand_process'] or time.time() - self.config['start_t'] < 1200: return
         self.cpu_use.append(psutil.cpu_percent(interval=1.))
         if np.mean(self.cpu_use[-1:]) < 92.5:
             hyp = copy.copy(self.config)

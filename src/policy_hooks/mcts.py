@@ -916,6 +916,7 @@ class MCTS:
                 info['obs'] = sample.get_obs()
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
                 info['cur_curric'] = self.cur_curric
+                info['max_depth'] = self.max_depth
             data.append(info)
         return data
 

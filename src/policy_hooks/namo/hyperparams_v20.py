@@ -170,7 +170,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.END_TARGETS = prob.END_TARGETS[:3]
+    prob.END_TARGETS = prob.END_TARGETS[:10]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -295,7 +295,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,
-        'descr': '{0}_grasps_dyn'.format(N_GRASPS),
+        'descr': '{0}_grasps_{1}_possible_dyn'.format(N_GRASPS, len(prob.END_TARGETS)+prob.n_aux),
         'her': False,
     }
 
