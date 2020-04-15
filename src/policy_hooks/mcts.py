@@ -821,9 +821,9 @@ class MCTS:
                 distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
                 distr = np.array(distr)
                 ind = []
-                for distr in distrs:
-                    val = np.max(distr)
-                    ind.append(np.random.choice([i for i in range(len(distr)) if distr[i] >= val]))
+                for d in distrs:
+                    val = np.max(d)
+                    ind.append(np.random.choice([i for i in range(len(d)) if d[i] >= val]))
                 next_label = tuple([ind[d] for d in range(len(distrs))])
  
             if not check_cost: return tuple(next_label)
