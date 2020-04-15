@@ -138,7 +138,7 @@ class MultiProcessMain(object):
             self.config['prim_out_include'] = [utils.ONEHOT_TASK_ENUM]
             self.prim_bounds.append((0, len(plans.keys())))
         else:
-            self.prim_bounds.append(0, len(self.task_list))
+            self.prim_bounds.append((0, len(self.task_list)))
             ind = len(self.task_list)
             for enum in self.config['prim_out_include']:
                 if enum == utils.TASK_ENUM: continue
