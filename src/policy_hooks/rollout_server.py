@@ -1202,7 +1202,7 @@ class RolloutServer(object):
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
         tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
         for sample in samples:
-            mu = np.concatenate([sample.get(TASK_ENUM)]+[sample.get(enum) for enum in self.prim_dims], axis=-1)
+            mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
             wt = sample.discount * np.ones((sample.T,))
             tgt_wt = np.concatenate((tgt_wt, wt))

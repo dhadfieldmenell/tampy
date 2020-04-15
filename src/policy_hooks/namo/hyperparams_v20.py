@@ -170,7 +170,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.END_TARGETS = prob.END_TARGETS[:10]
+    prob.END_TARGETS = prob.END_TARGETS[:4]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -276,7 +276,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                             utils.OBJ_ENUM,
                             utils.TARG_ENUM
                             ],
-        'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
+        #'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
+        'prim_out_include': list(prob.get_prim_choices().keys()),
         'sensor_dims': {
                 utils.OBJ_POSE_ENUM: 2,
                 utils.TARG_POSE_ENUM: 2,
@@ -295,7 +296,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,
-        'descr': '{0}_grasps_{1}_possible_dyn'.format(N_GRASPS, len(prob.END_TARGETS)+prob.n_aux),
+        'descr': '{0}_grasps_{1}_possible'.format(N_GRASPS, len(prob.END_TARGETS)+prob.n_aux),
         'her': False,
     }
 

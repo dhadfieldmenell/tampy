@@ -96,6 +96,11 @@ class TAMPAgent(Agent):
                 target_vec[self.target_inds[target_name, 'value']] = self.targets[condition][target_name]
             self.target_vecs.append(target_vec)
         self.goals = self.target_vecs
+        self.task_to_onehot = {}
+        for i, task in enumerate(self.plans.keys()):
+            self.task_to_onehot[i] = task
+            self.task_to_onehot[task] = i
+        self.sensor_dims = self._hyperparams['sensor_dims']
         self.discrete_prim = self._hyperparams.get('discrete_prim', True)
         # self.targ_list = self.targets[0].keys()
         # self.obj_list = self._hyperparams['obj_list']
@@ -734,4 +739,32 @@ class TAMPAgent(Agent):
         for i, s in enumerate(new_path):
             s.discount = 0.9 ** (len(new_path) - i)
         return new_path
+
+
+    def get_hl_info(self, state, targets):
+        initial = []
+        for task in self.plans:
+            plan = self.plans[task]
+            for pname, aname in self.state_inds:
+                if plan.params[pname].is_symbol(): continue
+                getattr(plan.params[pname], aname)[:,0] = state[self.state_inds[pname, aname]]
+            for pname, aname in self.targets_inds:
+                getattr(plan.params[pname], aname)[:,0] = targets[self.target_inds[pname, aname]]
+            preds = self.plans[task].actions[0].get_active_preds(0)
+            for p in preds:
+                if pred.test(0):
+                    p_str = str(p)
+                    initial.append(p_str[p_str.find(':')+1:])
+
+        goal = self.goal
+        return initial, goal
+
+
+    def solve_hl(self, state, targets):
+        plan = self.plans.values()[0]
+        prob = plan.prob
+        initial, goal = self.get_hl_info(state, targets)
+        abs_prob = self.hl_solver.translate_problem(prob, initial, goal)
+        new_plan = self.hl_solver.get_plan(abs_prob, plan.domain, prob)
+        return new_plan
 

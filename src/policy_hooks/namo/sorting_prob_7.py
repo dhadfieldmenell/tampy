@@ -248,17 +248,14 @@ def get_plans():
                 for step in next_task_str:
                     new_task_str.append(step.format(obj, targ))
                 plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies)
-                plans[(tasks.keys().index(task), i, j)] = plan
+                for g in range(N_GRASPS):
+                    plans[(tasks.keys().index(task), i, j, g)] = plan
                 if env is None:
                     env = plan.env
                     for param in plan.params.values():
                         if not param.is_symbol() and param.openrave_body is not None:
                             openrave_bodies[param.name] = param.openrave_body
 
-    keys = copy.deepcopy(plans.keys())
-    for i in range(64):
-        for l in keys:
-            plans[l+(i,)] = plans[l]
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):

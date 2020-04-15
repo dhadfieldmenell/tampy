@@ -179,6 +179,8 @@ class NAMOSortingAgent(TAMPAgent):
             if task_f is not None:
                 distrs = task_f(sample.get_prim_obs(t=t))
                 task = tuple([np.argmax(d) for d in distrs])
+                if task not in self.plans:
+                    task = self.task_to_onehot[task[0]]
                 print('task at time {0} is {1}'.format(t, task))
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
                 
@@ -628,7 +630,6 @@ class NAMOSortingAgent(TAMPAgent):
         
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
 
-        prim_vals = self.get_prim_value(condition, state, task)
         old_out_coeff = self.solver.strong_transfer_coeff
         if out_coeff is not None:
             self.solver.strong_transfer_coeff = out_coeff
@@ -780,6 +781,10 @@ class NAMOSortingAgent(TAMPAgent):
         sample.set(EE_ENUM, ee_pose, t)
         sample.set(STATE_ENUM, mp_state, t)
         sample.set(GRIPPER_ENUM, mp_state[self.state_inds['pr2', 'gripper']], t)
+
+        onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
+        onehot_task[self.task_to_onehot[task]] = 1.
+        sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
 
         task_ind = task[0]
         obj_ind = task[1]
@@ -1355,4 +1360,31 @@ class NAMOSortingAgent(TAMPAgent):
         if debug:
             print('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS))
         return np.concatenate(vecs)
+
+
+    def encode_plan(self, plan):
+        encoded = []
+        prim_choices = self.prob.get_prim_choices()
+        for a in plan.actions():
+            astr = str(a).lower()
+            l = [0]
+            for i, task in enumerate(self.task_list):
+                if a.name.lower().find(task) >= 0:
+                    l[0] = i
+                    break
+                if i == len(self.task_list):
+                    print('Could not encode task name from {0}'.format(astr))
+
+            for enum in prim_choices:
+                l.append(0)
+                for i, opt in enumerate(prim_choices[enum]):
+                    if astr.find(opt) >= 0:
+                        l[-1] = i
+                        break
+                    if i == len(prim_choices[enum]):
+                        print('Could not encode {0} for enum {1}'.format(astr, enum))
+
+            encoded.append(l)
+
+        return encoded
 

@@ -17,8 +17,9 @@ def get_dir_name(base, no, nt, ind, descr, args=None):
         useHer = '_her' if args.her else ''
         expand = '_expand' if args.expand else ''
         neg = '_negExs' if args.negative else ''
+        onehot = '_onehot' if args.onehot_task else ''
         curric = '_curric{0}_{1}'.format(args.cur_thresh, args.n_thresh) if args.cur_thresh > 0 else ''
-        dir_name += '{0}{1}{2}{3}{4}'.format(useq, useHer, expand, curric, neg)
+        dir_name += '{0}{1}{2}{3}{4}{5}'.format(useq, useHer, expand, curric, neg, onehot)
     return dir_name
 
 
@@ -45,6 +46,7 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
                 next_config['curric_thresh'] = args.cur_thresh
                 next_config['n_thresh'] = args.n_thresh
                 next_config['negative'] = args.negative
+                next_config['onehot_task'] = args.onehot_task
             next_config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
             next_config['server_id'] = '{0}'.format(str(random.randint(0, 2**16)))
             next_config['mp_server'] = True 
@@ -115,6 +117,7 @@ def main():
     parser.add_argument('-her', '--her', action='store_true', default=False)
     parser.add_argument('-e', '--expand', action='store_true', default=False)
     parser.add_argument('-neg', '--negative', action='store_true', default=False)
+    parser.add_argument('-oht', '--onehot_task', action='store_true', default=False)
     parser.add_argument('-spl', '--split', action='store_true', default=True)
     parser.add_argument('-q', '--qfunc', action='store_true', default=False)
     parser.add_argument('-cur', '--cur_thresh', type=int, default=-1)

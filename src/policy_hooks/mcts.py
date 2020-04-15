@@ -147,7 +147,7 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False):
+    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False, onehot_task=False):
         self.tasks = tasks
         self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
@@ -170,6 +170,7 @@ class MCTS:
         self.start_t = time.time()
         self.opt_strength = opt_strength
         self.her = her
+        self.onehot_task = onehot_task
         self.curric_thresh = curric_thresh
         self.n_thresh = n_thresh
         self.cur_curric = 1 if curric_thresh > 0 else 0
@@ -760,6 +761,7 @@ class MCTS:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=False)
             if l is None: break
             plan = self.agent.plans[l]
+            print(l)
             s, _ = self.sample(l, state, plan, 1, hl=hl)
             if debug:
                 print('Shiftd state {0} to {1}'.format(state, s.get_X(s.T-1)))
@@ -809,15 +811,29 @@ class MCTS:
                     d[i] = round(d[i], 3)
             if debug:
                 print('HL weights for {0} {1} {2}'.format(distrs, end_state, targets))
-            distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
-            distr = np.array(distr)
-            next_label = tuple([np.argmax(d) for d in distrs])
+
+            if self.onehot_task:
+                distr = distrs[0]
+                val = np.max(distr)
+                ind = np.random.choice([i for i in range(len(distr)) if distr[i] >= val])
+                next_label = self.agent.task_to_onehot[ind]
+            else:
+                distr = [np.prod([distrs[i][l[i]] for i in range(len(l))]) for l in labels]
+                distr = np.array(distr)
+                ind = []
+                for distr in distrs:
+                    val = np.max(distr)
+                    ind.append(np.random.choice([i for i in range(len(distr)) if distr[i] >= val]))
+                next_label = tuple([ind[d] for d in range(len(distrs))])
  
             if not check_cost: return tuple(next_label)
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
 
         for l in exclude:
-            ind = labels.index(tuple(l))
+            if self.onehot_task:
+                ind = self.agent.task_to_onehot[tuple(l)]
+            else:
+                ind = labels.index(tuple(l))
             distr[ind] = 0.
 
         while cost > 0 and np.any(distr > -np.inf): 
@@ -832,10 +848,13 @@ class MCTS:
                 distr[ind] = -np.inf
             else:
                 val = np.max(distr)
-                inds = [i for i in range(len(distr)) if distr[i] >= val - 1e-3]
+                inds = [i for i in range(len(distr)) if distr[i] >= val]
                 ind = np.random.choice(inds)
                 # ind = np.argmax(distr)
-                next_label = tuple(labels[ind])
+                if self.onehot_task:
+                    next_label = self.agent.task_to_onehot[ind]
+                else:
+                    next_label = tuple(labels[ind])
                 distr[ind] = -np.inf
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
             if cost > 0:

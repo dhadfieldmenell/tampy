@@ -75,7 +75,6 @@ class MultiProcessMain(object):
         self.task_durations = get_task_durations(self.config['task_map_file'])
         self.config['task_list'] = self.task_list
         task_encoding = get_task_encoding(self.task_list)
-
         plans = {}
         task_breaks = []
         goal_states = []
@@ -113,7 +112,8 @@ class MultiProcessMain(object):
             utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
-            utils.GOAL_ENUM: self.goal_dim
+            utils.GOAL_ENUM: self.goal_dim,
+            utils.ONEHOT_TASK_ENUM: len(plans.keys()),
         }
         for enum in self.config['sensor_dims']:
             sensor_dims[enum] = self.config['sensor_dims'][enum]
@@ -128,11 +128,22 @@ class MultiProcessMain(object):
             if enum == utils.TASK_ENUM: continue
             n_options = len(options[enum])
             next_ind = ind+n_options
-            self.prim_bounds.append((ind, next_ind))
             self.prim_dims[enum] = n_options
             ind = next_ind
         for enum in self.prim_dims:
             sensor_dims[enum] = self.prim_dims[enum]
+        ind = 0
+        self.prim_bounds = []
+        if self.config.get('onehot_task', False):
+            self.config['prim_out_include'] = [utils.ONEHOT_TASK_ENUM]
+            self.prim_bounds.append((0, len(plans.keys())))
+        else:
+            self.prim_bounds.append(0, len(self.task_list))
+            ind = len(self.task_list)
+            for enum in self.config['prim_out_include']:
+                if enum == utils.TASK_ENUM: continue
+                self.prim_bounds.append((ind, ind+self.prim_dims[enum]))
+                ind += self.prim_dims[enum]
         self.config['prim_bounds'] = self.prim_bounds
         self.config['prim_dims'] = self.prim_dims
 
@@ -385,6 +396,7 @@ class MultiProcessMain(object):
                                   curric_thresh=self.config.get('curric_thresh', -1),
                                   n_thresh=self.config.get('n_thresh', 10),
                                   her=self.config.get('her', False),
+                                  onehot_task=self.config.get('onehot_task', False),
                                   ))
 
         self.config['mcts'] = self.mcts

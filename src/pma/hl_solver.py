@@ -151,7 +151,7 @@ class FFSolver(HLSolver):
             dom_str = clean_str
         return dom_str
 
-    def translate_problem(self, concr_prob):
+    def translate_problem(self, concr_prob, initial=None, goal=None):
         """
         Argument:
             concr_prob: problem that defines initial state and goal configuration.
@@ -163,17 +163,25 @@ class FFSolver(HLSolver):
         for param in concr_prob.init_state.params.values():
             prob_str += "%s - %s\n"%(param.name, param.get_type())
         prob_str += ")\n\n(:init\n"
-        for pred in concr_prob.init_state.preds:
-            prob_str += "(%s "%pred.get_type()
-            for param in pred.params:
-                prob_str += "%s "%param.name
-            prob_str += ")\n"
+        if initial is None:
+            for pred in concr_prob.init_state.preds:
+                prob_str += "(%s "%pred.get_type()
+                for param in pred.params:
+                    prob_str += "%s "%param.name
+                prob_str += ")\n"
+        else:
+            for pred in initial:
+                prob_str += pred
         prob_str += ")\n\n(:goal\n(and "
-        for pred in concr_prob.goal_preds:
-            prob_str += "(%s "%pred.get_type()
-            for param in pred.params:
-                prob_str += "%s "%param.name
-            prob_str += ") "
+        if goal is None:
+            for pred in concr_prob.goal_preds:
+                prob_str += "(%s "%pred.get_type()
+                for param in pred.params:
+                    prob_str += "%s "%param.name
+                prob_str += ") "
+        else:
+            for pred in goal:
+                prob_str += pred
         prob_str += ")\n)\n)"
         # This block is added to erase domain name
         clean_str = ""
@@ -226,7 +234,10 @@ class FFSolver(HLSolver):
         params = self._spawn_plan_params(concr_prob, plan_horizon)
         actions = self._spawn_actions(plan_str, domain, params,
                                       plan_horizon, concr_prob, openrave_env)
-        return Plan(params, actions, plan_horizon, openrave_env)
+        plan = Plan(params, actions, plan_horizon, openrave_env)
+        plan.prob = concr_prob
+        plan.domain = domain
+        return plan
 
 
     def _extract_horizon(self, plan_str, domain):

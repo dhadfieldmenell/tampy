@@ -31,6 +31,9 @@ def main():
 
         s += "Robot (name %s); "%"pr2"
         s += "Grasp (name {}); ".format("grasp0")
+        s += "Grasp (name {}); ".format("grasp1")
+        s += "Grasp (name {}); ".format("grasp2")
+        s += "Grasp (name {}); ".format("grasp3")
         s += "RobotPose (name %s); "%"robot_init_pose"
         s += "RobotPose (name %s); "%"robot_end_pose"
         s += "RobotPose (name %s); "%"grasp_end_pose"
@@ -57,6 +60,9 @@ def main():
             s += "(geom end_target_%d 0.3), (value end_target_%d %s), "%(i, i, list(coords[i]))
         # s += "(value grasp0 undefined), "
         s += "(value grasp0 [0, {0}]), ".format(-0.6-dsafe)
+        s += "(value grasp1 [0, {0}]), ".format(0.6+dsafe)
+        s += "(value grasp2 [{0}, 0]), ".format(-0.6-dsafe)
+        s += "(value grasp3 [{0}, 0]), ".format(0.6+dsafe)
         s += "(geom %s 0.3), (pose %s %s), "%("pr2", "pr2", [0, 0])
         s += "(gripper pr2 [0.]), "
         s += "(value %s %s), "%("robot_init_pose", [0., 0.])
