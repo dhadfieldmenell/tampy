@@ -561,6 +561,8 @@ class MCTS:
             gmm = self.gmms[task_name] if self.gmms is not None else None
             inf_f = None # if gmm is None or gmm.sigma is None else lambda s: gmm.inference(np.concatenate[s.get(STATE_ENUM), s.get_U()])
             s, failed, success = self.agent.solve_sample_opt_traj(cur_state.copy(), task, self.condition, inf_f=inf_f, targets=self.agent.target_vecs[self.condition].copy())
+            if hl and not success:
+                print('MCTS failed to plan on {0} {1}'.format(s, task))
             pol.opt_traj = s.get(ACTION_ENUM).copy()
             s.opt_strength = new_opt_strength
             if success:

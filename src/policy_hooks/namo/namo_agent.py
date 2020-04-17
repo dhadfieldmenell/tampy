@@ -641,7 +641,7 @@ class NAMOSortingAgent(TAMPAgent):
                 success = False
         except Exception as e:
             print(e)
-            traceback.print_exception(*sys.exc_info())
+            # traceback.print_exception(*sys.exc_info())
             success = False
 
         self.solver.strong_transfer_coeff = old_out_coeff
