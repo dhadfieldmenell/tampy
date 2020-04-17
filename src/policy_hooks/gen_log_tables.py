@@ -209,6 +209,6 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
 
     plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
 
-gen_rollout_plots('time', 'post_cond', ['1_possible'])
+gen_rollout_plots('time', 'avg_post_cond', ['1_possible'])
 get_hl_tests(['1_possible'])
 

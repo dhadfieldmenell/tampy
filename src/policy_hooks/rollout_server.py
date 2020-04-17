@@ -1115,9 +1115,11 @@ class RolloutServer(object):
     def parse_opt_queue(self):
         i = 0
         if self.run_alg_updates:
-            q = self.queues['alg_opt_rec{0}'.format(self.id)]
+            lab = 'alg_opt_rec{0}'.format(self.id)
         else:
-            q = self.queues['rollout_opt_rec{0}'.format(self.id)]
+            lab = 'rollout_opt_rec{0}'.format(self.id)
+        if lab not in self.queues: return
+        q = self.queues[lab]
 
         while i < q._maxsize and not q.empty():
             try:
@@ -1132,7 +1134,9 @@ class RolloutServer(object):
     def parse_prob_queue(self):
         if not self.run_alg_updates: return
         i = 0
-        q = self.queues['alg_prob_rec{0}'.format(self.id)]
+        lab = 'alg_prob_rec{0}'.format(self.id)
+        if lab not in self.queues: return
+        q = self.queues[lab]
         while i < q._maxsize and not q.empty():
             try:
                 prob = q.get_nowait()
