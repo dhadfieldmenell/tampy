@@ -1336,7 +1336,7 @@ class NAMOSortingAgent(TAMPAgent):
             if curric_step % 2 and step < len(prim_choices[OBJ_ENUM]):
                 grasp = np.array([0, -0.601])
                 if GRASP_ENUM in prim_choices:
-                    g = np.random.randint(len(prim_choice[GRASP_ENUM]))
+                    g = np.random.randint(len(prim_choices[GRASP_ENUM]))
                     grasp = self.set_grasp(grasp, g)
 
                 self.x0[cond][self.state_inds['pr2', 'pose']] = self.x0[cond][self.state_inds['can{0}'.format(inds[step]), 'pose']] + grasp
