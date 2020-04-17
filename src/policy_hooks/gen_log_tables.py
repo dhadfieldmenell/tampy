@@ -18,121 +18,35 @@ def get_colors(n_colors):
     return cm.rainbow(np.linspace(0, 1, n_colors))
 
 
-def gen_table():
+def get_rollout_data(keywords=[]):
     exp_probs = os.listdir(LOG_DIR)
-    for exp_name in exp_probs:
-        dir_prefix = LOG_DIR + exp_name + '/'
-        exp_dirs = os.listdir(dir_prefix)
-        for dir_name in exp_dirs:
-            d = dir_name
-            if d.find('.') >= 0 or d.find('trained') >= 0: continue
-            full_dir = dir_prefix + dir_name
-            with open(full_dir+'/exp_info.txt', 'r') as f:
-                exp_info = f.read()
+    data = {}
+    for k in keywords:
+        data[k] = {}
+        for exp_name in exp_probs:
+            dir_prefix = LOG_DIR + exp_name + '/'
+            exp_dirs = os.listdir(dir_prefix)
+            for dir_name in exp_dirs:
+                d = dir_name
+                if d.find('.') >= 0 or d.find('trained') >= 0: continue
+                full_dir = dir_prefix + dir_name
+                if full_dir.find(k) < 0: continue
+                full_exp = full_dir[:-1]
+                if full_exp not in data[k]:
+                    data[k][full_exp] = {}
 
-            file_names = os.listdir(full_dir)
-            rollout_logs = [f for f in file_names if f.startswith('rollout')]
-            rollout_data = {}
-            for r in rollout_logs:
-                with open(full_dir+'/'+r, 'r') as f:
-                    rollout_data[r] = f.read()
+                file_names = os.listdir(full_dir)
+                rollout_logs = [f for f in file_names if f.startswith('rollout')]
+                rollout_data = {}
+                for r in rollout_logs:
+                    with open(full_dir+'/'+r, 'r') as f:
+                        next_data = f.read()
+                    if len(next_data):
+                        r_data = eval(next_data)
+                        rollout_data[r] = r_data
+                data[k][full_exp][full_dir] = rollout_data
 
-
-def gen_learning_plots(x_var='N'):
-    exp_probs = os.listdir(LOG_DIR)
-    print(exp_probs)
-    for exp_name in exp_probs:
-        dir_prefix = LOG_DIR + exp_name + '/'
-        exp_dirs = os.listdir(dir_prefix)
-        for dir_name in exp_dirs:
-            print(dir_name)
-            d = dir_name
-            if d.find('.') >= 0 or d.find('trained') >= 0: continue
-            full_dir = dir_prefix + dir_name
-            with open(full_dir+'/exp_info.txt', 'r') as f:
-                exp_info = f.read()
-
-            file_names = os.listdir(full_dir)
-            rollout_logs = [f for f in file_names if f.startswith('policy') and f.endswith('.txt')]
-            rollout_data = {}
-            for r in rollout_logs:
-                print(r)
-                with open(full_dir+'/'+r, 'r') as f:
-                    next_data = f.read()
-                if len(next_data):
-                    train, val = eval(next_data)
-                    rollout_data[r] = (train, val)
-
-            x_pts = {r: [rollout_data[r][0][i][x_var] for i in range(len(rollout_data[r][0]))] for r in rollout_data}
-            y_pts = {r: [rollout_data[r][0][i]['loss'] for i in range(len(rollout_data[r][0]))] for r in rollout_data}
-            #x_pts = {r: range(len(rollout_data[r][0])) for r in rollout_data}
-            #y_pts = {r: rollout_data[r][0] for r in rollout_data}
-            for r in rollout_data:
-                plt.title(r+' train losses')
-                x, y = zip(*sorted(zip(x_pts[r], y_pts[r])))
-                plt.plot(x, y)
-                plt.xlabel('iterations')
-                plt.ylabel('loss')
-                plt.savefig(full_dir+'/'+r.split('.')[0]+'_train_losses.png', pad_inches=0.01)
-                plt.clf()
-
-            x_pts = {r: [rollout_data[r][1][i][x_var] for i in range(len(rollout_data[r][1]))] for r in rollout_data}
-            y_pts = {r: [rollout_data[r][1][i]['loss'] for i in range(len(rollout_data[r][1]))] for r in rollout_data}
-            #x_pts = {r: range(len(rollout_data[r][1])) for r in rollout_data}
-            #y_pts = {r: rollout_data[r][1] for r in rollout_data}
-            for r in rollout_data:
-                plt.title(r+' val losses')
-                if not len(x_pts[r]): continue
-                x, y = zip(*sorted(zip(x_pts[r], y_pts[r])))
-                plt.plot(x, y)
-                plt.xlabel('iterations')
-                plt.ylabel('loss')
-                plt.savefig(full_dir+'/'+r.split('.')[0]+'_val_losses.png', pad_inches=0.01)
-                plt.clf()
-
-
-def gen_traj_cost_plots(x_var='time'):
-    exp_probs = os.listdir(LOG_DIR)
-    for exp_name in exp_probs:
-        dir_prefix = LOG_DIR + exp_name + '/'
-        exp_dirs = os.listdir(dir_prefix)
-        for dir_name in exp_dirs:
-            d = dir_name
-            if d.find('.') >= 0 or d.find('trained') >= 0: continue
-            full_dir = dir_prefix + dir_name
-            with open(full_dir+'/exp_info.txt', 'r') as f:
-                exp_info = f.read()
-
-            file_names = os.listdir(full_dir)
-            rollout_logs = [f for f in file_names if f.startswith('rollout') and f.endswith('True.txt')]
-            rollout_data = {}
-            for r in rollout_logs:
-                print(r)
-                with open(full_dir+'/'+r, 'r') as f:
-                    next_data = f.read()
-                if len(next_data):
-                    costs = eval(next_data)
-                    rollout_data[r] = costs
-            task_data = {}
-            for r in rollout_data:
-                data = rollout_data[r]
-                costs = [(d[x_var], d['traj_cost']) for d in data if len(d['traj_cost'].keys())]
-                for t, c in costs:
-                    for task in c:
-                        if task not in task_data:
-                            task_data[task] = []
-                        task_data[task].append((t,np.mean(c[task])))
-            for task in task_data:
-                data = np.array(task_data[task])
-                x_pts = data[:,0]
-                y_pts = data[:,1]
-                plt.title('Task {0} traj cost'.format(task))
-                plt.xlabel(x_var)
-                plt.ylabel('Avg. Traj cost')
-                x, y = zip(*sorted(zip(x_pts, y_pts)))
-                plt.plot(x, y)
-                plt.savefig(full_dir+'/'+r.split('.')[0]+'_task_{0}_traj_costs_vs_{1}.png'.format(task, x_var), pad_inches=0.01)
-                plt.clf()
+    return data
 
 
 def gen_first_success_plots(x_var='time'):
@@ -179,7 +93,8 @@ def gen_first_success_plots(x_var='time'):
     plt.savefig(SAVE_DIR+'/goal_vs_{0}.png'.format(x_var), pad_inches=0.01)
     plt.clf()
 
-def get_hl_tests():
+
+def get_hl_tests(keywords=[]):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
     for exp_name in exp_probs:
@@ -190,6 +105,13 @@ def get_hl_tests():
         for dir_name in exp_dirs:
             d = dir_name
             if d.find('.') >= 0 or d.find('trained') >= 0: continue
+            if len(keywords):
+                skip = True
+                for k in keywords:
+                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
+                        skip = False
+                if skip: continue
+
             full_dir = dir_prefix + dir_name
             full_exp = full_dir[:-1]
             i = 0
@@ -201,6 +123,9 @@ def get_hl_tests():
                     data.append(np.load(full_exp+str(i)+'/'+info[0]))
                 i += 1
 
+            if not len(data): 
+                print('skipping', full_exp)
+                continue
             dlen = min([len(d) for d in data])
             FRAME = 50
             print('Gathering data for', full_exp, 'length:', dlen, 'all len:', [len(d) for d in data])
@@ -222,67 +147,68 @@ def get_hl_tests():
             pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
             sns.set()
             sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', data=pd_frame)
-            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val.png'.format(no, nt))
+            keyid = ''
+            for key in keywords:
+                keyid += '_{0}'.format(key)
+            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}.png'.format(no, nt, keyid))
 
 
-def gen_plots(x_var, y_var, overlay=True, mode='scalar', val=0.):
-    exp_probs = os.listdir(LOG_DIR)
-    for exp_name in exp_probs:
-        dir_prefix = LOG_DIR + exp_name + '/'
-        exp_dirs = os.listdir(dir_prefix)
-        for dir_name in exp_dirs:
-            d = dir_name
-            if d.find('.') >= 0 or d.find('trained') >= 0: continue
-            full_dir = dir_prefix + dir_name
-            with open(full_dir+'/exp_info.txt', 'r') as f:
-                exp_info = f.read()
+def plot(data, columns, descr):
+    for k in data:
+        pd_frame = pd.DataFrame(data[k], columns=columns)
+        sns.set()
+        sns_plot = sns.relplot(x=columns[1], y=columns[2], hue=columns[0], kind='line', data=pd_frame)
+        sns_plot.savefig(SAVE_DIR+'/{0}_{1}.png'.format(k, descr))
 
-            file_names = os.listdir(full_dir)
-            rollout_logs = [f for f in file_names if f.startswith('rollout') and f.endswith('.txt')]
-            rollout_data = {}
-            for r in rollout_logs:
-                with open(full_dir+'/'+r, 'r') as f:
-                    next_data = f.read()
-                if x_var in next_data[0] and y_var in next_data[0]:
-                    rollout_data[r] = next_data
 
-            x_pts = {r: [rollout_data[r][i][x_var] for i in range(len(rollout_data[r]))] for r in rollout_data}
 
-            if mode=='scalar':
-                y_pts = {r: [rollout_data[r][i][y_var] for i in range(len(rollout_data[r]))] for r in rollout_data}
-            elif mode=='first':
-                y_pts = {}
-                for r in rollout_data:
-                    for i in range(len(rollout_data[r])):
-                        rollout_data[r][i][y_var].append(val)
-                    y_pts[r] = [rollout_data[r][y_var].index(val) for i in range(len(rollout_data[r]))]
-            elif mode=='avg':
-                y_pts = {r: np.mean([rollout_data[r][i][y_var] for i in range(len(rollout_data[r]))]) for r in rollout_data}
+def gen_rollout_plots(xvar, yvar, keywords=[]):
+    d = get_rollout_data(keywords)
+    data = {}
+    FRAME = 30
+    print('Collected data...')
+    for keyword in d:
+        key_data = []
+        new_data = d[keyword]
+        for fullexp in d[keyword]:
+            e = new_data[fullexp]
+            exp_data = {xvar:[], yvar:[]}
+            for ename in e:
+                curexp = e[ename]
+                cur_xdata = []
+                cur_ydata = []
 
-            if overlay:
-                plt.title('{0} vs. {1}'.format(x_var, y_var))
-                c = plt.cm.rainbow(np.linspace(0, 1, len(rollout_logs)))
-                for r in rollout_data:
-                    plt.plot(x_pts[r], y_pts[r], c=c.pop())
-                plt.xlabel(x_var)
-                plt.ylabel(y_var)
-                plt.savefig(full_dir+'_{0}_{1}.png'.format(x_var, y_var), pad_inches=0.01)
-                plt.clf()
+                for rname in curexp:
+                    r = curexp[rname]
+                    if not len(r): continue
+                    if xvar not in r[0] or yvar not in r[0]: continue
+                    cur_xdata.append([np.mean([r[t][xvar] for t in range(i, i+FRAME)]) for i in range(len(r)-FRAME)])
+                    cur_ydata.append([np.mean([r[t][yvar] for t in range(i, i+FRAME)]) for i in range(len(r)-FRAME)])
+                if not len(cur_xdata): 
+                    print('Skipping', xvar, yvar, 'for', ename)
+                    continue
+                dlen = min([len(d) for d in cur_xdata])
+                for i in range(len(cur_xdata)):
+                    cur_xdata[i] = cur_xdata[i][:dlen]
+                    cur_ydata[i] = cur_ydata[i][:dlen]
+                cur_xdata = np.mean(np.array(cur_xdata), axis=0)
+                cur_ydata = np.mean(np.array(cur_ydata), axis=0)
 
-            else:
-                for r in rollout_data:
-                    plt.title(r+' {0} {1}'.format(x_var, y_var))
-                    plt.plot(x_pts[r], y_pts[r])
-                    plt.xlabel(x_var)
-                    plt.ylabel(y_var)
-                    plt.savefig(full_dir+'/'+r.split('.')[0]+'_{0}_{1}.png'.format(x_var, y_var), pad_inches=0.01)
-                    plt.clf()
+                exp_data[xvar].append(cur_xdata)
+                exp_data[yvar].append(cur_ydata)
+            if not len(exp_data[xvar]):
+                print('no data from', xvar, 'for', fullexp)
+                continue
+            dlen = min([len(d) for d in exp_data[xvar]])
+            xvals = np.mean([dn[:dlen] for dn in exp_data[xvar]], axis=0)
+            for i in range(dlen):
+                for yvals in exp_data[yvar]:
+                    key_data.append((fullexp, xvals[i], yvals[i]))
+            print('Set data for', keyword, fullexp)
+        data[keyword] = key_data
 
-# gen_table()
-# gen_plots()
-# gen_learning_plots()
-# gen_traj_cost_plots()
-# gen_traj_cost_plots('n_opt_calls')
-gen_first_success_plots()
-get_hl_tests()
+    plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
+
+gen_rollout_plots('time', 'post_cond', ['1_possible'])
+get_hl_tests(['1_possible'])
 

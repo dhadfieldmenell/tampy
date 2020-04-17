@@ -240,6 +240,7 @@ class MCTS:
         self.n_success = 0
         self.n_fixed_rollouts = 0
         self.n_samples = 1
+        self.post_cond = []
         self.x0 = None
         self.node_history = {}
         self.n_resets += 1
@@ -581,6 +582,8 @@ class MCTS:
                 if success:
                     samples[-1].set_ref_X(s.get_ref_X())
                     samples[-1].set_ref_U(s.get_ref_U())
+            if new_opt_strength < 1-1e-2:
+                self.post_cond.append(samples[0].post_cost)
         else:
             samples.append(self.agent.sample_optimal_trajectory(cur_state, task, self.condition, fixed_path))
 
@@ -728,7 +731,7 @@ class MCTS:
 
         self.log_path(path, len(fixed_paths))
         for n in range(len(path)):
-            path[n].discount = 0.9**(len(path)-n-1)
+            path[n].discount = 1 # 0.9**(len(path)-n-1)
         return path_value, path
 
 
@@ -828,6 +831,7 @@ class MCTS:
  
             if not check_cost: return tuple(next_label)
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
+            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
 
         for l in exclude:
             if self.onehot_task:
@@ -836,7 +840,7 @@ class MCTS:
                 ind = labels.index(tuple(l))
             distr[ind] = 0.
 
-        while cost > 0 and np.any(distr > -np.inf): 
+        while (cost > 0 or post < 1e-3) and np.any(distr > -np.inf): 
             next_label = []
             if self.soft_decision:
                 expcost = self.n_runs * distr
@@ -857,7 +861,8 @@ class MCTS:
                     next_label = tuple(labels[ind])
                 distr[ind] = -np.inf
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-            if cost > 0:
+            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+            if cost > 0 or post < 1e-3:
                 bad.append(next_label)
                 next_label = None
         if cost > 0:

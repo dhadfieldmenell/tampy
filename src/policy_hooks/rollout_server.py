@@ -140,6 +140,8 @@ class RolloutServer(object):
         self.opt_prob = hyperparams.get('opt_prob', 0.1)
         self.opt_buffer = []
         self.add_negative = hyperparams['negative']
+        self.prim_decay = hyperparams.get('prim_decay', 1.)
+        self.prim_first_wt = hyperparams.get('prim_first_wt', 1.)
 
         self.use_local = hyperparams['use_local']
         if self.use_local:
@@ -1034,8 +1036,14 @@ class RolloutServer(object):
 
         else:
             if self.rollout_log is not None:
+                post_cond = [np.mean(mcts.post_cond) for mcts in self.mcts if len(mcts.post_cond)]
+                if len(post_cond):
+                    post_cond = np.mean(post_cond)
+                else:
+                    post_cond = 1.
                 info = {'id': self.id, 
                         'n_success': self.n_success,
+                        'n_opt_calls': self.n_opt_calls,
                         'n_steps': self.n_steps,
                         'cur_step': self.cur_step,
                         # 'x0': [list(x) for x in self.agent.x0],
@@ -1046,6 +1054,7 @@ class RolloutServer(object):
                         'n_sent_probs': self.n_sent_probs,
                         'n_received_probs': self.n_received_probs,
                         'alg_server': self.run_alg_updates,
+                        'avg_post_cond': post_cond,
                         }
                 self.log_updates.append(info)
                 with open(self.rollout_log, 'w+') as f:
@@ -1204,7 +1213,8 @@ class RolloutServer(object):
         for sample in samples:
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
-            wt = sample.discount * np.ones((sample.T,))
+            wt = sample.discount * np.array([self.prim_decay**t for t in range(sample.T)])
+            wt[0] *= self.prim_first_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
             obs_data = np.concatenate((obs_data, obs))

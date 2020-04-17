@@ -167,10 +167,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     cost_wp_mult = np.ones((3 + 2 * NUM_OBJS))
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
-    prob.N_GRASPS = N_GRASPS
+    prob.N_GRASPS = 1 # N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.END_TARGETS = prob.END_TARGETS[:4]
+    prob.END_TARGETS = prob.END_TARGETS[:1]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -296,8 +296,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'curric_thresh': -1,
         'n_thresh': -1,
         'expand_process': False,
-        'descr': '{0}_grasps_{1}_possible'.format(N_GRASPS, len(prob.END_TARGETS)+prob.n_aux),
+        'descr': '{0}_grasps_{1}_possible_decay'.format(N_GRASPS, len(prob.END_TARGETS)+prob.n_aux),
         'her': False,
+        'prim_decay': 0.925,
+        'prim_first_wt': 1e2,
     }
 
     config['prim_obs_include'].append(utils.EE_ENUM)

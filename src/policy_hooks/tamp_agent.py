@@ -737,7 +737,7 @@ class TAMPAgent(Agent):
             i += 1
         
         for i, s in enumerate(new_path):
-            s.discount = 0.9 ** (len(new_path) - i)
+            s.discount = 1. # 0.9 ** (len(new_path) - i)
         return new_path
 
 
