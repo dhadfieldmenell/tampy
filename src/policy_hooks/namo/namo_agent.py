@@ -947,7 +947,7 @@ class NAMOSortingAgent(TAMPAgent):
                 disp = state[self.state_inds[param.name, 'pose']] - val
                 # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
                 # cost -= 1 if dist < 0.3 else 0
-                cost -= 1 if np.all(np.abs(dist) < NEAR_TOL) else 0
+                cost -= 1 if np.all(np.abs(disp) < NEAR_TOL) else 0
 
         # return cost / float(self.prob.NUM_OBJS)
         return 1. if cost > 0 else 0.
