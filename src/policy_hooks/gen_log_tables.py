@@ -18,7 +18,7 @@ def get_colors(n_colors):
     return cm.rainbow(np.linspace(0, 1, n_colors))
 
 
-def get_rollout_data(keywords=[]):
+def get_rollout_data(keywords=[], nfiles=10):
     exp_probs = os.listdir(LOG_DIR)
     data = {}
     for k in keywords:
@@ -36,9 +36,11 @@ def get_rollout_data(keywords=[]):
                     data[k][full_exp] = {}
 
                 file_names = os.listdir(full_dir)
-                rollout_logs = [f for f in file_names if f.startswith('rollout')]
+                rollout_logs = ['rollout_log_{0}_True.txt'.format(i) for i in range(nfiles)]# [f for f in file_names if f.startswith('rollout')]
+                rollout_logs += ['rollout_log_{0}_False.txt'.format(i) for i in range(nfiles)]
                 rollout_data = {}
                 for r in rollout_logs:
+                    if not os.path.isfile(full_dir+'/'+r): continue
                     with open(full_dir+'/'+r, 'r') as f:
                         next_data = f.read()
                     if len(next_data):
@@ -200,6 +202,7 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
                 print('no data from', xvar, 'for', fullexp)
                 continue
             dlen = min([len(d) for d in exp_data[xvar]])
+            print('DLEN', dlen, fullexp)
             xvals = np.mean([dn[:dlen] for dn in exp_data[xvar]], axis=0)
             for i in range(dlen):
                 for yvals in exp_data[yvar]:
@@ -210,5 +213,6 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
     plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
 
 gen_rollout_plots('time', 'avg_post_cond', ['1_possible'])
+gen_rollout_plots('time', 'avg_first_success', ['1_possible'])
 get_hl_tests(['1_possible'])
 

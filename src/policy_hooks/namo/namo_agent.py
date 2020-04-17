@@ -1333,13 +1333,13 @@ class NAMOSortingAgent(TAMPAgent):
                 if i >= len(prim_choices[OBJ_ENUM]) - step: break
                 self.x0[cond][self.state_inds[obj, 'pose']] = self.targets[cond]['{0}_end_target'.format(obj)]
                 i += 1
-            if curric_step % 2 and step < len(prim_choices[OBJ_ENUM]):
+            if curric_step % 2 and step <= len(prim_choices[OBJ_ENUM]):
                 grasp = np.array([0, -0.601])
                 if GRASP_ENUM in prim_choices:
                     g = np.random.randint(len(prim_choices[GRASP_ENUM]))
                     grasp = self.set_grasp(grasp, g)
 
-                self.x0[cond][self.state_inds['pr2', 'pose']] = self.x0[cond][self.state_inds['can{0}'.format(inds[step]), 'pose']] + grasp
+                self.x0[cond][self.state_inds['pr2', 'pose']] = self.x0[cond][self.state_inds['can{0}'.format(inds[len(prim_choices[OBJ_ENUM]) - step]), 'pose']] + grasp
 
 
         for target_name in self.targets[cond]:
