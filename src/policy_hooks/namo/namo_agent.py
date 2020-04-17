@@ -30,7 +30,7 @@ from policy_hooks.sample_list import SampleList
 from baxter_gym.envs import MJCEnv
 
 import core.util_classes.items as items
-from core.util_classes.namo_predicates import dsafe
+from core.util_classes.namo_predicates import dsafe, NEAR_TOL
 from core.util_classes.openrave_body import OpenRAVEBody
 from core.util_classes.viewer import OpenRAVEViewer
 
@@ -944,10 +944,10 @@ class NAMOSortingAgent(TAMPAgent):
         for param in plan.params.values():
             if param._type == 'Can':
                 val = targets[self.target_inds['{0}_end_target'.format(param.name), 'value']]
-                dist = np.linalg.norm(state[self.state_inds[param.name, 'pose']] - val)
+                disp = state[self.state_inds[param.name, 'pose']] - val
                 # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
                 # cost -= 1 if dist < 0.3 else 0
-                cost -= 1 if dist < 0.5 else 0
+                cost -= 1 if np.all(np.abs(dist) < NEAR_TOL) else 0
 
         # return cost / float(self.prob.NUM_OBJS)
         return 1. if cost > 0 else 0.
