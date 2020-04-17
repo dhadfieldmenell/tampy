@@ -286,6 +286,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
                 utils.GRASP_ENUM: N_GRASPS,
+                utils.GOAL_ENUM: 2*no,
                 utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + len(prob.END_TARGETS)),
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },

@@ -96,7 +96,6 @@ class MultiProcessMain(object):
             targets.append(prob.get_end_targets())
         '''
 
-        self.goal_dim = sum([2 for t in targets[0] if t.find('end_target') >= 0])
         for plan in plans.values():
             plan.state_inds = self.state_inds
             plan.action_inds = self.action_inds
@@ -112,7 +111,6 @@ class MultiProcessMain(object):
             utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
-            utils.GOAL_ENUM: self.goal_dim,
             utils.ONEHOT_TASK_ENUM: len(plans.keys()),
         }
         for enum in self.config['sensor_dims']:
