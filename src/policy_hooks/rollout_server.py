@@ -582,7 +582,7 @@ class RolloutServer(object):
         self.node_dict[self.current_id] = next_sample.node if hasattr(next_sample, 'node') else None
         if USE_ROS:
             self.prob_publisher.publish(prob)
-        else:
+        elif 'rollout_opt_rec{0}'.format(self.id) in self.queues:
             prob.rollout_id = self.id
             prob.algorithm_id = alg_id
             q = self.queues['alg_prob_rec{0}'.format(alg_id)]
@@ -653,7 +653,7 @@ class RolloutServer(object):
                 self.n_sent_probs += 1
                 if USE_ROS:
                     self.async_plan_publisher.publish(prob)
-                else:
+                elif 'rollout_opt_rec{0}'.format(self.id) in self.queues:
                     q = self.queues['optimizer{0}'.format(prob.solver_id)]
                     self.add_to_queue(prob, q)
 
