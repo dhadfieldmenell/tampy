@@ -22,6 +22,7 @@ import traceback
 import numpy as np
 import tensorflow as tf
 
+import software_constants
 from software_constants import USE_ROS
 if USE_ROS:
     from roslaunch.core import RLException
@@ -203,10 +204,12 @@ class MultiProcessMain(object):
             'prim_dims': self.prim_dims,
             'solver_type': self.config['solver_type'],
             'robot_name': self.config['robot_name'],
+            'split_nets': self.config['split_nets'],
             'policy_inf_coeff': self.config['policy_inf_coeff'],
             'policy_out_coeff': self.config['policy_out_coeff'],
-
+            'master_config': self.config,
         }
+
         if 'cloth_width' in self.config:
             self.config['agent']['cloth_width'] = self.config['cloth_width']
             self.config['agent']['cloth_length'] = self.config['cloth_length']
@@ -542,6 +545,18 @@ class MultiProcessMain(object):
         p = self.create_server(RolloutServer, hyperparams)
         self.cur_n_rollout += 1
         return p
+
+
+    def run_test(self, hyperparams):
+        software_constants.USE_ROS = False
+        hyperparams['run_mcts_rollouts'] = False
+        hyperparams['run_alg_updates'] = False
+        hyperparams['run_hl_test'] = True
+        hyperparams['share_buffers'] = False
+        hyperparams['id'] = hyperparams['server_id']+'_test'
+        server = RolloutServer(hyperparams)
+        for _ in range(20):
+            server.test_hl(10, save=False)
 
 
     def kill_processes(self):

@@ -129,12 +129,14 @@ def get_hl_tests(keywords=[]):
                 print('skipping', full_exp)
                 continue
             dlen = min([len(d) for d in data])
+            dmax = max([len(d) for d in data])
             FRAME = 50
             print('Gathering data for', full_exp, 'length:', dlen, 'all len:', [len(d) for d in data])
-            for i in range(dlen - FRAME):
-                cur_t = np.mean([d[i:i+FRAME,:,3] for d in data])
+            for i in range(dmax - FRAME):
+                cur_t = np.mean([d[i:i+FRAME,:,3] for d in data if i+FRAME < len(d)])
 
                 for d in data:
+                    if len(d) < i+FRAME: continue
                     cur_fr = np.mean(d[i:i+FRAME], axis=0)
                     for pt in cur_fr:
                         val = pt[0]
@@ -165,14 +167,14 @@ def plot(data, columns, descr):
 
 
 def gen_rollout_plots(xvar, yvar, keywords=[]):
-    d = get_rollout_data(keywords)
+    rd = get_rollout_data(keywords)
     data = {}
     FRAME = 30
     print('Collected data...')
-    for keyword in d:
+    for keyword in rd:
         key_data = []
-        new_data = d[keyword]
-        for fullexp in d[keyword]:
+        new_data = rd[keyword]
+        for fullexp in rd[keyword]:
             e = new_data[fullexp]
             exp_data = {xvar:[], yvar:[]}
             for ename in e:
@@ -212,7 +214,9 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
 
     plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
 
-gen_rollout_plots('time', 'avg_post_cond', ['1_possible'])
-gen_rollout_plots('time', 'avg_first_success', ['1_possible'])
-get_hl_tests(['1_possible'])
+keywords = ['lowlevel']
+gen_rollout_plots('time', 'avg_post_cond', keywords)
+gen_rollout_plots('time', 'avg_first_success', keywords)
+get_hl_tests(keywords)
+gen_rollout_plots('time', 'avg_pre_cost', keywords)
 

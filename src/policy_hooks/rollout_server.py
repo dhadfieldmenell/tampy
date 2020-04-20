@@ -101,7 +101,7 @@ class RolloutServer(object):
             # m.log_file = 'tf_saved/'+hyperparams['weight_dir']+'/mcts_log_{0}_cond{1}.txt'.format(self.id, m.condition)
             # with open(m.log_file, 'w+') as f: f.write('')
         self.steps_to_replace = hyperparams.get('steps_to_replace', 1000)
-        self.success_to_replace = hyperparams.get('success_to_replace', 10)
+        self.success_to_replace = hyperparams.get('success_to_replace', 1)
         self.alg_map = hyperparams['alg_map']
         for alg in self.alg_map.values():
             alg.set_conditions(len(self.agent.x0))
@@ -145,7 +145,7 @@ class RolloutServer(object):
 
         self.use_local = hyperparams['use_local']
         if self.use_local:
-            hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] + '_trained'
+            hyperparams['policy_opt']['weight_dir'] = hyperparams['weight_dir'] # + '_trained'
             hyperparams['policy_opt']['scope'] = None
             hyperparams['policy_opt']['gpu_fraction'] = 1./32.
             hyperparams['policy_opt']['use_gpu'] = 1.
@@ -334,10 +334,19 @@ class RolloutServer(object):
         return np.array(resp.value)
 
 
-    def primitive_call(self, prim_obs):
+    def primitive_call(self, prim_obs, soft=False):
         # print 'Entering primitive call:', datetime.now()
         if self.use_local:
-            return self.policy_opt.task_distr(prim_obs)
+            distrs = self.policy_opt.task_distr(prim_obs)
+            if not soft: return distrs
+            out = []
+            for d in distrs:
+                new_d = np.zeros_like(d)
+                p = d / np.sum(d)
+                ind = np.random.choice(range(len(d)), p=p)
+                new_d[ind] = 1.
+                out.append(new_d)
+            return out
         raise NotImplementedError
         rospy.wait_for_service('primitive', timeout=10)
         req = PrimitiveRequest()
@@ -961,7 +970,7 @@ class RolloutServer(object):
                                 self.send_prob(*p)
                             #     self.send_mp_problem(*p)
 
-                if mcts.n_runs > self.steps_to_replace or mcts.n_success > self.success_to_replace:
+                if mcts.n_runs >= self.steps_to_replace or mcts.n_success >= self.success_to_replace:
                     mcts.reset()
                 
             ### Run an update step of the algorithm if there are any waiting rollouts that already have an optimized result from the MP server
@@ -1037,6 +1046,7 @@ class RolloutServer(object):
         else:
             if self.rollout_log is not None:
                 post_cond = [np.mean(mcts.post_cond) for mcts in self.mcts if len(mcts.post_cond)]
+                prim_cost = [np.mean(mcts.prim_pre_cond[-10:]) for mcts in self.mcts if len(mcts.prim_pre_cond)]
                 if len(post_cond):
                     post_cond = np.mean(post_cond)
                 else:
@@ -1055,6 +1065,7 @@ class RolloutServer(object):
                         'n_received_probs': self.n_received_probs,
                         'alg_server': self.run_alg_updates,
                         'avg_post_cond': post_cond,
+                        'prim_cost': prim_cost,
                         }
                 self.log_updates.append(info)
                 with open(self.rollout_log, 'w+') as f:
@@ -1063,7 +1074,7 @@ class RolloutServer(object):
             print('Finished tree search step.')
 
 
-    def test_hl(self):
+    def test_hl(self, rlen=None, save=True):
         if self.policy_opt.share_buffers:
             self.policy_opt.read_shared_weights()
 
@@ -1101,13 +1112,24 @@ class RolloutServer(object):
         for t in range(n, n_targs[-1]):
             obj_name = prim_opts[OBJ_ENUM][t]
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
-        val, path = self.mcts[0].test_run(x0, targets, 2+2*n, hl=True)
+        if rlen is None:
+            rlen = 6 + 2*n
+        self.agent.T = self.config['task_durations'][self.task_list[0]]
+        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft'])
         s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
         self.hl_data.append(res)
-        if not len(self.hl_data) % 20:
-            np.save(self.hl_test_log, np.array(self.hl_data))
+        if save:
+            if not len(self.hl_data) % 20:
+                np.save(self.hl_test_log, np.array(self.hl_data))
+        else:
+            if val < 1:
+                print('failed for', x0, [s.task for s in path], [s.get_prim_obs(t=0) for s in path])
+            else:
+                print('succeeded for', path[0].get_X(t=0))
+            print('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3]))
+            print('n_runs', len(self.hl_data))
         self.last_hl_test = time.time()
         print('TESTED HL')
 
@@ -1185,8 +1207,8 @@ class RolloutServer(object):
                 elif i == inds[-1]:
                     bad.append(np.zeros(sum(self.prim_dims.values())))
                     break
+        assert len(bad) == sample.T
         return np.array(bad)
-
 
 
     def update_qvalue(self, samples, first_ts_only=False):

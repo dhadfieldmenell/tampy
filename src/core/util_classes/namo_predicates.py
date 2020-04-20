@@ -23,7 +23,7 @@ This file implements the predicates for the 2D NAMO domain.
 
 dsafe = 1e-3 # 1e-1
 # dmove = 1.1e0 # 5e-1
-dmove = 1.4e0 # 5e-1
+dmove = 1.5e0 # 5e-1
 contact_dist = 5e-2 # dsafe
 
 RS_SCALE = 0.5

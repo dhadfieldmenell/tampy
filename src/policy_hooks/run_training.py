@@ -12,7 +12,7 @@ from policy_hooks.multiprocess_main import MultiProcessMain
 
 def get_dir_name(base, no, nt, ind, descr, args=None):
     dir_name = base + 'objs{0}_{1}/exp_id{2}_{3}'.format(no, nt, ind, descr)
-    if args is not None:
+    if args is not None and not len(descr):
         useq = '_qfunc' if args.qfunc else ''
         useHer = '_her' if args.her else ''
         expand = '_expand' if args.expand else ''
@@ -47,6 +47,9 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
                 next_config['n_thresh'] = args.n_thresh
                 next_config['negative'] = args.negative
                 next_config['onehot_task'] = args.onehot_task
+                next_config['soft'] = args.soft
+                if len(args.descr):
+                    next_config['descr'] = args.descr
             next_config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
             next_config['server_id'] = '{0}'.format(str(random.randint(0, 2**16)))
             next_config['mp_server'] = True 
@@ -94,6 +97,7 @@ def load_config(args, config=None, reload_module=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str)
+    parser.add_argument('-test', '--test', type=str, default='')
     parser.add_argument('-p', '--pretrain', action='store_true', default=False)
     parser.add_argument('-nf', '--nofull', action='store_true', default=False)
     parser.add_argument('-n', '--nconds', type=int, default=0)
@@ -114,11 +118,13 @@ def main():
     parser.add_argument('-v', '--viewer', action='store_true', default=False)
     parser.add_argument('-id', '--server_id', type=str, default='')
     parser.add_argument('-f', '--file', type=str, default='')
+    parser.add_argument('-descr', '--descr', type=str, default='')
     parser.add_argument('-her', '--her', action='store_true', default=False)
     parser.add_argument('-e', '--expand', action='store_true', default=False)
     parser.add_argument('-neg', '--negative', action='store_true', default=False)
     parser.add_argument('-oht', '--onehot_task', action='store_true', default=False)
-    parser.add_argument('-spl', '--split', action='store_true', default=True)
+    parser.add_argument('-soft', '--soft', action='store_true', default=False)
+    parser.add_argument('-spl', '--split', action='store_false', default=True)
     parser.add_argument('-q', '--qfunc', action='store_true', default=False)
     parser.add_argument('-cur', '--cur_thresh', type=int, default=-1)
     parser.add_argument('-ncur', '--n_thresh', type=int, default=10)
@@ -145,6 +151,12 @@ def main():
         for exp in exps:
             mains = []
             for c, cm in exp:
+                if len(args.test):
+                    c['weight_dir'] = args.test
+                    m = MultiProcessMain(c)
+                    m.run_test(c)
+                    continue
+
                 print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
                 while os.path.isdir('tf_saved/'+c['weight_dir']+str(current_id)):
                     current_id += 1
