@@ -167,8 +167,12 @@ def main():
                     current_id += 1
                 c['group_id'] = current_id
                 c['weight_dir'] = c['weight_dir']+'{0}'.format(current_id)
-                if not os.path.isdir('tf_saved/'+c['weight_dir']):
-                    os.mkdir('tf_saved/'+c['weight_dir'])
+                dir_name = ''
+                sub_dirs = ['tf_saved'] + c['weight_dur'].split('/')
+                for d_ind, d in enumerate(sub_dirs):
+                    dir_name += d + '/'
+                    if not os.path.isidr(dir_nam)
+                    os.mkdir(dir_name)
                 shutil.copyfile(exps_info[ind][ind2].replace('.', '/')+'.py', 'tf_saved/'+c['weight_dir']+'/hyp.py')
                 with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
                     f.write('')
