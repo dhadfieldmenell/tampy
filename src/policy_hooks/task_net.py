@@ -130,7 +130,7 @@ def get_loss_layer(mlp_out, task, boundaries, precision=None):
     return multi_softmax_loss_layer(labels=task, logits=mlp_out, boundaries=boundaries, precision=precision)
 
 
-def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None):
+def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network_config=None, input_layer=None, eta=None):
     n_layers = 2 if 'n_layers' not in network_config else network_config['n_layers'] + 1
     dim_hidden = (n_layers - 1) * [40] if 'dim_hidden' not in network_config else copy(network_config['dim_hidden'])
     dim_hidden.append(dim_output)
@@ -141,6 +141,8 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
     if input_layer is not None:
         nn_input = tf.concat(input_layer, nn_input)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
+    if eta is not None:
+        mlp_applied *= eta
     prediction = multi_sotfmax_prediction_layer(mlp_applied, boundaries)
     fc_vars = weights_FC + biases_FC
     loss_out = get_loss_layer(mlp_out=mlp_applied, task=action, boundaries=boundaries, precision=precision)

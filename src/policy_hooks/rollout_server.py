@@ -334,17 +334,14 @@ class RolloutServer(object):
         return np.array(resp.value)
 
 
-    def primitive_call(self, prim_obs, soft=False):
+    def primitive_call(self, prim_obs, soft=False, eta=1.):
         # print 'Entering primitive call:', datetime.now()
         if self.use_local:
-            distrs = self.policy_opt.task_distr(prim_obs)
+            distrs = self.policy_opt.task_distr(prim_obs, eta)
             if not soft: return distrs
             out = []
-            eta = 1e1
             for d in distrs:
-                exp = np.exp(eta * (d - np.max(d)))
-                p = exp / np.sum(exp)
-                # p = d / np.sum(d)
+                p = d / np.sum(d)
                 ind = np.random.choice(range(len(d)), p=p)
                 d[ind] += 2.
                 d /= np.sum(d)

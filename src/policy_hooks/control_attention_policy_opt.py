@@ -420,9 +420,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         if self.scope is None or 'primitive' == self.scope:
             with tf.variable_scope('primitive'):
+                self.primitive_eta = tf.placeholder_with_default(1., shape=())
                 tf_map_generator = self._hyperparams['primitive_network_model']
                 tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dPrim, batch_size=self.batch_size,
-                                          network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor)
+                                          network_config=self._hyperparams['primitive_network_params'], input_layer=input_tensor, eta=self.primitive_eta)
                 self.primitive_obs_tensor = tf_map.get_input_tensor()
                 self.primitive_precision_tensor = tf_map.get_precision_tensor()
                 self.primitive_action_tensor = tf_map.get_target_output_tensor()
@@ -571,10 +572,10 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         #                                  self.device_string,
         #                                  copy_param_scope=None)
 
-    def task_distr(self, obs):
+    def task_distr(self, obs, eta=1.):
         if len(obs.shape) < 2:
             obs = obs.reshape(1, -1)
-        distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs}).flatten()
+        distr = self.sess.run(self.primitive_act_op, feed_dict={self.primitive_obs_tensor:obs, self.primitive_eta: eta}).flatten()
         res = []
         for bound in self._primBounds:
             res.append(distr[bound[0]:bound[1]])
