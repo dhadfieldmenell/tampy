@@ -171,7 +171,7 @@ def main():
                 sub_dirs = ['tf_saved'] + c['weight_dir'].split('/')
                 for d_ind, d in enumerate(sub_dirs):
                     dir_name += d + '/'
-                    if not os.path.isidr(dir_name):
+                    if not os.path.isdir(dir_name):
                         os.mkdir(dir_name)
                 shutil.copyfile(exps_info[ind][ind2].replace('.', '/')+'.py', 'tf_saved/'+c['weight_dir']+'/hyp.py')
                 with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
