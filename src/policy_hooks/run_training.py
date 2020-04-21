@@ -168,7 +168,7 @@ def main():
                 c['group_id'] = current_id
                 c['weight_dir'] = c['weight_dir']+'{0}'.format(current_id)
                 dir_name = ''
-                sub_dirs = ['tf_saved'] + c['weight_dur'].split('/')
+                sub_dirs = ['tf_saved'] + c['weight_dir'].split('/')
                 for d_ind, d in enumerate(sub_dirs):
                     dir_name += d + '/'
                     if not os.path.isidr(dir_name):
