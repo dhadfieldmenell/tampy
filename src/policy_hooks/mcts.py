@@ -147,7 +147,7 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False, onehot_task=False):
+    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False, onehot_task=False, soft=False):
         self.tasks = tasks
         self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
@@ -158,6 +158,7 @@ class MCTS:
         self.explore_depth = explore_depth
         self.agent = agent
         self.soft_decision = soft_decision
+        self._soft = soft
         self.C = C # Standard is to use 2 but given difficulty of finding good paths, using smaller
         self.branch_factor = branch_factor
         self.num_samples = 1

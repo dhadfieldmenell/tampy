@@ -342,13 +342,13 @@ class RolloutServer(object):
             out = []
             eta = 1e1
             for d in distrs:
-                new_d = np.zeros_like(d)
                 exp = np.exp(eta * (d - np.max(d)))
                 p = exp / np.sum(exp)
                 # p = d / np.sum(d)
                 ind = np.random.choice(range(len(d)), p=p)
-                new_d[ind] = 1.
-                out.append(new_d)
+                d[ind] += 2.
+                d /= np.sum(d)
+                out.append(d)
             return out
         raise NotImplementedError
         rospy.wait_for_service('primitive', timeout=10)

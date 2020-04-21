@@ -398,6 +398,7 @@ class MultiProcessMain(object):
                                   n_thresh=self.config.get('n_thresh', 10),
                                   her=self.config.get('her', False),
                                   onehot_task=self.config.get('onehot_task', False),
+                                  soft=self.config.get('soft', False)
                                   ))
 
         self.config['mcts'] = self.mcts
