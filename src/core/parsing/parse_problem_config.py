@@ -15,7 +15,7 @@ class ParseProblemConfig(object):
     Validation is performed against the schemas stored in the Domain object self.domain.
     """
     @staticmethod
-    def parse(problem_config, domain, env=None, openrave_bodies={}):
+    def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None):
         # create parameter objects
         params = {}
         if env is None:
@@ -56,24 +56,27 @@ class ParseProblemConfig(object):
                     if obj_name not in params:
                         raise ProblemConfigException("'%s' is not an object in problem file."%obj_name)
                     params[obj_name][k] = [x.replace("[", "(").replace("]", ")") for x in v]
-            for obj_name, attr_dict in params.items():
-                # assert "pose" in attr_dict or "value" in attr_dict
-                if "pose" not in attr_dict and "value" not in attr_dict:
-                    import pdb; pdb.set_trace()
-                o_type = attr_dict["_type"][0]
-                name = attr_dict["name"][0]
-                try:
-                    params[obj_name] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
-                                                                                attr_types=domain.param_schemas[o_type].attr_dict)
-                    if obj_name in openrave_bodies:
-                        params[obj_name].openrave_body = openrave_bodies[obj_name]
-                        params[obj_name].geom = params[obj_name].openrave_body._geom
-                except KeyError:
-                    import ipdb; ipdb.set_trace()
-                    raise ProblemConfigException("Parameter '%s' not defined in domain file."%name)
-                except ValueError as e:
-                    print e
-                    raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%name)
+            if reuse_params is not None:
+                params = reuse_params
+            else:
+                for obj_name, attr_dict in params.items():
+                    # assert "pose" in attr_dict or "value" in attr_dict
+                    if "pose" not in attr_dict and "value" not in attr_dict:
+                        import pdb; pdb.set_trace()
+                    o_type = attr_dict["_type"][0]
+                    name = attr_dict["name"][0]
+                    try:
+                        params[obj_name] = domain.param_schemas[o_type].param_class(attrs=attr_dict,
+                                                                                    attr_types=domain.param_schemas[o_type].attr_dict)
+                        if obj_name in openrave_bodies:
+                            params[obj_name].openrave_body = openrave_bodies[obj_name]
+                            params[obj_name].geom = params[obj_name].openrave_body._geom
+                    except KeyError:
+                        import ipdb; ipdb.set_trace()
+                        raise ProblemConfigException("Parameter '%s' not defined in domain file."%name)
+                    except ValueError as e:
+                        print e
+                        raise ProblemConfigException("Some attribute type in parameter '%s' is incorrect."%name)
         for k, v in params.items():
             if type(v) is dict:
                 raise ProblemConfigException("Problem file has no primitive predicates for object '%s'."%k)

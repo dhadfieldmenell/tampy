@@ -41,7 +41,7 @@ N_ROLLOUT_SERVERS = 10
 N_ALG_SERVERS = 12
 N_OPTIMIZERS = 13
 N_DIRS = 16
-N_GRASPS = 1 # 4
+N_GRASPS = 4
 TIME_LIMIT = 7200
 
 
@@ -167,7 +167,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     cost_wp_mult = np.ones((3 + 2 * NUM_OBJS))
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
-    prob.N_GRASPS = 1 # N_GRASPS
+    prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
     prob.END_TARGETS = prob.END_TARGETS[:1]
@@ -263,7 +263,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         #utils.GRIPPER_ENUM,
                         #utils.INIT_OBJ_POSE_ENUM,
                         utils.TARG_POSE_ENUM,
-                        # utils.END_POSE_ENUM,
+                        #utils.END_POSE_ENUM,
                         utils.GRASP_ENUM,
                         ],
         'prim_obs_include': [

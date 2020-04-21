@@ -4,6 +4,7 @@ import imp
 import importlib
 import os
 import random
+import shutil
 import sys
 import time
 
@@ -31,12 +32,12 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
             if n_objs is None:
                 c = exp[i]
                 next_config = config_module.config.copy()
-                config_module = importlib.import_module('policy_hooks.'+c)
+                config_module = importlib.import_module(c)
             elif n_targs is None:
                 n_targs = n_objs
             if n_objs is not None:
                 c = exp[i]
-                config_module = importlib.import_module('policy_hooks.'+c)
+                config_module = importlib.import_module(c)
                 next_config = config_module.refresh_config(n_objs, n_targs)
             if args is not None:
                 next_config['her'] = args.her
@@ -96,7 +97,7 @@ def load_config(args, config=None, reload_module=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', type=str)
+    parser.add_argument('-c', '--config', type=str, default='config')
     parser.add_argument('-test', '--test', type=str, default='')
     parser.add_argument('-p', '--pretrain', action='store_true', default=False)
     parser.add_argument('-nf', '--nofull', action='store_true', default=False)
@@ -145,12 +146,16 @@ def main():
             exps = []
             with open(args.file, 'r+') as f:
                 exps = eval(f.read())
+        exps_info = exps
         n_objs = args.nobjs if args.nobjs > 0 else None
         n_targs = args.ntargs if args.ntargs > 0 else None
-        exps = load_multi(exps, n_objs, n_targs, args)
-        for exp in exps:
+        if len(args.test):
+            sys.path.insert(1, 'tf_saved/'+args.test)
+            exps_info = [['hyp']]
+        exps = load_multi(exps_info, n_objs, n_targs, args)
+        for ind, exp in enumerate(exps):
             mains = []
-            for c, cm in exp:
+            for ind2, (c, cm) in enumerate(exp):
                 if len(args.test):
                     c['weight_dir'] = args.test
                     m = MultiProcessMain(c)
@@ -162,6 +167,12 @@ def main():
                     current_id += 1
                 c['group_id'] = current_id
                 c['weight_dir'] = c['weight_dir']+'{0}'.format(current_id)
+                if not os.path.isdir('tf_saved/'+c['weight_dir']):
+                    os.mkdir('tf_saved/'+c['weight_dir'])
+                shutil.copyfile(exps_info[ind][ind2].replace('.', '/')+'.py', 'tf_saved/'+c['weight_dir']+'/hyp.py')
+                with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
+                    f.write('')
+
                 m = MultiProcessMain(c)
                 m.monitor = False # If true, m will wait to finish before moving on
                 m.group_id = current_id

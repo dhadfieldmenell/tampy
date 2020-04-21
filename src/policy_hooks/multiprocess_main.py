@@ -555,7 +555,7 @@ class MultiProcessMain(object):
         hyperparams['share_buffers'] = False
         hyperparams['id'] = hyperparams['server_id']+'_test'
         server = RolloutServer(hyperparams)
-        for _ in range(20):
+        for _ in range(50):
             server.test_hl(10, save=False)
 
 

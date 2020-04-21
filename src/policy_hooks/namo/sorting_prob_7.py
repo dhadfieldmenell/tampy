@@ -212,49 +212,32 @@ def parse_hl_plan(hl_plan):
         plan.append((task, next_params))
     return plan
 
-# def get_plans():
-#     tasks = get_tasks(mapping_file)
-#     prim_options = get_prim_choices()
-#     plans = {}
-#     openrave_bodies = {}
-#     env = None
-#     for task in tasks:
-#         next_task_str = copy.deepcopy(tasks[task])
-#         plan = plan_from_str(next_task_str, prob_file, domain_file, env, openrave_bodies)
-
-#         for i in range(len(prim_options[utils.OBJ_ENUM])):
-#             for j in range(len(prim_options[utils.TARG_ENUM])):
-#                 plans[(tasks.keys().index(task), i, j)] = plan
-#         if env is None:
-#             env = plan.env
-#             for param in plan.params.values():
-#                 if not param.is_symbol() and param.openrave_body is not None:
-#                     openrave_bodies[param.name] = param.openrave_body
-#     return plans, openrave_bodies, env
-
 def get_plans():
     tasks = get_tasks(mapping_file)
     prim_options = get_prim_choices()
     plans = {}
     openrave_bodies = {}
     env = None
+    params = None
     for task in tasks:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
             for j in range(len(prim_options[utils.TARG_ENUM])):
-                obj = prim_options[utils.OBJ_ENUM][i]
-                targ = prim_options[utils.TARG_ENUM][j]
-                new_task_str = []
-                for step in next_task_str:
-                    new_task_str.append(step.format(obj, targ))
-                plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies)
-                for g in range(N_GRASPS):
-                    plans[(tasks.keys().index(task), i, j, g)] = plan
-                if env is None:
-                    env = plan.env
-                    for param in plan.params.values():
-                        if not param.is_symbol() and param.openrave_body is not None:
-                            openrave_bodies[param.name] = param.openrave_body
+                for k in range(len(prim_options[utils.GRASP_ENUM])):
+                    obj = prim_options[utils.OBJ_ENUM][i]
+                    targ = prim_options[utils.TARG_ENUM][j]
+                    grasp = prim_options[utils.GRASP_ENUM][j]
+                    new_task_str = []
+                    for step in next_task_str:
+                        new_task_str.append(step.format(obj, targ, grasp))
+                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params)
+                    params = plan.params
+                    plans[(tasks.keys().index(task), i, j, k)] = plan
+                    if env is None:
+                        env = plan.env
+                        for param in plan.params.values():
+                            if not param.is_symbol() and param.openrave_body is not None:
+                                openrave_bodies[param.name] = param.openrave_body
 
     return plans, openrave_bodies, env
 

@@ -830,7 +830,7 @@ class MCTS:
             if debug:
                 print('HL weights for {0} {1}'.format(end_state, zip(labels, distr)))
         elif self.discrete_prim:
-            distrs = self.prob_func(sample.get_prim_obs(t=0))
+            distrs = self.prob_func(sample.get_prim_obs(t=0), self._soft)
             for d in distrs:
                 for i in range(len(d)):
                     d[i] = round(d[i], 3)

@@ -5,14 +5,14 @@ from core.parsing import parse_domain_config, parse_problem_config
 from pma.hl_solver import FFSolver
 
 
-def plan_from_str(ll_plan_str, prob, domain, env, openrave_bodies):
+def plan_from_str(ll_plan_str, prob, domain, env, openrave_bodies, params=None):
     '''Convert a plan string (low level) into a plan object.'''
     domain_fname = domain
     d_c = main.parse_file_to_dict(domain_fname)
     domain = parse_domain_config.ParseDomainConfig.parse(d_c)
     hls = FFSolver(d_c)
     p_c = main.parse_file_to_dict(prob)
-    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, openrave_bodies)
+    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, openrave_bodies, reuse_params=params)
     plan = hls.get_plan(ll_plan_str, domain, problem)
     return plan
 

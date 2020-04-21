@@ -340,9 +340,12 @@ class RolloutServer(object):
             distrs = self.policy_opt.task_distr(prim_obs)
             if not soft: return distrs
             out = []
+            eta = 1e1
             for d in distrs:
                 new_d = np.zeros_like(d)
-                p = d / np.sum(d)
+                exp = np.exp(eta * (d - np.max(d)))
+                p = exp / np.sum(exp)
+                # p = d / np.sum(d)
                 ind = np.random.choice(range(len(d)), p=p)
                 new_d[ind] = 1.
                 out.append(new_d)

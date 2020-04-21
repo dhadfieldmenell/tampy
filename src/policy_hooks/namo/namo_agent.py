@@ -182,7 +182,11 @@ class NAMOSortingAgent(TAMPAgent):
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
-                
+          
+            grasp = np.array([0, -0.601])
+            if GRASP_ENUM in prim_choices:
+                grasp = self.set_grasp(grasp, task[3])
+       
             X = cur_state.copy()
             cur_noise = noise[t]
 
@@ -262,7 +266,7 @@ class NAMOSortingAgent(TAMPAgent):
             U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
             assert not np.any(np.isnan(U_full))
             sample.set(ACTION_ENUM, U_full, t)
-            self.run_policy_step(U_full, cur_state, plan, t, None)
+            self.run_policy_step(U_full, cur_state, plan, t, None, grasp=grasp)
 
             new_state = np.zeros((plan.symbolic_bound))
             # fill_vector(plan.params, plan.state_inds, cur_state, t)  
@@ -401,7 +405,7 @@ class NAMOSortingAgent(TAMPAgent):
         return obs
 
 
-    def run_policy_step(self, u, x, plan, t, obj):
+    def run_policy_step(self, u, x, plan, t, obj, grasp=None):
         u_inds = self.action_inds
         x_inds = self.state_inds
         in_gripper = False
@@ -410,7 +414,8 @@ class NAMOSortingAgent(TAMPAgent):
         old_pose = plan.params['pr2'].pose[:, t].copy()
         in_gripper = []
 
-        grasp = plan.params['grasp0'].value[:,0]
+        if grasp is None:
+            grasp = plan.params['grasp0'].value[:,0].copy()
         if t < plan.horizon - 1:
             for param, attr in u_inds:
                 if attr == 'pose':
@@ -612,7 +617,8 @@ class NAMOSortingAgent(TAMPAgent):
         if GRASP_ENUM in prim_choices:
             grasp = self.set_grasp(grasp, task[3])
 
-        plan.params['grasp0'].value[:,0] = grasp
+        # plan.params[prim_choices[GRASP_ENUM][task[3]]].value[:,0] = grasp
+        # plan.params['grasp0'].value[:,0] = grasp
         plan.params['pr2'].pose[:, 0] = x0[self.state_inds['pr2', 'pose']]
         plan.params['obs0'].pose[:] = plan.params['obs0'].pose[:,:1]
 
@@ -803,7 +809,7 @@ class NAMOSortingAgent(TAMPAgent):
                 grasp_vec = np.zeros(self._hyperparams['sensor_dims'][GRASP_ENUM])
                 grasp_vec[task[3]] = 1.
                 sample.set(GRASP_ENUM, grasp_vec, t)
-                plan.params['grasp0'].value[:,0] = grasp
+                # plan.params['grasp0'].value[:,0] = grasp
             
             obj_vec = np.zeros((len(prim_choices[OBJ_ENUM])), dtype='float32')
             targ_vec = np.zeros((len(prim_choices[TARG_ENUM])), dtype='float32')
@@ -963,6 +969,10 @@ class NAMOSortingAgent(TAMPAgent):
     '''
 
     def set_grasp(self, grasp, rot):
+        plan = list(self.plans.values())[0]
+        if 'grasp{0}'.format(rot) in plan.params:
+            return plan.params['grasp{0}'.format(rot)].value[:,0].copy()
+
         prim_choices = self.prob.get_prim_choices()
         if GRASP_ENUM not in prim_choices:
             return grasp
@@ -997,7 +1007,7 @@ class NAMOSortingAgent(TAMPAgent):
         assert GRASP_ENUM in prim_choices
         if GRASP_ENUM in prim_choices:
             grasp = self.set_grasp(grasp, task[3])
-        plan.params['grasp0'].value[:,0] = grasp
+        # plan.params['grasp0'].value[:,0] = grasp
  
         if active_ts[1] == 0:
             prim_choices = self.prob.get_prim_choices()
@@ -1281,14 +1291,14 @@ class NAMOSortingAgent(TAMPAgent):
                 ee = x[self.state_inds['pr2', 'pose']]
                 sample.set(END_POSE_ENUM, end_ee - ee, t)
             x = sample.get(STATE_ENUM, sample.T-1)
-            g = plan.params['grasp0'].value[:,0]
+            g = plan.params['grasp{0}'.format(task[3])].value[:,0] # plan.params['grasp0'].value[:,0]
             goal_ee = x[self.state_inds[pname, 'pose']] + g
             attr_dict[('robot_end_pose', 'value')] = goal_ee 
         elif task[0] == 1:
             plan = self.plans[task]
             pname = self.prob.get_prim_choices()[OBJ_ENUM][task[1]]
             tname = self.prob.get_prim_choices()[TARG_ENUM][task[2]]
-            g = plan.params['grasp0'].value[:,0]
+            g = plan.params['grasp{0}'.format(task[3])].value[:,0] # plan.params['grasp0'].value[:,0]
             x = sample.get(STATE_ENUM, sample.T-1)
             end_ee = x[self.state_inds[pname, 'pose']]
             attr_dict[(tname, 'value')] = end_ee - g

@@ -7,6 +7,7 @@ import matplotlib.cm as cm
 import numpy as np
 import seaborn as sns
 
+FRAME = 100
 nan = np.nan
 LOG_DIR = 'tf_saved/'
 SAVE_DIR = '/home/michaelmcdonald/Dropbox/'
@@ -130,7 +131,6 @@ def get_hl_tests(keywords=[]):
                 continue
             dlen = min([len(d) for d in data])
             dmax = max([len(d) for d in data])
-            FRAME = 50
             print('Gathering data for', full_exp, 'length:', dlen, 'all len:', [len(d) for d in data])
             for i in range(dmax - FRAME):
                 cur_t = np.mean([d[i:i+FRAME,:,3] for d in data if i+FRAME < len(d)])
@@ -169,7 +169,6 @@ def plot(data, columns, descr):
 def gen_rollout_plots(xvar, yvar, keywords=[]):
     rd = get_rollout_data(keywords)
     data = {}
-    FRAME = 30
     print('Collected data...')
     for keyword in rd:
         key_data = []
@@ -215,8 +214,8 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
     plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
 
 keywords = ['lowlevel']
-gen_rollout_plots('time', 'avg_post_cond', keywords)
-gen_rollout_plots('time', 'avg_first_success', keywords)
-get_hl_tests(keywords)
-gen_rollout_plots('time', 'avg_pre_cost', keywords)
+# gen_rollout_plots('time', 'avg_post_cond', keywords)
+# gen_rollout_plots('time', 'avg_first_success', keywords)
+get_hl_tests(['four_grasp'])
+# gen_rollout_plots('time', 'avg_pre_cost', keywords)
 
