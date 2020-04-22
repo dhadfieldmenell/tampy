@@ -226,7 +226,7 @@ def get_plans():
                 for k in range(len(prim_options[utils.GRASP_ENUM])):
                     obj = prim_options[utils.OBJ_ENUM][i]
                     targ = prim_options[utils.TARG_ENUM][j]
-                    grasp = prim_options[utils.GRASP_ENUM][j]
+                    grasp = prim_options[utils.GRASP_ENUM][k]
                     new_task_str = []
                     for step in next_task_str:
                         new_task_str.append(step.format(obj, targ, grasp))
