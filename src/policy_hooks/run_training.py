@@ -49,6 +49,7 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
                 next_config['negative'] = args.negative
                 next_config['onehot_task'] = args.onehot_task
                 next_config['soft'] = args.soft
+                next_config['soft_eval'] = args.soft_eval
                 if len(args.descr):
                     next_config['descr'] = args.descr
             next_config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
@@ -125,6 +126,7 @@ def main():
     parser.add_argument('-neg', '--negative', action='store_true', default=False)
     parser.add_argument('-oht', '--onehot_task', action='store_true', default=False)
     parser.add_argument('-soft', '--soft', action='store_true', default=False)
+    parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
     parser.add_argument('-spl', '--split', action='store_false', default=True)
     parser.add_argument('-q', '--qfunc', action='store_true', default=False)
     parser.add_argument('-cur', '--cur_thresh', type=int, default=-1)

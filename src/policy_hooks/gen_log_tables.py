@@ -216,6 +216,6 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
 keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_post_cond', keywords)
 # gen_rollout_plots('time', 'avg_first_success', keywords)
-get_hl_tests(['four_grasp'])
+get_hl_tests(['fourtarget'])
 # gen_rollout_plots('time', 'avg_pre_cost', keywords)
 

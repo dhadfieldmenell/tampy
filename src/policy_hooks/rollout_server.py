@@ -1117,7 +1117,7 @@ class RolloutServer(object):
         if rlen is None:
             rlen = 6 + 2*n
         self.agent.T = self.config['task_durations'][self.task_list[0]]
-        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft'])
+        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'])
         s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
