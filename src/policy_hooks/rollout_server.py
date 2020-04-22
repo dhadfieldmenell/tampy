@@ -343,7 +343,7 @@ class RolloutServer(object):
             for d in distrs:
                 p = d / np.sum(d)
                 ind = np.random.choice(range(len(d)), p=p)
-                d[ind] += 2.
+                d[ind] += 1.
                 d /= np.sum(d)
                 out.append(d)
             return out
@@ -754,13 +754,13 @@ class RolloutServer(object):
 
     def run_opt_queue(self):
         while len(self.opt_queue):
-            print('RUNNING OPT QUEUE {0} IS ALG: {1}'.format(self.id, self.run_alg_updates))
+            # print('RUNNING OPT QUEUE {0} IS ALG: {1}'.format(self.id, self.run_alg_updates))
             # print('Server', self.id, 'running opt queue')
             plan_id, state, task, condition, traj, waiters, node, targets = self.opt_queue.pop()
             if self.run_mcts_rollouts:
                 if node is None: node = self.node_dict.pop(plan_id, None)
                 if node is not None and self.agent.prob.OPT_MCTS_FEEDBACK and node.valid:
-                    print('Sampling opt sample in tree')
+                    # print('Sampling opt sample in tree')
                     # old_targets - self.agent.target_vecs[condition]
                     # self.agent.target_vecs[condition] = targets
                     path = node.tree.get_path_info(state, node, task, traj)
@@ -1150,8 +1150,8 @@ class RolloutServer(object):
             except queue.Empty:
                 break
             i += 1
-        if i > 0 and self.run_alg_updates:
-            print('Parsed {0} from opt ALG'.format(i))
+        # if i > 0 and self.run_alg_updates:
+        #     print('Parsed {0} from opt ALG'.format(i))
 
     def parse_prob_queue(self):
         if not self.run_alg_updates: return

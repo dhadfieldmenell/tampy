@@ -282,7 +282,7 @@ class AbstractMotionPlanServer(object):
         #     return
         if msg.solver_id != self.id: return
         # self.busy = True
-        print('Server {0} solving motion plan on task{1} for rollout server {2}{3}.'.format(self.id, msg.task, msg.server_id, ' using prior' if msg.use_prior else ' no prior'))
+        # print('Server {0} solving motion plan on task{1} for rollout server {2}{3}.'.format(self.id, msg.task, msg.server_id, ' using prior' if msg.use_prior else ' no prior'))
         state = np.array(msg.state)
         targets = np.array(msg.targets)
         task = eval(msg.task)
@@ -398,7 +398,7 @@ class AbstractMotionPlanServer(object):
                     resp.alg_id = msg.alg_id
                     self.publish_mp(resp, msg.server_id)
         self.busy = False
-        print('Server {0} free.'.format(self.id, msg.server_id))
+        # print('Server {0} free.'.format(self.id, msg.server_id))
         self.last_opt_t = time.time()
 
 

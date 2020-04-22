@@ -159,6 +159,7 @@ class MCTS:
         self.agent = agent
         self.soft_decision = soft_decision
         self._soft = soft
+        self.eta = 1e2
         self.C = C # Standard is to use 2 but given difficulty of finding good paths, using smaller
         self.branch_factor = branch_factor
         self.num_samples = 1
@@ -595,7 +596,7 @@ class MCTS:
                 # self.agent.reset_hist(deepcopy(old_traj_hist))
                 task_f = None
                 if hl:
-                    task_f = lambda o: self.prob_func(o, self._soft)
+                    task_f = lambda o: self.prob_func(o, self._soft, self.eta)
                 samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
                 # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
                 if success:
@@ -831,7 +832,7 @@ class MCTS:
             if debug:
                 print('HL weights for {0} {1}'.format(end_state, zip(labels, distr)))
         elif self.discrete_prim:
-            distrs = self.prob_func(sample.get_prim_obs(t=0), self._soft)
+            distrs = self.prob_func(sample.get_prim_obs(t=0), self._soft, eta=self.eta)
             for d in distrs:
                 for i in range(len(d)):
                     d[i] = round(d[i], 3)
