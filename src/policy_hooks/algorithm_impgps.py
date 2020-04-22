@@ -129,9 +129,9 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 if self.agent.postcond_cost(sample) > 0:
                     sample.node = None
                     sample.next_sample = None
-                    new_sample = copy.deepcopy(sample)
-                    new_sample.agent = self.agent
-                    attr_dict = self.agent.relabel_traj(new_sample)
+                    # new_sample = copy.deepcopy(sample)
+                    # new_sample.agent = self.agent
+                    # attr_dict = self.agent.relabel_traj(new_sample)
                     init_x = sample.get_X()
                     tol = 1e1
                     out, failed, success = self.agent.solve_sample_opt_traj(sample.get_X(t=0), sample.task, sample.condition, sample.get_X(), inf_f, t_limit=5, n_resamples=1, out_coeff=tol, smoothing=True, targets=sample.targets)

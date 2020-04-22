@@ -178,6 +178,7 @@ class MCTS:
         self.cur_curric = 1 if curric_thresh > 0 else 0
         if self.cur_curric != 0:
             self.max_depth = 3
+
         self.val_per_run = []
         self.first_suc_buf = []
         self.use_q = False
@@ -596,7 +597,7 @@ class MCTS:
                 # self.agent.reset_hist(deepcopy(old_traj_hist))
                 task_f = None
                 if hl:
-                    task_f = lambda o: self.prob_func(o, self._soft, self.eta)
+                    task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
                 samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
                 # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
                 if success:

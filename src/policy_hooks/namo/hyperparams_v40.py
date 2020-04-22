@@ -76,7 +76,7 @@ algorithm = {
     'n_traj_centers': N_TRAJ_CENTERS,
     'num_samples': N_SAMPLES,
     'mp_opt': True,
-    'her': True,
+    'her': False,
     'rollout_opt': False,
 }
 

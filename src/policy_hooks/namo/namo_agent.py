@@ -179,7 +179,7 @@ class NAMOSortingAgent(TAMPAgent):
 
             self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
             if task_f is not None:
-                distrs = task_f(sample.get_prim_obs(t=t))
+                distrs = task_f(sample.get_prim_obs(t=t), t=t, task=task)
                 task = tuple([np.argmax(d) for d in distrs])
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
@@ -1292,6 +1292,7 @@ class NAMOSortingAgent(TAMPAgent):
                 x = sample.get(STATE_ENUM, t)
                 ee = x[self.state_inds['pr2', 'pose']]
                 sample.set(END_POSE_ENUM, end_ee - ee, t)
+                sample.set(OBJ_POSE_ENUM, end_ee - ee, t)
             x = sample.get(STATE_ENUM, sample.T-1)
             g = plan.params['grasp{0}'.format(task[3])].value[:,0] # plan.params['grasp0'].value[:,0]
             goal_ee = x[self.state_inds[pname, 'pose']] + g
@@ -1308,6 +1309,7 @@ class NAMOSortingAgent(TAMPAgent):
                 x = sample.get(STATE_ENUM, t)
                 ee = x[self.state_inds['pr2', 'pose']]
                 sample.set(END_POSE_ENUM, end_ee - ee, t)
+                sample.set(TARG_POSE_ENUM, end_ee - ee, t)
         return attr_dict
 
 
