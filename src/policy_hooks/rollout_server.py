@@ -334,7 +334,8 @@ class RolloutServer(object):
         return np.array(resp.value)
 
 
-    def primitive_call(self, prim_obs, soft=False, eta=1.):
+    def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
+        if t > 0 and task is not None and t % self.check_prim_t: return task
         # print 'Entering primitive call:', datetime.now()
         if self.use_local:
             distrs = self.policy_opt.task_distr(prim_obs, eta)
