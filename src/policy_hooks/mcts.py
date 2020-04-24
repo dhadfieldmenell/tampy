@@ -159,7 +159,7 @@ class MCTS:
         self.agent = agent
         self.soft_decision = soft_decision
         self._soft = soft
-        self.eta = 1e2
+        self.eta = 1e0
         self.C = C # Standard is to use 2 but given difficulty of finding good paths, using smaller
         self.branch_factor = branch_factor
         self.num_samples = 1
@@ -787,6 +787,7 @@ class MCTS:
         self._soft = soft
         debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
+            print('Soft?', self._soft)
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=False)
             if l is None: break
             plan = self.agent.plans[l]

@@ -8,6 +8,9 @@ import numpy as np
 import seaborn as sns
 
 FRAME = 100
+TWINDOW = 300
+TDELTA = 30
+MIN_FRAME = 5
 nan = np.nan
 LOG_DIR = 'tf_saved/'
 SAVE_DIR = '/home/michaelmcdonald/Dropbox/'
@@ -31,7 +34,7 @@ def get_rollout_data(keywords=[], nfiles=10):
                 d = dir_name
                 if d.find('.') >= 0 or d.find('trained') >= 0: continue
                 full_dir = dir_prefix + dir_name
-                if full_dir.find(k) < 0: continue
+                if not os.path.isdir(full_dir) or full_dir.find(k) < 0: continue
                 full_exp = full_dir[:-1]
                 if full_exp not in data[k]:
                     data[k][full_exp] = {}
@@ -132,6 +135,24 @@ def get_hl_tests(keywords=[]):
             dlen = min([len(d) for d in data])
             dmax = max([len(d) for d in data])
             print('Gathering data for', full_exp, 'length:', dlen, 'all len:', [len(d) for d in data])
+            end = False
+            cur_t = 0
+            while not end:
+                end = True
+                for d in data:
+                    next_frame = [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + TWINDOW]
+                    if len(next_frame):
+                        end = False
+                        if len(next_frame) >= MIN_FRAME:
+                            next_pt = np.mean(next_frame, axis=0)
+                            no, nt = int(next_pt[4]), int(next_pt[2])
+                            if (no, nt) not in exp_data:
+                                exp_data[no, nt] = []
+                            exp_data[no, nt].append((full_exp, cur_t, next_pt[0]))
+                cur_t += TDELTA
+
+
+            '''
             for i in range(dmax - FRAME):
                 cur_t = np.mean([d[i:i+FRAME,:,3] for d in data if i+FRAME < len(d)])
 
@@ -146,6 +167,7 @@ def get_hl_tests(keywords=[]):
                         if (no, nt) not in exp_data:
                             exp_data[no, nt] = []
                         exp_data[no, nt].append((full_exp, cur_t, val))
+            '''
         for no, nt in exp_data:
             print('Plotting', no, nt)
             pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
@@ -216,6 +238,6 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
 keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_post_cond', keywords)
 # gen_rollout_plots('time', 'avg_first_success', keywords)
-get_hl_tests(['fourtarget'])
+get_hl_tests(['obs'])
 # gen_rollout_plots('time', 'avg_pre_cost', keywords)
 

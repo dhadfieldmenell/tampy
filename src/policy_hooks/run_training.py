@@ -3,6 +3,7 @@ import copy
 import imp
 import importlib
 import os
+import pickle
 import random
 import shutil
 import sys
@@ -154,6 +155,12 @@ def main():
         if len(args.test):
             sys.path.insert(1, 'tf_saved/'+args.test)
             exps_info = [['hyp']]
+            old_args = args
+            with open('tf_saved/'+args.test+'/args.pkl', 'r') as f:
+                args = pickle.load(f)
+            args.soft_eval = old_args.soft_eval
+            args.test = old_args.test
+
         exps = load_multi(exps_info, n_objs, n_targs, args)
         for ind, exp in enumerate(exps):
             mains = []
@@ -178,6 +185,8 @@ def main():
                 shutil.copyfile(exps_info[ind][ind2].replace('.', '/')+'.py', 'tf_saved/'+c['weight_dir']+'/hyp.py')
                 with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
                     f.write('')
+                with open('tf_saved/'+c['weight_dir']+'/args.pkl', 'w+') as f:
+                    pickle.dump(args, f)
 
                 m = MultiProcessMain(c)
                 m.monitor = False # If true, m will wait to finish before moving on

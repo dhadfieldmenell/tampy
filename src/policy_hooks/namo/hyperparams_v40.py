@@ -41,7 +41,7 @@ N_ROLLOUT_SERVERS = 10
 N_ALG_SERVERS = 12
 N_OPTIMIZERS = 13
 N_DIRS = 16
-N_GRASPS = 1 # 4
+N_GRASPS = 4
 TIME_LIMIT = 7200
 
 
@@ -170,7 +170,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.END_TARGETS = prob.END_TARGETS[:4]
+    prob.END_TARGETS = prob.END_TARGETS[:1]
     prob.n_aux = 0
     config = {
         'gui_on': False,
