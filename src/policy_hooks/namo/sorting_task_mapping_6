@@ -1,0 +1,15 @@
+{
+    'move_to_can': [
+        '0: NEW_QUICK_MOVETOGRASP PR2 {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE GRASP0 {1}',
+    ],
+
+    'move_to_target': [
+        '0: QUICK_PLACE_RELEASE PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} {1} GRASP0'
+    ],
+
+};
+
+{
+    'move_to_can': 18,
+    'move_to_target': 18,
+}

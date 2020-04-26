@@ -41,7 +41,7 @@ N_ROLLOUT_SERVERS = 10
 N_ALG_SERVERS = 12
 N_OPTIMIZERS = 13
 N_DIRS = 16
-N_GRASPS = 4
+N_GRASPS = 1 # 4
 TIME_LIMIT = 7200
 
 
@@ -76,7 +76,7 @@ algorithm = {
     'n_traj_centers': N_TRAJ_CENTERS,
     'num_samples': N_SAMPLES,
     'mp_opt': True,
-    'her': False,
+    'her': True,
     'rollout_opt': False,
 }
 
@@ -167,10 +167,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     cost_wp_mult = np.ones((3 + 2 * NUM_OBJS))
     prob.NUM_OBJS = no
     prob.NUM_TARGS = nt
-    prob.N_GRASPS = N_GRASPS
+    prob.N_GRASPS = 1 # N_GRASPS
     prob.FIX_TARGETS = True
+    prob.mapping_file = "policy_hooks/namo/sorting_task_mapping_6"
 
-    prob.END_TARGETS = prob.END_TARGETS[:4]
+    prob.END_TARGETS = prob.END_TARGETS[:1]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -259,11 +260,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'obs_include': [utils.LIDAR_ENUM,
                         # utils.EE_ENUM,
                         utils.TASK_ENUM,
-                        utils.OBJ_POSE_ENUM,
+                        # utils.OBJ_POSE_ENUM,
                         #utils.GRIPPER_ENUM,
                         #utils.INIT_OBJ_POSE_ENUM,
-                        utils.TARG_POSE_ENUM,
-                        #utils.END_POSE_ENUM,
+                        # utils.TARG_POSE_ENUM,
+                        utils.END_POSE_ENUM,
                         utils.GRASP_ENUM,
                         ],
         'prim_obs_include': [
@@ -299,7 +300,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'expand_process': False,
         'descr': '{0}_grasps_{1}_possible'.format(N_GRASPS, len(prob.END_TARGETS)+prob.n_aux),
         'her': False,
-        'prim_decay': 0.75,
+        'prim_decay': 0.9,
         'prim_first_wt': 1e2,
     }
 

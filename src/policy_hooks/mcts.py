@@ -159,7 +159,7 @@ class MCTS:
         self.agent = agent
         self.soft_decision = soft_decision
         self._soft = soft
-        self.eta = 1e0
+        self.eta = 1e1
         self.C = C # Standard is to use 2 but given difficulty of finding good paths, using smaller
         self.branch_factor = branch_factor
         self.num_samples = 1

@@ -8,8 +8,8 @@ import numpy as np
 import seaborn as sns
 
 FRAME = 100
-TWINDOW = 300
-TDELTA = 30
+TWINDOW = 600
+TDELTA = 60
 MIN_FRAME = 5
 nan = np.nan
 LOG_DIR = 'tf_saved/'
@@ -100,12 +100,12 @@ def gen_first_success_plots(x_var='time'):
     plt.clf()
 
 
-def get_hl_tests(keywords=[]):
+def get_hl_tests(keywords=[], exclude=[]):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
     for exp_name in exp_probs:
         dir_prefix = LOG_DIR + exp_name + '/'
-        exp_dirs = os.listdir(dir_prefix)
+        if not os.path.isdir(dir_prefix): continue
         exp_dirs = os.listdir(dir_prefix)
         # exp_data = []
         for dir_name in exp_dirs:
@@ -116,6 +116,13 @@ def get_hl_tests(keywords=[]):
                 for k in keywords:
                     if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
                         skip = False
+                if skip: continue
+
+            if len(exclude):
+                skip = False
+                for k in exclude:
+                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
+                        skip = True
                 if skip: continue
 
             full_dir = dir_prefix + dir_name
@@ -169,7 +176,7 @@ def get_hl_tests(keywords=[]):
                         exp_data[no, nt].append((full_exp, cur_t, val))
             '''
         for no, nt in exp_data:
-            print('Plotting', no, nt)
+            print('Plotting', no, nt, exp_name)
             pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
             sns.set()
             sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', data=pd_frame)
@@ -238,6 +245,6 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
 keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_post_cond', keywords)
 # gen_rollout_plots('time', 'avg_first_success', keywords)
-get_hl_tests(['obs'])
+get_hl_tests(['4by4'], ['expand'])
 # gen_rollout_plots('time', 'avg_pre_cost', keywords)
 
