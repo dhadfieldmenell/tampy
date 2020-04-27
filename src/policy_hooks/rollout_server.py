@@ -1187,7 +1187,7 @@ class RolloutServer(object):
         self.policy_opt.sess.close()
 
 
-    def find_negative_ex(self, sample):
+    def find_negative_ex(self, sample, encode=True):
         bad = []
 
         for t in range(sample.T):
@@ -1197,19 +1197,22 @@ class RolloutServer(object):
                 l = self.label_options[i]
                 cost = self.agent.cost_f(x, l, sample.condition, active_ts=(0,0), targets=sample.targets)
                 if cost > 0:
-                    task_vec = np.zeros(len(self.task_list))
-                    task_vec[l[0]] = 1.
-                    desc = [task_vec]
-                    for j, enum in enumerate(self.prim_dims):
-                        desc.append(np.zeros(self.prim_dims[enum]))
-                        desc[-1][l[j+1]] = 1.
-                    vec = np.concatenate(desc)
-                    bad.append(vec)
+                    if not encode:
+                        bad.append((l, t))
+                    else:
+                        task_vec = np.zeros(len(self.task_list))
+                        task_vec[l[0]] = 1.
+                        desc = [task_vec]
+                        for j, enum in enumerate(self.prim_dims):
+                            desc.append(np.zeros(self.prim_dims[enum]))
+                            desc[-1][l[j+1]] = 1.
+                        vec = np.concatenate(desc)
+                        bad.append(vec)
                     break
                 elif i == inds[-1]:
-                    bad.append(np.zeros(sum(self.prim_dims.values())))
+                    if encode:
+                        bad.append(np.zeros(sum(self.prim_dims.values())))
                     break
-        assert len(bad) == sample.T
         return np.array(bad)
 
 
@@ -1220,14 +1223,25 @@ class RolloutServer(object):
         tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
         for sample in samples:
             if not hasattr(sample, 'success'): continue
-            mu = sample.success * np.ones((sample.T, dV))
+            mu = sample.discount * sample.success * np.ones((sample.T, dV))
             tgt_mu = np.concatenate((tgt_mu, mu))
-            wt = sample.discount * np.ones((sample.T,))
+            wt = np.ones((sample.T,))
             tgt_wt = np.concatenate((tgt_wt, wt))
-            obs = sample.get_val_obs()
+            obs = sample.get_val_obs().copy()
             obs_data = np.concatenate((obs_data, obs))
             prc = np.tile(np.eye(dV), (sample.T,1,1))
             tgt_prc = np.concatenate((tgt_prc, prc))
+            if self.add_negative:
+                bad_labels = self.find_negative_ex(sample, encode=False)
+                mu = -np.ones((len(bad_labels), dV))
+                wt = np.ones((len(bad_labels),))
+                for l, t in bad_labels:
+                    self.agent.fill_sample(sample.condition, sample, sample.get(STATE_ENUM, t), t, l, fill_obs=False, targets=sample.targets)
+                    obs_data = np.concatenate((obs_data, [sample.get_val_obs(t=t)]))
+                prc = np.tile(np.eye(dV), (len(bad_laels),1,1))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                tgt_mu = np.concatenate((tgt_mu, mu))
 
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'value', 1)
