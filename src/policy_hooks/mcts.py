@@ -251,7 +251,7 @@ class MCTS:
         self.n_resets += 1
         if 1.0 in self.val_per_run:
             self.first_success = self.val_per_run.index(1.0)
-            self.first_suc_buf.append(self.first_succes)
+            self.first_suc_buf.append(self.first_success)
             if self.agent.check_curric(self.first_suc_buf, self.n_thresh, self.curric_thresh, self.cur_curric):
                 self.first_suc_buf = []
                 self.cur_curric += 1
@@ -827,8 +827,6 @@ class MCTS:
                 sample.set_val_obs(obs, t=0)
                 self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=False, targets=targets)
                 distr[i:i+1] = self.value_func(sample.get_val_obs(t=0))
-            if debug:
-                print('HL weights for {0} {1}'.format(end_state, zip(labels, distr)))
  
             if self._soft:
                 exp_wt = np.exp(self.eta*(distr - np.max(distr)))
@@ -843,8 +841,6 @@ class MCTS:
             for d in distrs:
                 for i in range(len(d)):
                     d[i] = round(d[i], 3)
-            if debug:
-                print('HL weights for {0} {1} {2}'.format(distrs, end_state, targets))
 
             if self.onehot_task:
                 distr = distrs[0]
