@@ -7,7 +7,7 @@ class HLSolver(object):
     HLSolver provides an interface to the chosen task planner.
     """
     def __init__(self, domain_config=None, abs_domain=None):
-        self.abs_domain = abs_domain if abs_domain else self._translate_domain(domain_config)
+        self.abs_domain = abs_domain if abs_domain else self._translate_domain(domain_config, first_ts_pre=True)
 
     def _translate_domain(self, domain_config):
         """
@@ -80,10 +80,13 @@ class FFSolver(HLSolver):
 
     def _parse_precondition_ts(self, pre, ts):
         preds = ''
+        so_far = []
         ts = ts.strip().split()
-        timesteps = [(int(t[0]), int(t[1])) for t in ts]
+        ts = [t.split(':') for t in ts]
+        ts = [(int(t[0]), int(t[1])) for t in ts]
 
         count, inds = 0, [0]
+        pre = pre[5:-1]
         for i, token in enumerate(pre):
             if token == "(":
                 count += 1
@@ -91,13 +94,14 @@ class FFSolver(HLSolver):
                 count -= 1
                 if count == 0:
                     inds.append(i+1)
-
-        for i in range(count):
+        for i in range(len(inds)):
             if ts[i][0] == 0:
-                pred = pre[inds[i]:inds[i+1]] if i+1 < count else pre[inds[i]:]
-                preds += pred
+                pred = pre[inds[i]:inds[i+1]] if i+1 < len(inds) else pre[inds[i]:]
+                if pred not in so_far:
+                    preds += pred
+                    so_far.append(pred)
 
-        return preds
+        return '(and {0})'.format(preds)
 
     def _translate_domain(self, domain_config, first_ts_pre=False):
         """
@@ -195,7 +199,7 @@ class FFSolver(HLSolver):
             prob_str = clean_str
         return prob_str
 
-    def solve(self, abs_prob, domain, concr_prob, prefix=None):
+    def solve(self, abs_prob, domain, concr_prob, prefix=None, label=''):
         """
         Argument:
             abs_prob: translated problem in .PDDL recognizable by HLSolver (String)
@@ -205,14 +209,15 @@ class FFSolver(HLSolver):
         Return:
             Plan Object for ll_solver to optimize. (internal_repr/plan)
         """
-        plan_str = self._run_planner(self.abs_domain, abs_prob)
+        plan_str = self._run_planner(self.abs_domain, abs_prob, label=label)
         if prefix:
             for i in range(len(plan_str)):
                 step, action = plan_str[i].split(':')
                 plan_str[i] = str(len(prefix) + int(step)) + ':' + action
             plan_str = prefix + plan_str
         plan = self.get_plan(plan_str, domain, concr_prob)
-        plan.plan_str = plan_str
+        if type(plan) is not str:
+            plan.plan_str = plan_str
         return plan
 
     def get_plan(self, plan_str, domain, concr_prob):
@@ -347,23 +352,24 @@ class FFSolver(HLSolver):
         Note:
             High level planner gets called here.
         """
-        with open("%sdom.pddl"%('temp/'+label+'_'+FFSolver.FILE_PREFIX), "w") as f:
+        fprefix = 'temp/'+label+'_'+FFSolver.FILE_PREFIX
+        with open("%sdom.pddl"%(fprefix), "w") as f:
             f.write(abs_domain)
-        with open("%sprob.pddl"%('temp/'+label+'_'+FFSolver.FILE_PREFIX), "w") as f:
+        with open("%sprob.pddl"%(fprefix), "w") as f:
             f.write(abs_prob)
-        with open("%sprob.output"%('temp/'+label+'_'+FFSolver.FILE_PREFIX), "w") as f:
-            subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%('temp/'+label+'_'+FFSolver.FILE_PREFIX), "-f", "%sprob.pddl"%('temp/'+label+'_'+FFSolver.FILE_PREFIX)], stdout=f)
-        with open("%sprob.output"%('temp/'+label+'_'+FFSolver.FILE_PREFIX), "r") as f:
+        with open("%sprob.output"%(fprefix), "w") as f:
+            subprocess.call([FFSolver.FF_EXEC, "-o", "%sdom.pddl"%(fprefix), "-f", "%sprob.pddl"%(fprefix)], stdout=f)
+        with open("%sprob.output"%(fprefix), "r") as f:
             s = f.read()
         if "goal can be simplified to FALSE" in s or "problem proven unsolvable" in s:
             # import ipdb; ipdb.set_trace()
             plan = Plan.IMPOSSIBLE
         else:
             plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
-        # subprocess.call(["rm", "-f", "%sdom.pddl"%FFSolver.FILE_PREFIX,
-        #                  "%sprob.pddl"%FFSolver.FILE_PREFIX,
-        #                  "%sprob.pddl.soln"%FFSolver.FILE_PREFIX,
-        #                  "%sprob.output"%FFSolver.FILE_PREFIX])
+        subprocess.call(["rm", "-f", "%sdom.pddl"%fprefix,
+                         "%sprob.pddl"%fprefix,
+                         "%sprob.pddl.soln"%fprefix,
+                         "%sprob.output"%fprefix])
         if plan != Plan.IMPOSSIBLE:
             plan = self._patch_redundancy(plan)
         return plan

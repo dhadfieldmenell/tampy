@@ -39,6 +39,7 @@ from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 import policy_hooks.utils.policy_solver_utils as utils
 from policy_hooks.utils.tamp_eval_funcs import *
+from policy_hooks.utils.load_task_definitions import *
 
 
 MAX_SAMPLELISTS = 100
@@ -144,6 +145,7 @@ class TAMPAgent(Agent):
         self.prim_dims_keys = list(self.prim_dims.keys())
 
         self.solver = self._hyperparams['solver_type'](self._hyperparams)
+        self.hl_solver = get_hl_solver(self.prob.domain_file)
 
 
     def get_init_state(self, condition):
@@ -748,14 +750,29 @@ class TAMPAgent(Agent):
             for pname, aname in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
                 getattr(plan.params[pname], aname)[:,0] = state[self.state_inds[pname, aname]]
-            for pname, aname in self.targets_inds:
+                init_t = '{0}_init_target'.format(pname)
+                if init_t in plan.params:
+                    plan.params[init_t].value[:,0] = plan.params[pname].pose[:,0]
+                    near_pred = '(Near {0} {1}) '.format(pname, init_t)
+                    if near_pred not in initial:
+                        initial.append(near_pred)
+            for pname, aname in self.target_inds:
                 getattr(plan.params[pname], aname)[:,0] = targets[self.target_inds[pname, aname]]
-            preds = self.plans[task].actions[0].get_active_preds(0)
-            for p in preds:
-                if pred.test(0):
-                    p_str = str(p)
-                    initial.append(p_str[p_str.find(':')+1:])
-
+            for pred_dict in plan.actions[0].preds:
+                if pred_dict['hl_info'] == 'pre':
+                    start, end = pred_dict['active_timesteps']
+                    negated = pred_dict['negated']
+                    pred = pred_dict['pred']
+                    if start > 0 or end > 0:
+                        p_str = pred.get_rep()
+                        if not negated and p_str not in initial:
+                            initial.append(p_str)
+                    elif pred.test(0, negated=negated, tol=1e-3):
+                        p_str = pred.get_rep()
+                        if not negated and p_str not in initial:
+                            initial.append(p_str)
+                    elif negated and p_str not in initial:
+                        initial.append(p_str)
         goal = self.goal
         return initial, goal
 
@@ -765,9 +782,16 @@ class TAMPAgent(Agent):
         prob = plan.prob
         initial, goal = self.get_hl_info(state, targets)
         abs_prob = self.hl_solver.translate_problem(prob, initial, goal)
-        new_plan = self.hl_solver.get_plan(abs_prob, plan.domain, prob)
+        new_plan = self.hl_solver.solve(abs_prob, plan.domain, prob, label=self.process_id)
         return new_plan
 
+
+    def task_from_ff(self, state, targets):
+        plan = self.solve_hl(state, targets)
+        if type(plan) == str:
+            return None
+        return self.encode_plan(plan)
+    
     
     def check_curric(self, buf, n_thresh, curr_thresh, cur_curr):
         prim_choices = self.prob.get_prim_choices()
@@ -775,4 +799,27 @@ class TAMPAgent(Agent):
         if len(buf) < n_thresh: return False
         return np.mean(buf[-n_thresh:]) < curr_thresh
 
+
+    def encode_plan(self, plan):
+        encoded = []
+        prim_choices = self.prob.get_prim_choices()
+        for a in plan.actions:
+            astr = str(a).lower()
+            l = [0]
+            for i, task in enumerate(self.task_list):
+                if a.name.lower().find(task) >= 0:
+                    l[0] = i
+                    break
+
+            for enum in prim_choices:
+                if enum is TASK_ENUM: continue
+                l.append(0)
+                for i, opt in enumerate(prim_choices[enum]):
+                    if astr.find(opt) >= 0:
+                        l[-1] = i
+                        break
+
+            encoded.append(l)
+
+        return encoded
 

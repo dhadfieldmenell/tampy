@@ -24,11 +24,8 @@ OPT_MCTS_FEEDBACK = True
 N_GRASPS = 4
 FIX_TARGETS = False
 
-def prob_file():
-    return "../domains/namo_domain/namo_probs/sort_closet_prob_{0}.prob".format(NUM_OBJS)
-
-domain_file = "../domains/namo_domain/namo.domain"
-mapping_file = "policy_hooks/namo/sorting_task_mapping_5"
+domain_file = "../domains/namo_domain/new_namo.domain"
+mapping_file = "policy_hooks/namo/sorting_task_mapping_7"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
@@ -71,6 +68,12 @@ for i in range(len(possible_can_locs)):
     loc[0] *= 0.1
     loc[1] *= 0.1
     possible_can_locs[i] = tuple(loc)
+
+
+def prob_file(descr=None):
+    if descr is None:
+        descr = 'sort_closet_prob_{0}_{1}end_{2}aux'.format(NUM_OBJS, len(END_TARGETS), n_aux)
+    return "../domains/namo_domain/namo_probs/{0}.prob".format(descr)
 
 
 def get_prim_choices():
@@ -219,6 +222,7 @@ def get_plans():
     openrave_bodies = {}
     env = None
     params = None
+    print(prob_file())
     for task in tasks:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):

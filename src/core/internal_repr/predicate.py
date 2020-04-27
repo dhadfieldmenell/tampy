@@ -54,6 +54,13 @@ class Predicate(object):
         return violation
 
 
+    def get_rep(self):
+        s = "(%s "%(self.get_type())
+        for param in self.params[:-1]:
+            s += param.name + " "
+        s += self.params[-1].name + ") "
+        return s
+
     def __repr__(self):
         s = "%s: (%s "%(self.name, self.get_type())
         for param in self.params[:-1]:

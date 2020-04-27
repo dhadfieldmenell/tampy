@@ -421,8 +421,8 @@ class NAMOSortingAgent(TAMPAgent):
             for param, attr in u_inds:
                 if attr == 'pose':
                     getattr(plan.params[param], attr)[:, t] = x[x_inds[param, attr]] + u[u_inds[param, attr]]
-                # elif attr == 'gripper':
-                #     getattr(plan.params[param], attr)[:, t] = u[u_inds[param, attr]]
+                elif attr == 'gripper':
+                    getattr(plan.params[param], attr)[:, t] = u[u_inds[param, attr]]
                 elif attr == 'acc':
                     old_vel = x[x_inds[param, 'vel']]
                     new_vel = old_vel + u[u_inds[param, 'acc']]
@@ -1354,46 +1354,36 @@ class NAMOSortingAgent(TAMPAgent):
 
         for target_name in self.targets[cond]:
             self.target_vecs[cond][self.target_inds[target_name, 'value']] = self.targets[cond][target_name]
+        only_goal = np.concatenate([self.target_vecs[cond][self.target_inds['{0}_end_target'.format(o), 'value']] for o in prim_choices[OBJ_ENUM]])
+        onehot_goal = self.onehot_encode_goal(only_goal)
+        
+        nt = len(prim_choices[TARG_ENUM])
+        self.goal = ''
+        for i, obj in enumerate(prim_choices[OBJ_ENUM]):
+            targ = self.target_vecs[cond][self.target_inds['{0}_end_target'.format(obj), 'value']]
+            for ind in self.targ_labels:
+                if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
+                    self.goal += '(Near {0} end_target_{1}) '.format(obj, ind)
+                    break
 
+
+    def check_target(self, targ):
+        vec = np.zeros(len(self.targ_labels.keys()))
+        for ind in self.targ_labels:
+            if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
+                vec[ind] = 1.
+                break
+        return vec
+         
 
     def onehot_encode_goal(self, targets, descr=None, debug=False):
         vecs = []
         for i in range(0, len(targets), 2):
             targ = targets[i:i+2]
-            vec = np.zeros(len(self.targ_labels.keys()))
-            for ind in self.targ_labels:
-                if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
-                    vec[ind] = 1.
-                    break
+            vec = self.check_target(targ)
             vecs.append(vec)
         if debug:
             print('Encoded {0} as {1} {2}'.format(targets, vecs, self.prob.END_TARGETS))
         return np.concatenate(vecs)
 
-
-    def encode_plan(self, plan):
-        encoded = []
-        prim_choices = self.prob.get_prim_choices()
-        for a in plan.actions():
-            astr = str(a).lower()
-            l = [0]
-            for i, task in enumerate(self.task_list):
-                if a.name.lower().find(task) >= 0:
-                    l[0] = i
-                    break
-                if i == len(self.task_list):
-                    print('Could not encode task name from {0}'.format(astr))
-
-            for enum in prim_choices:
-                l.append(0)
-                for i, opt in enumerate(prim_choices[enum]):
-                    if astr.find(opt) >= 0:
-                        l[-1] = i
-                        break
-                    if i == len(prim_choices[enum]):
-                        print('Could not encode {0} for enum {1}'.format(astr, enum))
-
-            encoded.append(l)
-
-        return encoded
 

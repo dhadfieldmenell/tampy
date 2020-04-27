@@ -82,6 +82,7 @@ class RolloutServer(object):
         self.solver = hyperparams['solver_type'](hyperparams)
         self.opt_smooth = hyperparams.get('opt_smooth', False)
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
+        self.agent.process_id = '{0}_{1}'.format(self.id, self.group_id)
         self.agent.solver = self.solver
         #self.agent.replace_conditions(len(self.agent.x0))
         for mcts in self.mcts:
@@ -1255,7 +1256,7 @@ class RolloutServer(object):
         for sample in samples:
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
-            wt = sample.discount * np.array([self.prim_decay**t for t in range(sample.T)])
+            wt = np.array([self.prim_decay**t for t in range(sample.T)])
             wt[0] *= self.prim_first_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()

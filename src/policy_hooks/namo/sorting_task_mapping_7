@@ -1,0 +1,15 @@
+{
+    'movetograsp': [
+        '0: NEW_QUICK_MOVETOGRASP PR2 {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE {2} {1}',
+    ],
+
+    'place_at': [
+        '0: NEW_QUICK_PLACE_AT PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} {1} {2} {0}_INIT_TARGET'
+    ],
+
+};
+
+{
+    'movetograsp': 18,
+    'place_at': 18,
+}

@@ -147,7 +147,7 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False, onehot_task=False, soft=False):
+    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False, onehot_task=False, soft=False, ff_thresh=0):
         self.tasks = tasks
         self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
@@ -159,7 +159,8 @@ class MCTS:
         self.agent = agent
         self.soft_decision = soft_decision
         self._soft = soft
-        self.eta = 1e1
+        self.eta = 1e2
+        self.ff_thresh = ff_thresh
         self.C = C # Standard is to use 2 but given difficulty of finding good paths, using smaller
         self.branch_factor = branch_factor
         self.num_samples = 1
@@ -624,7 +625,8 @@ class MCTS:
 
         if save and fixed_path is None:
             self.agent.add_sample_batch(samples, task)
-        cur_state = lowest_cost_sample.end_state # get_X(t=lowest_cost_sample.T-1)
+        # cur_state = lowest_cost_sample.end_state # get_X(t=lowest_cost_sample.T-1)
+        cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
         # self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
         '''
@@ -647,6 +649,44 @@ class MCTS:
         # assert not np.any(np.isnan(lowest_cost_sample.get_obs()))
         return lowest_cost_sample, cur_state
 
+    
+    def run_ff_solve(self, state, node, opt=False):
+        old_opt_strength = self.opt_strength
+        if opt:
+            self.opt_strength = 1.
+        task_path = self.agent.task_from_ff(state, self.agent.target_vecs[self.condition])
+        path = []
+        val = 1.
+        for label in task_path:
+            label = tuple(label)
+            plan = self.agent.plans[label]
+            if self.agent.cost_f(state, label, self.condition, active_ts=(0,0)) > 0:
+                break
+
+            next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
+            next_sample.node = node
+            next_sample.success = 1 - self.agent.goal_f(self.condition, state)
+            if node is not None:
+                node = node.get_child(label)
+            path.append((next_sample, node))
+        val = 1 - self.agent.goal_f(self.condition, state)
+        for i in range(len(path)):
+            if path[i][1] is not None:
+                path[i][1].update_value(val)
+            path[i][0].success = max(val, path[i][0].success)
+            path[i][0].discount = 0.9**(len(path)-i-1)
+        path = [step[0] for step in path]
+        if len(path) and val > 1. - 1e-3:
+            print('\nSUCCESS! Tree {0} {1} using ff solve\n'.format(self.log_file, state))
+            self.agent.add_task_paths([path])
+        else:
+            print('FAILED with ff solve')
+            print('FF out:', task_path, 'Ran:', [step.task for step in path], 'End state:', state, 'Targets:', self.agent.target_vecs[self.condition])
+        self.opt_strength = old_opt_strength
+        self.val_per_run.append(val)
+        self.log_path(path, -1)
+        return val, path
+
 
     def get_path_info(self, x0, node, task, traj):
         return [x0, node, task, traj]
@@ -666,6 +706,9 @@ class MCTS:
         exclude_hl = []
         path_value = None
         next_sample = None
+        if np.random.uniform() < self.ff_thresh:
+            return self.run_ff_solve(state, self.root)
+
         while True:
             if debug:
                 print("Taking simulation step")
@@ -756,7 +799,7 @@ class MCTS:
 
         self.log_path(path, len(fixed_paths))
         for n in range(len(path)):
-            path[n].discount = 1 # 0.9**(len(path)-n-1)
+            path[n].discount = 0.9**(len(path)-n-1)
         if self.bad_tree:
             print('Bad tree for state', state)
             self.reset()
