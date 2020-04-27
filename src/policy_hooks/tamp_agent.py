@@ -769,7 +769,7 @@ class TAMPAgent(Agent):
         return new_plan
 
     
-    def check_curr(buf, n_thresh, curr_thresh, cur_curr):
+    def check_curric(buf, n_thresh, curr_thresh, cur_curr):
         prim_choices = self.prob.get_prim_choices()
         curr_thresh *= cur_curr
         if len(buf) < n_thresh: return False
