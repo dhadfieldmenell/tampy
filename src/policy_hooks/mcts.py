@@ -177,7 +177,7 @@ class MCTS:
         self.n_thresh = n_thresh
         self.cur_curric = 1 if curric_thresh > 0 else 0
         if self.cur_curric != 0:
-            self.max_depth = 3
+            self.max_depth = curric_thresh
 
         self.val_per_run = []
         self.first_suc_buf = []
@@ -251,14 +251,16 @@ class MCTS:
         self.n_resets += 1
         if 1.0 in self.val_per_run:
             self.first_success = self.val_per_run.index(1.0)
-            self.first_suc_buf.append(self.val_per_run.index(1.0))
-            if len(self.first_suc_buf) >= self.n_thresh and np.mean(self.first_suc_buf[-self.n_thresh:]) < self.curric_thresh:
+            self.first_suc_buf.append(self.first_succes)
+            if self.agent.check_curric(self.first_suc_buf, self.n_thresh, self.curric_thresh, self.cur_curric):
+                self.first_suc_buf = []
                 self.cur_curric += 1
                 self.max_depth = min(self._max_depth, int(2 * self.max_depth))
                 print('{0} updated curriculum'.format(self.log_file))
             # self.max_depth = min(self._max_depth, self.max_depth + 3)
         else:
             self.first_success = self.n_runs
+            self.first_suc_buf.append(self.first_success)
         self.n_runs = 0
         self.val_per_run = []
         self.agent.replace_cond(self.condition, curric_step=self.cur_curric)
@@ -597,7 +599,8 @@ class MCTS:
                 # self.agent.reset_hist(deepcopy(old_traj_hist))
                 task_f = None
                 if hl:
-                    task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
+                    task_f = lambda s: self.eval_hl(s, s.targets)
+                    # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
                 samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
                 # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
                 if success:
@@ -787,7 +790,6 @@ class MCTS:
         self._soft = soft
         debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
-            print('Soft?', self._soft)
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=False)
             if l is None: break
             plan = self.agent.plans[l]
@@ -811,28 +813,31 @@ class MCTS:
             if cost > 1e-3:
                 bad.append(l)
         return bad
-    
 
-    def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False, find_bad=False, check_cost=True):
-        sample = Sample(self.agent)
-        sample.set_X(end_state.copy(), t=0)
+
+    def eval_hl(self, sample, targets=None, debug=False, find_distr=False):
+        label = sample.task
         self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
         labels = [l for l in self.label_options]
-        cost = 1.
-        bad = []
         if self.use_q:
-            obs = None
+            obs = sample.get_val_obs(t=0)
             distr = np.zeros(len(labels))
             for i in range(len(labels)):
                 l = labels[i]
-                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=(i==0), targets=targets)
-                if i == 0:
-                    obs = sample.get_val_obs(t=0)
-                else:
-                    sample.set_val_obs(obs, t=0)
+                sample.set_val_obs(obs, t=0)
+                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=False, targets=targets)
                 distr[i:i+1] = self.value_func(sample.get_val_obs(t=0))
             if debug:
                 print('HL weights for {0} {1}'.format(end_state, zip(labels, distr)))
+ 
+            if self._soft:
+                exp_wt = np.exp(self.eta*(distr - np.max(distr)))
+                wt = exp_wt / np.sum(exp_wt)
+                ind = np.random.choice(range(len(labels)), p=wt)
+            else:
+                ind = np.argmax(distr)
+            next_label = tuple(labels[ind])
+
         elif self.discrete_prim:
             distrs = self.prob_func(sample.get_prim_obs(t=0), self._soft, eta=self.eta)
             for d in distrs:
@@ -854,11 +859,22 @@ class MCTS:
                     val = np.max(d)
                     ind.append(np.random.choice([i for i in range(len(d)) if d[i] >= val]))
                 next_label = tuple([ind[d] for d in range(len(distrs))])
- 
-            if not check_cost: return tuple(next_label)
-            cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+        if find_distr: return tuple(next_label), distr
+        return tuple(next_label)
 
+
+    def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False, find_bad=False, check_cost=True):
+        sample = Sample(self.agent)
+        sample.set_X(end_state.copy(), t=0)
+        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
+        labels = [l for l in self.label_options]
+        cost = 1.
+        bad = []
+        next_label, distr = self.eval_hl(sample, targets, debug, find_distr=True)
+        if not check_cost: return tuple(next_label)
+        cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
+        post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+        
         for l in exclude:
             if self.onehot_task:
                 ind = self.agent.task_to_onehot[tuple(l)]

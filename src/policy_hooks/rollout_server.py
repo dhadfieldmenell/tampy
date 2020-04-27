@@ -1115,7 +1115,7 @@ class RolloutServer(object):
             obj_name = prim_opts[OBJ_ENUM][t]
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
         if rlen is None:
-            rlen = 6 + 2*n
+            rlen = 4 + 2*n
         self.agent.T = self.config['task_durations'][self.task_list[0]]
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'])
         s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))

@@ -179,8 +179,7 @@ class NAMOSortingAgent(TAMPAgent):
 
             self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
             if task_f is not None:
-                distrs = task_f(sample.get_prim_obs(t=t), t=t, task=task)
-                task = tuple([np.argmax(d) for d in distrs])
+                task = task_f(sample)
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
@@ -1363,7 +1362,7 @@ class NAMOSortingAgent(TAMPAgent):
             targ = targets[i:i+2]
             vec = np.zeros(len(self.targ_labels.keys()))
             for ind in self.targ_labels:
-                if np.linalg.norm(targ - self.targ_labels[ind]) < 5e-1:
+                if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
                     vec[ind] = 1.
                     break
             vecs.append(vec)

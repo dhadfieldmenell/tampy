@@ -768,3 +768,11 @@ class TAMPAgent(Agent):
         new_plan = self.hl_solver.get_plan(abs_prob, plan.domain, prob)
         return new_plan
 
+    
+    def check_curr(buf, n_thresh, curr_thresh, cur_curr):
+        prim_choices = self.prob.get_prim_choices()
+        curr_thresh *= cur_curr
+        if len(buf) < n_thresh: return False
+        return np.mean(buf[-n_thresh:]) < curr_thresh
+
+
