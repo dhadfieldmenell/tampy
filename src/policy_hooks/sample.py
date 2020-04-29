@@ -50,6 +50,8 @@ class Sample(object):
             self._data[sensor_name] = sensor_data
             self._X.fill(np.nan)  # Invalidate existing X.
             self._obs.fill(np.nan)  # Invalidate existing obs.
+            self._val_obs.fill(np.nan)  # Invalidate existing obs.
+            self._prim_obs.fill(np.nan)  # Invalidate existing obs.
             self._meta.fill(np.nan)  # Invalidate existing meta data.
         else:
             if sensor_name not in self._data:
@@ -59,6 +61,8 @@ class Sample(object):
             self._data[sensor_name][t, :] = sensor_data
             self._X[t, :].fill(np.nan)
             self._obs[t, :].fill(np.nan)
+            self._val_obs[t, :].fill(np.nan)
+            self._prim_obs[t, :].fill(np.nan)
 
     def get(self, sensor_name, t=None):
         """ Get trajectory data for a particular sensor. """
@@ -77,19 +81,19 @@ class Sample(object):
                 self.agent.pack_data_x(X, data, data_types=[data_type])
         return X
 
-    def set_X(self, X, t):
+    def set_X(self, X, t=None):
         for data_type in self.agent._x_data_idx:
             self.set(data_type, X[self.agent._x_data_idx[data_type]], t=t)
 
-    def set_obs(self, obs, t):
+    def set_obs(self, obs, t=None):
         for data_type in self.agent._obs_data_idx:
             self.set(data_type, obs[self.agent._obs_data_idx[data_type]], t=t)
 
-    def set_prim_obs(self, prim_obs, t):
+    def set_prim_obs(self, prim_obs, t=None):
         for data_type in self.agent._prim_obs_data_idx:
             self.set(data_type, prim_obs[self.agent._prim_obs_data_idx[data_type]], t=t)
 
-    def set_val_obs(self, val_obs, t):
+    def set_val_obs(self, val_obs, t=None):
         for data_type in self.agent._val_obs_data_idx:
             self.set(data_type, val_obs[self.agent._val_obs_data_idx[data_type]], t=t)
 

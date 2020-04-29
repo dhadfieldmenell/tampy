@@ -872,10 +872,10 @@ class MCTS:
             distr = np.zeros(len(labels))
             for i in range(len(labels)):
                 l = labels[i]
-                sample.set_val_obs(obs.copy(), t=0)
-                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=False, targets=targets)
+                # sample.set_val_obs(obs.copy(), t=0)
+                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=True, targets=targets)
                 distr[i:i+1] = self.value_func(sample.get_val_obs(t=0))
- 
+
             if self._soft:
                 exp_wt = np.exp(self.eta*(distr - np.max(distr)))
                 wt = exp_wt / np.sum(exp_wt)

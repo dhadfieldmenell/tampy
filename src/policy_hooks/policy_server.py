@@ -66,6 +66,7 @@ class PolicyServer(object):
         self.update_queue = []
         self.policy_var = {}
         self.policy_loss = []
+        self.log_infos = []
         with open(self.policy_opt_log, 'w+') as f:
             f.write('')
 
@@ -172,6 +173,8 @@ class PolicyServer(object):
                 'scope': self.task,
                 'n_updates': self.n_updates,
                 }
+        self.log_infos.append(info)
+        return self.log_infos
 
 
     def prob(self, req):

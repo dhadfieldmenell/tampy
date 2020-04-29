@@ -957,17 +957,6 @@ class NAMOSortingAgent(TAMPAgent):
         # return cost / float(self.prob.NUM_OBJS)
         return 1. if cost > 0 else 0.
 
-    '''
-    def goal_f(self, condition, state):
-        cost = 0
-        plan = self.plans.values()[0]
-        for param in plan.params.values():
-            if param._type == 'Can':
-                dist = np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
-                cost += 1 if dist > 0.01 else 0
-
-        return cost
-    '''
 
     def set_grasp(self, grasp, rot):
         plan = list(self.plans.values())[0]
@@ -982,6 +971,7 @@ class NAMOSortingAgent(TAMPAgent):
         mat = np.array([[np.cos(theta), -np.sin(theta)],
                        [np.sin(theta), np.cos(theta)]])
         return np.matmul(mat, grasp)
+
 
     def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
         if len(Xs.shape) == 1:

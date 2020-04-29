@@ -726,9 +726,12 @@ class TAMPAgent(Agent):
         cur_s = path[0]
         i = 0
         while self.goal_f(end.condition, start_X, goal[TARGETS_ENUM]) > 1e-2:
-            new_s = copy.deepcopy(path[i])
-            new_s.agent = self
+            new_s = Sample(self)
             new_s.targets = goal[TARGETS_ENUM]
+            new_s.set_val_obs(path[i].get_val_obs())
+            new_s.set_prim_obs(path[i].get_prim_obs())
+            new_s.set_X(path[i].get_X())
+            new_s.success = 1.
             for t in range(new_s.T):
                 new_s.set(TARGETS_ENUM, goal[TARGETS_ENUM], t)
                 new_s.set(GOAL_ENUM, goal[GOAL_ENUM], t)
@@ -739,7 +742,7 @@ class TAMPAgent(Agent):
             i += 1
         
         for i, s in enumerate(new_path):
-            s.discount = 1. # 0.9 ** (len(new_path) - i)
+            s.discount = 0.9 ** (len(new_path) - i)
         return new_path
 
 

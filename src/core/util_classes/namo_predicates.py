@@ -638,6 +638,59 @@ class Collides(CollisionPredicate):
         else:
             return None
 
+class TargetGraspCollides(Collides):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.c, self.w, self.g = params
+        attr_inds = OrderedDict([(self.c, [("value", np.array([0, 1], dtype=np.int))]),
+                                 (self.w, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
+        self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
+                               self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
+
+        def f(x):
+            disp = x[:2] + x[4:6]
+            new_x = np.concatenate(disp, x[2:4])
+            return -self.distance_from_obj(new_x)[0]
+
+        def grad(x):
+            disp = x[:2] + x[4:6]
+            new_x = np.concatenate(disp, x[2:4])
+            return self.distance_from_obj(new_x)[1]
+
+        def f_neg(x):
+            return -f(x)
+
+        def grad_neg(x):
+            return grad(x)
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+        ## so we have an expr for the negated predicate
+        # f_neg = lambda x: self.distance_from_obj(x)[0]
+        # def grad_neg(x):
+        #     # print self.distance_from_obj(x)
+        #     return -self.distance_from_obj(x)[1]
+
+        N_COLS = 8
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((N_COLS,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+
+
+        super(Collides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1,
+                                        active_range=(0,0))
+        self.n_cols = N_COLS
+        # self.priority = 1
+
+
 class TargetCollides(Collides):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env

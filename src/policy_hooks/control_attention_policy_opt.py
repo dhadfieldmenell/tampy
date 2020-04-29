@@ -383,7 +383,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 print('TF updating on data for', net)
                 self.update(obs, mu, prc, wt, net)
                 self.store_scope_weights(scopes=[net])
-                if self.last_pkl_t - time.time() > 900:
+                if time.time() - self.last_pkl_t > 900:
                     self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
                     self.cur_pkl += 1
                     self.last_pkl_t = time.time()

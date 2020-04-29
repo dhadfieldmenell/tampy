@@ -41,7 +41,7 @@ N_ROLLOUT_SERVERS = 10
 N_ALG_SERVERS = 12
 N_OPTIMIZERS = 13
 N_DIRS = 16
-N_GRASPS = 1 # 4
+N_GRASPS = 4
 TIME_LIMIT = 7200
 
 
@@ -274,7 +274,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                             utils.TARGETS_ENUM,
                             utils.TASK_ENUM,
                             utils.OBJ_ENUM,
-                            utils.TARG_ENUM
+                            utils.TARG_ENUM,
+                            utils.GRASP_ENUM,
                             ],
         #'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
         'prim_out_include': list(prob.get_prim_choices().keys()),
