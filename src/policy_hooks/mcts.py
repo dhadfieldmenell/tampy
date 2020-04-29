@@ -383,6 +383,7 @@ class MCTS:
             # self.agent.reset_hist()
             # print("MCTS Rollout {0} for condition {1}.\n".format(n, self.condition))
             new_opt_val, next_path = self.simulate(state.copy(), use_distilled, fixed_paths=fixed_paths, debug=debug)
+            paths.append(next_path)
             # print("Finished Rollout {0} for condition {1}.\n".format(n, self.condition))
 
             opt_val = np.maximum(new_opt_val, opt_val)
@@ -397,7 +398,7 @@ class MCTS:
         self.agent.add_task_paths(paths)
             '''
 
-        return opt_val
+        return opt_val, paths
 
 
     def _simulate_from_unexplored(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, label=None, debug=False):
@@ -656,19 +657,23 @@ class MCTS:
             self.opt_strength = 1.
         task_path = self.agent.task_from_ff(state, self.agent.target_vecs[self.condition])
         path = []
-        val = 1.
+        val = 0.
         for label in task_path:
             label = tuple(label)
             plan = self.agent.plans[label]
             if self.agent.cost_f(state, label, self.condition, active_ts=(0,0)) > 0:
                 break
 
-            next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
-            next_sample.node = node
-            next_sample.success = 1 - self.agent.goal_f(self.condition, state)
-            if node is not None:
-                node = node.get_child(label)
-            path.append((next_sample, node))
+            post = 1.
+            while post > 0 and len(path) < self._max_depth:
+                next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
+                next_sample.node = node
+                next_sample.success = 1 - self.agent.goal_f(self.condition, state)
+                if node is not None:
+                    node = node.get_child(label)
+                path.append((next_sample, node))
+                t = next_sample.T - 1
+                post = self.agent.cost_f(state, label, self.condition, active_ts=(t,t))
         val = 1 - self.agent.goal_f(self.condition, state)
         for i in range(len(path)):
             if path[i][1] is not None:
@@ -823,7 +828,7 @@ class MCTS:
         return value, samples[0]
 
 
-    def test_run(self, state, targets, max_t=20, hl=False, soft=False):
+    def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True):
         old_opt = self.opt_strength
         # self.opt_strength = 1.
         path = []
@@ -833,7 +838,7 @@ class MCTS:
         self._soft = soft
         debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
-            l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=False)
+            l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=check_cost)
             if l is None: break
             plan = self.agent.plans[l]
             s, _ = self.sample(l, state, plan, 1, hl=hl)
@@ -867,7 +872,7 @@ class MCTS:
             distr = np.zeros(len(labels))
             for i in range(len(labels)):
                 l = labels[i]
-                sample.set_val_obs(obs, t=0)
+                sample.set_val_obs(obs.copy(), t=0)
                 self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=False, targets=targets)
                 distr[i:i+1] = self.value_func(sample.get_val_obs(t=0))
  

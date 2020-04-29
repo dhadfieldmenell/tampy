@@ -537,6 +537,10 @@ class MultiProcessMain(object):
         hyperparams['run_alg_updates'] = False
         hyperparams['run_hl_test'] = True
         hyperparams['id'] = hyperparams['server_id']+'_test'
+        hyperparams['check_precond'] = False
+        self.create_server(RolloutServer, copy.copy(hyperparams))
+        hyperparams['check_precond'] = True
+        hyperparams['id'] = hyperparams['server_id']+'_test_with_pre'
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['run_hl_test'] = False
 

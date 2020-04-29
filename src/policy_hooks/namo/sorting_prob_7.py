@@ -25,7 +25,7 @@ N_GRASPS = 4
 FIX_TARGETS = False
 
 domain_file = "../domains/namo_domain/new_namo.domain"
-mapping_file = "policy_hooks/namo/sorting_task_mapping_7"
+mapping_file = "policy_hooks/namo/sorting_task_mapping_5"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)
@@ -222,7 +222,6 @@ def get_plans():
     openrave_bodies = {}
     env = None
     params = None
-    print(prob_file())
     for task in tasks:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):

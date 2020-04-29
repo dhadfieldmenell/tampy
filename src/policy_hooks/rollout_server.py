@@ -77,6 +77,9 @@ class RolloutServer(object):
             self.queues = hyperparams['queues']
 
         self.run_hl_test = hyperparams.get('run_hl_test', False)
+        self.check_precond = hyperparams.get('check_precond', True)
+        self.discount = hyperparams.get('discount', 0.9)
+        self.use_qfunc = self.config.get('use_qfunc', False)
         if USE_ROS: rospy.init_node('rollout_server_{0}_{1}_{2}'.format(self.id, self.group_id, self.run_alg_updates))
         self.prim_dims = hyperparams['prim_dims']
         self.solver = hyperparams['solver_type'](hyperparams)
@@ -181,9 +184,11 @@ class RolloutServer(object):
                 plan.target_inds = self.agent.target_inds
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
-        self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_log.npy'
+        self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_{0}log.npy'
+        self.td_error_log = 'tf_saved/'+hyperparams['weight_dir']+'/td_error_{0}_log.npy'.format(self.id)
         self.log_updates = []
         self.hl_data = []
+        self.td_errors = []
         self.last_hl_test = time.time()
         state_info = []
         params = self.agent.plans.values()[0].params
@@ -894,8 +899,10 @@ class RolloutServer(object):
 
                 start_t = time.time()
                 mcts.opt_strength = 0.0 # if np.all([self.policy_opt.task_map[task]['policy'].scale is not None for task in self.policy_opt.valid_scopes]) else 1.0
-                val = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=False)
+                val, paths = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=False)
                 tree_data.append(mcts.get_data)
+                if self.use_qfunc:
+                    self.log_td_error(paths[0])
 
                 self.n_steps += 1
                 self.n_success += 1 if val > 1 - 1e-2 else 0
@@ -1118,14 +1125,15 @@ class RolloutServer(object):
         if rlen is None:
             rlen = 4 + 2*n
         self.agent.T = self.config['task_durations'][self.task_list[0]]
-        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'])
+        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
         s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
         self.hl_data.append(res)
         if save:
+            if self.use_qfunc: self.log_td_error(path)
             if not len(self.hl_data) % 20:
-                np.save(self.hl_test_log, np.array(self.hl_data))
+                np.save(self.hl_test_log.format('pre_' if self.check_precond else ''), np.array(self.hl_data))
         else:
             if val < 1:
                 print('failed for', x0, [s.task for s in path], [s.get_prim_obs(t=0) for s in path])
@@ -1135,6 +1143,25 @@ class RolloutServer(object):
             print('n_runs', len(self.hl_data))
         self.last_hl_test = time.time()
         print('TESTED HL')
+
+
+    def log_td_error(self, path):
+        if not self.use_qfunc: return
+        err = self.check_td_error(path)
+        self.td_errors.append(err)
+        if not len(self.td_errors) % 10:
+            np.save(self.td_error_log, self.td_errors)
+
+
+    def check_td_error(self, path):
+        err = 0.
+        if not self.use_qfunc: return 0
+        for i in range(len(path)):
+            v0 = self.value_call(path[i].get_val_obs(0))
+            v1 = self.value_call(path[i+1].get_val_obs(0)) if i < len(path) - 1 else 0.
+            r = 1. - self.agent.goal_f(path[i].condition, path[i].get(STATE_ENUM, t=path[i].T-1), path[i].targets)
+            err += r + self.discount * v1 - v0
+        return err / len(path)
 
 
     def parse_opt_queue(self):

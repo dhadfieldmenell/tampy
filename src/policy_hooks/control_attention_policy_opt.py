@@ -64,6 +64,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.distilled_var = self._hyperparams['init_var'] * np.ones(dU)
         self.weight_dir = self._hyperparams['weight_dir']
         self.scope = self._hyperparams['scope'] if 'scope' in self._hyperparams else None 
+        self.last_pkl_t = time.time()
+        self.cur_pkl = 0
 
         self.gpu_fraction = self._hyperparams['gpu_fraction']
         if not self._hyperparams['allow_growth']:
@@ -240,23 +242,23 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             weight_dir = self.weight_dir
         self.saver.restore(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
 
-    def store_scope_weights(self, scopes, weight_dir=None):
+    def store_scope_weights(self, scopes, weight_dir=None, lab=''):
         if weight_dir is None:
             weight_dir = self.weight_dir
         for scope in scopes:
             try:
                 variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
                 saver = tf.train.Saver(variables)
-                saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'.ckpt')
+                saver.save(self.sess, 'tf_saved/'+weight_dir+'/'+scope+'{0}.ckpt'.format(lab))
             except:
                 print 'Saving variables encountered an issue but it will not crash:'
                 traceback.print_exception(*sys.exc_info())
 
             if scope in self.task_map:
                 policy = self.task_map[scope]['policy']
-                np.save('tf_saved/'+weight_dir+'/'+scope+'_scale', policy.scale)
-                np.save('tf_saved/'+weight_dir+'/'+scope+'_bias', policy.bias)
-                np.save('tf_saved/'+weight_dir+'/'+scope+'_variance', self.var[scope])
+                np.save('tf_saved/'+weight_dir+'/'+scope+'_scale{0}'.format(lab), policy.scale)
+                np.save('tf_saved/'+weight_dir+'/'+scope+'_bias{0}'.format(lab), policy.bias)
+                np.save('tf_saved/'+weight_dir+'/'+scope+'_variance{0}'.format(lab), self.var[scope])
 
     def store_weights(self, weight_dir=None):
         if self.scope is None:
@@ -381,6 +383,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 print('TF updating on data for', net)
                 self.update(obs, mu, prc, wt, net)
                 self.store_scope_weights(scopes=[net])
+                if self.last_pkl_t - time.time() > 900:
+                    self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
+                    self.cur_pkl += 1
+                    self.last_pkl_t = time.time()
+
                 self.update_count = 0
                 updated = True
             if net in self.val_obs:

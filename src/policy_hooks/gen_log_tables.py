@@ -13,7 +13,7 @@ TDELTA = 60
 MIN_FRAME = 5
 nan = np.nan
 LOG_DIR = 'tf_saved/'
-SAVE_DIR = '~/Dropbox/'
+SAVE_DIR = '/home/michaelmcdonald/Dropbox/'
 X_VARS = ['time', 'n_opt_calls', 'n_runs', 'n_learning_iters']
 Y_VARS = ['n_success', 'opt_cost', 'tree_life']
 
@@ -245,6 +245,6 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
 keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_post_cond', keywords)
 # gen_rollout_plots('time', 'avg_first_success', keywords)
-get_hl_tests(['4by4'], ['expand'])
+get_hl_tests(['dummy'])
 # gen_rollout_plots('time', 'avg_pre_cost', keywords)
 

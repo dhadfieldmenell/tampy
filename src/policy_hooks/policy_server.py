@@ -64,6 +64,8 @@ class PolicyServer(object):
         self.update_t = time.time()
         self.n_data = []
         self.update_queue = []
+        self.policy_var = {}
+        self.policy_loss = []
         with open(self.policy_opt_log, 'w+') as f:
             f.write('')
 
@@ -128,8 +130,6 @@ class PolicyServer(object):
             self.n_data.append(self.full_N)
             update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)))
             end_time = time.time()
-        with open(self.policy_info_log, 'w+') as f:
-            f.write(str(self.n_data))
 
 
     def update_network(self):
@@ -148,12 +148,30 @@ class PolicyServer(object):
             print('Updated weights for {0}'.format(self.task))
 
             incr = 10
-            lossess = [self.policy_opt.average_losses[::incr], self.policy_opt.average_val_losses[::incr]]
+            losses = [self.policy_opt.average_losses[::incr], self.policy_opt.average_val_losses[::incr]]
+     
+            for net in self.policy_opt.mu:
+                if net not in self.policy_var:
+                    self.policy_var[net] = []
+                data = np.concatenate(self.policy_opt.mu[net].values(), axis=0)
+                self.policy_var[net].append(np.var(data))
+
+            self.policy_loss.append(losses)
             with open(self.policy_opt_log, 'w+') as f:
-                f.write(str(lossess))
-            if not self.n_updates % 20:
+                f.write(str(self.get_log_info()))
+            if not self.n_updates % 100:
                 with open(self.data_file, 'w+') as f:
                     pickle.dump(self.policy_opt.get_data(), f)
+
+
+    def get_log_info(self):
+        info = {
+                'time': time.time() - self.start_t,
+                'var': {net: self.policy_var[net][-1] for net in self.policy_var},
+                'loss': self.policy_loss[-1],
+                'scope': self.task,
+                'n_updates': self.n_updates,
+                }
 
 
     def prob(self, req):
