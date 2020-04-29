@@ -130,6 +130,98 @@ def gen_first_success_plots(x_var='time'):
     plt.clf()
 
 
+def get_td_loss(keywords=[], exclude=[], pre=False):
+    exp_probs = os.listdir(LOG_DIR)
+    exp_data = {}
+    for exp_name in exp_probs:
+        dir_prefix = LOG_DIR + exp_name + '/'
+        if not os.path.isdir(dir_prefix): continue
+        exp_dirs = os.listdir(dir_prefix)
+        # exp_data = []
+        for dir_name in exp_dirs:
+            d = dir_name
+            if d.find('.') >= 0 or d.find('trained') >= 0: continue
+            if len(keywords):
+                skip = True
+                for k in keywords:
+                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
+                        skip = False
+                if skip: continue
+
+            if len(exclude):
+                skip = False
+                for k in exclude:
+                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
+                        skip = True
+                if skip: continue
+
+            full_dir = dir_prefix + dir_name
+            full_exp = full_dir[:-1]
+            i = 0
+            data = []
+            while i < 20: 
+                if not os.path.isdir(full_exp+str(i)):
+                    i += 1
+                    continue
+                fnames = os.listdir(full_exp+str(i))
+                info = [f for f in fnames if f.find('td_error') >= 0 and f.endswith('npy') and f.find('pre') < 0]
+                if len(info):
+                    data.append(np.load(full_exp+str(i)+'/'+info[0]))
+                i += 1
+
+            if not len(data): 
+                print('skipping', full_exp)
+                continue
+            dlen = min([len(d) for d in data])
+            dmax = max([len(d) for d in data])
+            print('Gathering data for', full_exp, 'length:', dlen, 'all len:', [len(d) for d in data])
+            end = False
+            cur_t = 0
+            while not end:
+                end = True
+                for d in data:
+                    next_frame = [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + TWINDOW]
+                    if len(next_frame):
+                        end = False
+                        if len(next_frame) >= MIN_FRAME:
+                            next_pt = np.mean(next_frame, axis=0)
+                            no, nt = int(next_pt[4]), int(next_pt[2])
+                            if (no, nt) not in exp_data:
+                                exp_data[no, nt] = []
+                            exp_data[no, nt].append((full_exp, cur_t, next_pt[0]))
+                cur_t += TDELTA
+
+
+            '''
+            for i in range(dmax - FRAME):
+                cur_t = np.mean([d[i:i+FRAME,:,3] for d in data if i+FRAME < len(d)])
+
+                for d in data:
+                    if len(d) < i+FRAME: continue
+                    cur_fr = np.mean(d[i:i+FRAME], axis=0)
+                    for pt in cur_fr:
+                        val = pt[0]
+                        # cur_t = pt[3]
+                        nt = int(pt[2])
+                        no = int(pt[4])
+                        if (no, nt) not in exp_data:
+                            exp_data[no, nt] = []
+                        exp_data[no, nt].append((full_exp, cur_t, val))
+            '''
+        for no, nt in exp_data:
+            print('Plotting', no, nt, exp_name)
+            pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
+            sns.set()
+            sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', data=pd_frame)
+            keyid = ''
+            for key in keywords:
+                keyid += '_{0}'.format(key)
+            pre_lab = '_pre' if pre else ''
+            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}.png'.format(no, nt, keyid, pre_lab))
+
+
+
+
 def get_hl_tests(keywords=[], exclude=[], pre=False):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}

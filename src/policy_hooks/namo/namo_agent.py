@@ -173,7 +173,7 @@ class NAMOSortingAgent(TAMPAgent):
                 if p.is_symbol(): continue
                 aval = getattr(p, aname)[:,t]
                 if np.any(np.isnan(aval)):
-                    print('NAN in:', pname, aname, t)
+                    print('NAN in:', pname, aname, t, task_f is None)
                     aval[:] = 0.
                 cur_state[self.state_inds[pname, aname]] = aval
 

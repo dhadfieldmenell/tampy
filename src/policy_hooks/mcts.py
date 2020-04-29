@@ -561,7 +561,7 @@ class MCTS:
             return self._select_from_explored(state, node, exclude_hl, label=p, debug=debug)
 
 
-    def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, fixed_path=None, debug=False, hl=False):
+    def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, fixed_path=None, debug=False, hl=False, hl_check=False):
         if debug:
             print("SAMPLING")
         samples = []
@@ -601,7 +601,7 @@ class MCTS:
                 # self.agent.reset_hist(deepcopy(old_traj_hist))
                 task_f = None
                 if hl:
-                    task_f = lambda s, t: self.run_hl(s, t, s.targets)
+                    task_f = lambda s, t: self.run_hl(s, t, s.targets, check_cost=hl_check)
                     # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
                 samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
                 # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
@@ -664,16 +664,21 @@ class MCTS:
             if self.agent.cost_f(state, label, self.condition, active_ts=(0,0)) > 0:
                 break
 
-            post = 1.
-            while post > 0 and len(path) < self._max_depth:
+            next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
+            post = self.agent.cost_f(state, label, self.condition, active_ts=(t,t))
+            if post > 0:
+                old_opt = self.opt_strength
+                self.opt_strength = 1.
                 next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
-                next_sample.node = node
-                next_sample.success = 1 - self.agent.goal_f(self.condition, state)
-                if node is not None:
-                    node = node.get_child(label)
-                path.append((next_sample, node))
-                t = next_sample.T - 1
-                post = self.agent.cost_f(state, label, self.condition, active_ts=(t,t))
+                self.opt_strength = old_opt
+
+            next_sample.node = node
+            next_sample.success = 1 - self.agent.goal_f(self.condition, state)
+            if node is not None:
+                node = node.get_child(label)
+            t = next_sample.T - 1
+            next_sample.success = 1 - self.agent.goal_f(self.condition, state)
+            path.append((next_sample, node))
         val = 1 - self.agent.goal_f(self.condition, state)
         for i in range(len(path)):
             if path[i][1] is not None:
@@ -841,7 +846,7 @@ class MCTS:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=check_cost)
             if l is None: break
             plan = self.agent.plans[l]
-            s, _ = self.sample(l, state, plan, 1, hl=hl)
+            s, _ = self.sample(l, state, plan, 1, hl=hl, hl_check=check_cost)
             if debug:
                 print('Shiftd state {0} to {1}'.format(state, s.get_X(s.T-1)))
                 print('Ran {0} at step {1} for targets {2}'.format(l, t, targets))
@@ -863,9 +868,10 @@ class MCTS:
         return bad
 
     
-    def run_hl(self, sample, t=0, targets=None, debug=False):
+    def run_hl(self, sample, t=0, targets=None, check_cost=False, debug=False):
         next_label, distr = self.eval_hl(sample, t, targets, debug, True)
-        return self.iter_distr(next_label, distr, self.label_options, sample.get_X(sample.T-1), sample)
+        if not check_cost: return next_label
+        return self.iter_distr(next_label, distr, self.label_options, sample.get_X(t), sample)
 
 
     def eval_hl(self, sample, t=0, targets=None, debug=False, find_distr=False):
@@ -878,7 +884,7 @@ class MCTS:
             for i in range(len(labels)):
                 l = labels[i]
                 # sample.set_val_obs(obs.copy(), t=0)
-                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, t), t, l, fill_obs=True, targets=targets)
+                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, t), t, l, fill_obs=False, targets=targets)
                 distr[i:i+1] = self.value_func(sample.get_val_obs(t=t))
 
             if self._soft:
@@ -948,7 +954,7 @@ class MCTS:
     def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False, find_bad=False, check_cost=True):
         sample = Sample(self.agent)
         sample.set_X(end_state.copy(), t=0)
-        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
+        # self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
         labels = [l for l in self.label_options]
         cost = 1.
         bad = []
