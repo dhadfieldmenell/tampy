@@ -875,8 +875,8 @@ class MCTS:
 
 
     def eval_hl(self, sample, t=0, targets=None, debug=False, find_distr=False):
-        label = sample.task
-        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, t), t, label, fill_obs=True, targets=targets)
+        # label = sample.task
+        # self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, t), t, label, fill_obs=True, targets=targets)
         labels = [l for l in self.label_options]
         if self.use_q:
             obs = sample.get_val_obs(t=t)
@@ -954,7 +954,7 @@ class MCTS:
     def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False, find_bad=False, check_cost=True):
         sample = Sample(self.agent)
         sample.set_X(end_state.copy(), t=0)
-        # self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
+        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
         labels = [l for l in self.label_options]
         cost = 1.
         bad = []
