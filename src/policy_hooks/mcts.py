@@ -601,7 +601,7 @@ class MCTS:
                 # self.agent.reset_hist(deepcopy(old_traj_hist))
                 task_f = None
                 if hl:
-                    task_f = lambda s: self.eval_hl(s, s.targets)
+                    task_f = lambda s, t: self.run_hl(s, t, s.targets)
                     # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
                 samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
                 # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
@@ -862,19 +862,24 @@ class MCTS:
                 bad.append(l)
         return bad
 
+    
+    def run_hl(self, sample, t=0, targets=None, debug=False):
+        next_label, distr = self.eval_hl(sample, t, targets, debug, True)
+        return self.iter_distr(next_label, distr, self.label_options, sample.get_X(sample.T-1), sample)
 
-    def eval_hl(self, sample, targets=None, debug=False, find_distr=False):
+
+    def eval_hl(self, sample, t=0, targets=None, debug=False, find_distr=False):
         label = sample.task
-        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=True, targets=targets)
+        self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, t), t, label, fill_obs=True, targets=targets)
         labels = [l for l in self.label_options]
         if self.use_q:
-            obs = sample.get_val_obs(t=0)
+            obs = sample.get_val_obs(t=t)
             distr = np.zeros(len(labels))
             for i in range(len(labels)):
                 l = labels[i]
                 # sample.set_val_obs(obs.copy(), t=0)
-                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, l, fill_obs=True, targets=targets)
-                distr[i:i+1] = self.value_func(sample.get_val_obs(t=0))
+                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, t), t, l, fill_obs=True, targets=targets)
+                distr[i:i+1] = self.value_func(sample.get_val_obs(t=t))
 
             if self._soft:
                 exp_wt = np.exp(self.eta*(distr - np.max(distr)))
@@ -885,7 +890,7 @@ class MCTS:
             next_label = tuple(labels[ind])
 
         elif self.discrete_prim:
-            distrs = self.prob_func(sample.get_prim_obs(t=0), self._soft, eta=self.eta)
+            distrs = self.prob_func(sample.get_prim_obs(t=t), self._soft, eta=self.eta)
             for d in distrs:
                 for i in range(len(d)):
                     d[i] = round(d[i], 3)
@@ -906,6 +911,39 @@ class MCTS:
         if find_distr: return tuple(next_label), distr
         return tuple(next_label)
 
+    
+    def iter_distr(self, next_label, distr, labels, end_state, sample, debug=False):
+        cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
+        post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+        init_label = next_label
+
+        while (cost > 0 or post < 1e-3) and np.any(distr > -np.inf):
+            next_label = []
+            if self.soft_decision:
+                expcost = self.n_runs * distr
+                expcost = expcost - np.max(expcost)
+                expcost = np.exp(expcost)
+                expcost = expcost / np.sum(expcost)
+                ind = np.random.choice(range(len(distr)), p=expcost)
+                next_label = tuple(labels[ind])
+                distr[ind] = -np.inf
+            else:
+                val = np.max(distr)
+                inds = [i for i in range(len(distr)) if distr[i] >= val]
+                ind = np.random.choice(inds)
+                # ind = np.argmax(distr)
+                if self.onehot_task:
+                    print('ONEHOT?')
+                    next_label = self.agent.task_to_onehot[ind]
+                else:
+                    next_label = tuple(labels[ind])
+                distr[ind] = -np.inf
+            cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
+            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+        if cost > 0:
+            return init_label
+        return next_label
+
 
     def iter_labels(self, end_state, label, exclude=[], targets=None, debug=False, find_bad=False, check_cost=True):
         sample = Sample(self.agent)
@@ -914,7 +952,7 @@ class MCTS:
         labels = [l for l in self.label_options]
         cost = 1.
         bad = []
-        next_label, distr = self.eval_hl(sample, targets, debug, find_distr=True)
+        next_label, distr = self.eval_hl(sample, 0, targets, debug, find_distr=True)
         if not check_cost: return tuple(next_label)
         cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
         post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)

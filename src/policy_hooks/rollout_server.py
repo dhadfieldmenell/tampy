@@ -1136,7 +1136,9 @@ class RolloutServer(object):
                 np.save(self.hl_test_log.format('pre_' if self.check_precond else ''), np.array(self.hl_data))
         else:
             if val < 1:
-                print('failed for', x0, [s.task for s in path], [s.get_prim_obs(t=0) for s in path])
+                print('failed for', x0, [s.task for s in path])
+                for s in path:
+                    print(s.task, s.get(STATE_ENUM, t=0))
             else:
                 print('succeeded for', path[0].get_X(t=0))
             print('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3]))

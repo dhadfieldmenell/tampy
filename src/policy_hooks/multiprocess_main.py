@@ -558,7 +558,9 @@ class MultiProcessMain(object):
         hyperparams['run_mcts_rollouts'] = False
         hyperparams['run_alg_updates'] = False
         hyperparams['run_hl_test'] = True
+        hyperparams['check_precond'] = True
         hyperparams['share_buffers'] = False
+        hyperparams['check_precond'] = True
         hyperparams['id'] = hyperparams['server_id']+'_test'
         server = RolloutServer(hyperparams)
         for _ in range(50):

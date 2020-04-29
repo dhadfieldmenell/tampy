@@ -179,7 +179,7 @@ class NAMOSortingAgent(TAMPAgent):
 
             self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
             if task_f is not None:
-                task = task_f(sample)
+                task = task_f(sample, t)
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)

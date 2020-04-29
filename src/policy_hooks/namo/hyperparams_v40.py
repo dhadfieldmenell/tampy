@@ -270,8 +270,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              # utils.STATE_ENUM,
                              utils.ONEHOT_GOAL_ENUM,
                              ],
-        'val_obs_include': [utils.STATE_ENUM,
-                            utils.TARGETS_ENUM,
+        'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             utils.TASK_ENUM,
                             utils.OBJ_ENUM,
                             utils.TARG_ENUM,
@@ -305,6 +304,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     }
 
     config['prim_obs_include'].append(utils.EE_ENUM)
+    config['val_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2
         config['prim_obs_include'].append(utils.OBJ_ENUMS[o])
