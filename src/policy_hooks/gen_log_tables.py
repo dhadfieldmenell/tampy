@@ -7,7 +7,7 @@ import matplotlib.cm as cm
 import numpy as np
 import seaborn as sns
 
-FRAME = 100
+FRAME = 10
 TWINDOW = 600
 TDELTA = 60
 MIN_FRAME = 5
@@ -29,6 +29,7 @@ def get_policy_data(policy, keywords=[]):
         data[k] = {}
         for exp_name in exp_probs:
             dir_prefix = LOG_DIR + exp_name + '/'
+            if not os.path.isdir(dir_prefix): continue
             exp_dirs = os.listdir(dir_prefix)
             for dir_name in exp_dirs:
                 d = dir_name
@@ -41,24 +42,29 @@ def get_policy_data(policy, keywords=[]):
 
                 file_names = os.listdir(full_dir)
                 r = 'policy_{0}_log.txt'.format(policy)
+                rollout_data = {}
                 if not os.path.isfile(full_dir+'/'+r): continue
                 with open(full_dir+'/'+r, 'r') as f:
                     next_data = f.read()
                 if len(next_data):
                     r_data = eval(next_data)
+                    for pt in r_data:
+                        if type(pt['var']) is dict:
+                            pt['var'] = pt['var'][policy]
                     rollout_data[r] = r_data
-                    data[k][full_exp][full_dir] = r_data
+                    data[k][full_exp][full_dir] = rollout_data
 
     return data
 
 
-def get_rollout_data(keywords=[], nfiles=10):
+def get_rollout_data(keywords=[], nfiles=20):
     exp_probs = os.listdir(LOG_DIR)
     data = {}
     for k in keywords:
         data[k] = {}
         for exp_name in exp_probs:
             dir_prefix = LOG_DIR + exp_name + '/'
+            if not os.path.isdir(dir_prefix): continue
             exp_dirs = os.listdir(dir_prefix)
             for dir_name in exp_dirs:
                 d = dir_name
@@ -80,6 +86,8 @@ def get_rollout_data(keywords=[], nfiles=10):
                     if len(next_data):
                         r_data = eval(next_data)
                         rollout_data[r] = r_data
+                    else:
+                        print('no data for', r)
                 data[k][full_exp][full_dir] = rollout_data
 
     return data
@@ -131,6 +139,7 @@ def gen_first_success_plots(x_var='time'):
 
 
 def get_td_loss(keywords=[], exclude=[], pre=False):
+    tdelta = 5
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
     for exp_name in exp_probs:
@@ -164,9 +173,16 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
                     i += 1
                     continue
                 fnames = os.listdir(full_exp+str(i))
-                info = [f for f in fnames if f.find('td_error') >= 0 and f.endswith('npy') and f.find('pre') < 0]
+                info = [f for f in fnames if f.find('td_error') >= 0 and f.endswith('npy') and f.find('test') < 0]
                 if len(info):
-                    data.append(np.load(full_exp+str(i)+'/'+info[0]))
+                    cur_data = []
+                    for step in info:
+                        cur_data.append(np.load(full_exp+str(i)+'/'+step))
+                    dlen = max([len(dt) for dt in cur_data])
+                    data.append([])
+                    for n in range(dlen):
+                        data[-1].append(np.mean([cur_data[ind][n] for ind in range(len(cur_data)) if n < len(cur_data[ind])], axis=0))
+                    data[-1] = np.array(data[-1])
                 i += 1
 
             if not len(data): 
@@ -180,16 +196,16 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
             while not end:
                 end = True
                 for d in data:
-                    next_frame = [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + TWINDOW]
+                    next_frame = d[cur_t:cur_t+tdelta] # [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + TWINDOW]
                     if len(next_frame):
                         end = False
                         if len(next_frame) >= MIN_FRAME:
                             next_pt = np.mean(next_frame, axis=0)
-                            no, nt = int(next_pt[4]), int(next_pt[2])
+                            no, nt = 0, 0 # int(next_pt[4]), int(next_pt[2])
                             if (no, nt) not in exp_data:
                                 exp_data[no, nt] = []
                             exp_data[no, nt].append((full_exp, cur_t, next_pt[0]))
-                cur_t += TDELTA
+                cur_t += tdelta
 
 
             '''
@@ -217,7 +233,7 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
             for key in keywords:
                 keyid += '_{0}'.format(key)
             pre_lab = '_pre' if pre else ''
-            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}.png'.format(no, nt, keyid, pre_lab))
+            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_td_error{2}{3}.png'.format(no, nt, keyid, pre_lab))
 
 
 
@@ -324,8 +340,11 @@ def plot(data, columns, descr):
 
 
 
-def gen_rollout_plots(xvar, yvar, keywords=[]):
-    rd = get_rollout_data(keywords)
+def gen_data_plots(xvar, yvar, keywords=[], lab='rollout'):
+    if lab == 'rollout':
+        rd = get_rollout_data(keywords)
+    else:
+        rd = get_policy_data(lab, keywords)
     data = {}
     print('Collected data...')
     for keyword in rd:
@@ -371,10 +390,14 @@ def gen_rollout_plots(xvar, yvar, keywords=[]):
 
     plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
 
+
 keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_post_cond', keywords)
 # gen_rollout_plots('time', 'avg_first_success', keywords)
-get_hl_tests(['fourbyfour'])
-get_hl_tests(['fourbyfour'], pre=True)
+gen_data_plots('time', 'avg_first_success', ['fixed'])
+#gen_data_plots('time', 'avg_pre_cost', ['fixed'])
+#get_hl_tests(['dgx_4'])
+#get_td_loss(['fixed'])
+#get_hl_tests(['dgx_4'], pre=True)
 # gen_rollout_plots('time', 'avg_pre_cost', keywords)
 

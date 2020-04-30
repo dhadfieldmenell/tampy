@@ -1125,7 +1125,7 @@ class RolloutServer(object):
         if rlen is None:
             rlen = 4 + 2*n
         self.agent.T = self.config['task_durations'][self.task_list[0]]
-        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
+        val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=False)#self.check_precond)
         s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
@@ -1138,7 +1138,8 @@ class RolloutServer(object):
             if val < 1:
                 print('failed for', x0, [s.task for s in path])
                 for s in path:
-                    print(s.task, s.get(STATE_ENUM, t=0))
+                    # print(s.task, s.get(STATE_ENUM, t=0))
+                    print(s.task, s.get_val_obs(t=0))
             else:
                 print('succeeded for', path[0].get_X(t=0))
             print('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3]))

@@ -159,7 +159,7 @@ class MCTS:
         self.agent = agent
         self.soft_decision = soft_decision
         self._soft = soft
-        self.eta = 1e2
+        self.eta = 5e0
         self.ff_thresh = ff_thresh
         self.C = C # Standard is to use 2 but given difficulty of finding good paths, using smaller
         self.branch_factor = branch_factor
@@ -870,6 +870,7 @@ class MCTS:
     
     def run_hl(self, sample, t=0, targets=None, check_cost=False, debug=False):
         next_label, distr = self.eval_hl(sample, t, targets, debug, True)
+        if t==0: print(zip(distr, self.label_options), sample.get(STATE_ENUM, t=t), sample.get(ONEHOT_GOAL_ENUM, t=t))
         if not check_cost: return next_label
         return self.iter_distr(next_label, distr, self.label_options, sample.get_X(t), sample)
 
@@ -899,7 +900,7 @@ class MCTS:
             distrs = self.prob_func(sample.get_prim_obs(t=t), self._soft, eta=self.eta)
             for d in distrs:
                 for i in range(len(d)):
-                    d[i] = round(d[i], 3)
+                    d[i] = round(d[i], 6)
 
             if self.onehot_task:
                 distr = distrs[0]
@@ -947,6 +948,7 @@ class MCTS:
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
             post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
         if cost > 0:
+            print('Failed all precond')
             return init_label
         return next_label
 

@@ -87,7 +87,7 @@ class LLSearchNode(SearchNode):
         return True
 
     def plan(self, solver):
-        solver.solve(self.curr_plan)
+        solver.backtrack_solve(self.curr_plan)
 
     def get_failed_pred(self):
         failed_pred = self.curr_plan.get_failed_pred()
