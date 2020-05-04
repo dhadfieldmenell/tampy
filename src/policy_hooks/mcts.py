@@ -931,6 +931,7 @@ class MCTS:
         cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
         post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
         init_label = next_label
+        T = self.agent.plans[next_label].horizon - 1
 
         while (cost > 0 or post < 1e-3) and np.any(distr > -np.inf):
             next_label = []
@@ -954,7 +955,7 @@ class MCTS:
                     next_label = tuple(labels[ind])
                 distr[ind] = -np.inf
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug)
         if cost > 0:
             print('Failed all precond')
             return init_label

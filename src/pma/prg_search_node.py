@@ -45,11 +45,12 @@ class HLSearchNode(SearchNode):
         return plan_obj
 
 class LLSearchNode(SearchNode):
-    def __init__(self, plan, prob, priority = 1):
+    def __init__(self, plan, prob, priority=1, keep_failed=False):
         self.curr_plan = plan
         self.concr_prob = prob
         self.child_record = {}
         self.priority = priority
+        self.keep_failed = keep_failed # If true, replanning is done from the end of the first failed action instead of the start
 
 
     def parse_state(self, plan, failed_preds, ts):
@@ -60,7 +61,7 @@ class LLSearchNode(SearchNode):
             for p in a.preds:
                 st, et = p['active_timesteps']
                 # Only check before the failed ts, previous actions fully checked while current only up to priority
-                # TODO: How to handle negatd?
+                # TODO: How to handle negated?
                 check_ts = ts - p['pred'].active_range[1]
                 if st <= ts and et <= ts:
                     # hl_state preds aren't tied to ll state
@@ -98,6 +99,9 @@ class LLSearchNode(SearchNode):
         print('Failed:', failed_pred, i)
         # import ipdb; ipdb.set_trace()
         anum, last_action = [(a_ind, a) for a_ind, a in enumerate(self.curr_plan.actions) if a.active_timesteps[0] < i and a.active_timesteps[1] >= i][0]
+        if self.keep_failed:
+            anum += 1
+            last_action = self.curr_plan.actions[anum]
         state_timestep = last_action.active_timesteps[0]
         # state_timestep = 0
         state_preds = self.parse_state(self.curr_plan, [failed_pred], state_timestep)
