@@ -70,7 +70,7 @@ class BacktrackLLSolver(LLSolver):
                 plan.params[p]._free_attrs[attr] = self.saved_params_free[plan][p][attr].copy()
 
     def backtrack_solve(self, plan, callback=None, verbose=False, n_resamples=5):
-        plan.save_free_attrs()
+        # plan.save_free_attrs()
         success = self._backtrack_solve(plan, callback, anum=0, verbose=verbose, n_resamples=n_resamples)
         # plan.restore_free_attrs()
         return success
@@ -93,6 +93,7 @@ class BacktrackLLSolver(LLSolver):
         def recursive_solve():
             ## don't optimize over any params that are already set
             old_params_free = {}
+            old_params_free_2 = {}
             for p in plan.params.itervalues():
                 if p.is_symbol():
                     continue
@@ -103,10 +104,14 @@ class BacktrackLLSolver(LLSolver):
                         p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                 else:
                     p_attrs = {}
+                    p_attrs_2 = {}
                     old_params_free[p] = p_attrs
+                    old_params_free_2[p] = p_attrs_2
                     for attr in p._free_attrs:
                         p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
+                        p_attrs_2[attr] = p._free_attrs[attr][:, active_ts[0]].copy()
                         p._free_attrs[attr][:, active_ts[1]] = 0
+                        p._free_attrs[attr][:, active_ts[0]] = 0
             self.child_solver = self.__class__()
             success = self.child_solver._backtrack_solve(plan, callback=callback, anum=anum+1, verbose=verbose, amax = amax, n_resamples=n_resamples)
 
@@ -119,10 +124,11 @@ class BacktrackLLSolver(LLSolver):
                 else:
                     for attr in p._free_attrs:
                         p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
+                        p._free_attrs[attr][:, active_ts[0]] = old_params_free_2[p][attr]
             return success
 
         # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
-        if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
+        if rs_param is None: #  or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
             ## this parameter is fixed
             if callback is not None:
                 callback_a = lambda: callback(a)
@@ -146,7 +152,7 @@ class BacktrackLLSolver(LLSolver):
         """
         sampler_begin
         """
-        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=3)
+        robot_poses = self.obj_pose_suggester(plan, anum, resample_size=1)
 
         """
         sampler end
@@ -206,7 +212,7 @@ class BacktrackLLSolver(LLSolver):
                     break
 
                 # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
-                # import ipdb; ipdb.set_trace()
+                # if len(failed_preds): import ipdb; ipdb.set_trace()
 
                 self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
@@ -221,11 +227,12 @@ class BacktrackLLSolver(LLSolver):
                     print "error in predicate checking"
 
                 # import ipdb; ipdb.set_trace()
-                assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
+                # assert not (success and not len(plan.get_failed_preds(active_ts = active_ts, priority = priority, tol = 1e-3)) == 0)
 
             if not success:
-                return False
+                break
 
+        print(plan.get_failed_preds(active_ts=active_ts, tol=1e-3), active_ts)
         return success
 
     #@profile
@@ -323,10 +330,15 @@ class BacktrackLLSolver(LLSolver):
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
         if priority == MAX_PRIORITY:
             success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
-        self._update_ll_params()
+            if not success:
+                self._update_ll_params()
+                success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
+        else:
+            self._update_ll_params()
 
         if DEBUG: assert not plan.has_nan(active_ts)
 
+        '''
         if resample:
             # During resampling phases, there must be changes added to sampling_trace
             if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:
@@ -339,6 +351,8 @@ class BacktrackLLSolver(LLSolver):
                         if failed_t > plan.actions[i].active_timesteps[1]:
                             reward += 1
                 plan.sampling_trace[-1]['reward'] = reward
+        '''
+
         ##Restore free_attrs values
         plan.restore_free_attrs()
 

@@ -51,20 +51,61 @@ class LLSearchNode(SearchNode):
         self.child_record = {}
         self.priority = priority
 
+
+    def parse_state(self, plan, failed_preds, ts):
+        new_preds = failed_preds
+        for a in plan.actions:
+            a_st, a_et = a.active_timesteps
+            if a_st >= ts: break
+            for p in a.preds:
+                st, et = p['active_timesteps']
+                # Only check before the failed ts, previous actions fully checked while current only up to priority
+                # TODO: How to handle negatd?
+                check_ts = ts - p['pred'].active_range[1]
+                if st <= ts and et <= ts:
+                    # hl_state preds aren't tied to ll state
+                    if p['hl_info'] == 'hl_state':
+                        if p['pred'].active_range[1] > 0: continue
+                        old_vals = {}
+                        for param in p['pred'].attr_inds:
+                            for attr, _ in p['pred'].attr_inds[param]:
+                                if param.is_symbol():
+                                    aval = getattr(plan.params[param.name], attr)[:,0]
+                                else:
+                                    aval = getattr(plan.params[param.name], attr)[:,check_ts]
+                                old_vals[param, attr] = getattr(param, attr)[:,0].copy()
+                                getattr(param, attr)[:,0] = aval
+                        if p['negated'] and not p['pred'].test(0, tol=1e-3, negated=True):
+                            new_preds.append(p['pred'])
+                        elif not p['negated'] and p['pred'].test(0, tol=1e-3):
+                            new_preds.append(p['pred'])
+
+                        for param, attr in old_vals:
+                            getattr(param, attr)[:,0] = old_vals[param, attr]
+                    elif not p['negated'] and p['pred'].test(check_ts, tol=1e-3):
+                        new_preds.append(p['pred'])
+                    elif p['negated'] and not p['pred'].test(check_ts, tol=1e-3, negated=True):
+                        new_preds.append(p['pred'])
+        return new_preds
+
+
     def get_problem(self, i, failed_pred, suggester):
         """
         Returns a representation of the search problem which starts from the end state of step i and goes to the same goal.
         """
         state_name = "state_{}".format(self.priority)
         state_params = self.curr_plan.params.copy()
-        last_action = [a for a in self.curr_plan.actions if a.active_timesteps[0] <= i and a.active_timesteps[1] >= i][0]
+        print('Failed:', failed_pred, i)
+        # import ipdb; ipdb.set_trace()
+        anum, last_action = [(a_ind, a) for a_ind, a in enumerate(self.curr_plan.actions) if a.active_timesteps[0] < i and a.active_timesteps[1] >= i][0]
         state_timestep = last_action.active_timesteps[0]
         # state_timestep = 0
-        state_preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and  p['negated'] == False]
-        for p in state_preds:
-            arange = p.active_range
-            p.active_range = (arange[0], max(arange[1], state_timestep))
-        state_preds.append(failed_pred)
+        state_preds = self.parse_state(self.curr_plan, [failed_pred], state_timestep)
+        # state_preds = [p['pred'] for p in last_action.preds if p['hl_info'] != 'eff' and  p['negated'] == False and p['active_timesteps'][0]==a.active_timesteps[0]]
+        # for p in state_preds:
+        #     arange = p.active_range
+        #     p.active_range = (arange[0], max(arange[1], state_timestep))
+        # state_preds.append(failed_pred)
         new_state = State(state_name, state_params, state_preds, state_timestep)
         """
         Suggester should sampling based on biased Distribution according to learned theta for each parameter.
@@ -76,8 +117,8 @@ class LLSearchNode(SearchNode):
         End of Suggester
         """
         goal_preds = self.concr_prob.goal_preds.copy()
-        new_problem = Problem(new_state, goal_preds, self.concr_prob.env)
-
+        new_problem = Problem(new_state, goal_preds, self.concr_prob.env, False, start_action=anum)
+        
         return new_problem
 
     def solved(self):
@@ -87,7 +128,9 @@ class LLSearchNode(SearchNode):
         return True
 
     def plan(self, solver):
-        solver.backtrack_solve(self.curr_plan)
+        if not len(self.curr_plan.get_failed_preds(active_ts=(0,0))):
+            self.curr_plan.freeze_actions(self.curr_plan.start_action)
+            success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action)
 
     def get_failed_pred(self):
         failed_pred = self.curr_plan.get_failed_pred()

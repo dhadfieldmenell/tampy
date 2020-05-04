@@ -185,6 +185,12 @@ class RolloutServer(object):
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
         self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_{0}log.npy'
+        self.render = hyperparams.get('load_render', False)
+        if self.render:
+            self.cur_vid_id = 0
+            if not os.path.isdir('tf_saved/'+hyperparams['weight_dir']+'/videos'):
+                os.makedirs('tf_saved/'+hyperparams['weight_dir']+'/videos')
+            self.video_dir = 'tf_saved/'+hyperparams['weight_dir']+'/videos'
         self.td_error_log = 'tf_saved/'+hyperparams['weight_dir']+'/td_error_{0}_log.npy'.format(self.id)
         self.log_updates = []
         self.hl_data = []
@@ -238,7 +244,7 @@ class RolloutServer(object):
         #self.test_publisher = rospy.Publisher('is_alive', String, queue_size=2)
 
 
-    def update(self, obs, mu, prc, wt, task, rollout_len=0):
+    def update(self, obs, mu, prc, wt, task, rollout_len=0, acts=[], ref_acts=[], terminal=[]):
         assert(len(mu) == len(obs))
 
         prc[np.where(prc > 1e10)] = 1e10
@@ -250,14 +256,21 @@ class RolloutServer(object):
         assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
 
+        opts = self.agent.prob.get_prim_choices()
         msg = PolicyUpdate() if USE_ROS else DummyMSG()
         msg.obs = obs.flatten().tolist()
         msg.mu = mu.flatten().tolist()
         msg.prc = prc.flatten().tolist()
         msg.wt = wt.flatten().tolist()
+        if len(acts):
+            msg.acts = acts.flatten().tolist()
+            msg.ref_acts = ref_acts.flatten().tolist()
+            msg.terminal = terminal
         msg.dO = self.agent.dO
         msg.dPrimObs = self.agent.dPrim
         msg.dValObs = self.agent.dVal
+        msg.dAct = np.sum([len(opts[e]) for e in opts])
+        msg.nActs = np.prod([len(opts[e]) for e in opts])
         msg.dU = mu.shape[-1]
         msg.n = len(mu)
         msg.rollout_len = mu.shape[1] if rollout_len < 1 else rollout_len
@@ -328,10 +341,10 @@ class RolloutServer(object):
         return np.array(resp.act)
 
 
-    def value_call(self, obs):
+    def value_call(self, obs, act):
         # print 'Entering value call:', datetime.now()
         if self.use_local:
-            return self.policy_opt.value(obs)
+            return self.policy_opt.value(obs, act)
         raise NotImplementedError
         rospy.wait_for_service('qvalue', timeout=10)
         req = QValueRequest()
@@ -1084,6 +1097,18 @@ class RolloutServer(object):
             print('Finished tree search step.')
 
 
+    def save_video(self, rollout):
+        if not self.render: return
+        fname = self.video_dir + '/{0}_{1}.npy'.format(self.id, self.cur_vid_id)
+        self.cur_vid_id += 1
+        buf = []
+        for step in rollout:
+            for t in range(step.T):
+                im = self.agent.get_image(step.get_X(t=t))
+                buf.append(im)
+        np.save(fname, np.array(buf))
+
+
     def test_hl(self, rlen=None, save=True):
         if self.policy_opt.share_buffers:
             self.policy_opt.read_shared_weights()
@@ -1144,6 +1169,7 @@ class RolloutServer(object):
                 print('succeeded for', path[0].get_X(t=0))
             print('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3]))
             print('n_runs', len(self.hl_data))
+            self.save_video(path)
         self.last_hl_test = time.time()
         print('TESTED HL')
 
@@ -1158,10 +1184,14 @@ class RolloutServer(object):
 
     def check_td_error(self, path):
         err = 0.
+        if not len(path): return 0
+        opts = self.agent.prob.get_prim_choices()
         if not self.use_qfunc: return 0
         for i in range(len(path)):
-            v0 = self.value_call(path[i].get_val_obs(0))
-            v1 = self.value_call(path[i+1].get_val_obs(0)) if i < len(path) - 1 else 0.
+            act1 = np.concatenate([path[i].get(e, 0) for e in opts], axis=-1)
+            act2 = np.concatenate([path[i+1].get(e, 0) for e in opts], axis=-1) if i < len(path) - 1 else 0.
+            v0 = self.value_call(path[i].get_val_obs(0), act1)
+            v1 = self.value_call(path[i+1].get_val_obs(0), act2) if i < len(path) - 1 else 0.
             r = 1. - self.agent.goal_f(path[i].condition, path[i].get(STATE_ENUM, t=path[i].T-1), path[i].targets)
             err += r + self.discount * v1 - v0
         return err / len(path)
@@ -1249,12 +1279,23 @@ class RolloutServer(object):
 
     def update_qvalue(self, samples, first_ts_only=False):
         dV, dO = 1, self.agent.dVal
+        opts = self.agent.prob.get_prim_choices()
+        dAct = np.sum([len(opts[e]) for e in opts])
+        nAct = np.prod([len(opts[e]) for e in opts])
 
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dV))
         tgt_prc, tgt_wt = np.zeros((0, dV, dV)), np.zeros((0))
+        acts = np.zeros((0, dAct))
+        done = np.zeros(0)
         for sample in samples:
             if not hasattr(sample, 'success'): continue
-            mu = sample.discount * sample.success * np.ones((sample.T, dV))
+            act = np.concatenate([sample.get(e) for e in opts], axis=-1)
+            acts = np.concatenate((acts, act))
+            mu = np.array([[1.-self.agent.goal_f(sample.condition, sample.get(STATE_ENUM, t), sample.targets)] for t in range(sample.T)])# sample.success * np.ones((sample.T, dV))
+            done = np.concatenate((done,np.array(mu).flatten()))
+            mu *= 1e1
+            if np.any(mu) > 0:
+                mu += 1.
             tgt_mu = np.concatenate((tgt_mu, mu))
             wt = np.ones((sample.T,))
             tgt_wt = np.concatenate((tgt_wt, wt))
@@ -1273,9 +1314,10 @@ class RolloutServer(object):
                 tgt_prc = np.concatenate((tgt_prc, prc))
                 tgt_wt = np.concatenate((tgt_wt, wt))
                 tgt_mu = np.concatenate((tgt_mu, mu))
-
+        
+        ref_acts = np.tile([self.agent.get_encoded_tasks()], [len(tgt_mu), 1, 1])
         if len(tgt_mu):
-            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'value', 1)
+            self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'value', 1, acts=acts, ref_acts=ref_acts, terminal=done)
 
 
     def update_primitive(self, samples):

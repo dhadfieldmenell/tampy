@@ -104,7 +104,7 @@ class NAMOSortingAgent(TAMPAgent):
             pos = next_trans[:3,3] # [next_trans[1,3], next_trans[0,3], next_trans[2,3]]
             items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
         
-        config['load_render'] = False
+        config['load_render'] = hyperparams['master_config'].get('load_render', False)
         self.mjc_env = MJCEnv.load_config(config)
         # self.viewer = OpenRAVEViewer(self.env)
         # import ipdb; ipdb.set_trace()
@@ -459,7 +459,7 @@ class NAMOSortingAgent(TAMPAgent):
                     elif plan.params['pr2'].gripper[0,t] <= GRIP_TOL:
                         self.in_gripper = None
 
-                    elastic = 1e-2 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
+                    elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
                     if param is not self.in_gripper and np.linalg.norm(new_disp) <= radius1 + radius2:
                         dx, dy = -1e1 * pr2_disp
                         zx, zy = param.pose[:,t]
@@ -553,8 +553,8 @@ class NAMOSortingAgent(TAMPAgent):
                         param.pose[:, t+1] = param.pose[:, t]
 
             ignore = []
-            #dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
-            if False: #self.check_col(plan, t): # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.5 * DSAFE):
+            dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
+            if np.any(np.abs(dist) < plan.params['pr2'].geom.radius): #self.check_col(plan, t): # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.5 * DSAFE):
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
                     getattr(plan.params[pname], aname)[:,t+1] = old_state[self.state_inds[pname, aname]]
@@ -636,6 +636,10 @@ class NAMOSortingAgent(TAMPAgent):
 
         
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
+        for param in plan.params.values():
+            for attr in param._free_attrs:
+                if np.any(np.isnan(getattr(param, attr)[:,0])):
+                    getattr(param, attr)[:,0] = 0
 
         old_out_coeff = self.solver.strong_transfer_coeff
         if out_coeff is not None:
@@ -1043,7 +1047,7 @@ class NAMOSortingAgent(TAMPAgent):
     def cost_f(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
         if active_ts == None:
             active_ts = (1, plan.horizon-1)
-        failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug, targets=[])
+        failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug, targets=targets)
         cost = 0
         for failed in failed_preds:
             for t in range(active_ts[0], active_ts[1]+1):
@@ -1162,7 +1166,8 @@ class NAMOSortingAgent(TAMPAgent):
 
     def get_image(self, x, depth=False):
         self.reset_to_state(x)
-        im = self.mjc_env.render(camera_id=0, depth=depth, view=False)
+        # im = self.mjc_env.render(camera_id=0, depth=depth, view=False)
+        im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False)
         return im
 
 

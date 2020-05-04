@@ -39,7 +39,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
  
-    def obj_pose_suggester(self, plan, anum, resample_size=10):
+    def obj_pose_suggester(self, plan, anum, resample_size=1):
         robot_pose = []
         assert anum + 1 <= len(plan.actions)
 

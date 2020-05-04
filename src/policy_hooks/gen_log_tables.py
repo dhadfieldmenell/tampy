@@ -9,8 +9,8 @@ import seaborn as sns
 
 FRAME = 10
 TWINDOW = 600
-TDELTA = 60
-MIN_FRAME = 5
+TDELTA = 300
+MIN_FRAME = 10
 nan = np.nan
 LOG_DIR = 'tf_saved/'
 SAVE_DIR = '/home/michaelmcdonald/Dropbox/'
@@ -394,9 +394,9 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout'):
 keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_post_cond', keywords)
 # gen_rollout_plots('time', 'avg_first_success', keywords)
-gen_data_plots('time', 'avg_first_success', ['fixed'])
+# gen_data_plots('time', 'avg_first_success', ['fixed'])
 #gen_data_plots('time', 'avg_pre_cost', ['fixed'])
-#get_hl_tests(['dgx_4'])
+get_hl_tests(['dqn'], pre=True)
 #get_td_loss(['fixed'])
 #get_hl_tests(['dgx_4'], pre=True)
 # gen_rollout_plots('time', 'avg_pre_cost', keywords)

@@ -118,18 +118,32 @@ class PolicyServer(object):
 
         wt_dims = (msg.n, msg.rollout_len, 1) if msg.rollout_len > 1 else (msg.n,1)
         wt = np.array(msg.wt).reshape(wt_dims)
-        self.update_queue.append((obs, mu, prc, wt, msg.task))
+        if msg.task == 'value':
+            act_dims = (msg.n, msg.rollout_len, msg.dAct)
+            acts = np.reshape(msg.acts, act_dims)
+            ref_act_dims = (msg.n, msg.rollout_len, msg.nActs, msg.dAct)
+            ref_acts = np.reshape(msg.ref_acts, ref_act_dims)
+            done = np.reshape(msg.terminal, (msg.n,1))
+            self.update_queue.append((obs, mu, prc, wt, msg.task, acts, ref_acts, done))
+        else:
+            self.update_queue.append((obs, mu, prc, wt, msg.task))
         self.update_queue = self.update_queue[-MAX_QUEUE_SIZE:]
 
 
     def parse_update_queue(self):
         queue_len = len(self.update_queue)
         for i in range(queue_len):
-            obs, mu, prc, wt, task_name = self.update_queue.pop()
+            if self.task == 'value':
+                obs, mu, prc, wt, task_name, acts, ref_acts, done = self.update_queue.pop()
+            else:
+                obs, mu, prc, wt, task_name, = self.update_queue.pop()
             start_time = time.time()
             self.full_N += len(mu)
             self.n_data.append(self.full_N)
-            update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)))
+            if self.task == 'value':
+                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), acts=acts, ref_acts=ref_acts, done=done)
+            else:
+                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)))
             end_time = time.time()
 
 

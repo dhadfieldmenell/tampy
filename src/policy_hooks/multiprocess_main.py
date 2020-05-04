@@ -121,6 +121,7 @@ class MultiProcessMain(object):
         self.prim_dims = OrderedDict({})
         self.config['prim_dims'] = self.prim_dims
         options = prob.get_prim_choices()
+        nacts = np.prod([len(options[e]) for e in options])
         ind = len(self.task_list)
         self.prim_bounds.append((0, ind))
         for enum in options:
@@ -257,7 +258,9 @@ class MultiProcessMain(object):
         self.config['algorithm']['init_traj_distr']['dt'] = 1.0
 
         self.config['algorithm']['policy_opt'] = {
-            'type': MultiHeadPolicyOptTf if self.config['multi_policy'] else ControlAttentionPolicyOpt,
+            'q_imwt': self.config.get('q_imwt', 0),
+            'nacts': nacts,
+            'type': ControlAttentionPolicyOpt,
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
                 # 'obs_vector_data': [utils.STATE_ENUM],
@@ -410,7 +413,7 @@ class MultiProcessMain(object):
         self.config['symbolic_bound'] = self.symbolic_bound
         self.config['dO'] = self.agent.dO
         self.config['dPrimObs'] = self.agent.dPrim
-        self.config['dValObs'] = self.agent.dVal
+        self.config['dValObs'] = self.agent.dVal + np.sum([len(options[e]) for e in options])
         self.config['dPrimOut'] = self.agent.dPrimOut 
         self.config['state_inds'] = self.state_inds
         self.config['action_inds'] = self.action_inds

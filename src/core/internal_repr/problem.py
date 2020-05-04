@@ -6,14 +6,15 @@ class Problem(object):
     and a set of goal predicates (which must hold true in the goal state). Each time an LL search node
     is spawned from the associated HL search node, this initial state is used to initialize parameter trajectories.
     """
-    def __init__(self, init_state, goal_preds, env):
+    def __init__(self, init_state, goal_preds, env, check_consistent=True, start_action=0):
         if not init_state.is_concrete():
             raise ProblemConfigException("Initial state is not concrete. Have all non-symbol parameters been instantiated with a value?")
-        if not init_state.is_consistent():
+        if check_consistent and not init_state.is_consistent():
             raise ProblemConfigException("Initial state is not consistent (predicates are violated).")
         self.init_state = init_state
         self.goal_preds = goal_preds
         self.env = env
+        self.start_action = start_action
 
     def goal_test(self):
         # because problems are associated with HL search nodes,

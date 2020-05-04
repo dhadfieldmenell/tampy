@@ -645,7 +645,9 @@ def get_base_solver(parent_class):
             success = solv.solve(self._prob, method='penalty_sqp', tol=tol)
             if True or priority == MAX_PRIORITY:
                 success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
-            self._update_ll_params()
+            if not success:
+                self._update_ll_params()
+                success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
 
             # if resample:
             #     if len(plan.sampling_trace) > 0 and 'reward' not in plan.sampling_trace[-1]:

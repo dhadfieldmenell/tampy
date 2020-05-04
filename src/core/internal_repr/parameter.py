@@ -133,8 +133,9 @@ class Object(Parameter):
     def is_defined(self):
         return self.pose is not "undefined"
 
-    def copy(self, new_horizon):
+    def copy(self, new_horizon, reset_free=False):
         new = Object()
+        new_free = {}
         for attr_name, v in self.__dict__.items():
             attr_type = self.get_attr_type(attr_name)
             if issubclass(attr_type, Vector):
@@ -144,8 +145,12 @@ class Object(Parameter):
                     assert attr_type.dim == v.shape[0]
                     new_value[:v.shape[0], :v.shape[1]] = v[:v.shape[0], :min(v.shape[1], new_horizon)]
                 setattr(new, attr_name, new_value)
+                new_free[attr_name] = np.ones(new_value.shape)
+                new_free[attr_name][:,0] = 0
             else:
                 setattr(new, attr_name, v)
+        if reset_free:
+            new._free_attrs = new_free
         return new
 
     def write_to_hdf5(self, file_name):
@@ -178,8 +183,9 @@ class Symbol(Parameter):
     def is_symbol(self):
         return True
 
-    def copy(self, new_horizon):
+    def copy(self, new_horizon, reset_free=False):
         new = Symbol()
+        new_free = {}
         for k, v in self.__dict__.items():
             if v == 'undefined':
                 attr_type = self.get_attr_type(k)
@@ -187,6 +193,9 @@ class Symbol(Parameter):
                 val = np.empty((attr_type.dim, 1))
                 val[:] = np.NaN
                 setattr(new, k, val)
+                new_free[k] = np.ones(val.shape)
             else:
                 setattr(new, k, v)
+        if reset_free:
+            new._free_attrs = new_free
         return new

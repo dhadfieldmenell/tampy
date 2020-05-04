@@ -51,7 +51,9 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
                 next_config['onehot_task'] = args.onehot_task
                 next_config['soft'] = args.soft
                 next_config['soft_eval'] = args.soft_eval
-                next_config['ff_thresh'] = args.ff
+                next_config['ff_thresh'] = args.ff if hasattr(args, 'ff') else 0.
+                next_config['q_imwt'] = args.q_imwt if hasattr(args, 'q_imwt') else 0.
+                next_config['load_render'] = args.render
                 if len(args.descr):
                     next_config['descr'] = args.descr
             next_config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
@@ -131,9 +133,11 @@ def main():
     parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
     parser.add_argument('-spl', '--split', action='store_false', default=True)
     parser.add_argument('-q', '--qfunc', action='store_true', default=False)
+    parser.add_argument('-render', '--render', action='store_true', default=False)
     parser.add_argument('-cur', '--cur_thresh', type=int, default=-1)
     parser.add_argument('-ncur', '--n_thresh', type=int, default=10)
     parser.add_argument('-ff', '--ff', type=float, default=0)
+    parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)
 
     args = parser.parse_args()
 
@@ -162,6 +166,7 @@ def main():
                 args = pickle.load(f)
             args.soft_eval = old_args.soft_eval
             args.test = old_args.test
+            args.render = old_args.render
 
         exps = load_multi(exps_info, n_objs, n_targs, args)
         for ind, exp in enumerate(exps):

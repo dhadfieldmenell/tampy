@@ -170,7 +170,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.END_TARGETS = prob.END_TARGETS[:4]
+    prob.END_TARGETS = prob.END_TARGETS[:1]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -238,7 +238,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'solver_type': NAMOPolicySolver,
         'update_size': 2000,
         'prim_update_size': 2000,
-        'val_update_size': 2000,
+        'val_update_size': 1000,
         'use_local': True,
         'n_dirs': N_DIRS,
         'domain': 'namo',
@@ -271,10 +271,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
-                            utils.TASK_ENUM,
-                            utils.OBJ_ENUM,
-                            utils.TARG_ENUM,
-                            utils.GRASP_ENUM,
                             ],
         #'prim_out_include': [utils.TASK_ENUM, utils.OBJ_ENUM, utils.TARG_ENUM, utils.GRASP_ENUM],
         'prim_out_include': list(prob.get_prim_choices().keys()),

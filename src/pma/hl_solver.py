@@ -1,3 +1,4 @@
+import re
 import subprocess
 from core.internal_repr.action import Action
 from core.internal_repr.plan import Plan
@@ -95,13 +96,58 @@ class FFSolver(HLSolver):
                 if count == 0:
                     inds.append(i+1)
         for i in range(len(inds)):
-            if ts[i][0] == 0:
+            if ts[i][0] == 0 and ts[i][1] == 0:
                 pred = pre[inds[i]:inds[i+1]] if i+1 < len(inds) else pre[inds[i]:]
                 if pred not in so_far:
                     preds += pred
                     so_far.append(pred)
 
         return '(and {0})'.format(preds)
+
+    def _parse_exclude(self, preds):
+        parsed = []
+        preds = preds[4:-1].strip()
+        count, ind = 0, 0
+        for i, token in enumerate(preds):
+            if token == "(":
+                count += 1
+            if token ==")":
+                count -= 1
+                if count == 0:
+                    parsed.append(preds[ind:i+1].strip())
+                    ind = i + 1
+
+        for i, pred in enumerate(parsed):
+            if pred.find('/') >= 0:
+                new_pred = ''
+                cur_pred = pred
+                eq = ''
+                depth = 0
+                while cur_pred.find('forall') >= 0:
+                    depth += 1
+                    new_pred += '(forall '
+                    m = re.match("\(\s*forall", cur_pred)
+                    cur_pred = cur_pred[m.span()[1]:-1].strip()
+                    g = re.match("\((.*?)\)(.*)", cur_pred).groups()
+                    v = g[0].split("/")
+                    quant = '({0}) '.format(v[0].strip())
+                    for e in v[1:]:
+                        eq += '(not (= {0} {1}))'.format(v[0].split('-')[0].strip(), e.strip())
+                    cond = g[1].strip()
+                    new_pred += quant
+                    if cond.find('forall') >= 0:
+                        cur_pred = cond
+                    else:
+                        new_pred += '(when {0} {1})'.format(eq, cond)
+                eq += ''
+                for _ in range(depth):
+                    new_pred += ')'
+                parsed[i] = new_pred
+        out = '(and '
+        for step in parsed:
+            out += step + ' '
+        out += ')'
+        return out
 
     def _translate_domain(self, domain_config, first_ts_pre=False):
         """
@@ -137,6 +183,8 @@ class FFSolver(HLSolver):
                 params = domain_config[key][inds[0]:inds[1]].strip()
                 pre = domain_config[key][inds[1]:inds[2]].strip()
                 eff = domain_config[key][inds[2]:inds[3]].strip()
+                pre = self._parse_exclude(pre)
+                eff = self._parse_exclude(eff)
                 if first_ts_pre:
                     ts = domain_config[key][inds[3]:].strip()
                     pre = self._parse_precondition_ts(pre, ts)
@@ -210,6 +258,10 @@ class FFSolver(HLSolver):
             Plan Object for ll_solver to optimize. (internal_repr/plan)
         """
         plan_str = self._run_planner(self.abs_domain, abs_prob, label=label)
+        print('PREFIX:', prefix, 'plan_str:', plan_str)
+        if plan_str == Plan.IMPOSSIBLE:
+            return plan_str
+
         if prefix:
             for i in range(len(plan_str)):
                 step, action = plan_str[i].split(':')
@@ -240,6 +292,7 @@ class FFSolver(HLSolver):
         actions = self._spawn_actions(plan_str, domain, params,
                                       plan_horizon, concr_prob, openrave_env)
         plan = Plan(params, actions, plan_horizon, openrave_env)
+        plan.start_action = concr_prob.start_action
         plan.prob = concr_prob
         plan.domain = domain
         return plan
@@ -274,7 +327,7 @@ class FFSolver(HLSolver):
         """
         params = {}
         for p_name, p in concr_prob.init_state.params.items():
-            params[p_name] = p.copy(plan_horizon)
+            params[p_name] = p.copy(plan_horizon, True)
         return params
 
     def _spawn_actions(self, plan_str, domain, params,
@@ -313,10 +366,11 @@ class FFSolver(HLSolver):
                             val.append(bindings[a])
                     else:
                         # handle universally quantified params by creating a valuation for each possibility
+                        excl = [bindings[e][0] for e in bindings if e in a_schema.exclude_params[a]]
                         p_type = a_schema.universally_quantified_params[a]
                         bound_names = [bindings[key][0] for key in bindings]
                         # arg_names_of_type = [k for k, v in params.items() if v.get_type() == p_type and k not in bound_names]
-                        arg_names_of_type = [k for k, v in params.items() if v.get_type() == p_type]
+                        arg_names_of_type = [k for k, v in params.items() if v.get_type() == p_type and k not in excl]
                         arg_valuations = [val + [(name, p_type)] for name in arg_names_of_type for val in arg_valuations]
                 for val in arg_valuations:
                     val, types = zip(*val)
@@ -366,10 +420,13 @@ class FFSolver(HLSolver):
             plan = Plan.IMPOSSIBLE
         else:
             plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
+
+        '''
         subprocess.call(["rm", "-f", "%sdom.pddl"%fprefix,
                          "%sprob.pddl"%fprefix,
                          "%sprob.pddl.soln"%fprefix,
                          "%sprob.output"%fprefix])
+        '''
         if plan != Plan.IMPOSSIBLE:
             plan = self._patch_redundancy(plan)
         return plan

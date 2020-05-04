@@ -343,7 +343,7 @@ class MCTS:
             # self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=False)
             child = parent.get_child(label)
             # val_obs = sample.get_val_obs(t=0)
-            if self.use_q:
+            if False: # self.use_q:
                 self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, 0), 0, label, fill_obs=False)
                 val_obs = sample.get_val_obs(t=0)
                 q_value = self.value_func(val_obs)[0] if child is None else child.value
@@ -628,6 +628,8 @@ class MCTS:
             self.agent.add_sample_batch(samples, task)
         # cur_state = lowest_cost_sample.end_state # get_X(t=lowest_cost_sample.T-1)
         cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
+        lowest_cost_sample.success = 1 - self.agent.goal_f(self.condition, cur_state)
+        lowest_cost_sample.done = int(lowest_cost_sample.success)
         # self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
         '''
@@ -813,6 +815,7 @@ class MCTS:
         if self.bad_tree:
             print('Bad tree for state', state)
             self.reset()
+        if len(path): path[-1].done = 1
         return path_value, path
 
 
@@ -881,12 +884,17 @@ class MCTS:
         labels = [l for l in self.label_options]
         if self.use_q:
             obs = sample.get_val_obs(t=t)
+            opts = self.agent.prob.get_prim_choices()
             distr = np.zeros(len(labels))
+            dact = np.sum([len(opts[e]) for e in opts])
             for i in range(len(labels)):
                 l = labels[i]
-                # sample.set_val_obs(obs.copy(), t=0)
-                self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, t), t, l, fill_obs=False, targets=targets)
-                distr[i:i+1] = self.value_func(sample.get_val_obs(t=t))
+                act = np.zeros(dact)
+                cur_ind = 0
+                for j, e in enumerate(opts):
+                    act[cur_ind + l[j]] = 1.
+                    cur_ind += len(opts[e])
+                distr[i:i+1] = self.value_func(obs, act)
 
             if self._soft:
                 exp_wt = np.exp(self.eta*(distr - np.max(distr)))
@@ -900,7 +908,7 @@ class MCTS:
             distrs = self.prob_func(sample.get_prim_obs(t=t), self._soft, eta=self.eta)
             for d in distrs:
                 for i in range(len(d)):
-                    d[i] = round(d[i], 6)
+                    d[i] = round(d[i], 3)
 
             if self.onehot_task:
                 distr = distrs[0]
@@ -962,8 +970,9 @@ class MCTS:
         bad = []
         next_label, distr = self.eval_hl(sample, 0, targets, debug, find_distr=True)
         if not check_cost: return tuple(next_label)
+        T = self.agent.plans[next_label].horizon - 1
         cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-        post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+        post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug)
         
         for l in exclude:
             if self.onehot_task:
@@ -971,9 +980,8 @@ class MCTS:
             else:
                 ind = labels.index(tuple(l))
             distr[ind] = 0.
-
         self.prim_pre_cond.append(cost)
-        while (cost > 0 or post < 1e-3) and np.any(distr > -np.inf):
+        while (cost > 0 or post < 1e-5) and np.any(distr > -np.inf):
             next_label = []
             if self.soft_decision:
                 expcost = self.n_runs * distr
@@ -994,12 +1002,13 @@ class MCTS:
                 else:
                     next_label = tuple(labels[ind])
                 distr[ind] = -np.inf
+            T = self.agent.plans[next_label].horizon - 1
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug)
             if cost > 0:
                 bad.append(next_label)
                 next_label = None
-        if cost > 0:
+        if cost > 0 or post < 1e-5:
             print('NO PATH FOR:', end_state, 'excluding:', exclude)
         if find_bad:
             return next_label, bad

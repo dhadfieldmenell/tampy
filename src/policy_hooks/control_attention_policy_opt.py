@@ -17,7 +17,6 @@ from gps.algorithm.policy.tf_policy import TfPolicy
 from gps.algorithm.policy_opt.policy_opt import PolicyOpt
 from gps.algorithm.policy_opt.tf_utils import TfSolver
 
-
 MAX_QUEUE_SIZE = 50000
 
 class ControlAttentionPolicyOpt(PolicyOpt):
@@ -44,6 +43,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self._dPrimObs = dPrimObs
         self._dValObs = dValObs
         self._primBounds = primBounds
+        self._nacts = self._hyperparams['nacts']
         self.task_map = {}
         self.device_string = "/cpu:0"
         if self._hyperparams['use_gpu'] == 1:
@@ -150,8 +150,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         
         self.mu = {}
         self.obs = {}
+        self.next_obs = {}
         self.prc = {}
         self.wt = {}
+        self.acts = {}
+        self.ref_acts = {}
+        self.done = {}
 
         self.val_mu = {}
         self.val_obs = {}
@@ -266,11 +270,29 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         else:
             self.store_scope_weights([self.scope], weight_dir)
 
-    def store(self, obs, mu, prc, wt, net, task, update=False, val_ratio=-1.0):
+    def store(self, obs, mu, prc, wt, net, task, update=False, val_ratio=-1.0, acts=None, ref_acts=None, done=None):
         # print('TF got data for', task, 'will update?', update)
         keep_inds = None
         store_val = np.random.uniform() < val_ratio
-        inds = np.where(np.abs(np.reshape(wt, [wt.shape[0]*wt.shape[1]])) < 1e-8)
+        if acts is not None:
+            next_obs = np.r_[obs[1:], obs[-1:]]
+        inds = np.where(np.abs(np.reshape(wt, [wt.shape[0]*wt.shape[1]])) < 1e-5)
+        if not store_val and acts is not None:
+            for dct, data in zip([self.acts, self.ref_acts, self.done, self.next_obs], [acts, ref_acts, done, next_obs]):
+                data = data.reshape([data.shape[0]*data.shape[1]] + list(data.shape[2:]))
+                data = np.delete(data, inds[0], axis=0)
+                if net not in dct:
+                    dct[net] = {task: np.array(data)}
+                elif task not in dct[net]:
+                    dct[net][task] = np.array(data)
+                else:
+                    dct[net][task] = np.r_[dct[net][task], data]
+                s = MAX_QUEUE_SIZE if not store_val else 1000
+                if len(dct[net][task]) > s:
+                    if keep_inds is None:
+                        keep_inds = np.random.choice(range(len(dct[net][task])), s, replace=False)
+                    dct[net][task] = dct[net][task][keep_inds]
+        
         for dct1, dct2, data in zip([self.mu, self.obs, self.prc, self.wt], [self.val_mu, self.val_obs, self.val_prc, self.val_wt], [mu, obs, prc, wt]):
             if store_val:
                 dct = dct2
@@ -333,6 +355,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             mu = np.concatenate(self.mu[net].values(), axis=0)
             prc = np.concatenate(self.prc[net].values(), axis=0)
             wt = np.concatenate(self.wt[net].values(), axis=0)
+            if net == 'value':
+                next_obs = np.concatenate(self.next_obs[net].values(), axis=0)
+                acts = np.concatenate(self.acts[net].values(), axis=0)
+                done = np.concatenate(self.done[net].values(), axis=0)
+                ref_acts = np.concatenate(self.ref_acts[net].values(), axis=0)
             use = True
             for t in [net]:# self.mu:
                 if len(np.concatenate(self.mu[t].values(), axis=0)) < self.update_size:
@@ -340,13 +367,16 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             
             if use:
                 print('TF got data for', net, 'will update?', update)
-                self.update(obs, mu, prc, wt, net)
+                if net == val:
+                    self.update_value(obs, next_obs, mu, prc, wt, acts, ref_acts, done)
+                else:
+                    self.update(obs, mu, prc, wt, net)
                 if net in self.val_obs:
                     val_obs = np.concatenate(self.val_obs[net].values(), axis=0)
                     val_mu = np.concatenate(self.val_mu[net].values(), axis=0)
                     val_prc = np.concatenate(self.val_prc[net].values(), axis=0)
                     val_wt = np.concatenate(self.val_wt[net].values(), axis=0)
-                    self.check_validation(val_obs, val_mu, val_prc, val_wt, net)
+                    # self.check_validation(val_obs, val_mu, val_prc, val_wt, net)
                 self.store_scope_weights(scopes=[net])
                 self.update_count = 0
                 return True
@@ -375,13 +405,21 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             mu = np.concatenate(self.mu[net].values(), axis=0)
             prc = np.concatenate(self.prc[net].values(), axis=0)
             wt = np.concatenate(self.wt[net].values(), axis=0)
+            if net == 'value':
+                next_obs = np.concatenate(self.next_obs[net].values(), axis=0)
+                acts = np.concatenate(self.acts[net].values(), axis=0)
+                done = np.concatenate(self.done[net].values(), axis=0)
+                ref_acts = np.concatenate(self.ref_acts[net].values(), axis=0)
            
             if np.all(np.abs(mu - mu[0]) < 1e-3):
                 continue
 
             if len(mu) > self.update_size:
                 print('TF updating on data for', net)
-                self.update(obs, mu, prc, wt, net)
+                if net == 'value':
+                    self.update_value(obs, next_obs, mu, prc, wt, acts, ref_acts, done)
+                else:
+                    self.update(obs, mu, prc, wt, net)
                 self.store_scope_weights(scopes=[net])
                 if time.time() - self.last_pkl_t > 900:
                     self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
@@ -390,6 +428,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
                 self.update_count = 0
                 updated = True
+            '''
             if net in self.val_obs:
                 val_obs = np.concatenate(self.val_obs[net].values(), axis=0)
                 val_mu = np.concatenate(self.val_mu[net].values(), axis=0)
@@ -397,6 +436,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 val_wt = np.concatenate(self.val_wt[net].values(), axis=0)
                 if len(val_mu) > self.update_size:
                     self.check_validation(val_obs, val_mu, val_prc, val_wt, net)
+            '''
 
         return updated
 
@@ -444,11 +484,27 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.primitive_grads = [tf.gradients(self.primitive_act_op[:,u], self.primitive_obs_tensor)[0] for u in range(self._dPrim)]
 
         if self.scope is None or 'value' == self.scope:
+            dValObs = self._dValObs
+            dAct = self._nacts
+            self.done_tensor = tf.placeholder("float", [None, 1], name='done')
+            with tf.variable_scope('value_target'):
+                tf_map_generator = self._hyperparams['value_network_model']
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=[dAct, dValObs], dim_output=1, batch_size=self.batch_size,
+                                          network_config=self._hyperparams['value_network_params'], input_layer=input_tensor)
+                self.target_value_obs_tensor = tf_map.get_input_tensor()
+                self.target_value_precision_tensor = tf_map.get_precision_tensor()
+                self.target_value_action_tensor = tf_map.get_target_output_tensor()
+                self.target_value_act_op = tf_map.get_output_op()
+                self.target_value_feat_op = tf_map.get_feature_op()
+                self.target_value_loss_scalar = tf_map.get_loss_op()
+                self.target_value_fc_vars = fc_vars
+                self.target_value_last_conv_vars = last_conv_vars
+            
             with tf.variable_scope('value'):
                 tf_map_generator = self._hyperparams['value_network_model']
-                dValObs = self._dValObs
-                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=dValObs, dim_output=1, batch_size=self.batch_size,
-                                          network_config=self._hyperparams['value_network_params'], input_layer=input_tensor)
+                tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=[dAct, dValObs], dim_output=1, batch_size=self.batch_size,
+                                          network_config=self._hyperparams['value_network_params'], input_layer=input_tensor,
+                                          target=self.target_value_act_op, done=self.done_tensor, imwt=self._hyperparams.get('q_imwt', 0))
                 self.value_obs_tensor = tf_map.get_input_tensor()
                 self.value_precision_tensor = tf_map.get_precision_tensor()
                 self.value_action_tensor = tf_map.get_target_output_tensor()
@@ -460,23 +516,17 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
                 # Setup the gradients
                 self.value_grads = [tf.gradients(self.value_act_op[:,u], self.value_obs_tensor)[0] for u in range(1)]
-
-        # with tf.variable_scope('distilled'):
-        #     tf_map_generator = self._hyperparams['distilled_network_model']
-        #     tf_map, fc_vars, last_conv_vars = tf_map_generator(dim_input=self._dPrimObs, dim_output=self._dU, batch_size=self.batch_size,
-        #                               network_config=self._hyperparams['distilled_network_params'])
-        #     self.distilled_obs_tensor = tf_map.get_input_tensor()
-        #     self.distilled_precision_tensor = tf_map.get_precision_tensor()
-        #     self.distilled_action_tensor = tf_map.get_target_output_tensor()
-        #     self.distilled_act_op = tf_map.get_output_op()
-        #     self.distilled_feat_op = tf_map.get_feature_op()
-        #     self.distilled_loss_scalar = tf_map.get_loss_op()
-        #     self.distilled_fc_vars = fc_vars
-        #     self.distilled_last_conv_vars = last_conv_vars
-
-        #     # Setup the gradients
-        #     self.distilled_grads = [tf.gradients(self.distilled_act_op[:,u], self.distilled_obs_tensor)[0] for u in range(self._dU)]
-
+            self.value_target_map = {}
+            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='value')
+            target_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='value_target')
+            for v in variables:
+                for tv in target_variables:
+                    if v.name.split('/')[-1] == tv.name.split('/')[-1]:
+                        self.value_target_map[v] = tv
+                        break
+                if v not in self.value_target_map:
+                    raise Exception('Could not construct target network mapping')
+       
         for scope in self.valid_scopes:
             if self.scope is None or scope == self.scope:
                 with tf.variable_scope(scope):
@@ -495,6 +545,15 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
                     # Setup the gradients
                     self.task_map[scope]['grads'] = [tf.gradients(self.task_map[scope]['act_op'][:,u], self.task_map[scope]['obs_tensor'])[0] for u in range(self._dU)]
+
+
+    def update_value_target(self, tau=0.05):
+        ops = []
+        for v in self.value_target_map:
+            vt = self.value_target_map[v]
+            ops.append(vt.assign((1-tau)*vt + tau*v))
+        self.sess.run(ops)
+
 
     def init_solver(self):
         """ Helper method to initialize the solver. """
@@ -588,11 +647,13 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             res.append(distr[bound[0]:bound[1]])
         return res
 
-    def value(self, obs):
+    def value(self, obs, act):
         if len(obs.shape) < 2:
-            obs = obs.reshape(1, -1)
-        value = self.sess.run(self.value_act_op, feed_dict={self.value_obs_tensor:obs}).flatten()
-        return value.flatten()
+            obs = obs.reshape(1, 1, -1)
+            act = act.reshape(1, 1, -1)
+        obs = np.tile(np.concatenate([obs, act], axis=-1), [1, self._nacts, 1])
+        value = self.sess.run(self.value_act_op, feed_dict={self.value_obs_tensor:obs})
+        return np.array([value.flatten()[0]])
 
     def check_validation(self, obs, tgt_mu, tgt_prc, tgt_wt, task="control", val_ratio=0.2):
         """
@@ -954,7 +1015,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # print 'Updated primitive network.\n'
 
 
-    def update_value(self, obs, tgt_mu, tgt_prc, tgt_wt, val_ratio=0.2):
+    def update_value(self, obs, next_obs, tgt_mu, tgt_prc, tgt_wt, tgt_acts, ref_acts, done, val_ratio=0.2):
         """
         Update policy.
         Args:
@@ -967,12 +1028,15 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         """
         # print 'Updating value network...'
         N = obs.shape[0]
-        dP, dO = 1, self._dValObs
+        dP, dO = 1, obs.shape[-1]
+        dact = tgt_acts.shape[-1]
 
         # TODO - Make sure all weights are nonzero?
-
+            
+        done = done.flatten()
         # Save original tgt_prc.
         tgt_prc_orig = np.reshape(tgt_prc, [N, dP, dP])
+        tgt_prc = tgt_wt.flatten()
 
         # Renormalize weights.
         tgt_wt *= (float(N) / np.sum(tgt_wt))
@@ -984,45 +1048,24 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         tgt_wt /= mn
 
         # Reshape inputs.
-        obs = np.reshape(obs, (N, dO))
+        obs = np.reshape(obs, (N, 1, dO))
+        next_obs = np.reshape(next_obs, (N, 1, dO))
+        obs = np.tile(obs, [1, self._nacts, 1])
+        next_obs = np.tile(next_obs, [1, self._nacts, 1])
+        acts = np.reshape(tgt_acts, (N, 1, dact))
+        acts = np.tile(acts, [1, self._nacts, 1])
+        ref_acts = np.reshape(ref_acts, (N, self._nacts, dact))
+        new_obs = np.concatenate([obs, acts], axis=-1)
+        ref_obs = np.concatenate([next_obs, ref_acts], axis=-1)
         tgt_mu = np.reshape(tgt_mu, (N, dP))
-
-        '''
-        tgt_prc = np.reshape(tgt_prc, (N, dP, dP))
-        tgt_wt = np.reshape(tgt_wt, (N, 1, 1))
-
-        # Fold weights into tgt_prc.
-        tgt_prc = tgt_wt * tgt_prc
-        '''
-        tgt_prc = tgt_wt
-
+        done = np.reshape(done, (N,1))
+        
         # Assuming that N*T >= self.batch_size.
         batch_size = np.minimum(self.batch_size, N)
         batches_per_epoch = np.maximum(np.floor(N / batch_size), 1)
         idx = range(N)
         average_loss = 0
         np.random.shuffle(idx)
-
-        if self._hyperparams['fc_only_iterations'] > 0:
-            feed_dict = {self.obs_tensor: obs}
-            num_values = obs.shape[0]
-            conv_values = self.value_solver.get_last_conv_values(self.sess, feed_dict, num_values, batch_size)
-            for i in range(self._hyperparams['fc_only_iterations'] ):
-                start_idx = int(i * batch_size %
-                                (batches_per_epoch * batch_size))
-                idx_i = idx[start_idx:start_idx+batch_size]
-                feed_dict = {self.value_last_conv_vars: conv_values[idx_i],
-                             self.value_action_tensor: tgt_mu[idx_i],
-                             self.value_precision_tensor: tgt_prc[idx_i]}
-                train_loss = self.value_solver(feed_dict, self.sess, device_string=self.device_string, use_fc_solver=True)
-                average_loss += train_loss
-
-                # if (i+1) % 500 == 0:
-                #     LOGGER.info('tensorflow iteration %d, average loss %f',
-                #                     i+1, average_loss / 500)
-                #     average_loss = 0
-            average_loss = 0
-
         # actual training.
         for i in range(self._hyperparams['iterations']):
             # Load in data for this batch.
@@ -1030,11 +1073,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             start_idx = int(i * self.batch_size %
                             (batches_per_epoch * self.batch_size))
             idx_i = idx[start_idx:start_idx+self.batch_size]
-            feed_dict = {self.value_obs_tensor: obs[idx_i],
+            feed_dict = {self.value_obs_tensor: new_obs[idx_i],
+                         self.target_value_obs_tensor: ref_obs[idx_i],
+                         self.done_tensor: done[idx_i],
                          self.value_action_tensor: tgt_mu[idx_i],
-                         self.value_precision_tensor: tgt_prc[idx_i]}
+                         self.value_precision_tensor: tgt_prc[idx_i],
+                         self.target_value_precision_tensor: tgt_prc[idx_i]}
             train_loss = self.value_solver(feed_dict, self.sess, device_string=self.device_string)
-
+            self.update_value_target()
             average_loss += train_loss
             if (i+1) % 50 == 0:
                 # LOGGER.info('tensorflow iteration %d, average loss %f',

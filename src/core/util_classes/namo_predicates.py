@@ -185,7 +185,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
 
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1)):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1), priority=3):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
@@ -199,7 +199,7 @@ class CollisionPredicate(ExprPredicate):
         self._cache = {}
         self.n_cols = 1
 
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=active_range, priority=3)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=active_range, priority=priority)
 
     def test(self, time, negated=False, tol=1e-4):
         # This test is overwritten so that collisions can be calculated correctly
@@ -346,6 +346,60 @@ class CollisionPredicate(ExprPredicate):
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(1, 0, 0)))
             else:
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(0, 0, 0)))
+
+
+class HLPoseUsed(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Can Target
+        self.pose = params[0]
+        if self.pose.is_symbol():
+            k = 'value'
+        else:
+            k = 'pose'
+        attr_inds = OrderedDict([(self.pose, [(k, np.array([0,1], dtype=np.int))])])
+
+        A = np.zeros((2,2))
+        b = np.zeros((2, 1))
+        val = np.zeros((2, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(HLPoseUsed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.hl_info = True
+
+    def test(self, time, negated=False, tol=1e-4):
+        if negated:
+            return True
+        return super(HLPoseUsed, self).test(time, tol=tol)
+
+
+class HLPoseAtGrasp(HLPoseUsed):
+
+    # RobotAt Robot Can Grasp
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c, self.g = params
+        k = "pose" if not self.r.is_symbol() else "value"
+        attr_inds = OrderedDict([(self.r, [(k, np.array([0,1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = NEAR_TOL * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(HLPoseUsed, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.hl_info = True
+
+
+class HLAtGrasp(HLPoseUsed):
+    pass
+
+
+class HLPoseAtGrasp(HLPoseUsed):
+    pass
+
 
 class At(ExprPredicate):
 
@@ -507,7 +561,8 @@ class RobotAtGrasp(At):
     def __init__(self, name, params, expected_param_types, env=None):
         ## At Robot RobotPose
         self.r, self.c, self.g = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
+        k = "pose" if not self.r.is_symbol() else "value"
+        attr_inds = OrderedDict([(self.r, [(k, np.array([0,1], dtype=np.int))]),
                                  (self.c, [("pose", np.array([0,1], dtype=np.int))]),
                                  (self.g, [("value", np.array([0,1], dtype=np.int))])])
 
@@ -517,6 +572,9 @@ class RobotAtGrasp(At):
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class RobotPoseAtGrasp(At):
+    pass
 
 class RobotWithinReach(At):
 
@@ -625,8 +683,6 @@ class Collides(CollisionPredicate):
         col_expr_neg = Expr(f_neg, grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, -val)
 
-
-
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1)
         self.n_cols = N_COLS
@@ -642,7 +698,11 @@ class TargetGraspCollides(Collides):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
         self.c, self.w, self.g = params
-        attr_inds = OrderedDict([(self.c, [("value", np.array([0, 1], dtype=np.int))]),
+        if self.c.is_symbol():
+            k = "value"
+        else:
+            k = "pose"
+        attr_inds = OrderedDict([(self.c, [(k, np.array([0, 1], dtype=np.int))]),
                                  (self.w, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.g, [("value", np.array([0,1], dtype=np.int))])])
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
@@ -650,13 +710,14 @@ class TargetGraspCollides(Collides):
 
         def f(x):
             disp = x[:2] + x[4:6]
-            new_x = np.concatenate(disp, x[2:4])
+            new_x = np.concatenate([disp, x[2:4]])
             return -self.distance_from_obj(new_x)[0]
 
         def grad(x):
             disp = x[:2] + x[4:6]
-            new_x = np.concatenate(disp, x[2:4])
-            return self.distance_from_obj(new_x)[1]
+            new_x = np.concatenate([disp, x[2:4]])
+            jac = self.distance_from_obj(new_x)[1]
+            return np.c_[np.zeros((8,2)), jac]
 
         def f_neg(x):
             return -f(x)
@@ -686,10 +747,15 @@ class TargetGraspCollides(Collides):
 
         super(Collides, self).__init__(name, e, attr_inds, params,
                                         expected_param_types, ind0=0, ind1=1,
-                                        active_range=(0,0))
+                                        active_range=(0,0), priority=2)
         self.n_cols = N_COLS
         # self.priority = 1
 
+class CanGraspCollides(TargetGraspCollides):
+    pass
+
+class TargetCanGraspCollides(TargetGraspCollides):
+    pass
 
 class TargetCollides(Collides):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):

@@ -114,7 +114,7 @@ class LLParam(object):
                 value = self.get_param_val(attr)
                 free_vars = self.get_free_vars(attr)
                 for index, value in np.ndenumerate(value):
-                    if not free_vars[index]:
+                    if not free_vars[index] and not np.any(np.isnan(value)):
                         self._model.addConstr(grb_vars[index], GRB.EQUAL, value)
 
     def grb_val_dict(self):

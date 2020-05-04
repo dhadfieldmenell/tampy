@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import copy
 import random
+import itertools
 import sys
 import time
 import traceback
@@ -120,6 +121,8 @@ class TAMPAgent(Agent):
         self.initial_opt = True
         self.stochastic_conditions = self._hyperparams['stochastic_conditions']
 
+        opts = self._hyperparams['prob'].get_prim_choices()
+        self.label_options = list(itertools.product(*[range(len(opts[e])) for e in opts])) # range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.hist_len = self._hyperparams['hist_len']
         self.traj_hist = None
         self.reset_hist()
@@ -825,4 +828,22 @@ class TAMPAgent(Agent):
             encoded.append(l)
 
         return encoded
+
+    
+    def get_encoded_tasks(self):
+        if hasattr(self, '_cached_encoded_tasks'):
+            return self._cached_encoded_tasks
+        opts = self.prob.get_prim_choices()
+        nacts = np.prod([len(opts[e]) for e in opts])
+        dact = np.sum([len(opts[e]) for e in opts])
+        out = np.zeros((len(self.label_options), dact))
+        for i, l in enumerate(self.label_options):
+            cur_vec = np.zeros(0)
+            for j, e in enumerate(opts.keys()):
+                v = np.zeros(len(opts[e]))
+                v[l[j]] = 1.
+                cur_vec = np.concatenate([cur_vec, v])
+            out[i, :] = cur_vec
+        self._cached_encoded_tasks = out
+        return out
 

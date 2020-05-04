@@ -25,6 +25,7 @@ def get_param_vector_helper(pred, res_arr, startind, t, attr_inds):
 	    if p.is_symbol():
                 res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, 0]
 	    else:
+                # print(p, attr, t, getattr(p,attr).shape)
 	        res_arr[i:i+n_vals] = getattr(p, attr)[ind_arr, t]
 	    i += n_vals
     return i
@@ -54,6 +55,7 @@ class ExprPredicate(Predicate):
         start, end = active_range
         self.x_dim *= end + 1 - start
         self.x = np.zeros(self.x_dim)
+        self.hl_info = False
 
     #@profile
     def lazy_spawn_or_body(self, param, name, geom):
@@ -81,11 +83,14 @@ class ExprPredicate(Predicate):
                 if end - start >= 1:
                     raise PredicateException("Insufficient pose trajectory to check dynamic predicate '%s' at the timestep."%self)
                 else:
+                    traceback.print_exception(*sys.exc_info())
                     raise err
         return self.x.reshape((self.x_dim, 1))
 
     #@profile
     def test(self, time, negated=False, tol=None):
+        if self.hl_info: return True
+
         if tol is None:
             tol = self.tol
         if not self.is_concrete():

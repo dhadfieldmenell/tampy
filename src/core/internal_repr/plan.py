@@ -47,7 +47,7 @@ class Plan(object):
     def _determine_free_attrs(self):
         for p in self.params.itervalues():
             for k, v in p.__dict__.items():
-                if type(v) == np.ndarray:
+                if type(v) == np.ndarray and k not in p._free_attrs:
                     ## free variables are indicated as numpy arrays of NaNs
                     arr = np.zeros(v.shape, dtype=np.int)
                     arr[np.isnan(v)] = 1
@@ -86,6 +86,18 @@ class Plan(object):
         for p in self.params.itervalues():
             p.store_free_attrs(attrs[p])
 
+    def freeze_actions(self, anum):
+        for i in range(anum):
+            st, et = self.actions[i].active_timesteps
+            for param in self.actions[i].params:
+                if param.is_symbol():
+                    for attr in param._free_attrs:
+                        param._free_attrs[attr][:,0] = 0.
+            for param in self.params.values():
+                if param.is_symbol(): continue
+                for attr in param._free_attrs:
+                    param._free_attrs[attr][:,st:et+1] = 0.
+
     def execute(self):
         raise NotImplementedError
 
@@ -115,7 +127,7 @@ class Plan(object):
             return res, np.unique(preds)
         return res
 
-    def get_preds(self, incl_negated):
+    def get_preds(self, incl_negated=True):
         res = []
         for a in self.actions:
             if incl_negated:
@@ -126,28 +138,37 @@ class Plan(object):
         return res
 
     #@profile
-    def get_failed_pred(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-4):
+    def get_failed_pred(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-3, incl_negated=True):
         #just return the first one for now
         t_min = self.horizon+1
         pred = None
         negated = False
-        for n, p, t in self.get_failed_preds(active_ts=active_ts, priority = priority, tol=tol):
-            if t < t_min:
-                t_min = t
-                pred = p
-                negated = n
+        for action in self.actions:
+            if active_ts is None:
+                st, et = action.active_timesteps[0], action.active_timesteps[1]
+            else:
+                st, et = max(action.active_timesteps[0], active_ts[0]), min(action.active_timesteps[1], active_ts[1])
+
+            for pr in range(priority):
+                for n, p, t in self.get_failed_preds(active_ts=(st,et), priority=pr, tol=tol, incl_negated=incl_negated):
+                    if t < t_min:
+                        t_min = t
+                        pred = p
+                        negated = n
+                if pred is not None:
+                    return negated, pred, t_min
         return negated, pred, t_min
 
     #@profile
-    def get_failed_preds(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-4):
+    def get_failed_preds(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-3, incl_negated=True):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
         failed = []
         for a in self.actions:
-            failed.extend(a.get_failed_preds(active_ts, priority, tol=tol))
+            failed.extend(a.get_failed_preds(active_ts, priority, tol=tol, incl_negated=incl_negated))
         return failed
 
-    def get_failed_preds_by_action(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-4):
+    def get_failed_preds_by_action(self, active_ts=None, priority = MAX_PRIORITY, tol=1e-3):
         if active_ts == None:
             active_ts = (0, self.horizon-1)
         failed = []
@@ -220,7 +241,7 @@ class Plan(object):
         """
         pre = []
         for act in self.actions:
-            if act.active_timesteps[1] <= fail_step:
+            if act.active_timesteps[1] < fail_step:
                 act_str = str(act).split()
                 act_str = " ".join(act_str[:2] + act_str[4:]).upper()
                 pre.append(act_str)

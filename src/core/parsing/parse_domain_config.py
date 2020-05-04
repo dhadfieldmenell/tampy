@@ -124,6 +124,7 @@ class ParseDomainConfig(object):
                         params.append(("?%s"%p_name.strip(), p_type.strip()))
                 # build universally quantified params
                 univ_params = {}
+                excl_params = {}
                 for i, pred in enumerate(pred_strs):
                     while True:
                         m = re.match("\(\s*forall", pred)
@@ -131,7 +132,8 @@ class ParseDomainConfig(object):
                             break
                         pred = pred[m.span()[1]:-1].strip()
                         g = re.match("\((.*?)\)(.*)", pred).groups()
-                        loop_var_name, loop_var_type = map(str.strip, g[0].split("-"))
+                        v = g[0].split("/")
+                        loop_var_name, loop_var_type = map(str.strip, v[0].split("-"))
                         pred = g[1].strip()
                         # if this dummy variable name is already used, then change the name
                         unique_loop_var_name = loop_var_name
@@ -141,6 +143,9 @@ class ParseDomainConfig(object):
                             ind += 1
                         pred = pred.replace(loop_var_name, unique_loop_var_name)
                         univ_params[unique_loop_var_name] = loop_var_type
+
+                        # The '/' operator denotes parameters to exclude from universal quant.
+                        excl_params[unique_loop_var_name] = [e.strip() for e in v[1:]]
                         # replace this predicate in pred_strs because we removed the forall part
                         # (and possibly renamed the dummy variable)
                         pred_strs[i] = pred
@@ -161,8 +166,8 @@ class ParseDomainConfig(object):
                     else:
                         hl_info = "eff"
                     preds.append({"type": pred_type, "hl_info": hl_info, "args": args, "negated": negated,
-                                  "active_timesteps": all_active_timesteps[i]})
-                action_schemas[a_name] = ActionSchema(a_name, int(horizon), params, univ_params, preds)
+                                  "active_timesteps": all_active_timesteps[i], "ind": i})
+                action_schemas[a_name] = ActionSchema(a_name, int(horizon), params, univ_params, preds, excl_params)
         return action_schemas
 
     @staticmethod

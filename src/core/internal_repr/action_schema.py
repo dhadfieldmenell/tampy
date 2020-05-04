@@ -12,9 +12,10 @@ class ActionSchema(object):
     - negated (Boolean)
     - active_timesteps (tuple of (start_time, end_time))
     """
-    def __init__(self, name, horizon, params, universally_quantified_params, preds):
+    def __init__(self, name, horizon, params, universally_quantified_params, preds, exclude_params={}):
         self.name = name
         self.horizon = horizon
         self.params = params
         self.universally_quantified_params = universally_quantified_params
+        self.exclude_params = exclude_params
         self.preds = preds
