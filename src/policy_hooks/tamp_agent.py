@@ -890,7 +890,10 @@ class TAMPAgent(Agent):
             traj = np.zeros((plan.horizon, self.symbolic_bound))
             traj[st:et+1] = sample.get_X()
             fill_trajectory_from_sample(sample, plan, active_ts=(st,et))
+            print(plan.params['pr2'].pose[:,:18], 1)
+            print(plan.params['grasp_end_pose'].value, 1)
             self.set_symbols(plan, x0, task, anum=a)
+            print(plan.params['grasp_end_pose'].value, 2)
             free_attrs = plan.get_free_attrs()
             for param in plan.actions[a].params:
                 if not param.is_symbol(): 
@@ -908,15 +911,19 @@ class TAMPAgent(Agent):
             if not success:
                 initial = parse_state(plan, [], et)
                 fill_vector(plan.params, self.state_inds, x0, et)
-                self.store_hl_problem(x0, initial, plan.goal, keep_prob=0.05, max_len=50)
+                self.store_hl_problem(x0.copy(), initial, plan.goal, keep_prob=0.05, max_len=50)
+                fill_vector(plan.params, self.state_inds, x0, st)
                 self.set_symbols(plan, x0, task, anum=a)
                 try:
                     success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj)
                 except Exception as e:
                     print(e)
                     success = False
+            print(plan.params['pr2'].pose[:,:18], 4)
+            print(plan.params['grasp_end_pose'].value, 4)
 
             if not success:
+                print(a, task, plan.actions[a].get_failed_preds(), plan.actions)
                 return False
 
         path = []

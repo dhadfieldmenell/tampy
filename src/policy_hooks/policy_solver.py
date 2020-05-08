@@ -145,7 +145,7 @@ def get_base_solver(parent_class):
                 return success
 
             # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
-            if rs_param is None or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
+            if rs_param is None:# or sum([not np.all(rs_param._free_attrs[attr]) for attr in rs_param._free_attrs.keys() ]):
                 ## this parameter is fixed
                 if callback is not None:
                     callback_a = lambda: callback(a)

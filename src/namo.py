@@ -9,15 +9,15 @@ from pma.hl_solver import *
 from pma.pr_graph import *
 
 plans = prob.get_plans()
-plan = plans[0][(0,0,0,0)]
+plan = plans[0][(0,0,0,2)]
 domain = plan.domain
 problem = plan.prob
 state = problem.init_state
 for p in plan.params.values():
     if p.openrave_body is not None:
         p.openrave_body.set_pose([20,20])
-pr2_pose = [0, -4]
-can0_pose = [-2, 0]
+pr2_pose = [2.6, -2.8]
+can0_pose = [-5, -3.4]
 can1_pose = [2, 0]
 can2_pose = [4, -1]
 can3_pose = [-4, -1]
