@@ -21,6 +21,8 @@ class Sample(object):
         self.dPrim = agent.dPrim
         self.dPrimOut = agent.dPrimOut
         self.dVal = agent.dVal
+        self.success = 0
+        self.opt_suc = 0
 
         # Dictionary containing the sample data from various sensors.
         self._data = {}

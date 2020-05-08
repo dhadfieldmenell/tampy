@@ -9,8 +9,8 @@ import seaborn as sns
 
 FRAME = 10
 TWINDOW = 600
-TDELTA = 300
-MIN_FRAME = 10
+TDELTA = 150
+MIN_FRAME = 30
 nan = np.nan
 LOG_DIR = 'tf_saved/'
 SAVE_DIR = '/home/michaelmcdonald/Dropbox/'
@@ -238,7 +238,7 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
 
 
 
-def get_hl_tests(keywords=[], exclude=[], pre=False):
+def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
     for exp_name in exp_probs:
@@ -273,9 +273,11 @@ def get_hl_tests(keywords=[], exclude=[], pre=False):
                     continue
                 fnames = os.listdir(full_exp+str(i))
                 if pre:
-                    info = [f for f in fnames if f.find('hl_test_pre') >= 0 and f.endswith('npy')]
+                    info = [f for f in fnames if f.find('hl_test_pre') >= 0 and f.endswith('pre_log.npy')]
+                elif rerun:
+                    info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_rerun_log.npy')]
                 else:
-                    info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('npy') and f.find('pre') < 0]
+                    info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                 if len(info):
                     data.append(np.load(full_exp+str(i)+'/'+info[0]))
                 i += 1
@@ -296,7 +298,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False):
                         end = False
                         if len(next_frame) >= MIN_FRAME:
                             next_pt = np.mean(next_frame, axis=0)
-                            no, nt = int(next_pt[4]), int(next_pt[2])
+                            no, nt = int(next_pt[4]), int(next_pt[5])
                             if (no, nt) not in exp_data:
                                 exp_data[no, nt] = []
                             exp_data[no, nt].append((full_exp, cur_t, next_pt[0]))
@@ -396,7 +398,8 @@ keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_first_success', keywords)
 # gen_data_plots('time', 'avg_first_success', ['fixed'])
 #gen_data_plots('time', 'avg_pre_cost', ['fixed'])
-get_hl_tests(['dqn'], pre=True)
+get_hl_tests(['test'], pre=False)
+get_hl_tests(['test'], pre=True)
 #get_td_loss(['fixed'])
 #get_hl_tests(['dgx_4'], pre=True)
 # gen_rollout_plots('time', 'avg_pre_cost', keywords)

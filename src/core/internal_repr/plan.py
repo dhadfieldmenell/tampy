@@ -97,6 +97,10 @@ class Plan(object):
                 if param.is_symbol(): continue
                 for attr in param._free_attrs:
                     param._free_attrs[attr][:,st:et+1] = 0.
+        for param in self.params.values():
+            if param.is_symbol(): continue
+            for attr in param._free_attrs:
+                param._free_attrs[attr][:,0] = 0.
 
     def execute(self):
         raise NotImplementedError

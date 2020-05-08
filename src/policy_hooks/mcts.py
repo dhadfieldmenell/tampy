@@ -6,6 +6,7 @@ import pprint
 import random
 import time
 
+from pma.pr_graph import *
 from policy_hooks.sample import Sample
 from policy_hooks.utils.policy_solver_utils import *
 
@@ -147,7 +148,7 @@ class MCTSNode():
 
 
 class MCTS:
-    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False, onehot_task=False, soft=False, ff_thresh=0):
+    def __init__(self, tasks, prim_dims, gmms, value_f, prob_f, condition, agent, branch_factor, num_samples, num_distilled_samples, choose_next=None, sim_from_next=None, soft_decision=False, C=2e-1, max_depth=20, explore_depth=5, opt_strength=0.0, log_prefix=None, tree_id=0, curric_thresh=-1, n_thresh=-1, her=False, onehot_task=False, soft=False, ff_thresh=0, eta=1.):
         self.tasks = tasks
         self.num_tasks = len(self.tasks)
         self.prim_dims = prim_dims
@@ -159,7 +160,7 @@ class MCTS:
         self.agent = agent
         self.soft_decision = soft_decision
         self._soft = soft
-        self.eta = 5e0
+        self.eta = eta
         self.ff_thresh = ff_thresh
         self.C = C # Standard is to use 2 but given difficulty of finding good paths, using smaller
         self.branch_factor = branch_factor
@@ -378,28 +379,35 @@ class MCTS:
 
         for n in range(num_rollouts):
             self.agent.reset_to_state(state)
-            # if not self.n_runs % 10 and self.n_success == 0:
-            #     self.max_depth += 1
-            # self.agent.reset_hist()
-            # print("MCTS Rollout {0} for condition {1}.\n".format(n, self.condition))
             new_opt_val, next_path = self.simulate(state.copy(), use_distilled, fixed_paths=fixed_paths, debug=debug)
             paths.append(next_path)
-            # print("Finished Rollout {0} for condition {1}.\n".format(n, self.condition))
 
             opt_val = np.maximum(new_opt_val, opt_val)
 
-            '''
-            if len(next_path) and new_opt_value > 1. - 1e-3:
-                paths.append(next_path)
-                self.n_success += 1
-                end = next_path[-1]
-                print('\nSUCCESS! Tree {0}\n'.format(state))
-    
-        self.agent.add_task_paths(paths)
-            '''
-
         return opt_val, paths
 
+
+    def eval_pr_graph(self, state=None):
+        if state is None:
+            state, initial, goal = self.agent.sample_hl_problem()
+            if state is None: return 0, []
+        else:
+            initial, goal = self.agent.get_hl_info(state, cond=self.condition)
+            initial = None
+        domain = self.agent.plans.values()[0].domain
+        prob = self.agent.plans.values()[0].prob
+        for pname, attr in self.agent.state_inds:
+            p = prob.init_state.params[pname]
+            if p.is_symbol(): continue
+            getattr(p, attr)[:,0] = state[self.agent.state_inds[pname, attr]]
+        plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id)
+        self.n_runs += 1
+       
+        if plan is None:
+            return 0, []
+        self.n_success += 1
+        return 1, []
+        
 
     def _simulate_from_unexplored(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, label=None, debug=False):
         if debug:
@@ -719,7 +727,7 @@ class MCTS:
         path_value = None
         next_sample = None
         if np.random.uniform() < self.ff_thresh:
-            return self.run_ff_solve(state, self.root)
+            return self.eval_pr_graph(state)
 
         while True:
             if debug:
@@ -858,6 +866,7 @@ class MCTS:
             state = s.get_X(s.T-1)
             path.append(s)
         self.opt_strength = old_opt
+        self.log_path(path, -5)
         return val, path
 
 
@@ -873,14 +882,14 @@ class MCTS:
     
     def run_hl(self, sample, t=0, targets=None, check_cost=False, debug=False):
         next_label, distr = self.eval_hl(sample, t, targets, debug, True)
-        if t==0: print(zip(distr, self.label_options), sample.get(STATE_ENUM, t=t), sample.get(ONEHOT_GOAL_ENUM, t=t))
+        if t== 0:
+            distrs = self.prob_func(sample.get_prim_obs(t=t), False, eta=1.)
+            print(distrs, sample.get(STATE_ENUM, t=t), sample.get(ONEHOT_GOAL_ENUM, t=t))
         if not check_cost: return next_label
         return self.iter_distr(next_label, distr, self.label_options, sample.get_X(t), sample)
 
 
     def eval_hl(self, sample, t=0, targets=None, debug=False, find_distr=False):
-        # label = sample.task
-        # self.agent.fill_sample(self.condition, sample, sample.get(STATE_ENUM, t), t, label, fill_obs=True, targets=targets)
         labels = [l for l in self.label_options]
         if self.use_q:
             obs = sample.get_val_obs(t=t)
@@ -922,7 +931,7 @@ class MCTS:
                 for d in distrs:
                     val = np.max(d)
                     ind.append(np.random.choice([i for i in range(len(d)) if d[i] >= val]))
-                next_label = tuple([ind[d] for d in range(len(distrs))])
+                next_label = tuple(ind) # tuple([ind[d] for d in range(len(distrs))])
         if find_distr: return tuple(next_label), distr
         return tuple(next_label)
 
@@ -957,7 +966,6 @@ class MCTS:
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
             post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug)
         if cost > 0:
-            print('Failed all precond')
             return init_label
         return next_label
 
@@ -972,8 +980,8 @@ class MCTS:
         next_label, distr = self.eval_hl(sample, 0, targets, debug, find_distr=True)
         if not check_cost: return tuple(next_label)
         T = self.agent.plans[next_label].horizon - 1
-        cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-        post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug)
+        cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug, targets=targets)
+        post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug, targets=targets)
         
         for l in exclude:
             if self.onehot_task:
@@ -982,6 +990,7 @@ class MCTS:
                 ind = labels.index(tuple(l))
             distr[ind] = 0.
         self.prim_pre_cond.append(cost)
+        costs = {}
         while (cost > 0 or post < 1e-5) and np.any(distr > -np.inf):
             next_label = []
             if self.soft_decision:
@@ -1004,11 +1013,12 @@ class MCTS:
                     next_label = tuple(labels[ind])
                 distr[ind] = -np.inf
             T = self.agent.plans[next_label].horizon - 1
-            cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug)
+            cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug, targets=targets)
+            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug, targets=targets)
             if cost > 0:
                 bad.append(next_label)
                 next_label = None
+            costs[next_label] = (cost, post, end_state)
         if cost > 0 or post < 1e-5:
             print('NO PATH FOR:', end_state, 'excluding:', exclude)
         if find_bad:
@@ -1085,6 +1095,7 @@ class MCTS:
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
                 info['cur_curric'] = self.cur_curric
                 info['max_depth'] = self.max_depth
+                info['eta'] = self.eta
                 info['opt_success'] = sample.opt_suc
             data.append(info)
         return data

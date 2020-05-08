@@ -126,7 +126,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                     inf_f = None
 
                 start_t = time.time()
-                if self.agent.postcond_cost(sample) > 0:
+                if not sample.opt_suc and self.agent.postcond_cost(sample) > 0:
                     sample.node = None
                     sample.next_sample = None
                     # new_sample = copy.deepcopy(sample)

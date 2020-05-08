@@ -143,7 +143,7 @@ class Object(Parameter):
                 new_value[:] = np.NaN
                 if v is not "undefined":
                     assert attr_type.dim == v.shape[0]
-                    new_value[:v.shape[0], :v.shape[1]] = v[:v.shape[0], :min(v.shape[1], new_horizon)]
+                    new_value[:v.shape[0], :v.shape[1]] = v[:v.shape[0], :min(v.shape[1], new_horizon)].copy()
                 setattr(new, attr_name, new_value)
                 new_free[attr_name] = np.ones(new_value.shape)
                 new_free[attr_name][:,0] = 0
@@ -194,6 +194,8 @@ class Symbol(Parameter):
                 val[:] = np.NaN
                 setattr(new, k, val)
                 new_free[k] = np.ones(val.shape)
+            elif hasattr(v, 'copy'):
+                setattr(new, k, v.copy())
             else:
                 setattr(new, k, v)
         if reset_free:

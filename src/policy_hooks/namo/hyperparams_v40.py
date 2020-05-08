@@ -295,8 +295,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'expand_process': False,
         'descr': '{0}_grasps_{1}_possible'.format(N_GRASPS, len(prob.END_TARGETS)+prob.n_aux),
         'her': False,
-        'prim_decay': 0.75,
-        'prim_first_wt': 1e2,
+        'prim_decay': 0.9,
+        'prim_first_wt': 1e1,
     }
 
     config['prim_obs_include'].append(utils.EE_ENUM)

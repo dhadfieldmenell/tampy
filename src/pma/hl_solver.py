@@ -224,6 +224,7 @@ class FFSolver(HLSolver):
         else:
             for pred in initial:
                 prob_str += pred
+            concr_prob.initial = initial
         prob_str += ")\n\n(:goal\n(and "
         if goal is None:
             for pred in concr_prob.goal_preds:
@@ -234,6 +235,7 @@ class FFSolver(HLSolver):
         else:
             for pred in goal:
                 prob_str += pred
+            concr_prob.goal = goal
         prob_str += ")\n)\n)"
         # This block is added to erase domain name
         clean_str = ""
@@ -258,7 +260,6 @@ class FFSolver(HLSolver):
             Plan Object for ll_solver to optimize. (internal_repr/plan)
         """
         plan_str = self._run_planner(self.abs_domain, abs_prob, label=label)
-        print('PREFIX:', prefix, 'plan_str:', plan_str)
         if plan_str == Plan.IMPOSSIBLE:
             return plan_str
 
@@ -270,6 +271,8 @@ class FFSolver(HLSolver):
         plan = self.get_plan(plan_str, domain, concr_prob)
         if type(plan) is not str:
             plan.plan_str = plan_str
+            plan.goal = concr_prob.goal
+            plan.initial = concr_prob.initial
         return plan
 
     def get_plan(self, plan_str, domain, concr_prob):

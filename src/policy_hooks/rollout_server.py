@@ -77,7 +77,7 @@ class RolloutServer(object):
             self.queues = hyperparams['queues']
 
         self.run_hl_test = hyperparams.get('run_hl_test', False)
-        self.check_precond = hyperparams.get('check_precond', True)
+        self.check_precond = hyperparams.get('check_precond', False)
         self.discount = hyperparams.get('discount', 0.9)
         self.use_qfunc = self.config.get('use_qfunc', False)
         if USE_ROS: rospy.init_node('rollout_server_{0}_{1}_{2}'.format(self.id, self.group_id, self.run_alg_updates))
@@ -184,7 +184,7 @@ class RolloutServer(object):
                 plan.target_inds = self.agent.target_inds
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
-        self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_{0}log.npy'
+        self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_{0}{1}log.npy'
         self.render = hyperparams.get('load_render', False)
         if self.render:
             self.cur_vid_id = 0
@@ -364,7 +364,7 @@ class RolloutServer(object):
             for d in distrs:
                 p = d / np.sum(d)
                 ind = np.random.choice(range(len(d)), p=p)
-                d[ind] += 1.
+                d[ind] += 1e1
                 d /= np.sum(d)
                 out.append(d)
             return out
@@ -888,6 +888,7 @@ class RolloutServer(object):
                                               chol_pol_covar=chol_pol_covar[task],
                                               scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale) 
                                   for task in self.agent.task_list}
+        self.agent.policies = rollout_policies
         start_time = time.time()
         all_samples = []
         tree_data = []
@@ -1109,8 +1110,13 @@ class RolloutServer(object):
         np.save(fname, np.array(buf))
 
 
-    def test_hl(self, rlen=None, save=True):
-        if self.policy_opt.share_buffers:
+    def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False):
+        if ckpt_ind is not None:
+            print('Rolling out for index', ckpt_ind)
+
+        if restore:
+            self.policy_opt.restore_ckpts(ckpt_ind)
+        elif self.policy_opt.share_buffers:
             self.policy_opt.read_shared_weights()
 
         chol_pol_covar = {}
@@ -1151,14 +1157,20 @@ class RolloutServer(object):
             rlen = 4 + 2*n
         self.agent.T = self.config['task_durations'][self.task_list[0]]
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
-        s.append((val, len(path), n, time.time()-self.start_t, self.config['num_objs'], n))
+        true_val = np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path])
+        if ckpt_ind is not None:
+            s.append((val, len(path), true_val, time.time()-self.start_t, self.config['num_objs'], n, ckpt_ind))
+        else:
+            s.append((val, len(path), true_val, time.time()-self.start_t, self.config['num_objs'], n))
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
         self.hl_data.append(res)
         if save:
+            if val > 1-1e-2:
+                print('Rollout succeeded in test! With pre?', self.check_precond)
             if self.use_qfunc: self.log_td_error(path)
             if not len(self.hl_data) % 20:
-                np.save(self.hl_test_log.format('pre_' if self.check_precond else ''), np.array(self.hl_data))
+                np.save(self.hl_test_log.format('pre_' if self.check_precond else '', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
         else:
             if val < 1:
                 print('failed for', x0, [s.task for s in path])

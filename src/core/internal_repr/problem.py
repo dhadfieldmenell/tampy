@@ -15,6 +15,8 @@ class Problem(object):
         self.goal_preds = goal_preds
         self.env = env
         self.start_action = start_action
+        self.goal = [p.get_rep() for p in goal_preds]
+        self.initial = [p.get_rep() for p in init_state.preds]
 
     def goal_test(self):
         # because problems are associated with HL search nodes,

@@ -403,6 +403,7 @@ class MultiProcessMain(object):
                                   onehot_task=self.config.get('onehot_task', False),
                                   soft=self.config.get('soft', False),
                                   ff_thresh=self.config.get('ff_thresh', 0),
+                                  eta=self.config.get('eta', 1.),
                                   ))
 
         self.config['mcts'] = self.mcts
@@ -561,13 +562,18 @@ class MultiProcessMain(object):
         hyperparams['run_mcts_rollouts'] = False
         hyperparams['run_alg_updates'] = False
         hyperparams['run_hl_test'] = True
-        hyperparams['check_precond'] = True
+        hyperparams['check_precond'] = False
         hyperparams['share_buffers'] = False
-        hyperparams['check_precond'] = True
         hyperparams['id'] = hyperparams['server_id']+'_test'
         server = RolloutServer(hyperparams)
-        for _ in range(50):
-            server.test_hl(10, save=False)
+        ind = 0
+        self.allocate_shared_buffers(hyperparams)
+        self.allocate_queues(hyperparams)
+
+        while server.policy_opt.restore_ckpts(ind):
+            for _ in range(30):
+                server.test_hl(10, save=True, ckpt_ind=ind)
+            ind += 1
 
 
     def kill_processes(self):
@@ -623,7 +629,7 @@ class MultiProcessMain(object):
             with open(self.config['time_log'], 'a+') as f:
                 f.write('\n\nTiming info for {0}:'.format(datetime.now()))
         self.start_ros()
-        if self.config.get('share_buffer', False):
+        if self.config.get('share_buffer', True):
             self.allocate_shared_buffers(self.config)
             self.allocate_queues(self.config)
 

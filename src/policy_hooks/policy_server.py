@@ -186,6 +186,7 @@ class PolicyServer(object):
                 'loss': self.policy_loss[-1],
                 'scope': self.task,
                 'n_updates': self.n_updates,
+                'n_data': self.full_N,
                 }
         self.log_infos.append(info)
         return self.log_infos

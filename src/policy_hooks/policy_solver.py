@@ -90,6 +90,11 @@ def get_base_solver(parent_class):
             active_ts = a.active_timesteps
             inits = {}
             rs_param = self.get_resample_param(a)
+            init_free_attrs = plan.get_free_attrs()
+            for param in plan.params.values():
+                if param.is_symbol(): continue
+                for attr in param._free_attrs:
+                    param._free_attrs[attr][:,active_ts[0]] = 0.
 
             base_t = active_ts[0]+1
             if len(traj_mean):
@@ -105,19 +110,15 @@ def get_base_solver(parent_class):
 
             def recursive_solve():
                 ## don't optimize over any params that are already set
-                old_params_free = {}
+                old_params_free = plan.get_free_attrs()
                 for p in plan.params.itervalues():
                     if p.is_symbol():
                         if p not in a.params: continue
-                        old_params_free[p] = p._free_attrs
                         p._free_attrs = {}
                         for attr in old_params_free[p].keys():
                             p._free_attrs[attr] = np.zeros(old_params_free[p][attr].shape)
                     else:
-                        p_attrs = {}
-                        old_params_free[p] = p_attrs
                         for attr in p._free_attrs:
-                            p_attrs[attr] = p._free_attrs[attr][:, active_ts[1]].copy()
                             p._free_attrs[attr][:, active_ts[1]] = 0
                 self.child_solver = self.__class__(self.hyperparams)
                 self.child_solver.dX = self.dX
@@ -140,13 +141,7 @@ def get_base_solver(parent_class):
                                                              n_resamples=n_resamples, inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, time_limit=time_limit, max_priority=max_priority, min_priority=min_priority)
 
                 # reset free_attrs
-                for p in plan.params.itervalues():
-                    if p.is_symbol():
-                        if p not in a.params: continue
-                        p._free_attrs = old_params_free[p]
-                    else:
-                        for attr in p._free_attrs:
-                            p._free_attrs[attr][:, active_ts[1]] = old_params_free[p][attr]
+                plan.store_free_attrs(old_params_free)
                 return success
 
             # if there is no parameter to resample or some part of rs_param is fixed, then go ahead optimize over this action
@@ -177,6 +172,7 @@ def get_base_solver(parent_class):
                                                   active_ts=active_ts, verbose=verbose, force_init=True, 
                                                   inf_f=inf_f, traj_mean=traj_mean, task=task, total_time=new_time, 
                                                   time_limit=time_limit, priorities=range(min_priority, max_priority+1))
+                plan.store_free_attrs(init_free_attrs)
                 if not success:
                     ## if planning fails we're done
                     return False
@@ -237,6 +233,7 @@ def get_base_solver(parent_class):
                         success = False
 
             rs_param._free_attrs = rs_free
+            plan.store_free_attrs(init_free_attrs)
             return success
 
 
@@ -609,7 +606,7 @@ def get_base_solver(parent_class):
                 obj_bexprs = []
 
                 obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
-                if self.transfer_always:
+                if len(traj_mean): # self.transfer_always:
                     obj_bexprs.extend(self._get_fixed_transfer_obj(plan, self.transfer_norm, traj_mean, coeff=self.strong_transfer_coeff, active_ts=active_ts))
                 if task is not None and inf_f is not None:
                     obj_bexprs.extend(self._policy_inference_obj(plan, task, active_ts[0], active_ts[1], inf_f))

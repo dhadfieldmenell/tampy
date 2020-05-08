@@ -77,34 +77,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.sess.run(init_op)
         self.init_policies(dU)
         if self.scope is not None:
-            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
-            self.saver = tf.train.Saver(variables)
-            try:
-                self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+self.scope+'.ckpt')
-                if self.scope in self.task_map:
-                    self.task_map[self.scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_scale.npy')
-                    self.task_map[self.scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_bias.npy')
-                    self.var[self.scope] = np.load('tf_saved/'+self.weight_dir+'/'+self.scope+'_variance.npy')
-                    self.task_map[self.scope]['policy'].chol_pol_covar = np.diag(np.sqrt(self.var[self.scope]))
-            except Exception as e:
-                pass
-                # print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(self.scope, self.weight_dir)
-
+            self.restore_ckpt(self.scope)
         else:
-            for scope in self.valid_scopes + ['value', 'primitive', 'image']:
-                variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-                if len(variables):
-                    self.saver = tf.train.Saver(variables)
-                    try:
-                        self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'.ckpt')
-                        if scope in self.task_map:
-                            self.task_map[scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale.npy')
-                            self.task_map[scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias.npy')
-                            self.var[scope] = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_variance.npy')
-                            self.task_map[scope]['policy'].chol_pol_covar = np.diag(np.sqrt(self.var[scope]))
-                    except Exception as e:
-                        print '\n\nCould not load previous weights for {0} from {1}\n\n'.format(scope, self.weight_dir)
-        
+            for scope in self.valid_scopes + ['value', 'primitive','image']:
+                self.restore_ckpt(scope)
+       
         # List of indices for state (vector) data and image (tensor) data in observation.
         self.x_idx, self.img_idx, i = [], [], 0
         if 'obs_image_data' not in self._hyperparams['network_params']:
@@ -174,6 +151,34 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.buf_sizes = self._hyperparams['buffer_sizes']
 
 
+    def restore_ckpts(self, label=None):
+        success = False
+        for scope in self.valid_scopes + ['value', 'primitive', 'image']:
+            success = success or self.restore_ckpt(scope, label)
+        return success
+
+
+    def restore_ckpt(self, scope, label=None):
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+        if not len(variables): return False
+        self.saver = tf.train.Saver(variables)
+        ext = ''
+        if label is not None:
+            ext = '_{0}'.format(label)
+        success = True
+        try:
+            self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'{0}.ckpt'.format(ext))
+            if scope in self.task_map:
+                self.task_map[scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale{0}.npy'.format(ext))
+                self.task_map[scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias{0}.npy'.format(ext))
+                self.var[scope] = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_variance{0}.npy'.format(ext))
+                self.task_map[scope]['policy'].chol_pol_covar = np.diag(np.sqrt(self.var[scope]))
+        except Exception as e:
+            success = False
+        
+        return success
+
+
     def write_shared_weights(self, scopes=None):
         if scopes is None:
             scopes = self.valid_scopes + ['primitive','image','value']
@@ -205,7 +210,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if scopes is None:
             scopes = self.valid_scopes + ['value', 'primitive', 'image']
 
-        # print 'Serializing', scopes
         var_to_val = {}
         for scope in scopes:
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
@@ -223,7 +227,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
     def deserialize_weights(self, json_wts, save=True):
         scopes, var_to_val, scales, biases, variances = json.loads(json_wts)
 
-        # print 'Deserializing', scopes
         for scope in scopes:
             variables = self.sess.graph.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
             for var in variables:
@@ -239,7 +242,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.task_map[scope]['policy'].bias = np.array(biases[scope])
             self.var[scope] = np.array(variances[scope])
         if save: self.store_scope_weights(scopes=scopes)
-        # print 'Weights for {0} successfully deserialized and stored.'.format(scopes)
 
     def update_weights(self, scope, weight_dir=None):
         if weight_dir is None:
@@ -346,10 +348,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         
         if update: #len(self.mu) > self.update_size:
-            # print 'Updating', net
             # Possibility that no good information has come yet
             if net not in self.mu or (task in self.mu[net] and np.all(self.mu[net][task] == self.mu[net][task][0])):
-                # print('Insufficient variance for update on', net)
                 return False
             obs = np.concatenate(self.obs[net].values(), axis=0)
             mu = np.concatenate(self.mu[net].values(), axis=0)
@@ -399,7 +399,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         updated = False
         for net in nets:
             if net not in self.mu: 
-                # print('Insufficient variance for update on', net)
                 continue
             obs = np.concatenate(self.obs[net].values(), axis=0)
             mu = np.concatenate(self.mu[net].values(), axis=0)
@@ -421,7 +420,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 else:
                     self.update(obs, mu, prc, wt, net)
                 self.store_scope_weights(scopes=[net])
-                if time.time() - self.last_pkl_t > 900:
+                if time.time() - self.last_pkl_t > 300:
                     self.store_scope_weights(scopes=[net], lab='_{0}'.format(self.cur_pkl))
                     self.cur_pkl += 1
                     self.last_pkl_t = time.time()
@@ -736,7 +735,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         average_loss = 0
         np.random.shuffle(idx)
         # actual training.
-        # print "\nEntering Tensorflow Training Loop"
         for i in range(10):
             self.train_iters += 1
             # Load in data for this batch.
@@ -867,7 +865,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             average_loss = 0
 
         # actual training.
-        # print "\nEntering Tensorflow Training Loop"
         for i in range(self._hyperparams['iterations']):
             self.train_iters += 1
             # Load in data for this batch.
@@ -883,14 +880,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
             if np.isnan(train_loss) or np.isinf(train_loss):
                 print('\n\nINVALID NETWORK UPDATE: RESTORING MODEL FROM CKPT (iteration {0})'.format(i))
-                try:
-                    self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+task+'.ckpt')
-                    self.task_map[task]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+task+'_scale.npy')
-                    self.task_map[task]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+task+'_bias.npy')
-                    self.var[task] = np.load('tf_saved/'+self.weight_dir+'/'+task+'_variance.npy')
-                    self.task_map[task]['policy'].chol_pol_covar = np.diag(np.sqrt(self.var[task]))
-                except Exception as e:
-                    print '\n\nCould not load previous weights for {0} from {1} after invalid update\n\n'.format(task, self.weight_dir)
+                self.restore_ckpt(task)
 
 
             average_loss += train_loss
@@ -935,7 +925,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
-        # print 'Updating primitive network...'
         N = obs.shape[0]
         dP, dO = self._dPrim, self._dPrimObs
 
@@ -1012,7 +1001,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         num_values = obs.shape[0]
         if self.primitive_feat_op is not None:
             self.primitive_feat_vals = self.primitive_solver.get_var_values(self.sess, self.primitive_feat_op, feed_dict, num_values, self.batch_size)
-        # print 'Updated primitive network.\n'
 
 
     def update_value(self, obs, next_obs, tgt_mu, tgt_prc, tgt_wt, tgt_acts, ref_acts, done, val_ratio=0.2):
@@ -1026,7 +1014,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         Returns:
             A tensorflow object with updated weights.
         """
-        # print 'Updating value network...'
         N = obs.shape[0]
         dP, dO = 1, obs.shape[-1]
         dact = tgt_acts.shape[-1]
@@ -1092,7 +1079,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         num_values = obs.shape[0]
         if self.value_feat_op is not None:
             self.value_feat_vals = self.value_solver.get_var_values(self.sess, self.value_feat_op, feed_dict, num_values, self.batch_size)
-        # print 'Updated value network.'
 
 
     def update_distilled(self, obs, tgt_mu, tgt_prc, tgt_wt):

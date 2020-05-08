@@ -127,7 +127,7 @@ class NAMOSortingAgent(TAMPAgent):
         self.target_vecs[condition]= target_vec
 
 
-    def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
+    def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
         assert not np.any(np.isnan(state))
         self.in_gripper = None
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
@@ -584,6 +584,23 @@ class NAMOSortingAgent(TAMPAgent):
         return col
 
 
+    def set_symbols(self, plan, state, task, anum=0, cond=0):
+        st, et = plan.actions[anum].active_timesteps
+        targets = self.target_vecs[cond].copy()
+        prim_choices = self.prob.get_prim_choices()
+        act = plan.actions[anum]
+        params = act.params
+        if task[0] == 0:
+            params[3].value[:,0] = params[0].pose[:,st]
+            params[2].value[:,0] = params[1].pose[:,st]
+        elif task[0] == 1:
+            params[1].value[:,0] = params[0].pose[:,st]
+            params[6].value[:,0] = params[3].pose[:,st]
+
+        for tname, attr in self.target_inds:
+            getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
+
+
     def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=10, out_coeff=None, smoothing=False, attr_dict=None):
         success = False
         old_targets = self.target_vecs[condition]
@@ -658,25 +675,6 @@ class NAMOSortingAgent(TAMPAgent):
 
         self.solver.strong_transfer_coeff = old_out_coeff
 
-        '''
-        print('Planning succeeded' if success else 'Planning failed')
-        print('Problem:', plan.actions)
-        # print(['{0}: {1}\n'.format(p.name, p.pose[:,0]) for p in plan.params.values() if not p.is_symbol()])
-        # print(['{0}: {1}\n'.format(p.name, p.value[:,0]) for p in plan.params.values() if p.is_symbol()])
-        '''
-
-        '''
-        if not success:
-            for action in plan.actions:
-                try:
-                    print('Solve failed on action: {0}'.format(action))
-                    print(action, plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps))
-                    print(['{0}: {1}\n'.format(p.name, p.pose[:,0]) for p in plan.params.values() if not p.is_symbol()])
-                    print('\n')
-                except:
-                    pass
-            print('\n\n')
-        '''
         try:
             if not len(failed_preds):
                 for action in plan.actions:
@@ -787,7 +785,7 @@ class NAMOSortingAgent(TAMPAgent):
         plan = self.plans[task]
         ee_pose = mp_state[self.state_inds['pr2', 'pose']]
         if targets is None:
-            targets = self.target_vecs[cond]
+            targets = self.target_vecs[cond].copy()
 
         sample.set(EE_ENUM, ee_pose, t)
         sample.set(STATE_ENUM, mp_state, t)
@@ -832,7 +830,7 @@ class NAMOSortingAgent(TAMPAgent):
             obj_name = list(prim_choices[OBJ_ENUM])[obj_ind]
             targ_name = list(prim_choices[TARG_ENUM])[targ_ind]
             obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[self.state_inds['pr2', 'pose']]
-            targ_pose = self.targets[cond][targ_name] - mp_state[self.state_inds['pr2', 'pose']]
+            targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds['pr2', 'pose']]
         else:
             obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
             targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
@@ -857,10 +855,10 @@ class NAMOSortingAgent(TAMPAgent):
 
         if task[0] == 0:
             # sample.set(END_POSE_ENUM, obj_pose + grasp, t)
-            sample.set(END_POSE_ENUM, obj_pose, t)
+            sample.set(END_POSE_ENUM, obj_pose.copy(), t)
         if task[0] == 1:
             # sample.set(END_POSE_ENUM, targ_pose + grasp, t)
-            sample.set(END_POSE_ENUM, targ_pose, t)
+            sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
 
@@ -982,7 +980,7 @@ class NAMOSortingAgent(TAMPAgent):
             Xs = Xs.reshape(1, Xs.shape[0])
         Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
         plan = self.plans[task]
-        if not len(targets):
+        if targets is None or not len(targets):
             targets = self.target_vecs[condition]
         for tname, attr in self.target_inds:
             getattr(plan.params[tname], attr)[:,0] = targets[self.target_inds[tname, attr]]
@@ -1353,13 +1351,20 @@ class NAMOSortingAgent(TAMPAgent):
         onehot_goal = self.onehot_encode_goal(only_goal)
         
         nt = len(prim_choices[TARG_ENUM])
-        self.goal = ''
+
+
+    def goal(self, cond, targets=None):
+        if targets is None:
+            targets = self.target_vecs[cond]
+        prim_choices = self.prob.get_prim_choices()
+        goal = ''
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
-            targ = self.target_vecs[cond][self.target_inds['{0}_end_target'.format(obj), 'value']]
+            targ = targets[self.target_inds['{0}_end_target'.format(obj), 'value']]
             for ind in self.targ_labels:
                 if np.all(np.abs(targ - self.targ_labels[ind]) < NEAR_TOL):
-                    self.goal += '(Near {0} end_target_{1}) '.format(obj, ind)
+                    goal += '(Near {0} end_target_{1}) '.format(obj, ind)
                     break
+        return goal
 
 
     def check_target(self, targ):

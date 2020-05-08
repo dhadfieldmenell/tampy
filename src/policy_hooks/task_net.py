@@ -152,10 +152,10 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
         nn_input = tf.concat(input_layer, nn_input)
     mlp_applied, weights_FC, biases_FC = get_mlp_layers(nn_input, n_layers, dim_hidden)
     if eta is not None:
-        mlp_applied *= eta
-    prediction = multi_sotfmax_prediction_layer(mlp_applied, boundaries)
+        scaled_mlp_applied = mlp_applied * eta
+    prediction = multi_sotfmax_prediction_layer(scaled_mlp_applied, boundaries)
     fc_vars = weights_FC + biases_FC
-    loss_out = get_loss_layer(mlp_out=mlp_applied, task=action, boundaries=boundaries, precision=precision)
+    loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision)
 
     return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
 

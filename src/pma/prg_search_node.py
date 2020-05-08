@@ -1,4 +1,3 @@
-from IPython import embed as shell
 from core.internal_repr.state import State
 from core.internal_repr.problem import Problem
 from core.util_classes.learning import PostLearner
@@ -30,18 +29,19 @@ class SearchNode(object):
         raise NotImplementedError("Override this.")
 
 class HLSearchNode(SearchNode):
-    def __init__(self, abs_prob, domain, concr_prob, priority = 0, prefix = None):
+    def __init__(self, abs_prob, domain, concr_prob, priority=0, prefix=None, label=''):
         self.abs_prob = abs_prob
         self.domain = domain
         self.concr_prob = concr_prob
         self.prefix = prefix if prefix else []
         self.priority = priority
+        self.label = label
 
     def is_hl_node(self):
         return True
 
     def plan(self, solver):
-        plan_obj = solver.solve(self.abs_prob, self.domain, self.concr_prob, self.prefix)
+        plan_obj = solver.solve(self.abs_prob, self.domain, self.concr_prob, self.prefix, label=self.label)
         return plan_obj
 
 class LLSearchNode(SearchNode):
@@ -96,8 +96,6 @@ class LLSearchNode(SearchNode):
         """
         state_name = "state_{}".format(self.priority)
         state_params = self.curr_plan.params.copy()
-        print('Failed:', failed_pred, i)
-        # import ipdb; ipdb.set_trace()
         anum, last_action = [(a_ind, a) for a_ind, a in enumerate(self.curr_plan.actions) if a.active_timesteps[0] < i and a.active_timesteps[1] >= i][0]
         if self.keep_failed:
             anum += 1
@@ -132,12 +130,16 @@ class LLSearchNode(SearchNode):
         return True
 
     def plan(self, solver):
-        if not len(self.curr_plan.get_failed_preds(active_ts=(0,0))):
-            self.curr_plan.freeze_actions(self.curr_plan.start_action)
-            success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action)
+        self.curr_plan.freeze_actions(self.curr_plan.start_action)
+        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action)
 
-    def get_failed_pred(self):
-        failed_pred = self.curr_plan.get_failed_pred()
+    def get_failed_pred(self, forward_only=False):
+        st = 0
+        if forward_only:
+            anum = self.curr_plan.start_action
+            st = self.curr_plan.actions[anum].active_timesteps[0]
+        et = self.curr_plan.horizon - 1
+        failed_pred = self.curr_plan.get_failed_pred(active_ts=(st,et))
         return failed_pred[2], failed_pred[1]
 
     def gen_child(self):
@@ -148,6 +150,10 @@ class LLSearchNode(SearchNode):
         """
 
         fail_step, fail_pred = self.get_failed_pred()
+        if fail_pred is None:
+            print('PR Graph gen child with no failed pred')
+            return False
+
         plan_prefix = tuple(self.curr_plan.prefix(fail_step))
         fail_pred_type = fail_pred.get_type()
 

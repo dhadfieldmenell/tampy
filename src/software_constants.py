@@ -1,5 +1,5 @@
 USE_OPENRAVE = True
-USE_ROS = True
+USE_ROS = False
 
 try:
     import rospy
