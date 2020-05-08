@@ -96,7 +96,7 @@ class LLSearchNode(SearchNode):
         """
         state_name = "state_{}".format(self.priority)
         state_params = self.curr_plan.params.copy()
-        anum, last_action = [(a_ind, a) for a_ind, a in enumerate(self.curr_plan.actions) if a.active_timesteps[0] < i and a.active_timesteps[1] >= i][0]
+        anum, last_action = [(a_ind, a) for a_ind, a in enumerate(self.curr_plan.actions) if a.active_timesteps[0] <= i and a.active_timesteps[1] >= i][0]
         if self.keep_failed:
             anum += 1
             last_action = self.curr_plan.actions[anum]
