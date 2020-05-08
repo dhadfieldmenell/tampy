@@ -1,5 +1,6 @@
 import re
 import subprocess
+import os
 from core.internal_repr.action import Action
 from core.internal_repr.plan import Plan
 
@@ -409,6 +410,8 @@ class FFSolver(HLSolver):
         Note:
             High level planner gets called here.
         """
+        if not os.path.isdir('temp'):
+            os.mkdir('temp')
         fprefix = 'temp/'+label+'_'+FFSolver.FILE_PREFIX
         with open("%sdom.pddl"%(fprefix), "w") as f:
             f.write(abs_domain)

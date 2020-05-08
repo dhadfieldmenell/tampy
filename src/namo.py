@@ -46,8 +46,6 @@ for param in state.params.values():
 solver = NAMOSolver()
 hl_solver = FFSolver(plan.d_c)
 solver.backtrack_solve(plan)
-with open('temp/_temp_prob.pddl') as f:
-    abs_prob = f.read()
 abs_domain = hl_solver.abs_domain
 import ipdb; ipdb.set_trace()
 

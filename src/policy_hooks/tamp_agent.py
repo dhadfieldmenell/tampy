@@ -896,9 +896,12 @@ class TAMPAgent(Agent):
                 if not param.is_symbol(): 
                     for attr in param._free_attrs:
                         param._free_attrs[attr][:] = 0
-            self.solver._backtrack_solve(plan, anum=anum, amax=anum, n_resamples=1, max_priority=-2)
+            try:
+                self.solver._backtrack_solve(plan, anum=anum, amax=anum, n_resamples=1, max_priority=-2)
+                failed = plan.get_failed_preds((st,et), tol=1e-3)
+            except:
+                failed = ['Bad solve!']
             plan.store_free_attrs(free_attrs)
-            failed = plan.get_failed_preds((st,et), tol=1e-3)
             # failed = filter(lambda p: not type(p[1].expr) is EqExpr, failed)
             success = len(failed) == 0
             self.add_sample_batch([sample], task)
@@ -907,7 +910,11 @@ class TAMPAgent(Agent):
                 fill_vector(plan.params, self.state_inds, x0, et)
                 self.store_hl_problem(x0, initial, plan.goal, keep_prob=0.05, max_len=50)
                 self.set_symbols(plan, x0, task, anum=a)
-                success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj)
+                try:
+                    success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj)
+                except Exception as e:
+                    print(e)
+                    success = False
 
             if not success:
                 return False
