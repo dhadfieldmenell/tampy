@@ -153,7 +153,7 @@ class Plan(object):
             else:
                 st, et = max(action.active_timesteps[0], active_ts[0]), min(action.active_timesteps[1], active_ts[1])
 
-            for pr in range(priority):
+            for pr in range(priority+1):
                 for n, p, t in self.get_failed_preds(active_ts=(st,et), priority=pr, tol=tol, incl_negated=incl_negated):
                     if t < t_min:
                         t_min = t

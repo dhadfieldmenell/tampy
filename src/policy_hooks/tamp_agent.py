@@ -153,6 +153,7 @@ class TAMPAgent(Agent):
 
         self.solver = self._hyperparams['solver_type'](self._hyperparams)
         self.hl_solver = get_hl_solver(self.prob.domain_file)
+        self.debug = True
 
 
     def get_init_state(self, condition):
@@ -900,6 +901,7 @@ class TAMPAgent(Agent):
                 self.solver._backtrack_solve(plan, anum=anum, amax=anum, n_resamples=1, max_priority=-2)
                 failed = plan.get_failed_preds((st,et), tol=1e-3)
             except:
+                print('Failed to solve on', anum, plan.actions)
                 failed = ['Bad solve!']
             plan.store_free_attrs(free_attrs)
             # failed = filter(lambda p: not type(p[1].expr) is EqExpr, failed)
@@ -912,21 +914,21 @@ class TAMPAgent(Agent):
                 fill_vector(plan.params, self.state_inds, x0, st)
                 self.set_symbols(plan, x0, task, anum=a)
                 try:
-                    success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj)
+                    success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj, n_resamples=5)
                 except Exception as e:
                     print(e)
                     success = False
 
             if not success:
                 return False
-
+        
         path = []
         for a in range(len(plan.actions)):
             x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
             fill_vector(plan.params, self.state_inds, x0, st)
             task = self.encode_plan(plan)[a]
-            opt_traj = np.zeros((sample.T, sample.dX))
+            opt_traj = np.zeros((et-st+1, self.symbolic_bound))
             for pname, attr in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
                 opt_traj[:,self.state_inds[pname, attr]] = getattr(plan.params[pname], attr)[:,st:et+1].T

@@ -635,22 +635,10 @@ class NAMOSortingAgent(TAMPAgent):
         if GRASP_ENUM in prim_choices:
             grasp = self.set_grasp(grasp, task[3])
 
-        # plan.params[prim_choices[GRASP_ENUM][task[3]]].value[:,0] = grasp
-        # plan.params['grasp0'].value[:,0] = grasp
         plan.params['pr2'].pose[:, 0] = x0[self.state_inds['pr2', 'pose']]
         plan.params['obs0'].pose[:] = plan.params['obs0'].pose[:,:1]
 
         run_solve = True
-        '''
-        for param_name in plan.params:
-            if param_name == 'pr2': continue
-            param = plan.params[param_name]
-            if param.is_symbol(): continue
-            if np.all(np.abs(param.pose[:,0] - self.targets[condition][targ_name]) < 0.01):
-                run_solve = False
-                break
-        '''
-
         
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
         for param in plan.params.values():
@@ -681,10 +669,6 @@ class NAMOSortingAgent(TAMPAgent):
                     failed_preds += [(pred, t) for negated, pred, t in plan.get_failed_preds(tol=1e-3, active_ts=action.active_timesteps)]
         except:
             failed_preds += ['Nan in pred check for {0}'.format(action)]
-        #if not success and not smoothing:
-        #    sample = Sample(self)
-        #    self.fill_sample(condition, sample, x0, 0, task, fill_obs=True)
-        #    return sample, failed_preds, success
 
         traj = np.zeros((plan.horizon, self.symbolic_bound))
         for pname, aname in self.state_inds:
@@ -726,7 +710,7 @@ class NAMOSortingAgent(TAMPAgent):
 
         # self.optimal_samples[task].append(sample)
         # print(sample.get_X())
-        if not smoothing:
+        if not smoothing and self.debug:
             if not success:
                 sample.use_ts[:] = 0.
                 print('Failed to plan for: {0} {1} smoothing? {2} {3}'.format(task, failed_preds, smoothing, state))

@@ -151,7 +151,6 @@ class LLSearchNode(SearchNode):
 
         fail_step, fail_pred = self.get_failed_pred()
         if fail_pred is None:
-            print('PR Graph gen child with no failed pred')
             return False
 
         plan_prefix = tuple(self.curr_plan.prefix(fail_step))

@@ -1119,6 +1119,7 @@ class RolloutServer(object):
         elif self.policy_opt.share_buffers:
             self.policy_opt.read_shared_weights()
 
+        self.agent.debug = False
         chol_pol_covar = {}
         for task in self.agent.task_list:
             if task not in self.policy_opt.valid_scopes:

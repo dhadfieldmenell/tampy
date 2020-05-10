@@ -171,7 +171,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.FIX_TARGETS = True
 
     prob.domain_file = "../domains/namo_domain/new_namo.domain"
-    prob.END_TARGETS = prob.END_TARGETS[:8]
+    prob.END_TARGETS = prob.END_TARGETS[:2]
     prob.n_aux = 0
     config = {
         'gui_on': False,

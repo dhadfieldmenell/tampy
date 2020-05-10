@@ -169,6 +169,7 @@ def main():
             args.soft_eval = old_args.soft_eval
             args.test = old_args.test
             args.render = old_args.render
+            args.eta = old_args.eta
 
         exps = load_multi(exps_info, n_objs, n_targs, args)
         for ind, exp in enumerate(exps):

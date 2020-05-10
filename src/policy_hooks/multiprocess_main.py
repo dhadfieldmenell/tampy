@@ -565,13 +565,15 @@ class MultiProcessMain(object):
         hyperparams['check_precond'] = False
         hyperparams['share_buffers'] = False
         hyperparams['id'] = hyperparams['server_id']+'_test'
-        server = RolloutServer(hyperparams)
-        ind = 0
         self.allocate_shared_buffers(hyperparams)
         self.allocate_queues(hyperparams)
+        server = RolloutServer(hyperparams)
+        ind = 0
 
+        for _ in range(20):
+            server.test_hl(10, save=False)
         while server.policy_opt.restore_ckpts(ind):
-            for _ in range(30):
+            for _ in range(10):
                 server.test_hl(10, save=True, ckpt_ind=ind)
             ind += 1
 
