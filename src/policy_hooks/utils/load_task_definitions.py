@@ -75,13 +75,14 @@ def parse_state(plan, failed_preds, ts):
     new_preds = failed_preds
     for a in plan.actions:
         a_st, a_et = a.active_timesteps
-        if a_st > ts: break
+        # if a_st > ts: break
         for p in a.preds:
             st, et = p['active_timesteps']
             # Only check before the failed ts, previous actions fully checked while current only up to priority
             # TODO: How to handle negated?
-            check_ts = max(0, ts - p['pred'].active_range[1])
-            if st <= ts and et <= ts:
+            check_ts = ts - p['pred'].active_range[1]
+            if p['pred'].hl_info: continue
+            if st <= ts and check_ts >= 0 and et >= st:
                 # hl_state preds aren't tied to ll state
                 if p['hl_info'] == 'hl_state':
                     if p['pred'].active_range[1] > 0: continue

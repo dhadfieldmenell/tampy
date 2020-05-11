@@ -780,12 +780,12 @@ class TAMPAgent(Agent):
         if targets is None:
             targets = self.target_vecs[cond].copy()
 
-        initial = []
+        initial = ['(RobotAt pr2 robot_init_pose)']
         plans = [plan]
         if plan is None:
             plans = self.plans.values()
 
-        st = 0 if plan is None else plan.actions[act].active_timesteps[0]
+        st = plans[0].actions[act].active_timesteps[0]
         for plan in plans:
             for pname, aname in self.state_inds:
                 if plan.params[pname].is_symbol(): continue

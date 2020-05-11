@@ -390,10 +390,10 @@ class MCTS:
     def eval_pr_graph(self, state=None):
         if state is None:
             state, initial, goal = self.agent.sample_hl_problem()
-            if state is None: return 0, []
         else:
             initial, goal = self.agent.get_hl_info(state, cond=self.condition)
-            initial = None
+            # initial = None
+        if state is None: return 0, []
         domain = self.agent.plans.values()[0].domain
         prob = self.agent.plans.values()[0].prob
         for pname, attr in self.agent.state_inds:
@@ -402,12 +402,11 @@ class MCTS:
             getattr(p, attr)[:,0] = state[self.agent.state_inds[pname, attr]]
         plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id)
         self.n_runs += 1
-       
-        if plan is None:
-            return 0, []
-        self.n_success += 1
+        
+        success = 1 if plan is not None else 0
+        self.n_success += success
         self.reset()
-        return 1, []
+        return success, []
         
 
     def _simulate_from_unexplored(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, label=None, debug=False):

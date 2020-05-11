@@ -223,6 +223,7 @@ class FFSolver(HLSolver):
                     prob_str += "%s "%param.name
                 prob_str += ")\n"
         else:
+            initial = set(initial)
             for pred in initial:
                 prob_str += pred
             concr_prob.initial = initial
