@@ -24,7 +24,8 @@ OPT_MCTS_FEEDBACK = True
 N_GRASPS = 4
 FIX_TARGETS = False
 
-domain_file = "../domains/namo_domain/new_namo.domain"
+# domain_file = "../domains/namo_domain/new_namo.domain"
+domain_file = "../domains/namo_domain/current.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_7"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
@@ -59,7 +60,8 @@ possible_can_locs = [(0, 57), (0, 50), (0, 43), (0, 35)] if SORT_CLOSET else []
 MAX_Y = 25
 # possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
 
-possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
+# possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
+possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
             
@@ -157,7 +159,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         targs = []
         can_targs = [can_locs[i] for i in range(len(can_locs)) if (valid[i] or not NO_COL)]
         old_valid = copy.copy(valid)
-        while len(targs) < config['num_targs']:
+        while not FIX_TARGETS and len(targs) < config['num_targs']:
             targs = []
             pr2_loc = locs[0]
             random.shuffle(can_targs)
@@ -187,8 +189,9 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         if FIX_TARGETS:
             inds = np.random.permutation(range(len(END_TARGETS)))
             next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
-            for n in range(config['num_targs'], config['num_objs']):
-                x0[state_inds['can{0}'.format(n), 'pose']] = END_TARGETS[inds[n]]
+            inplace = np.random.choice(range(config['num_objs']), (config['num_objs'] - config['num_targs'],), replace=False)
+            for n in range(config['num_objs'] - config['num_targs']):
+                x0[state_inds['can{0}'.format(inplace[n]), 'pose']] = END_TARGETS[inds[inplace[n]]]
             next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
         else:
             inds = np.random.permutation(range(config['num_objs']))

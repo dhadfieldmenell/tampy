@@ -882,6 +882,7 @@ class TAMPAgent(Agent):
         plan.action_inds = self.action_inds
         plan.dX = self.symbolic_bound
         plan.dU = self.dU
+        success = True
         for a in range(anum, len(plan.actions)):
             x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
@@ -901,7 +902,7 @@ class TAMPAgent(Agent):
                 self.solver._backtrack_solve(plan, anum=anum, amax=anum, n_resamples=1, max_priority=-2)
                 failed = plan.get_failed_preds((st,et), tol=1e-3)
             except:
-                print('Failed to solve on', anum, plan.actions)
+                print('Exception to solve on', anum, plan.actions, x0)
                 failed = ['Bad solve!']
             plan.store_free_attrs(free_attrs)
             # failed = filter(lambda p: not type(p[1].expr) is EqExpr, failed)
@@ -916,7 +917,7 @@ class TAMPAgent(Agent):
                 try:
                     success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj, n_resamples=5)
                 except Exception as e:
-                    print(e)
+                    traceback.print_exception(*sys.exc_info())
                     success = False
 
             if not success:

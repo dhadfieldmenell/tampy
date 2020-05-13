@@ -258,11 +258,11 @@ class MCTS:
                 self.first_suc_buf = []
                 self.cur_curric += 1
                 self.max_depth = min(self._max_depth, int(2 * self.max_depth))
-                print('{0} updated curriculum'.format(self.log_file))
+                print('{0} updated curriculum to {1}'.format(self.log_file, self.cur_curric))
             # self.max_depth = min(self._max_depth, self.max_depth + 3)
         else:
             self.first_success = self.n_runs
-            self.first_suc_buf.append(self.first_success)
+            self.first_suc_buf.append(max(10, self.first_success))
         self.n_runs = 0
         self.val_per_run = []
         self.agent.replace_cond(self.condition, curric_step=self.cur_curric)
@@ -388,9 +388,13 @@ class MCTS:
 
 
     def eval_pr_graph(self, state=None):
+        plan = None
         if state is None:
             state, initial, goal = self.agent.sample_hl_problem()
         else:
+            if self.agent.goal_f(self.condition, state) == 0:
+                print('WARNING! Init state success', state, self.agent.target_vecs[self.condition])
+                plan = 'EMPTY PLAN'
             initial, goal = self.agent.get_hl_info(state, cond=self.condition)
             # initial = None
         if state is None: return 0, []
@@ -400,12 +404,22 @@ class MCTS:
             p = prob.init_state.params[pname]
             if p.is_symbol(): continue
             getattr(p, attr)[:,0] = state[self.agent.state_inds[pname, attr]]
-        plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id)
+        for targ, attr in self.agent.target_inds:
+            if targ in prob.init_state.params:
+                p = prob.init_state.params[targ]
+                getattr(p, attr)[:,0] = self.agent.target_vecs[0][self.agent.target_inds[targ, attr]].copy()
+        if plan is None:
+            plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id)
         self.n_runs += 1
         
         success = 1 if plan is not None else 0
         self.n_success += success
+        self.val_per_run.append(success)
         self.reset()
+        paths = self.agent.get_task_paths()
+        if len(paths):
+            ind = np.random.choice(range(len(paths)))
+            self.log_path(paths[ind], 10)
         return success, []
         
 
@@ -914,10 +928,11 @@ class MCTS:
             next_label = tuple(labels[ind])
 
         elif self.discrete_prim:
-            distrs = self.prob_func(sample.get_prim_obs(t=t), self._soft, eta=self.eta)
+            task = sample.task if hasattr(sample, 'task') else None
+            distrs = self.prob_func(sample.get_prim_obs(t=t), self._soft, eta=self.eta, t=t, task=task)
             for d in distrs:
                 for i in range(len(d)):
-                    d[i] = round(d[i], 3)
+                    d[i] = round(d[i], 5)
 
             if self.onehot_task:
                 distr = distrs[0]

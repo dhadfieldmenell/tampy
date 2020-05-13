@@ -146,7 +146,7 @@ class RolloutServer(object):
         self.add_negative = hyperparams['negative']
         self.prim_decay = hyperparams.get('prim_decay', 1.)
         self.prim_first_wt = hyperparams.get('prim_first_wt', 1.)
-        self.check_prim_t = hyperparams.get('check_prim_t', 1.)
+        self.check_prim_t = hyperparams.get('check_prim_t', 1)
 
         self.use_local = hyperparams['use_local']
         if self.use_local:
@@ -355,10 +355,13 @@ class RolloutServer(object):
 
 
     def primitive_call(self, prim_obs, soft=False, eta=1., t=-1, task=None):
-        if t > 0 and task is not None and t % self.check_prim_t: return task
         # print 'Entering primitive call:', datetime.now()
         if self.use_local:
             distrs = self.policy_opt.task_distr(prim_obs, eta)
+            if task is not None and t % self.check_prim_t:
+                for i in range(len(distrs)):
+                    distrs[i] = np.zeros_like(distrs[i])
+                    distrs[i][task[i]] = 1.
             if not soft: return distrs
             out = []
             for d in distrs:

@@ -183,7 +183,11 @@ def get_base_solver(parent_class):
             rs_free = rs_param._free_attrs
             rs_param._free_attrs = {}
             for attr in rs_free.keys():
-                rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
+                if rs_param.is_symbol():
+                    rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
+                else:
+                    rs_param._free_attrs[attr] = rs_free[attr].copy()
+                    rs_param._free_attrs[attr][:, active_ts[1]] = np.zeros(rs_free[attr].shape[0])
 
             """
             sampler_begin
@@ -202,7 +206,10 @@ def get_base_solver(parent_class):
             success = False
             for rp in robot_poses:
                 for attr, val in rp.items():
-                    setattr(rs_param, attr, val)
+                    if rs_param.is_symbol():
+                        setattr(rs_param, attr, val)
+                    else:
+                        getattr(rs_param, attr)[:, active_ts[1]] = val.flatten()
 
                 success = False
                 self.child_solver = self.__class__(self.hyperparams)
@@ -732,15 +739,17 @@ def get_base_solver(parent_class):
             a_num = 0
             success = True
             while a_num < len(plan.actions):
+                act_1 = plan.actions[a_num]
+                active_ts = (act_1.active_timesteps[0], act_1.active_timesteps[1])
                 rs_param = self.get_resample_param(plan.actions[a_num])
                 robot_poses = self.obj_pose_suggester(plan, a_num, resample_size=1)
                 rp = robot_poses[0]
                 for attr, val in rp.items():
-                    setattr(rs_param, attr, val)
+                    if rs_param.is_symbol():
+                        setattr(rs_param, attr, val)
+                    else:
+                        getattr(rs_param, attr)[:, active_ts[1]] = val.flatten()
 
-                act_1 = plan.actions[a_num]
-                # act_2 = plan.actions[a_num+1]
-                active_ts = (act_1.active_timesteps[0], act_1.active_timesteps[1])
                 old_params_free = {}
                 for p in plan.params.itervalues():
                     if attr_dict is not None:

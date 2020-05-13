@@ -37,9 +37,9 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 25
+N_ROLLOUT_SERVERS = 20
 N_ALG_SERVERS = 10
-N_OPTIMIZERS = 2
+N_OPTIMIZERS = 5
 N_DIRS = 16
 N_GRASPS = 4
 TIME_LIMIT = 7200
@@ -200,14 +200,14 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
 
         'train_iterations': 50,
         'weight_decay': 1e-3,
-        'prim_weight_decay': 1e-3,
+        'prim_weight_decay': 1e-4,
         'val_weight_decay': 1e-4,
         'batch_size': 500,
         'n_layers': 2,
         'prim_n_layers': 1,
         'val_n_layers': 1,
         'dim_hidden': [32, 32],
-        'prim_dim_hidden': [32],
+        'prim_dim_hidden': [64],
         'val_dim_hidden': [32],
         'n_traj_centers': algorithm['n_traj_centers'],
         'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
@@ -238,7 +238,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'opt_server_type': NAMOMotionPlanServer,
         'solver_type': NAMOPolicySolver,
         'update_size': 2000,
-        'prim_update_size': 2000,
+        'prim_update_size': 5000,
         'val_update_size': 1000,
         'use_local': True,
         'n_dirs': N_DIRS,
@@ -253,7 +253,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'opt_prob': 1.,
         'opt_smooth': False,
         'share_buffer': True,
-        'split_nets': True, # False,
+        'split_nets': False,
         'split_mcts_alg': True,
 
         'state_include': [utils.STATE_ENUM],

@@ -289,7 +289,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                     dct[net][task] = np.array(data)
                 else:
                     dct[net][task] = np.r_[dct[net][task], data]
-                s = MAX_QUEUE_SIZE if not store_val else 1000
+                s = MAX_QUEUE_SIZE
                 if len(dct[net][task]) > s:
                     if keep_inds is None:
                         keep_inds = np.random.choice(range(len(dct[net][task])), s, replace=False)
@@ -311,8 +311,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             else:
                 dct[net][task] = np.r_[dct[net][task], data]
 
-            s = MAX_QUEUE_SIZE if not store_val else 1000
-            if len(dct[net][task]) > s:
+            s = MAX_QUEUE_SIZE
+            if task != 'primitive' and len(dct[net][task]) > s:
                 if keep_inds is None:
                     keep_inds = np.random.choice(range(len(dct[net][task])), s, replace=False)
                 dct[net][task] = dct[net][task][keep_inds]

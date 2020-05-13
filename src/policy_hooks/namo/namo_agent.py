@@ -179,6 +179,7 @@ class NAMOSortingAgent(TAMPAgent):
 
             self.fill_sample(condition, sample, cur_state, t, task, fill_obs=True)
             if task_f is not None:
+                sample.task = task
                 task = task_f(sample, t)
                 if task not in self.plans:
                     task = self.task_to_onehot[task[0]]
@@ -456,7 +457,7 @@ class NAMOSortingAgent(TAMPAgent):
                         if self.in_gripper is param:
                             param.pose[:, t] = plan.params['pr2'].pose[:, t] - disp
 
-                    elif plan.params['pr2'].gripper[0,t] <= GRIP_TOL:
+                    elif plan.params['pr2'].gripper[0,t] < GRIP_TOL:
                         self.in_gripper = None
 
                     elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
@@ -553,8 +554,10 @@ class NAMOSortingAgent(TAMPAgent):
                         param.pose[:, t+1] = param.pose[:, t]
 
             ignore = []
+            if self.in_gripper is not None:
+                ignore = [self.in_gripper.name]
             dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
-            if np.any(np.abs(dist) < plan.params['pr2'].geom.radius): #self.check_col(plan, t): # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.5 * DSAFE):
+            if np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.05): #self.check_col(plan, t): # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.5 * DSAFE):
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
                     getattr(plan.params[pname], aname)[:,t+1] = old_state[self.state_inds[pname, aname]]

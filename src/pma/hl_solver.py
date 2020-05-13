@@ -426,7 +426,11 @@ class FFSolver(HLSolver):
             # import ipdb; ipdb.set_trace()
             plan = Plan.IMPOSSIBLE
         else:
-            plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
+            try:
+                plan = filter(lambda x: x, map(str.strip, s.split("found legal plan as follows")[1].split("time")[0].replace("step", "").split("\n")))
+            except:
+                print('Error in filter for', s, fprefix)
+                plan = Plan.IMPOSSIBLE
 
         '''
         subprocess.call(["rm", "-f", "%sdom.pddl"%fprefix,

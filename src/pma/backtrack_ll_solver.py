@@ -147,8 +147,11 @@ class BacktrackLLSolver(LLSolver):
         rs_free = rs_param._free_attrs
         rs_param._free_attrs = {}
         for attr in rs_free.keys():
-            rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
-
+            if rs_param.is_symbol():
+                rs_param._free_attrs[attr] = np.zeros(rs_free[attr].shape)
+            else:
+                rs_param._free_attrs[attr] = rs_free[attr].copy()
+                rs_param._free_attrs[attr][:, active_ts[1]] = np.zeros(rs_free[attr].shape[0])
         """
         sampler_begin
         """
@@ -165,7 +168,10 @@ class BacktrackLLSolver(LLSolver):
 
         for rp in robot_poses:
             for attr, val in rp.items():
-                setattr(rs_param, attr, val)
+                if rs_param.is_symbol():
+                    setattr(rs_param, attr, val)
+                else:
+                    getattr(rs_param, attr)[:, active_ts[1]] = val.flatten()
 
             success = False
             self.child_solver = self.__class__()

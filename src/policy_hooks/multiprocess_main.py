@@ -571,9 +571,9 @@ class MultiProcessMain(object):
         ind = 0
 
         for _ in range(20):
-            server.test_hl(10, save=False)
+            server.test_hl(15, save=False)
         while server.policy_opt.restore_ckpts(ind):
-            for _ in range(10):
+            for _ in range(5):
                 server.test_hl(10, save=True, ckpt_ind=ind)
             ind += 1
 
