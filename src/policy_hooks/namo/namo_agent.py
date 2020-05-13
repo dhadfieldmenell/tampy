@@ -1374,3 +1374,32 @@ class NAMOSortingAgent(TAMPAgent):
         return np.concatenate(vecs)
 
 
+    def encode_action(self, action):
+        a = action
+        prim_choices = self.prob.get_prim_choices()
+        astr = str(action).lower()
+        params = a.params
+        l = [0]
+        for i, task in enumerate(self.task_list):
+            if action.name.lower().find(task) >= 0:
+                l[0] = i
+                break
+
+        l.extend([0,0,0])
+        if a.name.lower().find('grasp') >= 0:
+            if params[1].name in prim_choices[OBJ_ENUM]:
+                l[1] = prim_choices[OBJ_ENUM].index(a.params[1].name)
+            if params[6].name in prim_choices[TARG_ENUM]:
+                l[2] = prim_choices[TARG_ENUM].index(a.params[6].name)
+            if params[5].name in prim_choices[GRASP_ENUM]:
+                l[3] = prim_choices[GRASP_ENUM].index(a.params[5].name)
+        elif a.name.lower().find('place') >= 0:
+            if params[3].name in prim_choices[OBJ_ENUM]:
+                l[1] = prim_choices[OBJ_ENUM].index(a.params[3].name)
+            if params[4].name in prim_choices[TARG_ENUM]:
+                l[2] = prim_choices[TARG_ENUM].index(a.params[4].name)
+            if params[5].name in prim_choices[GRASP_ENUM]:
+                l[3] = prim_choices[GRASP_ENUM].index(a.params[5].name)
+        return tuple(l)
+
+
