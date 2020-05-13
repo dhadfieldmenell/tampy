@@ -901,7 +901,7 @@ class TAMPAgent(Agent):
             try:
                 self.solver._backtrack_solve(plan, anum=anum, amax=anum, n_resamples=1, max_priority=-2)
                 failed = plan.get_failed_preds((st,et), tol=1e-3)
-            except as e:
+            except Exception as e:
                 print(e, 'Exception to solve on', anum, plan.actions, x0)
                 failed = ['Bad solve!']
             plan.store_free_attrs(free_attrs)
