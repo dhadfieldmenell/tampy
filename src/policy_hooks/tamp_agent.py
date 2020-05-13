@@ -840,10 +840,11 @@ class TAMPAgent(Agent):
             if enum is TASK_ENUM: continue
             l.append(0)
             for i, opt in enumerate(prim_choices[enum]):
-                if astr.lower().find(opt.lower()+' ') >= 0:
+                if opt in [p.name for p in action.params]:
                     l[-1] = i
                     break
         return tuple(l)
+
 
     def encode_plan(self, plan):
         encoded = []
