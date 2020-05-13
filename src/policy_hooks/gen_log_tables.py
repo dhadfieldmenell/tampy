@@ -8,7 +8,7 @@ import numpy as np
 import seaborn as sns
 
 FRAME = 10
-TWINDOW = 600
+TWINDOW = 900
 TDELTA = 150
 MIN_FRAME = 30
 nan = np.nan
@@ -398,8 +398,8 @@ keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_first_success', keywords)
 # gen_data_plots('time', 'avg_first_success', ['fixed'])
 #gen_data_plots('time', 'avg_pre_cost', ['fixed'])
-get_hl_tests(['larger'], pre=False)
-get_hl_tests(['larger'], pre=True)
+get_hl_tests(['network'], pre=False)
+get_hl_tests(['network'], pre=True)
 #get_td_loss(['fixed'])
 #get_hl_tests(['dgx_4'], pre=True)
 # gen_rollout_plots('time', 'avg_pre_cost', keywords)

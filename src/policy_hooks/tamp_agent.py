@@ -840,7 +840,7 @@ class TAMPAgent(Agent):
             if enum is TASK_ENUM: continue
             l.append(0)
             for i, opt in enumerate(prim_choices[enum]):
-                if astr.find(opt) >= 0:
+                if astr.lower().find(opt.lower()+' ') >= 0:
                     l[-1] = i
                     break
         return tuple(l)
@@ -901,8 +901,8 @@ class TAMPAgent(Agent):
             try:
                 self.solver._backtrack_solve(plan, anum=anum, amax=anum, n_resamples=1, max_priority=-2)
                 failed = plan.get_failed_preds((st,et), tol=1e-3)
-            except:
-                print('Exception to solve on', anum, plan.actions, x0)
+            except as e:
+                print(e, 'Exception to solve on', anum, plan.actions, x0)
                 failed = ['Bad solve!']
             plan.store_free_attrs(free_attrs)
             # failed = filter(lambda p: not type(p[1].expr) is EqExpr, failed)
