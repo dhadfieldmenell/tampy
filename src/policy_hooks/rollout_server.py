@@ -1101,9 +1101,12 @@ class RolloutServer(object):
             print('Finished tree search step.')
 
 
-    def save_video(self, rollout):
+    def save_video(self, rollout, success=None):
         if not self.render: return
-        fname = self.video_dir + '/{0}_{1}.npy'.format(self.id, self.cur_vid_id)
+        suc_flag = ''
+        if success is not None:
+            suc_flag = 'succeeded' if success else 'failed'
+        fname = self.video_dir + '/{0}_{1}{2}.npy'.format(self.id, self.cur_vid_id, suc_flag)
         self.cur_vid_id += 1
         buf = []
         for step in rollout:
@@ -1173,7 +1176,7 @@ class RolloutServer(object):
             if val > 1-1e-2:
                 print('Rollout succeeded in test! With pre?', self.check_precond)
             if self.use_qfunc: self.log_td_error(path)
-            if not len(self.hl_data) % 20:
+            if not len(self.hl_data) % 5:
                 np.save(self.hl_test_log.format('pre_' if self.check_precond else '', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
         else:
             if val < 1:
@@ -1183,10 +1186,12 @@ class RolloutServer(object):
                     print(s.task, s.get_val_obs(t=0))
             else:
                 print('succeeded for', path[0].get_X(t=0))
+                print('succeeded for', path[0].get_X(t=0))
                 print('path len:', len(path))
             print('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3]))
+            print('n_true_success', len([d for d in self.hl_data if d[0][2] > 1-1e-3]))
             print('n_runs', len(self.hl_data))
-            self.save_video(path)
+            self.save_video(path, true_val > 0)
         self.last_hl_test = time.time()
         print('TESTED HL')
 

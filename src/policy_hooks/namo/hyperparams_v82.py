@@ -37,9 +37,9 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 25
+N_ROLLOUT_SERVERS = 20
 N_ALG_SERVERS = 10
-N_OPTIMIZERS = 2
+N_OPTIMIZERS = 5
 N_DIRS = 16
 N_GRASPS = 4
 TIME_LIMIT = 7200
@@ -171,7 +171,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.FIX_TARGETS = True
 
     prob.domain_file = "../domains/namo_domain/new_namo.domain"
-    prob.END_TARGETS = prob.END_TARGETS[:2]
+    prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
         'gui_on': False,
@@ -204,10 +204,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'val_weight_decay': 1e-4,
         'batch_size': 500,
         'n_layers': 2,
-        'prim_n_layers': 2,
+        'prim_n_layers': 1,
         'val_n_layers': 1,
         'dim_hidden': [32, 32],
-        'prim_dim_hidden': [32, 32],
+        'prim_dim_hidden': [64],
         'val_dim_hidden': [32],
         'n_traj_centers': algorithm['n_traj_centers'],
         'traj_opt_steps': NUM_TRAJ_OPT_STEPS,
@@ -253,7 +253,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'opt_prob': 1.,
         'opt_smooth': False,
         'share_buffer': True,
-        'split_nets': True, # False,
+        'split_nets': False,
         'split_mcts_alg': True,
 
         'state_include': [utils.STATE_ENUM],

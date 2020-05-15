@@ -97,6 +97,7 @@ class NAMOSortingAgent(TAMPAgent):
             if name =='pr2': continue
             cur_color = colors.pop(0)
             items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': tuple(cur_color)})
+            # items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': False, 'pos': (10, 10, 0.5), 'dimensions': (0.8, 0.2), 'rgba': tuple(cur_color)})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
             next_trans[0,3] -= 3.5

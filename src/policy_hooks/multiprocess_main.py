@@ -540,11 +540,11 @@ class MultiProcessMain(object):
         hyperparams['run_mcts_rollouts'] = False
         hyperparams['run_alg_updates'] = False
         hyperparams['run_hl_test'] = True
-        hyperparams['id'] = hyperparams['server_id']+'_test'
+        hyperparams['id'] = 'test'
         hyperparams['check_precond'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['check_precond'] = True
-        hyperparams['id'] = hyperparams['server_id']+'_test_with_pre'
+        hyperparams['id'] = 'test_with_pre'
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['run_hl_test'] = False
 
@@ -564,16 +564,25 @@ class MultiProcessMain(object):
         hyperparams['run_hl_test'] = True
         hyperparams['check_precond'] = False
         hyperparams['share_buffers'] = False
-        hyperparams['id'] = hyperparams['server_id']+'_test'
+        descr = hyperparams.get('descr', '')
+        # hyperparams['weight_dir'] = hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
+        hyperparams['id'] = 'test'
         self.allocate_shared_buffers(hyperparams)
         self.allocate_queues(hyperparams)
         server = RolloutServer(hyperparams)
+        newdir = 'tf_saved/'+hyperparams['weight_dir'].replace('exp_id0', 'rerun_{0}'.format(descr))
+        if not os.path.isdir(newdir):
+            os.mkdir(newdir)
+        server.hl_test_log = newdir + '/hl_test_rerun_log.npy'
+        # if not os.path.isdir('tf_saved/'+hyperparams['weight_dir']+'_testruns'):
+        #     os.mkdir('tf_saved/'+hyperparams['weight_dir']+'_testruns')
+        # server.hl_test_log = 'tf_saved/' + hyperparams['weight_dir'] + '_testruns/hl_test_rerun_log.npy'
         ind = 0
 
-        for _ in range(20):
-            server.test_hl(15, save=False)
+        # for _ in range(20):
+        #     server.test_hl(15, save=False)
         while server.policy_opt.restore_ckpts(ind):
-            for _ in range(5):
+            for _ in range(50):
                 server.test_hl(10, save=True, ckpt_ind=ind)
             ind += 1
 

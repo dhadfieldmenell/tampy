@@ -241,6 +241,7 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
 def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
+    used = []
     for exp_name in exp_probs:
         dir_prefix = LOG_DIR + exp_name + '/'
         if not os.path.isdir(dir_prefix): continue
@@ -265,6 +266,8 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
 
             full_dir = dir_prefix + dir_name
             full_exp = full_dir[:-1]
+            if full_exp in used: continue
+            used.append(full_exp)
             i = 0
             data = []
             while i < 20: 
@@ -280,6 +283,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
                     info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                 if len(info):
                     data.append(np.load(full_exp+str(i)+'/'+info[0]))
+                    if len(data[-1].shape) < 3: data = data[:-1]
                 i += 1
 
             if not len(data): 
@@ -293,10 +297,13 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
             while not end:
                 end = True
                 for d in data:
-                    next_frame = [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + TWINDOW]
+                    if rerun:
+                        next_frame = [pt[0] for pt in d if pt[0,6]*TDELTA == cur_t]
+                    else:
+                        next_frame = [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + TWINDOW]
                     if len(next_frame):
                         end = False
-                        if len(next_frame) >= MIN_FRAME:
+                        if rerun or len(next_frame) >= MIN_FRAME:
                             next_pt = np.mean(next_frame, axis=0)
                             no, nt = int(next_pt[4]), int(next_pt[5])
                             if (no, nt) not in exp_data:
@@ -330,6 +337,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
             for key in keywords:
                 keyid += '_{0}'.format(key)
             pre_lab = '_pre' if pre else ''
+            if rerun: pre_lab += '_rerun'
             sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}.png'.format(no, nt, keyid, pre_lab))
 
 
@@ -398,7 +406,8 @@ keywords = ['lowlevel']
 # gen_rollout_plots('time', 'avg_first_success', keywords)
 # gen_data_plots('time', 'avg_first_success', ['fixed'])
 #gen_data_plots('time', 'avg_pre_cost', ['fixed'])
-get_hl_tests(['network'], pre=False)
+# get_hl_tests(['network'], pre=False)
+get_hl_tests(['network'], pre=False, rerun=True)
 get_hl_tests(['network'], pre=True)
 #get_td_loss(['fixed'])
 #get_hl_tests(['dgx_4'], pre=True)

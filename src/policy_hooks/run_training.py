@@ -170,6 +170,7 @@ def main():
             args.test = old_args.test
             args.render = old_args.render
             args.eta = old_args.eta
+            args.descr = old_args.descr
 
         exps = load_multi(exps_info, n_objs, n_targs, args)
         for ind, exp in enumerate(exps):

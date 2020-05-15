@@ -207,7 +207,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'prim_n_layers': 2,
         'val_n_layers': 1,
         'dim_hidden': [32, 32],
-        'prim_dim_hidden': [64, 64],
+        'prim_dim_hidden': [32, 32],
         'val_dim_hidden': [32],
         'n_traj_centers': algorithm['n_traj_centers'],
         'traj_opt_steps': NUM_TRAJ_OPT_STEPS,

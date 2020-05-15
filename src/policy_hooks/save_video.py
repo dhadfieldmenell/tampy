@@ -11,7 +11,7 @@ from matplotlib.animation import FuncAnimation
 import imageio
 
 
-SAVEDIR = '/home/michaelmcdonald/Dropbox/'
+SAVEDIR = '/home/michaelmcdonald/Dropbox/videos/'
 def save_video(fname):
     arr = np.load(fname)
     vname = SAVEDIR+fname.split('/')[-1].split('.')[0]+'.gif'
