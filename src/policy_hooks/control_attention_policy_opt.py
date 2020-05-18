@@ -432,8 +432,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
                 self.update_count = 0
                 updated = True
-            else:
-                print('Not ready to update for', net)
             '''
             if net in self.val_obs:
                 val_obs = np.concatenate(self.val_obs[net].values(), axis=0)
