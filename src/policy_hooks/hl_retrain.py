@@ -24,7 +24,7 @@ def retrain(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=5000, rlen=10):
             rollout_server.policy_opt.write_shared_weights([key])
         cur_ind += incr
         for _ in range(5):
-            rollout_server.test_hl(rlen=rlem, save=True, debug=False)
+            rollout_server.test_hl(rlen=rlen, save=True, debug=False)
         if cur_ind > len(obs[key][key]): break
 
     print('Finished retrain', cur_ind)
