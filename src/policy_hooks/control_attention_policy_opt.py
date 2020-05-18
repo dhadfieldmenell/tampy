@@ -158,7 +158,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         return success
 
 
-    def restore_ckpt(self, scope, label=None):
+    def restore_ckpt(self, scope, label=None, dirname=''):
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
         if not len(variables): return False
         self.saver = tf.train.Saver(variables)
@@ -166,14 +166,19 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if label is not None:
             ext = '_{0}'.format(label)
         success = True
+        if not len(dirname):
+            dirname = self.weight_dir
         try:
-            self.saver.restore(self.sess, 'tf_saved/'+self.weight_dir+'/'+scope+'{0}.ckpt'.format(ext))
+            self.saver.restore(self.sess, 'tf_saved/'+dirname+'/'+scope+'{0}.ckpt'.format(ext))
             if scope in self.task_map:
-                self.task_map[scope]['policy'].scale = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_scale{0}.npy'.format(ext))
-                self.task_map[scope]['policy'].bias = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_bias{0}.npy'.format(ext))
-                self.var[scope] = np.load('tf_saved/'+self.weight_dir+'/'+scope+'_variance{0}.npy'.format(ext))
+                self.task_map[scope]['policy'].scale = np.load('tf_saved/'+dirname+'/'+scope+'_scale{0}.npy'.format(ext))
+                self.task_map[scope]['policy'].bias = np.load('tf_saved/'+dirname+'/'+scope+'_bias{0}.npy'.format(ext))
+                self.var[scope] = np.load('tf_saved/'+dirname+'/'+scope+'_variance{0}.npy'.format(ext))
                 self.task_map[scope]['policy'].chol_pol_covar = np.diag(np.sqrt(self.var[scope]))
+            self.write_shared_weights([scope])
         except Exception as e:
+            print('Could not restore', scope, 'from', dirname)
+            print(e)
             success = False
         
         return success
@@ -427,6 +432,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
                 self.update_count = 0
                 updated = True
+            else:
+                print('Not ready to update for', net)
             '''
             if net in self.val_obs:
                 val_obs = np.concatenate(self.val_obs[net].values(), axis=0)

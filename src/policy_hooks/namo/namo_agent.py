@@ -558,7 +558,7 @@ class NAMOSortingAgent(TAMPAgent):
             if self.in_gripper is not None:
                 ignore = [self.in_gripper.name]
             dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
-            if np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.05): #self.check_col(plan, t): # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.5 * DSAFE):
+            if False: # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.05): #self.check_col(plan, t): # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.5 * DSAFE):
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
                     getattr(plan.params[pname], aname)[:,t+1] = old_state[self.state_inds[pname, aname]]

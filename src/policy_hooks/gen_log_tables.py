@@ -401,15 +401,6 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout'):
     plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
 
 
-keywords = ['lowlevel']
-# gen_rollout_plots('time', 'avg_post_cond', keywords)
-# gen_rollout_plots('time', 'avg_first_success', keywords)
-# gen_data_plots('time', 'avg_first_success', ['fixed'])
-#gen_data_plots('time', 'avg_pre_cost', ['fixed'])
-# get_hl_tests(['network'], pre=False)
-get_hl_tests(['network'], pre=False, rerun=True)
+get_hl_tests(['retrain'], pre=False)
 get_hl_tests(['network'], pre=True)
-#get_td_loss(['fixed'])
-#get_hl_tests(['dgx_4'], pre=True)
-# gen_rollout_plots('time', 'avg_pre_cost', keywords)
 

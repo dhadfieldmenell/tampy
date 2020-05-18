@@ -52,6 +52,7 @@ from policy_hooks.utils.load_task_definitions import *
 from policy_hooks.policy_server import PolicyServer
 from policy_hooks.rollout_server import RolloutServer
 from policy_hooks.tf_models import tf_network, multi_modal_network_fp
+import policy_hooks.hl_retrain as hl_retrain
 
 
 def spawn_server(cls, hyperparams):
@@ -434,6 +435,7 @@ class MultiProcessMain(object):
             f.write('Traj init info:\n')
 
         self.roscore = None
+        self.processes = []
 
     def allocate_shared_buffers(self, config):
         buffers = {}
@@ -557,6 +559,22 @@ class MultiProcessMain(object):
         return p
 
 
+    def hl_retrain(self, hyperparams):
+        software_constants.USE_ROS = False
+        hyperparams['run_mcts_rollouts'] = False
+        hyperparams['run_alg_updates'] = False
+        hyperparams['run_hl_test'] = True
+        hyperparams['share_buffers'] = True
+        hyperparams['id'] = 'test'
+        descr = hyperparams.get('descr', '')
+        self.allocate_shared_buffers(hyperparams)
+        self.allocate_queues(hyperparams)
+        server = RolloutServer(hyperparams)
+        ll_dir = hyperparams['ll_policy']
+        hl_dir = hyperparams['hl_policy']
+        hl_retrain.retrain(server, hl_dir, ll_dir)
+ 
+
     def run_test(self, hyperparams):
         software_constants.USE_ROS = False
         hyperparams['run_mcts_rollouts'] = False
@@ -583,7 +601,7 @@ class MultiProcessMain(object):
         #     server.test_hl(15, save=False)
         while server.policy_opt.restore_ckpts(ind):
             for _ in range(50):
-                server.test_hl(10, save=True, ckpt_ind=ind)
+                server.test_hl(5, save=True, ckpt_ind=ind)
             ind += 1
 
 

@@ -43,16 +43,16 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(2., 2.5), 
-                   (-2., 2.5),
-                   (0.8, 2.5),
-                   (-0.8, 2.5),
-                   (-2.8, 2.5),
-                   (2.8, 2.5),
-                   (3.6, 2.5),
-                   (-3.6, 2.5),
-                   (4.4, 2.5),
-                   (-4.4, 2.5)
+END_TARGETS.extend([(2., 1.5), 
+                   (-2., 1.5),
+                   (0.8, 1.5),
+                   (-0.8, 1.5),
+                   (-2.8, 1.5),
+                   (2.8, 1.5),
+                   (3.6, 1.5),
+                   (-3.6, 1.5),
+                   (4.4, 1.5),
+                   (-4.4, 1.5)
                    ])
 
 n_aux = 4
@@ -61,7 +61,7 @@ MAX_Y = 25
 # possible_can_locs.extend(list(itertools.product(range(-45, 45, 2), range(-35, MAX_Y, 2))))
 
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
-possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
+possible_can_locs.extend(list(itertools.product(range(-30, 30, 4), range(-30, 0, 2))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
             
@@ -189,7 +189,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         if FIX_TARGETS:
             inds = np.random.permutation(range(len(END_TARGETS)))
             next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
-            inplace = range(config['num_objs'] - config['num_targs']) # np.random.choice(range(config['num_objs']), (config['num_objs'] - config['num_targs'],), replace=False)
+            inplace = np.random.choice(range(config['num_objs']), (config['num_objs'] - config['num_targs'],), replace=False)
             for n in range(config['num_objs'] - config['num_targs']):
                 x0[state_inds['can{0}'.format(inplace[n]), 'pose']] = END_TARGETS[inds[inplace[n]]]
             next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})

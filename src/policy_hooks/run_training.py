@@ -41,22 +41,7 @@ def load_multi(exp_list, n_objs=None, n_targs=None, args=None):
                 config_module = importlib.import_module(c)
                 next_config = config_module.refresh_config(n_objs, n_targs)
             if args is not None:
-                next_config['her'] = args.her
-                next_config['use_qfunc'] = args.qfunc
-                next_config['split_nets'] = args.split
-                next_config['expand_process'] = args.expand
-                next_config['curric_thresh'] = args.cur_thresh
-                next_config['n_thresh'] = args.n_thresh
-                next_config['negative'] = args.negative
-                next_config['onehot_task'] = args.onehot_task
-                next_config['soft'] = args.soft
-                next_config['soft_eval'] = args.soft_eval
-                next_config['ff_thresh'] = args.ff if hasattr(args, 'ff') else 0.
-                next_config['q_imwt'] = args.q_imwt if hasattr(args, 'q_imwt') else 0.
-                next_config['eta'] = args.eta if hasattr(args, 'eta') else 0.
-                next_config['load_render'] = args.render
-                if len(args.descr):
-                    next_config['descr'] = args.descr
+                next_config.update(vars(args))
             next_config['weight_dir'] = get_dir_name(next_config['base_weight_dir'], next_config['num_objs'], next_config['num_targs'], i, next_config['descr'], args)
             next_config['server_id'] = '{0}'.format(str(random.randint(0, 2**16)))
             next_config['mp_server'] = True 
@@ -105,16 +90,20 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, default='config')
     parser.add_argument('-test', '--test', type=str, default='')
+    parser.add_argument('-no', '--nobjs', type=int, default=0)
+    parser.add_argument('-nt', '--ntargs', type=int, default=0)
+    parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
+
+    # Old
     parser.add_argument('-p', '--pretrain', action='store_true', default=False)
     parser.add_argument('-nf', '--nofull', action='store_true', default=False)
     parser.add_argument('-n', '--nconds', type=int, default=0)
-    parser.add_argument('-no', '--nobjs', type=int, default=0)
-    parser.add_argument('-nt', '--ntargs', type=int, default=0)
-    # parser.add_argument('-ptt', '--pretrain_timeout', type=int, default=300)
     parser.add_argument('-hlt', '--hl_timeout', type=int, default=0)
     parser.add_argument('-k', '--killall', action='store_true', default=True)
     parser.add_argument('-r', '--remote', action='store_true', default=False)
     parser.add_argument('-t', '--timing', action='store_true', default=False)
+
+    # Server specs
     parser.add_argument('-mcts', '--mcts_server', action='store_true', default=False)
     parser.add_argument('-mp', '--mp_server', action='store_true', default=False)
     parser.add_argument('-pol', '--policy_server', action='store_true', default=False)
@@ -124,22 +113,47 @@ def main():
     parser.add_argument('-ps', '--pretrain_steps', type=int, default=0)
     parser.add_argument('-v', '--viewer', action='store_true', default=False)
     parser.add_argument('-id', '--server_id', type=str, default='')
+
+    # Exp config misc
     parser.add_argument('-f', '--file', type=str, default='')
     parser.add_argument('-descr', '--descr', type=str, default='')
     parser.add_argument('-her', '--her', action='store_true', default=False)
-    parser.add_argument('-e', '--expand', action='store_true', default=False)
+    parser.add_argument('-e', '--expand_process', action='store_true', default=False)
     parser.add_argument('-neg', '--negative', action='store_true', default=False)
     parser.add_argument('-oht', '--onehot_task', action='store_true', default=False)
-    parser.add_argument('-soft', '--soft', action='store_true', default=False)
-    parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
-    parser.add_argument('-spl', '--split', action='store_false', default=True)
-    parser.add_argument('-q', '--qfunc', action='store_true', default=False)
-    parser.add_argument('-render', '--render', action='store_true', default=False)
-    parser.add_argument('-cur', '--cur_thresh', type=int, default=-1)
+    parser.add_argument('-render', '--load_render', action='store_true', default=False)
+
+    # Previous policy directories
+    parser.add_argument('-llpol', '--ll_policy', type=str, default='')
+    parser.add_argument('-hlpol', '--hl_policy', type=str, default='')
+
+    # Curric args
+    parser.add_argument('-cur', '--curric_thresh', type=int, default=-1)
     parser.add_argument('-ncur', '--n_thresh', type=int, default=10)
-    parser.add_argument('-ff', '--ff', type=float, default=0)
-    parser.add_argument('-eta', '--eta', type=float, default=1.)
+
+    # NN args
+    parser.add_argument('-spl', '--split_nets', action='store_false', default=True)
+    parser.add_argument('-lldim', '--dim_hidden', type=int, default=32)
+    parser.add_argument('-lln', '--n_layers', type=int, default=2)
+    parser.add_argument('-hldim', '--prim_dim_hidden', type=int, default=2)
+    parser.add_argument('-hln', '--prim_n_layers', type=int, default=32)
+    parser.add_argument('-llus', '--update_size', type=int, default=2000)
+    parser.add_argument('-hlus', '--prim_update_size', type=int, default=5000)
+    parser.add_argument('-lldec', '--weight_decay', type=float, default=1e-3)
+    parser.add_argument('-hldec', '--prim_weight_decay', type=float, default=1e-3)
+
+    # HL args
+    parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
+    parser.add_argument('-prim_decay', '--prim_decay', type=float, default=0.95)
+    parser.add_argument('-prim_first_wt', '--prim_first_wt', type=float, default=1e1)
+    parser.add_argument('-soft', '--soft', action='store_true', default=False)
+    parser.add_argument('-eta', '--eta', type=float, default=10.)
+    parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
+    parser.add_argument('-pre', '--check_precond', action='store_true', default=False)
+
+    # Q learn args
     parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)
+    parser.add_argument('-q', '--use_qfunc', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -171,6 +185,9 @@ def main():
             args.render = old_args.render
             args.eta = old_args.eta
             args.descr = old_args.descr
+        if args.hl_retrain:
+            sys.path.insert(1, 'tf_saved/'+args.hl_policy)
+            exps_info = [['hyp']]
 
         exps = load_multi(exps_info, n_objs, n_targs, args)
         for ind, exp in enumerate(exps):
@@ -193,7 +210,11 @@ def main():
                     dir_name += d + '/'
                     if not os.path.isdir(dir_name):
                         os.mkdir(dir_name)
-                shutil.copyfile(exps_info[ind][ind2].replace('.', '/')+'.py', 'tf_saved/'+c['weight_dir']+'/hyp.py')
+                if args.hl_retrain:
+                    src = 'tf_saved/' + args.hl_policy + '/hyp.py'
+                else:
+                    src = exps_info[ind][ind2].replace('.', '/')+'.py'
+                shutil.copyfile(src, 'tf_saved/'+c['weight_dir']+'/hyp.py')
                 with open('tf_saved/'+c['weight_dir']+'/__init__.py', 'w+') as f:
                     f.write('')
                 with open('tf_saved/'+c['weight_dir']+'/args.pkl', 'w+') as f:
@@ -204,8 +225,11 @@ def main():
                 m.group_id = current_id
                 with open('tf_saved/'+c['weight_dir']+'/exp_info.txt', 'w+') as f:
                     f.write(str(cm))
-                
-                m.start()
+               
+                if args.hl_retrain:
+                    m.hl_retrain(c)
+                else:
+                    m.start()
                 mains.append(m)
                 time.sleep(1)
             active = True

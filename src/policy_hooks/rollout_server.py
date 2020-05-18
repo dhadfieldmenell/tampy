@@ -1116,7 +1116,7 @@ class RolloutServer(object):
         np.save(fname, np.array(buf))
 
 
-    def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False):
+    def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False, debug=False):
         if ckpt_ind is not None:
             print('Rolling out for index', ckpt_ind)
 
@@ -1166,9 +1166,9 @@ class RolloutServer(object):
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
         true_val = np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path])
         if ckpt_ind is not None:
-            s.append((val, len(path), true_val, time.time()-self.start_t, self.config['num_objs'], n, ckpt_ind))
+            s.append((val, len(path), true_val, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.N, ckpt_ind))
         else:
-            s.append((val, len(path), true_val, time.time()-self.start_t, self.config['num_objs'], n))
+            s.append((val, len(path), true_val, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.N))
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
         self.hl_data.append(res)
@@ -1178,7 +1178,8 @@ class RolloutServer(object):
             if self.use_qfunc: self.log_td_error(path)
             if not len(self.hl_data) % 5:
                 np.save(self.hl_test_log.format('pre_' if self.check_precond else '', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
-        else:
+        
+        if debug:
             if val < 1:
                 print('failed for', x0, [s.task for s in path])
                 for s in path:
