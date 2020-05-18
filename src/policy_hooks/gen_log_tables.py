@@ -238,7 +238,7 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
 
 
 
-def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
+def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
     used = []
@@ -298,18 +298,31 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
                 end = True
                 for d in data:
                     if rerun:
-                        next_frame = [pt[0] for pt in d if pt[0,6]*TDELTA == cur_t]
+                        next_frame = [pt[0] for pt in d]
+                    elif xvar == 'N':
+                        next_frame = [pt[0] for pt in d if pt[0,6] >= cur_t and pt[0,6] <= cur_t + wind]
                     else:
-                        next_frame = [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + TWINDOW]
+                        next_frame = [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + wind]
                     if len(next_frame):
-                        end = False
-                        if rerun or len(next_frame) >= MIN_FRAME:
-                            next_pt = np.mean(next_frame, axis=0)
-                            no, nt = int(next_pt[4]), int(next_pt[5])
-                            if (no, nt) not in exp_data:
-                                exp_data[no, nt] = []
-                            exp_data[no, nt].append((full_exp, cur_t, next_pt[0]))
-                cur_t += TDELTA
+                        end = not avg_time
+                        if rerun or xvar != 'time' or len(next_frame) >= MIN_FRAME:
+                            if avg_time:
+                                next_pts = [np.mean(next_frame, axis=0)]
+                            else:
+                                next_pts = next_frame
+
+                            for next_pt in next_pts:
+                                no, nt = int(next_pt[4]), int(next_pt[5])
+                                if (no, nt) not in exp_data:
+                                    exp_data[no, nt] = []
+                                
+                                if xvar == 'time':
+                                    exp_data[no, nt].append((full_exp, cur_t, next_pt[0]))
+                                elif xvar == 'N':
+                                    exp_data[no, nt].append((full_exp, next_pt[6], next_pt[0]))
+                                elif rerun:
+                                    exp_data[no, nt].append((full_exp, next_pt[-1], next_pt[0]))
+                cur_t += tdelta
 
 
             '''
@@ -330,9 +343,9 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False):
             '''
         for no, nt in exp_data:
             print('Plotting', no, nt, exp_name)
-            pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', 'time', 'value'])
+            pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', xvar, 'value'])
             sns.set()
-            sns_plot = sns.relplot(x='time', y='value', hue='exp_name', kind='line', data=pd_frame)
+            sns_plot = sns.relplot(x=xvar, y='value', hue='exp_name', kind='line', data=pd_frame)
             keyid = ''
             for key in keywords:
                 keyid += '_{0}'.format(key)
@@ -401,6 +414,5 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout'):
     plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
 
 
-get_hl_tests(['retrain'], pre=False)
-get_hl_tests(['network'], pre=True)
+get_hl_tests(['retrain'], pre=False, xvar='N', avg_time=True, tdelta=5000, wind=20000)
 

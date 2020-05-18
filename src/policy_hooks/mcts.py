@@ -898,7 +898,7 @@ class MCTS:
         next_label, distr = self.eval_hl(sample, t, targets, debug, True)
         if t== 0:
             distrs = self.prob_func(sample.get_prim_obs(t=t), False, eta=1.)
-            print(distrs, sample.get(STATE_ENUM, t=t), sample.get(ONEHOT_GOAL_ENUM, t=t))
+            # print(distrs, sample.get(STATE_ENUM, t=t), sample.get(ONEHOT_GOAL_ENUM, t=t))
         if not check_cost: return next_label
         return self.iter_distr(next_label, distr, self.label_options, sample.get_X(t), sample)
 

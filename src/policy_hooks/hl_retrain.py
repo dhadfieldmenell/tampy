@@ -23,7 +23,7 @@ def retrain(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=5000, rlen=10):
             rollout_server.policy_opt.store_scope_weights([key])
             rollout_server.policy_opt.write_shared_weights([key])
         cur_ind += incr
-        for _ in range(5):
+        for _ in range(25):
             rollout_server.test_hl(rlen=rlen, save=True, debug=False)
         if cur_ind > len(obs[key][key]): break
 

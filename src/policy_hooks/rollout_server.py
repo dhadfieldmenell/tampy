@@ -868,6 +868,25 @@ class RolloutServer(object):
                 self.alg_map[task].iteration([(opt_samples[j], samples[j]) for j in range(len(samples))], reset=i==0)
 
 
+    def select_state(self, cond):
+        thresh = np.random.uniform()
+        x0 = self.agent.x0[cond]
+        targets = self.agent.target_vecs[cond]
+        if thresh < 0.5 or self.config['state_select'] == 'base':
+            return x0
+
+        val, path = self.mcts[cond].test_run(x0, targets, check_cost=False)
+        if self.config['state_select'] == 'end':
+            return path[-1].get_X(path[-1].T-1)
+        elif self.config['state_select'] == 'random':
+            ind = np.random.choice(range(len(path)))
+            step = path[ind]
+            ind = np.random.choice(range(step.T))
+            return step.get_X(t=ind)
+
+        return x0
+
+
     def step(self):
         # print '\n\nTaking tree search step.\n\n'
         if self.policy_opt.share_buffers:
@@ -915,8 +934,9 @@ class RolloutServer(object):
                     self.policy_opt.read_shared_weights()
 
                 start_t = time.time()
+                x0 = self.select_state(mcts.condition)
                 mcts.opt_strength = 0.0 # if np.all([self.policy_opt.task_map[task]['policy'].scale is not None for task in self.policy_opt.valid_scopes]) else 1.0
-                val, paths = mcts.run(self.agent.x0[mcts.condition], 1, use_distilled=False, new_policies=rollout_policies, debug=False)
+                val, paths = mcts.run(x0, 1, use_distilled=False, new_policies=rollout_policies, debug=False)
                 tree_data.append(mcts.get_data)
                 if self.use_qfunc:
                     self.log_td_error(paths[0])

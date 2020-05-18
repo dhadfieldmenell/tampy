@@ -144,6 +144,7 @@ def main():
 
     # HL args
     parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
+    parser.add_argument('-x_select', '--state_select', type=str, default='base')
     parser.add_argument('-prim_decay', '--prim_decay', type=float, default=0.95)
     parser.add_argument('-prim_first_wt', '--prim_first_wt', type=float, default=1e1)
     parser.add_argument('-soft', '--soft', action='store_true', default=False)
