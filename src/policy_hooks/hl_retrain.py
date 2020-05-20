@@ -37,6 +37,8 @@ def retrain_from_samples(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=500
         if not fname.find('ff_samples'): continue
         with open('tf_saved/'+hl_dir+'/'+fname, 'r') as f:
             samples = pickle.load(f)
+        for s in samples:
+            s.agent = rollout_server.agent
         obs, mu, prc, wt = rollout_server.get_prim_update(samples)
         rollout_server.policy_opt.store(obs, 
                                         mu, 

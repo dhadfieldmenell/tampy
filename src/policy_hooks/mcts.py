@@ -686,6 +686,8 @@ class MCTS:
         task_path = self.agent.task_from_ff(state, targets)
         path = []
         val = 0.
+        if task_path is None: return val, path
+        init_state = state
         for label in task_path:
             label = tuple(label)
             plan = self.agent.plans[label]
@@ -693,7 +695,8 @@ class MCTS:
                 break
 
             next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
-            post = self.agent.cost_f(state, label, self.condition, active_ts=(t,t))
+            T = next_sample.T - 1
+            post = self.agent.cost_f(state, label, self.condition, active_ts=(T,T))
             if post > 0:
                 old_opt = self.opt_strength
                 self.opt_strength = 1.
@@ -719,7 +722,7 @@ class MCTS:
             self.agent.add_task_paths([path])
         else:
             print('FAILED with ff solve')
-            print('FF out:', task_path, 'Ran:', [step.task for step in path], 'End state:', state, 'Targets:', self.agent.target_vecs[self.condition])
+            print('FF out:', task_path, 'Ran:', [step.task for step in path], 'End state:', state, 'Targets:', targets, 'Init state', init_state) 
         self.opt_strength = old_opt_strength
         self.val_per_run.append(val)
         self.log_path(path, -1)

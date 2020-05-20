@@ -1,3 +1,4 @@
+import cPickle as pickle
 from datetime import datetime
 import numpy as np
 import os
@@ -891,10 +892,11 @@ class RolloutServer(object):
     def run_ff(self):
         self.set_policies()
         self.cur_step += 1
-        for cond in range(len(self.x0)):
-            val, path = self.mcts[cond].run_ff_solve(self.x0[cond])
+        for cond in range(len(self.agent.x0)):
+            val, path = self.mcts[cond].run_ff_solve(self.agent.x0[cond])
+            self.agent.replace_cond(cond)
             if val < 0.999:
-                success, = self.mcts[cond].eval_pr_graph(self.x0[cond])
+                success, = self.mcts[cond].eval_pr_graph(self.agent.x0[cond])
         if not self.cur_step % 50:
             samples = []
             for path in self.agent.get_task_paths():
@@ -1324,10 +1326,10 @@ class RolloutServer(object):
     def run(self):
         step = 0
         while not self.stopped:
-            if self._hyperparams.get('ff_only', False):
-                self.run_ff()
-            elif self.run_hl_test:
+            if self.run_hl_test:
                 self.test_hl()
+            elif self._hyperparams.get('ff_only', False):
+                self.run_ff()
             else:
                 if not USE_ROS:
                     self.parse_opt_queue()
