@@ -896,7 +896,7 @@ class RolloutServer(object):
             val, path = self.mcts[cond].run_ff_solve(self.agent.x0[cond])
             self.agent.replace_cond(cond)
             if val < 0.999:
-                success, = self.mcts[cond].eval_pr_graph(self.agent.x0[cond])
+                success, _ = self.mcts[cond].eval_pr_graph(self.agent.x0[cond])
         if not self.cur_step % 50:
             samples = []
             for path in self.agent.get_task_paths():

@@ -677,7 +677,7 @@ class MCTS:
         return lowest_cost_sample, cur_state
 
     
-    def run_ff_solve(self, state, node, targets=None, opt=False):
+    def run_ff_solve(self, state, node=None, targets=None, opt=False):
         old_opt_strength = self.opt_strength
         if targets is None:
             targets = self.agent.target_vecs[self.condition]
