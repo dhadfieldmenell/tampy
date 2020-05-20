@@ -318,7 +318,7 @@ class NAMOSortingAgent(TAMPAgent):
         obs = 1e1*np.ones(n_dirs)
         angles = 2 * np.pi * np.array(range(n_dirs), dtype='float32') / n_dirs
         rays = np.zeros((n_dirs, 6))
-        rays[:, 2] = 0.5
+        rays[:, 2] = 0.25
         for i in range(n_dirs):
             a = angles[i]
             ray = np.array([np.cos(a), np.sin(a)])
