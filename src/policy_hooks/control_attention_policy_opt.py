@@ -39,6 +39,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.tf_iter = 0
         self.batch_size = self._hyperparams['batch_size']
 
+        self.share_buffers = self._hyperparams.get('share_buffer', False)
+        if self._hyperparams.get('share_buffer', False):
+            self.buffers = self._hyperparams['buffers']
+            self.buf_sizes = self._hyperparams['buffer_sizes']
+
         self._dPrim = primBounds[-1][-1]
         self._dPrimObs = dPrimObs
         self._dValObs = dValObs
@@ -147,11 +152,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.average_val_losses = []
         self.N = 0
         self.buffer_size = MAX_QUEUE_SIZE
-
-        self.share_buffers = self._hyperparams.get('share_buffer', False)
-        if self._hyperparams.get('share_buffer', False):
-            self.buffers = self._hyperparams['buffers']
-            self.buf_sizes = self._hyperparams['buffer_sizes']
 
 
     def restore_ckpts(self, label=None):
