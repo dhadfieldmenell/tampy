@@ -184,7 +184,7 @@ class RolloutServer(object):
             plan.target_inds = self.agent.target_inds
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
-        self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_{0}{1}log.npy'
+        self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'hl_test_{0}{1}log.npy'
         self.render = hyperparams.get('load_render', False)
         if self.render:
             self.cur_vid_id = 0
@@ -894,7 +894,7 @@ class RolloutServer(object):
         self.cur_step += 1
         val, path = 0, []
         for cond in range(len(self.agent.x0)):
-            # val, path = self.mcts[cond].run_ff_solve(self.agent.x0[cond])
+            val, path = self.mcts[cond].run_ff_solve(self.agent.x0[cond])
             self.agent.replace_cond(cond)
             if val < 0.999:
                 success, _ = self.mcts[cond].eval_pr_graph(self.agent.x0[cond])
@@ -992,6 +992,9 @@ class RolloutServer(object):
 
                 self.n_steps += 1
                 self.n_success += 1 if val > 1 - 1e-2 else 0
+
+                if time.time() - self.last_hl_test > 180:
+                    self.test_hl()
 
                 # if mcts.n_runs > self.steps_to_replace or mcts.n_success > self.success_to_replace:
                 #     mcts.reset()
@@ -1223,7 +1226,7 @@ class RolloutServer(object):
         # n = np.random.choice(ns, p=[flt(i)/np.sum(ns) for i in ns])
         n = np.random.choice(ns)
         s = []
-        self.agent.replace_cond(0)
+        # self.agent.replace_cond(0)
         x0 = self.agent.x0[0]
         targets = self.agent.target_vecs[0].copy()
         for t in range(n, n_targs[-1]):
@@ -1264,6 +1267,7 @@ class RolloutServer(object):
         if self.render:
             self.save_video(path, true_val > 0)
         self.last_hl_test = time.time()
+        self.agent.debug = True
         print('TESTED HL')
 
 
@@ -1328,6 +1332,7 @@ class RolloutServer(object):
         step = 0
         while not self.stopped:
             if self.run_hl_test:
+                self.agent.replace_cond(0)
                 self.test_hl()
             elif self._hyperparams.get('ff_only', False):
                 self.run_ff()

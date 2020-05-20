@@ -872,13 +872,14 @@ class MCTS:
         val = 0
         l = (0,0,0,0)
         t = 0
+        old_soft = self._soft
         self._soft = soft
         debug = np.random.uniform() < 0.1
         while t < max_t and val < 1-1e-2 and l is not None:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=check_cost)
             if l is None: break
             plan = self.agent.plans[l]
-            s, _ = self.sample(l, state, plan, 1, hl=hl, hl_check=check_cost)
+            s, _ = self.sample(l, state, plan, 1, hl=hl, hl_check=check_cost, save=False)
             if debug:
                 print('Shiftd state {0} to {1}'.format(state, s.get_X(s.T-1)))
                 print('Ran {0} at step {1} for targets {2}'.format(l, t, targets))
@@ -888,6 +889,7 @@ class MCTS:
             path.append(s)
         self.opt_strength = old_opt
         self.log_path(path, -5)
+        self._soft = old_soft
         return val, path
 
 

@@ -76,11 +76,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         init_op = tf.initialize_all_variables()
         self.sess.run(init_op)
         self.init_policies(dU)
-        if self.scope is not None:
-            self.restore_ckpt(self.scope)
-        else:
-            for scope in self.valid_scopes + ['value', 'primitive','image']:
-                self.restore_ckpt(scope)
+        llpol = hyperparams.get('llpol', '')
+        hlpol = hyperparams.get('hlpol', '')
+        scopes = self.valid_scopes + ['value', 'primitive', 'image'] if self.scope is None else [self.scope]
+        for scope in scopes:
+            if len(llpol) and scope in self.valid_scopes:
+                self.restore_ckpt(scope, dirname=llpol)
+            if len(hlpol) and scope not in self.valid_scopes:
+                self.restore_ckpt(scope, dirname=hlpol)
        
         # List of indices for state (vector) data and image (tensor) data in observation.
         self.x_idx, self.img_idx, i = [], [], 0
@@ -396,7 +399,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 val_mu = np.concatenate(self.val_mu[net].values(), axis=0)
                 val_prc = np.concatenate(self.val_prc[net].values(), axis=0)
                 val_wt = np.concatenate(self.val_wt[net].values(), axis=0)
-                if len(val_mu) > self.update_size:
+                if len(val_mu) > 500:
                     self.check_validation(val_obs, val_mu, val_prc, val_wt, net)
 
         return updated
@@ -720,11 +723,13 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 val_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=False)
             average_loss += val_loss
 
+        self.average_val_losses.append(average_loss / 10.)
+        '''
         self.average_val_losses.append({
                 'loss': average_loss / 10.,
                 'iter': self.tf_iter,
                 'N': self.N})
-
+        '''
 
      
     def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task="control", val_ratio=0.2):
@@ -853,10 +858,13 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # print "Leaving Tensorflow Training Loop\n"
 
         self.tf_iter += self._hyperparams['iterations']
+        self.average_losses.append(average_loss / self._hyperparams['iterations'])
+        '''
         self.average_losses.append({
                 'loss': average_loss / self._hyperparams['iterations'],
                 'iter': self.tf_iter,
                 'N': self.N})
+        '''
 
         feed_dict = {self.obs_tensor: obs}
         num_values = obs.shape[0]

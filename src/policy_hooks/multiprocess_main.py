@@ -261,6 +261,8 @@ class MultiProcessMain(object):
         self.config['algorithm']['policy_opt'] = {
             'q_imwt': self.config.get('q_imwt', 0),
             'nacts': nacts,
+            'llpol': self.config.get('llpol', ''),
+            'hlpol': self.config.get('hlpol', ''),
             'type': ControlAttentionPolicyOpt,
             'network_params': {
                 'obs_include': self.config['agent']['obs_include'],
