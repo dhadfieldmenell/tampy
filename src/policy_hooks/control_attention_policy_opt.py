@@ -76,8 +76,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         init_op = tf.initialize_all_variables()
         self.sess.run(init_op)
         self.init_policies(dU)
-        llpol = hyperparams.get('llpol', '')
-        hlpol = hyperparams.get('hlpol', '')
+        llpol = hyperparams.get('ll_policy', '')
+        hlpol = hyperparams.get('hl_policy', '')
         scopes = self.valid_scopes + ['value', 'primitive', 'image'] if self.scope is None else [self.scope]
         for scope in scopes:
             if len(llpol) and scope in self.valid_scopes:
@@ -179,6 +179,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 self.var[scope] = np.load('tf_saved/'+dirname+'/'+scope+'_variance{0}.npy'.format(ext))
                 self.task_map[scope]['policy'].chol_pol_covar = np.diag(np.sqrt(self.var[scope]))
             self.write_shared_weights([scope])
+            print('Restored', scope, 'from', dirname)
         except Exception as e:
             print('Could not restore', scope, 'from', dirname)
             print(e)
