@@ -19,7 +19,7 @@ from core.util_classes.namo_predicates import ATTRMAP
 from pma.namo_solver import NAMOSolver
 from policy_hooks.namo.namo_agent import NAMOSortingAgent
 from policy_hooks.namo.namo_policy_solver import NAMOPolicySolver
-import policy_hooks.namo.sorting_prob_7 as prob
+import policy_hooks.namo.sorting_prob_10 as prob
 prob.NUM_OBJS = NUM_OBJS
 prob.NUM_TARGS = NUM_TARGS
 from policy_hooks.namo.namo_motion_plan_server import NAMOMotionPlanServer 
@@ -42,7 +42,7 @@ N_ALG_SERVERS = 10
 N_OPTIMIZERS = 5
 N_DIRS = 16
 N_GRASPS = 4
-TIME_LIMIT = 7200
+TIME_LIMIT = 14400
 
 
 common = {
@@ -200,8 +200,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
 
         'train_iterations': 50,
         'weight_decay': 1e-3,
-        'prim_weight_decay': 1e-4,
-        'val_weight_decay': 1e-4,
+        'prim_weight_decay': 1e-3,
+        'val_weight_decay': 1e-3,
         'batch_size': 500,
         'n_layers': 2,
         'prim_n_layers': 1,
@@ -285,6 +285,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.GRASP_ENUM: N_GRASPS,
                 utils.GOAL_ENUM: 2*no,
                 utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + len(prob.END_TARGETS)),
+                utils.INGRASP_ENUM: no,
+                utils.TRUETASK_ENUM: 2,
+                utils.TRUEOBJ_ENUM: no,
+                utils.TRUETARG_ENUM: len(prob.END_TARGETS),
+                utils.ATGOAL_ENUM: no,
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,

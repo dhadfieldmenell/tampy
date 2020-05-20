@@ -277,7 +277,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         else:
             self.store_scope_weights([self.scope], weight_dir)
 
-    def store(self, obs, mu, prc, wt, net, task, update=False, val_ratio=-1.0, acts=None, ref_acts=None, done=None):
+    def store(self, obs, mu, prc, wt, net, task, update=False, val_ratio=0.2, acts=None, ref_acts=None, done=None):
         # print('TF got data for', task, 'will update?', update)
         keep_inds = None
         store_val = np.random.uniform() < val_ratio
@@ -351,48 +351,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.N += len(mu)
         return False 
 
-        
-        if update: #len(self.mu) > self.update_size:
-            # Possibility that no good information has come yet
-            if net not in self.mu or (task in self.mu[net] and np.all(self.mu[net][task] == self.mu[net][task][0])):
-                return False
-            obs = np.concatenate(self.obs[net].values(), axis=0)
-            mu = np.concatenate(self.mu[net].values(), axis=0)
-            prc = np.concatenate(self.prc[net].values(), axis=0)
-            wt = np.concatenate(self.wt[net].values(), axis=0)
-            if net == 'value':
-                next_obs = np.concatenate(self.next_obs[net].values(), axis=0)
-                acts = np.concatenate(self.acts[net].values(), axis=0)
-                done = np.concatenate(self.done[net].values(), axis=0)
-                ref_acts = np.concatenate(self.ref_acts[net].values(), axis=0)
-            use = True
-            for t in [net]:# self.mu:
-                if len(np.concatenate(self.mu[t].values(), axis=0)) < self.update_size:
-                    use = False
-            
-            if use:
-                print('TF got data for', net, 'will update?', update)
-                if net == val:
-                    self.update_value(obs, next_obs, mu, prc, wt, acts, ref_acts, done)
-                else:
-                    self.update(obs, mu, prc, wt, net)
-                if net in self.val_obs:
-                    val_obs = np.concatenate(self.val_obs[net].values(), axis=0)
-                    val_mu = np.concatenate(self.val_mu[net].values(), axis=0)
-                    val_prc = np.concatenate(self.val_prc[net].values(), axis=0)
-                    val_wt = np.concatenate(self.val_wt[net].values(), axis=0)
-                    # self.check_validation(val_obs, val_mu, val_prc, val_wt, net)
-                self.store_scope_weights(scopes=[net])
-                self.update_count = 0
-                return True
-            # del self.mu[net]
-            # del self.obs[net]
-            # del self.prc[net]
-            # del self.wt[net]
-
-        return False
-
-
+       
     def get_data(self):
         return [self.mu, self.obs, self.prc, self.wt, self.val_mu, self.val_obs, self.val_prc, self.val_wt]
 
@@ -432,7 +391,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
                 self.update_count = 0
                 updated = True
-            '''
             if net in self.val_obs:
                 val_obs = np.concatenate(self.val_obs[net].values(), axis=0)
                 val_mu = np.concatenate(self.val_mu[net].values(), axis=0)
@@ -440,7 +398,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 val_wt = np.concatenate(self.val_wt[net].values(), axis=0)
                 if len(val_mu) > self.update_size:
                     self.check_validation(val_obs, val_mu, val_prc, val_wt, net)
-            '''
 
         return updated
 

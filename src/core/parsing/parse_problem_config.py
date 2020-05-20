@@ -23,6 +23,7 @@ class ParseProblemConfig(object):
                 env = Environment()
             else:
                 env = P.connect(P.DIRECT)
+                P.resetSimulation()
             
         if "Objects" not in problem_config or not problem_config["Objects"]:
             raise ProblemConfigException("Problem file needs objects.")

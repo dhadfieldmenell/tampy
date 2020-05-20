@@ -172,16 +172,15 @@ class RolloutServer(object):
         self.hl_opt_queue = []
         self.sampled_probs = []
 
-        if not USE_OPENRAVE:
-            self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans()
-            for plan in self.agent.plans.values():
-                plan.state_inds = self.agent.state_inds
-                plan.action_inds = self.agent.action_inds
-                plan.dX = self.agent.dX
-                plan.dU = self.agent.dU
-                plan.symbolic_bound = self.agent.symbolic_bound
-                plan.target_dim = self.agent.target_dim
-                plan.target_inds = self.agent.target_inds
+        self.agent.plans, self.agent.openrave_bodies, self.agent.env = self.agent.prob.get_plans()
+        for plan in self.agent.plans.values():
+            plan.state_inds = self.agent.state_inds
+            plan.action_inds = self.agent.action_inds
+            plan.dX = self.agent.dX
+            plan.dU = self.agent.dU
+            plan.symbolic_bound = self.agent.symbolic_bound
+            plan.target_dim = self.agent.target_dim
+            plan.target_inds = self.agent.target_inds
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
         self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/hl_test_{0}{1}log.npy'
@@ -192,6 +191,7 @@ class RolloutServer(object):
                 os.makedirs('tf_saved/'+hyperparams['weight_dir']+'/videos')
             self.video_dir = 'tf_saved/'+hyperparams['weight_dir']+'/videos'
         self.td_error_log = 'tf_saved/'+hyperparams['weight_dir']+'/td_error_{0}_log.npy'.format(self.id)
+        self.ff_data_file = 'tf_saved/'+hyperparams['weight_dir']+'/ff_samples_{0}_{1}.pkl'
         self.log_updates = []
         self.hl_data = []
         self.td_errors = []
@@ -625,6 +625,7 @@ class RolloutServer(object):
 
 
     def send_all_mp_problems(self):
+        if self.n_optimizers == 0: return
         i = len(self.sampled_probs)
         while i > 0:
             prob, traj = self.sampled_probs.pop()
@@ -868,14 +869,14 @@ class RolloutServer(object):
                 self.alg_map[task].iteration([(opt_samples[j], samples[j]) for j in range(len(samples))], reset=i==0)
 
 
-    def select_state(self, cond):
+    def select_state(self, cond, rlen=5):
         thresh = np.random.uniform()
         x0 = self.agent.x0[cond]
         targets = self.agent.target_vecs[cond]
         if thresh < 0.5 or self.config['state_select'] == 'base':
             return x0
 
-        val, path = self.mcts[cond].test_run(x0, targets, check_cost=False)
+        val, path = self.mcts[cond].test_run(x0, targets, rlen, check_cost=False)
         if self.config['state_select'] == 'end':
             return path[-1].get_X(path[-1].T-1)
         elif self.config['state_select'] == 'random':
@@ -885,6 +886,51 @@ class RolloutServer(object):
             return step.get_X(t=ind)
 
         return x0
+
+
+    def run_ff(self):
+        self.set_policies()
+        self.cur_step += 1
+        for cond in range(len(self.x0)):
+            val, path = self.mcts[cond].run_ff_solve(self.x0[cond])
+            if val < 0.999:
+                success, = self.mcts[cond].eval_pr_graph(self.x0[cond])
+        if not self.cur_step % 50:
+            samples = []
+            for path in self.agent.get_task_paths():
+                samples.extend(path)
+            self.agent.clear_task_paths()
+            if not len(samples):
+                return
+
+            self.update_primitive(samples)
+            with open(self.ff_data_file.format(self.cur_step, self.id), 'w+') as f:
+                pickle.dump(samples, f)
+
+
+    def set_policies(self):
+        if self.policy_opt.share_buffers:
+            self.policy_opt.read_shared_weights()
+        chol_pol_covar = {}
+        for task in self.agent.task_list:
+            if task not in self.policy_opt.valid_scopes:
+                task_name = 'control'
+            else:
+                task_name = task
+
+            if self.policy_opt.task_map[task_name]['policy'].scale is None:
+                chol_pol_covar[task] = np.eye(self.agent.dU) # self.alg_map[task].cur[0].traj_distr.chol_pol_covar
+            else:
+                chol_pol_covar[task] = self.policy_opt.task_map[task_name]['policy'].chol_pol_covar
+          
+        rollout_policies = {task: DummyPolicy(task, 
+                                              self.policy_call, 
+                                              chol_pol_covar=chol_pol_covar[task],
+                                              scale=self.policy_opt.task_map[task if task in self.policy_opt.valid_scopes else 'control']['policy'].scale) 
+                                  for task in self.agent.task_list}
+        self.agent.policies = rollout_policies
+        for mcts in self.mcts:
+            mcts.rollout_policy = rollout_policies
 
 
     def step(self):
@@ -1212,6 +1258,7 @@ class RolloutServer(object):
             print('n_success', len([d for d in self.hl_data if d[0][0] > 1-1e-3]))
             print('n_true_success', len([d for d in self.hl_data if d[0][2] > 1-1e-3]))
             print('n_runs', len(self.hl_data))
+        if self.render:
             self.save_video(path, true_val > 0)
         self.last_hl_test = time.time()
         print('TESTED HL')
@@ -1277,7 +1324,9 @@ class RolloutServer(object):
     def run(self):
         step = 0
         while not self.stopped:
-            if self.run_hl_test:
+            if self._hyperparams.get('ff_only', False):
+                self.run_ff()
+            elif self.run_hl_test:
                 self.test_hl()
             else:
                 if not USE_ROS:
@@ -1361,6 +1410,34 @@ class RolloutServer(object):
         ref_acts = np.tile([self.agent.get_encoded_tasks()], [len(tgt_mu), 1, 1])
         if len(tgt_mu):
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'value', 1, acts=acts, ref_acts=ref_acts, terminal=done)
+
+
+    def get_prim_update(self, samples):
+        dP, dO = self.agent.dPrimOut, self.agent.dPrim
+        ### Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
+        tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
+        for sample in samples:
+            mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            wt = np.array([self.prim_decay**t for t in range(sample.T)])
+            wt[0] *= self.prim_first_wt
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs = sample.get_prim_obs()
+            obs_data = np.concatenate((obs_data, obs))
+            prc = np.tile(np.eye(dP), (sample.T,1,1))
+            tgt_prc = np.concatenate((tgt_prc, prc))
+            if self.add_negative:
+                mu = self.find_negative_ex(sample)
+                tgt_mu = np.concatenate((tgt_mu, mu))
+                wt = -np.ones((sample.T,))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                obs = sample.get_prim_obs()
+                obs_data = np.concatenate((obs_data, obs))
+                prc = np.tile(np.eye(dP), (sample.T,1,1))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+            
+        return obs_data, tgt_mu, tgt_prc, tgt_wt
 
 
     def update_primitive(self, samples):

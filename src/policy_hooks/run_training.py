@@ -144,6 +144,7 @@ def main():
 
     # HL args
     parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
+    parser.add_argument('-ff_only', '--ff_only', action='store_true', default=False)
     parser.add_argument('-x_select', '--state_select', type=str, default='base')
     parser.add_argument('-prim_decay', '--prim_decay', type=float, default=0.95)
     parser.add_argument('-prim_first_wt', '--prim_first_wt', type=float, default=1e1)
@@ -183,7 +184,7 @@ def main():
                 args = pickle.load(f)
             args.soft_eval = old_args.soft_eval
             args.test = old_args.test
-            args.render = old_args.render
+            args.load_render = old_args.load_render
             args.eta = old_args.eta
             args.descr = old_args.descr
         if args.hl_retrain:
@@ -201,10 +202,10 @@ def main():
                     continue
 
                 print('\n\n\n\n\n\nLOADING NEXT EXPERIMENT\n\n\n\n\n\n')
-                while os.path.isdir('tf_saved/'+c['weight_dir']+str(current_id)):
+                while os.path.isdir('tf_saved/'+c['weight_dir']+'_'+str(current_id)):
                     current_id += 1
                 c['group_id'] = current_id
-                c['weight_dir'] = c['weight_dir']+'{0}'.format(current_id)
+                c['weight_dir'] = c['weight_dir']+'_{0}'.format(current_id)
                 dir_name = ''
                 sub_dirs = ['tf_saved'] + c['weight_dir'].split('/')
                 for d_ind, d in enumerate(sub_dirs):

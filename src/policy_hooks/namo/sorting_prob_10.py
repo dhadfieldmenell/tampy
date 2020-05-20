@@ -10,6 +10,7 @@ import time
 
 from core.internal_repr.plan import Plan
 from core.util_classes.namo_predicates import dsafe
+from core.util_classes.openrave_body import *
 from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
 from policy_hooks.utils.policy_solver_utils import *
@@ -23,6 +24,9 @@ USE_PERTURB = False
 OPT_MCTS_FEEDBACK = True
 N_GRASPS = 4
 FIX_TARGETS = False
+
+CONST_TARGETS = False
+CONST_ORDER = False
 
 # domain_file = "../domains/namo_domain/new_namo.domain"
 domain_file = "../domains/namo_domain/current.domain"
@@ -43,16 +47,16 @@ descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.for
 #            (-2., -2.)]
 
 END_TARGETS =[(0., 5.8), (0., 5.), (0., 4.)] if SORT_CLOSET else []
-END_TARGETS.extend([(2., 2.5), 
-                   (-2., 2.5),
-                   (0.8, 2.5),
-                   (-0.8, 2.5),
-                   (-2.8, 2.5),
-                   (2.8, 2.5),
-                   (3.6, 2.5),
-                   (-3.6, 2.5),
-                   (4.4, 2.5),
-                   (-4.4, 2.5)
+END_TARGETS.extend([(2., 1.5), 
+                   (-2., 1.5),
+                   (0.8, 1.5),
+                   (-0.8, 1.5),
+                   (-2.8, 1.5),
+                   (2.8, 1.5),
+                   (3.6, 1.5),
+                   (-3.6, 1.5),
+                   (4.4, 1.5),
+                   (-4.4, 1.5)
                    ])
 
 n_aux = 4
@@ -62,7 +66,7 @@ MAX_Y = 25
 
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, -10, 2))))
 #possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-40, 0, 2))))
-possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(-50, 0, 2))))
+possible_can_locs.extend(list(itertools.product(range(-30, 30, 4), range(-30, 0, 2))))
 # possible_can_locs.extend(list(itertools.product(range(-50, 50, 4), range(6, 25, 4))))
 
             
@@ -188,10 +192,11 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
         x0s.append(x0)
         if FIX_TARGETS:
-            inds = np.random.permutation(range(len(END_TARGETS)))
+            targ_range = range(config['num_objs'] - config['num_targs'])
+            inds = range(len(EMD_TARGETS)) if CONST_TARGETS else np.random.permutation(range(len(END_TARGETS)))
             next_map = {'can{0}_end_target'.format(no): END_TARGETS[o] for no, o in enumerate(inds[:config['num_objs']])}
-            inplace = np.random.choice(range(config['num_objs']), (config['num_objs'] - config['num_targs'],), replace=False)
-            for n in range(config['num_objs'] - config['num_targs']):
+            inplace = targ_range if CONST_ORDER else np.random.choice(range(config['num_objs']), len(targ_range), replace=False)
+            for n in targ_range:
                 x0[state_inds['can{0}'.format(inplace[n]), 'pose']] = END_TARGETS[inds[inplace[n]]]
             next_map.update({'end_target_{0}'.format(i): END_TARGETS[i] for i in range(len(END_TARGETS))})
         else:
@@ -243,13 +248,11 @@ def get_plans():
                     if env is None:
                         env = plan.env
                         for param in plan.params.values():
-                            if hasattr(param, 'openrave_body') and param.openrave_body is not None:
+                            if hasattr(param, 'geom'):
+                                if not hasattr(param, 'openrave_body') or param.openrave_body is None:
+                                    param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
                                 openrave_bodies[param.name] = param.openrave_body
-   
-    print(openrave_bodies)
-    for pname in openrave_bodies:
-        body = openrave_bodies[pname]
-        body.set_pose([0, 0, -5])
+
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):

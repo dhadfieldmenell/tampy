@@ -387,13 +387,15 @@ class MCTS:
         return opt_val, paths
 
 
-    def eval_pr_graph(self, state=None):
+    def eval_pr_graph(self, state=None, targets=None):
         plan = None
+        if targets is None:
+            targets = self.agent.target_vecs[self.condition]
         if state is None:
             state, initial, goal = self.agent.sample_hl_problem()
         else:
             if self.agent.goal_f(self.condition, state) == 0:
-                print('WARNING! Init state success', state, self.agent.target_vecs[self.condition])
+                print('WARNING! Init state success', state, targets)
                 plan = 'EMPTY PLAN'
             initial, goal = self.agent.get_hl_info(state, cond=self.condition)
             # initial = None
@@ -675,11 +677,13 @@ class MCTS:
         return lowest_cost_sample, cur_state
 
     
-    def run_ff_solve(self, state, node, opt=False):
+    def run_ff_solve(self, state, node, targets=None, opt=False):
         old_opt_strength = self.opt_strength
+        if targets is None:
+            targets = self.agent.target_vecs[self.condition]
         if opt:
             self.opt_strength = 1.
-        task_path = self.agent.task_from_ff(state, self.agent.target_vecs[self.condition])
+        task_path = self.agent.task_from_ff(state, targets)
         path = []
         val = 0.
         for label in task_path:

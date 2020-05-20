@@ -238,9 +238,10 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
 
 
 
-def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW):
+def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW, lab=''):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
+    exp_len_data = {}
     used = []
     for exp_name in exp_probs:
         dir_prefix = LOG_DIR + exp_name + '/'
@@ -265,16 +266,25 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                 if skip: continue
 
             full_dir = dir_prefix + dir_name
-            full_exp = full_dir[:-1]
+            full_exp = full_dir[:full_dir.rfind('_')]
+            # full_exp = full_dir[:-1]
             if full_exp in used: continue
             used.append(full_exp)
             i = 0
             data = []
             while i < 20: 
+                '''
                 if not os.path.isdir(full_exp+str(i)):
                     i += 1
                     continue
                 fnames = os.listdir(full_exp+str(i))
+                '''
+                cur_dir = '{0}_{1}'.format(full_exp, i)
+                if not os.path.isdir(cur_dir):
+                    i += 1
+                    continue
+                fnames = os.listdir(cur_dir)
+
                 if pre:
                     info = [f for f in fnames if f.find('hl_test_pre') >= 0 and f.endswith('pre_log.npy')]
                 elif rerun:
@@ -282,7 +292,8 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                 else:
                     info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                 if len(info):
-                    data.append(np.load(full_exp+str(i)+'/'+info[0]))
+                    # data.append(np.load(full_exp+str(i)+'/'+info[0]))
+                    data.append(np.load(cur_dir+'/'+info[0]))
                     if len(data[-1].shape) < 3: data = data[:-1]
                 i += 1
 
@@ -297,7 +308,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
             while not end:
                 end = True
                 for d in data:
-                    if rerun:
+                    if not avg_time or rerun:
                         next_frame = [pt[0] for pt in d]
                     elif xvar == 'N':
                         next_frame = [pt[0] for pt in d if pt[0,6] >= cur_t and pt[0,6] <= cur_t + wind]
@@ -315,13 +326,18 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                                 no, nt = int(next_pt[4]), int(next_pt[5])
                                 if (no, nt) not in exp_data:
                                     exp_data[no, nt] = []
+                                if (no, nt) not in exp_len_data:
+                                    exp_len_data[no, nt] = []
                                 
                                 if xvar == 'time':
                                     exp_data[no, nt].append((full_exp, cur_t, next_pt[0]))
+                                    exp_len_data[no, nt].append((full_exp, cur_t, next_pt[1]))
                                 elif xvar == 'N':
                                     exp_data[no, nt].append((full_exp, next_pt[6], next_pt[0]))
+                                    exp_len_data[no, nt].append((full_exp, next_pt[6], next_pt[1]))
                                 elif rerun:
                                     exp_data[no, nt].append((full_exp, next_pt[-1], next_pt[0]))
+                                    exp_len_data[no, nt].append((full_exp, next_pt[-1], next_pt[1]))
                 cur_t += tdelta
 
 
@@ -351,7 +367,19 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                 keyid += '_{0}'.format(key)
             pre_lab = '_pre' if pre else ''
             if rerun: pre_lab += '_rerun'
-            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}.png'.format(no, nt, keyid, pre_lab))
+            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+
+        for no, nt in exp_len_data:
+            print('Plotting', no, nt, exp_name)
+            pd_frame = pd.DataFrame(exp_len_data[no, nt], columns=['exp_name', xvar, 'length'])
+            sns.set()
+            sns_plot = sns.relplot(x=xvar, y='length', hue='exp_name', kind='line', data=pd_frame)
+            keyid = ''
+            for key in keywords:
+                keyid += '_{0}'.format(key)
+            pre_lab = '_pre' if pre else ''
+            if rerun: pre_lab += '_rerun'
+            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_len{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
 
 def plot(data, columns, descr):
@@ -414,5 +442,8 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout'):
     plot(data, ['exp_name', xvar, yvar], '{0}_vs_{1}'.format(xvar, yvar))
 
 
-get_hl_tests(['retrain'], pre=False, xvar='N', avg_time=True, tdelta=5000, wind=20000)
+#get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
+get_hl_tests(['compact_base'], xvar='time', pre=False)
+get_hl_tests(['compact_base'], xvar='time', pre=True)
+gen_data_plots(xvar='time', yvar='val_loss', keywords=['compact_base'], lab='policy')
 

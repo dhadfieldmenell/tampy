@@ -1,3 +1,2 @@
-pkill -f run_train -9
-pkill -f ros -9
+pkill  -f "policy\_hooks\/run\_train" -9
 

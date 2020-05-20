@@ -130,6 +130,7 @@ class NAMOSortingAgent(TAMPAgent):
 
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
         assert not np.any(np.isnan(state))
+        start_t = time.time()
         self.in_gripper = None
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
         task = tuple(task)
@@ -310,40 +311,43 @@ class NAMOSortingAgent(TAMPAgent):
         return sample
 
 
-    def dist_obs(self, plan, t, n_dirs=-1, ignore=[], return_rays=False):
+    def dist_obs(self, plan, t, n_dirs=-1, ignore=[], return_rays=False, extra_rays=[]):
         if n_dirs <= 0:
             n_dirs = self.n_dirs
         pr2 = plan.params['pr2']
         obs = 1e1*np.ones(n_dirs)
         angles = 2 * np.pi * np.array(range(n_dirs), dtype='float32') / n_dirs
         rays = np.zeros((n_dirs, 6))
-        rays[:, 2] = 0.01
+        rays[:, 2] = 0.5
         for i in range(n_dirs):
             a = angles[i]
             ray = np.array([np.cos(a), np.sin(a)])
             # rays[i, :2] = pr2.pose[:,t] + (pr2.geom.radius+0.01)*ray
             rays[i, :2] = pr2.pose[:,t]
             rays[i, 3:5] = LIDAR_DIST * ray
+
+        if len(extra_rays):
+            rays = np.concatenate([rays, extra_rays], axis=0)
         # pr2.openrave_body.set_pose(pr2.pose[:,t])
-        pr2.openrave_body.set_pose([20, 20]) # Get this out of the way
 
-        for p_name in plan.params:
-            p = plan.params[p_name]
-            if p is pr2: continue
+        for params in [plan.params]:
+            for p_name in params:
+                p = params[p_name]
 
-            if p.is_symbol():
-                if hasattr(p, 'openrave_body') and p.openrave_body is not None:
-                    p.openrave_body.set_pose([20, 20])
-            elif (p_name, 'pose') in self.state_inds:
-                p.openrave_body.set_pose(p.pose[:,t])
-            else:
-                p.openrave_body.set_pose(p.pose[:,0])
+                if p.is_symbol():
+                    if hasattr(p, 'openrave_body') and p.openrave_body is not None:
+                        p.openrave_body.set_pose([0, 0, -5])
+                elif (p_name, 'pose') in self.state_inds:
+                    p.openrave_body.set_pose(plan.params[p_name].pose[:,t])
+                else:
+                    p.openrave_body.set_pose(plan.params[p_name].pose[:,0])
 
+        pr2.openrave_body.set_pose([0, 0, -5]) # Get this out of the way
         for name in ignore:
-            plan.params[name].openrave_body.set_pose([20, 20])
+            plan.params[name].openrave_body.set_pose([0, 0, -5])
 
         if self.in_gripper is not None:
-            self.in_gripper.openrave_body.set_pose([20,20])
+            self.in_gripper.openrave_body.set_pose([0,0,-5])
 
         if const.USE_OPENRAVE:
             is_hits, hits = self.env.CheckCollisionRays(rays, None)
@@ -558,14 +562,14 @@ class NAMOSortingAgent(TAMPAgent):
             if self.in_gripper is not None:
                 ignore = [self.in_gripper.name]
             dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
-            if False: # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.05): #self.check_col(plan, t): # np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.5 * DSAFE):
+            if np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.05):
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
                     getattr(plan.params[pname], aname)[:,t+1] = old_state[self.state_inds[pname, aname]]
             else:
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
-                    getattr(plan.params[pname], aname)[:,t+1] = getattr(plan.params[pname], aname)[:,t].copy()
+                    getattr(plan.params[pname], aname)[:,t+1] = getattr(plan.params[pname], aname)[:,t]
                 plan.params['pr2'].gripper[:,t+1] = u[u_inds['pr2', 'gripper']]
             for pname, aname in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
@@ -849,6 +853,20 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
+
+        if INGRASP_ENUM in self._hyperparams['sensor_dims']:
+            vec = np.zeros(len(prim_choices[OBJ_ENUM]))
+            for i, o in enumerate(prim_choices[OBJ_ENUM]):
+                if np.all(np.abs(mp_state[self.state_inds[o, 'pose']] - mp_state[self.state_inds['pr2', 'pose']] - grasp) < NEAR_TOL):
+                    vec[i] = 1.
+            sample.set(INGRASP_ENUM, vec, t=t)
+
+        if ATGOAL_ENUM in self._hyperparams['sensor_dims']:
+            vec = np.zeros(len(prim_choices[OBJ_ENUM]))
+            for i, o in enumerate(prim_choices[OBJ_ENUM]):
+                if np.all(np.abs(mp_state[self.state_inds[o, 'pose']] - targets[self.target_inds['{0}_end_target'.format(o), 'value']]) < NEAR_TOL):
+                    vec[i] = 1.
+            sample.set(ATGOAL_ENUM, vec, t=t)
 
         if fill_obs:
             if LIDAR_ENUM in self._hyperparams['obs_include']:

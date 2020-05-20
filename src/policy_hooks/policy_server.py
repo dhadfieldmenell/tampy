@@ -143,7 +143,7 @@ class PolicyServer(object):
             if self.task == 'value':
                 update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), acts=acts, ref_acts=ref_acts, done=done)
             else:
-                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)))
+                update = self.policy_opt.store(obs, mu, prc, wt, self.task, task_name, update=(i==(queue_len-1)), val_ratio=0.1)
             end_time = time.time()
 
 
@@ -163,18 +163,19 @@ class PolicyServer(object):
             print('Updated weights for {0}'.format(self.task))
 
             incr = 10
-            losses = [self.policy_opt.average_losses[::incr], self.policy_opt.average_val_losses[::incr]]
-     
-            for net in self.policy_opt.mu:
-                if net not in self.policy_var:
-                    self.policy_var[net] = []
-                data = np.concatenate(self.policy_opt.mu[net].values(), axis=0)
-                self.policy_var[net].append(np.var(data))
+            if len(self.policy_opt.average_losses) and len(self.policy_opt.average_val_losses):
+                losses = (self.policy_opt.average_losses[-1], self.policy_opt.average_val_losses[-1])
+                self.policy_loss.append(losses)
+         
+                for net in self.policy_opt.mu:
+                    if net not in self.policy_var:
+                        self.policy_var[net] = []
+                    data = np.concatenate(self.policy_opt.mu[net].values(), axis=0)
+                    self.policy_var[net].append(np.var(data))
 
-            self.policy_loss.append(losses)
-            with open(self.policy_opt_log, 'w+') as f:
-                f.write(str(self.get_log_info()))
-            if not self.n_updates % 100:
+                with open(self.policy_opt_log, 'w+') as f:
+                    f.write(str(self.get_log_info()))
+            if not self.n_updates % 20:
                 with open(self.data_file, 'w+') as f:
                     pickle.dump(self.policy_opt.get_data(), f)
 
@@ -183,7 +184,8 @@ class PolicyServer(object):
         info = {
                 'time': time.time() - self.start_t,
                 'var': {net: self.policy_var[net][-1] for net in self.policy_var},
-                'loss': self.policy_loss[-1],
+                'train_loss': self.policy_loss[-1][0],
+                'val_loss': self.policy_loss[-1][1],
                 'scope': self.task,
                 'n_updates': self.n_updates,
                 'n_data': self.full_N,

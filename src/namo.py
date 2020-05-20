@@ -1,4 +1,4 @@
-import policy_hooks.namo.sorting_prob_7 as prob
+import policy_hooks.namo.sorting_prob_10 as prob
 prob.NUM_OBJS = 4
 prob.NUM_TARGS = 4
 prob.N_GRASPS = 4

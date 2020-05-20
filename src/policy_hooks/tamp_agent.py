@@ -919,6 +919,7 @@ class TAMPAgent(Agent):
                     success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj, n_resamples=5)
                 except Exception as e:
                     traceback.print_exception(*sys.exc_info())
+                    print('Exception in full solve for', x0, task)
                     success = False
 
             if not success:

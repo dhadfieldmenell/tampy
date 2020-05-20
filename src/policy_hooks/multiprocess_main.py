@@ -66,7 +66,7 @@ class MultiProcessMain(object):
         self.config = config
         prob = config['prob']
         self.config['group_id'] = config.get('group_id', 0)
-        time_limit = config.get('time_limit', 3600)
+        time_limit = config.get('time_limit', 14400)
 
         conditions = self.config['num_conds']
         self.task_list = tuple(get_tasks(self.config['task_map_file']).keys())
@@ -597,8 +597,8 @@ class MultiProcessMain(object):
         # server.hl_test_log = 'tf_saved/' + hyperparams['weight_dir'] + '_testruns/hl_test_rerun_log.npy'
         ind = 0
 
-        # for _ in range(20):
-        #     server.test_hl(15, save=False)
+        for _ in range(20):
+            server.test_hl(15, save=False)
         while server.policy_opt.restore_ckpts(ind):
             for _ in range(50):
                 server.test_hl(5, save=True, ckpt_ind=ind)
