@@ -801,7 +801,7 @@ class TAMPAgent(Agent):
             init_preds = parse_state(plan, [], st)
             initial.extend([p.get_rep() for p in init_preds])
         goal = self.goal(cond, targets)
-        return initial, goal
+        return list(set(initial)), goal
 
 
     def solve_hl(self, state, targets):
