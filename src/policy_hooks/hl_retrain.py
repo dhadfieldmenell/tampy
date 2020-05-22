@@ -1,5 +1,6 @@
 import cPickle as pickle
 import numpy as np
+import os
 
 
 def retrain(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=5000, rlen=5):
@@ -32,12 +33,37 @@ def retrain(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=5000, rlen=5):
             rollout_server.policy_opt.store_scope_weights([key])
             rollout_server.policy_opt.write_shared_weights([key])
         cur_ind += incr
-        for _ in range(10):
+        for _ in range(20):
             rollout_server.agent.replace_cond(0)
             rollout_server.test_hl(rlen=rlen, save=True, debug=False)
         if cur_ind > len(obs[key][key]): break
 
     print('Finished retrain', cur_ind)
+
+
+def retrain_hl_from_samples(policy_server, hl_dir):
+    hl_files = os.listdir('tf_saved/'+hl_dir)
+    key = 'primitive'
+    for fname in hl_files:
+        if not fname.find('ff_samples') >= 0: continue
+        with open('tf_saved/'+hl_dir+'/'+fname, 'r') as f:
+            samples = pickle.load(f)
+        for s in samples:
+            s.agent = policy_server.agent
+            s.reinit()
+
+        psid = fname.split('.')[0].split('_')[-1]
+        psid = int(psid)
+        val_ratio = 1. if psid >= 25 else -1.
+        obs, mu, prc, wt = policy_server.get_prim_update(samples)
+        policy_server.policy_opt.store(obs, 
+                                        mu, 
+                                        prc, 
+                                        wt, key, key, val_ratio=val_ratio)
+        policy_server.full_N += len(mu)
+        policy_server.update_network() # policy_server.policy_opt.run_update()
+    print('Finished retrain')
+
 
 
 def retrain_from_samples(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=5000, rlen=5):

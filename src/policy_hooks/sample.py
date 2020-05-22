@@ -12,20 +12,20 @@ class Sample(object):
     """
     def __init__(self, agent):
         self.agent = agent
-
         self.T = agent.T
-        self.dX = agent.dX
-        self.dU = agent.dU
-        self.dO = agent.dO
-        self.dM = agent.dM
-        self.dPrim = agent.dPrim
-        self.dPrimOut = agent.dPrimOut
-        self.dVal = agent.dVal
+        self._data = {}
+        self.reinit()
+
+    def reinit(self):
+        self.dX = self.agent.dX
+        self.dU = self.agent.dU
+        self.dO = self.agent.dO
+        self.dM = self.agent.dM
+        self.dPrim = self.agent.dPrim
+        self.dPrimOut = self.agent.dPrimOut
+        self.dVal = self.agent.dVal
         self.success = 0
         self.opt_suc = 0
-
-        # Dictionary containing the sample data from various sensors.
-        self._data = {}
 
         self._X = np.empty((self.T, self.dX))
         self._X.fill(np.nan)

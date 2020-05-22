@@ -262,8 +262,8 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
             if len(keywords):
                 skip = True
                 for k in keywords:
-                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
-                        skip = False
+                    if dir_name.find(k) < 0 or dir_prefix.find(k) < 0:
+                        skip = True
                 if skip: continue
 
             if len(exclude):
@@ -447,7 +447,7 @@ def plot(data, columns, descr, separate=True, keyind=3):
             '''
             sns_plot.savefig(SAVE_DIR+'/{0}_{1}_{2}.png'.format(k, descr, columns[keyind]))
             sns.set()
-
+    print('PLOTTED for', descr)
 
 def gen_label(exp_dir, label_vars=[]):
     if not len(label_vars) or not os.path.isfile(exp_dir+'/args.pkl'):
@@ -470,7 +470,6 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
     data = {}
     print('Collected data...')
     yvars = [yvar] if type(yvar) is not list else yvar
-    import ipdb; ipdb.set_trace()
     for keyword in rd:
         key_data = []
         new_data = rd[keyword]
@@ -500,6 +499,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
     plot(data, ['exp_name', xvar, ylabel, 'key', 'yvar', 'yvar_ind'], '{0}_vs_{1}'.format(xvar, ylabel), separate=separate, keyind=keyind)
 
 keywords = ['IT100_', 'IT1000_', 'IT10000_']
+keywords = ['newretrain_us5000_IT100_', 'newretrain_us5000_IT1000_', 'newtrain_us5000_IT10000_']
 label_vars = ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
 get_hl_tests(keywords[:1], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
@@ -507,5 +507,8 @@ get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, len
 get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)
 #get_hl_tests(['compact_base'], xvar='time', pre=True)
-gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss')
+keywords = ['goalaug', 'graspaug', 'plainnew', 'taskaug']
+label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_component')
+gen_data_plots(xvar='n_data', yvar=['train_loss', 'val_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_combined')
 

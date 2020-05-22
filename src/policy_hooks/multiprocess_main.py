@@ -561,6 +561,24 @@ class MultiProcessMain(object):
         return p
 
 
+    def hl_only_retrain(self, hyperparams):
+        software_constants.USE_ROS = False
+        hyperparams['run_mcts_rollouts'] = False
+        hyperparams['run_alg_updates'] = False
+        hyperparams['run_hl_test'] = True
+        hyperparams['share_buffers'] = True
+        hyperparams['id'] = 'test'
+        hyperparams['scope'] = 'primitive'
+        descr = hyperparams.get('descr', '')
+        self.allocate_shared_buffers(hyperparams)
+        self.allocate_queues(hyperparams)
+        server = PolicyServer(hyperparams)
+        server.agent = hyperparams['agent']['type'](hyperparams['agent'])
+        ll_dir = hyperparams['ll_policy']
+        hl_dir = hyperparams['hl_data']
+        hl_retrain.retrain_hl_from_samples(server, hl_dir)
+
+
     def hl_retrain(self, hyperparams):
         software_constants.USE_ROS = False
         hyperparams['run_mcts_rollouts'] = False

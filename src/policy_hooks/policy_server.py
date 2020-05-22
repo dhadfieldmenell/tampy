@@ -193,6 +193,7 @@ class PolicyServer(object):
                 'scope': self.task,
                 'n_updates': self.n_updates,
                 'n_data': self.full_N,
+                'tf_iter': self.policy_opt.tf_iter,
                 'N': self.full_N,
                 }
         self.log_infos.append(info)
@@ -228,3 +229,33 @@ class PolicyServer(object):
         else:
             act = policy.act([], obs, 0, noise)
         return PolicyActResponse(act)
+
+
+    def get_prim_update(self, samples):
+        dP, dO = self.agent.dPrimOut, self.agent.dPrim
+        ### Compute target mean, cov, and weight for each sample.
+        obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
+        tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0, 1))
+        for sample in samples:
+            mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
+            tgt_mu = np.concatenate((tgt_mu, mu))
+            wt = np.ones((sample.T,1)) # np.array([self.prim_decay**t for t in range(sample.T)])
+            wt[0] *= 1. # self.prim_first_wt
+            tgt_wt = np.concatenate((tgt_wt, wt))
+            obs = sample.get_prim_obs()
+            obs_data = np.concatenate((obs_data, obs))
+            prc = np.tile(np.eye(dP), (sample.T,1,1))
+            tgt_prc = np.concatenate((tgt_prc, prc))
+            if False: # self.add_negative:
+                mu = self.find_negative_ex(sample)
+                tgt_mu = np.concatenate((tgt_mu, mu))
+                wt = -np.ones((sample.T,))
+                tgt_wt = np.concatenate((tgt_wt, wt))
+                obs = sample.get_prim_obs()
+                obs_data = np.concatenate((obs_data, obs))
+                prc = np.tile(np.eye(dP), (sample.T,1,1))
+                tgt_prc = np.concatenate((tgt_prc, prc))
+            
+        return obs_data, tgt_mu, tgt_prc, tgt_wt
+
+

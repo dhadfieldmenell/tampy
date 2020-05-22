@@ -170,7 +170,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.domain_file = "../domains/namo_domain/new_namo.domain"
+    prob.domain_file = "../domains/namo_domain/current.domain"
     prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {

@@ -93,6 +93,7 @@ def main():
     parser.add_argument('-no', '--nobjs', type=int, default=0)
     parser.add_argument('-nt', '--ntargs', type=int, default=0)
     parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
+    parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
 
     # Old
     parser.add_argument('-p', '--pretrain', action='store_true', default=False)
@@ -236,6 +237,8 @@ def main():
                
                 if args.hl_retrain:
                     m.hl_retrain(c)
+                elif args.hl_only_retrain:
+                    m.hl_only_retrain(c)
                 else:
                     m.start()
                 mains.append(m)
