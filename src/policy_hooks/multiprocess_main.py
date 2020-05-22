@@ -576,6 +576,7 @@ class MultiProcessMain(object):
         server.agent = hyperparams['agent']['type'](hyperparams['agent'])
         ll_dir = hyperparams['ll_policy']
         hl_dir = hyperparams['hl_data']
+        print('Launching hl retrain from', ll_dir, hl_dir)
         hl_retrain.retrain_hl_from_samples(server, hl_dir)
 
 
