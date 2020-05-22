@@ -138,8 +138,13 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         self.val_mu = {}
         self.val_obs = {}
+        self.val_next_obs = {}
         self.val_prc = {}
         self.val_wt = {}
+        self.val_acts = {}
+        self.val_ref_acts = {}
+        self.val_done = {}
+
 
         self.train_iters = 0
         self.average_losses = []
@@ -282,8 +287,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if acts is not None:
             next_obs = np.r_[obs[1:], obs[-1:]]
         inds = np.where(np.abs(np.reshape(wt, [wt.shape[0]*wt.shape[1]])) < 1e-5)
-        if not store_val and acts is not None:
-            for dct, data in zip([self.acts, self.ref_acts, self.done, self.next_obs], [acts, ref_acts, done, next_obs]):
+        if acts is not None:
+            for dct1, dct2, data in zip([self.acts, self.ref_acts, self.done, self.next_obs], \
+                                        [self.val_acts, self.val_ref_acts, self.val_done, self.val_next_obs], \
+                                        [acts, ref_acts, done, next_obs]):
+                dct = dct2 if store_val else dct1
                 data = data.reshape([data.shape[0]*data.shape[1]] + list(data.shape[2:]))
                 data = np.delete(data, inds[0], axis=0)
                 if net not in dct:
@@ -961,6 +969,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
             average_loss += train_loss
 
+        self.tf_iter += self._hyperparams['iterations']
         self.average_losses.append(average_loss / self._hyperparams['iterations'])
         feed_dict = {self.obs_tensor: obs}
         num_values = obs.shape[0]
@@ -1018,6 +1027,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         idx = range(N)
         average_loss = 0
         np.random.shuffle(idx)
+        self.tf_iter += self._hyperparams['iterations']
         # actual training.
         for i in range(self._hyperparams['iterations']):
             # Load in data for this batch.
