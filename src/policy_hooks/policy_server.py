@@ -66,6 +66,7 @@ class PolicyServer(object):
         self.update_queue = []
         self.policy_var = {}
         self.policy_loss = []
+        self.policy_component_loss = []
         self.log_infos = []
         with open(self.policy_opt_log, 'w+') as f:
             f.write('')
@@ -165,7 +166,8 @@ class PolicyServer(object):
             incr = 10
             if len(self.policy_opt.average_losses) and len(self.policy_opt.average_val_losses):
                 losses = (self.policy_opt.average_losses[-1], self.policy_opt.average_val_losses[-1])
-                self.policy_loss.append(losses)
+                self.policy_loss.append((np.mean(losses[0]), np.mean(losses[1])))
+                self.policy_component_loss.append(losses)
          
                 for net in self.policy_opt.mu:
                     if net not in self.policy_var:
@@ -185,7 +187,9 @@ class PolicyServer(object):
                 'time': time.time() - self.start_t,
                 'var': {net: self.policy_var[net][-1] for net in self.policy_var},
                 'train_loss': self.policy_loss[-1][0],
+                'train_component_loss': self.policy_component_loss[-1][0],
                 'val_loss': self.policy_loss[-1][1],
+                'val_component_loss': self.policy_component_loss[-1][1],
                 'scope': self.task,
                 'n_updates': self.n_updates,
                 'n_data': self.full_N,

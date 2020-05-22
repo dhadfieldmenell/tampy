@@ -573,7 +573,7 @@ class MultiProcessMain(object):
         self.allocate_queues(hyperparams)
         server = RolloutServer(hyperparams)
         ll_dir = hyperparams['ll_policy']
-        hl_dir = hyperparams['hl_policy']
+        hl_dir = hyperparams['hl_data']
         hl_retrain.retrain(server, hl_dir, ll_dir)
  
 

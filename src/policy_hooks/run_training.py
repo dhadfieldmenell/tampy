@@ -126,6 +126,8 @@ def main():
     # Previous policy directories
     parser.add_argument('-llpol', '--ll_policy', type=str, default='')
     parser.add_argument('-hlpol', '--hl_policy', type=str, default='')
+    parser.add_argument('-hldata', '--hl_data', type=str, default='')
+    parser.add_argument('-hlsamples', '--hl_samples', type=str, default='')
 
     # Curric args
     parser.add_argument('-cur', '--curric_thresh', type=int, default=-1)
@@ -139,10 +141,14 @@ def main():
     parser.add_argument('-hln', '--prim_n_layers', type=int, default=32)
     parser.add_argument('-llus', '--update_size', type=int, default=2000)
     parser.add_argument('-hlus', '--prim_update_size', type=int, default=5000)
+    parser.add_argument('-iters', '--train_iterations', type=int, default=50)
+    parser.add_argument('-batch', '--batch_size', type=int, default=500)
     parser.add_argument('-lldec', '--weight_decay', type=float, default=1e-3)
     parser.add_argument('-hldec', '--prim_weight_decay', type=float, default=1e-3)
+    parser.add_argument('-lr', '--lr', type=float, default=1e-3)
 
     # HL args
+    parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)
     parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
     parser.add_argument('-ff_only', '--ff_only', action='store_true', default=False)
     parser.add_argument('-x_select', '--state_select', type=str, default='base')
@@ -188,7 +194,7 @@ def main():
             args.eta = old_args.eta
             args.descr = old_args.descr
         if args.hl_retrain:
-            sys.path.insert(1, 'tf_saved/'+args.hl_policy)
+            sys.path.insert(1, 'tf_saved/'+args.hl_data)
             exps_info = [['hyp']]
 
         exps = load_multi(exps_info, n_objs, n_targs, args)
@@ -213,7 +219,7 @@ def main():
                     if not os.path.isdir(dir_name):
                         os.mkdir(dir_name)
                 if args.hl_retrain:
-                    src = 'tf_saved/' + args.hl_policy + '/hyp.py'
+                    src = 'tf_saved/' + args.hl_data + '/hyp.py'
                 else:
                     src = exps_info[ind][ind2].replace('.', '/')+'.py'
                 shutil.copyfile(src, 'tf_saved/'+c['weight_dir']+'/hyp.py')

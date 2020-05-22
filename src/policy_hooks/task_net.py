@@ -52,15 +52,16 @@ def multi_softmax_loss_layer(labels, logits, boundaries, precision=None):
     losses = []
     for start, end in boundaries:
         if precision is None:
-            losses.append(tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end]))
+            losses.append(tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], reduction=tf.losses.Reduction.NONE))
         else:
-            loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], weights=precision)
+            loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], weights=precision, reduction=tf.losses.Reduction.NONE)
             losses.append(loss)
 
-        losses[-1] = losses[-1] / float(end-start)
+        # losses[-1] = losses[-1] / float(end-start)
+        losses[-1] = tf.reduce_mean(losses[-1], axis=0)
         start = end
     stacked_loss = tf.stack(losses, axis=0, name='softmax_loss_stack')
-    return tf.reduce_sum(stacked_loss, axis=0)
+    return stacked_loss # tf.reduce_sum(stacked_loss, axis=0)
 
 
 def multi_mix_loss_layer(labels, logits, boundaries):

@@ -1,29 +1,39 @@
 import cPickle as pickle
+import numpy as np
 
 
 def retrain(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=5000, rlen=5):
+    log_infos = []
     hl_file = 'tf_saved/'+hl_dir+'/primitive_data.pkl'
     with open(hl_file, 'r') as f:
         hl_data = pickle.load(f)
     for scope in rollout_server.policy_opt.valid_scopes:
         rollout_server.policy_opt.restore_ckpt(scope, dirname=ll_dir)
 
+    iters = rollout_server.config['train_iterations']
     mu, obs, prc, wt = hl_data[:4]
+    val_mu, val_obs, val_prc, val_wt = hl_data[4:8]
     cur_ind = 0
     key = 'primitive'
-    rollout_server.policy_opt._hyperparams['iterations'] = incr // 1
     while cur_ind < maxlen:
         print('Loading data at ind', cur_ind)
         rollout_server.policy_opt.store(obs[key][key][cur_ind:cur_ind+incr], 
                                         mu[key][key][cur_ind:cur_ind+incr], 
                                         prc[key][key][cur_ind:cur_ind+incr], 
-                                        wt[key][key][cur_ind:cur_ind+incr], key, key)
+                                        wt[key][key][cur_ind:cur_ind+incr], key, key, val_ratio=-1)
+        if cur_ind+incr < len(val_mu[key][key]):
+            rollout_server.policy_opt.store(val_obs[key][key][cur_ind:cur_ind+incr], 
+                                            val_mu[key][key][cur_ind:cur_ind+incr], 
+                                            val_prc[key][key][cur_ind:cur_ind+incr], 
+                                            val_wt[key][key][cur_ind:cur_ind+incr], key, key, val_ratio=1)
         updated = rollout_server.policy_opt.run_update([key])
+        update_log_data(log_infos, rollout_server, cur_ind)
         if updated:
             rollout_server.policy_opt.store_scope_weights([key])
             rollout_server.policy_opt.write_shared_weights([key])
         cur_ind += incr
-        for _ in range(50):
+        for _ in range(10):
+            rollout_server.agent.replace_cond(0)
             rollout_server.test_hl(rlen=rlen, save=True, debug=False)
         if cur_ind > len(obs[key][key]): break
 
@@ -51,4 +61,27 @@ def retrain_from_samples(rollout_server, hl_dir, ll_dir, maxlen=100000, incr=500
         for _ in range(50):
             rollout_server.test_hl(rlen=rlen, save=True, debug=False)
     print('Finished retrain', cur_ind)
+
+
+def update_log_data(log_infos, rollout_server, full_N, time=0):
+    policy_opt_log = 'tf_saved/'+rollout_server.config['weight_dir']+'/'+'policy_primitive_log.pkl'
+    if not len(rollout_server.policy_opt.average_losses) or not len(rollout_server.policy_opt.average_val_losses):
+        return log_infos
+    losses = (rollout_server.policy_opt.average_losses[-1], rollout_server.policy_opt.average_val_losses[-1])
+    policy_loss = (np.sum(losses[0]), np.sum(losses[1]))
+    policy_component_loss = losses
+    info = {
+            'time': 0,
+            'train_loss': policy_loss[0],
+            'train_component_loss': policy_component_loss[0],
+            'val_loss': policy_loss[1],
+            'val_component_loss': policy_component_loss[1],
+            'scope': 'primitive',
+            'n_data': full_N,
+            'N': full_N,
+            }
+    log_infos.append(info)
+    with open(policy_opt_log, 'w+') as f:
+        f.write(str(log_infos))
+    return log_infos
 

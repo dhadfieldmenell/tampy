@@ -1,5 +1,6 @@
 import policy_hooks.namo.sorting_prob_10 as prob
 prob.NUM_OBJS = 2
+prob.FIX_TARGETS = True
 prob.NUM_TARGS = 8
 prob.N_GRASPS = 4
 prob.n_aux = 0
@@ -17,7 +18,7 @@ for p in plan.params.values():
     if p.openrave_body is not None:
         p.openrave_body.set_pose([20,20])
 pr2_pose = [1.199, -0.2]
-can0_pose = [1.6, -0.2]
+can0_pose = [1.8, -0.2]
 can1_pose = [3.5, 1.5]
 can2_pose = [4, -1]
 can3_pose = [-4, -1]

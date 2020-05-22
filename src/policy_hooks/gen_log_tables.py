@@ -6,6 +6,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
+from numpy import array, float32
 import seaborn as sns
 
 FRAME = 10
@@ -44,6 +45,8 @@ def get_policy_data(policy, keywords=[]):
                 file_names = os.listdir(full_dir)
                 r = 'policy_{0}_log.txt'.format(policy)
                 rollout_data = {}
+                if not os.path.isfile(full_dir+'/'+r):
+                    r = 'policy_{0}_log.pkl'.format(policy)
                 if not os.path.isfile(full_dir+'/'+r): continue
                 with open(full_dir+'/'+r, 'r') as f:
                     next_data = f.read()
@@ -54,7 +57,7 @@ def get_policy_data(policy, keywords=[]):
                             pt['train_loss'] = pt['train_loss']['loss']
                         if type(pt['val_loss']) is dict:
                             pt['val_loss'] = pt['val_loss']['loss']
-                        if type(pt['var']) is dict:
+                        if 'var' in pt and type(pt['var']) is dict:
                             pt['var'] = pt['var'][policy]
                     rollout_data[r] = r_data
                     data[k][full_exp][full_dir] = rollout_data
@@ -293,12 +296,13 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                 if pre:
                     info = [f for f in fnames if f.find('hl_test_pre') >= 0 and f.endswith('pre_log.npy')]
                 elif rerun:
-                    info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_rerun_log.npy')]
+                    info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                 else:
                     info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                 if len(info):
                     # data.append(np.load(full_exp+str(i)+'/'+info[0]))
                     for fname in info:
+                        print('Loading data from', fname)
                         data.append(np.load(cur_dir+'/'+fname))
                 # i += 1
 
@@ -320,17 +324,18 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                         if xvar == 'time':
                             xval = (pt[3] // tdelta) * tdelta
                             exp_data[no, nt].append((label, xval, pt[0]))
+                            exp_data[no, nt].append((label, xval+tdelta, pt[0]))
                             if pt[0] > lenthresh:
                                 exp_len_data[no, nt].append((label, xval, pt[1]))
-                        elif xvar == 'N':
-                            exp_data[no, nt].append((label, pt[6], pt[0]))
-                            if pt[0] > lenthresh:
-                                exp_len_data[no, nt].append((label, pt[6], pt[1]))
                         elif rerun:
                             exp_data[no, nt].append((label, pt[-1], pt[0]))
                             if pt[0] > lenthresh:
                                 exp_len_data[no, nt].append((label, pt[-1], pt[1]))
-
+                        elif xvar == 'N' or xvar == 'n_data':
+                            exp_data[no, nt].append((label, pt[6], pt[0]))
+                            if pt[0] > lenthresh:
+                                exp_len_data[no, nt].append((label, pt[6], pt[1]))
+                        
                 i += 1
             '''
             while not end:
@@ -389,47 +394,58 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                             exp_data[no, nt] = []
                         exp_data[no, nt].append((full_exp, cur_t, val))
             '''
-        for no, nt in exp_data:
-            print('Plotting', no, nt, exp_name)
-            pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', xvar, 'value'])
-            sns.set()
-            sns_plot = sns.relplot(x=xvar, y='value', hue='exp_name', kind='line', data=pd_frame)
-            keyid = ''
-            for key in keywords:
-                keyid += '_{0}'.format(key)
-            pre_lab = '_pre' if pre else ''
-            if rerun: pre_lab += '_rerun'
-            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+    for no, nt in exp_data:
+        print('Plotting', no, nt, exp_name)
+        pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', xvar, 'value'])
+        sns.set()
+        sns_plot = sns.relplot(x=xvar, y='value', hue='exp_name', kind='line', data=pd_frame)
+        keyid = ''
+        for key in keywords:
+            keyid += '_{0}'.format(key)
+        pre_lab = '_pre' if pre else ''
+        if rerun: pre_lab += '_rerun'
+        sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
-        for no, nt in exp_len_data:
-            print('Plotting', no, nt, exp_name)
-            pd_frame = pd.DataFrame(exp_len_data[no, nt], columns=['exp_name', xvar, 'length'])
-            sns.set()
-            sns_plot = sns.relplot(x=xvar, y='length', hue='exp_name', kind='line', data=pd_frame)
-            keyid = ''
-            for key in keywords:
-                keyid += '_{0}'.format(key)
-            pre_lab = '_pre' if pre else ''
-            if rerun: pre_lab += '_rerun'
-            sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_len{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+    for no, nt in exp_len_data:
+        print('Plotting', no, nt, exp_name)
+        pd_frame = pd.DataFrame(exp_len_data[no, nt], columns=['exp_name', xvar, 'length'])
+        sns.set()
+        sns_plot = sns.relplot(x=xvar, y='length', hue='exp_name', kind='line', data=pd_frame)
+        keyid = ''
+        for key in keywords:
+            keyid += '_{0}'.format(key)
+        pre_lab = '_pre' if pre else ''
+        if rerun: pre_lab += '_rerun'
+        sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_len{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
 
-def plot(data, columns, descr, separate=True):
+def plot(data, columns, descr, separate=True, keyind=3):
     sns.set()
     if not separate:
         d = []
         for k in data:
             d.extend(data[k])
+        if not len(d) : return
         pd_frame = pd.DataFrame(d, columns=columns)
-        sns_plot = sns.relplot(x=columns[1], y=columns[2], hue=columns[0], row=columns[3], kind='line', data=pd_frame)
+        # leg_labels = getattr(pd_frame, columns[0]).unique()
+        sns_plot = sns.relplot(x=columns[1], y=columns[2], hue=columns[0], row=columns[keyind], kind='line', data=pd_frame)
         sns_plot.savefig(SAVE_DIR+'/{0}_{1}.png'.format(k, descr))
         sns.set()
 
     else:
         for k in data:
+            if not len(data[k]): continue
             pd_frame = pd.DataFrame(data[k], columns=columns)
-            sns_plot = sns.relplot(x=columns[1], y=columns[2], hue=columns[0], row=columns[4], kind='line', data=pd_frame)
-            sns_plot.savefig(SAVE_DIR+'/{0}_{1}.png'.format(k, descr))
+            leg_labels = getattr(pd_frame, columns[0]).unique()
+            sns_plot = sns.relplot(x=columns[1], y=columns[2], hue=columns[0], col_wrap=3, col=columns[keyind], kind='line', data=pd_frame)
+            '''
+            for axes in sns_plot.axes.flat:
+                box = axes.get_position()
+                axes.set_position([box.x0,box.y0,box.width,box.height*0.9])
+            handles, _ = sns_plot.plt.get_legend_handles_labels()
+            sns_plot.plt.legend(handles, leg_labels, bbox_to_anchor=(0.5, 0), loc='upper center')
+            '''
+            sns_plot.savefig(SAVE_DIR+'/{0}_{1}_{2}.png'.format(k, descr, columns[keyind]))
             sns.set()
 
 
@@ -446,7 +462,7 @@ def gen_label(exp_dir, label_vars=[]):
     return label 
 
 
-def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars=[], ylabel='value', separate=True):
+def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars=[], ylabel='value', separate=True, keyind=3):
     if lab == 'rollout':
         rd = get_rollout_data(keywords)
     else:
@@ -454,6 +470,7 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
     data = {}
     print('Collected data...')
     yvars = [yvar] if type(yvar) is not list else yvar
+    import ipdb; ipdb.set_trace()
     for keyword in rd:
         key_data = []
         new_data = rd[keyword]
@@ -469,15 +486,26 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
                     for pt in r:
                         xval = (pt[xvar] // inter) * inter
                         for v in yvars:
-                            key_data.append([label+' {0}'.format(v), xval, pt[v], keyword])
+                            if hasattr(pt[v], '__getitem__'): 
+                                for i in range(len(pt[v])):
+                                    if keyind != 5:
+                                        key_data.append([label+' component {0} in {1}'.format(i, v), xval, pt[v][i], keyword, v, i])
+                                    else:
+                                        key_data.append([label+' '+v, xval, pt[v][i], keyword, v, i])
+                            else:
+                                key_data.append([label+' {0}'.format(v), xval, pt[v], keyword, v, 0])
             print('Set data for', keyword, fullexp)
         data[keyword] = key_data
 
-    plot(data, ['exp_name', xvar, ylabel, 'key'], '{0}_vs_{1}'.format(xvar, ylabel), separate=separate)
+    plot(data, ['exp_name', xvar, ylabel, 'key', 'yvar', 'yvar_ind'], '{0}_vs_{1}'.format(xvar, ylabel), separate=separate, keyind=keyind)
 
-
+keywords = ['IT100_', 'IT1000_', 'IT10000_']
+label_vars = ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
-get_hl_tests(['compact_base'], xvar='time', pre=False, label_vars=['split_nets'])
+get_hl_tests(keywords[:1], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
+get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
+get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
+#get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)
 #get_hl_tests(['compact_base'], xvar='time', pre=True)
-gen_data_plots(xvar='n_data', yvar=['train_loss', 'val_loss'], keywords=['unified_compact', 'split_compact'], lab='primitive', label_vars=['split_nets'], separate=False)
+gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss')
 
