@@ -508,7 +508,7 @@ get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, len
 #get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)
 #get_hl_tests(['compact_base'], xvar='time', pre=True)
 keywords = ['goalaug', 'graspaug', 'plainnew', 'taskaug']
-label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+label_vars = ['train_iterations', 'lr'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_component')
 gen_data_plots(xvar='n_data', yvar=['train_loss', 'val_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_combined')
 

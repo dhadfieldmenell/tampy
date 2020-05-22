@@ -43,7 +43,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         if self._hyperparams.get('share_buffer', False):
             self.buffers = self._hyperparams['buffers']
             self.buf_sizes = self._hyperparams['buffer_sizes']
-
         self._dPrim = primBounds[-1][-1]
         self._dPrimObs = dPrimObs
         self._dValObs = dValObs
@@ -127,12 +126,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             self.update_size = self._hyperparams['val_update_size']
         else:
             self.update_size = self._hyperparams['update_size']
-
-        if self.scope == 'primitive':
-            self._hyperparams['weight_decay'] = self._hyperparams['prim_weight_decay']
-        elif self.scope == 'value':
-            self._hyperparams['weight_decay'] = self._hyperparams['val_weight_decay']
-        
+       
         self.mu = {}
         self.obs = {}
         self.next_obs = {}
@@ -529,7 +523,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                                base_lr=self._hyperparams['lr'],
                                                lr_policy=self._hyperparams['lr_policy'],
                                                momentum=self._hyperparams['momentum'],
-                                               weight_decay=self._hyperparams['weight_decay'],
+                                               weight_decay=self._hyperparams['prim_weight_decay'],
                                                fc_vars=self.primitive_fc_vars,
                                                last_conv_vars=self.primitive_last_conv_vars,
                                                vars_to_opt=vars_to_opt)
@@ -541,7 +535,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                                            base_lr=self._hyperparams['lr'],
                                            lr_policy=self._hyperparams['lr_policy'],
                                            momentum=self._hyperparams['momentum'],
-                                           weight_decay=0.,
+                                           weight_decay=self._hyperparams['val_weight_decay'],
                                            fc_vars=self.value_fc_vars,
                                            last_conv_vars=self.value_last_conv_vars,
                                            vars_to_opt=vars_to_opt)
