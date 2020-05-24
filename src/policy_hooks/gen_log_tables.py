@@ -24,7 +24,7 @@ def get_colors(n_colors):
     return cm.rainbow(np.linspace(0, 1, n_colors))
 
 
-def get_policy_data(policy, keywords=[]):
+def get_policy_data(policy, keywords=[], exclude=[]):
     exp_probs = os.listdir(LOG_DIR)
     data = {}
     for k in keywords:
@@ -35,8 +35,13 @@ def get_policy_data(policy, keywords=[]):
             exp_dirs = os.listdir(dir_prefix)
             for dir_name in exp_dirs:
                 d = dir_name
-                if d.find('.') >= 0 or d.find('trained') >= 0: continue
                 full_dir = dir_prefix + dir_name
+                if d.find('.') >= 0 or d.find('trained') >= 0: continue
+                skip = False
+                for ekey in exclude:
+                    if full_dir.find(ekey) >= 0:
+                        skip = True
+                if skip: continue
                 if not os.path.isdir(full_dir) or full_dir.find(k) < 0: continue
                 full_exp = full_dir[:-1]
                 if full_exp not in data[k]:
@@ -65,7 +70,7 @@ def get_policy_data(policy, keywords=[]):
     return data
 
 
-def get_rollout_data(keywords=[], nfiles=20):
+def get_rollout_data(keywords=[], nfiles=20, exclude=[]):
     exp_probs = os.listdir(LOG_DIR)
     data = {}
     for k in keywords:
@@ -260,9 +265,9 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
             d = dir_name
             if d.find('.') >= 0 or d.find('trained') >= 0: continue
             if len(keywords):
-                skip = True
+                skip = False
                 for k in keywords:
-                    if dir_name.find(k) < 0 or dir_prefix.find(k) < 0:
+                    if dir_name.find(k) < 0 and dir_prefix.find(k) < 0:
                         skip = True
                 if skip: continue
 
@@ -315,26 +320,27 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                     #end = False
                     #cur_t = 0
                     label = gen_label(cur_dir, label_vars)
-                    for pts in data[-1]:
-                        pt = pts[0]
-                        no, nt = int(pt[4]), int(pt[5])
-                        if (no,nt) not in exp_data: exp_data[no,nt] = []
-                        if (no,nt) not in exp_len_data: exp_len_data[no,nt] = []
-                         
-                        if xvar == 'time':
-                            xval = (pt[3] // tdelta) * tdelta
-                            exp_data[no, nt].append((label, xval, pt[0]))
-                            exp_data[no, nt].append((label, xval+tdelta, pt[0]))
-                            if pt[0] > lenthresh:
-                                exp_len_data[no, nt].append((label, xval, pt[1]))
-                        elif rerun:
-                            exp_data[no, nt].append((label, pt[-1], pt[0]))
-                            if pt[0] > lenthresh:
-                                exp_len_data[no, nt].append((label, pt[-1], pt[1]))
-                        elif xvar == 'N' or xvar == 'n_data':
-                            exp_data[no, nt].append((label, pt[6], pt[0]))
-                            if pt[0] > lenthresh:
-                                exp_len_data[no, nt].append((label, pt[6], pt[1]))
+                    for buf in data:
+                        for pts in buf:
+                            pt = pts[0]
+                            no, nt = int(pt[4]), int(pt[5])
+                            if (no,nt) not in exp_data: exp_data[no,nt] = []
+                            if (no,nt) not in exp_len_data: exp_len_data[no,nt] = []
+                             
+                            if xvar == 'time':
+                                xval = (pt[3] // tdelta) * tdelta
+                                exp_data[no, nt].append((label, xval, pt[0]))
+                                exp_data[no, nt].append((label, xval+tdelta, pt[0]))
+                                if pt[0] > lenthresh:
+                                    exp_len_data[no, nt].append((label, xval, pt[1]))
+                            elif rerun:
+                                exp_data[no, nt].append((label, pt[-1], pt[0]))
+                                if pt[0] > lenthresh:
+                                    exp_len_data[no, nt].append((label, pt[-1], pt[1]))
+                            elif xvar == 'N' or xvar == 'n_data':
+                                exp_data[no, nt].append((label, pt[6], pt[0]))
+                                if pt[0] > lenthresh:
+                                    exp_len_data[no, nt].append((label, pt[6], pt[1]))
                         
                 i += 1
             '''
@@ -462,11 +468,11 @@ def gen_label(exp_dir, label_vars=[]):
     return label 
 
 
-def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars=[], ylabel='value', separate=True, keyind=3):
+def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars=[], ylabel='value', separate=True, keyind=3, exclude=[]):
     if lab == 'rollout':
-        rd = get_rollout_data(keywords)
+        rd = get_rollout_data(keywords, exclude=exclude)
     else:
-        rd = get_policy_data(lab, keywords)
+        rd = get_policy_data(lab, keywords, exclude=exclude)
     data = {}
     print('Collected data...')
     yvars = [yvar] if type(yvar) is not list else yvar
@@ -502,13 +508,13 @@ keywords = ['IT100_', 'IT1000_', 'IT10000_']
 keywords = ['newretrain_us5000_IT100_', 'newretrain_us5000_IT1000_', 'newtrain_us5000_IT10000_']
 label_vars = ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
-get_hl_tests(keywords[:1], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
-get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
-get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
+#get_hl_tests(keywords[:1], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
+#get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
+#get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)
 #get_hl_tests(['compact_base'], xvar='time', pre=True)
-keywords = ['goalaug', 'graspaug', 'plainnew', 'taskaug']
-label_vars = ['train_iterations', 'lr'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
-gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_component')
-gen_data_plots(xvar='n_data', yvar=['train_loss', 'val_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_combined')
+keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
+label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
+
 

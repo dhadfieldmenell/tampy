@@ -697,11 +697,14 @@ class MCTS:
             next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
             T = next_sample.T - 1
             post = self.agent.cost_f(state, label, self.condition, active_ts=(T,T))
+
+            '''
             if post > 0:
                 old_opt = self.opt_strength
                 self.opt_strength = 1.
                 next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
                 self.opt_strength = old_opt
+            '''
 
             next_sample.node = node
             next_sample.success = 1 - self.agent.goal_f(self.condition, state)

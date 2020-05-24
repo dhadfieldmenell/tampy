@@ -654,12 +654,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         tgt_wt *= (float(NT) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
         # mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
-        mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
+        # mn = np.median(tgt_wt[(np.abs(tgt_wt) > 1e-3).nonzero()])
         # for n in range(N):
         #     for t in range(T):
         #         tgt_wt[n, t] = min(tgt_wt[n, t], 2 * mn)
         # Robust median should be around one.
-        tgt_wt /= mn
+        # tgt_wt /= mn
 
         # Reshape inputs.
         obs = np.reshape(obs, (NT, dO))
@@ -769,12 +769,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         tgt_wt *= (float(NT) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
         # mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
-        mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
+        # mn = np.median(tgt_wt[(np.abs(tgt_wt) > 1e-3).nonzero()])
         # for n in range(N):
         #     for t in range(T):
         #         tgt_wt[n, t] = min(tgt_wt[n, t], 2 * mn)
         # Robust median should be around one.
-        tgt_wt /= mn
+        # tgt_wt /= mn
 
         # Reshape inputs.
         obs = np.reshape(obs, (NT, dO))
@@ -909,11 +909,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # Renormalize weights.
         tgt_wt *= (float(N) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
-        mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
-        for n in range(N):
-            tgt_wt[n] = min(tgt_wt[n], 2 * mn)
+        # mn = np.median(tgt_wt[(np.abs(tgt_wt) > 1e-3).nonzero()])
+        # for n in range(N):
+        #     tgt_wt[n] = min(tgt_wt[n], 2 * mn)
         # Robust median should be around one.
-        tgt_wt /= mn
+        # tgt_wt /= mn
 
         # Reshape inputs.
         obs = np.reshape(obs, (N, dO))
@@ -1002,11 +1002,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # Renormalize weights.
         tgt_wt *= (float(N) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
-        mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
-        for n in range(N):
-            tgt_wt[n] = min(tgt_wt[n], 2 * mn)
+        # mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
+        # for n in range(N):
+        #     tgt_wt[n] = min(tgt_wt[n], 2 * mn)
         # Robust median should be around one.
-        tgt_wt /= mn
+        # tgt_wt /= mn
 
         # Reshape inputs.
         obs = np.reshape(obs, (N, 1, dO))

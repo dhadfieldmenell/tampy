@@ -166,7 +166,7 @@ class PolicyServer(object):
             incr = 10
             if len(self.policy_opt.average_losses) and len(self.policy_opt.average_val_losses):
                 losses = (self.policy_opt.average_losses[-1], self.policy_opt.average_val_losses[-1])
-                self.policy_loss.append((np.mean(losses[0]), np.mean(losses[1])))
+                self.policy_loss.append((np.sum(losses[0]), np.sum(losses[1])))
                 self.policy_component_loss.append(losses)
          
                 for net in self.policy_opt.mu:
