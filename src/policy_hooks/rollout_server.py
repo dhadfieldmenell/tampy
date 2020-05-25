@@ -269,6 +269,7 @@ class RolloutServer(object):
             msg.terminal = terminal
         msg.dO = self.agent.dO
         msg.dPrimObs = self.agent.dPrim
+        msg.dOpts = len(self.agent.prob.get_prim_choices().keys())
         msg.dValObs = self.agent.dVal
         msg.dAct = np.sum([len(opts[e]) for e in opts])
         msg.nActs = np.prod([len(opts[e]) for e in opts])
@@ -1450,9 +1451,10 @@ class RolloutServer(object):
 
     def update_primitive(self, samples):
         dP, dO = self.agent.dPrimOut, self.agent.dPrim
+        dOpts = len(self.agent.prob.get_prim_choices().keys())
         ### Compute target mean, cov, and weight for each sample.
         obs_data, tgt_mu = np.zeros((0, dO)), np.zeros((0, dP))
-        tgt_prc, tgt_wt = np.zeros((0, dP, dP)), np.zeros((0))
+        tgt_prc, tgt_wt = np.zeros((0, dOpts)), np.zeros((0))
         for sample in samples:
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
@@ -1461,7 +1463,7 @@ class RolloutServer(object):
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
             obs_data = np.concatenate((obs_data, obs))
-            prc = np.tile(np.eye(dP), (sample.T,1,1))
+            prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in self.config['prim_out_include']], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             tgt_prc = np.concatenate((tgt_prc, prc))
             if self.add_negative:
                 mu = self.find_negative_ex(sample)

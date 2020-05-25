@@ -15,7 +15,7 @@ class ParseProblemConfig(object):
     Validation is performed against the schemas stored in the Domain object self.domain.
     """
     @staticmethod
-    def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None):
+    def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None, initial=None):
         # create parameter objects
         params = {}
         if env is None:
@@ -82,7 +82,25 @@ class ParseProblemConfig(object):
             if type(v) is dict:
                 raise ProblemConfigException("Problem file has no primitive predicates for object '%s'."%k)
         init_preds = set()
-        if deriv_preds:
+        if initial is not None:
+            for i, pred in enumerate(initial):
+                spl = map(str.strip, pred.strip("() ").split())
+                p_name, p_args = spl[0], spl[1:]
+                p_objs = []
+                for n in p_args:
+                    try:
+                        p_objs.append(params[n])
+                    except KeyError:
+                        raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
+                try:
+                    init_preds.add(domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
+                                                                          params=p_objs,
+                                                                          expected_param_types=domain.pred_schemas[p_name].expected_params,
+                                                                          env=env))
+                except TypeError as e:
+                    print("type error for {}".format(pred))
+
+        elif deriv_preds:
             for i, pred in enumerate(deriv_preds.split(",")):
                 spl = map(str.strip, pred.strip("() ").split())
                 p_name, p_args = spl[0], spl[1:]

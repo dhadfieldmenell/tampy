@@ -646,8 +646,6 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         # TODO - Make sure all weights are nonzero?
 
-        # Save original tgt_prc.
-        tgt_prc_orig = np.reshape(tgt_prc, [NT, dU, dU])
 
         # Renormalize weights.
         assert not (np.sum(tgt_wt) == 0 or np.any(np.isnan(tgt_wt)))
@@ -664,11 +662,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # Reshape inputs.
         obs = np.reshape(obs, (NT, dO))
         tgt_mu = np.reshape(tgt_mu, (NT, dU))
-        tgt_prc = np.reshape(tgt_prc, (NT, dU, dU))
+        if task != 'primitive':
+            tgt_prc = np.reshape(tgt_prc, (NT, dU, dU))
         tgt_wt = np.reshape(tgt_wt, (NT, 1, 1))
 
         # Fold weights into tgt_prc.
-        if task == 'primitive' or task == 'value':
+        if task == 'primitive':
+            tgt_prc = tgt_prc * tgt_wt.reshape((NT, 1)) #tgt_wt.flatten()
+        elif task == 'value':
             tgt_prc = tgt_wt.flatten()
         else:
             tgt_prc = tgt_wt * tgt_prc
@@ -735,7 +736,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         '''
 
      
-    def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task="control", val_ratio=0.2):
+    def update(self, obs, tgt_mu, tgt_prc, tgt_wt, task="control", check_val=False):
         """
         Update policy.
         Args:
@@ -747,7 +748,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             A tensorflow object with updated weights.
         """
         if task == 'primitive':
-            return self.update_primitive_filter(obs, tgt_mu, tgt_prc, tgt_wt, val_ratio=val_ratio)
+            return self.update_primitive_filter(obs, tgt_mu, tgt_prc, tgt_wt, check_val=check_val)
         if task == 'value':
             return self.update_value(obs, tgt_mu, tgt_prc, tgt_wt)
         if task == 'image':
@@ -766,7 +767,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         # Renormalize weights.
         assert not (np.sum(tgt_wt) == 0 or np.any(np.isnan(tgt_wt)))
-        tgt_wt *= (float(NT) / np.sum(tgt_wt))
+        #tgt_wt *= (float(NT) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
         # mn = np.median(tgt_wt[(tgt_wt > 1e-2).nonzero()])
         # mn = np.median(tgt_wt[(np.abs(tgt_wt) > 1e-3).nonzero()])
@@ -846,7 +847,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             feed_dict = {self.task_map[task]['obs_tensor']: obs[idx_i],
                          self.task_map[task]['action_tensor']: tgt_mu[idx_i],
                          self.task_map[task]['precision_tensor']: tgt_prc[idx_i]}
-            train_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string)
+            train_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
 
             if np.isnan(train_loss) or np.isinf(train_loss):
                 print('\n\nINVALID NETWORK UPDATE: RESTORING MODEL FROM CKPT (iteration {0})'.format(i))
@@ -859,9 +860,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             #                  i+1, average_loss / 50)
             #     average_loss = 0
         # print "Leaving Tensorflow Training Loop\n"
-
         self.tf_iter += self._hyperparams['iterations']
-        self.average_losses.append(average_loss / self._hyperparams['iterations'])
+        if check_val:
+            self.average_val_losses.append(average_loss / self._hyperparams['iterations'])
+        else:
+            self.average_losses.append(average_loss / self._hyperparams['iterations'])
+ 
         '''
         self.average_losses.append({
                 'loss': average_loss / self._hyperparams['iterations'],
@@ -887,7 +891,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
 
         return policy
 
-    def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt, val_ratio=0.2):
+    def update_primitive_filter(self, obs, tgt_mu, tgt_prc, tgt_wt, check_val=False):
         """
         Update policy.
         Args:
@@ -901,13 +905,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         N = obs.shape[0]
         dP, dO = self._dPrim, self._dPrimObs
 
-        # TODO - Make sure all weights are nonzero?
-
-        # Save original tgt_prc.
-        tgt_prc_orig = np.reshape(tgt_prc, [N, dP, dP])
-
-        # Renormalize weights.
-        tgt_wt *= (float(N) / np.sum(tgt_wt))
+        #tgt_wt *= (float(N) / np.sum(tgt_wt))
         # Allow weights to be at most twice the robust median.
         # mn = np.median(tgt_wt[(np.abs(tgt_wt) > 1e-3).nonzero()])
         # for n in range(N):
@@ -926,7 +924,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         # Fold weights into tgt_prc.
         tgt_prc = tgt_wt * tgt_prc
         '''
-        tgt_prc = tgt_wt.flatten()
+        tgt_prc = tgt_prc * tgt_wt.reshape((N, 1)) #tgt_wt.flatten()
 
         # Assuming that N*T >= self.batch_size.
         batch_size = np.minimum(self.batch_size, N)
@@ -965,12 +963,15 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             feed_dict = {self.primitive_obs_tensor: obs[idx_i],
                          self.primitive_action_tensor: tgt_mu[idx_i],
                          self.primitive_precision_tensor: tgt_prc[idx_i]}
-            train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string)
+            train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
 
             average_loss += train_loss
 
         self.tf_iter += self._hyperparams['iterations']
-        self.average_losses.append(average_loss / self._hyperparams['iterations'])
+        if check_val:
+            self.average_val_losses.append(average_loss / self._hyperparams['iterations'])
+        else:
+            self.average_losses.append(average_loss / self._hyperparams['iterations'])
         feed_dict = {self.obs_tensor: obs}
         num_values = obs.shape[0]
         if self.primitive_feat_op is not None:

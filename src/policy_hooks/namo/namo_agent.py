@@ -1422,3 +1422,12 @@ class NAMOSortingAgent(TAMPAgent):
         return tuple(l)
 
 
+    def get_mask(self, sample, enum):
+        mask = np.ones((sample.T, 1))
+        for t in range(sample.T):
+            if enum == OBJ_ENUM and sample.get(TASK_ENUM, t)[0] < 0.5:
+                mask[t, :] = 0.
+            elif enum == TARG_ENUM and sample.get(TASK_ENUM, t)[1] < 0.5:
+                mask[t, :] = 0.
+        return mask
+

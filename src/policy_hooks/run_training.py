@@ -159,6 +159,7 @@ def main():
     parser.add_argument('-eta', '--eta', type=float, default=10.)
     parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
     parser.add_argument('-pre', '--check_precond', action='store_true', default=False)
+    parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)
 
     # Q learn args
     parser.add_argument('-qimwt', '--q_imwt', type=float, default=0)

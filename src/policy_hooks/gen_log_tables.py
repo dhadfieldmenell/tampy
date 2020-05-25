@@ -505,16 +505,16 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
     plot(data, ['exp_name', xvar, ylabel, 'key', 'yvar', 'yvar_ind'], '{0}_vs_{1}'.format(xvar, ylabel), separate=separate, keyind=keyind)
 
 keywords = ['IT100_', 'IT1000_', 'IT10000_']
-keywords = ['newretrain_us5000_IT100_', 'newretrain_us5000_IT1000_', 'newtrain_us5000_IT10000_']
+keywords = ['fixedpr']
 label_vars = ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
-#get_hl_tests(keywords[:1], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
+get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)
 #get_hl_tests(['compact_base'], xvar='time', pre=True)
-keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
-label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+#keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
+#label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
 
 

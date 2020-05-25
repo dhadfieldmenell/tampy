@@ -53,4 +53,5 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
 
 
 
+    print('PR GRAPH hit iteration limit')
     return None, "Hit iteration limit, aborting."

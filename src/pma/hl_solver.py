@@ -270,14 +270,14 @@ class FFSolver(HLSolver):
                 step, action = plan_str[i].split(':')
                 plan_str[i] = str(len(prefix) + int(step)) + ':' + action
             plan_str = prefix + plan_str
-        plan = self.get_plan(plan_str, domain, concr_prob)
+        plan = self.get_plan(plan_str, domain, concr_prob, concr_prob.initial)
         if type(plan) is not str:
             plan.plan_str = plan_str
             plan.goal = concr_prob.goal
             plan.initial = concr_prob.initial
         return plan
 
-    def get_plan(self, plan_str, domain, concr_prob):
+    def get_plan(self, plan_str, domain, concr_prob, initial=None):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -295,7 +295,8 @@ class FFSolver(HLSolver):
         plan_horizon = self._extract_horizon(plan_str, domain)
         params = self._spawn_plan_params(concr_prob, plan_horizon)
         actions = self._spawn_actions(plan_str, domain, params,
-                                      plan_horizon, concr_prob, openrave_env)
+                                      plan_horizon, concr_prob, openrave_env,
+                                      initial)
         plan = Plan(params, actions, plan_horizon, openrave_env)
         plan.start_action = concr_prob.start_action
         plan.prob = concr_prob
@@ -336,7 +337,8 @@ class FFSolver(HLSolver):
         return params
 
     def _spawn_actions(self, plan_str, domain, params,
-                                       plan_horizon, concr_prob, env):
+                                       plan_horizon, concr_prob, env,
+                                       initial=None):
         """
         Argument:
             plan_str: list of high level plan. (List(String))
@@ -361,6 +363,26 @@ class FFSolver(HLSolver):
             var_names, expected_types = zip(*a_schema.params)
             bindings = dict(zip(var_names, zip(a_args, expected_types)))
             preds = []
+            if initial is not None and curr_h == 0:
+                for i, pred in enumerate(initial):
+                    spl = map(str.strip, pred.strip("() ").split())
+                    p_name, p_args = spl[0], spl[1:]
+                    p_objs = []
+                    for n in p_args:
+                        try:
+                            p_objs.append(params[n])
+                        except KeyError:
+                            raise ProblemConfigException("Parameter '%s' for predicate type '%s' not defined in domain file."%(n, p_name))
+                    try:
+                        init_pred = domain.pred_schemas[p_name].pred_class(name="initpred%d"%i,
+                                                                              params=p_objs,
+                                                                              expected_param_types=domain.pred_schemas[p_name].expected_params,
+                                                                              env=env)
+                        preds.append({'negated': False, 'pred': init_pred, 'hl_info': 'hl_state', 'active_timesteps': (0,0)}) 
+                    except TypeError as e:
+                        print("type error for {}".format(pred))
+
+
             for p_d in a_schema.preds:
                 pred_schema = domain.pred_schemas[p_d["type"]]
                 arg_valuations = [[]]

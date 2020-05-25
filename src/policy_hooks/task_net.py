@@ -50,16 +50,11 @@ def td_loss_layer(rewards, logits, precision, targets, done, gamma=0.95):
 def multi_softmax_loss_layer(labels, logits, boundaries, precision=None):
     start = 0
     losses = []
-    for start, end in boundaries:
-        if precision is None:
-            losses.append(tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], reduction=tf.losses.Reduction.NONE))
-        else:
-            loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], weights=precision, reduction=tf.losses.Reduction.NONE)
-            losses.append(loss)
-
-        # losses[-1] = losses[-1] / float(end-start)
-        losses[-1] = tf.reduce_mean(losses[-1], axis=0)
-        start = end
+    for i, (start, end) in enumerate(boundaries):
+        loss = tf.losses.softmax_cross_entropy(onehot_labels=labels[:,start:end], logits=logits[:, start:end], reduction=tf.losses.Reduction.NONE)
+        if precision is not None:
+            loss *= precision[:, i]
+        losses.append(tf.reduce_mean(loss, axis=0))
     stacked_loss = tf.stack(losses, axis=0, name='softmax_loss_stack')
     return stacked_loss # tf.reduce_sum(stacked_loss, axis=0)
 
@@ -97,7 +92,7 @@ def multi_mix_prediction_layer(logits, boundaries):
     return tf.concat(predictions, axis=1, name='multi_softmax_layer')
     
 
-def get_input_layer(dim_input, dim_output):
+def get_input_layer(dim_input, dim_output, ndims=1):
     """produce the placeholder inputs that are used to run ops forward and backwards.
         net_input: usually an observation.
         action: mu, the ground truth actions we're trying to learn.
@@ -107,7 +102,7 @@ def get_input_layer(dim_input, dim_output):
     else:
         net_input = tf.placeholder("float", [None]+dim_input, name='nn_input')
     task = tf.placeholder('float', [None, dim_output], name='task')
-    precision = tf.placeholder('float', [None], name='precision')
+    precision = tf.placeholder('float', [None, ndims], name='precision')
     return net_input, task, precision
 
 
@@ -152,7 +147,7 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
     dim_hidden.append(dim_output)
 
 
-    nn_input, action, precision = get_input_layer(dim_input, dim_output)
+    nn_input, action, precision = get_input_layer(dim_input, dim_output, len(boundaries))
     fc_input = nn_input
     if input_layer is not None:
         nn_input = tf.concat(input_layer, nn_input)

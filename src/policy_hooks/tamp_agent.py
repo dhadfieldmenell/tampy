@@ -888,6 +888,8 @@ class TAMPAgent(Agent):
             x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
             fill_vector(plan.params, self.state_inds, x0, st)
+            if len(plan.actions) > 3:
+                print('TOO LONG', plan.actions, plan.initial, x0, a)
             task = self.encode_action(plan.actions[a])
             sample = self.sample_task(self.policies[self.task_list[task[0]]], 0, x0.copy(), task)
             traj = np.zeros((plan.horizon, self.symbolic_bound))
@@ -923,7 +925,7 @@ class TAMPAgent(Agent):
                     success = False
 
             if not success:
-                print('Graph failed solve on', x0, task, plan.actions[a])
+                print('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), plan.get_failed_preds((0, et)))
                 return False
         
         path = []

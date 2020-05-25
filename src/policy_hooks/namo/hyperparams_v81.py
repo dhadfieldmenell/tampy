@@ -170,7 +170,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.domain_file = "../domains/namo_domain/current.domain"
+    prob.domain_file = "../domains/namo_domain/nopose.domain"
     prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
@@ -260,11 +260,11 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'obs_include': [utils.LIDAR_ENUM,
                         # utils.EE_ENUM,
                         utils.TASK_ENUM,
-                        utils.OBJ_POSE_ENUM,
+                        #utils.OBJ_POSE_ENUM,
                         #utils.GRIPPER_ENUM,
                         #utils.INIT_OBJ_POSE_ENUM,
-                        utils.TARG_POSE_ENUM,
-                        #utils.END_POSE_ENUM,
+                        #utils.TARG_POSE_ENUM,
+                        utils.END_POSE_ENUM,
                         utils.GRASP_ENUM,
                         ],
         'prim_obs_include': [
