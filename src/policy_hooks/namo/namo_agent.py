@@ -1431,3 +1431,25 @@ class NAMOSortingAgent(TAMPAgent):
                 mask[t, :] = 0.
         return mask
 
+
+    def encode_action(self, action):
+        prim_choices = self.prob.get_prim_choices()
+        astr = str(action).lower()
+        l = [0]
+        for i, task in enumerate(self.task_list):
+            if action.name.lower().find(task) >= 0:
+                l[0] = i
+                break
+
+        for enum in prim_choices:
+            if enum is TASK_ENUM: continue
+            l.append(0)
+            for i, opt in enumerate(prim_choices[enum]):
+                if opt in [p.name for p in action.params]:
+                    l[-1] = i
+                    break
+        if l[0] == 0:
+            l[2] = np.random.randint(len(prim_choices[TARG_ENUM]))
+        return tuple(l)
+
+
