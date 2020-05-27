@@ -1464,6 +1464,9 @@ class RolloutServer(object):
             obs = sample.get_prim_obs()
             obs_data = np.concatenate((obs_data, obs))
             prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in self.config['prim_out_include']], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
+            if not self.config['hl_mask']:
+                prc[:] = 1.
+
             tgt_prc = np.concatenate((tgt_prc, prc))
             if self.add_negative:
                 mu = self.find_negative_ex(sample)
