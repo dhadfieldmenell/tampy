@@ -42,8 +42,6 @@ class HLSearchNode(SearchNode):
 
     def plan(self, solver):
         plan_obj = solver.solve(self.abs_prob, self.domain, self.concr_prob, self.prefix, label=self.label)
-        if len(plan_obj.actions) > 2:
-            raise Exception('Bad planning for', self.label, self.prefix, self.concr_prob.initial)
         return plan_obj
 
 class LLSearchNode(SearchNode):
