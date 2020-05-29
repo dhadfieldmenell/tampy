@@ -799,6 +799,7 @@ class NAMOSortingAgent(TAMPAgent):
         
         grasp = np.array([0, -0.601])
         if self.discrete_prim:
+            sample.set(FACTOREDTASK_ENUM, np.array(task), t)
             if GRASP_ENUM in prim_choices:
                 grasp = self.set_grasp(grasp, task[3])
                 grasp_vec = np.zeros(self._hyperparams['sensor_dims'][GRASP_ENUM])

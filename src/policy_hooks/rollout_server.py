@@ -185,6 +185,7 @@ class RolloutServer(object):
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
         self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'hl_test_{0}{1}log.npy'
+        self.fail_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_log.npy'.format(self.id)
         self.render = hyperparams.get('load_render', False)
         if self.render:
             self.cur_vid_id = 0
@@ -1189,7 +1190,7 @@ class RolloutServer(object):
         np.save(fname, np.array(buf))
 
 
-    def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False, debug=False):
+    def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False, debug=False, save_fail=False):
         if ckpt_ind is not None:
             print('Rolling out for index', ckpt_ind)
 
@@ -1251,7 +1252,14 @@ class RolloutServer(object):
             if self.use_qfunc: self.log_td_error(path)
             if not len(self.hl_data) % 5:
                 np.save(self.hl_test_log.format('pre_' if self.check_precond else '', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
-        
+            
+        if save_fail and val < 1:
+            opt_path = self.agent.run_pr_graph(x0, targets)
+            info = self.get_path_compare(path, opt_path, true_val)
+            pp_info = pprint.pformat(info, depth=360, width=360)
+            with open(self.fail_log, 'a+') as f:
+                f.write(pp_info)
+                f.write('\n')
         if debug:
             if val < 1:
                 print('failed for', x0, [s.task for s in path])
@@ -1334,7 +1342,7 @@ class RolloutServer(object):
         while not self.stopped:
             if self.run_hl_test:
                 self.agent.replace_cond(0)
-                self.test_hl()
+                self.test_hl(save_fail=True)
             elif self._hyperparams.get('ff_only', False):
                 self.run_ff()
             else:
@@ -1534,4 +1542,27 @@ class RolloutServer(object):
         plan_failed_constrs = plan.get_failed_preds_by_type(active_ts=active_ts)
         return plan_total_violation, plan_failed_constrs
 
+
+    def get_path_compare(self, path1, path2, true_val=-10):
+        prim_info = []
+        state_info = []
+        for i, s in enumerate(path1):
+            if i < len(path2):
+                prim_info.append(np.c_[s.get(FACTOREDTASK_ENUM), path2[i].get(FACTOREDTASK_ENUM)].tolist())
+            else:
+                prim_info.append(s.get(FACTOREDTASK_ENUM).tolist())
+        
+        for i, s in enumerate(path1):
+            if i < len(path2):
+                prim_info.append(np.c_[s.get(STATE_ENUM), path2[i].get(STATE_ENUM)].round(4).tolist())
+            else:
+                prim_info.append(s.get(STATE_ENUM).round(4).tolist())
+
+        info = {'prim_info': prim_info,
+                'state_info': state_info,
+                'targets': path1[0].targets,
+                'x0': path1[0].get(STATE_ENUM, t=0),
+                'true_val': true_val,
+                }
+        return info
 

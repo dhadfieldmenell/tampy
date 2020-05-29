@@ -1328,7 +1328,7 @@ class InGripper(ExprPredicate):
         e = AffExpr(A, b)
         e = EqExpr(e, np.zeros((2,1)))
 
-        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-1)
+        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
 class GraspValid(ExprPredicate):
 

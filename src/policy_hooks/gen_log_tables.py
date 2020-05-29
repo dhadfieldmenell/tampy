@@ -271,11 +271,13 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                         skip = True
                 if skip: continue
 
+            print(dir_name)
             if len(exclude):
                 skip = False
                 for k in exclude:
                     if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
                         skip = True
+                        print('skipping', dir_name)
                 if skip: continue
 
             full_dir = dir_prefix + dir_name
@@ -505,10 +507,10 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
     plot(data, ['exp_name', xvar, ylabel, 'key', 'yvar', 'yvar_ind'], '{0}_vs_{1}'.format(xvar, ylabel), separate=separate, keyind=keyind)
 
 keywords = ['IT100_', 'IT1000_', 'IT10000_']
-keywords = ['redo']
-label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+keywords = ['_redo']
+label_vars = ['split_nets'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
-get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=-1)
+get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=-1, exclude=['mask' 'full'])
 #get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)

@@ -413,15 +413,15 @@ class MCTS:
         if plan is None:
             plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id)
         self.n_runs += 1
-        
-        success = 1 if plan is not None else 0
+        success = 0
+        if plan is not None:
+            path = self.agent.run_plan(plan)
+            succeess = 1
+            self.agent.add_task_paths([path])
+            self.log_path(path, 10)
         self.n_success += success
         self.val_per_run.append(success)
         self.reset()
-        paths = self.agent.get_task_paths()
-        if len(paths):
-            ind = np.random.choice(range(len(paths)))
-            self.log_path(paths[ind], 10)
         return success, []
         
 

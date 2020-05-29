@@ -17,6 +17,7 @@ import xml.etree.ElementTree as xml
 from sco.expr import *
 
 import core.util_classes.common_constants as common_const
+from pma.pr_graph import *
 if common_const.USE_OPENRAVE:
     import openravepy
     from openravepy import RaveCreatePhysicsEngine
@@ -927,7 +928,12 @@ class TAMPAgent(Agent):
             if not success:
                 print('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), plan.get_failed_preds((0, et)))
                 return False
-        
+        #path = self.run_plan(plan)
+        #self.add_task_paths([path])
+        return success
+
+
+    def run_plan(self, plan):
         path = []
         for a in range(len(plan.actions)):
             x0 = np.zeros_like(self.x0[0])
@@ -946,6 +952,25 @@ class TAMPAgent(Agent):
             sample.opt_strength = 1.
             sample.opt_suc = True
 
-        self.add_task_paths([path])
-        return success
+        return path
+    
+    def run_pr_graph(self, state, targets=None, cond=None):
+        if targets is None:
+            targets = self.target_vecs[cond]
+        initial, goal = self.get_hl_info(state, targets=targets)
+        domain = self.plans.values()[0].domain
+        prob = self.plans.values()[0].prob
+        for pname, attr in self.state_inds:
+            p = prob.init_state.params[pname]
+            if p.is_symbol(): continue
+            getattr(p, attr)[:,0] = state[self.state_inds[pname, attr]]
+        for targ, attr in self.target_inds:
+            if targ in prob.init_state.params:
+                p = prob.init_state.params[targ]
+                getattr(p, attr)[:,0] = self.target_vecs[0][self.target_inds[targ, attr]].copy()
+        plan, descr = p_mod_abs(self.hl_solver, self, domain, prob, initial=initial, goal=goal, label=self.process_id)
+        if plan is None or type(plan) is str:
+            return []
+        path = self.run_plan(plan)
+        return path
 
