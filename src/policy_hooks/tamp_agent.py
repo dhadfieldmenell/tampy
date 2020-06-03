@@ -948,7 +948,7 @@ class TAMPAgent(Agent):
         return success
 
 
-    def run_plan(self, plan):
+    def run_plan(self, plan, targets, tasks=None):
         path = []
         x0 = np.zeros_like(self.x0[0])
         fill_vector(plan.params, self.state_inds, x0, 0)
@@ -956,7 +956,10 @@ class TAMPAgent(Agent):
             # x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
             # fill_vector(plan.params, self.state_inds, x0, st)
-            task = self.encode_plan(plan)[a]
+            if tasks is None:
+                task = self.encode_plan(plan)[a]
+            else:
+                task = tasks[a]
             opt_traj = np.zeros((et-st+1, self.symbolic_bound))
             for pname, attr in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
@@ -978,7 +981,7 @@ class TAMPAgent(Agent):
                     t += T - 1
                     x0 = sample.get_X(t=sample.T-1)
             else:
-                sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj)
+                sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj, targets=targets)
                 # self.add_sample_batch([sample], task)
                 path.append(sample)
                 sample.success = 1.
@@ -1013,7 +1016,7 @@ class TAMPAgent(Agent):
             plan = None
         if plan is None or type(plan) is str:
             return []
-        path = self.run_plan(plan)
+        path = self.run_plan(plan, targets=targets)
         return path
 
     def retime_traj(self, traj, vel=0.3, inds=None):
@@ -1035,7 +1038,7 @@ class TAMPAgent(Agent):
         return out
        
 
-    def resample_hl_plan(self, plan, targets, n=2):
+    def resample_hl_plan(self, plan, targets, n=5):
         x0s, _ = self.prob.get_random_initial_state_vec(self.config, None, self.symbolic_bound, self.state_inds, n)
         nsuc = 0
         for x0 in x0s:
@@ -1058,7 +1061,7 @@ class TAMPAgent(Agent):
                 success = False
             if success:
                 nsuc += 1
-                self.run_plan(plan)
+                path = self.run_plan(plan, targets=targets)
                 print('RESAMPLED!', nsuc)
             else:
                 print('Failed to resample', plan.get_failed_preds(), x0)

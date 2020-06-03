@@ -541,7 +541,7 @@ keywords = ['IT100_', 'IT1000_', 'IT10000_']
 keywords = ['runtwo']
 label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
-get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=-1, exclude=['mask' 'full'])
+get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=['mask' 'full'])
 #get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)

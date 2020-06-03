@@ -397,7 +397,7 @@ class MCTS:
             if self.agent.goal_f(self.condition, state) == 0:
                 print('WARNING! Init state success', state, targets)
                 plan = 'EMPTY PLAN'
-            initial, goal = self.agent.get_hl_info(state, cond=self.condition)
+            initial, goal = self.agent.get_hl_info(state, cond=self.condition, targets=targets)
             # initial = None
         if state is None: return 0, []
         domain = self.agent.plans.values()[0].domain
@@ -416,7 +416,7 @@ class MCTS:
         success = 0
         if plan is not None:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
-            path = self.agent.run_plan(plan)
+            path = self.agent.run_plan(plan, targets=targets)
             success = path[-1].success
             self.log_path(path, 10)
         self.n_success += success

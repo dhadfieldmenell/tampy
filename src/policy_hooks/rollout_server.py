@@ -837,8 +837,8 @@ class RolloutServer(object):
         self.set_policies()
         val, path = self.test_hl()
         if val < 1:
-            x0 = self.agent.x0[0]
-            targets = self.agent.target_vecs[0]
+            x0 = path[0].get_X(t=0) # self.agent.x0[0]
+            targets = path[0].targets # self.agent.target_vecs[0]
             val, _, plan = self.mcts[0].eval_pr_graph(x0, targets)
             if augment and type(plan) is Plan:
                 self.agent.resample_hl_plan(plan, targets)
@@ -948,7 +948,7 @@ class RolloutServer(object):
                 self.n_steps += 1
                 self.n_success += 1 if val > 1 - 1e-2 else 0
 
-                if time.time() - self.last_hl_test > 120:
+                if not self._hyperparams.get('find_failure', False) and time.time() - self.last_hl_test > 120:
                     self.test_hl()
 
                 # if mcts.n_runs > self.steps_to_replace or mcts.n_success > self.success_to_replace:
@@ -1297,13 +1297,14 @@ class RolloutServer(object):
     def run(self):
         step = 0
         while not self.stopped:
-            if self.run_hl_test:
-                self.agent.replace_cond(0)
-                self.test_hl(save_fail=False)
-            elif self._hyperparams.get('train_on_fail', False) and self.cur_step > 5:
+            if not self.run_hl_test and self._hyperparams.get('train_on_fail', False) and self.cur_step > 5:
                 self.agent.replace_cond(0)
                 augment = self._hyperparams.get('augment_hl', False)
                 self.find_failure(augment=augment)
+
+            if self.run_hl_test:
+                self.agent.replace_cond(0)
+                self.test_hl(save_fail=False)
             elif self._hyperparams.get('ff_only', False):
                 self.run_ff()
             else:
