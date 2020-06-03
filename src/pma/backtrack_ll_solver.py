@@ -689,6 +689,7 @@ class BacktrackLLSolver(LLSolver):
                         if t in active_range:
                             if verbose:
                                 print "expr being added at time ", t
+                            if t + pred.active_range[1] > effective_timesteps[-1]: continue
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
 

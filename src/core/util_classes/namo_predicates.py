@@ -29,7 +29,7 @@ contact_dist = 5e-2 # dsafe
 RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_TOL = 5e-1
-COL_TS = 4 # 3
+COL_TS = 3
 NEAR_TOL = 0.4
 
 
@@ -1330,6 +1330,23 @@ class InGripper(ExprPredicate):
 
         super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
+
+class Retreat(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.r, self.can, self.grasp = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.grasp, [("value", np.array([0, 1], dtype=np.int))])
+                                ])
+        # want x0 - x2 = x4, x1 - x3 = x5
+        A = 1e1 * np.array([[1, 0, 0.5,   0, -1,  0, 0, 0],
+                            [0, 1,   0, 0.5,  0, -1, 0, 0]])
+        b = np.zeros((2, 1))
+
+        e = AffExpr(A, b)
+        e = EqExpr(e, np.zeros((2,1)))
+
+        super(Retreat, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2, active_range=(0,1))
+
 class GraspValid(ExprPredicate):
 
     # GraspValid RobotPose Target Grasp
@@ -1464,23 +1481,51 @@ class AccWithinBounds(At):
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 
-class AccWithinBounds(ExprPredicate):
+class VelValid(ExprPredicate):
 
-    # IsVelMP Robot
+    # VelValid Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))])])
-        A = np.array([[1, 0, -1, 0],
-                      [0, 1, 0, -1],
-                      [-1, 0, 1, 0],
-                      [0, -1, 0, 1]])
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)), ("vel", np.array([0, 1], dtype=np.int))]),])
+        A = np.array([[-1, 0, 1, 0, 1, 0, 0, 0],
+                      [0, -1, 0, 1, 0, 1, 0, 0],])
         b = np.zeros((4, 1))
 
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
-        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+        super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
+class Decelerating(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+        self.r, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int))]),])
+        A = np.array([[-1,  0, 1, 0],
+                      [ 0, -1, 0, 1],])
+        b = np.zeros((4, 1))
+
+        e = LEqExpr(AffExpr(A, b), b.copy())
+        super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
+
+class Accelerating(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+        self.r, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int))]),])
+        A = np.array([[1, 0, -1,  0],
+                      [0, 1,  0, -1],])
+        b = np.zeros((4, 1))
+
+        e = LEqExpr(AffExpr(A, b), b.copy())
+        super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
 
 
 class VelValid(ExprPredicate):
@@ -1500,7 +1545,6 @@ class VelValid(ExprPredicate):
         super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
-
 class AccValid(VelValid):
 
     # AccValid Robot
@@ -1508,3 +1552,5 @@ class AccValid(VelValid):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
         super(AccValid, self).__init__(name, params, expected_param_types, env, debug, dmove)
         self.attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int)), ("acc", np.array([0, 1], dtype=np.int))]),])
+
+

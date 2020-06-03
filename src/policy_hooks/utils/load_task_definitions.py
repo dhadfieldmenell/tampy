@@ -82,7 +82,7 @@ def parse_state(plan, failed_preds, ts):
             # TODO: How to handle negated?
             check_ts = ts - p['pred'].active_range[1]
             if p['pred'].hl_info: continue
-            if st <= ts and check_ts >= 0 and et >= st:
+            if check_ts >= 0 and et >= st:
                 # hl_state preds aren't tied to ll state
                 if p['hl_info'] == 'hl_state':
                     if p['pred'].active_range[1] > 0: continue

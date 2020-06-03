@@ -8,6 +8,7 @@ import cPickle as pickle
 import ctypes
 
 import numpy as np
+import scipy.interpolate
 
 import xml.etree.ElementTree as xml
 
@@ -284,7 +285,7 @@ class NAMOSortingAgent(TAMPAgent):
                 new_state[self.state_inds[pname, aname]] = aval
 
 
-            if np.all(np.abs(cur_state - new_state) < 1e-2):
+            if np.all(np.abs(cur_state - new_state) < 1e-3):
                 sample.use_ts[t] = 0
          
             if n_steps == sample.T:
@@ -299,8 +300,9 @@ class NAMOSortingAgent(TAMPAgent):
         # fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
         sample.end_state = end_state if end_state is not None else sample.get_X(t=self.T-1)
         sample.task_cost = self.goal_f(condition, sample.end_state)
-        if sample.T == plan.horizon:
-            sample.use_ts[-1] = 0
+        # if sample.T == plan.horizon:
+        #     sample.use_ts[-1] = 0
+        # sample.use_ts[-1] = 1.
 
         # if np.linalg.norm(sample.get(EE_ENUM, t=0) - sample.get(EE_ENUM, t=sample.T)) < 5e-1:
         #     sample.use_ts[:] = 0
@@ -415,12 +417,12 @@ class NAMOSortingAgent(TAMPAgent):
     def run_policy_step(self, u, x, plan, t, obj, grasp=None):
         u_inds = self.action_inds
         x_inds = self.state_inds
-        in_gripper = False
 
         old_state = x.copy()
         old_pose = plan.params['pr2'].pose[:, t].copy()
-        in_gripper = []
 
+        dtol = 1e-2
+        old_in_gripper = self.in_gripper
         if grasp is None:
             grasp = plan.params['grasp0'].value[:,0].copy()
         if t < plan.horizon - 1:
@@ -453,7 +455,7 @@ class NAMOSortingAgent(TAMPAgent):
                     radius2 = plan.params['pr2'].geom.radius
                     #if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and dist >= radius1 + radius2 - 0.5 * DSAFE and dist <= radius1 + radius2 + DSAFE and (obj is None or param.name == obj):
                     # if plan.params['pr2'].gripper[0,t] > GRIP_TOL and dist >= radius1 + radius2 and dist <= radius1 + radius2 + DSAFE and grasp_check:
-                    if plan.params['pr2'].gripper[0,t] > GRIP_TOL and dist >= radius1 + radius2 and np.all(np.abs(disp - grasp) < NEAR_TOL):
+                    if plan.params['pr2'].gripper[0,t] > GRIP_TOL and dist >= radius1 + radius2 - dtol and np.all(np.abs(disp - grasp) < NEAR_TOL):
                     # if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and dist >= radius1 + radius2 - 0.5 * DSAFE and dist <= radius1 + radius2 + DSAFE and np.abs(disp[0]) < 0.5 * DSAFE and disp[1] < 0:
                     #if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and np.abs(disp[0]) < 0.5 * DSAFE and disp[1] <= -(radius1 + radius2 - 0.5 * DSAFE) and disp[1] >= -(radius1 + radius2 + DSAFE):
                         # in_gripper.append((param.name, disp))
@@ -466,7 +468,7 @@ class NAMOSortingAgent(TAMPAgent):
                         self.in_gripper = None
 
                     elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
-                    if param is not self.in_gripper and np.linalg.norm(new_disp) <= radius1 + radius2:
+                    if param is not self.in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 - dtol:
                         dx, dy = -1e1 * pr2_disp
                         zx, zy = param.pose[:,t]
                         x1, y1 = plan.params['pr2'].pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
@@ -493,11 +495,13 @@ class NAMOSortingAgent(TAMPAgent):
                             y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
 
                         # param.pose[:, t] = [zx + x, zy + y]
+                        # if self.debug: print('Caught at stuck', plan.params['pr2'].pose[:,t], param.pose[:,t], self.process_id)
                         plan.params['pr2'].pose[:, t] = [zx + x, zy + y]
                         if self.in_gripper is not None:
                             self.in_gripper.pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self.in_gripper.name, 'pose']])
-                    
-                    if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2:
+                   
+                    '''
+                    if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
                         dx, dy = -1e1 * pr2_disp
                         zx, zy = param.pose[:,t]
                         x1, y1 = self.in_gripper.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
@@ -529,6 +533,7 @@ class NAMOSortingAgent(TAMPAgent):
                     else:
                         pass
                         # param.pose[:, t] = param.pose[:, t]
+                    '''
                     # dist = plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     # radius1 = param.geom.radius
                     # radius2 = plan.params['pr2'].geom.radius
@@ -562,10 +567,14 @@ class NAMOSortingAgent(TAMPAgent):
             if self.in_gripper is not None:
                 ignore = [self.in_gripper.name]
             dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
-            if np.any(np.abs(dist) < plan.params['pr2'].geom.radius - 0.05):
+            if np.any(np.abs(dist) < plan.params['pr2'].geom.radius - dtol):
+                info = {}
+                self.in_gripper = old_in_gripper
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
+                    info[pname, aname] = getattr(plan.params[pname], aname)[:,t]
                     getattr(plan.params[pname], aname)[:,t+1] = old_state[self.state_inds[pname, aname]]
+                # if self.debug: print('Got stuck for', info, self.process_id)
             else:
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
@@ -688,7 +697,7 @@ class NAMOSortingAgent(TAMPAgent):
         class optimal_pol:
             def act(self, X, O, t, noise):
                 U = np.zeros((plan.dU), dtype=np.float32)
-                if t < plan.horizon - 1:
+                if t < len(traj)-1:
                     for param, attr in plan.action_inds:
                         if attr == 'pose':
                             # U[plan.action_inds[param, attr]] = getattr(plan.params[param], attr)[:, t+1] - getattr(plan.params[param], attr)[:, t]
@@ -704,10 +713,10 @@ class NAMOSortingAgent(TAMPAgent):
                     print('NAN in {0} plan act'.format(success))
                     U[:] = 0.
                 return U
-        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False)
+        sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False, skip_opt=True)
 
-        for t in range(sample.T):
-            if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 5e-3: sample.use_ts[t] = 0.
+        # for t in range(sample.T):
+        #     if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 1e-3: sample.use_ts[t] = 0.
 
         traj = sample.get(STATE_ENUM)
         for param_name, attr in self.state_inds:
@@ -716,7 +725,7 @@ class NAMOSortingAgent(TAMPAgent):
             diff = traj[:, self.state_inds[param_name, attr]].T - getattr(param, attr)
             if np.any(np.abs(diff) > 1e-3): print(diff, param_name, attr, 'ERROR IN OPT ROLLOUT')
 
-        # self.optimal_samples[task].append(sample)
+        # self.optimal_samples[self.task_list[task[0]]].append(sample)
         # print(sample.get_X())
         if not smoothing and self.debug:
             if not success:
@@ -847,11 +856,11 @@ class NAMOSortingAgent(TAMPAgent):
         sample.targets = targets.copy()
 
         if task[0] == 0:
-            # sample.set(END_POSE_ENUM, obj_pose + grasp, t)
-            sample.set(END_POSE_ENUM, obj_pose.copy(), t)
+            sample.set(END_POSE_ENUM, obj_pose + grasp, t)
+            #sample.set(END_POSE_ENUM, obj_pose.copy(), t)
         if task[0] == 1:
-            # sample.set(END_POSE_ENUM, targ_pose + grasp, t)
-            sample.set(END_POSE_ENUM, targ_pose.copy(), t)
+            sample.set(END_POSE_ENUM, targ_pose + grasp, t)
+            #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
             sample.set(OBJ_ENUMS[i], mp_state[self.state_inds[obj, 'pose']], t)
 
@@ -950,10 +959,11 @@ class NAMOSortingAgent(TAMPAgent):
         return tuple(task)
 
 
-    def goal_f(self, condition, state, targets=None):
+    def goal_f(self, condition, state, targets=None, cont=False):
         if targets is None:
             targets = self.target_vecs[condition]
         cost = self.prob.NUM_OBJS
+        alldisp = 0
         plan = self.plans.values()[0]
         for param in plan.params.values():
             if param._type == 'Can':
@@ -961,8 +971,10 @@ class NAMOSortingAgent(TAMPAgent):
                 disp = state[self.state_inds[param.name, 'pose']] - val
                 # np.sum((state[self.state_inds[param.name, 'pose']] - self.targets[condition]['{0}_end_target'.format(param.name)])**2)
                 # cost -= 1 if dist < 0.3 else 0
+                alldisp += np.linalg.norm(disp)
                 cost -= 1 if np.all(np.abs(disp) < NEAR_TOL) else 0
 
+        if cont: return alldisp
         # return cost / float(self.prob.NUM_OBJS)
         return 1. if cost > 0 else 0.
 
@@ -1043,8 +1055,8 @@ class NAMOSortingAgent(TAMPAgent):
 
         plan.params['robot_init_pose'].value[:,0] = plan.params['pr2'].pose[:,0]
         failed_preds = plan.get_failed_preds(active_ts=active_ts, priority=3, tol=tol)
-        if debug:
-            print(failed_preds)
+        # if debug:
+        #     print(failed_preds)
 
         return failed_preds
 
@@ -1206,25 +1218,25 @@ class NAMOSortingAgent(TAMPAgent):
         exclude_targets = []
         plan = self.plans[task]
         act_traj = np.zeros((plan.horizon, self.dU))
-        for t in range(plan.horizon-1):
-            pos_traj = opt_traj[:, self.state_inds['pr2', 'pose']]
-            grip_traj = opt_traj[:, self.state_inds['pr2', 'gripper']]
+        pos_traj = opt_traj[:, self.state_inds['pr2', 'pose']]
+        grip_traj = opt_traj[:, self.state_inds['pr2', 'gripper']]
+        for t in range(len(opt_traj)-1):
             act_traj[t, self.action_inds['pr2', 'pose']] = pos_traj[t+1] - pos_traj[t]
             act_traj[t, self.action_inds['pr2', 'gripper']] = grip_traj[t+1]
-        act_traj[-1] = act_traj[-2]
-        # print(act_traj, '<-- traj in sampleopt')
-        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False)
-        # print(sample.get(STATE_ENUM), '<--- traj after rollout')
-        # self.optimal_samples[task].append(sample)
-        sample.set_ref_X(opt_traj)
+        T = len(opt_traj)-1
+        act_traj[T:, self.action_inds['pr2', 'gripper']] = grip_traj[T-1]
+        sample = self.sample_task(optimal_pol(self.dU, self.action_inds, self.state_inds, act_traj), condition, state, task, noisy=False, skip_opt=True)
+        sample.set_ref_X(sample.get_X())
         sample.set_ref_U(sample.get_U())
      
-        for t in range(sample.T):
-            if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 5e-3: sample.use_ts[t] = 0.
+        # for t in range(sample.T):
+        #     if np.all(np.abs(sample.get(ACTION_ENUM, t=t))) < 1e-3:
+        #         sample.use_ts[t] = 0.
 
         self.target_vecs[condition] = old_targets
         for tname, attr in self.target_inds:
             self.targets[condition][tname] = old_targets[self.target_inds[tname, attr]]
+        # self.optimal_samples[self.task_list[task[0]]].append(sample)
         return sample
 
 
@@ -1454,3 +1466,61 @@ class NAMOSortingAgent(TAMPAgent):
         return tuple(l)
 
 
+    def retime_traj(self, traj, vel=0.2, inds=None, minpts=10):
+        new_traj = []
+        if len(np.shape(traj)) == 2:
+            traj = [traj]
+        for step in traj:
+            xpts = []
+            fpts = []
+            grippts= []
+            d = 0
+            if inds is None:
+                inds = self.state_inds['pr2', 'pose']
+            for t in range(len(step)):
+                xpts.append(d)
+                fpts.append(step[t])
+                grippts.append(step[t][self.state_inds['pr2', 'gripper']])
+                if t < len(step) - 1:
+                    d += np.linalg.norm(step[t+1][inds] - step[t][inds])
+            assert not np.any(np.isnan(xpts))
+            assert not np.any(np.isnan(fpts))
+            interp = scipy.interpolate.interp1d(xpts, fpts, axis=0, fill_value='extrapolate')
+            grip_interp = scipy.interpolate.interp1d(xpts, grippts, kind='next', bounds_error=False, axis=0)
+           
+            if type(vel) is float:
+                # x = np.arange(0, d+vel/2, vel)
+                npts = max(int(d/vel), minpts)
+                x = np.linspace(0, d, npts)
+                '''
+                x = []
+                for i, d in enumerate(xpts):
+                    if i == 0:
+                        x.append(0)
+                    elif xpts[i] - xpts[i-1] <= 1e-4:
+                        continue
+                    elif xpts[i] - xpts[i-1] <= vel:
+                        x.append(xpts[i] - xpts[i-1])
+                    else:
+                        n = max(2, int((xpts[i]-xpts[i-1])//vel))
+                        for _ in range(n):
+                            x.append((xpts[i]-xpts[i-1])/float(n))
+                x = np.cumsum(x)
+                '''
+            elif type(vel) is list:
+                x = np.r_[0, np.cumsum(vel)]
+            else:
+                raise NotImplementedError('Velocity undefined')
+            out = interp(x)
+            grip_out = grip_interp(x)
+            out[:, self.state_inds['pr2', 'gripper']] = grip_out
+            out[0] = step[0]
+            out[-1] = step[-1]
+            out = np.r_[out, [out[-1]]]
+            if len(new_traj):
+                new_traj = np.r_[new_traj, out]
+            else:
+                new_traj = out
+            if np.any(np.isnan(out)): print('NAN in out', out, x)
+        return new_traj
+        

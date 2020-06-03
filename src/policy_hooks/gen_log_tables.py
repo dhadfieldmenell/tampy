@@ -255,6 +255,8 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
     exp_len_data = {}
+    exp_dist_data = {}
+    exp_true_data = {}
     used = []
     for exp_name in exp_probs:
         dir_prefix = LOG_DIR + exp_name + '/'
@@ -328,6 +330,8 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                             no, nt = int(pt[4]), int(pt[5])
                             if (no,nt) not in exp_data: exp_data[no,nt] = []
                             if (no,nt) not in exp_len_data: exp_len_data[no,nt] = []
+                            if (no,nt) not in exp_dist_data: exp_dist_data[no,nt] = []
+                            if (no,nt) not in exp_true_data: exp_true_data[no,nt] = []
                              
                             if xvar == 'time':
                                 xval = (pt[3] // tdelta) * tdelta
@@ -335,6 +339,8 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                                 exp_data[no, nt].append((label, xval+tdelta, pt[0]))
                                 if pt[0] > lenthresh:
                                     exp_len_data[no, nt].append((label, xval, pt[1]))
+                                if pt[0] > 0.9: exp_dist_data[no, nt].append((label, xval, pt[2]))
+                                if len(pt) > 7: exp_true_data[no, nt].append((label, xval, pt[7]))
                             elif rerun:
                                 exp_data[no, nt].append((label, pt[-1], pt[0]))
                                 if pt[0] > lenthresh:
@@ -426,6 +432,31 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         if rerun: pre_lab += '_rerun'
         sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_len{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
+    for no, nt in exp_dist_data:
+        print('Plotting', no, nt, exp_name)
+        pd_frame = pd.DataFrame(exp_dist_data[no, nt], columns=['exp_name', xvar, 'disp'])
+        sns.set()
+        sns_plot = sns.relplot(x=xvar, y='disp', hue='exp_name', kind='line', data=pd_frame)
+        keyid = ''
+        for key in keywords:
+            keyid += '_{0}'.format(key)
+        pre_lab = '_pre' if pre else ''
+        if rerun: pre_lab += '_rerun'
+        sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_disp{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+
+
+    for no, nt in exp_true_data:
+        print('Plotting', no, nt, exp_name)
+        pd_frame = pd.DataFrame(exp_true_data[no, nt], columns=['exp_name', xvar, 'true'])
+        sns.set()
+        sns_plot = sns.relplot(x=xvar, y='true', hue='exp_name', kind='line', data=pd_frame)
+        keyid = ''
+        for key in keywords:
+            keyid += '_{0}'.format(key)
+        pre_lab = '_pre' if pre else ''
+        if rerun: pre_lab += '_rerun'
+        sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_true{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+
 
 def plot(data, columns, descr, separate=True, keyind=3):
     sns.set()
@@ -507,8 +538,8 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
     plot(data, ['exp_name', xvar, ylabel, 'key', 'yvar', 'yvar_ind'], '{0}_vs_{1}'.format(xvar, ylabel), separate=separate, keyind=keyind)
 
 keywords = ['IT100_', 'IT1000_', 'IT10000_']
-keywords = ['_redo']
-label_vars = ['split_nets'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+keywords = ['runtwo']
+label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
 get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=-1, exclude=['mask' 'full'])
 #get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
@@ -517,6 +548,7 @@ get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=
 #get_hl_tests(['compact_base'], xvar='time', pre=True)
 #keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
 #label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
-gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
+#gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
+gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=False, keyind=5, ylabel='loss_comp_3', exclude=[])
 
 

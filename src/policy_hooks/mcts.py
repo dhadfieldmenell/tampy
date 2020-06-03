@@ -415,14 +415,14 @@ class MCTS:
         self.n_runs += 1
         success = 0
         if plan is not None:
+            assert len(plan.get_failed_preds(tol=1e-3)) == 0
             path = self.agent.run_plan(plan)
-            succeess = 1
-            self.agent.add_task_paths([path])
+            success = path[-1].success
             self.log_path(path, 10)
         self.n_success += success
         self.val_per_run.append(success)
         self.reset()
-        return success, []
+        return success, [], plan
         
 
     def _simulate_from_unexplored(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, label=None, debug=False):
@@ -751,7 +751,8 @@ class MCTS:
         path_value = None
         next_sample = None
         if np.random.uniform() < self.ff_thresh:
-            return self.eval_pr_graph(state)
+            val, path, _ = self.eval_pr_graph(state)
+            return val, path
 
         while True:
             if debug:
@@ -1115,10 +1116,11 @@ class MCTS:
     def get_path_data(self, path, n_fixed=0, verbose=False):
         data = []
         for sample in path:
-            X = [{(pname, attr): sample.get_X(t=t)[self.agent.state_inds[pname, attr]] for pname, attr in self.agent.state_inds if self.agent.state_inds[pname, attr][-1] < self.agent.symbolic_bound} for t in range(sample.T)]
-            info = {'X': X, 'task': sample.task, 'time_from_start': time.time() - self.start_t, 'n_runs': self.n_runs, 'n_resets': self.n_resets, 'value': 1.-sample.task_cost, 'fixed_samples': n_fixed, 'root_state': self.agent.x0[self.condition], 'opt_strength': sample.opt_strength if hasattr(sample, 'opt_strength') else 'N/A'}
+            X = [{(pname, attr): sample.get_X(t=t)[self.agent.state_inds[pname, attr]].round(4) for pname, attr in self.agent.state_inds if self.agent.state_inds[pname, attr][-1] < self.agent.symbolic_bound} for t in range(sample.T)]
+            U = [{(pname, attr): sample.get_U(t=t)[self.agent.action_inds[pname, attr]].round(4) for pname, attr in self.agent.action_inds} for t in range(sample.T)]
+            info = {'X': X, 'task': sample.task, 'time_from_start': time.time() - self.start_t, 'n_runs': self.n_runs, 'n_resets': self.n_resets, 'value': 1.-sample.task_cost, 'fixed_samples': n_fixed, 'root_state': self.agent.x0[self.condition], 'opt_strength': sample.opt_strength if hasattr(sample, 'opt_strength') else 'N/A', 'act': U}
             if verbose:
-                info['obs'] = sample.get_obs()
+                info['obs'] = sample.get_obs().round(4)
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
                 info['cur_curric'] = self.cur_curric
                 info['max_depth'] = self.max_depth
@@ -1133,14 +1135,14 @@ class MCTS:
         with open(self.log_file, 'a+') as f:
             f.write('\n\n')
             info = self.get_path_data(path, n_fixed)
-            pp_info = pprint.pformat(info, depth=60)
+            pp_info = pprint.pformat(info, depth=120, width=120)
             f.write(pp_info)
             f.write('\n')
 
         with open(self.verbose_log_file, 'a+') as f:
             f.write('\n\n')
             info = self.get_path_data(path, n_fixed, True)
-            pp_info = pprint.pformat(info, depth=60)
+            pp_info = pprint.pformat(info, depth=120, width=120)
             f.write(pp_info)
             f.write('\n')
 

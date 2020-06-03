@@ -282,6 +282,7 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
         for m in range(len(self.cur)):
             samples = self.cur[m].sample_list
+            if samples is None: continue
                 # print(samples[0].get_obs() - samples[1].get_obs(), samples[0].get(STATE_ENUM) - samples[1].get(STATE_ENUM), samples[0].get(ACTION_ENUM) - samples[1].get(ACTION_ENUM), samples[0].get(ACTION_ENUM), samples[1].get(ACTION_ENUM), 'UPDATE')
 
             for sample in samples:

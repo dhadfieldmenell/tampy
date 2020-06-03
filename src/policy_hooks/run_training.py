@@ -123,6 +123,7 @@ def main():
     parser.add_argument('-neg', '--negative', action='store_true', default=False)
     parser.add_argument('-oht', '--onehot_task', action='store_true', default=False)
     parser.add_argument('-render', '--load_render', action='store_true', default=False)
+    parser.add_argument('-retime', '--retime', action='store_true', default=False)
 
     # Previous policy directories
     parser.add_argument('-llpol', '--ll_policy', type=str, default='')
@@ -152,9 +153,11 @@ def main():
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)
     parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
     parser.add_argument('-ff_only', '--ff_only', action='store_true', default=False)
+    parser.add_argument('-fail', '--train_on_fail', action='store_true', default=False)
+    parser.add_argument('-aughl', '--augment_hl', action='store_true', default=False)
     parser.add_argument('-x_select', '--state_select', type=str, default='base')
-    parser.add_argument('-prim_decay', '--prim_decay', type=float, default=0.95)
-    parser.add_argument('-prim_first_wt', '--prim_first_wt', type=float, default=1e1)
+    parser.add_argument('-prim_decay', '--prim_decay', type=float, default=1.)
+    parser.add_argument('-prim_first_wt', '--prim_first_wt', type=float, default=1e0)
     parser.add_argument('-soft', '--soft', action='store_true', default=False)
     parser.add_argument('-eta', '--eta', type=float, default=10.)
     parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)

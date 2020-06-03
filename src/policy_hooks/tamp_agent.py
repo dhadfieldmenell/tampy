@@ -11,6 +11,7 @@ import cPickle as pickle
 import ctypes
 
 import numpy as np
+import scipy.interpolate
 
 import xml.etree.ElementTree as xml
 
@@ -96,6 +97,8 @@ class TAMPAgent(Agent):
         self.target_dim = self._hyperparams['target_dim']
         self.target_inds = self._hyperparams['target_inds']
         self.target_vecs = []
+        self.master_config = hyperparams['master_config']
+        self.retime = hyperparams['master_config'].get('retime', False)
         for condition in range(len(self.x0)):
             target_vec = np.zeros((self.target_dim,))
             for target_name in self.targets[condition]:
@@ -174,6 +177,19 @@ class TAMPAgent(Agent):
             self.mjc_env.add_viewer()
         else:
             self.viewer = OpenRAVEViewer(self.env)
+
+
+    def get_opt_samples(self, task=None, clear=False):
+        data = []
+        if task is None:
+            tasks = self.optimal_samples.keys()
+        else:
+            tasks = [task]
+        for task in tasks:
+            data.extend(self.optimal_samples[task])
+            if clear:
+                self.optimal_samples[task] = []
+        return data
 
 
     def get_samples(self, task):
@@ -349,7 +365,7 @@ class TAMPAgent(Agent):
                 next_X = sample.get_X(t=cur_step)
                 full_U += sample.geT_U(t=cur_step)
             sample.set_X(next_X, t=t)
-            smaple.set_U(full_U, t=t)
+            sample.set_U(full_U, t=t)
             sample.use_ts[t] = 1.
         return sample
 
@@ -362,8 +378,8 @@ class TAMPAgent(Agent):
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
         raise NotImplementedError
     
-    def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
-        if policy is None or (hasattr(policy, 'scale') and policy.scale is None): # Policy is uninitialized
+    def sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None, skip_opt=False):
+        if not skip_opt and (policy is None or (hasattr(policy, 'scale') and policy.scale is None)): # Policy is uninitialized
             s, failed, success = self.solve_sample_opt_traj(state, task, condition)
             s.opt_strength = 1.
             s.opt_suc = success
@@ -917,7 +933,8 @@ class TAMPAgent(Agent):
                 fill_vector(plan.params, self.state_inds, x0, st)
                 self.set_symbols(plan, x0, task, anum=a)
                 try:
-                    success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj, n_resamples=5)
+                    #success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj, n_resamples=5)
+                    success = self.solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=5)
                 except Exception as e:
                     traceback.print_exception(*sys.exc_info())
                     print('Exception in full solve for', x0, task, plan.actions[a])
@@ -933,23 +950,47 @@ class TAMPAgent(Agent):
 
     def run_plan(self, plan):
         path = []
+        x0 = np.zeros_like(self.x0[0])
+        fill_vector(plan.params, self.state_inds, x0, 0)
         for a in range(len(plan.actions)):
-            x0 = np.zeros_like(self.x0[0])
+            # x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
-            fill_vector(plan.params, self.state_inds, x0, st)
+            # fill_vector(plan.params, self.state_inds, x0, st)
             task = self.encode_plan(plan)[a]
             opt_traj = np.zeros((et-st+1, self.symbolic_bound))
             for pname, attr in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
                 opt_traj[:,self.state_inds[pname, attr]] = getattr(plan.params[pname], attr)[:,st:et+1].T
-            sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj)
-            self.add_sample_batch([sample], task)
-            path.append(sample)
-            sample.success = 1.
-            sample.discount = 1.
-            sample.opt_strength = 1.
-            sample.opt_suc = True
+            
+            if self.retime:
+                new_traj = self.retime_traj(opt_traj)
+                T = et-st+1
+                t = 0
+                while t < len(new_traj)-1:
+                    traj = new_traj[t:t+T+1]
+                    sample = self.sample_optimal_trajectory(x0, task, 0, traj)
+                    # self.add_sample_batch([sample], task)
+                    path.append(sample)
+                    sample.success = 1.
+                    sample.discount = 1.
+                    sample.opt_strength = 1.
+                    sample.opt_suc = True
+                    t += T - 1
+                    x0 = sample.get_X(t=sample.T-1)
+            else:
+                sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj)
+                # self.add_sample_batch([sample], task)
+                path.append(sample)
+                sample.success = 1.
+                sample.discount = 1.
+                sample.opt_strength = 1.
+                sample.opt_suc = True
+                x0 = sample.get_X(sample.T-1)
 
+        if path[-1].success > 0.99:
+            self.add_task_paths([path])
+            for s in path:
+                self.optimal_samples[self.task_list[s.task[0]]].append(s)
         return path
     
     def run_pr_graph(self, state, targets=None, cond=None):
@@ -966,9 +1007,61 @@ class TAMPAgent(Agent):
             if targ in prob.init_state.params:
                 p = prob.init_state.params[targ]
                 getattr(p, attr)[:,0] = self.target_vecs[0][self.target_inds[targ, attr]].copy()
-        plan, descr = p_mod_abs(self.hl_solver, self, domain, prob, initial=initial, goal=goal, label=self.process_id)
+        try:
+            plan, descr = p_mod_abs(self.hl_solver, self, domain, prob, initial=initial, goal=goal, label=self.process_id)
+        except:
+            plan = None
         if plan is None or type(plan) is str:
             return []
         path = self.run_plan(plan)
         return path
+
+    def retime_traj(self, traj, vel=0.3, inds=None):
+        xpts = []
+        fpts = []
+        d = 0
+        for t in range(len(traj)):
+            xpts.append(d)
+            fpts.append(traj[t])
+            if t < len(traj):
+                if inds is None:
+                    d += np.linalg.norm(traj[t+1] - traj[t])
+                else:
+                    d += np.linalg.norm(traj[t+1][inds] - traj[t][inds])
+        interp = scipy.interpolate.interp1d(xpts, fpts, axis=0)
+        
+        x = np.linspace(0, d, int(d / vel))
+        out = interp(x)
+        return out
+       
+
+    def resample_hl_plan(self, plan, targets, n=2):
+        x0s, _ = self.prob.get_random_initial_state_vec(self.config, None, self.symbolic_bound, self.state_inds, n)
+        nsuc = 0
+        for x0 in x0s:
+            for pname, aname in self.state_inds:
+                plan.params['robot_init_pose'].value[:,0] = x0[self.state_inds['pr2', 'pose']]
+                if plan.params[pname].is_symbol(): continue
+                getattr(plan.params[pname], aname)[:,0] = x0[self.state_inds[pname, aname]]
+                plan.params[pname]._free_attrs[aname][:,0] = 1.
+                if '{0}_init_target'.format(pname) in plan.params:
+                    plan.params['{0}_init_target'.format(pname)].value[:,0] = x0[self.state_inds[pname, aname]]
+            suc = self.solver.solve(plan, traj_mean=np.array(x0).reshape((1,-1)), active_ts=(0,0))
+            for pname, aname in self.state_inds:
+                if plan.params[pname].is_symbol(): continue
+                x0[self.state_inds[pname, aname]] = getattr(plan.params[pname], aname)[:,0]
+            assert len(plan.get_failed_preds(active_ts=(0,0), tol=1e-3)) == 0
+            try:
+                success = self.solver._backtrack_solve(plan)
+            except Exception as e:
+                print('Failed in resample of hl', e)
+                success = False
+            if success:
+                nsuc += 1
+                self.run_plan(plan)
+                print('RESAMPLED!', nsuc)
+            else:
+                print('Failed to resample', plan.get_failed_preds(), x0)
+        print('Generated', x0s, 'for', plan.actions, 'success:', nsuc)
+        return x0s
 
