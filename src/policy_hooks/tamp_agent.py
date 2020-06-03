@@ -971,24 +971,24 @@ class TAMPAgent(Agent):
                 t = 0
                 while t < len(new_traj)-1:
                     traj = new_traj[t:t+T+1]
-                    sample = self.sample_optimal_trajectory(x0, task, 0, traj)
+                    sample = self.sample_optimal_trajectory(x0, task, 0, traj, targets=targets)
                     # self.add_sample_batch([sample], task)
                     path.append(sample)
-                    sample.success = 1.
                     sample.discount = 1.
                     sample.opt_strength = 1.
                     sample.opt_suc = True
                     t += T - 1
                     x0 = sample.get_X(t=sample.T-1)
+                    sample.success = 1. - self.goal_f(0, x0, sample.targets)
             else:
                 sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj, targets=targets)
                 # self.add_sample_batch([sample], task)
                 path.append(sample)
-                sample.success = 1.
                 sample.discount = 1.
                 sample.opt_strength = 1.
                 sample.opt_suc = True
                 x0 = sample.get_X(sample.T-1)
+                sample.success = 1. - self.goal_f(0, x0, sample.targets)
 
         if path[-1].success > 0.99:
             self.add_task_paths([path])

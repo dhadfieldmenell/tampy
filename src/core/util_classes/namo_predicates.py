@@ -29,7 +29,7 @@ contact_dist = 5e-2 # dsafe
 RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_TOL = 5e-1
-COL_TS = 3
+COL_TS = 5 # 3
 NEAR_TOL = 0.4
 
 
@@ -229,6 +229,11 @@ class CollisionPredicate(ExprPredicate):
         #     return self._cache[flattened]
         p0 = self.params[self.ind0]
         p1 = self.params[self.ind1]
+        # if hasattr(p0.geom, 'radius') and hasattr(p1.geom, 'radius'):
+        #     disp = pose1 - pose0
+        #     dist = np.linalg.norm(disp)
+        #     vals = np.zeros((self.n_cols, 1))
+        #     jacs = np.zeros((self.n_cols, 4))
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         pose0 = x[0:2]

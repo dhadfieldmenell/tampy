@@ -1490,14 +1490,14 @@ class NAMOSortingAgent(TAMPAgent):
            
             if type(vel) is float:
                 # x = np.arange(0, d+vel/2, vel)
-                npts = max(int(d/vel), minpts)
-                x = np.linspace(0, d, npts)
-                '''
+                # npts = max(int(d/vel), minpts)
+                # x = np.linspace(0, d, npts)
+
                 x = []
                 for i, d in enumerate(xpts):
                     if i == 0:
                         x.append(0)
-                    elif xpts[i] - xpts[i-1] <= 1e-4:
+                    elif xpts[i] - xpts[i-1] <= 1e-6:
                         continue
                     elif xpts[i] - xpts[i-1] <= vel:
                         x.append(xpts[i] - xpts[i-1])
@@ -1506,7 +1506,7 @@ class NAMOSortingAgent(TAMPAgent):
                         for _ in range(n):
                             x.append((xpts[i]-xpts[i-1])/float(n))
                 x = np.cumsum(x)
-                '''
+
             elif type(vel) is list:
                 x = np.r_[0, np.cumsum(vel)]
             else:

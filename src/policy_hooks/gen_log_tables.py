@@ -339,7 +339,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                                 exp_data[no, nt].append((label, xval+tdelta, pt[0]))
                                 if pt[0] > lenthresh:
                                     exp_len_data[no, nt].append((label, xval, pt[1]))
-                                if pt[0] > 0.9: exp_dist_data[no, nt].append((label, xval, pt[2]))
+                                if pt[0] >= 0: exp_dist_data[no, nt].append((label, xval, pt[2]))
                                 if len(pt) > 7: exp_true_data[no, nt].append((label, xval, pt[7]))
                             elif rerun:
                                 exp_data[no, nt].append((label, pt[-1], pt[0]))
