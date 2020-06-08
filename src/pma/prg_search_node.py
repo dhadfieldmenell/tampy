@@ -54,7 +54,7 @@ class LLSearchNode(SearchNode):
 
 
     def parse_state(self, plan, failed_preds, ts):
-        new_preds = failed_preds
+        new_preds = filter(lambda p: p is not None, failed_preds)
         for a in plan.actions:
             a_st, a_et = a.active_timesteps
             if a_st > ts: break
@@ -140,6 +140,8 @@ class LLSearchNode(SearchNode):
             st = self.curr_plan.actions[anum].active_timesteps[0]
         et = self.curr_plan.horizon - 1
         failed_pred = self.curr_plan.get_failed_pred(active_ts=(st,et))
+        if hasattr(failed_pred[1], 'hl_ignore') and failed_pred[1].hl_ignore:
+            return failed_pred[2], None
         return failed_pred[2], failed_pred[1]
 
     def gen_child(self):

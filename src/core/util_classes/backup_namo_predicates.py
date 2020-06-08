@@ -22,11 +22,15 @@ This file implements the predicates for the 2D NAMO domain.
 """
 
 dsafe = 1e-3 # 1e-1
-dmove = 5e-1
-contact_dist = 1e-2
+# dmove = 1.1e0 # 5e-1
+dmove = 1.5e0 # 5e-1
+contact_dist = 5e-2 # dsafe
 
 RS_SCALE = 0.5
 N_DIGS = 5
+GRIP_TOL = 5e-1
+COL_TS = 4 # 3
+NEAR_TOL = 0.4
 
 
 ATTRMAP = {
@@ -154,12 +158,41 @@ def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
     return traj_list
 
 
+def twostep_f(xs, dist, dim, pts=COL_TS, grad=False):
+    if grad:
+        res = []
+        jac = np.zeros((0, 2 * dim))
+        for t in range(pts):
+            coeff = float(pts - t) / pts
+            if len(xs) == 2:
+                next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
+            else:
+                next_pos = xs[0]
+            res.append(dist(next_pos)[1])
+            #jac = np.r_[jac, np.c_[coeff*res[t], (1-coeff)*res[t]]]
+            jac = np.r_[jac, np.c_[res[t], res[t]]]
+        return jac
+
+    else:
+        res = []
+        for t in range(pts):
+            coeff = float(pts - t) / pts
+            if len(xs) == 2:
+                next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
+            else:
+                next_pos = xs[0]
+            res.append(dist(next_pos)[0])
+        return np.concatenate(res, axis=0)
+
+
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1), priority=3):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
-        self._cc = ctrajoptpy.GetCollisionChecker(self._env)
+        if USE_OPENRAVE:
+            self._cc = ctrajoptpy.GetCollisionChecker(self._env)
+        
         self.dsafe = dsafe
         self.ind0 = ind0
         self.ind1 = ind1
@@ -167,7 +200,7 @@ class CollisionPredicate(ExprPredicate):
         self._cache = {}
         self.n_cols = 1
 
-        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, priority=3)
+        super(CollisionPredicate, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=active_range, priority=priority)
 
     def test(self, time, negated=False, tol=1e-4):
         # This test is overwritten so that collisions can be calculated correctly
@@ -191,12 +224,17 @@ class CollisionPredicate(ExprPredicate):
 
 
     # @profile
-    def distance_from_obj(self, x):
+    def distance_from_obj(self, x, n_steps=0):
         flattened = tuple(x.round(N_DIGS).flatten())
         # if flattened in self._cache and self._debug is False:
         #     return self._cache[flattened]
         p0 = self.params[self.ind0]
         p1 = self.params[self.ind1]
+        # if hasattr(p0.geom, 'radius') and hasattr(p1.geom, 'radius'):
+        #     disp = pose1 - pose0
+        #     dist = np.linalg.norm(disp)
+        #     vals = np.zeros((self.n_cols, 1))
+        #     jacs = np.zeros((self.n_cols, 4))
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         pose0 = x[0:2]
@@ -211,7 +249,6 @@ class CollisionPredicate(ExprPredicate):
             collisions = self._cc.BodyVsBody(b0.env_body, b1.env_body)
         else:
             collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
-
 
         # if p1.name == 'obs0':
         #     print b1.env_body.GetLinks()[0].GetCollisionData().vertices
@@ -260,22 +297,26 @@ class CollisionPredicate(ExprPredicate):
                 distance = c.GetDistance()
                 normal = c.GetNormal()
             else:
-                linkA, linkB = c.linkIndexA, c.linkIndexB
-                linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
+                linkA, linkB = c[3], c[4]
+                #linkA, linkB = c.linkIndexA, c.linkIndexB
+                linkAParent, linkBParent = c[1], c[2]
+                #linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
                 sign = 0
                 if linkAParent == b0.body_id and linkBParent == b1.body_id:
-                    pt0, pt1 = c.positionOnA, c.positionOnB
+                    #pt0, pt1 = c.positionOnA, c.positionOnB
+                    pt0, pt1 = c[5], c[6] 
                     linkRobot, linkObj = linkA, linkB
                     sign = -1
                 elif linkBParent == b0.body_id and linkAParent == b1.body_id:
-                    pt0, pt1 = c.positionOnB, c.positionOnA
+                    # pt0, pt1 = c.positionOnB, c.positionOnA
+                    pt1, pt0 = c[5], c[6] 
                     linkRobot, linkObj = linkB, linkA
                     sign = 1
                 else:
                     continue
 
-                distance = c.contactDistance
-                normal = c.contactNormalOnB # Pointing towards A
+                distance = c[8] # c.contactDistance
+                normal = np.array(c[7]) # c.contactNormalOnB # Pointing towards A
             results.append((pt0, pt1, distance))
             # if distance < self.dsafe and 'obs0' in [name0, name1] and not np.any(np.isnan(pose0)) and not np.any(np.isnan(pose1)):
             #     print(name0, name1, distance, pose0, pose1)
@@ -302,7 +343,6 @@ class CollisionPredicate(ExprPredicate):
 
         # if jac0 is None or jac1 is None or val is None:
         #     import ipdb; ipdb.set_trace()
-
         return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
@@ -312,6 +352,60 @@ class CollisionPredicate(ExprPredicate):
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(1, 0, 0)))
             else:
                 self.handles.append(self._env.drawarrow(p1=ptA, p2=ptB, linewidth=.01, color=(0, 0, 0)))
+
+
+class HLPoseUsed(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Can Target
+        self.pose = params[0]
+        if self.pose.is_symbol():
+            k = 'value'
+        else:
+            k = 'pose'
+        attr_inds = OrderedDict([(self.pose, [(k, np.array([0,1], dtype=np.int))])])
+
+        A = np.zeros((2,2))
+        b = np.zeros((2, 1))
+        val = np.zeros((2, 1))
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(HLPoseUsed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+        self.hl_info = True
+
+    def test(self, time, negated=False, tol=1e-4):
+        if negated:
+            return True
+        return super(HLPoseUsed, self).test(time, tol=tol)
+
+
+class HLPoseAtGrasp(HLPoseUsed):
+
+    # RobotAt Robot Can Grasp
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c, self.g = params
+        k = "pose" if not self.r.is_symbol() else "value"
+        attr_inds = OrderedDict([(self.r, [(k, np.array([0,1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = NEAR_TOL * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(HLPoseUsed, self).__init__(name, e, attr_inds, params, expected_param_types)
+        self.hl_info = True
+
+
+class HLAtGrasp(HLPoseUsed):
+    pass
+
+
+class HLPoseAtGrasp(HLPoseUsed):
+    pass
+
 
 class At(ExprPredicate):
 
@@ -327,6 +421,27 @@ class At(ExprPredicate):
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+
+class AtNEq(ExprPredicate):
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Can Target
+        self.can, self.eq, self.targ = params
+        attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.targ, [("value", np.array([0,1], dtype=np.int))])])
+
+        if self.can is not self.eq:
+            A = np.c_[np.eye(2), -np.eye(2)]
+            b = np.zeros((2, 1))
+            val = np.zeros((2, 1))
+        else:
+            A = np.zeros((2,4))
+            b = np.ones((2,1))
+            val = np.zeros((2,1))
+
+        aff_e = AffExpr(A, b)
+        e = EqExpr(aff_e, val)
+        super(AtNEq, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
 class RobotAt(At):
 
@@ -348,6 +463,35 @@ class RobotAt(At):
 class BoxAt(At):
     pass
 
+class Near(At):
+    def __init__(self, name, params, expected_param_types, env=None):
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.c, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = NEAR_TOL * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class RobotNearTarget(At):
+
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.t = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.t, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = 0.25 * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
 class RobotNear(At):
 
     # RobotAt Robot Can
@@ -360,7 +504,24 @@ class RobotNear(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 2 * dmove * np.ones((4, 1))
+        val = 2 * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class NotRobotNear(At):
+
+    # RobotAt Robot Can
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = -2 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -376,7 +537,7 @@ class RobotWithinBounds(At):
 
         A = np.c_[np.eye(2), -np.eye(2)]
         b = np.zeros((4, 1))
-        val = 2.5e1 * np.ones((4, 1))
+        val = 1.5e1 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -394,10 +555,32 @@ class RobotNearGrasp(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 2 * dmove * np.ones((4, 1))
+        val = 1.5 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class RobotAtGrasp(At):
+
+    # RobotAt Robot Can Grasp
+
+    def __init__(self, name, params, expected_param_types, env=None):
+        ## At Robot RobotPose
+        self.r, self.c, self.g = params
+        k = "pose" if not self.r.is_symbol() else "value"
+        attr_inds = OrderedDict([(self.r, [(k, np.array([0,1], dtype=np.int))]),
+                                 (self.c, [("pose", np.array([0,1], dtype=np.int))]),
+                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
+
+        A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
+        b = np.zeros((4, 1))
+        val = NEAR_TOL * np.ones((4, 1))
+        aff_e = AffExpr(A, b)
+        e = LEqExpr(aff_e, val)
+        super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
+
+class RobotPoseAtGrasp(At):
+    pass
 
 class RobotWithinReach(At):
 
@@ -411,7 +594,7 @@ class RobotWithinReach(At):
 
         A = np.c_[np.r_[np.eye(2), -np.eye(2)], np.r_[-np.eye(2), np.eye(2)]]
         b = np.zeros((4, 1))
-        val = 20 * dmove * np.ones((4, 1))
+        val = 20 * np.ones((4, 1))
         aff_e = AffExpr(A, b)
         e = LEqExpr(aff_e, val)
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -422,13 +605,15 @@ class GripperClosed(ExprPredicate):
         attr_inds = OrderedDict([(self.robot, [("gripper", np.array([0], dtype=np.int))])])
         A = np.ones((1, 1))
         b = np.zeros((1, 1))
-        val = np.ones((1,1))
+        val = np.ones((1,1)) # (GRIP_TOL + 1e-1) * -np.ones((1,1))
         aff_e = AffExpr(A, b)
         e = EqExpr(aff_e, val)
+        #e = LEqExpr(aff_e, val)
 
-        neg_val = np.zeros((1,1))
+        neg_val = -np.ones((1,1)) # (GRIP_TOL - 1e-1) * np.ones((1,1))
         neg_aff_e = AffExpr(A, b)
         self.neg_expr = EqExpr(neg_aff_e, neg_val)
+        #self.neg_expr = LEqExpr(neg_aff_e, neg_val)
         super(GripperClosed, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
 
     def get_expr(self, negated):
@@ -446,7 +631,7 @@ class InContact(CollisionPredicate):
         self.robot, self.rp, self.targ = params
         attr_inds = OrderedDict([(self.rp, [("value", np.array([0,1], dtype=np.int))]),
                                  (self.targ, [("value", np.array([0,1], dtype=np.int))])])
-        self._param_to_body = {self.rp: self.lazy_spawn_or_body(self.rp, self.rp.name, self.robot.geom),
+        self._param_to_body = {self.rp: self.lazy_spawn_or_body(self.rp, self.rp.name, self.rp.geom),
                                self.targ: self.lazy_spawn_or_body(self.targ, self.targ.name, self.targ.geom)}
 
         INCONTACT_COEFF = 1e1
@@ -457,7 +642,7 @@ class InContact(CollisionPredicate):
         val = np.ones((1, 1))*dsafe*INCONTACT_COEFF
         # val = np.zeros((1, 1))
         e = EqExpr(col_expr, val)
-        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2)
+        super(InContact, self).__init__(name, e, attr_inds, params, expected_param_types, debug=debug, ind0=1, ind1=2, active_range=(0,0))
 
     def test(self, time, negated=False, tol=1e-4):
         return super(CollisionPredicate, self).test(time, negated, tol)
@@ -474,14 +659,87 @@ class Collides(CollisionPredicate):
         self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        def f(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+        def grad(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+        def f_neg(x):
+            return -f(x)
+
+        def grad_neg(x):
+            return grad(x)
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
 
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: self.distance_from_obj(x)[0]
+        # f_neg = lambda x: self.distance_from_obj(x)[0]
+        # def grad_neg(x):
+        #     # print self.distance_from_obj(x)
+        #     return -self.distance_from_obj(x)[1]
+
+        N_COLS = 8
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((COL_TS*N_COLS,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+        super(Collides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1)
+        self.n_cols = N_COLS
+        # self.priority = 1
+
+    def get_expr(self, negated):
+        if negated:
+            return self.neg_expr
+        else:
+            return None
+
+class TargetGraspCollides(Collides):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.c, self.w, self.g = params
+        if self.c.is_symbol():
+            k = "value"
+        else:
+            k = "pose"
+        attr_inds = OrderedDict([(self.c, [(k, np.array([0, 1], dtype=np.int))]),
+                                 (self.w, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
+        self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
+                               self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
+
+        dist = 1.5
+        def f(x):
+            disp = x[:2] + dist * x[4:6]
+            new_x = np.concatenate([disp, x[2:4]])
+            return -self.distance_from_obj(new_x)[0]
+
+        def grad(x):
+            disp = x[:2] + dist * x[4:6]
+            new_x = np.concatenate([disp, x[2:4]])
+            jac = self.distance_from_obj(new_x)[1]
+            return np.c_[np.zeros((8,2)), jac]
+
+        def f_neg(x):
+            return -f(x)
+
         def grad_neg(x):
-            # print self.distance_from_obj(x)
-            return -self.distance_from_obj(x)[1]
+            return grad(x)
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+        ## so we have an expr for the negated predicate
+        # f_neg = lambda x: self.distance_from_obj(x)[0]
+        # def grad_neg(x):
+        #     # print self.distance_from_obj(x)
+        #     return -self.distance_from_obj(x)[1]
 
         N_COLS = 8
 
@@ -495,15 +753,119 @@ class Collides(CollisionPredicate):
 
 
         super(Collides, self).__init__(name, e, attr_inds, params,
-                                        expected_param_types, ind0=0, ind1=1)
+                                        expected_param_types, ind0=0, ind1=1,
+                                        active_range=(0,0), priority=2)
         self.n_cols = N_COLS
         # self.priority = 1
 
-    def get_expr(self, negated):
-        if negated:
-            return self.neg_expr
+class RobotCanGraspCollides(Collides):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.c, self.w, self.g = params
+        if self.c.is_symbol():
+            k = "value"
         else:
-            return None
+            k = "pose"
+        attr_inds = OrderedDict([(self.c, [(k, np.array([0, 1], dtype=np.int))]),
+                                 (self.w, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
+        self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
+                               self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
+
+        def f(x):
+            return -self.distance_from_obj(x[:4])[0]
+
+        def grad(x):
+            jac = self.distance_from_obj(x[:4])[1]
+            return np.c_[jac, np.zeros((8,2))]
+
+        def f_neg(x):
+            return -f(x)
+
+        def grad_neg(x):
+            return grad(x)
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+        ## so we have an expr for the negated predicate
+        # f_neg = lambda x: self.distance_from_obj(x)[0]
+        # def grad_neg(x):
+        #     # print self.distance_from_obj(x)
+        #     return -self.distance_from_obj(x)[1]
+
+        N_COLS = 8
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((N_COLS,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+
+
+        super(Collides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1,
+                                        active_range=(0,0), priority=2)
+        self.n_cols = N_COLS
+        # self.priority = 1
+
+class CanGraspCollides(TargetGraspCollides):
+    pass
+
+class TargetCanGraspCollides(TargetGraspCollides):
+    pass
+
+class TargetCollides(Collides):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self._env = env
+        self.c, self.w = params
+        attr_inds = OrderedDict([(self.c, [("value", np.array([0, 1], dtype=np.int))]),
+                                 (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
+        self._param_to_body = {self.c: self.lazy_spawn_or_body(self.c, self.c.name, self.c.geom),
+                               self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
+
+        def f(x):
+            return -self.distance_from_obj(x)[0]
+
+        def grad(x):
+            return self.distance_from_obj(x)[1]
+
+        def f_neg(x):
+            return -f(x)
+
+        def grad_neg(x):
+            return grad(x)
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+        ## so we have an expr for the negated predicate
+        # f_neg = lambda x: self.distance_from_obj(x)[0]
+        # def grad_neg(x):
+        #     # print self.distance_from_obj(x)
+        #     return -self.distance_from_obj(x)[1]
+
+        N_COLS = 8
+
+        col_expr = Expr(f, grad)
+        val = np.zeros((N_COLS,1))
+        e = LEqExpr(col_expr, val)
+
+        col_expr_neg = Expr(f_neg, grad_neg)
+        self.neg_expr = LEqExpr(col_expr_neg, -val)
+
+
+
+        super(Collides, self).__init__(name, e, attr_inds, params,
+                                        expected_param_types, ind0=0, ind1=1,
+                                        active_range=(0,0))
+        self.n_cols = N_COLS
+        # self.priority = 1
+
+class PoseCollides(TargetCollides):
+    pass
 
 class RCollides(CollisionPredicate):
 
@@ -511,18 +873,20 @@ class RCollides(CollisionPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
+        self.hl_ignore = True
         self.r, self.w = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.w, [("pose", np.array([0, 1], dtype=np.int))])])
         self._param_to_body = {self.r: self.lazy_spawn_or_body(self.r, self.r.name, self.r.geom),
                                self.w: self.lazy_spawn_or_body(self.w, self.w.name, self.w.geom)}
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
 
         neg_coeff = 1e4
         neg_grad_coeff = 1e-3
 
+        '''
         ## so we have an expr for the negated predicate
         def f_neg(x):
             d = neg_coeff * self.distance_from_obj(x)[0]
@@ -534,10 +898,30 @@ class RCollides(CollisionPredicate):
         def grad_neg(x):
             # print self.distance_from_obj(x)
             return -neg_grad_coeff * self.distance_from_obj(x)[1]
+        '''
+
+        def f(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+        def grad(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+
+        def f_neg(x):
+            return -neg_coeff * f(x)
+
+        def grad_neg(x):
+            return neg_grad_coeff * grad(x)
+
+
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
+
+
 
         N_COLS = 8
         col_expr = Expr(f, grad)
-        val = np.zeros((N_COLS,1))
+        val = np.zeros((COL_TS*N_COLS,1))
         e = LEqExpr(col_expr, val)
 
         col_expr_neg = Expr(f_neg, grad_neg)
@@ -563,11 +947,22 @@ class RCollides(CollisionPredicate):
             
         act = plan.actions[a]
 
-        x = self.get_param_vector(time)
-        jac = self.distance_from_obj(x)[1][0,:2]
-        jac = jac / np.linalg.norm(jac)
+        if time == plan.actions[a].active_timesteps[1]:
+            x = self.get_param_vector(time)
+            val, jac = self.distance_from_obj(x, 0)
+            jac = jac[0,:2]
+        else:
+            x1 = self.get_param_vector(time)
+            x2 = self.get_param_vector(time+1)
+            jac = -twostep_f([x1, x2], self.distance_from_obj, 4, grad=True)
+            jac = np.mean(jac[:,:2], axis=0)
 
-        new_robot_pose = self.r.pose[:, time] + 1e-1 * jac
+        if np.all(jac == 0):
+                return None, None
+        
+        jac = jac / (np.linalg.norm(jac) + 1e-3)
+
+        new_robot_pose = self.r.pose[:, time] + np.random.uniform(0.1, 0.5) * jac
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         for i in range(st, et):
@@ -592,6 +987,7 @@ class Obstructs(CollisionPredicate):
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self._env = env
+        self.hl_ignore = True
         self.r, self.startp, self.endp, self.c = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.c, [("pose", np.array([0, 1], dtype=np.int))])])
@@ -600,16 +996,31 @@ class Obstructs(CollisionPredicate):
 
         self.rs_scale = RS_SCALE
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
 
         neg_coeff = 1e2
         neg_grad_coeff = 1e-3
+        '''
         ## so we have an expr for the negated predicate
         f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
         def grad_neg(x):
             # print self.distance_from_obj(x)
             return neg_grad_coeff*self.distance_from_obj(x)[1]
+        '''
+
+        def f(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+
+        def grad(x):
+            return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+
+        def f_neg(x):
+            return -neg_coeff * f(x)
+
+        def grad_neg(x):
+            return -neg_grad_coeff * grad(x)
+
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
@@ -645,25 +1056,56 @@ class Obstructs(CollisionPredicate):
         act = plan.actions[a]
 
         disp = self.c.pose[:, time] - self.r.pose[:,time]
+        use_t = time
+        new_disp = disp
+        if time < plan.actions[a].active_timesteps[1] and np.linalg.norm(disp) > self.r.geom.radius + self.c.geom.radius + self.dsafe:
+            new_disp = self.c.pose[:, time+1] - self.r.pose[:,time+1]
+
+        if np.linalg.norm(new_disp) < self.r.geom.radius + self.c.geom.radius + self.dsafe:
+            disp = new_disp
+        else:
+            disp = (disp + new_disp) / 2.
+
         if disp[0] == 0:
             orth = np.array([1., 0.])
         elif disp[1] == 0:
             orth = np.array([0., 1.])
         else:
             orth = np.array([1./disp[0], -1./disp[1]])
-        orth *= np.random.choice([-1., 1.])
-        orth = orth / np.linalg.norm(orth)
-        orth *= 1.5 * (self.c.geom.radius + self.r.geom.radius)
+        disp += 1e-5
 
-        new_robot_pose = self.r.pose[:, time] + orth
         st = max(max(time-3,0), act.active_timesteps[0])
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
+        long_disp = self.r.pose[:,et] - self.r.pose[:, st]
+        long_disp /= np.linalg.norm(long_disp)
+        d1, d2 = long_disp.dot(orth), long_disp.dot(-orth)
+
+        if d1 > d2:
+            w1, w2 = 0.1, 0.9
+        else:
+            w1, w2 = 0.9, 0.1
+        orth *= np.random.choice([-1., 1.], p=[w1, w2])
+        orth = orth / np.linalg.norm(orth)
+
+        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
+        orth = rdisp #+ np.random.uniform(0.5, 2.) * orth
+        # orth *= np.random.uniform(0.7, 1.5) * (self.c.geom.radius + self.r.geom.radius + self.dsafe)
+        # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
+
+        #new_robot_pose = self.r.pose[:, time] + orth
+        disp = orth
+        st = max(max(time-3,1), act.active_timesteps[0]+1)
+        et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
+        ref_st = max(max(time-3,0), act.active_timesteps[0])
+        ref_et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
-                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * new_robot_pose
+                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, st] + disp)
+                inter_rp = (dist / 3.) * self.r.pose[:, ref_st] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
             else:
-                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * new_robot_pose
+                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, et] + disp)
+                inter_rp = (dist / 3.) * self.r.pose[:, ref_et] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
         return res, attr_inds
@@ -673,6 +1115,11 @@ class Obstructs(CollisionPredicate):
             return self.neg_expr
         else:
             return None
+
+class WideObstructs(Obstructs):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
+        self.dsafe = 0.2
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -760,14 +1207,34 @@ class ObstructsHolding(CollisionPredicate):
                                obstr: self.lazy_spawn_or_body(obstr, obstr.name, obstr.geom),
                                held: self.lazy_spawn_or_body(held, held.name, held.geom)}
 
-        f = lambda x: -self.distance_from_obj(x)[0]
-        grad = lambda x: -self.distance_from_obj(x)[1]
+        #f = lambda x: -self.distance_from_obj(x)[0]
+        #grad = lambda x: -self.distance_from_obj(x)[1]
 
         neg_coeff = 1e2
         neg_grad_coeff = 1e-3
         ## so we have an expr for the negated predicate
-        f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
-        grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
+        #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
+        #grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
+
+        def f(x):
+            if self.obstr.name == self.held.name:
+                return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4)
+            else:
+                return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6)
+
+
+        def grad(x):
+            if self.obstr.name == self.held.name:
+                return -twostep_f([x[:4], x[4:8]], self.distance_from_obj, 4, grad=True)
+            else:
+                return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
+
+        def f_neg(x):
+            return -neg_coeff * f(x)
+
+        def grad_neg(x):
+            return -neg_grad_coeff * grad(x)
+
 
         col_expr = Expr(f, grad)
         val = np.zeros((1,1))
@@ -776,9 +1243,9 @@ class ObstructsHolding(CollisionPredicate):
         if self.held != self.obstr:
             col_expr_neg = Expr(f_neg, grad_neg)
         else:
-            f_neg = lambda x: 0. * self.distance_from_obj(x)[0]
-            grad_neg = lambda x: self.distance_from_obj(x)[1]
-            col_expr_neg = Expr(f_neg, grad_neg)
+            new_f_neg = lambda x: 0. * f(x)#self.distance_from_obj(x)[0]
+            new_grad_neg = lambda x: -grad(x) # self.distance_from_obj(x)[1]
+            col_expr_neg = Expr(new_f_neg, new_grad_neg)
         self.neg_expr = LEqExpr(col_expr_neg, val)
 
         super(ObstructsHolding, self).__init__(name, e, attr_inds, params, expected_param_types)
@@ -797,16 +1264,35 @@ class ObstructsHolding(CollisionPredicate):
 
         res = OrderedDict()
         attr_inds = OrderedDict()
-        disp = self.obstr.pose[:, time] - self.held.pose[:,time]
+        disp1 = self.obstr.pose[:, time] - self.held.pose[:,time]
+        disp2 = self.obstr.pose[:, time] - self.r.pose[:,time]
+        disp = disp1 if np.linalg.norm(disp1) < np.linalg.norm(disp2) else disp2
         if disp[0] == 0:
             orth = np.array([1., 0.])
         elif disp[1] == 0:
             orth = np.array([0., 1.])
         else:
             orth = np.array([1./disp[0], -1./disp[1]])
-        orth *= np.random.choice([-1., 1.])
+        disp += 1e-4
+
+        st = max(max(time-3,0), act.active_timesteps[0])
+        et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
+        long_disp = self.r.pose[:,et] - self.r.pose[:, st]
+        long_disp /= np.linalg.norm(long_disp)
+        d1, d2 = long_disp.dot(orth), long_disp.dot(-orth)
+
+        if d1 > d2:
+            w1, w2 = 0.1, 0.9
+        else:
+            w1, w2 = 0.9, 0.1
+        orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
-        orth *= 1.5 * (self.held.geom.radius + self.obstr.geom.radius)
+        
+        rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + 2e-1) * disp / np.linalg.norm(disp)
+        orth = rdisp + np.random.uniform(0.2, 0.5) * orth
+        # orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
+        # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
+
         # ## assumes that self.startp, self.endp and target are all symbols
         # t_local = 0
         # for param in [self.startp, self.endp]:
@@ -829,11 +1315,11 @@ class ObstructsHolding(CollisionPredicate):
         for i in range(st, et):
             dist = float(np.abs(i - time))
             if i <= time:
-                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * new_robot_pose
-                inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * new_held_pose
+                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, st] + orth)
+                inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * (self.held.pose[:, st] + orth)
             else:
-                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * new_robot_pose
-                inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * new_held_pose
+                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, et] + orth)
+                inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * (self.held.pose[:, et] + orth)
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
             add_to_attr_inds_and_res(i, attr_inds, res, self.held, [('pose', inter_rp)])
@@ -845,9 +1331,8 @@ class ObstructsHolding(CollisionPredicate):
         else:
             return None
 
-    def distance_from_obj(self, x):
+    def distance_from_obj(self, x, n_steps=0):
         # x = [rpx, rpy, obstrx, obstry, heldx, heldy]
-        self._cc.SetContactDistance(np.Inf)
         b0 = self._param_to_body[self.r]
         b1 = self._param_to_body[self.obstr]
 
@@ -860,6 +1345,7 @@ class ObstructsHolding(CollisionPredicate):
         if USE_OPENRAVE:
             assert b0.env_body.GetEnv() == b1.env_body.GetEnv()
 
+            self._cc.SetContactDistance(np.Inf)
             collisions1 = self._cc.BodyVsBody(b0.env_body, b1.env_body)
         else:
             collisions1 = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
@@ -894,6 +1380,12 @@ class ObstructsHolding(CollisionPredicate):
 
         return val, jac
 
+class WideObstructsHolding(ObstructsHolding):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
+        self.dsafe = 0.2
+
+
 class InGripper(ExprPredicate):
 
     # InGripper, Robot, Can, Grasp
@@ -912,7 +1404,24 @@ class InGripper(ExprPredicate):
         e = AffExpr(A, b)
         e = EqExpr(e, np.zeros((2,1)))
 
-        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types)
+        super(InGripper, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2)
+
+
+class Retreat(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.r, self.can, self.grasp = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.grasp, [("value", np.array([0, 1], dtype=np.int))])
+                                ])
+        # want x0 - x2 = x4, x1 - x3 = x5
+        A = 1e1 * np.array([[1, 0, 0.5,   0, -1,  0, 0, 0],
+                            [0, 1,   0, 0.5,  0, -1, 0, 0]])
+        b = np.zeros((2, 1))
+
+        e = AffExpr(A, b)
+        e = EqExpr(e, np.zeros((2,1)))
+
+        super(Retreat, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2, active_range=(0,1))
 
 class GraspValid(ExprPredicate):
 
@@ -933,6 +1442,37 @@ class GraspValid(ExprPredicate):
         e = EqExpr(e, np.zeros((2,1)))
 
         super(GraspValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority=0)
+
+
+class RobotStationary(ExprPredicate):
+
+    # Stationary, Can
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.c,  = params
+        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))])])
+        A = np.array([[1, 0, -1, 0],
+                      [0, 1, 0, -1]])
+        b = np.zeros((2, 1))
+        e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
+        super(RobotStationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
+
+class RobotRetreat(ExprPredicate):
+
+    # Stationary, Can
+
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.c, self.g = params
+        attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]),
+                                 (self.g, [("value", np.array([0,1], dtype=np.int))])])
+        A = np.array([[1, 0, 1, 0, -1, 0, 0, 0],
+                      [0, 1, 0, 1, 0, -1, 0, 0]])
+        b = np.zeros((2, 1))
+        e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
+        super(RobotRetreat, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
 
 class Stationary(ExprPredicate):
 
@@ -996,7 +1536,6 @@ class IsMP(ExprPredicate):
                       [-1, 0, 1, 0],
                       [0, -1, 0, 1]])
         b = np.zeros((4, 1))
-
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
@@ -1035,23 +1574,51 @@ class AccWithinBounds(At):
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 
-class AccWithinBounds(ExprPredicate):
+class VelValid(ExprPredicate):
 
-    # IsVelMP Robot
+    # VelValid Robot
 
     def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))])])
-        A = np.array([[1, 0, -1, 0],
-                      [0, 1, 0, -1],
-                      [-1, 0, 1, 0],
-                      [0, -1, 0, 1]])
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)), ("vel", np.array([0, 1], dtype=np.int))]),])
+        A = np.array([[-1, 0, 1, 0, 1, 0, 0, 0],
+                      [0, -1, 0, 1, 0, 1, 0, 0],])
         b = np.zeros((4, 1))
 
         e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
-        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+        super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
+class Decelerating(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+        self.r, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int))]),])
+        A = np.array([[-1,  0, 1, 0],
+                      [ 0, -1, 0, 1],])
+        b = np.zeros((4, 1))
+
+        e = LEqExpr(AffExpr(A, b), b.copy())
+        super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
+
+class Accelerating(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+        self.r, = params
+        ## constraints  |x_t - x_{t+1}| < dmove
+        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+        attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int))]),])
+        A = np.array([[1, 0, -1,  0],
+                      [0, 1,  0, -1],])
+        b = np.zeros((4, 1))
+
+        e = LEqExpr(AffExpr(A, b), b.copy())
+        super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
 
 
 class VelValid(ExprPredicate):
@@ -1071,7 +1638,6 @@ class VelValid(ExprPredicate):
         super(VelValid, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
-
 class AccValid(VelValid):
 
     # AccValid Robot
@@ -1079,3 +1645,5 @@ class AccValid(VelValid):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
         super(AccValid, self).__init__(name, params, expected_param_types, env, debug, dmove)
         self.attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int)), ("acc", np.array([0, 1], dtype=np.int))]),])
+
+
