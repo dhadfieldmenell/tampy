@@ -155,7 +155,7 @@ class TAMPAgent(Agent):
         self.prim_dims = self._hyperparams['prim_dims']
         self.prim_dims_keys = list(self.prim_dims.keys())
 
-        self.solver = self._hyperparams['solver_type'](self._hyperparams)
+        self.solver = self._hyperparams['mp_solver_type'](self._hyperparams)
         self.hl_solver = get_hl_solver(self.prob.domain_file)
         self.debug = True
 
@@ -249,6 +249,10 @@ class TAMPAgent(Agent):
                     sample.set_ref_U(np.zeros((sample.T, self.dU)))
 
 
+    def reset_hist(self):
+        self._prev_U = np.zeros((self.hist_len, self.dU))
+
+
     def add_task_paths(self, paths):
         self.task_paths.extend(paths)
         while len(self.task_paths) > MAX_TASK_PATHS:
@@ -262,12 +266,6 @@ class TAMPAgent(Agent):
     def clear_task_paths(self, keep_prob=0.):
         n_keep = int(keep_prob * len(self.task_paths))
         self.task_paths = random.sample(self.task_paths, n_keep)
-
-
-    def reset_hist(self, hist=[]):
-        if not len(hist):
-            hist = np.zeros((self.hist_len, self.dU)).tolist()
-        self.traj_hist = hist
 
 
     def get_hist(self):
@@ -844,7 +842,7 @@ class TAMPAgent(Agent):
         return np.mean(buf[-n_thresh:]) < curr_thresh
 
 
-    def encode_action(self, action):
+    def encode_action(self, action, next_act=None):
         prim_choices = self.prob.get_prim_choices()
         astr = str(action).lower()
         l = [0]
@@ -855,12 +853,15 @@ class TAMPAgent(Agent):
 
         for enum in prim_choices:
             if enum is TASK_ENUM: continue
-            l.append(0)
-            for i, opt in enumerate(prim_choices[enum]):
-                if opt in [p.name for p in action.params]:
-                    l[-1] = i
-                    break
-        return tuple(l)
+            l.append(-1)
+            for act in [action, next_act]:
+                for i, opt in enumerate(prim_choices[enum]):
+                    if opt in [p.name for p in act.params]:
+                        l[-1] = i
+                        break
+                if l[-1] >= 0: break
+            if l[-1] < 0.: l[-1] = 0.
+        return l # tuple(l)
 
 
     def encode_plan(self, plan):
@@ -906,6 +907,8 @@ class TAMPAgent(Agent):
             st, et = plan.actions[a].active_timesteps
             fill_vector(plan.params, self.state_inds, x0, st)
             task = self.encode_action(plan.actions[a])
+
+            '''
             sample = self.sample_task(self.policies[self.task_list[task[0]]], 0, x0.copy(), task)
             traj = np.zeros((plan.horizon, self.symbolic_bound))
             traj[st:et+1] = sample.get_X()
@@ -925,11 +928,14 @@ class TAMPAgent(Agent):
             plan.store_free_attrs(free_attrs)
             # failed = filter(lambda p: not type(p[1].expr) is EqExpr, failed)
             success = len(failed) == 0
-            self.add_sample_batch([sample], task)
+            # self.add_sample_batch([sample], task)
+            '''
+
+            success = False
             if not success:
-                initial = parse_state(plan, [], et)
-                fill_vector(plan.params, self.state_inds, x0, et)
-                self.store_hl_problem(x0.copy(), initial, plan.goal, keep_prob=0.05, max_len=50)
+                # initial = parse_state(plan, [], et)
+                #fill_vector(plan.params, self.state_inds, x0, et)
+                # self.store_hl_problem(x0.copy(), initial, plan.goal, keep_prob=0.05, max_len=50)
                 fill_vector(plan.params, self.state_inds, x0, st)
                 self.set_symbols(plan, x0, task, anum=a)
                 try:
@@ -939,9 +945,12 @@ class TAMPAgent(Agent):
                     traceback.print_exception(*sys.exc_info())
                     print('Exception in full solve for', x0, task, plan.actions[a])
                     success = False
-
+            
             if not success:
-                print('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), plan.get_failed_preds((0, et)))
+                failed = plan.get_failed_preds((0, et))
+                if not len(failed):
+                    continue
+                print('Graph failed solve on', x0, task, plan.actions[a], 'up to {0}'.format(et), failed, self.process_id)
                 return False
         #path = self.run_plan(plan)
         #self.add_task_paths([path])
@@ -952,6 +961,7 @@ class TAMPAgent(Agent):
         path = []
         x0 = np.zeros_like(self.x0[0])
         fill_vector(plan.params, self.state_inds, x0, 0)
+        self.reset_to_state(x0)
         for a in range(len(plan.actions)):
             # x0 = np.zeros_like(self.x0[0])
             st, et = plan.actions[a].active_timesteps
@@ -964,22 +974,40 @@ class TAMPAgent(Agent):
             for pname, attr in self.state_inds:
                 if plan.params[pname].is_symbol(): continue
                 opt_traj[:,self.state_inds[pname, attr]] = getattr(plan.params[pname], attr)[:,st:et+1].T
-            
+          
+            # self.reset_hist()
+            cur_len = len(path)
             if self.retime:
-                new_traj = self.retime_traj(opt_traj)
+                vel = self.master_config.get('velocity', 0.3)
+                new_traj = self.retime_traj(opt_traj, vel=vel)
+                for _ in range(self.hist_len):
+                    new_traj = np.r_[new_traj, new_traj[-1:]]
                 T = et-st+1
                 t = 0
+                ind = 0
                 while t < len(new_traj)-1:
                     traj = new_traj[t:t+T+1]
+                    # if np.all(np.abs(traj[-1]-traj[0]) < 1e-5): break
                     sample = self.sample_optimal_trajectory(x0, task, 0, traj, targets=targets)
                     # self.add_sample_batch([sample], task)
                     path.append(sample)
                     sample.discount = 1.
                     sample.opt_strength = 1.
                     sample.opt_suc = True
+                    sample.step = ind
+                    sample.task_end = False
+                    ind += 1
                     t += T - 1
-                    x0 = sample.get_X(t=sample.T-1)
+                    x0 = sample.end_state # sample.get_X(t=sample.T-1)
                     sample.success = 1. - self.goal_f(0, x0, sample.targets)
+                    if np.all(np.abs(traj[-1]-traj[0]) < 1e-5):
+                        sample.use_ts[:] = 0.
+                        sample.use_ts[:self.hist_len] = 1.
+                        sample.prim_use_ts[:] = 0.
+                    elif t >= len(new_traj)-1:
+                        sample.use_ts[len(traj)-1] = 1.
+                        sample.use_ts[-self.hist_len:] = 1.
+                        # sample.prim_use_ts[len(traj)-2] = 1.
             else:
                 sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj, targets=targets)
                 # self.add_sample_batch([sample], task)
@@ -987,9 +1015,13 @@ class TAMPAgent(Agent):
                 sample.discount = 1.
                 sample.opt_strength = 1.
                 sample.opt_suc = True
-                x0 = sample.get_X(sample.T-1)
+                sample.task_end = False
+                x0 = sample.end_state # sample.get_X(sample.T-1)
                 sample.success = 1. - self.goal_f(0, x0, sample.targets)
-
+                sample.use_ts[-1] = 1.
+                sample.prim_use_ts[-1] = 1.
+            path[cur_len].set(DONE_ENUM, np.ones(1), t=0)
+            path[-1].task_end = True
         if path[-1].success > 0.99:
             self.add_task_paths([path])
             for s in path:
@@ -1067,4 +1099,30 @@ class TAMPAgent(Agent):
                 print('Failed to resample', plan.get_failed_preds(), x0)
         print('Generated', x0s, 'for', plan.actions, 'success:', nsuc)
         return x0s
+
+
+    def cost_f(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
+        if active_ts == None:
+            active_ts = (1, plan.horizon-1)
+        failed_preds = self._failed_preds(Xs, task, condition, active_ts=active_ts, debug=debug, targets=targets)
+        cost = 0
+        for failed in failed_preds:
+            for t in range(active_ts[0], active_ts[1]+1):
+                if t + failed[1].active_range[1] > active_ts[1]:
+                    break
+
+                try:
+                    viol = failed[1].check_pred_violation(t, negated=failed[0], tol=1e-3)
+                    if viol is not None:
+                        cost += np.max(viol)
+                except Exception as e:
+                    print('Exception in cost check')
+                    print(e)
+                    cost += 1e1
+
+        if len(failed_preds) and cost == 0:
+            cost += 1
+
+        return cost
+
 

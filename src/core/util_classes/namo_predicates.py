@@ -30,7 +30,7 @@ RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_TOL = 5e-1
 COL_TS = 4 # 3
-NEAR_TOL = 0.4
+NEAR_TOL = 0.3 # 0.4
 
 
 ATTRMAP = {
@@ -230,11 +230,6 @@ class CollisionPredicate(ExprPredicate):
         #     return self._cache[flattened]
         p0 = self.params[self.ind0]
         p1 = self.params[self.ind1]
-        # if hasattr(p0.geom, 'radius') and hasattr(p1.geom, 'radius'):
-        #     disp = pose1 - pose0
-        #     dist = np.linalg.norm(disp)
-        #     vals = np.zeros((self.n_cols, 1))
-        #     jacs = np.zeros((self.n_cols, 4))
         b0 = self._param_to_body[p0]
         b1 = self._param_to_body[p1]
         pose0 = x[0:2]
@@ -250,11 +245,7 @@ class CollisionPredicate(ExprPredicate):
         else:
             collisions = p.getClosestPoints(b0.body_id, b1.body_id, contact_dist)
 
-        # if p1.name == 'obs0':
-        #     print b1.env_body.GetLinks()[0].GetCollisionData().vertices
-
         col_val, jac01 = self._calc_grad_and_val(p0.name, p1.name, pose0, pose1, collisions)
-        # val = np.array([col_val])
         val = col_val
         jac = jac01
         # self._cache[flattened] = (val.copy(), jac.copy())
@@ -999,8 +990,8 @@ class Obstructs(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e2
-        neg_grad_coeff = 1e-3
+        neg_coeff = 1e3
+        neg_grad_coeff = 1e-1 # 1e-3
         '''
         ## so we have an expr for the negated predicate
         f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
@@ -1102,9 +1093,11 @@ class Obstructs(CollisionPredicate):
             dist =float(np.abs(i - time))
             if i <= time:
                 inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, st] + disp)
+                #inter_rp = (dist / 3.) * self.r.pose[:, time] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
                 inter_rp = (dist / 3.) * self.r.pose[:, ref_st] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
             else:
                 inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, et] + disp)
+                #inter_rp = (dist / 3.) * self.r.pose[:, time] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
                 inter_rp = (dist / 3.) * self.r.pose[:, ref_et] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
@@ -1120,6 +1113,7 @@ class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = 0.2
+        self.dsafe = 0.3
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -1210,7 +1204,7 @@ class ObstructsHolding(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e2
+        neg_coeff = 1e3
         neg_grad_coeff = 1e-3
         ## so we have an expr for the negated predicate
         #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
@@ -1289,7 +1283,7 @@ class ObstructsHolding(CollisionPredicate):
         orth = orth / np.linalg.norm(orth)
         
         rdisp = -(self.obstr.geom.radius + self.held.geom.radius + self.dsafe + 2e-1) * disp / np.linalg.norm(disp)
-        orth = rdisp + np.random.uniform(0.2, 0.5) * orth
+        orth = rdisp # + np.random.uniform(0.2, 0.5) * orth
         # orth *= np.random.uniform(1.2, 1.8) * (self.obstr.geom.radius + self.r.geom.radius)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -1380,10 +1374,12 @@ class ObstructsHolding(CollisionPredicate):
 
         return val, jac
 
+
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = 0.2
+        self.dsafe = 0.3
 
 
 class InGripper(ExprPredicate):
@@ -1422,6 +1418,7 @@ class Retreat(ExprPredicate):
         e = EqExpr(e, np.zeros((2,1)))
 
         super(Retreat, self).__init__(name, e, attr_inds, params, expected_param_types, priority=-2, active_range=(0,1))
+
 
 class GraspValid(ExprPredicate):
 
@@ -1486,6 +1483,7 @@ class Stationary(ExprPredicate):
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
         super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
 
 class StationaryNEq(ExprPredicate):
 

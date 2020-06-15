@@ -13,6 +13,8 @@ class Sample(object):
     def __init__(self, agent):
         self.agent = agent
         self.T = agent.T
+        self.step = 0
+        self.task_end = False
         self._data = {}
         self.reinit()
 
@@ -45,6 +47,7 @@ class Sample(object):
         self.task_cost = np.nan
         self.removable = True
         self.use_ts = np.ones(self.T)
+        self.prim_use_ts = np.ones(self.T)
 
     def set(self, sensor_name, sensor_data, t=None):
         """ Set trajectory data for a particular sensor. """

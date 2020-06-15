@@ -5,12 +5,15 @@ prob.NUM_TARGS = 8
 prob.N_GRASPS = 4
 prob.n_aux = 0
 prob.END_TARGETS = prob.END_TARGETS[:8]
+prob.domain_file = "../domains/namo_domain/wide.domain"
 from pma.namo_solver import *
 from pma.hl_solver import *
 from pma.pr_graph import *
 
 plans = prob.get_plans()
 plan = plans[0][(1,0,6,3)]
+plan = plans[0][(0,1,5,2)]
+# plan = plans[0][(1,0,0,2)]
 domain = plan.domain
 problem = plan.prob
 state = problem.init_state
@@ -18,12 +21,18 @@ for p in plan.params.values():
     if p.openrave_body is not None:
         p.openrave_body.set_pose([20,20])
 pr2_pose = [-3.199, -0.2]
-can0_pose = [-3.8, -0.2]
-can1_pose = [2.8, 1.5]
+pr2_pose = [2.198999, 1.5]
+pr2_pose = [2.2, -2.6]
+can0_pose = [-0.6, -2.8]
+can1_pose = [-3., -0.2]
 can2_pose = [4, -1]
 can3_pose = [-4, -1]
 
+pr2_pose = [-0.801, -3.]
+can0_pose = [-0.2, -3.]
+can1_pose = [1.4, -0.6]
 plan.params['pr2'].pose[:,0] = pr2_pose
+plan.params['pr2'].gripper[:,0] = -1
 plan.params['robot_init_pose'].value[:,0] = pr2_pose
 plan.params['end_target_0'].value[:,0] = prob.END_TARGETS[0]
 plan.params['end_target_1'].value[:,0] = prob.END_TARGETS[1]

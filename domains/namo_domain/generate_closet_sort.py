@@ -62,12 +62,12 @@ def main():
                 s += "(value grasp2 [{0}, 0]), ".format(-0.6-dsafe)
                 s += "(value grasp3 [{0}, 0]), ".format(0.6+dsafe)
                 s += "(geom %s 0.3), (pose %s %s), "%("pr2", "pr2", [0, 0])
-                s += "(gripper pr2 [0.]), "
+                s += "(gripper pr2 [-1.]), "
                 s += "(value %s %s), "%("robot_init_pose", [0., 0.])
                 s += "(value %s %s), "%("robot_end_pose", "undefined")
                 s += "(geom %s %s), "%("robot_init_pose", 0.3)
                 s += "(geom %s %s), "%("robot_end_pose", 0.3)
-                s += "(gripper %s [0.]), "%("robot_init_pose")
+                s += "(gripper %s [-1.]), "%("robot_init_pose")
                 s += "(gripper %s undefined), "%("robot_end_pose")
                 s += "(value %s %s), "%("grasp_end_pose", "undefined")
                 s += "(gripper %s %s), "%("grasp_end_pose", "undefined")

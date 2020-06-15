@@ -14,7 +14,7 @@ from policy_hooks.utils.policy_solver_utils import *
 MAX_OPT_DEPTH = 30 # TODO: Make this more versatile
 
 
-class MixedPolicy:
+class ixedPolicy:
     def __init__(self, pol, dU, action_inds, state_inds, opt_traj, opt_strength):
         self.pol = pol
         self.dU = dU
@@ -189,6 +189,8 @@ class MCTS:
         self.n_runs = 0
         self.reset(gmms, condition)
         self.first_success = self.max_depth * 50
+        self.hl_suc = 0
+        self.hl_fail = 0
 
         label_options = list(itertools.product(range(self.num_tasks), *[range(n) for n in self.num_prims]))
         self.n_explored = {tuple(l): 0 for l in label_options}
@@ -418,7 +420,11 @@ class MCTS:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
             path = self.agent.run_plan(plan, targets=targets)
             success = path[-1].success
+            self.hl_suc += 1
             self.log_path(path, 10)
+        else:
+            self.hl_fail += 1
+            print('No plan found for', state, goal, targets, self.agent.process_id)
         self.n_success += success
         self.val_per_run.append(success)
         self.reset()
@@ -440,7 +446,6 @@ class MCTS:
             if precond_cost > 0:
                 return 0, None, None
 
-        # self.agent.reset_hist(deepcopy(old_traj_hist))
         next_node = MCTSNode(tuple(label), 
                              0, 
                              node, 
@@ -594,15 +599,12 @@ class MCTS:
 
         self.n_samples += 1
         s, success = None, False
-        if self.opt_strength > 1-1e-2 or not hasattr(self.rollout_policy[task_name], 'scale') or self.rollout_policy[task_name].scale is None:
-            new_opt_strength = 1.
-        else:
-            new_opt_strength = self.opt_strength
+        new_opt_strength = self.opt_strength
 
         use = True
         success = False
-        pol = MixedPolicy(self.rollout_policy[task_name], self.agent.dU, self.agent.action_inds, self.agent.state_inds, None, new_opt_strength)
-        if new_opt_strength > 0:
+        pol = self.rollout_policy[task_name] # MixedPolicy(self.rollout_policy[task_name], self.agent.dU, self.agent.action_inds, self.agent.state_inds, None, new_opt_strength)
+        if fixed_path is None and new_opt_strength > 0:
             hl = False
             gmm = self.gmms[task_name] if self.gmms is not None else None
             inf_f = None # if gmm is None or gmm.sigma is None else lambda s: gmm.inference(np.concatenate[s.get(STATE_ENUM), s.get_U()])
@@ -616,26 +618,23 @@ class MCTS:
                 pol.opt_strength = 0
                 use = False
                 self.bad_tree = True
-
-        # if success:
-        #     samples.append(s)
-
-        if fixed_path is None:
-            for n in range(num_samples):
-                # self.agent.reset_hist(deepcopy(old_traj_hist))
-                task_f = None
-                if hl:
-                    task_f = lambda s, t: self.run_hl(s, t, s.targets, check_cost=hl_check)
-                    # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
-                samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
-                # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
-                if success:
-                    samples[-1].set_ref_X(s.get_ref_X())
-                    samples[-1].set_ref_U(s.get_ref_U())
-            if new_opt_strength < 1-1e-2:
-                self.post_cond.append(samples[0].post_cost)
-        else:
-            samples.append(self.agent.sample_optimal_trajectory(cur_state, task, self.condition, fixed_path))
+        
+        if s is None:
+            if fixed_path is None:
+                for n in range(num_samples):
+                    task_f = None
+                    if hl:
+                        task_f = lambda s, t: self.run_hl(s, t, s.targets, check_cost=hl_check)
+                        # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
+                    samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
+                    # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
+                    if success:
+                        samples[-1].set_ref_X(s.get_ref_X())
+                        samples[-1].set_ref_U(s.get_ref_U())
+                # if new_opt_strength < 1-1e-2:
+                #     self.post_cond.append(samples[0].post_cost)
+            else:
+                samples.append(self.agent.sample_optimal_trajectory(cur_state, task, self.condition, fixed_path))
 
         lowest_cost_sample = samples[0]
         opt_fail = False
@@ -654,7 +653,6 @@ class MCTS:
         cur_state = lowest_cost_sample.get_X(t=lowest_cost_sample.T-1)
         lowest_cost_sample.success = 1 - self.agent.goal_f(self.condition, cur_state)
         lowest_cost_sample.done = int(lowest_cost_sample.success)
-        # self.agent.reset_hist(lowest_cost_sample.get_U()[-self.agent.hist_len:].tolist())
 
         '''
         if self.log_file is not None:
@@ -750,6 +748,7 @@ class MCTS:
         exclude_hl = []
         path_value = None
         next_sample = None
+        self.agent.reset_to_state(state)
         if np.random.uniform() < self.ff_thresh:
             val, path, _ = self.eval_pr_graph(state)
             return val, path
@@ -870,6 +869,7 @@ class MCTS:
 
 
     def test_run(self, state, targets, max_t=20, hl=False, soft=False, check_cost=True):
+        self.agent.reset_to_state(state)
         old_opt = self.opt_strength
         # self.opt_strength = 1.
         path = []
@@ -889,7 +889,7 @@ class MCTS:
                 print('Ran {0} at step {1} for targets {2}'.format(l, t, targets))
             val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
             t += 1
-            state = s.get_X(s.T-1)
+            state = s.end_state # s.get_X(s.T-1)
             path.append(s)
         self.opt_strength = old_opt
         self.log_path(path, -5)
@@ -1117,7 +1117,10 @@ class MCTS:
         data = []
         for sample in path:
             X = [{(pname, attr): sample.get_X(t=t)[self.agent.state_inds[pname, attr]].round(4) for pname, attr in self.agent.state_inds if self.agent.state_inds[pname, attr][-1] < self.agent.symbolic_bound} for t in range(sample.T)]
-            U = [{(pname, attr): sample.get_U(t=t)[self.agent.action_inds[pname, attr]].round(4) for pname, attr in self.agent.action_inds} for t in range(sample.T)]
+            if hasattr(sample, 'col_ts'):
+                U = [{(pname, attr): (sample.get_U(t=t)[self.agent.action_inds[pname, attr]].round(4), sample.col_ts[t]) for pname, attr in self.agent.action_inds} for t in range(sample.T)]
+            else:
+                U = [{(pname, attr): sample.get_U(t=t)[self.agent.action_inds[pname, attr]].round(4) for pname, attr in self.agent.action_inds} for t in range(sample.T)]
             info = {'X': X, 'task': sample.task, 'time_from_start': time.time() - self.start_t, 'n_runs': self.n_runs, 'n_resets': self.n_resets, 'value': 1.-sample.task_cost, 'fixed_samples': n_fixed, 'root_state': self.agent.x0[self.condition], 'opt_strength': sample.opt_strength if hasattr(sample, 'opt_strength') else 'N/A', 'act': U}
             if verbose:
                 info['obs'] = sample.get_obs().round(4)
@@ -1126,6 +1129,10 @@ class MCTS:
                 info['max_depth'] = self.max_depth
                 info['eta'] = self.eta
                 info['opt_success'] = sample.opt_suc
+                info['tasks'] = sample.get(FACTOREDTASK_ENUM)
+                info['hl_suc'] = self.hl_suc
+                info['hl_fail'] = self.hl_fail
+                # info['prim_obs'] = sample.get_prim_obs().round(4)
             data.append(info)
         return data
 

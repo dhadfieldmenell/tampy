@@ -10,7 +10,7 @@ from numpy import array, float32
 import seaborn as sns
 
 FRAME = 10
-TWINDOW = 900
+TWINDOW = 300
 TDELTA = 300
 MIN_FRAME = 30
 nan = np.nan
@@ -251,7 +251,7 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
 
 
 
-def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99, label_vars=[]):
+def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99, label_vars=[], include=[], max_t=14400):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
     exp_len_data = {}
@@ -272,6 +272,14 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                     if dir_name.find(k) < 0 and dir_prefix.find(k) < 0:
                         skip = True
                 if skip: continue
+
+            if len(include):
+                skip = True
+                for k in include:
+                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
+                        skip = False
+                if skip: continue
+
 
             print(dir_name)
             if len(exclude):
@@ -335,12 +343,13 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                              
                             if xvar == 'time':
                                 xval = (pt[3] // tdelta) * tdelta
-                                exp_data[no, nt].append((label, xval, pt[0]))
-                                exp_data[no, nt].append((label, xval+tdelta, pt[0]))
-                                if pt[0] > lenthresh:
-                                    exp_len_data[no, nt].append((label, xval, pt[1]))
-                                if pt[0] >= 0: exp_dist_data[no, nt].append((label, xval, pt[2]))
-                                if len(pt) > 7: exp_true_data[no, nt].append((label, xval, pt[7]))
+                                if xval < max_t:
+                                    exp_data[no, nt].append((label, xval, pt[0]))
+                                    exp_data[no, nt].append((label, xval+tdelta, pt[0]))
+                                    if pt[0] > lenthresh:
+                                        exp_len_data[no, nt].append((label, xval, pt[1]))
+                                    if pt[0] <= 0.5: exp_dist_data[no, nt].append((label, xval, pt[2]))
+                                    if len(pt) > 7: exp_true_data[no, nt].append((label, xval, pt[7]))
                             elif rerun:
                                 exp_data[no, nt].append((label, pt[-1], pt[0]))
                                 if pt[0] > lenthresh:
@@ -414,7 +423,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='value', hue='exp_name', kind='line', data=pd_frame)
         keyid = ''
-        for key in keywords:
+        for key in keywords[:1]:
             keyid += '_{0}'.format(key)
         pre_lab = '_pre' if pre else ''
         if rerun: pre_lab += '_rerun'
@@ -426,7 +435,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='length', hue='exp_name', kind='line', data=pd_frame)
         keyid = ''
-        for key in keywords:
+        for key in keywords[:1]:
             keyid += '_{0}'.format(key)
         pre_lab = '_pre' if pre else ''
         if rerun: pre_lab += '_rerun'
@@ -438,7 +447,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='disp', hue='exp_name', kind='line', data=pd_frame)
         keyid = ''
-        for key in keywords:
+        for key in keywords[:1]:
             keyid += '_{0}'.format(key)
         pre_lab = '_pre' if pre else ''
         if rerun: pre_lab += '_rerun'
@@ -451,7 +460,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='true', hue='exp_name', kind='line', data=pd_frame)
         keyid = ''
-        for key in keywords:
+        for key in keywords[:-1]:
             keyid += '_{0}'.format(key)
         pre_lab = '_pre' if pre else ''
         if rerun: pre_lab += '_rerun'
@@ -537,11 +546,11 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
 
     plot(data, ['exp_name', xvar, ylabel, 'key', 'yvar', 'yvar_ind'], '{0}_vs_{1}'.format(xvar, ylabel), separate=separate, keyind=keyind)
 
-keywords = ['IT100_', 'IT1000_', 'IT10000_']
-keywords = ['runtwo']
-label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+keywords = ['avoid']
+include = []
+label_vars = ['hist_len', 'check_col', 'soft_eval'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
-get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=['mask' 'full'])
+get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=[], include=include, max_t=5000)
 #get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)
@@ -549,6 +558,7 @@ get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=
 #keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
 #label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
+gen_data_plots(xvar='n_data', yvar=['err'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=False, keyind=5, ylabel='loss', exclude=[])
 gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=False, keyind=5, ylabel='loss_comp_3', exclude=[])
 
 

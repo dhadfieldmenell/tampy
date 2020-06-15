@@ -29,7 +29,7 @@ CONST_TARGETS = False
 CONST_ORDER = False
 
 # domain_file = "../domains/namo_domain/new_namo.domain"
-domain_file = "../domains/namo_domain/current.domain"
+domain_file = "../domains/namo_domain/nopose.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_7"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
@@ -190,6 +190,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         x0[state_inds['pr2', 'pose']] = locs[0]
         for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
+        x0[state_inds['pr2', 'gripper']] = -1.
         x0s.append(x0)
         if FIX_TARGETS:
             targ_range = range(config['num_objs'] - config['num_targs'])

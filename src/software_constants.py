@@ -1,4 +1,4 @@
-USE_OPENRAVE = False # True
+USE_OPENRAVE = False
 USE_ROS = False
 
 try:

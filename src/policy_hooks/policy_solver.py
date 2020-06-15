@@ -602,6 +602,7 @@ def get_base_solver(parent_class):
                 failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
                 rs_obj = self._resample(plan, failed_preds, sample_all = True)
                 obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+                # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 self._add_all_timesteps_of_actions(plan, priority=3,
                     add_nonlin=True, active_ts=active_ts)
                 obj_bexprs.extend(rs_obj)

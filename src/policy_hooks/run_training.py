@@ -92,6 +92,7 @@ def main():
     parser.add_argument('-test', '--test', type=str, default='')
     parser.add_argument('-no', '--nobjs', type=int, default=0)
     parser.add_argument('-nt', '--ntargs', type=int, default=0)
+    parser.add_argument('-hist_len', '--hist_len', type=int, default=1)
     parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
     parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
 
@@ -124,6 +125,9 @@ def main():
     parser.add_argument('-oht', '--onehot_task', action='store_true', default=False)
     parser.add_argument('-render', '--load_render', action='store_true', default=False)
     parser.add_argument('-retime', '--retime', action='store_true', default=False)
+    parser.add_argument('-vel', '--velocity', type=float, default=0.3)
+    parser.add_argument('-nocol', '--check_col', action='store_false', default=True)
+    parser.add_argument('-cond', '--conditional', action='store_true', default=False)
 
     # Previous policy directories
     parser.add_argument('-llpol', '--ll_policy', type=str, default='')
@@ -139,8 +143,8 @@ def main():
     parser.add_argument('-spl', '--split_nets', action='store_false', default=True)
     parser.add_argument('-lldim', '--dim_hidden', type=int, default=32)
     parser.add_argument('-lln', '--n_layers', type=int, default=2)
-    parser.add_argument('-hldim', '--prim_dim_hidden', type=int, default=2)
-    parser.add_argument('-hln', '--prim_n_layers', type=int, default=32)
+    parser.add_argument('-hldim', '--prim_dim_hidden', type=int, default=32)
+    parser.add_argument('-hln', '--prim_n_layers', type=int, default=2)
     parser.add_argument('-llus', '--update_size', type=int, default=2000)
     parser.add_argument('-hlus', '--prim_update_size', type=int, default=5000)
     parser.add_argument('-iters', '--train_iterations', type=int, default=50)
@@ -148,6 +152,7 @@ def main():
     parser.add_argument('-lldec', '--weight_decay', type=float, default=1e-3)
     parser.add_argument('-hldec', '--prim_weight_decay', type=float, default=1e-3)
     parser.add_argument('-lr', '--lr', type=float, default=1e-3)
+    parser.add_argument('-hllr', '--hllr', type=float, default=1e-3)
 
     # HL args
     parser.add_argument('-check_t', '--check_prim_t', type=int, default=1)
@@ -159,7 +164,7 @@ def main():
     parser.add_argument('-prim_decay', '--prim_decay', type=float, default=1.)
     parser.add_argument('-prim_first_wt', '--prim_first_wt', type=float, default=1e0)
     parser.add_argument('-soft', '--soft', action='store_true', default=False)
-    parser.add_argument('-eta', '--eta', type=float, default=10.)
+    parser.add_argument('-eta', '--eta', type=float, default=5.)
     parser.add_argument('-softev', '--soft_eval', action='store_true', default=False)
     parser.add_argument('-pre', '--check_precond', action='store_true', default=False)
     parser.add_argument('-mask', '--hl_mask', action='store_false', default=True)

@@ -145,12 +145,14 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
                 # print('Time in quick solve:', time.time() - start_t)
 
                     self.cur[m].sample_list = []
+                    '''
                     if self.her:
                         new_sample = copy.deepcopy(sample)
                         new_sample.agent = self.agent
                         attr_dict = self.agent.relabel_traj(new_sample)
                         if self.agent.precond_cost(new_sample) < 1e-2:
                             self.cur[m].sample_list.append(new_sample)
+                    '''
                     if not np.any(np.isnan(out.get_U())):
                         if self.rollout_opt:
                             self.cur[m].sample_list.append(out)

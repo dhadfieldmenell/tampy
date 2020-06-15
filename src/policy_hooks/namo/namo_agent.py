@@ -12,6 +12,8 @@ import scipy.interpolate
 
 import xml.etree.ElementTree as xml
 
+from sco.expr import *
+
 import core.util_classes.common_constants as const
 if const.USE_OPENRAVE:
     # import openravepy
@@ -48,8 +50,8 @@ MAX_SAMPLELISTS = 1000
 MAX_TASK_PATHS = 100
 GRIP_TOL = 0.
 MIN_STEP = 1e-2
-# LIDAR_DIST = 2.0
-LIDAR_DIST = 2.5
+LIDAR_DIST = 2.
+# LIDAR_DIST = 1.5
 DSAFE = 5e-1
 MAX_STEP = max(1.5*dmove, 1)
 
@@ -76,6 +78,7 @@ class NAMOSortingAgent(TAMPAgent):
             for t in range(plan.horizon):
                 plan.params['obs0'].pose[:,t] = plan.params['obs0'].pose[:,0]
 
+        self.check_col = hyperparams['master_config'].get('check_col', True)
         self.robot_height = 1
         self.use_mjc = hyperparams.get('use_mjc', False)
         wall_dims = OpenRAVEBody.get_wall_dims('closet')
@@ -111,6 +114,7 @@ class NAMOSortingAgent(TAMPAgent):
         # self.viewer = OpenRAVEViewer(self.env)
         # import ipdb; ipdb.set_trace()
         self.in_gripper = None
+        self._in_gripper = None
         no = self._hyperparams['num_objs']
         self.targ_labels = {i: np.array(self.prob.END_TARGETS[i]) for i in range(len(self.prob.END_TARGETS))}
         self.targ_labels.update({i: self.targets[0]['aux_target_{0}'.format(i-no)] for i in range(no, no+self.prob.n_aux)})
@@ -132,7 +136,6 @@ class NAMOSortingAgent(TAMPAgent):
     def _sample_task(self, policy, condition, state, task, use_prim_obs=False, save_global=False, verbose=False, use_base_t=True, noisy=True, fixed_obj=True, task_f=None):
         assert not np.any(np.isnan(state))
         start_t = time.time()
-        self.in_gripper = None
         x0 = state[self._x_data_idx[STATE_ENUM]].copy()
         task = tuple(task)
         if self.discrete_prim:
@@ -143,10 +146,16 @@ class NAMOSortingAgent(TAMPAgent):
             if plan.params[param].is_symbol(): continue
             getattr(plan.params[param], attr)[:,0] = x0[self.state_inds[param, attr]]
 
+        # self._in_gripper = None
+        if self._in_gripper is None:
+            self.in_gripper = None
+        else:
+            self.in_gripper = plan.params[self._in_gripper]
         base_t = 0
         self.T = plan.horizon
         sample = Sample(self)
         sample.init_t = 0
+        col_ts = np.zeros(self.T)
 
         prim_choices = self.prob.get_prim_choices()
         target_vec = np.zeros((self.target_dim,))
@@ -189,78 +198,18 @@ class NAMOSortingAgent(TAMPAgent):
                 self.fill_sample(condition, sample, cur_state, t, task, fill_obs=False)
           
             grasp = np.array([0, -0.601])
-            if GRASP_ENUM in prim_choices:
+            if GRASP_ENUM in prim_choices and self.discrete_prim:
                 grasp = self.set_grasp(grasp, task[3])
        
             X = cur_state.copy()
             cur_noise = noise[t]
 
             U_full = policy.act(sample.get_X(t=t), sample.get_obs(t=t).copy(), t, cur_noise)
+            U_nogrip = U_full.copy()
+            #U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
+            if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
+            if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [cur_state]]
             assert not np.any(np.isnan(U_full))
-            while False: # np.all(np.abs(cur_state - X) < MIN_STEP):
-                self.fill_sample(condition, sample, X, t, task, fill_obs=True)
-
-                noise_full += cur_noise
-                sample.set(NOISE_ENUM, cur_noise, t)
-
-                if use_prim_obs:
-                    obs = sample.get_prim_obs(t=t)
-                else:
-                    obs = sample.get_obs(t=t)
-
-                U = policy.act(sample.get_X(t=t), obs.copy(), t, cur_noise)
-                U = np.clip(U, -MAX_STEP, MAX_STEP)
-                # U[U > 0.5] = 0.5
-                # U[U < -0.5] = -0.5
-                # for param_name, attr in self.action_inds:
-                #     if (param_name, attr) in self.state_inds:
-                #         inds1 = self.action_inds[param_name, attr]
-                #         inds2 = self.state_inds[param_name, attr]
-                #         for i in range(len(inds1)):
-                #             if U[inds1[i]] - X[inds2[i]] > 1:
-                #                 U[inds1[i]] = X[inds2[i]] + 1
-                #             elif U[inds1[i]] - X[inds2[i]] < -1:
-                #                 U[inds1[i]] = X[inds2[i]] - 1
-                # if np.all(np.abs(U - self.traj_hist[-1]) < self.move_limit):
-                #     sample.use_ts[t] = 0
-
-
-                '''
-                if np.any(np.isnan(U)):
-                    print 'Replacing nan in action.'
-                    U[np.isnan(U)] = 0.0
-                if np.any(np.isinf(U)):
-                    print 'Replacing inf in action.'
-                    U[np.isinf(U)] = 0.0
-                '''
-
-                # if np.all(np.abs(U[:2]) < 1e-4) and U[2] < 1e-4:
-                #     sample.use_ts[t] = 0
-                # robot_start = X[plan.state_inds['pr2', 'pose']]
-                # robot_vec = U[plan.action_inds['pr2', 'pose']] - robot_start
-                # if np.sum(np.abs(robot_vec)) != 0 and np.linalg.norm(robot_vec) < 0.005:
-                #     U[plan.action_inds['pr2', 'pose']] = robot_start + 0.1 * robot_vec / np.linalg.norm(robot_vec)
-                sample.set(ACTION_ENUM, U.copy(), t)
-                    # import ipdb; ipdb.set_trace()
-                # self.traj_hist.append(U)
-                # while len(self.traj_hist) > self.hist_len:
-                #     self.traj_hist.pop(0)
-
-
-                self.run_policy_step(U, X, self.plans[task], t, None)
-                # if np.any(np.abs(U) > 1e10):
-                #     import ipdb; ipdb.set_trace()
-                
-                n_steps += 1
-                U_full += U
-                U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
-                fill_vector(plan.params, plan.state_inds, X, np.minimum(t+1, plan.horizon-1))
-                cur_noise = np.zeros((self.dU))
-
-                if n_steps >= sample.T:
-                    sample.use_ts[t+1:] = 0.
-                    break
-
             sample.set(NOISE_ENUM, noise_full, t)
 
             if use_prim_obs:
@@ -271,7 +220,8 @@ class NAMOSortingAgent(TAMPAgent):
             U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
             assert not np.any(np.isnan(U_full))
             sample.set(ACTION_ENUM, U_full, t)
-            self.run_policy_step(U_full, cur_state, plan, t, None, grasp=grasp)
+            suc, col = self.run_policy_step(U_full, cur_state, plan, t, None, grasp=grasp)
+            col_ts[t] = col
 
             new_state = np.zeros((plan.symbolic_bound))
             # fill_vector(plan.params, plan.state_inds, cur_state, t)  
@@ -298,18 +248,20 @@ class NAMOSortingAgent(TAMPAgent):
         # print 'Called policy {0} times.'.format(self.n_policy_calls[policy])
         # X = np.zeros((plan.symbolic_bound))
         # fill_vector(plan.params, plan.state_inds, X, plan.horizon-1)
-        sample.end_state = end_state if end_state is not None else sample.get_X(t=self.T-1)
+        sample.end_state = new_state # end_state if end_state is not None else sample.get_X(t=self.T-1)
         sample.task_cost = self.goal_f(condition, sample.end_state)
         # if sample.T == plan.horizon:
         #     sample.use_ts[-1] = 0
+        sample.prim_use_ts[:] = sample.use_ts[:]
         # sample.use_ts[-1] = 1.
+        sample.col_ts = col_ts
 
         # if np.linalg.norm(sample.get(EE_ENUM, t=0) - sample.get(EE_ENUM, t=sample.T)) < 5e-1:
         #     sample.use_ts[:] = 0
 
-        cost = self.cost_f(sample.end_state, task, condition, active_ts=(sample.T-1, sample.T-1), targets=sample.targets)
-        sample.post_cost = cost
-        sample.use_ts = np.array(sample.use_ts)
+        #cost = self.cost_f(sample.end_state, task, condition, active_ts=(sample.T-1, sample.T-1), targets=sample.targets)
+        #self._done = cost
+        #sample.post_cost = cost
         return sample
 
 
@@ -348,8 +300,8 @@ class NAMOSortingAgent(TAMPAgent):
         for name in ignore:
             plan.params[name].openrave_body.set_pose([0, 0, -5])
 
-        if self.in_gripper is not None:
-            self.in_gripper.openrave_body.set_pose([0,0,-5])
+        if self._in_gripper is not None:
+            plan.params[self._in_gripper].openrave_body.set_pose([0,0,-5])
 
         if const.USE_OPENRAVE:
             is_hits, hits = self.env.CheckCollisionRays(rays, None)
@@ -418,10 +370,11 @@ class NAMOSortingAgent(TAMPAgent):
         u_inds = self.action_inds
         x_inds = self.state_inds
 
+        col = 0.
         old_state = x.copy()
         old_pose = plan.params['pr2'].pose[:, t].copy()
 
-        dtol = 1e-2
+        dtol = 5e-2
         old_in_gripper = self.in_gripper
         if grasp is None:
             grasp = plan.params['grasp0'].value[:,0].copy()
@@ -455,85 +408,90 @@ class NAMOSortingAgent(TAMPAgent):
                     radius2 = plan.params['pr2'].geom.radius
                     #if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and dist >= radius1 + radius2 - 0.5 * DSAFE and dist <= radius1 + radius2 + DSAFE and (obj is None or param.name == obj):
                     # if plan.params['pr2'].gripper[0,t] > GRIP_TOL and dist >= radius1 + radius2 and dist <= radius1 + radius2 + DSAFE and grasp_check:
-                    if plan.params['pr2'].gripper[0,t] > GRIP_TOL and dist >= radius1 + radius2 - dtol and np.all(np.abs(disp - grasp) < NEAR_TOL):
+                    if plan.params['pr2'].gripper[0,t] > GRIP_TOL and np.all(np.abs(disp - grasp) < NEAR_TOL):
                     # if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and dist >= radius1 + radius2 - 0.5 * DSAFE and dist <= radius1 + radius2 + DSAFE and np.abs(disp[0]) < 0.5 * DSAFE and disp[1] < 0:
                     #if u[u_inds['pr2', 'gripper']][0] > GRIP_TOL and np.abs(disp[0]) < 0.5 * DSAFE and disp[1] <= -(radius1 + radius2 - 0.5 * DSAFE) and disp[1] >= -(radius1 + radius2 + DSAFE):
                         # in_gripper.append((param.name, disp))
                         if self.in_gripper is None:
                             self.in_gripper = param
+                            self._in_gripper = param.name
                         if self.in_gripper is param:
                             param.pose[:, t] = plan.params['pr2'].pose[:, t] - disp
 
                     elif plan.params['pr2'].gripper[0,t] < GRIP_TOL:
                         self.in_gripper = None
+                        self._in_gripper = None
 
-                    elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
-                    if param is not self.in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 - dtol:
-                        dx, dy = -1e1 * pr2_disp
-                        zx, zy = param.pose[:,t]
-                        x1, y1 = plan.params['pr2'].pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
-                        # zx, zy = plan.params['pr2'].pose[:,t]
-                        # x1, y1 = param.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
-                        # dx, dy = 1e1 * pr2_disp
-                        x2, y2 = x1 + dx, y1 + dy
-                        dr = np.sqrt(dx**2 + dy**2)
-                        D = x1 * y2 - x2 * y1
-                        r = radius1 + radius2 + elastic # + 2e-2
-                        sy = -1. if dy < 0 else 1.
+                    if self.check_col:
+                        elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
+                        if param is not self.in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 - dtol:
+                            col = 1.
+                            dx, dy = -1e1 * pr2_disp
+                            zx, zy = param.pose[:,t]
+                            x1, y1 = plan.params['pr2'].pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
+                            # zx, zy = plan.params['pr2'].pose[:,t]
+                            # x1, y1 = param.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
+                            # dx, dy = 1e1 * pr2_disp
+                            x2, y2 = x1 + dx, y1 + dy
+                            dr = np.sqrt(dx**2 + dy**2)
+                            D = x1 * y2 - x2 * y1
+                            r = radius1 + radius2 + elastic # + 2e-2
+                            sy = -1. if dy < 0 else 1.
 
-                        if dx >= 0 and dy >= 0:
-                            x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                            y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                        elif dx <= 0 and dy <= 0:
-                            x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                            y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                        elif dx >= 0 and dy <= 0:
-                            x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                            y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                        elif dx <= 0 and dy >= 0:
-                            x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                            y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                            if dx >= 0 and dy >= 0:
+                                x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                                y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                            elif dx <= 0 and dy <= 0:
+                                x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                                y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                            elif dx >= 0 and dy <= 0:
+                                x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                                y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                            elif dx <= 0 and dy >= 0:
+                                x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                                y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
 
-                        # param.pose[:, t] = [zx + x, zy + y]
-                        # if self.debug: print('Caught at stuck', plan.params['pr2'].pose[:,t], param.pose[:,t], self.process_id)
-                        plan.params['pr2'].pose[:, t] = [zx + x, zy + y]
-                        if self.in_gripper is not None:
-                            self.in_gripper.pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self.in_gripper.name, 'pose']])
-                   
-                    '''
-                    if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
-                        dx, dy = -1e1 * pr2_disp
-                        zx, zy = param.pose[:,t]
-                        x1, y1 = self.in_gripper.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
-                        # zx, zy = plan.params['pr2'].pose[:,t]
-                        # x1, y1 = param.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
-                        # dx, dy = 1e1 * pr2_disp
-                        x2, y2 = x1 + dx, y1 + dy
-                        dr = np.sqrt(dx**2 + dy**2)
-                        D = x1 * y2 - x2 * y1
-                        r = radius1 + radius2 + elastic # + 2e-2
-                        sy = -1. if dy < 0 else 1.
+                            # param.pose[:, t] = [zx + x, zy + y]
+                            # if self.debug: print('Caught at stuck', plan.params['pr2'].pose[:,t], param.pose[:,t], self.process_id)
+                            plan.params['pr2'].pose[:, t] = [zx + x, zy + y]
+                            if self.in_gripper is not None:
+                                self.in_gripper.pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self.in_gripper.name, 'pose']])
+                      
+                        '''
+                        if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
+                            col = 1.
+                            dx, dy = -1e1 * pr2_disp
+                            zx, zy = param.pose[:,t]
+                            x1, y1 = self.in_gripper.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
+                            # zx, zy = plan.params['pr2'].pose[:,t]
+                            # x1, y1 = param.pose[:,t] - [0.5*dx, 0.5*dy] - [zx, zy]
+                            # dx, dy = 1e1 * pr2_disp
+                            x2, y2 = x1 + dx, y1 + dy
+                            dr = np.sqrt(dx**2 + dy**2)
+                            D = x1 * y2 - x2 * y1
+                            r = radius1 + radius2 + elastic # + 2e-2
+                            sy = -1. if dy < 0 else 1.
 
-                        if dx >= 0 and dy >= 0:
-                            x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                            y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                        elif dx <= 0 and dy <= 0:
-                            x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                            y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                        elif dx >= 0 and dy <= 0:
-                            x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                            y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                        elif dx <= 0 and dy >= 0:
-                            x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
-                            y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                            if dx >= 0 and dy >= 0:
+                                x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                                y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                            elif dx <= 0 and dy <= 0:
+                                x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                                y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                            elif dx >= 0 and dy <= 0:
+                                x = (D * dy - sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                                y = (-D * dx - np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                            elif dx <= 0 and dy >= 0:
+                                x = (D * dy + sy * dx * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
+                                y = (-D * dx + np.abs(dy) * np.sqrt(r**2 * dr**2 - D**2)) / (dr**2)
 
-                        # param.pose[:, t] = [zx + x, zy + y]
-                        self.in_gripper.pose[:, t] = [zx + x, zy + y]
-                        plan.params['pr2'].pose[:,t] = self.in_gripper.pose[:,t] - (old_state[x_inds[self.in_gripper.name, 'pose']] - old_state[x_inds['pr2', 'pose']])
-                    else:
-                        pass
-                        # param.pose[:, t] = param.pose[:, t]
-                    '''
+                            # param.pose[:, t] = [zx + x, zy + y]
+                            self.in_gripper.pose[:, t] = [zx + x, zy + y]
+                            plan.params['pr2'].pose[:,t] = self.in_gripper.pose[:,t] - (old_state[x_inds[self.in_gripper.name, 'pose']] - old_state[x_inds['pr2', 'pose']])
+                        else:
+                            pass
+                            # param.pose[:, t] = param.pose[:, t]
+                        '''
                     # dist = plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     # radius1 = param.geom.radius
                     # radius2 = plan.params['pr2'].geom.radius
@@ -542,7 +500,6 @@ class NAMOSortingAgent(TAMPAgent):
                     #     param.pose[:, t+1] = plan.params['pr2'].pose[:, t+1] + [0, grip_dist+dsafe]
                     # elif param._type == 'Can':
                     #     param.pose[:, t+1] = param.pose[:, t]
-
                 elif param._type == 'Box':
                     disp = plan.params['pr2'].pose[:, t] - param.pose[:, t]
                     dist = np.linalg.norm(disp)
@@ -567,9 +524,11 @@ class NAMOSortingAgent(TAMPAgent):
             if self.in_gripper is not None:
                 ignore = [self.in_gripper.name]
             dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
-            if np.any(np.abs(dist) < plan.params['pr2'].geom.radius - dtol):
+            if self.check_col and np.any(np.abs(dist) < plan.params['pr2'].geom.radius - dtol):
+                col = 1.
                 info = {}
                 self.in_gripper = old_in_gripper
+                if old_in_gripper is not None: self._in_gripper = self.in_gripper.name
                 for pname, aname in self.state_inds:
                     if plan.params[pname].is_symbol(): continue
                     info[pname, aname] = getattr(plan.params[pname], aname)[:,t]
@@ -584,21 +543,7 @@ class NAMOSortingAgent(TAMPAgent):
                 if plan.params[pname].is_symbol(): continue
                 getattr(plan.params[pname], aname)[:,t] = old_state[self.state_inds[pname, aname]]
 
-        return True
-
-
-    def check_col(self, plan, t, ignore=[]):
-        pr2 = plan.params['pr2']
-        pr2.openrave_body.set_pose(pr2.pose[:,t])
-        col = False
-        for p in plan.params:
-            param = plan.params[p]
-            if param.is_symbol() or param._type == 'Can' or param is self.in_gripper: continue
-            param.openrave_body.set_pose(param.pose[:,t])
-            next_col = self.env.CheckCollision(pr2.openrave_body.env_body, param.openrave_body.env_body)
-            if next_col: return True
-
-        return col
+        return True, col
 
 
     def set_symbols(self, plan, state, task, anum=0, cond=0):
@@ -653,6 +598,7 @@ class NAMOSortingAgent(TAMPAgent):
             grasp = self.set_grasp(grasp, task[3])
 
         plan.params['pr2'].pose[:, 0] = x0[self.state_inds['pr2', 'pose']]
+        plan.params['pr2'].gripper[:, 0] = x0[self.state_inds['pr2', 'gripper']]
         plan.params['obs0'].pose[:] = plan.params['obs0'].pose[:,:1]
 
         run_solve = True
@@ -710,7 +656,7 @@ class NAMOSortingAgent(TAMPAgent):
                     # U[plan.action_inds['pr2', 'pose']] = plan.params['pr2'].pose[:, t+1] - plan.params['pr2'].pose[:, t]
                     # U[plan.action_inds['pr2', 'gripper']] = plan.params['pr2'].gripper[:, t+1]
                 if np.any(np.isnan(U)):
-                    print('NAN in {0} plan act'.format(success))
+                    if success: print('NAN in {0} plan act'.format(success))
                     U[:] = 0.
                 return U
         sample = self.sample_task(optimal_pol(), condition, state, task, noisy=False, skip_opt=True)
@@ -791,7 +737,10 @@ class NAMOSortingAgent(TAMPAgent):
         sample.set(EE_ENUM, ee_pose, t)
         sample.set(STATE_ENUM, mp_state, t)
         sample.set(GRIPPER_ENUM, mp_state[self.state_inds['pr2', 'gripper']], t)
-
+        if self.hist_len > 0:
+            sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
+            x_delta = self._x_delta[1:] - self._x_delta[:1]
+            sample.set(STATE_DELTA_ENUM, x_delta.flatten(), t)
         onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
         onehot_task[self.task_to_onehot[task]] = 1.
         sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
@@ -805,7 +754,11 @@ class NAMOSortingAgent(TAMPAgent):
         task_vec[task[0]] = 1.
         sample.task_ind = task[0]
         sample.set(TASK_ENUM, task_vec, t)
-        
+
+        #post_cost = self.cost_f(sample.get_X(t=t), task, cond, active_ts=(sample.T-1, sample.T-1), targets=targets)
+        #done = np.ones(1) if post_cost == 0 else np.zeros(1)
+        #sample.set(DONE_ENUM, done, t)
+        sample.set(DONE_ENUM, np.zeros(1), t)
         grasp = np.array([0, -0.601])
         if self.discrete_prim:
             sample.set(FACTOREDTASK_ENUM, np.array(task), t)
@@ -833,6 +786,7 @@ class NAMOSortingAgent(TAMPAgent):
             targ_name = list(prim_choices[TARG_ENUM])[targ_ind]
             obj_pose = mp_state[self.state_inds[obj_name, 'pose']] - mp_state[self.state_inds['pr2', 'pose']]
             targ_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds['pr2', 'pose']]
+            targ_off_pose = targets[self.target_inds[targ_name, 'value']] - mp_state[self.state_inds[obj_name, 'pose']]
         else:
             obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
             targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
@@ -995,7 +949,7 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def _failed_preds(self, Xs, task, condition, active_ts=None, debug=False, targets=[]):
-        if len(Xs.shape) == 1:
+        if len(np.shape(Xs)) == 1:
             Xs = Xs.reshape(1, Xs.shape[0])
         Xs = Xs[:, self._x_data_idx[STATE_ENUM]]
         plan = self.plans[task]
@@ -1040,6 +994,7 @@ class NAMOSortingAgent(TAMPAgent):
         #     set_params_attrs(plan.params, plan.state_inds, Xs[t-active_ts[0]], t)
 
         plan.params['pr2'].pose[:,active_ts[0]] = Xs[0][self.state_inds['pr2', 'pose']]
+        plan.params['pr2'].gripper[:,active_ts[0]] = Xs[0][self.state_inds['pr2', 'gripper']]
         for param_name in plan.params:
             param = plan.params[param_name]
             if param.is_symbol(): continue
@@ -1058,6 +1013,7 @@ class NAMOSortingAgent(TAMPAgent):
         # if debug:
         #     print(failed_preds)
 
+        failed_preds = filter(lambda p: not type(p[1].expr) is EqExpr, failed_preds)
         return failed_preds
 
 
@@ -1153,6 +1109,12 @@ class NAMOSortingAgent(TAMPAgent):
 
     def reset_to_state(self, x):
         mp_state = x[self._x_data_idx[STATE_ENUM]]
+        # self.gripper = mp_state[self.state_inds['pr2', 'gripper']]
+        self.in_gripper = None
+        self._in_gripper = None
+        self._done = 0.
+        self._prev_U = np.zeros((self.hist_len, self.dU))
+        self._x_delta = np.zeros((self.hist_len+1, self.dX))
         for param_name, attr in self.state_inds:
             if attr == 'pose':
                 pos = mp_state[self.state_inds[param_name, 'pose']].copy()
@@ -1406,33 +1368,17 @@ class NAMOSortingAgent(TAMPAgent):
         return np.concatenate(vecs)
 
 
-    def encode_action(self, action):
-        a = action
+    def encode_plan(self, plan):
+        encoded = []
         prim_choices = self.prob.get_prim_choices()
-        astr = str(action).lower()
-        params = a.params
-        l = [0]
-        for i, task in enumerate(self.task_list):
-            if action.name.lower().find(task) >= 0:
-                l[0] = i
-                break
+        for a in plan.actions:
+            encoded.append(self.encode_action(a))
 
-        l.extend([0,0,0])
-        if a.name.lower().find('grasp') >= 0:
-            if params[1].name in prim_choices[OBJ_ENUM]:
-                l[1] = prim_choices[OBJ_ENUM].index(a.params[1].name)
-            if params[6].name in prim_choices[TARG_ENUM]:
-                l[2] = prim_choices[TARG_ENUM].index(a.params[6].name)
-            if params[5].name in prim_choices[GRASP_ENUM]:
-                l[3] = prim_choices[GRASP_ENUM].index(a.params[5].name)
-        elif a.name.lower().find('place') >= 0:
-            if params[3].name in prim_choices[OBJ_ENUM]:
-                l[1] = prim_choices[OBJ_ENUM].index(a.params[3].name)
-            if params[4].name in prim_choices[TARG_ENUM]:
-                l[2] = prim_choices[TARG_ENUM].index(a.params[4].name)
-            if params[5].name in prim_choices[GRASP_ENUM]:
-                l[3] = prim_choices[GRASP_ENUM].index(a.params[5].name)
-        return tuple(l)
+        for i, l in enumerate(encoded[:-1]):
+            if l[0] == 0 and encoded[i+1][0] == 1:
+                l[2] = encoded[i+1][2]
+        encoded = map(lambda l: tuple(l), encoded)
+        return encoded
 
 
     def get_mask(self, sample, enum):
@@ -1463,10 +1409,10 @@ class NAMOSortingAgent(TAMPAgent):
                     break
         if l[0] == 0:
             l[2] = np.random.randint(len(prim_choices[TARG_ENUM]))
-        return tuple(l)
+        return l # tuple(l)
 
 
-    def retime_traj(self, traj, vel=0.2, inds=None, minpts=10):
+    def retime_traj(self, traj, vel=0.3, inds=None, minpts=10):
         new_traj = []
         if len(np.shape(traj)) == 2:
             traj = [traj]
@@ -1482,12 +1428,14 @@ class NAMOSortingAgent(TAMPAgent):
                 fpts.append(step[t])
                 grippts.append(step[t][self.state_inds['pr2', 'gripper']])
                 if t < len(step) - 1:
-                    d += np.linalg.norm(step[t+1][inds] - step[t][inds])
+                    disp = np.linalg.norm(step[t+1][inds] - step[t][inds])
+                    d += disp
             assert not np.any(np.isnan(xpts))
             assert not np.any(np.isnan(fpts))
             interp = scipy.interpolate.interp1d(xpts, fpts, axis=0, fill_value='extrapolate')
-            grip_interp = scipy.interpolate.interp1d(xpts, grippts, kind='next', bounds_error=False, axis=0)
-           
+            grip_interp = scipy.interpolate.interp1d(np.array(xpts), grippts, kind='previous', bounds_error=False, axis=0)
+          
+            fix_pts = []
             if type(vel) is float:
                 # x = np.arange(0, d+vel/2, vel)
                 # npts = max(int(d/vel), minpts)
@@ -1497,16 +1445,19 @@ class NAMOSortingAgent(TAMPAgent):
                 for i, d in enumerate(xpts):
                     if i == 0:
                         x.append(0)
+                        fix_pts.append((len(x)-1, fpts[i]))
                     elif xpts[i] - xpts[i-1] <= 1e-6:
                         continue
                     elif xpts[i] - xpts[i-1] <= vel:
-                        x.append(xpts[i] - xpts[i-1])
+                        x.append(x[-1] + xpts[i] - xpts[i-1])
+                        fix_pts.append((len(x)-1, fpts[i]))
                     else:
                         n = max(2, int((xpts[i]-xpts[i-1])//vel))
                         for _ in range(n):
-                            x.append((xpts[i]-xpts[i-1])/float(n))
-                x = np.cumsum(x)
-
+                            x.append(x[-1] + (xpts[i]-xpts[i-1])/float(n))
+                        x[-1] = d
+                        fix_pts.append((len(x)-1, fpts[i]))
+                # x = np.cumsum(x)
             elif type(vel) is list:
                 x = np.r_[0, np.cumsum(vel)]
             else:
@@ -1516,6 +1467,8 @@ class NAMOSortingAgent(TAMPAgent):
             out[:, self.state_inds['pr2', 'gripper']] = grip_out
             out[0] = step[0]
             out[-1] = step[-1]
+            for pt, val in fix_pts:
+                out[pt] = val
             out = np.r_[out, [out[-1]]]
             if len(new_traj):
                 new_traj = np.r_[new_traj, out]
