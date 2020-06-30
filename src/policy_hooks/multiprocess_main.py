@@ -66,6 +66,7 @@ class MultiProcessMain(object):
         self.config = config
         prob = config['prob']
         self.config['group_id'] = config.get('group_id', 0)
+        self.config['id'] = -1
         time_limit = config.get('time_limit', 14400)
 
         conditions = self.config['num_conds']
@@ -119,6 +120,10 @@ class MultiProcessMain(object):
         }
         for enum in self.config['sensor_dims']:
             sensor_dims[enum] = self.config['sensor_dims'][enum]
+        if self.config['add_action_hist']:
+            self.config['prim_obs_include'].append(utils.TRAJ_HIST_ENUM)
+        if self.config['add_obs_delta']:
+            self.config['prim_obs_include'].append(utils.STATE_DELTA_ENUM)
         self.prim_bounds = []
         self.prim_dims = OrderedDict({})
         self.config['prim_dims'] = self.prim_dims

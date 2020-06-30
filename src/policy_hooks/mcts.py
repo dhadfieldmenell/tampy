@@ -389,7 +389,7 @@ class MCTS:
         return opt_val, paths
 
 
-    def eval_pr_graph(self, state=None, targets=None):
+    def eval_pr_graph(self, state=None, targets=None, reset=True):
         plan = None
         if targets is None:
             targets = self.agent.target_vecs[self.condition]
@@ -418,17 +418,18 @@ class MCTS:
         success = 0
         if plan is not None:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
-            path = self.agent.run_plan(plan, targets=targets)
+            path = self.agent.run_plan(plan, targets=targets, reset=reset)
             success = path[-1].success
             self.hl_suc += 1
             self.log_path(path, 10)
         else:
             self.hl_fail += 1
             print('No plan found for', state, goal, targets, self.agent.process_id)
+            path = []
         self.n_success += success
         self.val_per_run.append(success)
         self.reset()
-        return success, [], plan
+        return success, path, plan
         
 
     def _simulate_from_unexplored(self, state, node, prev_sample, exclude_hl=[], use_distilled=True, label=None, debug=False):
@@ -1132,6 +1133,7 @@ class MCTS:
                 info['tasks'] = sample.get(FACTOREDTASK_ENUM)
                 info['hl_suc'] = self.hl_suc
                 info['hl_fail'] = self.hl_fail
+                info['end_state'] = sample.end_state
                 # info['prim_obs'] = sample.get_prim_obs().round(4)
             data.append(info)
         return data

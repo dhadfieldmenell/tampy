@@ -93,6 +93,8 @@ def main():
     parser.add_argument('-no', '--nobjs', type=int, default=0)
     parser.add_argument('-nt', '--ntargs', type=int, default=0)
     parser.add_argument('-hist_len', '--hist_len', type=int, default=1)
+    parser.add_argument('-obs_del', '--add_obs_delta', action='store_true', default=False)
+    parser.add_argument('-act_hist', '--add_action_hist', action='store_true', default=False)
     parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
     parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
 
@@ -159,6 +161,7 @@ def main():
     parser.add_argument('-ff', '--ff_thresh', type=float, default=0)
     parser.add_argument('-ff_only', '--ff_only', action='store_true', default=False)
     parser.add_argument('-fail', '--train_on_fail', action='store_true', default=False)
+    parser.add_argument('-failmode', '--fail_mode', type=str, default='start')
     parser.add_argument('-aughl', '--augment_hl', action='store_true', default=False)
     parser.add_argument('-x_select', '--state_select', type=str, default='base')
     parser.add_argument('-prim_decay', '--prim_decay', type=float, default=1.)

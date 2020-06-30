@@ -225,7 +225,7 @@ class BacktrackLLSolver(LLSolver):
                 # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                 #     break
 
-                print "resample attempt: {}".format(attempt)
+                print "resample attempt: {} at priority {}".format(attempt, priority)
 
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)

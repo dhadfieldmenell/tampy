@@ -31,6 +31,7 @@ N_DIGS = 5
 GRIP_TOL = 5e-1
 COL_TS = 4 # 3
 NEAR_TOL = 0.3 # 0.4
+GRIP_VAL = 1.
 
 
 ATTRMAP = {
@@ -204,6 +205,7 @@ class CollisionPredicate(ExprPredicate):
 
     def test(self, time, negated=False, tol=1e-4):
         # This test is overwritten so that collisions can be calculated correctly
+        if time == 0: return True
         if not self.is_concrete():
             return False
         if time < 0:
@@ -660,7 +662,7 @@ class Collides(CollisionPredicate):
             return -f(x)
 
         def grad_neg(x):
-            return grad(x)
+            return -grad(x)
 
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
@@ -902,7 +904,7 @@ class RCollides(CollisionPredicate):
             return -neg_coeff * f(x)
 
         def grad_neg(x):
-            return neg_grad_coeff * grad(x)
+            return -neg_grad_coeff * grad(x)
 
 
         #f = lambda x: -self.distance_from_obj(x)[0]
@@ -1112,7 +1114,6 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.2
         self.dsafe = 0.3
 
 def sample_pose(plan, pose, robot, rs_scale):
@@ -1310,13 +1311,13 @@ class ObstructsHolding(CollisionPredicate):
             dist = float(np.abs(i - time))
             if i <= time:
                 inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, st] + orth)
-                inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * (self.held.pose[:, st] + orth)
+                inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * (self.held.pose[:, time] + orth)
             else:
                 inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, et] + orth)
-                inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * (self.held.pose[:, et] + orth)
+                inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * (self.held.pose[:, time] + orth)
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
-            add_to_attr_inds_and_res(i, attr_inds, res, self.held, [('pose', inter_rp)])
+            add_to_attr_inds_and_res(i, attr_inds, res, self.held, [('pose', inter_hp)])
         return res, attr_inds
 
     def get_expr(self, negated):
@@ -1378,7 +1379,6 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.2
         self.dsafe = 0.3
 
 

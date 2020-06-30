@@ -22,6 +22,10 @@ class ParseProblemConfig(object):
             if USE_OPENRAVE:
                 env = Environment()
             else:
+                try:
+                    P.disconnect()
+                except:
+                    pass
                 env = P.connect(P.DIRECT)
                 P.resetSimulation()
             

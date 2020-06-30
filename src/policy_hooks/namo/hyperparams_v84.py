@@ -269,7 +269,6 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                              # utils.DONE_ENUM,
                              # utils.STATE_ENUM,
                              #utils.GOAL_ENUM,
-                             utils.STATE_DELTA_ENUM,
                              utils.ONEHOT_GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,

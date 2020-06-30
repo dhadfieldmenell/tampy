@@ -206,7 +206,7 @@ class NAMOSortingAgent(TAMPAgent):
 
             U_full = policy.act(sample.get_X(t=t), sample.get_obs(t=t).copy(), t, cur_noise)
             U_nogrip = U_full.copy()
-            #U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
+            U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
             if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
             if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [cur_state]]
             assert not np.any(np.isnan(U_full))
@@ -425,6 +425,7 @@ class NAMOSortingAgent(TAMPAgent):
                     if self.check_col:
                         elastic = 1e-3 # max(1e-2, 2e-1 * np.linalg.norm(pr2_disp))
                         if param is not self.in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 - dtol:
+                        # if param is not self.in_gripper and np.linalg.norm(new_disp) < radius1 + radius2 + elastic:
                             col = 1.
                             dx, dy = -1e1 * pr2_disp
                             zx, zy = param.pose[:,t]
@@ -458,7 +459,8 @@ class NAMOSortingAgent(TAMPAgent):
                                 self.in_gripper.pose[:, t] = plan.params['pr2'].pose[:, t] - (old_state[x_inds['pr2', 'pose']] - old_state[x_inds[self.in_gripper.name, 'pose']])
                       
                         '''
-                        if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
+                        # if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 - dtol:
+                        if self.in_gripper is not None and self.in_gripper is not param and np.linalg.norm(self.in_gripper.pose[:,t] - param.pose[:,t]) < radius2 + radius2 + 5e-3:
                             col = 1.
                             dx, dy = -1e1 * pr2_disp
                             zx, zy = param.pose[:,t]
@@ -525,6 +527,7 @@ class NAMOSortingAgent(TAMPAgent):
                 ignore = [self.in_gripper.name]
             dist, rays = self.dist_obs(plan, t, 8, ignore=ignore, return_rays=True)
             if self.check_col and np.any(np.abs(dist) < plan.params['pr2'].geom.radius - dtol):
+            # if self.check_col and np.any(np.abs(dist) < plan.params['pr2'].geom.radius):
                 col = 1.
                 info = {}
                 self.in_gripper = old_in_gripper
@@ -669,7 +672,7 @@ class NAMOSortingAgent(TAMPAgent):
             param = plan.params[param_name]
             if param.is_symbol(): continue
             diff = traj[:, self.state_inds[param_name, attr]].T - getattr(param, attr)
-            if np.any(np.abs(diff) > 1e-3): print(diff, param_name, attr, 'ERROR IN OPT ROLLOUT')
+            # if np.any(np.abs(diff) > 1e-3): print(diff, param_name, attr, 'ERROR IN OPT ROLLOUT')
 
         # self.optimal_samples[self.task_list[task[0]]].append(sample)
         # print(sample.get_X())
@@ -741,6 +744,7 @@ class NAMOSortingAgent(TAMPAgent):
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
             x_delta = self._x_delta[1:] - self._x_delta[:1]
             sample.set(STATE_DELTA_ENUM, x_delta.flatten(), t)
+            sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
         onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
         onehot_task[self.task_to_onehot[task]] = 1.
         sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
@@ -840,7 +844,7 @@ class NAMOSortingAgent(TAMPAgent):
                 sample.set(LIDAR_ENUM, lidar.flatten(), t)
 
             if IM_ENUM in self._hyperparams['obs_include']:
-                self.reset_to_state(sample.get_X(t=t))
+                # self.reset_to_state(sample.get_X(t=t))
                 im = self.mjc_env.render(height=self.image_height, width=self.image_width)
                 sample.set(IM_ENUM, im.flatten(), t)
 
@@ -1144,14 +1148,14 @@ class NAMOSortingAgent(TAMPAgent):
 
 
     def get_image(self, x, depth=False):
-        self.reset_to_state(x)
+        # self.reset_to_state(x)
         # im = self.mjc_env.render(camera_id=0, depth=depth, view=False)
         im = self.mjc_env.render(camera_id=0, height=self.image_height, width=self.image_width, view=False)
         return im
 
 
     def get_mjc_obs(self, x):
-        self.reset_to_state(x)
+        # self.reset_to_state(x)
         # return self.mjc_env.get_obs(view=False)
         return self.mjc_env.render()
 

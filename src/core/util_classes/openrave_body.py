@@ -14,12 +14,12 @@ else:
     import pybullet as P
     import baxter_gym.util_classes.transform_utils as T
 
-from core.util_classes.robots import Robot, PR2, Baxter, Washer
+from core.util_classes.robots import Robot, PR2, Baxter, Washer, NAMO
 
 from core.util_classes.items import Item, Box, Can, BlueCan, RedCan, Circle, BlueCircle, RedCircle, GreenCircle, Obstacle, Wall, Table, Basket
 
 WALL_THICKNESS = 1
-
+CLOSET_POINTS = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
 
 class OpenRAVEBody(object):
     def __init__(self, env, name, geom, ik_solver=None):
@@ -54,15 +54,27 @@ class OpenRAVEBody(object):
     def delete(self):
         self._env.Remove(self.env_body)
 
+    def isrobot(self):
+        return isinstance(self._geom, Robot)
+
     def set_transparency(self, transparency):
         for link in self.env_body.GetLinks():
             for geom in link.GetGeometries():
                 geom.SetTransparency(transparency)
 
     def _add_robot(self, geom):
-        self.env_body = self._env.ReadRobotXMLFile(geom.shape)
-        self.env_body.SetName(self.name)
-        self._env.Add(self.env_body)
+        if USE_OPENRAVE:
+            self.env_body = self._env.ReadRobotXMLFile(geom.shape)
+            self.env_body.SetName(self.name)
+            self._env.Add(self.env_body)
+        else:
+            if geom.file_type == 'urdf':
+                self.env_body = P.loadURDF(geom.shape)
+
+            elif geom.file_type == 'mjcf':
+                self.env_body = P.loadMJCF(geom.shape)
+
+            self.body_id = self.env_body[0]
         geom.setup(self.env_body)
 
     def _add_item(self, geom):
@@ -186,7 +198,7 @@ class OpenRAVEBody(object):
                 trans = OpenRAVEBody.transform_from_obj_pose(base_pose, rotation)
             self.env_body.SetTransform(trans)
         else:
-            if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer):
+            if isinstance(self._geom, Robot) and not isinstance(self._geom, Washer) and not isinstance(self._geom, NAMO):
                 pos = np.r_[base_pose[:2], 0]
                 quat = T.euler_to_quaternion([0, 0, base_pose[2]], order='xyzw')
             elif len(base_pose) == 2:
@@ -220,7 +232,11 @@ class OpenRAVEBody(object):
             # Set new DOF value to the robot
             self.env_body.SetActiveDOFValues(dof_val)
         else:
-            self.ik_solver.sync_ik_from_attrs(dof_value_map)
+            if hasattr(self, 'ik_solver') and self.ik_solver is not None:
+                self.ik_solver.sync_ik_from_attrs(dof_value_map)
+            else:
+                for key in dof_value_map:
+                    P.resetJointState(self.body_id, self._geom.dof_map[key], dof_value_map[key])
 
     def _set_active_dof_inds(self, inds = None):
         """
@@ -290,7 +306,8 @@ class OpenRAVEBody(object):
         wall_color = [0.5, 0.2, 0.1]
         box_infos = []
         if wall_type == 'closet':
-            wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
+            # wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
+            wall_endpoints = CLOSET_POINTS
         elif wall_type == 'three_room':
             wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[-1.5,4.0],
                               [-1.5,2.0],[-1.5,4.0],[6.0,4.0],
@@ -353,7 +370,7 @@ class OpenRAVEBody(object):
     @staticmethod
     def get_wall_dims(wall_type='closet'):
         if wall_type == 'closet':
-            wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[1.9,4.0],[1.9,8.0],[5.0,8.0],[5.0,4.0],[13.0,4.0],[13.0,-8.0],[-6.0,-8.0]]
+            wall_endpoints = CLOSET_POINTS
         elif wall_type == 'three_room':
             wall_endpoints = [[-6.0,-8.0],[-6.0,4.0],[-1.5,4.0],
                               [-1.5,2.0],[-1.5,4.0],[6.0,4.0],

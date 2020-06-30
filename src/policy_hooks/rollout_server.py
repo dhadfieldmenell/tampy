@@ -186,7 +186,8 @@ class RolloutServer(object):
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
         self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'hl_test_{0}{1}log.npy'
-        self.fail_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_log.npy'.format(self.id)
+        self.fail_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_log.txt'.format(self.id)
+        self.fail_data_file = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_data.txt'.format(self.id)
         self.render = hyperparams.get('load_render', False)
         if self.render:
             self.cur_vid_id = 0
@@ -198,6 +199,7 @@ class RolloutServer(object):
         self.log_updates = []
         self.hl_data = []
         self.td_errors = []
+        self.fail_data = []
         self.last_hl_test = time.time()
         state_info = []
         params = self.agent.plans.values()[0].params
@@ -786,14 +788,26 @@ class RolloutServer(object):
         return x0
 
 
-    def find_failure(self, augment=False):
+    def plan_from_fail(self, augment=False, mode='start'):
         self.cur_step += 1
         self.set_policies()
         val, path = self.test_hl()
         if val < 1:
-            x0 = path[0].get_X(t=0) # self.agent.x0[0]
-            targets = path[0].targets # self.agent.target_vecs[0]
-            val, _, plan = self.mcts[0].eval_pr_graph(x0, targets)
+            if mode == 'start':
+                s, t = 0, 0
+            elif mode == 'end':
+                s, t = -1, -1
+            elif mode == 'random':
+                s = np.random.randint(len(path))
+                t = np.random.randint(path[s].T)
+            else:
+                raise NotImplementedError
+            x0 = path[s].get_X(t=t) # self.agent.x0[0]
+            targets = path[s].targets # self.agent.target_vecs[0]
+            self.agent.reset_to_state(x0)
+            self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
+            val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
+            print('Plan from fail?', plan, val, len(path), self.id)
             if augment and type(plan) is Plan:
                 self.agent.resample_hl_plan(plan, targets)
 
@@ -902,7 +916,7 @@ class RolloutServer(object):
                 self.n_steps += 1
                 self.n_success += 1 if val > 1 - 1e-2 else 0
 
-                if not self._hyperparams.get('find_failure', False) and time.time() - self.last_hl_test > 120:
+                if not self._hyperparams.get('plan_from_fail', False) and time.time() - self.last_hl_test > 120:
                     self.test_hl()
                 # print('MCTS step time:', time.time() - start_t)
                 ### Collect observed samples from MCTS
@@ -1127,7 +1141,18 @@ class RolloutServer(object):
             # if self.use_qfunc: self.log_td_error(path)
             if not len(self.hl_data) % 5:
                 np.save(self.hl_test_log.format('pre_' if self.check_precond else '', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
-            
+           
+        if val < 1:
+            fail_pt = {'time': time.time() - self.start_t,
+                        'no': self.config['num_objs'],
+                        'nt': self.config['num_targs'],
+                        'N': self.policy_opt.N,
+                        'x0': list(x0),
+                        'targets': list(targets),
+                        'goal': list(path[0].get(ONEHOT_GOAL_ENUM, t=0))}
+            with open(self.fail_data_file, 'a+') as f:
+                f.write(str(fail_pt))
+                f.write('\n')
         if save_fail and val < 1:
             opt_path = self.agent.run_pr_graph(x0, targets)
             if len(opt_path):
@@ -1217,10 +1242,11 @@ class RolloutServer(object):
     def run(self):
         step = 0
         while not self.stopped:
-            if not self.run_hl_test and self._hyperparams.get('train_on_fail', False) and self.cur_step > 2:
+            if not self.run_hl_test and self._hyperparams.get('train_on_fail', False) and self.cur_step > 10:
                 self.agent.replace_cond(0)
                 augment = self._hyperparams.get('augment_hl', False)
-                self.find_failure(augment=augment)
+                mode = self._hyperparams.get('fail_mode', 'start')
+                self.plan_from_fail(augment=augment, mode=mode)
 
             if self.run_hl_test:
                 self.agent.replace_cond(0)

@@ -8,6 +8,11 @@ else:
 
 import numpy as np
 
+try:
+    import baxter_gym
+except:
+    pass
+
 
 class Robot(object):
     """
@@ -15,6 +20,20 @@ class Robot(object):
     """
     def __init__(self, shape):
         self.shape = shape
+        self.file_type = 'urdf'
+
+    def setup(self, robot):
+        return
+
+
+class NAMO(Robot):
+    def __init__(self):
+        self._type = "robot"
+        self.file_type = 'mjcf'
+        self.radius = 0.3
+        self.shape = baxter_gym.__path__[0]+'/robot_info/lidar_namo.xml'
+        self.dof_map = {'xpos': 0, 'ypos': 1, 'robot_theta': 2, 'left_grip': 6, 'right_grip': 4}
+
 
 class PR2(Robot):
     """
