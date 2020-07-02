@@ -9,7 +9,7 @@ import random
 import time
 
 from core.internal_repr.plan import Plan
-from core.util_classes.namo_predicates import dsafe
+from core.util_classes.namo_predicates import dsafe, GRIP_VAL
 from core.util_classes.openrave_body import *
 from pma.hl_solver import FFSolver
 from policy_hooks.utils.load_task_definitions import get_tasks, plan_from_str
@@ -29,7 +29,7 @@ CONST_TARGETS = False
 CONST_ORDER = False
 
 # domain_file = "../domains/namo_domain/new_namo.domain"
-domain_file = "../domains/namo_domain/current.domain"
+domain_file = "../domains/namo_domain/nopose.domain"
 mapping_file = "policy_hooks/namo/sorting_task_mapping_7"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
@@ -190,6 +190,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         x0[state_inds['pr2', 'pose']] = locs[0]
         for o in range(config['num_objs']):
             x0[state_inds['can{0}'.format(o), 'pose']] = locs[o+1]
+        x0[state_inds['pr2', 'gripper']] = -1.
         x0s.append(x0)
         if FIX_TARGETS:
             targ_range = range(config['num_objs'] - config['num_targs'])
@@ -243,6 +244,7 @@ def get_plans():
                     for step in next_task_str:
                         new_task_str.append(step.format(obj, targ, grasp))
                     plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params)
+                    plan.params['pr2'].gripper[0,0] = -GRIP_VAL
                     params = plan.params
                     plans[(tasks.keys().index(task), i, j, k)] = plan
                     if env is None:
@@ -277,6 +279,48 @@ def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize
         # target_map['left_target_2'] = np.array([-2., 0.])
         # target_map['right_target_2'] = np.array([2., 0.])
     return target_map
+
+
+def setup(hyperparams):
+    wall_dims = OpenRAVEBody.get_wall_dims('closet')
+    config = {
+        'obs_include': ['overhead_camera'],
+        'include_files': [],
+        'include_items': [
+            {'name': 'pr2', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.6, 1.), 'rgba': (1, 1, 1, 1)},
+        ],
+        'view': False,
+        'image_dimensions': (hyperparams['image_width'], hyperparams['image_height'])
+    }
+
+    self.main_camera_id = 0
+    colors = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0.5, 0.75, 0.25, 1], [0.75, 0.5, 0, 1], [0.25, 0.25, 0.5, 1], [0.5, 0, 0.25, 1], [0, 0.5, 0.75, 1], [0, 0, 0.5, 1]]
+
+    items = config['include_items']
+    prim_options = get_prim_choices()
+    for name in prim_options[OBJ_ENUM]:
+        if name =='pr2': continue
+        cur_color = colors.pop(0)
+        items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.4, 1.), 'rgba': tuple(cur_color)})
+        # items.append({'name': '{0}_end_target'.format(name), 'type': 'cylinder', 'is_fixed': False, 'pos': (10, 10, 0.5), 'dimensions': (0.8, 0.2), 'rgba': tuple(cur_color)})
+    for i in range(len(wall_dims)):
+        dim, next_trans = wall_dims[i]
+        next_trans[0,3] -= 3.5
+        next_dim = dim # [dim[1], dim[0], dim[2]]
+        pos = next_trans[:3,3] # [next_trans[1,3], next_trans[0,3], next_trans[2,3]]
+        items.append({'name': 'wall{0}'.format(i), 'type': 'box', 'is_fixed': True, 'pos': pos, 'dimensions': next_dim, 'rgba': (0.2, 0.2, 0.2, 1)})
+    
+    generate_xml(BASE_XML, ENV_XML, include_files=config['include_files'], include_items=config['include_items'])
+
+
+
+
+
+
+
+
+
+
 
 # CODE FROM OLDER VERSION OF PROB FILE BELOW THIS
 

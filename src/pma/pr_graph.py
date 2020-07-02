@@ -10,7 +10,7 @@ from prg_search_node import HLSearchNode, LLSearchNode
 Many methods called in p_mod_abs have detailed documentation.
 """
 #def p_mod_abs(domain_config, problem_config, solvers_config, suggester = None, max_iter=100, debug = False):
-def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, suggester = None, max_iter=10, debug = False, label=''):
+def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, suggester = None, max_iter=15, debug = False, label=''):
     #hl_solver, ll_solver = ParseSolversConfig.parse(solvers_config, domain_config)
     #domain = ParseDomainConfig.parse(domain_config)
     #problem = ParseProblemConfig.parse(problem_config, domain)
@@ -20,7 +20,7 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
     n0 = HLSearchNode(hl_solver.translate_problem(problem, initial, goal), domain, problem, priority=0, label=label)
     Q = PriorityQueue()
     Q.put((n0.heuristic(), n0))
-    for _ in range(max_iter):
+    for cur_iter in range(max_iter):
         n = Q.get()[1]
         if n.is_hl_node():
             c_plan = n.plan(hl_solver)
@@ -36,6 +36,7 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
             if n.solved():
                 print('SOLVED PR GRAPH')
                 return n.curr_plan, None
+            # print('Failed iter', cur_iter, label)
             Q.put((n.heuristic(), n))
             if n.gen_child():
                 # Expand the node
@@ -53,5 +54,5 @@ def p_mod_abs(hl_solver, ll_solver, domain, problem, initial=None, goal=None, su
 
 
 
-    print('PR GRAPH hit iteration limit')
+    print('PR GRAPH hit iteration limit {0}'.format(label))
     return None, "Hit iteration limit, aborting."

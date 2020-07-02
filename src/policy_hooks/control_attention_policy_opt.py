@@ -149,6 +149,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.train_iters = 0
         self.average_losses = []
         self.average_val_losses = []
+        self.average_error = []
         self.N = 0
         self.buffer_size = MAX_QUEUE_SIZE
 
@@ -528,7 +529,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive')
             self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
                                                solver_name=self._hyperparams['solver_type'],
-                                               base_lr=self._hyperparams['lr'],
+                                               base_lr=self._hyperparams['hllr'],
                                                lr_policy=self._hyperparams['lr_policy'],
                                                momentum=self._hyperparams['momentum'],
                                                weight_decay=self._hyperparams['prim_weight_decay'],
@@ -613,6 +614,21 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         for bound in self._primBounds:
             res.append(distr[bound[0]:bound[1]])
         return res
+
+    def check_task_error(self, obs, mu):
+        err = 0.
+        for o in obs:
+            distrs = self.task_distr(o)
+            i = 0
+            for d in distrs:
+                ind1 = np.argmax(d)
+                ind2 = np.argmax(mu[i:i+len(d)])
+                if ind1 != ind2: err += 1./len(distrs)
+                i += len(d)
+        err /= len(obs)
+        self.average_error.append(err)
+        return err
+
 
     def value(self, obs, act):
         if len(obs.shape) < 2:

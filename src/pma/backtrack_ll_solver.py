@@ -225,7 +225,7 @@ class BacktrackLLSolver(LLSolver):
                 # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                 #     break
 
-                print "resample attempt: {}".format(attempt)
+                print "resample attempt: {} at priority {}".format(attempt, priority)
 
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
@@ -689,6 +689,7 @@ class BacktrackLLSolver(LLSolver):
                         if t in active_range:
                             if verbose:
                                 print "expr being added at time ", t
+                            if t + pred.active_range[1] > effective_timesteps[-1]: continue
                             var = self._spawn_sco_var_for_pred(pred, t)
                             bexpr = BoundExpr(expr, var)
 

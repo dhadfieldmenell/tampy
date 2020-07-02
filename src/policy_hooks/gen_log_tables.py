@@ -10,7 +10,7 @@ from numpy import array, float32
 import seaborn as sns
 
 FRAME = 10
-TWINDOW = 900
+TWINDOW = 300
 TDELTA = 300
 MIN_FRAME = 30
 nan = np.nan
@@ -249,18 +249,18 @@ def get_td_loss(keywords=[], exclude=[], pre=False):
             sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_td_error{2}{3}.png'.format(no, nt, keyid, pre_lab))
 
 
-
-
-def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99, label_vars=[]):
+def get_fail_info(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99, label_vars=[], include=[], max_t=14400):
     exp_probs = os.listdir(LOG_DIR)
     exp_data = {}
     exp_len_data = {}
+    exp_dist_data = {}
+    exp_true_data = {}
+    targets = {}
     used = []
     for exp_name in exp_probs:
         dir_prefix = LOG_DIR + exp_name + '/'
         if not os.path.isdir(dir_prefix): continue
         exp_dirs = os.listdir(dir_prefix)
-        # exp_data = []
         for dir_name in exp_dirs:
             d = dir_name
             if d.find('.') >= 0 or d.find('trained') >= 0: continue
@@ -271,27 +271,121 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                         skip = True
                 if skip: continue
 
+            if len(include):
+                skip = True
+                for k in include:
+                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
+                        skip = False
+                if skip: continue
+
+
+            print(dir_name)
             if len(exclude):
                 skip = False
                 for k in exclude:
                     if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
                         skip = True
+                        print('skipping', dir_name)
                 if skip: continue
 
             full_dir = dir_prefix + dir_name
             full_exp = full_dir[:full_dir.rfind('_')]
-            # full_exp = full_dir[:-1]
             if full_exp in used: continue
             used.append(full_exp)
             i = 0
             data = []
             while i < 20: 
-                '''
-                if not os.path.isdir(full_exp+str(i)):
+                cur_dir = '{0}_{1}'.format(full_exp, i)
+                if not os.path.isdir(cur_dir):
                     i += 1
                     continue
-                fnames = os.listdir(full_exp+str(i))
-                '''
+                fnames = os.listdir(cur_dir)
+
+                info = [f for f in fnames if f.find('failure') >= 0 and f.endswith('data.txt')]
+                if len(info):
+                    for fname in info:
+                        print('Loading data from', fname)
+                        with open(cur_dir+'/'+fname, 'r') as f:
+                            data.append(f.read().splitlines())
+
+                    label = gen_label(cur_dir, label_vars)
+                    for buf in data:
+                        for pts in buf:
+                            pts = eval(pts)
+                            no, nt = int(pts['no']), int(pts['nt'])
+                            if (no,nt) not in exp_data: exp_data[no,nt] = []
+                            if (no,nt) not in targets: targets[no,nt] = []
+                            pts['exp_name'] = label
+                            exp_data[no,nt].append(pts)
+                            targs = pts['goal']
+                            targinfo = []
+                            for targind in range(len(targs)):
+                                if targs[targind] == 1:
+                                    targinfo.append(targind)
+                            targets[no,nt].append([tuple(targinfo)])
+                i += 1
+
+    for no, nt in targets:
+        print('Plotting', no, nt, exp_name)
+        pd_frame = pd.DataFrame(targets[no, nt], columns=['targets']) #'target_{0}'.format(i) for i in range(no)])
+        print(pd_frame['targets'].value_counts()[:10])
+        sns.set()
+        plt.clf()
+        sns_plot = sns.countplot(x="value", hue="variable", data=pd.melt(pd_frame))
+        keyid = ''
+        for key in keywords[:1]:
+            keyid += '_{0}'.format(key)
+        pre_lab = '_pre' if pre else ''
+        if rerun: pre_lab += '_rerun'
+        plt.savefig(SAVE_DIR+'/{0}obj_{1}targ_failedtargets{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+        plt.clf()
+
+
+def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99, label_vars=[], include=[], max_t=14400):
+    exp_probs = os.listdir(LOG_DIR)
+    exp_data = {}
+    exp_len_data = {}
+    exp_dist_data = {}
+    exp_true_data = {}
+    used = []
+    for exp_name in exp_probs:
+        dir_prefix = LOG_DIR + exp_name + '/'
+        if not os.path.isdir(dir_prefix): continue
+        exp_dirs = os.listdir(dir_prefix)
+        for dir_name in exp_dirs:
+            d = dir_name
+            if d.find('.') >= 0 or d.find('trained') >= 0: continue
+            if len(keywords):
+                skip = False
+                for k in keywords:
+                    if dir_name.find(k) < 0 and dir_prefix.find(k) < 0:
+                        skip = True
+                if skip: continue
+
+            if len(include):
+                skip = True
+                for k in include:
+                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
+                        skip = False
+                if skip: continue
+
+
+            print(dir_name)
+            if len(exclude):
+                skip = False
+                for k in exclude:
+                    if dir_name.find(k) >= 0 or dir_prefix.find(k) >= 0:
+                        skip = True
+                        print('skipping', dir_name)
+                if skip: continue
+
+            full_dir = dir_prefix + dir_name
+            full_exp = full_dir[:full_dir.rfind('_')]
+            if full_exp in used: continue
+            used.append(full_exp)
+            i = 0
+            data = []
+            while i < 20: 
                 cur_dir = '{0}_{1}'.format(full_exp, i)
                 if not os.path.isdir(cur_dir):
                     i += 1
@@ -305,20 +399,10 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                 else:
                     info = [f for f in fnames if f.find('hl_test') >= 0 and f.endswith('test_log.npy')]
                 if len(info):
-                    # data.append(np.load(full_exp+str(i)+'/'+info[0]))
                     for fname in info:
                         print('Loading data from', fname)
                         data.append(np.load(cur_dir+'/'+fname))
-                # i += 1
 
-                    #if not len(data): 
-                    #    print('skipping', full_exp)
-                    #    continue
-                    #dlen = min([len(d) for d in data])
-                    #dmax = max([len(d) for d in data])
-                    #print('Gathering data for', full_exp, 'length:', dlen, 'all len:', [len(d) for d in data])
-                    #end = False
-                    #cur_t = 0
                     label = gen_label(cur_dir, label_vars)
                     for buf in data:
                         for pts in buf:
@@ -326,13 +410,18 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                             no, nt = int(pt[4]), int(pt[5])
                             if (no,nt) not in exp_data: exp_data[no,nt] = []
                             if (no,nt) not in exp_len_data: exp_len_data[no,nt] = []
+                            if (no,nt) not in exp_dist_data: exp_dist_data[no,nt] = []
+                            if (no,nt) not in exp_true_data: exp_true_data[no,nt] = []
                              
                             if xvar == 'time':
                                 xval = (pt[3] // tdelta) * tdelta
-                                exp_data[no, nt].append((label, xval, pt[0]))
-                                exp_data[no, nt].append((label, xval+tdelta, pt[0]))
-                                if pt[0] > lenthresh:
-                                    exp_len_data[no, nt].append((label, xval, pt[1]))
+                                if xval < max_t:
+                                    exp_data[no, nt].append((label, xval, pt[0]))
+                                    exp_data[no, nt].append((label, xval+tdelta, pt[0]))
+                                    if pt[0] > lenthresh:
+                                        exp_len_data[no, nt].append((label, xval, pt[1]))
+                                    if pt[0] <= 0.5: exp_dist_data[no, nt].append((label, xval, pt[2]))
+                                    if len(pt) > 7: exp_true_data[no, nt].append((label, xval, pt[7]))
                             elif rerun:
                                 exp_data[no, nt].append((label, pt[-1], pt[0]))
                                 if pt[0] > lenthresh:
@@ -343,70 +432,14 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                                     exp_len_data[no, nt].append((label, pt[6], pt[1]))
                         
                 i += 1
-            '''
-            while not end:
-                end = True
-                for d in data:
-                    if not avg_time or rerun:
-                        next_frame = [pt[0] for pt in d]
-                    elif xvar == 'N':
-                        next_frame = [pt[0] for pt in d if pt[0,6] >= cur_t and pt[0,6] <= cur_t + wind]
-                    else:
-                        next_frame = [pt[0] for pt in d if pt[0,3] >= cur_t and pt[0,3] <= cur_t + wind]
-                    if len(next_frame):
-                        end = not avg_time
-                        if rerun or xvar != 'time' or len(next_frame) >= MIN_FRAME:
-                            if avg_time:
-                                next_pts = next_frame # [np.mean(next_frame, axis=0)]
-                            else:
-                                next_pts = next_frame
 
-                            for next_pt in next_pts:
-                                no, nt = int(next_pt[4]), int(next_pt[5])
-                                if (no, nt) not in exp_data:
-                                    exp_data[no, nt] = []
-                                if (no, nt) not in exp_len_data:
-                                    exp_len_data[no, nt] = []
-                                
-                                if xvar == 'time':
-                                    exp_data[no, nt].append((full_exp, cur_t, next_pt[0]))
-                                    if next_pt[0] > lenthresh:
-                                        exp_len_data[no, nt].append((full_exp, cur_t, next_pt[1]))
-                                elif xvar == 'N':
-                                    exp_data[no, nt].append((full_exp, next_pt[6], next_pt[0]))
-                                    if next_pt[0] > lenthresh:
-                                        exp_len_data[no, nt].append((full_exp, next_pt[6], next_pt[1]))
-                                elif rerun:
-                                    exp_data[no, nt].append((full_exp, next_pt[-1], next_pt[0]))
-                                    if next_pt[0] > lenthresh:
-                                        exp_len_data[no, nt].append((full_exp, next_pt[-1], next_pt[1]))
-                cur_t += tdelta
-
-            '''
-
-            '''
-            for i in range(dmax - FRAME):
-                cur_t = np.mean([d[i:i+FRAME,:,3] for d in data if i+FRAME < len(d)])
-
-                for d in data:
-                    if len(d) < i+FRAME: continue
-                    cur_fr = np.mean(d[i:i+FRAME], axis=0)
-                    for pt in cur_fr:
-                        val = pt[0]
-                        # cur_t = pt[3]
-                        nt = int(pt[2])
-                        no = int(pt[4])
-                        if (no, nt) not in exp_data:
-                            exp_data[no, nt] = []
-                        exp_data[no, nt].append((full_exp, cur_t, val))
-            '''
     for no, nt in exp_data:
         print('Plotting', no, nt, exp_name)
         pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', xvar, 'value'])
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='value', hue='exp_name', kind='line', data=pd_frame)
         keyid = ''
-        for key in keywords:
+        for key in keywords[:1]:
             keyid += '_{0}'.format(key)
         pre_lab = '_pre' if pre else ''
         if rerun: pre_lab += '_rerun'
@@ -418,11 +451,36 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='length', hue='exp_name', kind='line', data=pd_frame)
         keyid = ''
-        for key in keywords:
+        for key in keywords[:1]:
             keyid += '_{0}'.format(key)
         pre_lab = '_pre' if pre else ''
         if rerun: pre_lab += '_rerun'
         sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_len{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+
+    for no, nt in exp_dist_data:
+        print('Plotting', no, nt, exp_name)
+        pd_frame = pd.DataFrame(exp_dist_data[no, nt], columns=['exp_name', xvar, 'disp'])
+        sns.set()
+        sns_plot = sns.relplot(x=xvar, y='disp', hue='exp_name', kind='line', data=pd_frame)
+        keyid = ''
+        for key in keywords[:1]:
+            keyid += '_{0}'.format(key)
+        pre_lab = '_pre' if pre else ''
+        if rerun: pre_lab += '_rerun'
+        sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_disp{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+
+
+    for no, nt in exp_true_data:
+        print('Plotting', no, nt, exp_name)
+        pd_frame = pd.DataFrame(exp_true_data[no, nt], columns=['exp_name', xvar, 'true'])
+        sns.set()
+        sns_plot = sns.relplot(x=xvar, y='true', hue='exp_name', kind='line', data=pd_frame)
+        keyid = ''
+        for key in keywords[:-1]:
+            keyid += '_{0}'.format(key)
+        pre_lab = '_pre' if pre else ''
+        if rerun: pre_lab += '_rerun'
+        sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_true{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
 
 
 def plot(data, columns, descr, separate=True, keyind=3):
@@ -504,17 +562,20 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
 
     plot(data, ['exp_name', xvar, ylabel, 'key', 'yvar', 'yvar_ind'], '{0}_vs_{1}'.format(xvar, ylabel), separate=separate, keyind=keyind)
 
-keywords = ['IT100_', 'IT1000_', 'IT10000_']
-keywords = ['redo']
-label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+keywords = ['failtrain']
+include = [] # ['wed_nocol', 'sun']
+label_vars = ['descr', 'hist_len', 'check_col', 'soft_eval'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
-get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=-1)
+get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=['nocol_det', 'nocol_nohist'], include=include, max_t=5000)
+#get_fail_info(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=['nocol_det', 'nocol_nohist'], include=include, max_t=5000)
 #get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(['valcheck_2'], xvar='time', pre=False, label_vars=['split_nets'], lenthresh=-1)
 #get_hl_tests(['compact_base'], xvar='time', pre=True)
 #keywords = ['goalpureloss', 'grasppureloss', 'plainpureloss', 'taskpureloss']
 #label_vars = ['train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
-gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
+#gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=True, keyind=5, ylabel='loss_comp_3', exclude=[])
+gen_data_plots(xvar='n_data', yvar=['err'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=False, keyind=5, ylabel='loss', exclude=[])
+gen_data_plots(xvar='n_data', yvar=['train_component_loss', 'val_component_loss'], keywords=keywords, lab='primitive', label_vars=label_vars, separate=False, keyind=5, ylabel='loss_comp_3', exclude=[])
 
 

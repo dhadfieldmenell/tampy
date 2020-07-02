@@ -37,9 +37,9 @@ N_SAMPLES = 10
 N_TRAJ_CENTERS = 1
 HL_TIMEOUT = 600
 OPT_WT_MULT = 5e2
-N_ROLLOUT_SERVERS = 20
+N_ROLLOUT_SERVERS = 25
 N_ALG_SERVERS = 10
-N_OPTIMIZERS = 5
+N_OPTIMIZERS = 0
 N_DIRS = 16
 N_GRASPS = 4
 TIME_LIMIT = 14400
@@ -269,7 +269,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                         ],
         'prim_obs_include': [
                              # utils.STATE_ENUM,
-                             utils.ONEHOT_GOAL_ENUM,
+                             utils.GOAL_ENUM,
                              ],
         'val_obs_include': [utils.ONEHOT_GOAL_ENUM,
                             ],
@@ -290,6 +290,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.TRUEOBJ_ENUM: no,
                 utils.TRUETARG_ENUM: len(prob.END_TARGETS),
                 utils.ATGOAL_ENUM: no,
+                utils.FACTOREDTASK_ENUM: len(prob.get_prim_choices().keys()),
                 # utils.INIT_OBJ_POSE_ENUM: 2,
             },
         'visual': False,

@@ -196,8 +196,10 @@ class Symbol(Parameter):
                 new_free[k] = np.ones(val.shape)
             elif hasattr(v, 'copy'):
                 setattr(new, k, v.copy())
+                if type(v) is np.ndarray:
+                    new_free[k] = np.zeros_like(v) # self._free_attrs[k].copy()
             else:
                 setattr(new, k, v)
-        if reset_free:
-            new._free_attrs = new_free
+        # if reset_free:
+        #     new._free_attrs = new_free
         return new

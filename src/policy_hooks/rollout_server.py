@@ -13,6 +13,7 @@ from numba import cuda
 from scipy.cluster.vq import kmeans2 as kmeans
 import tensorflow as tf
 
+from core.internal_repr.plan import Plan
 from policy_hooks.sample import Sample
 from policy_hooks.sample_list import SampleList
 
@@ -83,7 +84,7 @@ class RolloutServer(object):
         self.use_qfunc = self.config.get('use_qfunc', False)
         if USE_ROS: rospy.init_node('rollout_server_{0}_{1}_{2}'.format(self.id, self.group_id, self.run_alg_updates))
         self.prim_dims = hyperparams['prim_dims']
-        self.solver = hyperparams['solver_type'](hyperparams)
+        self.solver = hyperparams['mp_solver_type'](hyperparams)
         self.opt_smooth = hyperparams.get('opt_smooth', False)
         self.agent = hyperparams['agent']['type'](hyperparams['agent'])
         self.agent.process_id = '{0}_{1}'.format(self.id, self.group_id)
@@ -185,6 +186,8 @@ class RolloutServer(object):
 
         self.rollout_log = 'tf_saved/'+hyperparams['weight_dir']+'/rollout_log_{0}_{1}.txt'.format(self.id, self.run_alg_updates)
         self.hl_test_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'hl_test_{0}{1}log.npy'
+        self.fail_log = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_log.txt'.format(self.id)
+        self.fail_data_file = 'tf_saved/'+hyperparams['weight_dir']+'/'+str(self.id)+'_'+'failure_{0}_data.txt'.format(self.id)
         self.render = hyperparams.get('load_render', False)
         if self.render:
             self.cur_vid_id = 0
@@ -196,6 +199,7 @@ class RolloutServer(object):
         self.log_updates = []
         self.hl_data = []
         self.td_errors = []
+        self.fail_data = []
         self.last_hl_test = time.time()
         state_info = []
         params = self.agent.plans.values()[0].params
@@ -364,6 +368,7 @@ class RolloutServer(object):
                 for i in range(len(distrs)):
                     distrs[i] = np.zeros_like(distrs[i])
                     distrs[i][task[i]] = 1.
+                return distrs
             if not soft: return distrs
             out = []
             for d in distrs:
@@ -615,7 +620,9 @@ class RolloutServer(object):
         prob.server_id = str('{0}_{1}'.format(self.id, self.group_id))
         prob.prob_id = self.current_id
         self.node_dict[self.current_id] = next_sample.node if hasattr(next_sample, 'node') else None
-        if USE_ROS:
+        if self.run_alg_updates:
+            self.store_prob(prob)
+        elif USE_ROS:
             self.prob_publisher.publish(prob)
         elif 'rollout_opt_rec{0}'.format(self.id) in self.queues:
             prob.rollout_id = self.id
@@ -705,69 +712,7 @@ class RolloutServer(object):
                 self.rollout_opt_pairs[task_name] = self.rollout_opt_pairs[task_name][-self.max_opt_sample_queue:]
             i -= 1
 
-
-    def send_mp_problem(self, centroid, s_list):
-        next_sample = s_list[0]
-        state = next_sample.get_X(t=0)
-        task = next_sample.task
-        cond = next_sample.condition
-        traj_mean = []
-        for t in range(next_sample.T):
-            next_line = Float32MultiArray()
-            next_line.data = centroid[t]
-            traj_mean.append(next_line)
-        prob = MotionPlanProblem()
-        prob.state = state
-        prob.task = str(task)
-        prob.cond = cond
-
-        task_name = next_sample.task_name
-        if len(s_list) == 1:
-            s_list = self.get_rollouts(s_list, task_name)
-
-        if len(s_list) > 1:
-            self.waiting_for_opt[self.current_id] = s_list
-            self.alg_map[task_name].set_conditions(len(self.agent.x0))
-            self.alg_map[task_name].cur[cond].sample_list = s_list
-            self.alg_map[task_name]._update_policy_fit(cond)
-        
-        prob.use_prior = True
-        pol_info = self.alg_map[task_name].cur[cond].pol_info
-        K, k, S = pol_info.pol_K, pol_info.pol_k, pol_info.pol_S
-        prob.T = next_sample.T
-        prob.dU = self.agent.dU
-        prob.dX = self.agent.dX
-        prob.pol_K, prob.pol_k, prob.pol_S = K.flatten().tolist(), k.flatten().tolist(), S.flatten().tolist()
-
-        try:
-            prob.chol = np.linalg.inv(pol_info.pol_S + np.tile(np.eye(next_sample.dU), (next_sample.T, 1, 1))).flatten().tolist() # pol_info.chol_pol_S.flatten().tolist()
-        except Exception:
-            prob.use_prior = False
-
-        prob.traj_mean = traj_mean
-        prob.prob_id = self.current_id
-        self.node_ref[self.current_id] = next_sample.node if hasattr(next_sample, 'node') else None
-        self.current_id += 1
-        prob.solver_id = np.random.randint(0, self.n_optimizers)
-        prob.server_id = str('{0}_{1}'.format(self.id, self.group_id))
-        '''
-        if self.alg_map[next_sample.task_name].mp_policy_prior.gmm.sigma is None:
-            prob.use_prior = False
-        else:
-            gmm = self.alg_map[next_sample.task_name].mp_policy_prior.gmm
-            prob.use_prior = True
-            prob.mu = gmm.mu.flatten()
-            prob.sigma = gmm.sigma.flatten()
-            prob.logmass = gmm.logmass.flatten()
-            prob.mass = gmm.mass.flatten()
-            prob.N = len(gmm.mu)
-            prob.K = len(gmm.mass)
-            prob.Do = gmm.sigma.shape[1]
-        '''
-
-        # print '\n\nSending motion plan problem to server {0}.\n\n'.format(prob.solver_id)
-        self.async_plan_publisher.publish(prob)
-
+    
     def parse_state(self, sample):
         state_info = {}
         params = self.agent.plans.values()[0].params
@@ -800,55 +745,8 @@ class RolloutServer(object):
                 #     path = node.tree.get_path_info(opt_sample.get_X(t=0), node, opt_sample.task, opt_sample.get_X())
                 #     val = node.tree.simulate(state, fixed_paths=[path], debug=False)
 
-                '''
-                if self.opt_smooth:
-                    s = []
-
-                    for sample in samples[0]:
-                        task = sample.task_name
-                        info = self.alg_map[sample.task].cur[sample.condition].pol_info
-                        try:
-                            inf_f = (info.pol_K, info.pol_k, np.linalg.inv(pol_inf.pol_S))
-                        except:
-                            inf_f = None
-                        gmm = self.alg_map[task].mp_policy_prior.gmm
-                        if gmm.sigma is not None:
-                            inf_f = None # lambda x: self.gmm_inf(gmm, x)
-                        else:
-                            inf_f = None
-                        out, failed, success = self.agent.solve_sample_opt_traj(sample.get_X(t=0), sample.task, sample.condition, sample.get_X(), inf_f, t_limit=5, n_resamples=1, out_coeff=1e3, smoothing=True)
-                        s.append(out)
-                        T = sample.T
-                        out.set(ACTION_ENUM, sample.get_U(T-1), T-1)
-                    samples[0] = s
-                '''
                 self.store_opt_sample(opt_sample, plan_id, waiters)
                 info = self.parse_state(opt_sample)
-
-                '''
-                with open(self.rollout_log, 'a+') as f:
-                    f.write("Optimal rollout for {0} {1}:\n".format(self.task_list[opt_sample.task[0]], opt_sample.task))
-                    pp_info = pprint.pformat(info, width=50)
-                    f.write(pp_info)
-                    f.write('\n\n')
-                '''
-
-    def run_hl_opt_queue(self, mcts):
-        ### Guard against accidentally storing optimized results
-        if not self.run_alg_updates:
-            self.hl_opt_queue = []
-
-        while len(self.hl_opt_queue):
-            samples = []
-            path_to, success, opt_queue = self.hl_opt_queue.pop()
-            mcts.update_vals(path_to, success)
-            for step in opt_queue:
-                plan_id, state, task, condition, traj, waiters = step
-                opt_sample = self.agent.sample_optimal_trajectory(state, task, cond, traj, traj_mean=[])
-                samples.append(opt_sample)
-                self.store_opt_sample(opt_sample, -1)
-            self.update_qvalue(samples)
-            self.update_primitive(samples)
 
 
     def get_rollouts(self, init_samples, task_name):
@@ -888,6 +786,30 @@ class RolloutServer(object):
             return step.get_X(t=ind)
 
         return x0
+
+
+    def plan_from_fail(self, augment=False, mode='start'):
+        self.cur_step += 1
+        self.set_policies()
+        val, path = self.test_hl()
+        if val < 1:
+            if mode == 'start':
+                s, t = 0, 0
+            elif mode == 'end':
+                s, t = -1, -1
+            elif mode == 'random':
+                s = np.random.randint(len(path))
+                t = np.random.randint(path[s].T)
+            else:
+                raise NotImplementedError
+            x0 = path[s].get_X(t=t) # self.agent.x0[0]
+            targets = path[s].targets # self.agent.target_vecs[0]
+            self.agent.reset_to_state(x0)
+            self.agent.store_x_hist(path[s].get(STATE_HIST_ENUM, t=t))
+            val, path, plan = self.mcts[0].eval_pr_graph(x0, targets, reset=False)
+            print('Plan from fail?', plan, val, len(path), self.id)
+            if augment and type(plan) is Plan:
+                self.agent.resample_hl_plan(plan, targets)
 
 
     def run_ff(self):
@@ -994,47 +916,12 @@ class RolloutServer(object):
                 self.n_steps += 1
                 self.n_success += 1 if val > 1 - 1e-2 else 0
 
-                if time.time() - self.last_hl_test > 180:
+                if not self._hyperparams.get('plan_from_fail', False) and time.time() - self.last_hl_test > 120:
                     self.test_hl()
-
-                # if mcts.n_runs > self.steps_to_replace or mcts.n_success > self.success_to_replace:
-                #     mcts.reset()
-                # self.run_hl_opt_queue(mcts)
-                # self.test_publisher.publish('MCTS Step')
-
-                ### Used for DAgger
-                # if np.random.uniform() < self.run_hl_prob and val > 0:
-                #     init_state = self.agent.x0[mcts.condition]
-                #     prob = HLProblem()
-                #     # prob.server_id = self.id
-                #     prob.server_id = str('{0}_{1}'.format(self.id, self.group_id))
-                #     prob.solver_id = np.random.randint(0, self.n_optimizers)
-                #     prob.init_state = init_state.tolist()
-                #     prob.cond = mcts.condition
-                #     gmms = {}
-                #     for task in self.task_list:
-                #         gmm = self.alg_map[task].mp_policy_prior.gmm
-                #         if gmm.sigma is None: continue
-                #         gmms[task] = {}
-                #         gmms[task]['mu'] = gmm.mu.flatten()
-                #         gmms[task]['sigma'] = gmm.sigma.flatten()
-                #         gmms[task]['logmass'] = gmm.logmass.flatten()
-                #         gmms[task]['mass'] = gmm.mass.flatten()
-                #         gmms[task]['N'] = len(gmm.mu)
-                #         gmms[task]['K'] = len(gmm.mass)
-                #         gmms[task]['Do'] = gmm.sigma.shape[1]
-                #     prob.gmms = str(gmms)
-                #     path = mcts.simulate(init_state, early_stop_prob=self.early_stop_prob)
-                #     path_tuples = []
-                #     for step in path:
-                #         path_tuples.append(step.task)
-                #     prob.path_to = str(path_tuples)
-                #     self.hl_publisher.publish(prob)
-
                 # print('MCTS step time:', time.time() - start_t)
                 ### Collect observed samples from MCTS
                 sample_lists = {task: self.agent.get_samples(task) for task in self.task_list}
-                self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=0.0)
+                self.agent.clear_samples(keep_prob=0.0, keep_opt_prob=1.0)
                 n_probs = 0
 
                 ### Check to see if ros node is dead; restart if so
@@ -1052,7 +939,7 @@ class RolloutServer(object):
                             s = s_list[0]
                             Xs = s.get_X(t=s.T-1)
                             t = self.agent.plans[s.task].horizon-1
-                            cost = s.post_cost
+                            cost = 1. # s.post_cost
                             # if s.task_cost < 1e-3: cost = 0.
                             if s.opt_strength > 0.5: cost = 1.
                         if cost < 1e-3: continue
@@ -1145,8 +1032,8 @@ class RolloutServer(object):
 
         else:
             if self.rollout_log is not None:
-                post_cond = [np.mean(mcts.post_cond) for mcts in self.mcts if len(mcts.post_cond)]
-                prim_cost = [np.mean(mcts.prim_pre_cond[-10:]) for mcts in self.mcts if len(mcts.prim_pre_cond)]
+                post_cond = [0] # [np.mean(mcts.post_cond) for mcts in self.mcts if len(mcts.post_cond)]
+                prim_cost = [0] # [np.mean(mcts.prim_pre_cond[-10:]) for mcts in self.mcts if len(mcts.prim_pre_cond)]
                 if len(post_cond):
                     post_cond = np.mean(post_cond)
                 else:
@@ -1189,7 +1076,7 @@ class RolloutServer(object):
         np.save(fname, np.array(buf))
 
 
-    def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False, debug=False):
+    def test_hl(self, rlen=None, save=True, ckpt_ind=None, restore=False, debug=False, save_fail=False):
         if ckpt_ind is not None:
             print('Rolling out for index', ckpt_ind)
 
@@ -1224,34 +1111,56 @@ class RolloutServer(object):
         ns = [self.config['num_targs']]
         if self.config['curric_thresh'] > 0:
             ns = list(range(1, self.config['num_targs']+1))
-        # n = np.random.choice(ns, p=[flt(i)/np.sum(ns) for i in ns])
         n = np.random.choice(ns)
         s = []
-        # self.agent.replace_cond(0)
         x0 = self.agent.x0[0]
         targets = self.agent.target_vecs[0].copy()
         for t in range(n, n_targs[-1]):
             obj_name = prim_opts[OBJ_ENUM][t]
             targets[self.agent.target_inds['{0}_end_target'.format(obj_name), 'value']] = x0[self.agent.state_inds[obj_name, 'pose']]
         if rlen is None:
-            rlen = 4 + 2*n
+            if self.agent.retime:
+                rlen = 4 + 4*n
+            else:
+                rlen = 2 + 2*n
         self.agent.T = self.config['task_durations'][self.task_list[0]]
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
+        true_disp = np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path])
         true_val = np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path])
+        ncols = np.mean([sample.col_ts for sample in path])
         if ckpt_ind is not None:
-            s.append((val, len(path), true_val, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.N, ckpt_ind))
+            s.append((val, len(path), true_disp, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.N, true_val, ckpt_ind))
         else:
-            s.append((val, len(path), true_val, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.N))
+            s.append((val, len(path), true_disp, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.N, true_val, ncols))
         # print('EXPLORED PATH: {0}'.format([sample.task for sample in path]))
         res.append(s[0])
         self.hl_data.append(res)
         if save:
             if val > 1-1e-2:
                 print('Rollout succeeded in test! With pre?', self.check_precond)
-            if self.use_qfunc: self.log_td_error(path)
+            # if self.use_qfunc: self.log_td_error(path)
             if not len(self.hl_data) % 5:
                 np.save(self.hl_test_log.format('pre_' if self.check_precond else '', 'rerun_' if ckpt_ind is not None else ''), np.array(self.hl_data))
-        
+           
+        if val < 1:
+            fail_pt = {'time': time.time() - self.start_t,
+                        'no': self.config['num_objs'],
+                        'nt': self.config['num_targs'],
+                        'N': self.policy_opt.N,
+                        'x0': list(x0),
+                        'targets': list(targets),
+                        'goal': list(path[0].get(ONEHOT_GOAL_ENUM, t=0))}
+            with open(self.fail_data_file, 'a+') as f:
+                f.write(str(fail_pt))
+                f.write('\n')
+        if save_fail and val < 1:
+            opt_path = self.agent.run_pr_graph(x0, targets)
+            if len(opt_path):
+                info = self.get_path_compare(path, opt_path, true_val)
+                pp_info = pprint.pformat(info, depth=360, width=360)
+                with open(self.fail_log, 'a+') as f:
+                    f.write(pp_info)
+                    f.write('\n')
         if debug:
             if val < 1:
                 print('failed for', x0, [s.task for s in path])
@@ -1269,7 +1178,8 @@ class RolloutServer(object):
             self.save_video(path, true_val > 0)
         self.last_hl_test = time.time()
         self.agent.debug = True
-        print('TESTED HL')
+        # print('TESTED HL')
+        return val, path
 
 
     def log_td_error(self, path):
@@ -1332,9 +1242,15 @@ class RolloutServer(object):
     def run(self):
         step = 0
         while not self.stopped:
+            if not self.run_hl_test and self._hyperparams.get('train_on_fail', False) and self.cur_step > 10:
+                self.agent.replace_cond(0)
+                augment = self._hyperparams.get('augment_hl', False)
+                mode = self._hyperparams.get('fail_mode', 'start')
+                self.plan_from_fail(augment=augment, mode=mode)
+
             if self.run_hl_test:
                 self.agent.replace_cond(0)
-                self.test_hl()
+                self.test_hl(save_fail=False)
             elif self._hyperparams.get('ff_only', False):
                 self.run_ff()
             else:
@@ -1343,6 +1259,11 @@ class RolloutServer(object):
                     if self.run_alg_updates:
                         self.parse_prob_queue()
                 self.step()
+                for task in self.alg_map:
+                    data = self.agent.get_opt_samples(task, clear=True)
+                    if len(data):
+                        self.alg_map[task]._update_policy_no_cost(data)
+
             step += 1
             if time.time() - self.start_t > self._hyperparams['time_limit']:
                 break
@@ -1351,6 +1272,7 @@ class RolloutServer(object):
 
     def find_negative_ex(self, sample, encode=True):
         bad = []
+        allignore = []
 
         for t in range(sample.T):
             x = sample.get(STATE_ENUM, t)
@@ -1359,23 +1281,33 @@ class RolloutServer(object):
                 l = self.label_options[i]
                 cost = self.agent.cost_f(x, l, sample.condition, active_ts=(0,0), targets=sample.targets)
                 if cost > 0:
+                    ignore = []
                     if not encode:
                         bad.append((l, t))
                     else:
                         task_vec = np.zeros(len(self.task_list))
                         task_vec[l[0]] = 1.
+                        if l[0] == sample.task[0]:
+                            ignore.append(0.)
+                        else:
+                            ignore.append(1.)
                         desc = [task_vec]
                         for j, enum in enumerate(self.prim_dims):
                             desc.append(np.zeros(self.prim_dims[enum]))
                             desc[-1][l[j+1]] = 1.
+                            if l[j+1] == sample.task[j+1]:
+                                ignore.append(0.)
+                            else:
+                                ignore.append(1.)
                         vec = np.concatenate(desc)
                         bad.append(vec)
+                        allignore.append(ignore)
                     break
                 elif i == inds[-1]:
                     if encode:
                         bad.append(np.zeros(sum(self.prim_dims.values())))
                     break
-        return np.array(bad)
+        return np.array(bad), np.array(allignore)
 
 
     def update_qvalue(self, samples, first_ts_only=False):
@@ -1429,8 +1361,9 @@ class RolloutServer(object):
         for sample in samples:
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
-            wt = np.array([self.prim_decay**t for t in range(sample.T)])
-            wt[0] *= self.prim_first_wt
+            st, et = sample.step * sample.T, (sample.step + 1) * sample.T
+            wt = np.array([self.prim_decay**t for t in range(st, et)])
+            if sample.step == 0: wt[0] *= self.prim_first_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
             obs_data = np.concatenate((obs_data, obs))
@@ -1458,7 +1391,10 @@ class RolloutServer(object):
         for sample in samples:
             mu = np.concatenate([sample.get(enum) for enum in self.config['prim_out_include']], axis=-1)
             tgt_mu = np.concatenate((tgt_mu, mu))
-            wt = np.array([self.prim_decay**t for t in range(sample.T)])
+            st, et = 0, sample.T # st, et = sample.step * sample.T, (sample.step + 1) * sample.T
+            wt = np.array([self.prim_decay**t for t in range(st, et)])
+            if sample.step == 0: wt[0] *= self.prim_first_wt
+            wt = np.array([sample.prim_use_ts[t] * self.prim_decay**t for t in range(sample.T)])
             wt[0] *= self.prim_first_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
@@ -1468,16 +1404,24 @@ class RolloutServer(object):
                 prc[:] = 1.
 
             tgt_prc = np.concatenate((tgt_prc, prc))
-            if self.add_negative:
-                mu = self.find_negative_ex(sample)
+            if self.add_negative and self.cur_step > 5:
+                mu, ignore = self.find_negative_ex(sample)
                 tgt_mu = np.concatenate((tgt_mu, mu))
-                wt = -np.ones((sample.T,))
+                wt = -1e-1 * np.array([sample.use_ts[t] for t in range(sample.T)])
                 tgt_wt = np.concatenate((tgt_wt, wt))
-                obs = sample.get_prim_obs()
+                # obs = sample.get_prim_obs()
                 obs_data = np.concatenate((obs_data, obs))
-                prc = np.tile(np.eye(dP), (sample.T,1,1))
+                # prc = np.tile(np.eye(dP), (sample.T,1,1))
+                prc = ignore * prc # np.concatenate([self.agent.get_mask(sample, enum) for enum in self.config['prim_out_include']], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
+
+                # prc = np.ones(prc.shape) # np.concatenate([[1.] for enum in self.config['prim_out_include']], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
                 tgt_prc = np.concatenate((tgt_prc, prc))
-            
+        ''' 
+        obs_data = obs_data[::self.check_prim_t]
+        tgt_mu = tgt_mu[::self.check_prim_t]
+        tgt_prc = tgt_prc[::self.check_prim_t]
+        tgt_wt = tgt_wt[::self.check_prim_t]
+        '''
         if len(tgt_mu):
             print('Sending update to primitive net')
             self.update(obs_data, tgt_mu, tgt_prc, tgt_wt, 'primitive', 1)
@@ -1535,3 +1479,44 @@ class RolloutServer(object):
         return plan_total_violation, plan_failed_constrs
 
 
+    def get_path_compare(self, path1, path2, true_val=-10):
+        prim_info = []
+        state_info = []
+        for i, s in enumerate(path1):
+            if i < len(path2):
+                prim_info.append(np.c_[s.get(FACTOREDTASK_ENUM), path2[i].get(FACTOREDTASK_ENUM)].tolist())
+            else:
+                prim_info.append(s.get(FACTOREDTASK_ENUM).tolist())
+        
+        for i, s in enumerate(path1):
+            if i < len(path2):
+                prim_info.append(np.c_[s.get(STATE_ENUM), path2[i].get(STATE_ENUM)].round(4).tolist())
+            else:
+                prim_info.append(s.get(STATE_ENUM).round(4).tolist())
+
+        info = {'prim_info': prim_info,
+                'state_info': state_info,
+                'targets': path1[0].targets,
+                'x0': path1[0].get(STATE_ENUM, t=0),
+                'true_val': true_val,
+                }
+        return info
+
+    def retime_traj(self, traj, vel=0.2, inds=None):
+        xpts = []
+        fpts = []
+        d = 0
+        for t in range(len(traj)):
+            xpts.append(d)
+            fpts.append(traj[t])
+            if t < len(traj):
+                if inds is None:
+                    d += np.linalg.norm(traj[t+1] - traj[t])
+                else:
+                    d += np.linalg.norm(traj[t+1][inds] - traj[t][inds])
+        interp = scipy.interpolate.interp1d(xpts, fpts)
+        
+        x = np.linspace(0, d, int(d / vel))
+        out = interp(x)
+        return out
+        

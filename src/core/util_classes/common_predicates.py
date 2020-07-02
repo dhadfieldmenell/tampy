@@ -80,10 +80,11 @@ class ExprPredicate(Predicate):
             try:
                 end_ind = get_param_vector_helper(self, self.x, end_ind, t+rel_t, self.attr_inds)
             except IndexError as err:
+                print(self)
+                traceback.print_exception(*sys.exc_info())
                 if end - start >= 1:
                     raise PredicateException("Insufficient pose trajectory to check dynamic predicate '%s' at the timestep."%self)
                 else:
-                    traceback.print_exception(*sys.exc_info())
                     raise err
         return self.x.reshape((self.x_dim, 1))
 
@@ -104,6 +105,7 @@ class ExprPredicate(Predicate):
             traceback.print_exception(*sys.exc_info())
             raise PredicateException("Out of range time for predicate '%s'."%self)
         except Exception as err:
+            traceback.print_exception(*sys.exc_info())
             print(self, 'threw error')
             raise err
 

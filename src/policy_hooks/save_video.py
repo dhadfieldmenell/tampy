@@ -29,9 +29,10 @@ def save_video(fname):
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if os.path.isdir(sys.argv[1]):
+            pre = '' if 'videos' in sys.argv[1] else '/videos'
             for f in os.listdir(sys.argv[1]):
                 if not f.endswith('npy'): continue
-                save_video(sys.argv[1]+'/'+f)
+                save_video(sys.argv[1]+'{0}/'.format(pre)+f)
         else:
             save_video(sys.argv[1])
 

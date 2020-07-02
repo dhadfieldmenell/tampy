@@ -174,7 +174,7 @@ def multi_modal_network(dim_input=27, dim_output=7, batch_size=25, network_confi
     loss = euclidean_loss_layer(a=action, b=fc_output, precision=precision, batch_size=batch_size)
     return TfMap.init_from_lists([nn_input, action, precision], [fc_output], [loss])
 
-def multi_modal_network_fp(dim_input=27, dim_output=7, batch_size=25, network_config=None):
+def multi_modal_network_fp(dim_input=27, dim_output=7, batch_size=25, network_config=None, input_layer=None):
     """
     An example a network in tf that has both state and image inputs, with the feature
     point architecture (spatial softmax + expectation).

@@ -160,6 +160,54 @@ class Agent(object):
         """
         return self._obs_data_idx[sensor_name]
 
+    def pack_data(self, existing_mat, data_to_insert, data_types,
+                      axes=None, key='X'):
+        """
+        Update the observation matrix with new data.
+        Args:
+            existing_mat: Current observation matrix.
+            data_to_insert: New data to insert into the existing matrix.
+            data_types: Name of the sensors to insert data for.
+            axes: Which axes to insert data. Defaults to the last axes.
+        """
+        num_sensor = len(data_types)
+        if axes is None:
+            # If axes not specified, assume indexing on last dimensions.
+            axes = list(range(-1, -num_sensor - 1, -1))
+        else:
+            # Make sure number of sensors and axes are consistent.
+            if num_sensor != len(axes):
+                raise ValueError(
+                    'Length of sensors (%d) must equal length of axes (%d)',
+                    num_sensor, len(axes)
+                )
+
+        # Shape checks.
+        insert_shape = list(existing_mat.shape)
+        opts = {'X': (self.dX, self._x_data_idx),
+                'obs': (self.dO, self._obs_data_idx),
+                'prim_obs': (self.dPrim, self._prim_obs_data_idx),
+                'prim_out': (self.dPrimOut, self._prim_out_data_idx),
+                'val_obs': (self.dVal, self._val_obs_data_idx)}
+        dim, idx = opts[key]
+        for i in range(num_sensor):
+            # Make sure to slice along X.
+            if existing_mat.shape[axes[i]] != dim:
+                raise ValueError('Axes must be along an dX=%d dimensional axis',
+                                 self.dO)
+            insert_shape[axes[i]] = len(idx[data_types[i]])
+        if tuple(insert_shape) != data_to_insert.shape:
+            raise ValueError('Data has shape %s. Expected %s',
+                             data_to_insert.shape, tuple(insert_shape))
+
+        # Actually perform the slice.
+        index = [slice(None) for _ in range(len(existing_mat.shape))]
+        for i in range(num_sensor):
+            index[axes[i]] = slice(idx[data_types[i]][0],
+                                   idx[data_types[i]][-1] + 1)
+        existing_mat[index] = data_to_insert
+
+
     def pack_data_obs(self, existing_mat, data_to_insert, data_types,
                       axes=None):
         """

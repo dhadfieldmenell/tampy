@@ -81,7 +81,6 @@ def get_base_solver(parent_class):
                 total_time = 0
 
             if total_time > time_limit:
-                # print('Solver timed out')
                 return False
 
             start_time = time.time()
@@ -193,6 +192,11 @@ def get_base_solver(parent_class):
             sampler_begin
             """
             robot_poses = self.obj_pose_suggester(plan, anum, resample_size=1)
+            if False and len(traj_mean):
+                pos = {}
+                for attr, val in robot_poses[0].items():
+                    pos[attr] = traj_mean[active_ts[1], plan.state_inds[rs_param.name, attr]].reshape((-1,1))
+                robot_poses.insert(0, pos)
 
             """
             sampler end
@@ -282,7 +286,6 @@ def get_base_solver(parent_class):
                   total_time=0, time_limit=TIME_LIMIT, priorities=None):
             success = False
             if total_time > time_limit:
-                # print('Solver timed out')
                 return False
 
             start_time = time.time()
@@ -316,8 +319,6 @@ def get_base_solver(parent_class):
                         print "error in predicate checking"
 
                     if success or total_time + time.time() - start_time > time_limit:
-                        # if total_time + time.time() - start_time > time_limit:
-                        #     print('Solver timed out')
                         break
 
                     self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, 
@@ -601,6 +602,7 @@ def get_base_solver(parent_class):
                 failed_preds = plan.get_failed_preds(active_ts = active_ts, priority=priority, tol = tol)
                 rs_obj = self._resample(plan, failed_preds, sample_all = True)
                 obj_bexprs.extend(self._get_transfer_obj(plan, self.transfer_norm))
+                # obj_bexprs.extend(self._get_trajopt_obj(plan, active_ts))
                 self._add_all_timesteps_of_actions(plan, priority=3,
                     add_nonlin=True, active_ts=active_ts)
                 obj_bexprs.extend(rs_obj)

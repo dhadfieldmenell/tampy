@@ -1,4 +1,5 @@
 import pickle
+import pprint
 import random
 import threading
 import time
@@ -179,7 +180,9 @@ class PolicyServer(object):
                     self.policy_var[net].append(np.var(data))
 
                 with open(self.policy_opt_log, 'w+') as f:
-                    f.write(str(self.get_log_info()))
+                    info = self.get_log_info()
+                    pp_info = pprint.pformat(info, depth=60)
+                    f.write(str(pp_info))
             if not self.n_updates % 20:
                 with open(self.data_file, 'w+') as f:
                     pickle.dump(self.policy_opt.get_data(), f)

@@ -66,6 +66,7 @@ class MultiProcessMain(object):
         self.config = config
         prob = config['prob']
         self.config['group_id'] = config.get('group_id', 0)
+        self.config['id'] = -1
         time_limit = config.get('time_limit', 14400)
 
         conditions = self.config['num_conds']
@@ -108,16 +109,21 @@ class MultiProcessMain(object):
             plan.target_inds = self.target_inds
 
         sensor_dims = {
+            utils.DONE_ENUM: 1,
             utils.STATE_ENUM: self.symbolic_bound,
             utils.ACTION_ENUM: self.dU,
-            utils.TRAJ_HIST_ENUM: self.dU*self.config['hist_len'],
+            utils.TRAJ_HIST_ENUM: int(self.dU*self.config['hist_len']),
+            utils.STATE_DELTA_ENUM: int(self.symbolic_bound*self.config['hist_len']),
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
             utils.ONEHOT_TASK_ENUM: len(plans.keys()),
         }
         for enum in self.config['sensor_dims']:
             sensor_dims[enum] = self.config['sensor_dims'][enum]
-
+        if self.config['add_action_hist']:
+            self.config['prim_obs_include'].append(utils.TRAJ_HIST_ENUM)
+        if self.config['add_obs_delta']:
+            self.config['prim_obs_include'].append(utils.STATE_DELTA_ENUM)
         self.prim_bounds = []
         self.prim_dims = OrderedDict({})
         self.config['prim_dims'] = self.prim_dims
@@ -204,7 +210,7 @@ class MultiProcessMain(object):
             'image_height': self.config['image_height'],
             'image_channels': self.config['image_channels'],
             'prim_dims': self.prim_dims,
-            'solver_type': self.config['solver_type'],
+            'mp_solver_type': self.config['mp_solver_type'],
             'robot_name': self.config['robot_name'],
             'split_nets': self.config['split_nets'],
             'policy_inf_coeff': self.config['policy_inf_coeff'],
@@ -314,6 +320,7 @@ class MultiProcessMain(object):
                 'dim_hidden': self.config['val_dim_hidden'],
             },
             'lr': self.config['lr'],
+            'hllr': self.config['hllr'],
             'network_model': tf_network,
             'distilled_network_model': tf_network,
             'primitive_network_model': tf_classification_network if self.config.get('discrete_prim', True) else tf_network,
@@ -334,7 +341,10 @@ class MultiProcessMain(object):
             'update_size': self.config['update_size'],
             'prim_update_size': self.config['prim_update_size'],
             'val_update_size': self.config['val_update_size'],
+            'solver_type': self.config['solver_type'],
         }
+        if self.config.get('conditional', False):
+            self.config['algorithm']['policy_opt']['primitive_network_model'] = tf_cond_classification_network
 
         alg_map = {}
         for task in self.task_list:
