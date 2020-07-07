@@ -238,6 +238,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'agent_type': NAMOSortingAgent,
         'opt_server_type': NAMOMotionPlanServer,
         'mp_solver_type': NAMOPolicySolver,
+        # 'll_solver_type': NAMOSolver,
         'update_size': 2000,
         'prim_update_size': 5000,
         'val_update_size': 1000,

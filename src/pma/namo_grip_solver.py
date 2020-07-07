@@ -1,7 +1,7 @@
 import numpy as np
 
 from pma import backtrack_ll_solver
-from core.util_classes.namo_grip_predicates import RETREAT_DIST
+from core.util_classes.namo_grip_predicates import RETREAT_DIST, dsafe, opposite_angle
 
 class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
     def get_resample_param(self, a):
@@ -56,6 +56,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         start_ts, end_ts = act.active_timesteps
         old_pose = robot.pose[:, start_ts].reshape((2, 1))
         robot_body.set_pose(old_pose[:, 0])
+        oldx, oldy = old_pose.flatten()
         for i in range(resample_size):
             if next_act != None and (next_act.name == 'grasp' or next_act.name == 'putdown'):
                 target = next_act.params[2]
@@ -64,26 +65,18 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif act.name == 'moveto' or act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
                 target = act.params[2]
                 grasp = act.params[5]
-                target_pos = target.value + grasp.value
-                dist = np.array([0, -0.1]).reshape((2,1))
-                # robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
-                #robot_pose.append({'pose': target_pos, 'gripper': np.array([[-1.]])})
-                # robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0]])})
-                # robot_pose.append({'pose': target_pos + 0.75*grasp.value, 'gripper': np.array([[-0.1]]), 'theta': np.zeros((1,1))})
-                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.zeros((1,1))})
+                target_rot = 0 # np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                dist = -0.65 - dsafe
+                target_pos = target.value + [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
                 # robot_pose.append({'pose': target_pos + grasp.value, 'gripper': np.array([[-1.]])})
             elif act.name == 'transfer' or act.name == 'new_quick_place_at':
                 target = act.params[4]
                 grasp = act.params[5]
-                target_pos = target.value + grasp.value
-                dist = np.array([0, -RETREAT_DIST]).reshape((2,1))
-                # robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-                #robot_pose.append({'pose': target_pos, 'gripper': np.array([[1.]])})
-                #robot_pose.append({'pose': target_pos, 'gripper': np.array([[-1.]])})
-                # robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]])})
-                # robot_pose.append({'pose': target_pos+0.75*grasp.value, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
-                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
-                # robot_pose.append({'pose': target_pos + grasp.value, 'gripper': np.array([[-1.]])})
+                target_rot = 0 # np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                dist = -0.65 - dsafe
+                target_pos = target.value + [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
             elif act.name == 'place':
                 target = act.params[4]
                 grasp = act.params[5]

@@ -54,77 +54,81 @@ class MoveTo(Action):
     def __init__(self):
         self.name = 'moveto'
         self.timesteps = 20
+        et = self.timesteps - 1
         self.args = '(?robot - Robot ?can - Can ?target - Target ?sp - RobotPose ?gp - RobotPose ?g - Grasp ?end - Target)' 
         self.pre = [\
                 ('(At ?can ?target)', '0:0'),
                 ('(forall (?gr - Grasp) (forall (?obj - Can) (not (NearGraspAngle ?robot ?obj))))', '0:0'),
                 # ('(forall (?w - Obstacle) (not (CanGraspCollides ?can ?w ?g)))', '0:0'),
-                ('(not (GripperClosed ?robot))', '1:18'),
-                ('(forall (?obj - Can) (Stationary ?obj))', '0:18'),
-                ('(forall (?w - Obstacle) (StationaryW ?w))', '0:18'),
-                ('(IsMP ?robot)', '0:18'),
-                ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:18'),
-                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:18'),
+                ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)),
+                ('(IsMP ?robot)', '0:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '0:0'),
-                ('(forall (?obj - Can) (not (WideObstructs ?robot ?sp ?gp ?obj)))', '1:16'),
-                ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '18:18'),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?can ?obj)))', '19:18'),
-                ('(RobotStationary ?robot)', '18:18'),
-                ('(ThetaDirValid ?robot)', '0:18'),
-                # ('(ScalarVelValid ?robot)', '0:18'),
+                ('(forall (?obj - Can) (not (WideObstructs ?robot ?sp ?gp ?obj)))', '1:{0}'.format(et-3)),
+                ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '{0}:{1}'.format(et-2, et-1)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?can ?obj)))', '{0}:{1}'.format(et, et-1)),
+                ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
+                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 # ('(LinearApproach ?robot)', '17:17'),
         ]
         self.eff = [\
-                ('(NearGraspAngle ?robot ?can)', '19:19'),
-                ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (NearGraspAngle ?robot ?obj))))', '19:18'),
-                ('(forall (?obj - Can) (Stationary ?obj))', '19:18'),
-                ('(StationaryRot ?robot)', '17:18'),
+                ('(NearGraspAngle ?robot ?can)', '{0}:{0}'.format(et)),
+                ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
+                ('(StationaryRot ?robot)', '{0}:{1}'.format(et-2, et-1)),
+                ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
         ]
 
 class Transfer(Action):
     def __init__(self):
         self.name = 'transfer'
         self.timesteps = 20
+        et = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\
                 ('(At ?c ?init)', '0:0'),
                 #('(At ?c ?init)', '1:1'),
                 #('(StationaryRot ?robot)', '0:0'),
+                #('(RobotStationary ?robot)', '0:0'),
                 #('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
                 #('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
                 ('(NearGraspAngle ?robot ?c)', '0:0'),
                 ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
                 ('(not (GripperClosed ?robot))', '0:0'),
                 ('(GripperClosed ?robot)', '1:17'),
-                ('(InGraspAngle ?robot ?c)', '1:18'),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '0:18'),
-                ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?start ?end ?obj ?c)))', '1:18'),
-                #('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '1:18'),
+                ('(InGraspAngle ?robot ?c)', '1:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '0:{0}'.format(0)),
+                ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?start ?end ?obj ?c)))', '1:{0}'.format(et-1)),
+                #('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '1:{0}'.format(et-1)),
                 # ('(forall (?obj - Can ) (not (Obstructs ?robot ?start ?end ?obj)))', '0:0'),
-                ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:18'), 
-                ('(forall (?w - Obstacle) (StationaryW ?w))', '0:18'), 
-                ('(IsMP ?robot)', '0:18'),
-                ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:18'),
-                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:18'),
-                ('(RobotStationary ?robot)', '18:18'),
-                #('(StationaryRot ?robot)', '18:18'),
-                ('(not (GripperClosed ?robot))', '19:18'),
-                ('(ThetaDirValid ?robot)', '0:18'),
-                # ('(ScalarVelValid ?robot)', '0:18'),
+                ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
+                ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
+                ('(IsMP ?robot)', '0:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
+                ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
+                ('(StationaryRot ?robot)', '{0}:{1}'.format(et-2, et-1)),
+                ('(not (GripperClosed ?robot))', '{0}:{1}'.format(et, et-1)),
+                ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
+                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 ]
         self.eff = [\
-                ('(At ?c ?t)', '18:19'),
-                ('(Near ?c ?t)', '19:19'),
-                ('(not (Near ?c ?init))', '19:18'),
-                ('(not (At ?c ?init))', '19:18'),
-                ('(not (Obstructs ?robot ?start ?end ?c))', '19:18'),
-                ('(forall (?obj - Can) (Stationary ?obj))', '19:18'),
+                ('(At ?c ?t)', '{0}:{1}'.format(et-1, et)),
+                ('(Near ?c ?t)', '{0}:{0}'.format(et)),
+                ('(not (Near ?c ?init))', '{0}:{1}'.format(et, et-1)),
+                ('(not (At ?c ?init))', '{0}:{1}'.format(et, et-1)),
+                ('(not (Obstructs ?robot ?start ?end ?c))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
         ]
 
 class Place(Action):
     def __init__(self):
         self.name = 'place'
         self.timesteps = 5
+        et = self.timesteps - 1
         self.args = '(?robot - Robot ?start - RobotPose ?end - RobotPose ?c - Can ?t - Target ?g - Grasp ?init - Target)'
         self.pre = [\
                 # ('(At ?c ?init)', '0:0'),
@@ -132,24 +136,24 @@ class Place(Action):
                 # ('(forall (?obj - Can) (not (TargetCanGraspCollides ?t ?obj ?g)))', '0:0'),
                 # ('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
                 ('(NearGraspAngle ?robot ?c)', '0:0'),
-                ('(not (GripperClosed ?robot))', '1:3'),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '0:3'),
-                ('(forall (?obj - Can ) (not (Obstructs ?robot ?start ?end ?obj)))', '3:3'),
-                ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:3'), 
-                ('(forall (?w - Obstacle) (StationaryW ?w))', '0:3'), 
-                ('(IsMP ?robot)', '0:3'),
-                ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:3'),
-                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:3'),
-                # ('(LinearRetreat ?robot)', '0:3'),
-                ('(StationaryRot ?robot)', '0:3'),
-                ('(ThetaDirValid ?robot)', '0:3'),
-                # ('(ScalarVelValid ?robot)', '0:3'),
-                # ('(RobotStationary ?robot)', '3:3'),
+                ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '0:{0}'.format(et-1)),
+                ('(forall (?obj - Can ) (not (Obstructs ?robot ?start ?end ?obj)))', '{0}:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
+                ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
+                ('(IsMP ?robot)', '0:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:{0}'.format(et-1)),
+                ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
+                # ('(LinearRetreat ?robot)', '0:{0}'.format(et-1)),
+                ('(StationaryRot ?robot)', '0:{0}'.format(et-1)),
+                ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
+                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                # ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ]
         self.eff = [\
-                ('(not (Obstructs ?robot ?start ?end ?c))', '4:3'),
-                ('(forall (?gr - Grasp) (forall (?obj - Can) (not (NearGraspAngle ?robot ?obj))))', '4:3'),
-                ('(forall (?obj - Can) (Stationary ?obj))', '4:3'),
+                ('(not (Obstructs ?robot ?start ?end ?c))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?gr - Grasp) (forall (?obj - Can) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
         ]
 
 

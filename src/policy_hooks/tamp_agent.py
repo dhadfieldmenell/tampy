@@ -157,7 +157,7 @@ class TAMPAgent(Agent):
         self.prim_dims_keys = list(self.prim_dims.keys())
 
         self.solver = self._hyperparams['mp_solver_type'](self._hyperparams)
-        if 'll_solver_type' in self._hyperparams:
+        if 'll_solver_type' in self._hyperparams['master_config']:
             self.ll_solver = self._hyperparams['master_config']['ll_solver_type'](self._hyperparams)
         else:
             self.ll_solver = self._hyperparams['mp_solver_type'](self._hyperparams)

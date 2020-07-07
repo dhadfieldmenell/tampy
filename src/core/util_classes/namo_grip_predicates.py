@@ -25,13 +25,13 @@ This file implements the predicates for the 2D NAMO domain.
 
 dsafe = 1e-2
 # dmove = 1.1e0 # 5e-1
-dmove = 2e0 # 5e-1
+dmove = 2.e0 # 5e-1
 contact_dist = 2e-1 # dsafe
 
 RS_SCALE = 0.5
 N_DIGS = 5
 GRIP_VAL = 0.1
-COL_TS = 5 # 3
+COL_TS = 4 # 3
 NEAR_TOL = 0.4
 N_COLS = 8
 RETREAT_DIST = 1.2
@@ -1107,7 +1107,7 @@ class Obstructs(CollisionPredicate):
         self.rs_scale = RS_SCALE
 
         neg_coeff = 1e0 # 1e3
-        neg_grad_coeff = 1e-1 # 1e-3
+        neg_grad_coeff = 1e0 # 1e-3
 
         def f(x):
             return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6)
@@ -1199,17 +1199,27 @@ class Obstructs(CollisionPredicate):
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         ref_st = max(max(time-3,0), act.active_timesteps[0])
         ref_et = min(min(time+3, plan.horizon-2), act.active_timesteps[1]-1)
+        poses = []
         for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
                 inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, st] + disp)
                 #inter_rp = (dist / 3.) * self.r.pose[:, time] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
-                inter_rp = (dist / 3.) * self.r.pose[:, ref_st] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
+                inter_rp = (dist / 3.) * self.r.pose[:, ref_st] + ((3. - dist) / 3.) * (self.r.pose[:, i] + disp)
             else:
                 inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, et] + disp)
                 #inter_rp = (dist / 3.) * self.r.pose[:, time] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
-                inter_rp = (dist / 3.) * self.r.pose[:, ref_et] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
+                inter_rp = (dist / 3.) * self.r.pose[:, ref_et] + ((3. - dist) / 3.) * (self.r.pose[:, i] + disp)
 
+            poses.append(inter_rp)
+            if len(poses) > 1:
+                newtheta = np.arctan2(*(poses[-1] - poses[-2]))
+                curtheta = self.r.theta[0,time]
+                opp_theta = opposite_angle(newtheta)
+                theta = newtheta
+                if np.abs(angle_diff(curtheta, newtheta)) > np.abs(angle_diff(opp_theta, curtheta)):
+                    theta = opp_theta
+                # add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', np.array([theta]))])
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
         return res, attr_inds
 
@@ -1222,7 +1232,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.1
+        self.dsafe = 0.2
         self.check_aabb = False # True
 
 def sample_pose(plan, pose, robot, rs_scale):
@@ -1317,7 +1327,7 @@ class ObstructsHolding(CollisionPredicate):
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
         neg_coeff = 1e0 # 1e3
-        neg_grad_coeff = 1e-1 # 1e-3
+        neg_grad_coeff = 1e0 # 1e-3
         ## so we have an expr for the negated predicate
         #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
         #grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
@@ -1427,24 +1437,24 @@ class ObstructsHolding(CollisionPredicate):
         for i in range(ref_st, ref_et):
             dist = float(np.abs(i - time))
             if i <= time:
-                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, time] + orth)
+                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, i] + orth)
                 #inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * (self.held.pose[:, time] + orth)
             else:
-                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, time] + orth)
+                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, i] + orth)
                 #inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * (self.held.pose[:, time] + orth)
             theta = self.r.theta[0,i]
             poses.append(inter_rp)
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
             if len(poses) > 1:
                 newtheta = np.arctan2(*(poses[-1] - poses[-2]))
-                curtheta = self.r.theta[0,time]
+                curtheta = self.r.theta[0,i-1]
                 opp_theta = opposite_angle(newtheta)
                 theta = newtheta
                 if np.abs(angle_diff(curtheta, newtheta)) > np.abs(angle_diff(opp_theta, curtheta)):
                     theta = opp_theta
                 inter_hp = poses[-2] + [0.66 * -np.sin(theta), 0.66 * np.cos(theta)]
                 add_to_attr_inds_and_res(i-1, attr_inds, res, self.held, [('pose', inter_hp)])
-                add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', np.array([theta]))])
+                # add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', np.array([theta]))])
         return res, attr_inds
 
     def get_expr(self, negated):
@@ -1566,10 +1576,10 @@ class InGraspAngle(ExprPredicate):
         def f(x):
             x = x.flatten()
             dist = 0.65 + dsafe
-            rot = np.array([[np.cos(x[2]), -np.sin(x[2])],
-                            [np.sin(x[2]),  np.cos(x[2])]])
-            can_loc = np.dot(rot, [0, dist])
-            loc_delta = x[3:5] - x[:2] - can_loc
+            rot = np.array([[np.cos(-x[2]), -np.sin(-x[2])],
+                            [np.sin(-x[2]),  np.cos(-x[2])]])
+            can_loc = np.dot(rot, [0, -dist])
+            loc_delta = (x[3:5] + can_loc) - x[:2]
             xs, ys = x[3:5] - x[:2]
             theta_delta = np.arctan2(xs, ys) - x[2]
             theta_delta = 0. * theta_delta
@@ -1603,19 +1613,20 @@ class InGraspAngle(ExprPredicate):
         act = plan.actions[a]
         x = self.get_param_vector(time).flatten()
         theta = np.arctan2(*(x[3:5]-x[:2]))
-        rot = np.array([[np.cos(x[2]), -np.sin(x[2])],
-                        [np.sin(x[2]),  np.cos(x[2])]])
+        rot = np.array([[np.cos(-x[2]), -np.sin(-x[2])],
+                        [np.sin(-x[2]),  np.cos(-x[2])]])
         disp = rot.dot([0, -0.65-dsafe])
-        offset = x[3:5] + disp - x[:2]
+        offset = (x[3:5] + disp) - x[:2]
         new_robot_pose = x[:2] + offset / 2.
         new_can_pose = x[3:5] - offset #/ 2.
         # new_robot_pose = x[:2] + offset
         # new_can_pose = x[3:5]
-        nsteps = 1
+        nsteps = 0
         st = max(max(time-nsteps,1), act.active_timesteps[0]+1)
         et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
         ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
-        ref_et = min(min(time+nsteps, plan.horizon-2), act.active_timesteps[1]-1)
+        ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+        add_to_attr_inds_and_res(time, attr_inds, res, self.can, [('pose', new_can_pose)])
         for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
@@ -1648,10 +1659,10 @@ class NearGraspAngle(InGraspAngle):
         def f(x):
             x = x.flatten()
             dist = 0.65 + dsafe
-            rot = np.array([[np.cos(x[2]), -np.sin(x[2])],
-                            [np.sin(x[2]),  np.cos(x[2])]])
-            can_loc = np.dot(rot, [0, dist])
-            loc_delta = x[3:5] - x[:2] - can_loc
+            rot = np.array([[np.cos(-x[2]), -np.sin(-x[2])],
+                            [np.sin(-x[2]),  np.cos(-x[2])]])
+            can_loc = np.dot(rot, [0, -dist])
+            loc_delta = (x[3:5] + can_loc) - x[:2]
             xs, ys = x[3:5] - x[:2]
             theta_delta = np.arctan2(xs, ys) - x[2]
             return np.r_[loc_delta, theta_delta, -loc_delta, -theta_delta].reshape((-1,1))
@@ -2065,11 +2076,13 @@ class ThetaDirValid(ExprPredicate):
         def f(x):
             x = x.flatten()
             curdisp = x[4:6] - x[:2]
+            if np.linalg.norm(curdisp) < 1e-3:
+                return np.zeros((3,1))
             curtheta = np.arctan2(curdisp[0], curdisp[1])
             theta = x[2]
-            opp_theta = opposite_angle(theta)
-            if np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, curtheta)):
-                theta = opp_theta
+            opp_theta = opposite_angle(curtheta)
+            if np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+                curtheta = opp_theta
             theta_off = angle_diff(theta, curtheta)
             rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
                             [np.sin(theta_off), np.cos(theta_off)]])
@@ -2115,7 +2128,7 @@ class ThetaDirValid(ExprPredicate):
         new_theta = np.array([add_angle(cur_theta, theta_off/2.)])
         #add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
         #add_to_attr_inds_and_res(time+1, attr_inds, res, self.r, [('theta', new_theta)])
-        nsteps = 3
+        nsteps = 2
         st = max(max(time-nsteps,1), act.active_timesteps[0]+1)
         et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
         ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
@@ -2133,8 +2146,13 @@ class ThetaDirValid(ExprPredicate):
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
             poses.append(inter_rp)
             if len(poses) > 1:
-                inter_theta = np.array([np.arctan2(*(poses[-1] - poses[-2]))])
-                add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', inter_theta)])
+                newtheta = np.arctan2(*(poses[-1] - poses[-2]))
+                curtheta = self.r.theta[0,time]
+                opp_theta = opposite_angle(newtheta)
+                theta = newtheta
+                if np.abs(angle_diff(curtheta, newtheta)) > np.abs(angle_diff(opp_theta, curtheta)):
+                    theta = opp_theta
+                add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', np.array([theta]))])
         return res, attr_inds
 
 

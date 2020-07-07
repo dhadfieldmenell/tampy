@@ -27,7 +27,7 @@ class BacktrackLLSolver(LLSolver):
         # range of coefficeint within 1e9
         # (largest_coefficient/smallest_coefficient < 1e9)
         self.transfer_coeff = 1e0
-        self.rs_coeff = 1e3 # 5e1
+        self.rs_coeff = 1e2 # 5e1
         self.trajopt_coeff = 1e1#1e0
         self.initial_trust_region_size = 1e-2
         self.init_penalty_coeff = 1e0#4e3
@@ -265,7 +265,7 @@ class BacktrackLLSolver(LLSolver):
             ## this is an objective that places
             ## a high value on matching the resampled values
             # failed_preds = plan.get_failed_preds(active_ts = (active_ts[0]+1, active_ts[1]-1), priority=priority, tol = tol)
-            failed_preds = plan.get_failed_preds(active_ts = (active_ts[0], active_ts[1]), priority=priority, tol = tol)
+            failed_preds = plan.get_failed_preds(active_ts = (active_ts[0], active_ts[1]-1), priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             # import ipdb; ipdb.set_trace()
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.

@@ -134,7 +134,7 @@ class LLSearchNode(SearchNode):
 
     def plan(self, solver):
         self.curr_plan.freeze_actions(self.curr_plan.start_action)
-        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action)
+        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action, n_resamples=10)
         import ipdb; ipdb.set_trace()
 
     def get_failed_pred(self, forward_only=False):
