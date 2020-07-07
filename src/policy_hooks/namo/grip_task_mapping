@@ -1,0 +1,21 @@
+{
+    'movetograsp': [
+        '0: MOVETO PR2 {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE {2} {1}',
+    ],
+
+    'transfer': [
+        '0: TRANSFER PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} {1} {2} {0}_INIT_TARGET'
+    ],
+
+    'place': [
+        '0: PLACE PR2 ROBOT_INIT_POSE ROBOT_END_POSE {0} {1} {2} {0}_INIT_TARGET'
+    ],
+
+
+};
+
+{
+    'movetograsp': 20,
+    'transfer': 20,
+    'place': 5,
+}

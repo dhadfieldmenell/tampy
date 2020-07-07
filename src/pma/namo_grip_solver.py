@@ -61,37 +61,18 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target = next_act.params[2]
                 target_pos = target.value - [[0], [0.]]
                 robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]]) if next_act.name == 'putdown' else np.array([[1.]])})
-            elif act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
+            elif act.name == 'moveto' or act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
                 target = act.params[2]
                 grasp = act.params[5]
                 target_pos = target.value + grasp.value
+                dist = np.array([0, -0.1]).reshape((2,1))
                 # robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
                 #robot_pose.append({'pose': target_pos, 'gripper': np.array([[-1.]])})
                 # robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0]])})
                 # robot_pose.append({'pose': target_pos + 0.75*grasp.value, 'gripper': np.array([[-0.1]]), 'theta': np.zeros((1,1))})
-                robot_pose.append({'pose': target_pos + 0.*grasp.value, 'gripper': np.array([[-0.1]]), 'theta': np.zeros((1,1))})
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.zeros((1,1))})
                 # robot_pose.append({'pose': target_pos + grasp.value, 'gripper': np.array([[-1.]])})
-            elif act.name == 'short_movetograsp':
-                target = act.params[2]
-                grasp = act.params[5]
-                target_pos = target.value + grasp.value + np.array([[0.], [-0.3]])
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-            elif act.name == 'short_grasp':
-                target = act.params[2]
-                grasp = act.params[5]
-                target_pos = target.value + grasp.value + np.array([[0.], [-0.1]])
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
-            elif act.name == 'grasp' or act.name == 'new_grasp':
-                target = act.params[2]
-                grasp = act.params[5]
-                target_pos = target.value + 2*grasp.value
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[1.]])})
-            elif act.name == 'quick_place_release':
-                target = act.params[4]
-                grasp = act.params[5]
-                target_pos = target.value + 2*grasp.value
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-            elif act.name == 'new_quick_place_at':
+            elif act.name == 'transfer' or act.name == 'new_quick_place_at':
                 target = act.params[4]
                 grasp = act.params[5]
                 target_pos = target.value + grasp.value
@@ -101,44 +82,14 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 #robot_pose.append({'pose': target_pos, 'gripper': np.array([[-1.]])})
                 # robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]])})
                 # robot_pose.append({'pose': target_pos+0.75*grasp.value, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
-                robot_pose.append({'pose': target_pos+dist, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
+                robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
                 # robot_pose.append({'pose': target_pos + grasp.value, 'gripper': np.array([[-1.]])})
-            elif act.name == 'short_place_at':
+            elif act.name == 'place':
                 target = act.params[4]
                 grasp = act.params[5]
                 target_pos = target.value + grasp.value
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-            elif act.name == 'place' or act.name == 'new_place':
-                target = act.params[4]
-                grasp = act.params[5]
-                target_pos = target.value + 2 * grasp.value
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-            elif act.name.find('movetograsp') >= 0:
-                target = act.params[2]
-                grasp = act.params[5]
-                if i > 0:
-                    target_pos = target.value + grasp.value + [[np.random.normal(0, 0.05)], [-np.random.uniform(0.1, 0.3)]]
-                else:
-                    target_pos = target.value + grasp.value + np.array([[0.], [-0.2]])# + [[np.random.normal(0, 0.05)], [-np.random.uniform(0.1, 0.3)]]
-                    # target_pos = target.value + grasp.value + np.array([[0.], [-0.05]])# + [[np.random.normal(0, 0.05)], [-np.random.uniform(0.1, 0.3)]]
-                    # disp = np.linalg.norm(old_pose - target_pos)
-                    # if disp > 3:
-                    #     target_pos = old_pose + np.random.uniform(2, disp)*(target_pos - old_pose) / disp
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-            elif act.name.find('place') >= 0:
-                target = act.params[4]
-                grasp = act.params[5]
-                # target_pos = target.value + grasp.value
-                target_pos = target.value + grasp.value # + np.array([[0.], [-0.05]])
-                # robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]])})
-            elif act.name == 'grasp' or act.name == 'putdown':
-                target = act.params[2]
-                radius1 = act.params[0].geom.radius
-                radius2 = act.params[1].geom.radius
-                dist = radisu1 + radius2
-                target_pos = target.value - [[0], [dist]]
-                robot_pose.append({'value': target_pos, 'gripper': np.array([[-1.]]) if act.name == 'putdown' else np.array([[1.]])})
+                dist = np.array([0, -0.8]).reshape((2,1))
+                robot_pose.append({'pose': target_pos+dist, 'gripper': np.array([[-0.1]]), 'theta': np.array([[0.]])})
             else:
                 raise NotImplementedError
 

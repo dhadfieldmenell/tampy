@@ -27,16 +27,16 @@ class BacktrackLLSolver(LLSolver):
         # range of coefficeint within 1e9
         # (largest_coefficient/smallest_coefficient < 1e9)
         self.transfer_coeff = 1e0
-        self.rs_coeff = 5e1
-        self.trajopt_coeff = 1e2#1e0
+        self.rs_coeff = 1e3 # 5e1
+        self.trajopt_coeff = 1e1#1e0
         self.initial_trust_region_size = 1e-2
-        self.init_penalty_coeff = 1#4e3
-        self.smooth_penalty_coeff = 1#7e4
+        self.init_penalty_coeff = 1e0#4e3
+        self.smooth_penalty_coeff = 1e0#7e4
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
         self.child_solver = None
-        self.solve_priorities = [-2, 0, 1, 2, 3]
+        self.solve_priorities = [-2, -1, 0, 1, 2, 3]
         self.transfer_norm = transfer_norm
         self.grb_init_mapping = {}
         self.var_list = []
@@ -224,9 +224,8 @@ class BacktrackLLSolver(LLSolver):
 
                 # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                 #     break
-
                 print "resample attempt: {} at priority {}".format(attempt, priority)
-
+                print(plan.get_failed_preds(active_ts, priority=priority))
                 try:
                     if DEBUG: plan.check_cnt_violation(active_ts = active_ts, priority = priority, tol = 1e-3)
                 except:
@@ -257,22 +256,6 @@ class BacktrackLLSolver(LLSolver):
         initial_trust_region_size = self.initial_trust_region_size
         if resample:
             tol = 1e-3
-            def  variable_helper():
-                error_bin = []
-                for sco_var in self._prob._vars:
-                    for grb_var, val in zip(sco_var.get_grb_vars(), sco_var.get_value()):
-                        grb_name = grb_var[0].VarName
-                        one, two = grb_name.find('-'), grb_name.find('-(')
-                        param_name = grb_name[1:one]
-                        attr = grb_name[one+1:two]
-                        index = eval(grb_name[two+1:-1])
-                        param = plan.params[param_name]
-                        if not np.allclose(val, getattr(param, attr)[index]):
-                            error_bin.append((grb_name, val, getattr(param, attr)[index]))
-                if len(error_bin) != 0:
-                    print "something wrong"
-                    if DEBUG: import ipdb; ipdb.set_trace()
-
             """
             When Optimization fails, resample new values for certain timesteps
             of the trajectory and solver as initialization
@@ -281,7 +264,8 @@ class BacktrackLLSolver(LLSolver):
 
             ## this is an objective that places
             ## a high value on matching the resampled values
-            failed_preds = plan.get_failed_preds(active_ts = (active_ts[0]+1, active_ts[1]-1), priority=priority, tol = tol)
+            # failed_preds = plan.get_failed_preds(active_ts = (active_ts[0]+1, active_ts[1]-1), priority=priority, tol = tol)
+            failed_preds = plan.get_failed_preds(active_ts = (active_ts[0], active_ts[1]), priority=priority, tol = tol)
             rs_obj = self._resample(plan, failed_preds, sample_all = True)
             # import ipdb; ipdb.set_trace()
             # _get_transfer_obj returns the expression saying the current trajectory should be close to it's previous trajectory.
@@ -334,7 +318,7 @@ class BacktrackLLSolver(LLSolver):
         solv.max_merit_coeff_increases = self.max_merit_coeff_increases
 
         success = solv.solve(self._prob, method='penalty_sqp', tol=tol, verbose=verbose)
-        if priority == MAX_PRIORITY:
+        if priority >= 0 or priority == MAX_PRIORITY:
             success = len(plan.get_failed_preds(tol=tol, active_ts=active_ts, priority=priority)) == 0
             if not success:
                 self._update_ll_params()
@@ -630,7 +614,7 @@ class BacktrackLLSolver(LLSolver):
             if pred_type.get(pred.get_type, False):
                 continue
             val, attr_inds = pred.resample(negated, t, plan)
-            if val is not None: pred_type[pred.get_type] = True
+            # if val is not None: pred_type[pred.get_type] = True
             ## if no resample defined for that pred, continue
             if val is not None:
                 for p in attr_inds:
@@ -639,6 +623,7 @@ class BacktrackLLSolver(LLSolver):
                     n_vals, i = 0, 0
                     grb_vars = []
                     for attr, ind_arr, t in attr_inds[p]:
+                        # if not np.all(p._free_attrs[attr][:,t]): continue
                         if t-ll_p.active_ts[0] > ll_p.active_ts[1]-ll_p.active_ts[0]: continue
                         if t-ll_p.active_ts[0] >= 0:
                             for j, grb_var in enumerate(getattr(ll_p, attr)[ind_arr, t-ll_p.active_ts[0]].flatten()):

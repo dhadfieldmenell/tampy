@@ -29,8 +29,8 @@ CONST_TARGETS = False
 CONST_ORDER = False
 
 # domain_file = "../domains/namo_domain/new_namo.domain"
-domain_file = "../domains/namo_domain/gripper.domain"
-mapping_file = "policy_hooks/namo/sorting_task_mapping_7"
+domain_file = "../domains/namo_domain/namo_current_gripper.domain"
+mapping_file = "policy_hooks/namo/grip_task_mapping"
 pddl_file = "../domains/namo_domain/sorting_domain_3.pddl"
 
 descriptor = 'namo_{0}_obj_sort_closet_{1}_perturb_{2}_feedback_to_tree_{3}'.format(NUM_OBJS, SORT_CLOSET, USE_PERTURB, OPT_MCTS_FEEDBACK)

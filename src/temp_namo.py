@@ -8,10 +8,11 @@ prob.NUM_TARGS = 8
 prob.N_GRASPS = 4
 prob.n_aux = 0
 prob.END_TARGETS = prob.END_TARGETS[:8]
-prob.domain_file = "../domains/namo_domain/currentgrip.domain"
+prob.domain_file = "../domains/namo_domain/namo_current_grip.domain"
 from pma.namo_grip_solver import *
 from pma.hl_solver import *
 from pma.pr_graph import *
+from policy_hooks.utils.load_task_definitions import parse_state
 
 plans = prob.get_plans()
 plan = plans[0][(1,0,6,3)]
@@ -75,7 +76,9 @@ state.params['can0_init_target'].value[:,0] = can0_pose
 state.params['can1'].pose[:,0] = can1_pose
 state.params['can1_init_target'].value[:,0] = can1_pose
 goal = '(and (Near can0 end_target_3) (Near can1 end_target_5))'
-plan, descr = p_mod_abs(hl_solver, solver, domain, problem, goal=goal, debug=True)
+initial = parse_state(plan, [], 0)
+initial = list(set([p.get_rep() for p in initial]))
+plan, descr = p_mod_abs(hl_solver, solver, domain, problem, goal=goal, initial=initial, debug=True)
 import ipdb; ipdb.set_trace()
 
 fpath = baxter_gym.__path__[0]

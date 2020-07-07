@@ -60,12 +60,15 @@ class LLSearchNode(SearchNode):
             if a_st > ts: break
             for p in a.preds:
                 st, et = p['active_timesteps']
+                if p['pred'].hl_include: new_preds.append(p['pred'])
                 # Only check before the failed ts, previous actions fully checked while current only up to priority
                 # TODO: How to handle negated?
                 check_ts = ts - p['pred'].active_range[1]
                 if st <= ts and check_ts >= 0 and et >= st:
                     # hl_state preds aren't tied to ll state
-                    if p['hl_info'] == 'hl_state':
+                    if p['pred'].hl_include:
+                        new_preds.append(p['pred'])
+                    elif p['hl_info'] == 'hl_state':
                         if p['pred'].active_range[1] > 0: continue
                         old_vals = {}
                         for param in p['pred'].attr_inds:
@@ -132,6 +135,7 @@ class LLSearchNode(SearchNode):
     def plan(self, solver):
         self.curr_plan.freeze_actions(self.curr_plan.start_action)
         success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action)
+        import ipdb; ipdb.set_trace()
 
     def get_failed_pred(self, forward_only=False):
         st = 0

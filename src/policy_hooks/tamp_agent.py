@@ -158,7 +158,7 @@ class TAMPAgent(Agent):
 
         self.solver = self._hyperparams['mp_solver_type'](self._hyperparams)
         if 'll_solver_type' in self._hyperparams:
-            self.ll_solver = self._hyperparams['ll_solver_type'](self._hyperparams)
+            self.ll_solver = self._hyperparams['master_config']['ll_solver_type'](self._hyperparams)
         else:
             self.ll_solver = self._hyperparams['mp_solver_type'](self._hyperparams)
         self.hl_solver = get_hl_solver(self.prob.domain_file)

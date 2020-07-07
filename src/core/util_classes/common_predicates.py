@@ -56,6 +56,8 @@ class ExprPredicate(Predicate):
         self.x_dim *= end + 1 - start
         self.x = np.zeros(self.x_dim)
         self.hl_info = False
+        self.hl_ignore = False
+        self.hl_include = False
 
     #@profile
     def lazy_spawn_or_body(self, param, name, geom):
