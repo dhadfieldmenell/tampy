@@ -1188,8 +1188,9 @@ class Obstructs(CollisionPredicate):
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
 
-        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
-        orth = rdisp #+ np.random.uniform(0.5, 2.) * orth
+        # rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
+        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 5e-1) * disp / np.linalg.norm(disp)
+        orth = rdisp #+ np.random.uniform(0.2, 0.5) * orth
         # orth *= np.random.uniform(0.7, 1.5) * (self.c.geom.radius + self.r.geom.radius + self.dsafe)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -1893,6 +1894,24 @@ class StationaryW(ExprPredicate):
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
+#class IsMP(ExprPredicate):
+#
+#    # IsMP Robot
+#
+#    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+#        self.r, = params
+#        ## constraints  |x_t - x_{t+1}| < dmove
+#        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+#        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))])])
+#        A = np.array([[1, 0, -1, 0],
+#                      [0, 1, 0, -1],
+#                      [-1, 0, 1, 0],
+#                      [0, -1, 0, 1]])
+#        b = np.zeros((4, 1))
+#        e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
+#        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
 class IsMP(ExprPredicate):
 
     # IsMP Robot
@@ -1901,13 +1920,17 @@ class IsMP(ExprPredicate):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))])])
-        A = np.array([[1, 0, -1, 0],
-                      [0, 1, 0, -1],
-                      [-1, 0, 1, 0],
-                      [0, -1, 0, 1]])
-        b = np.zeros((4, 1))
-        e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int))])])
+        A = np.array([[1, 0, 0, -1, 0, 0],
+                      [0, 1, 0, 0, -1, 0],
+                      [0, 0, 1, 0, 0, -1],
+                      [-1, 0, 0, 1, 0, 0],
+                      [0, -1, 0, 0, 1, 0],
+                      [0, 0, -1, 0, 0, 1]])
+        b = np.zeros((6, 1))
+        drot = np.pi / 2.
+        e = LEqExpr(AffExpr(A, b), np.array([dmove, dmove, drot, dmove, dmove, drot]).reshape((6,1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
@@ -2116,9 +2139,9 @@ class ThetaDirValid(ExprPredicate):
         theta = x[2]
         disp = x[4:6] - x[:2]
         cur_theta = np.arctan2(disp[0], disp[1])
-        opp_theta = opposite_angle(theta)
-        if np.abs(angle_diff(cur_theta, theta)) > np.abs(angle_diff(opp_theta, cur_theta)):
-            theta = opp_theta
+        opp_theta = opposite_angle(cur_theta)
+        if np.abs(angle_diff(cur_theta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+            cur_theta = opp_theta
         theta_off = -angle_diff(theta, cur_theta)
         rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
                         [np.sin(theta_off), np.cos(theta_off)]])
