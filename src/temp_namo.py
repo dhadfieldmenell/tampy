@@ -27,7 +27,8 @@ for p in plan.params.values():
 
 pr2_pose = [2.3, -1.8]
 can0_pose = [-4.5, -2.6]
-can1_pose = [-1.7, -0.6]
+# can1_pose = [-1.7, -0.6]
+can1_pose = [-1.7, -1.2]
 plan.params['pr2'].pose[:,0] = pr2_pose
 plan.params['pr2'].gripper[:,0] = -0.1
 plan.params['robot_init_pose'].value[:,0] = pr2_pose
@@ -98,14 +99,28 @@ env.set_item_pos('can0', np.r_[can0_pose, 0.5])
 env.set_item_pos('can1', np.r_[can1_pose, 0.5])
 
 pr2 = plan.params['pr2']
+act = 0
 for t in range(plan.horizon-1):
-    cmdx, cmdy = pr2.pose[:,t+1] - pr2.pose[:,t]
-    nsteps = int(max(abs(cmdx), abs(cmdy)) / 0.25) + 1
+    # cmdx, cmdy = pr2.pose[:,t+1] - pr2.pose[:,t]
+    cmdtheta = pr2.theta[0,t+1] - pr2.theta[0,t]
+    cmdx, cmdy = pr2.vel[0,t+1]*np.sin(pr2.theta[0,t]), pr2.vel[0,t+1]*np.cos(pr2.theta[0,t])
+    print([cmdx, cmdy], pr2.pose[:,t+1]-pr2.pose[:,t], pr2.vel[:,t+1], pr2.theta[:,t])
+    nsteps = int(max(abs(cmdx), abs(cmdy)) / 0.20) + 1
     grip = pr2.gripper[:,t] * 5
     for n in range(nsteps+1):
         curx = pr2.pose[0,t] + float(n)/nsteps * cmdx
         cury = pr2.pose[1,t] + float(n)/nsteps * cmdy
-        ctrl = [curx, cury, 0, grip, grip]
+        curtheta = pr2.theta[0,t] + float(n)/nsteps * cmdtheta
+        ctrl = [curx, cury, -curtheta, grip, grip]
         env.step(ctrl, mode='velocity')
+    env.step(ctrl, mode='velocity')
+    print(t, env.get_item_pos('can0'))
+    print(t, env.get_item_pos('can1'))
+    print(t, env.get_item_pos('pr2'))
+    print(t, (env.get_item_pos('left_finger')+env.get_item_pos('right_finger'))/2.)
+    print('\n\n')
+    if t == plan.actions[act].active_timesteps[1]:
+        act += 1
+        import ipdb; ipdb.set_trace()
 import ipdb; ipdb.set_trace()
 

@@ -68,17 +68,17 @@ class MoveTo(Action):
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '0:0'),
                 ('(forall (?obj - Can) (not (WideObstructs ?robot ?sp ?gp ?obj)))', '1:{0}'.format(et-3)),
-                ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '{0}:{1}'.format(et-2, et-1)),
-                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?can ?obj)))', '{0}:{1}'.format(et, et-1)),
+                ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '{0}:{1}'.format(et-2, et-2)),
+                #('(forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?can ?obj)))', '{0}:{1}'.format(et-2, et-1)),
                 ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
-                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 # ('(LinearApproach ?robot)', '17:17'),
         ]
         self.eff = [\
                 ('(NearGraspAngle ?robot ?can)', '{0}:{0}'.format(et)),
                 ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
-                ('(StationaryRot ?robot)', '{0}:{1}'.format(et-2, et-1)),
+                ('(StationaryRot ?robot)', '{0}:{1}'.format(et-4, et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
         ]
 
@@ -97,7 +97,7 @@ class Transfer(Action):
                 #('(forall (?w - Obstacle) (not (TargetGraspCollides ?t ?w ?g)))', '0:0'),
                 ('(NearGraspAngle ?robot ?c)', '0:0'),
                 ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
-                ('(not (GripperClosed ?robot))', '0:0'),
+                # ('(not (GripperClosed ?robot))', '0:0'),
                 ('(GripperClosed ?robot)', '1:17'),
                 # ('(InGraspAngle ?robot ?c)', '1:{0}'.format(et-1)),
                 ('(InGraspAngle ?robot ?c)', '1:{0}'.format(1)),
@@ -115,7 +115,7 @@ class Transfer(Action):
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-2, et-1)),
                 ('(not (GripperClosed ?robot))', '{0}:{1}'.format(et, et-1)),
                 ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
-                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 ]
         self.eff = [\
                 ('(At ?c ?t)', '{0}:{1}'.format(et-1, et)),
@@ -149,8 +149,8 @@ class Place(Action):
                 # ('(LinearRetreat ?robot)', '0:{0}'.format(et-1)),
                 ('(StationaryRot ?robot)', '0:{0}'.format(et-1)),
                 ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
-                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
-                # ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
+                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ]
         self.eff = [\
                 ('(not (Obstructs ?robot ?start ?end ?c))', '{0}:{1}'.format(et, et-1)),

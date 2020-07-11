@@ -220,7 +220,7 @@ class BacktrackLLSolver(LLSolver):
                 # failed_preds = plan.get_failed_preds(active_ts=active_ts, tol=1e-3)
                 # if len(failed_preds): import ipdb; ipdb.set_trace()
 
-                self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
+                success = self._solve_opt_prob(plan, priority=priority, callback=callback, active_ts=active_ts, verbose=verbose, resample = True)
 
                 # if len(plan.get_failed_preds(active_ts=active_ts, tol=1e-3)) > 9:
                 #     break

@@ -105,7 +105,7 @@ def get_vector(config):
         state_vector_include['can{0}'.format(i)] = ['pose']
 
     action_vector_include = {
-        'pr2': ['pose', 'gripper', 'theta']
+        'pr2': ['vel', 'gripper', 'theta']
     }
 
     target_vector_include = {
