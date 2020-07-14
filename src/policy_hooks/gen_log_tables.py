@@ -406,6 +406,7 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                         data.append(np.load(cur_dir+'/'+fname))
 
                     label = gen_label(cur_dir, label_vars)
+                    label = label.replace('_', ' ')
                     for buf in data:
                         for pts in buf:
                             pt = pts[0]
@@ -432,35 +433,36 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                                 exp_data[no, nt].append((label, pt[6], pt[0]))
                                 if pt[0] > lenthresh:
                                     exp_len_data[no, nt].append((label, pt[6], pt[1]))
-                            all_data.append({'time': (pt[3]//tdelta)*tdelta, 'value': pt[0], 'len': pt[1], 'dist': pt[2], 'N': pt[6], 'key': (no, nt), 'description': label, 'ind': i})
+                            all_data.append({'time': (pt[3]//tdelta)*tdelta, 'value': pt[0], 'len': pt[1], 'dist': pt[2], 'N': pt[6], 'problem': '{0} object {1} goals'.format(no, nt), 'description': label, 'ind': i})
                         
                 i += 1
 
-    pd_frame = pd.DataFrame(all_data, columns=['time', 'description', 'N', 'value', 'len', 'dist', 'key', 'ind'])
-    pd_frame = pd_frame.groupby(['time', 'description', 'key', 'ind'], as_index=False).mean()
+    pd_frame = pd.DataFrame(all_data, columns=['time', 'description', 'N', 'value', 'len', 'dist', 'problem', 'ind'])
+    # pd_frame = pd_frame.groupby(['time', 'description', 'problem', 'ind'], as_index=False).mean()
     sns.set()
+    sns.set_context('paper', font_scale=1.5)
+    plt.title('3 objects with 3 goals')
     fig = plt.figure(figsize=(10,6))
     axs = fig.subplots(ncols=3)
-    sns_plot = sns.relplot(x=xvar, y='value', hue='description', row='key', kind='line', data=pd_frame)
+    sns_plot = sns.relplot(x=xvar, y='value', hue='description', row='problem', kind='line', data=pd_frame)
     sns_plot.fig.set_figwidth(10)
     sns_plot._legend.remove()
-    sns_plot.fig.get_axes()[0].legend(loc=(0.25, -0.5))
+    sns_plot.fig.get_axes()[0].legend(loc=(0., -0.6), prop={'size': 15})
     sns_plot.fig.axes[0].set_title('value')
 
     l, b, w, h = sns_plot.fig.axes[0]._position.bounds
     sns_plot.fig.add_axes((l+w+0.1, b, w, h))
-    sns_plot_2 = sns.relplot(x=xvar, y='dist', hue='description', row='key', kind='line', data=pd_frame, legend=False, ax=sns_plot.fig.axes[1])
+    sns_plot_2 = sns.relplot(x=xvar, y='dist', hue='description', row='problem', kind='line', data=pd_frame, legend=False, ax=sns_plot.fig.axes[1])
     sns_plot.fig.axes[1].set_title('distance')
    
     l, b, w, h = sns_plot.fig.axes[1]._position.bounds
     sns_plot.fig.add_axes((l+w+0.1, b, w, h))
-    sns_plot_2 = sns.relplot(x=xvar, y='len', hue='description', row='key', kind='line', data=pd_frame, legend=False, ax=sns_plot.fig.axes[2])
+    sns_plot_2 = sns.relplot(x=xvar, y='len', hue='description', row='problem', kind='line', data=pd_frame, legend=False, ax=sns_plot.fig.axes[2])
     sns_plot.fig.axes[2].set_title('length')
     keyid = ''
     for key in keywords:
         keyid += '_'+str(key)
     sns_plot.fig.savefig(SAVE_DIR+'/allgraphs_{0}_{1}.png'.format(keyid, lab), bbox_inches="tight")
-    # fig.savefig(SAVE_DIR+'/allgraphs_{0}_{1}.png'.format(keyid, lab), bbox_inches="tight")
 
     for no, nt in exp_data:
         print('Plotting', no, nt, exp_name)
@@ -595,9 +597,9 @@ def gen_data_plots(xvar, yvar, keywords=[], lab='rollout', inter=100, label_vars
 
 keywords = ['failtrain']
 include = [] # ['wed_nocol', 'sun']
-label_vars = ['descr', 'hist_len', 'check_col', 'soft_eval'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
+label_vars = ['descr'] # ['eta', 'train_iterations', 'lr', 'prim_weight_decay'] # ['prim_dim', 'prim_n_layers', 'prim_weight_decay', 'eta', 'lr', 'train_iterations']
 #get_hl_tests(['retrain_2by'], xvar='N', avg_time=False, tdelta=5000, wind=5000, pre=False, exclude=['0001', '10000'])
-get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=[], include=include)
+get_hl_tests(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=['shorthist'], include=include)
 #get_fail_info(keywords, xvar='time', pre=False, label_vars=label_vars, lenthresh=0.9, exclude=['nocol_det', 'nocol_nohist'], include=include, max_t=5000)
 #get_hl_tests(keywords[1:2], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
 #get_hl_tests(keywords[2:3], xvar='n_data', pre=False, label_vars=label_vars, lenthresh=-1)
