@@ -90,6 +90,9 @@ class ExprPredicate(Predicate):
                     raise err
         return self.x.reshape((self.x_dim, 1))
 
+    def hl_test(self, time, negated=False, tol=None):
+        return self.test(time, negated, tol)
+
     #@profile
     def test(self, time, negated=False, tol=None):
         if self.hl_info: return True

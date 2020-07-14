@@ -1,5 +1,5 @@
 {
-    'movetograsp': [
+    'moveto': [
         '0: MOVETO PR2 {0} {0}_INIT_TARGET ROBOT_INIT_POSE ROBOT_END_POSE {2} {1}',
     ],
 
@@ -15,7 +15,7 @@
 };
 
 {
-    'movetograsp': 20,
+    'moveto': 20,
     'transfer': 20,
     'place': 5,
 }

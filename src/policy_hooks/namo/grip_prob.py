@@ -99,7 +99,7 @@ def get_prim_choices():
 
 def get_vector(config):
     state_vector_include = {
-        'pr2': ['pose', 'gripper', 'theta'] ,
+        'pr2': ['pose', 'gripper', 'theta', 'vel'] ,
     }
     for i in range(config['num_objs']):
         state_vector_include['can{0}'.format(i)] = ['pose']

@@ -37,10 +37,8 @@ def main():
                 s += "Grasp (name {}); ".format("grasp3")
                 s += "RobotPose (name %s); "%"robot_init_pose"
                 s += "RobotPose (name %s); "%"robot_end_pose"
-                s += "RobotPose (name %s); "%"grasp_end_pose"
                 for i in range(NUM_CANS):
                     s += "RobotPose (name %s); "%"grasp_pose_{0}".format(i)
-                    s += "RobotPose (name %s); "%"grasp_end_pose_{0}".format(i)
 
                 for i in range(N_AUX):
                     s += "Target (name %s); "%"aux_target_{0}".format(i)
@@ -75,18 +73,7 @@ def main():
                 s += "(gripper %s undefined), "%("robot_init_pose")
                 s += "(vel %s undefined), "%("robot_end_pose")
                 s += "(acc %s undefined), "%("robot_end_pose")
-                s += "(value %s %s), "%("grasp_end_pose", "undefined")
-                s += "(theta %s %s), "%("grasp_end_pose", "undefined")
-                s += "(gripper %s %s), "%("grasp_end_pose", "undefined")
-                s += "(vel %s %s), "%("grasp_end_pose", "undefined")
-                s += "(acc %s %s), "%("grasp_end_pose", "undefined")
                 for i in range(NUM_CANS):
-                    s += "(gripper %s undefined), "%("grasp_end_pose_{0}".format(i))
-                    s += "(vel %s undefined), "%("grasp_end_pose_{0}".format(i))
-                    s += "(acc %s undefined), "%("grasp_end_pose_{0}".format(i))
-                    s += "(value %s undefined), "%("grasp_end_pose_{0}".format(i))
-                    s += "(theta %s undefined), "%("grasp_end_pose_{0}".format(i))
-                    s += "(geom %s 0.3), "%("grasp_end_pose_{0}".format(i))
                     s += "(gripper %s undefined), "%("grasp_pose_{0}".format(i))
                     s += "(vel %s undefined), "%("grasp_pose_{0}".format(i))
                     s += "(acc %s undefined), "%("grasp_pose_{0}".format(i))
@@ -106,8 +93,6 @@ def main():
                     s += "(Stationary can{}), ".format(i)
                     for j in range(NUM_CANS):
                         s += "(StationaryNEq can{} can{}), ".format(i, j)
-                    # s += "(InContact pr2 pdp_target{} can{}_init_target), ".format(i, i)
-                    # s += "(GraspValid pdp_target{} can{}_init_target grasp0), ".format(i, i)
                 s += "(RobotAt pr2 robot_init_pose), "
                 s += "(IsMP pr2), "
                 s += "(StationaryW obs0) \n\n"

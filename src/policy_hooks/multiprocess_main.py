@@ -476,12 +476,12 @@ class MultiProcessMain(object):
         self.process_info = []
         self.process_configs = {}
         self.threads = []
+        if self.config['mcts_server']:
+            self.create_rollout_servers(config)
         if self.config['mp_server']:
             self.create_mp_servers(config)
         if self.config['pol_server']:
             self.create_pol_servers(config)
-        if self.config['mcts_server']:
-            self.create_rollout_servers(config)
 
 
     def start_servers(self):
@@ -492,6 +492,9 @@ class MultiProcessMain(object):
             t.start()
 
     def create_server(self, server_cls, hyperparams, process=True):
+        if hyperparams.get('seq', False):
+            spawn_server(server_cls, hyperparams)
+
         if process:
             p = Process(target=spawn_server, args=(server_cls, hyperparams))
             p.name = str(server_cls) + '_run_training'

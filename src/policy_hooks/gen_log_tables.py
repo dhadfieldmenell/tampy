@@ -343,6 +343,7 @@ def get_fail_info(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', 
 
 def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', avg_time=True, tdelta=TDELTA, wind=TWINDOW, lab='', lenthresh=0.99, label_vars=[], include=[], max_t=14400):
     exp_probs = os.listdir(LOG_DIR)
+    all_data = []
     exp_data = {}
     exp_len_data = {}
     exp_dist_data = {}
@@ -430,20 +431,49 @@ def get_hl_tests(keywords=[], exclude=[], pre=False, rerun=False, xvar='time', a
                                 exp_data[no, nt].append((label, pt[6], pt[0]))
                                 if pt[0] > lenthresh:
                                     exp_len_data[no, nt].append((label, pt[6], pt[1]))
+                            all_data.append({'time': (pt[3]//tdelta)*tdelta, 'value': pt[0], 'len': pt[1], 'dist': pt[2], 'N': pt[6], 'key': (no, nt), 'description': label, 'ind': i})
                         
                 i += 1
+
+    pd_frame = pd.DataFrame(all_data, columns=['time', 'description', 'N', 'value', 'len', 'dist', 'key', 'ind'])
+    pd_frame = pd_frame.groupby(['time', 'description', 'key', 'ind'], as_index=False).mean()
+    sns.set()
+    fig = plt.figure(figsize=(10,6))
+    axs = fig.subplots(ncols=3)
+    sns_plot = sns.relplot(x=xvar, y='value', hue='description', row='key', kind='line', data=pd_frame)
+    sns_plot.fig.set_figwidth(10)
+    sns_plot._legend.remove()
+    sns_plot.fig.get_axes()[0].legend(loc=(0.25, -0.5))
+    sns_plot.fig.axes[0].set_title('value')
+
+    l, b, w, h = sns_plot.fig.axes[0]._position.bounds
+    sns_plot.fig.add_axes((l+w+0.1, b, w, h))
+    sns_plot_2 = sns.relplot(x=xvar, y='dist', hue='description', row='key', kind='line', data=pd_frame, legend=False, ax=sns_plot.fig.axes[1])
+    sns_plot.fig.axes[1].set_title('distance')
+   
+    l, b, w, h = sns_plot.fig.axes[1]._position.bounds
+    sns_plot.fig.add_axes((l+w+0.1, b, w, h))
+    sns_plot_2 = sns.relplot(x=xvar, y='len', hue='description', row='key', kind='line', data=pd_frame, legend=False, ax=sns_plot.fig.axes[2])
+    sns_plot.fig.axes[2].set_title('length')
+    keyid = ''
+    for key in keywords:
+        keyid += '_'+str(key)
+    sns_plot.fig.savefig(SAVE_DIR+'/allgraphs_{0}_{1}.png'.format(keyid, lab), bbox_inches="tight")
+    # fig.savefig(SAVE_DIR+'/allgraphs_{0}_{1}.png'.format(keyid, lab), bbox_inches="tight")
 
     for no, nt in exp_data:
         print('Plotting', no, nt, exp_name)
         pd_frame = pd.DataFrame(exp_data[no, nt], columns=['exp_name', xvar, 'value'])
         sns.set()
         sns_plot = sns.relplot(x=xvar, y='value', hue='exp_name', kind='line', data=pd_frame)
+        sns_plot._legend.remove()
+        sns_plot.fig.get_axes()[0].legend(loc=(1.5, 1.5))
         keyid = ''
         for key in keywords[:1]:
             keyid += '_{0}'.format(key)
         pre_lab = '_pre' if pre else ''
         if rerun: pre_lab += '_rerun'
-        sns_plot.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab))
+        sns_plot.fig.savefig(SAVE_DIR+'/{0}obj_{1}targ_val{2}{3}{4}.png'.format(no, nt, keyid, pre_lab, lab), bbox_inches="tight")
 
     for no, nt in exp_len_data:
         print('Plotting', no, nt, exp_name)

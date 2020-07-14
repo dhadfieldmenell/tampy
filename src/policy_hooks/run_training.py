@@ -96,6 +96,7 @@ def main():
     parser.add_argument('-obs_del', '--add_obs_delta', action='store_true', default=False)
     parser.add_argument('-act_hist', '--add_action_hist', action='store_true', default=False)
     parser.add_argument('-hl_retrain', '--hl_retrain', action='store_true', default=False)
+    parser.add_argument('-seq', '--seq', action='store_true', default=False)
     parser.add_argument('-hl_only_retrain', '--hl_only_retrain', action='store_true', default=False)
 
     # Old

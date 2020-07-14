@@ -12,6 +12,7 @@ prob.domain_file = "../domains/namo_domain/namo_current_grip.domain"
 from pma.namo_grip_solver import *
 from pma.hl_solver import *
 from pma.pr_graph import *
+from pma import backtrack_ll_solver as bt_ll
 from policy_hooks.utils.load_task_definitions import parse_state
 
 plans = prob.get_plans()
@@ -25,10 +26,12 @@ for p in plan.params.values():
     if p.openrave_body is not None:
         p.openrave_body.set_pose([20,20])
 
-pr2_pose = [2.3, -1.8]
-can0_pose = [-4.5, -2.6]
-# can1_pose = [-1.7, -0.6]
-can1_pose = [-1.7, -1.2]
+pr2_pose = [-1.3, -1.6]
+can0_pose = [-3.7, -3.6]
+can1_pose = [4.3, -4.]
+pr2_pose = [-0.1, -3.2]
+can0_pose = [-3.7, -3.2]
+can1_pose = [3.5, -3.8]
 plan.params['pr2'].pose[:,0] = pr2_pose
 plan.params['pr2'].gripper[:,0] = -0.1
 plan.params['robot_init_pose'].value[:,0] = pr2_pose
@@ -56,6 +59,7 @@ for param in state.params.values():
             getattr(param, attr)[:,0] = 0
 
 solver = NAMOSolver()
+bt_ll.DEBUG = True
 hl_solver = FFSolver(plan.d_c)
 # solver.backtrack_solve(plan)
 abs_domain = hl_solver.abs_domain
@@ -77,19 +81,20 @@ state.params['can0_init_target'].value[:,0] = can0_pose
 state.params['can1'].pose[:,0] = can1_pose
 state.params['can1_init_target'].value[:,0] = can1_pose
 goal = '(and (Near can0 end_target_3) (Near can1 end_target_5))'
+goal = '(and (Near can0 end_target_3) (Near can1 end_target_4))'
 initial = parse_state(plan, [], 0)
 initial = list(set([p.get_rep() for p in initial]))
-plan, descr = p_mod_abs(hl_solver, solver, domain, problem, goal=goal, initial=initial, debug=True)
+plan, descr = p_mod_abs(hl_solver, solver, domain, problem, goal=goal, initial=initial, debug=True, n_resamples=10)
 import ipdb; ipdb.set_trace()
 
 fpath = baxter_gym.__path__[0]
 view = False
 act_jnts = ['robot_x', 'robot_y', 'robot_theta', 'left_finger_joint', 'right_finger_joint']
 items = []
-fname = fpath+'/robot_info/newtheta.xml'
-items.append({'name': 'can0', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.3, 0.4), 'mass': 1.})
-items.append({'name': 'can1', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.3, 0.4), 'mass': 1.})
-config = {'include_files': [fname], 'sim_freq': 100, 'include_items': items, 'act_jnts': act_jnts, 'step_mult': 1e2, 'view': view, 'timestep': 0.002}
+fname = fpath+'/robot_info/lidar_namo.xml'
+items.append({'name': 'can0', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.3, 0.4), 'mass': 5.})
+items.append({'name': 'can1', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.3, 0.4), 'mass': 5.})
+config = {'include_files': [fname], 'sim_freq': 100, 'include_items': items, 'act_jnts': act_jnts, 'step_mult': 1e1, 'view': view, 'timestep': 0.002}
 env = MJCEnv.load_config(config)
 xval, yval = pr2_pose
 grip = -0.1
@@ -101,16 +106,18 @@ env.set_item_pos('can1', np.r_[can1_pose, 0.5])
 pr2 = plan.params['pr2']
 act = 0
 for t in range(plan.horizon-1):
-    # cmdx, cmdy = pr2.pose[:,t+1] - pr2.pose[:,t]
-    cmdtheta = pr2.theta[0,t+1] - pr2.theta[0,t]
-    cmdx, cmdy = pr2.vel[0,t+1]*np.sin(pr2.theta[0,t]), pr2.vel[0,t+1]*np.cos(pr2.theta[0,t])
-    print([cmdx, cmdy], pr2.pose[:,t+1]-pr2.pose[:,t], pr2.vel[:,t+1], pr2.theta[:,t])
+    cmdx, cmdy = pr2.pose[:,t+1] - pr2.pose[:,t]
+    theta = -env.get_joints(['robot_theta'])['robot_theta'][0]
+    cmdtheta = pr2.theta[0,t+1] - theta
+    cmdx, cmdy = pr2.vel[0,t+1]*np.sin(theta), pr2.vel[0,t+1]*np.cos(theta)
     nsteps = int(max(abs(cmdx), abs(cmdy)) / 0.20) + 1
     grip = pr2.gripper[:,t] * 5
+    x, y = pr2.pose[:,t]
+    x, y, _ = env.get_item_pos('pr2')
     for n in range(nsteps+1):
-        curx = pr2.pose[0,t] + float(n)/nsteps * cmdx
-        cury = pr2.pose[1,t] + float(n)/nsteps * cmdy
-        curtheta = pr2.theta[0,t] + float(n)/nsteps * cmdtheta
+        curx = x + float(n)/nsteps * cmdx
+        cury = y + float(n)/nsteps * cmdy
+        curtheta = theta + float(n)/nsteps * cmdtheta
         ctrl = [curx, cury, -curtheta, grip, grip]
         env.step(ctrl, mode='velocity')
     env.step(ctrl, mode='velocity')

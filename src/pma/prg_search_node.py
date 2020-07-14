@@ -79,16 +79,16 @@ class LLSearchNode(SearchNode):
                                     aval = getattr(plan.params[param.name], attr)[:,check_ts]
                                 old_vals[param, attr] = getattr(param, attr)[:,0].copy()
                                 getattr(param, attr)[:,0] = aval
-                        if p['negated'] and not p['pred'].test(0, tol=1e-3, negated=True):
+                        if p['negated'] and not p['pred'].hl_test(0, tol=1e-3, negated=True):
                             new_preds.append(p['pred'])
-                        elif not p['negated'] and p['pred'].test(0, tol=1e-3):
+                        elif not p['negated'] and p['pred'].hl_test(0, tol=1e-3):
                             new_preds.append(p['pred'])
 
                         for param, attr in old_vals:
                             getattr(param, attr)[:,0] = old_vals[param, attr]
-                    elif not p['negated'] and p['pred'].test(check_ts, tol=1e-3):
+                    elif not p['negated'] and p['pred'].hl_test(check_ts, tol=1e-3):
                         new_preds.append(p['pred'])
-                    elif p['negated'] and not p['pred'].test(check_ts, tol=1e-3, negated=True):
+                    elif p['negated'] and not p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
                         new_preds.append(p['pred'])
         return new_preds
 
@@ -132,10 +132,9 @@ class LLSearchNode(SearchNode):
     def is_ll_node(self):
         return True
 
-    def plan(self, solver):
+    def plan(self, solver, n_resamples=5):
         self.curr_plan.freeze_actions(self.curr_plan.start_action)
-        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action, n_resamples=10)
-        import ipdb; ipdb.set_trace()
+        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action, n_resamples=n_resamples)
 
     def get_failed_pred(self, forward_only=False):
         st = 0

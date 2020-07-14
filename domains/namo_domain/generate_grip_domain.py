@@ -69,16 +69,18 @@ class MoveTo(Action):
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '0:0'),
                 ('(forall (?obj - Can) (not (WideObstructs ?robot ?sp ?gp ?obj)))', '1:{0}'.format(et-3)),
                 ('(forall (?obj - Can) (not (Obstructs ?robot ?sp ?gp ?obj)))', '{0}:{1}'.format(et-2, et-2)),
-                #('(forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?can ?obj)))', '{0}:{1}'.format(et-2, et-1)),
-                ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
+                ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?obj ?can)))', '{0}:{1}'.format(et-2, et-1)),
+                ('(ThetaDirValid ?robot)', '{0}:{1}'.format(1, et-1)),
+                ('(RobotStationary ?robot)', '{0}:{1}'.format(0,0)),
                 ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 # ('(LinearApproach ?robot)', '17:17'),
         ]
         self.eff = [\
                 ('(NearGraspAngle ?robot ?can)', '{0}:{0}'.format(et)),
+                # ('(InGraspAngle ?robot ?can)', '{0}:{0}'.format(et)),
                 ('(forall (?obj - Can / ?can) (forall (?gr - Grasp) (not (NearGraspAngle ?robot ?obj))))', '{0}:{1}'.format(et, et-1)),
                 ('(forall (?obj - Can) (Stationary ?obj))', '{0}:{1}'.format(et, et-1)),
-                ('(StationaryRot ?robot)', '{0}:{1}'.format(et-4, et-1)),
+                ('(StationaryRot ?robot)', '{0}:{1}'.format(et-3, et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
         ]
 
@@ -98,10 +100,11 @@ class Transfer(Action):
                 ('(NearGraspAngle ?robot ?c)', '0:0'),
                 ('(forall (?obj - Can) (not (Near ?obj ?t)))', '0:0'),
                 # ('(not (GripperClosed ?robot))', '0:0'),
-                ('(GripperClosed ?robot)', '1:17'),
+                ('(GripperClosed ?robot)', '1:{0}'.format(et-1)),
                 # ('(InGraspAngle ?robot ?c)', '1:{0}'.format(et-1)),
                 ('(InGraspAngle ?robot ?c)', '1:{0}'.format(1)),
                 ('(InGraspAngle ?robot ?c)', '{0}:{0}'.format(et-1)),
+                ('(NearGraspAngle ?robot ?c)', '{0}:{0}'.format(et)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '0:{0}'.format(0)),
                 ('(forall (?obj - Can) (not (WideObstructsHolding ?robot ?start ?end ?obj ?c)))', '1:{0}'.format(et-1)),
                 #('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '1:{0}'.format(et-1)),
@@ -114,7 +117,8 @@ class Transfer(Action):
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ('(StationaryRot ?robot)', '{0}:{1}'.format(et-2, et-1)),
                 ('(not (GripperClosed ?robot))', '{0}:{1}'.format(et, et-1)),
-                ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
+                ('(ThetaDirValid ?robot)', '{0}:{1}'.format(1, et-1)),
+                ('(RobotStationary ?robot)', '{0}:{0}'.format(0)),
                 ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 ]
         self.eff = [\
@@ -141,7 +145,7 @@ class Place(Action):
                 ('(not (GripperClosed ?robot))', '1:{0}'.format(et-1)),
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?start ?end ?obj ?c)))', '0:{0}'.format(et-1)),
                 ('(forall (?obj - Can ) (not (Obstructs ?robot ?start ?end ?obj)))', '{0}:{0}'.format(et-1)),
-                ('(forall (?obj - Can) (StationaryNEq ?obj ?c))', '0:{0}'.format(et-1)), 
+                ('(forall (?obj - Can) (Stationary ?obj))', '0:{0}'.format(et-1)), 
                 ('(forall (?w - Obstacle) (StationaryW ?w))', '0:{0}'.format(et-1)), 
                 ('(IsMP ?robot)', '0:{0}'.format(et-1)),
                 ('(forall (?w - Obstacle) (forall (?obj - Can) (not (Collides ?obj ?w))))', '0:{0}'.format(et-1)),
@@ -150,6 +154,7 @@ class Place(Action):
                 ('(StationaryRot ?robot)', '0:{0}'.format(et-1)),
                 ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
                 ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                ('(RobotStationary ?robot)', '{0}:{0}'.format(0)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ]
         self.eff = [\
