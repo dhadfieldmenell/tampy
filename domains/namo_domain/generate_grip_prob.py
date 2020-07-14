@@ -25,7 +25,6 @@ def main():
                 s += "Objects: "
                 for n in range(NUM_CANS):
                     s += "Target (name can%d_init_target); "%(n)
-                    s += "RobotPose (name pdp_target%d); "%(n)
                     s += "Can (name can%d); "%(n)
                     s += "Target (name can%d_end_target); "%(n)
                 for i in range(N_END):
@@ -38,10 +37,8 @@ def main():
                 s += "Grasp (name {}); ".format("grasp3")
                 s += "RobotPose (name %s); "%"robot_init_pose"
                 s += "RobotPose (name %s); "%"robot_end_pose"
-                s += "RobotPose (name %s); "%"grasp_end_pose"
                 for i in range(NUM_CANS):
                     s += "RobotPose (name %s); "%"grasp_pose_{0}".format(i)
-                    s += "RobotPose (name %s); "%"grasp_end_pose_{0}".format(i)
 
                 for i in range(N_AUX):
                     s += "Target (name %s); "%"aux_target_{0}".format(i)
@@ -50,8 +47,6 @@ def main():
                 s += "Init: "
                 for i in range(NUM_CANS):
                     s += "(geom can%d_init_target 0.3), (value can%d_init_target %s), "%(i, i, list(coords[i]))
-                    s += "(value pdp_target%d undefined), "%i
-                    s += "(gripper pdp_target%d undefined), "%i
                     s += "(geom can%d 0.3), (pose can%d %s), "%(i, i, list(coords[i]))
                     s += "(geom can%d_end_target 0.3), (value can%d_end_target %s), "%(i, i, list(coords[i]))
                 for i in range(N_END):
@@ -64,20 +59,26 @@ def main():
                 s += "(geom %s), (pose %s %s), "%("pr2", "pr2", [0, 0])
                 s += "(gripper pr2 [-0.1]), "
                 s += "(theta pr2 [0.]), "
+                s += "(vel pr2 [0.]), "
+                s += "(acc pr2 [0.]), "
                 s += "(value %s %s), "%("robot_init_pose", [0., 0.])
+                s += "(theta %s %s), "%("robot_init_pose", [0.])
                 s += "(value %s %s), "%("robot_end_pose", "undefined")
+                s += "(theta %s %s), "%("robot_end_pose", "undefined")
                 s += "(geom %s %s), "%("robot_init_pose", 0.3)
                 s += "(geom %s %s), "%("robot_end_pose", 0.3)
                 s += "(gripper %s [-0.1]), "%("robot_init_pose")
-                s += "(gripper %s undefined), "%("robot_end_pose")
-                s += "(value %s %s), "%("grasp_end_pose", "undefined")
-                s += "(gripper %s %s), "%("grasp_end_pose", "undefined")
+                s += "(vel %s undefined), "%("robot_init_pose")
+                s += "(acc %s undefined), "%("robot_init_pose")
+                s += "(gripper %s undefined), "%("robot_init_pose")
+                s += "(vel %s undefined), "%("robot_end_pose")
+                s += "(acc %s undefined), "%("robot_end_pose")
                 for i in range(NUM_CANS):
-                    s += "(gripper %s undefined), "%("grasp_end_pose_{0}".format(i))
-                    s += "(value %s undefined), "%("grasp_end_pose_{0}".format(i))
-                    s += "(geom %s 0.3), "%("grasp_end_pose_{0}".format(i))
                     s += "(gripper %s undefined), "%("grasp_pose_{0}".format(i))
+                    s += "(vel %s undefined), "%("grasp_pose_{0}".format(i))
+                    s += "(acc %s undefined), "%("grasp_pose_{0}".format(i))
                     s += "(value %s undefined), "%("grasp_pose_{0}".format(i))
+                    s += "(theta %s undefined), "%("grasp_pose_{0}".format(i))
                     s += "(geom %s 0.3), "%("grasp_pose_{0}".format(i))
 
                 for i in range(N_AUX):
@@ -92,8 +93,6 @@ def main():
                     s += "(Stationary can{}), ".format(i)
                     for j in range(NUM_CANS):
                         s += "(StationaryNEq can{} can{}), ".format(i, j)
-                    # s += "(InContact pr2 pdp_target{} can{}_init_target), ".format(i, i)
-                    # s += "(GraspValid pdp_target{} can{}_init_target grasp0), ".format(i, i)
                 s += "(RobotAt pr2 robot_init_pose), "
                 s += "(IsMP pr2), "
                 s += "(StationaryW obs0) \n\n"

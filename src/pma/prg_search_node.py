@@ -60,12 +60,15 @@ class LLSearchNode(SearchNode):
             if a_st > ts: break
             for p in a.preds:
                 st, et = p['active_timesteps']
+                if p['pred'].hl_include: new_preds.append(p['pred'])
                 # Only check before the failed ts, previous actions fully checked while current only up to priority
                 # TODO: How to handle negated?
                 check_ts = ts - p['pred'].active_range[1]
                 if st <= ts and check_ts >= 0 and et >= st:
                     # hl_state preds aren't tied to ll state
-                    if p['hl_info'] == 'hl_state':
+                    if p['pred'].hl_include:
+                        new_preds.append(p['pred'])
+                    elif p['hl_info'] == 'hl_state':
                         if p['pred'].active_range[1] > 0: continue
                         old_vals = {}
                         for param in p['pred'].attr_inds:
@@ -76,16 +79,16 @@ class LLSearchNode(SearchNode):
                                     aval = getattr(plan.params[param.name], attr)[:,check_ts]
                                 old_vals[param, attr] = getattr(param, attr)[:,0].copy()
                                 getattr(param, attr)[:,0] = aval
-                        if p['negated'] and not p['pred'].test(0, tol=1e-3, negated=True):
+                        if p['negated'] and not p['pred'].hl_test(0, tol=1e-3, negated=True):
                             new_preds.append(p['pred'])
-                        elif not p['negated'] and p['pred'].test(0, tol=1e-3):
+                        elif not p['negated'] and p['pred'].hl_test(0, tol=1e-3):
                             new_preds.append(p['pred'])
 
                         for param, attr in old_vals:
                             getattr(param, attr)[:,0] = old_vals[param, attr]
-                    elif not p['negated'] and p['pred'].test(check_ts, tol=1e-3):
+                    elif not p['negated'] and p['pred'].hl_test(check_ts, tol=1e-3):
                         new_preds.append(p['pred'])
-                    elif p['negated'] and not p['pred'].test(check_ts, tol=1e-3, negated=True):
+                    elif p['negated'] and not p['pred'].hl_test(check_ts, tol=1e-3, negated=True):
                         new_preds.append(p['pred'])
         return new_preds
 
@@ -129,9 +132,9 @@ class LLSearchNode(SearchNode):
     def is_ll_node(self):
         return True
 
-    def plan(self, solver):
+    def plan(self, solver, n_resamples=5):
         self.curr_plan.freeze_actions(self.curr_plan.start_action)
-        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action)
+        success = solver._backtrack_solve(self.curr_plan, anum=self.curr_plan.start_action, n_resamples=n_resamples)
 
     def get_failed_pred(self, forward_only=False):
         st = 0

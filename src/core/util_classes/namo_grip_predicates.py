@@ -23,10 +23,11 @@ from pma.ll_solver import NAMOSolver
 This file implements the predicates for the 2D NAMO domain.
 """
 
-dsafe = 1e-2
+dsafe = 1e-1
 # dmove = 1.1e0 # 5e-1
 dmove = 1.5e0 # 5e-1
 contact_dist = 2e-1 # dsafe
+gripdist = 0.61 # 75
 
 RS_SCALE = 0.5
 N_DIGS = 5
@@ -40,12 +41,15 @@ ATTRMAP = {
     "Robot":     (("pose", np.array(range(2), dtype=np.int)),
                   ("gripper", np.array(range(1), dtype=np.int)),
                   ("theta", np.array(range(1), dtype=np.int)),
-                  ("vel", np.array(range(2), dtype=np.int)),
-                  ("acc", np.array(range(2), dtype=np.int))),
+                  ("vel", np.array(range(1), dtype=np.int)),
+                  ("acc", np.array(range(1), dtype=np.int))),
     "Can":       (("pose", np.array(range(2), dtype=np.int)),),
     "Target":    (("value", np.array(range(2), dtype=np.int)),),
     "RobotPose": (("value", np.array(range(2), dtype=np.int)),
-                  ("gripper", np.array(range(1), dtype=np.int))),
+                  ("theta", np.array(range(1), dtype=np.int)),
+                  ("gripper", np.array(range(1), dtype=np.int)),
+                  ("vel", np.array(range(1), dtype=np.int)),
+                  ("acc", np.array(range(1), dtype=np.int))),
     "Obstacle":  (("pose", np.array(range(2), dtype=np.int)),),
     "Grasp":     (("value", np.array(range(2), dtype=np.int)),),
     "Rotation":     (("value", np.array(range(1), dtype=np.int)),),
@@ -163,6 +167,22 @@ def get_ompl_rrtconnect_traj(env, robot, active_dof, init_dof, end_dof):
     return traj_list
 
 
+def opposite_angle(theta):
+    return ((theta + 2 * np.pi) % (2*np.pi)) - np.pi
+
+
+def angle_diff(theta1, theta2):
+    diff1 = theta1 - theta2
+    diff2 = opposite_angle(theta1) - opposite_angle(theta2)
+    if np.abs(diff1) < np.abs(diff2):
+        return diff1
+    return diff2
+
+
+def add_angle(theta, delta):
+    return ((theta + np.pi + delta) % (2*np.pi)) - np.pi
+
+
 def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
     if grad:
         res = []
@@ -171,15 +191,17 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             coeff = float(pts - t) / pts
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
-                if isrobot: next_pos[3] = min(xs[0][3], xs[1][3])
+                if isrobot:
+                    next_pos[2] = min(xs[0][2], xs[1][2])
+                    # next_pos[3] = np.arctan2(next_pos[0], next_pos[1])
             else:
                 next_pos = xs[0]
             cur_jac = dist(next_pos)[1]
             filldim = dim - cur_jac.shape[1]
-            cur_jac = np.c_[cur_jac[:,:2], np.zeros((N_COLS, filldim)), cur_jac[:,2:]]
+            # cur_jac = np.c_[cur_jac[:,:2], np.zeros((N_COLS, filldim)), cur_jac[:,2:]]
             #res.append(dist(next_pos)[1])
-            #jac = np.r_[jac, np.c_[coeff*res[t], (1-coeff)*res[t]]]
-            jac = np.r_[jac, np.c_[cur_jac, cur_jac]]
+            jac = np.r_[jac, np.c_[coeff*cur_jac, (1-coeff)*cur_jac]]
+            #jac = np.r_[jac, np.c_[cur_jac, cur_jac]]
         return jac
 
     else:
@@ -188,7 +210,9 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
             coeff = float(pts - t) / pts
             if len(xs) == 2:
                 next_pos = coeff * xs[0] + (1 - coeff) * xs[1]
-                if isrobot: next_pos[3] = min(xs[0][3], xs[1][3])
+                if isrobot:
+                    next_pos[2] = min(xs[0][2], xs[1][2])
+                    # next_pos[3] = np.arctan2(next_pos[0], next_pos[1])
             else:
                 next_pos = xs[0]
             res.append(dist(next_pos)[0])
@@ -196,7 +220,7 @@ def twostep_f(xs, dist, dim, pts=COL_TS, grad=False, isrobot=False):
 
 
 class CollisionPredicate(ExprPredicate):
-    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1), priority=3):
+    def __init__(self, name, e, attr_inds, params, expected_param_types, dsafe = dsafe, debug = False, ind0=0, ind1=1, active_range=(0,1), priority=2):
         self._debug = debug
         # if self._debug:
         #     self._env.SetViewer("qtcoin")
@@ -253,17 +277,14 @@ class CollisionPredicate(ExprPredicate):
             raise Exception('Should not call this without the robot!')
         pose0 = x[0:2]
         pose1 = x[4:6]
-        b0.set_dof({'left_grip': x[2], 'right_grip': x[2], 'robot_theta': x[3], 'ypos': 0., 'xpos': 0.})
+        b0.set_dof({'left_grip': x[2], 'right_grip': x[2], 'robot_theta': -x[3], 'ypos': 0., 'xpos': 0.})
         b0.set_pose(pose0)
         b1.set_pose(pose1)
         return pose0, pose1
 
 
     def set_pos(self, x):
-        if len(x) == 4:
-            return self._set_pos(x)
-        else:
-            return self._set_robot_pos(x)
+        return self._set_pos(x)
 
 
     def _set_pos(self, x):
@@ -346,10 +367,26 @@ class CollisionPredicate(ExprPredicate):
         for i in range(len(final_val)):
             if final_val[i] < vals[i]:
                 final_val[i] = vals[i]
-                final_jac[i] - jacs[i]
+                final_jac[i] = jacs[i]
         # self._cache[flattened] = (val.copy(), jac.copy())
-
+        if b0.isrobot():
+            if len(collisions):
+                pose0, pose1 = np.r_[pose0, [[0]]], np.r_[pose1, [[0]]]
+                colvec = np.array([c[5] for c in collisions])
+                axisvec = np.array([[0,0,1] for _ in collisions])
+                pos0vec = np.array([pose0.flatten() for _ in collisions])
+                crosstorque = np.cross(colvec-pos0vec, [0,0,1])
+                rotjac = np.dot(crosstorque, pose1-pose0)
+                rotjac = 0*np.r_[rotjac, np.zeros((len(final_jac)-len(collisions), 1))]
+            else:
+                rotjac = np.zeros((final_jac.shape[0], 1))
+            final_jac = np.c_[final_jac[:,:2], np.zeros_like(rotjac), rotjac, final_jac[:,2:]]
         return final_val, final_jac
+
+
+    def _calc_rot_grad(self, rpose, objpose, colpos):
+        jntaxis = np.array([0, 0, 1])
+        return np.dot(objpose-rpose, np.cross(colpos-rpos, jntaxis))
 
 
     # @profile
@@ -358,8 +395,6 @@ class CollisionPredicate(ExprPredicate):
         jacs = np.zeros((self.n_cols, 4))
 
         val = -1 * float("inf")
-        # jac0 = np.zeros(2)
-        # jac1 = np.zeros(2)
         results = []
         n_cols = len(collisions)
         assert n_cols <= self.n_cols
@@ -388,17 +423,13 @@ class CollisionPredicate(ExprPredicate):
                 normal = c.GetNormal()
             else:
                 linkA, linkB = c[3], c[4]
-                #linkA, linkB = c.linkIndexA, c.linkIndexB
                 linkAParent, linkBParent = c[1], c[2]
-                #linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
                 sign = 0
                 if linkAParent == b0.body_id and linkBParent == b1.body_id:
-                    #pt0, pt1 = c.positionOnA, c.positionOnB
                     pt0, pt1 = c[5], c[6] 
                     linkRobot, linkObj = linkA, linkB
                     sign = -1
                 elif linkBParent == b0.body_id and linkAParent == b1.body_id:
-                    # pt0, pt1 = c.positionOnB, c.positionOnA
                     pt1, pt0 = c[5], c[6] 
                     linkRobot, linkObj = linkB, linkA
                     sign = 1
@@ -408,31 +439,9 @@ class CollisionPredicate(ExprPredicate):
                 distance = c[8] # c.contactDistance
                 normal = np.array(c[7]) # c.contactNormalOnB # Pointing towards A
             results.append((pt0, pt1, distance))
-            # if distance < self.dsafe and 'obs0' in [name0, name1] and not np.any(np.isnan(pose0)) and not np.any(np.isnan(pose1)):
-            #     print(name0, name1, distance, pose0, pose1)
-
-            # plotting
-            if self._debug:
-                pt0[2] = 1.01
-                pt1[2] = 1.01
-                self._plot_collision(pt0, pt1, distance)
-                print "pt0 = ", pt0
-                print "pt1 = ", pt1
-                print "distance = ", distance
-                print "normal = ", normal
-
             vals[i, 0] = self.dsafe - distance
             jacs[i, :2] = -1*normal[:2]
             jacs[i, 2:] = normal[:2]
-
-        if self._debug:
-            print "options: ", results
-            print "selected: ", chosen_pt0, chosen_pt1
-            print "selected distance: ", chosen_distance
-            self._plot_collision(chosen_pt0, chosen_pt1, chosen_distance)
-
-        # if jac0 is None or jac1 is None or val is None:
-        #     import ipdb; ipdb.set_trace()
         return np.array(vals).reshape((self.n_cols, 1)), np.array(jacs).reshape((self.n_cols, 4))
 
     def _plot_collision(self, ptA, ptB, distance):
@@ -1050,13 +1059,13 @@ class RCollides(CollisionPredicate):
         act = plan.actions[a]
         x1 = self.get_param_vector(time)
         val, jac = self.distance_from_obj(x1[:6], 0)
-        jac = jac[0,:2]
+        jac = -jac[0,:2]
         if np.all(jac == 0):
             return None, None
         
         jac = jac / (np.linalg.norm(jac) + 1e-3)
 
-        new_robot_pose = self.r.pose[:, time] + np.random.uniform(0.1, 0.8) * jac
+        new_robot_pose = self.r.pose[:, time] + np.random.uniform(0.1, 0.4) * jac
         st = max(max(time-3,0), act.active_timesteps[0])
         ref_st = max(max(time-3,1), act.active_timesteps[0]+1)
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
@@ -1095,14 +1104,17 @@ class Obstructs(CollisionPredicate):
 
         self.rs_scale = RS_SCALE
 
-        neg_coeff = 1e3
-        neg_grad_coeff = 1e-1 # 1e-3
+        neg_coeff = 1e2 # 1e3
+        neg_grad_coeff = 1e-2 # 1e-3
 
         def f(x):
             return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6)
 
         def grad(x):
-            return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
+            grad = -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
+            rotjac = np.arctan2(grad[:,0] - grad[:,6], grad[:,1] - grad[:,7])
+            grad[:,3] = -rotjac
+            return grad
 
         def f_neg(x):
             return -neg_coeff * f(x)
@@ -1176,8 +1188,9 @@ class Obstructs(CollisionPredicate):
         orth *= np.random.choice([-1., 1.], p=[w1, w2])
         orth = orth / np.linalg.norm(orth)
 
-        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
-        orth = rdisp #+ np.random.uniform(0.5, 2.) * orth
+        # rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
+        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 3e-1) * disp / np.linalg.norm(disp)
+        orth = rdisp #+ np.random.uniform(0.2, 0.5) * orth
         # orth *= np.random.uniform(0.7, 1.5) * (self.c.geom.radius + self.r.geom.radius + self.dsafe)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -1187,17 +1200,27 @@ class Obstructs(CollisionPredicate):
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         ref_st = max(max(time-3,0), act.active_timesteps[0])
         ref_et = min(min(time+3, plan.horizon-2), act.active_timesteps[1]-1)
+        poses = []
         for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
                 inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, st] + disp)
                 #inter_rp = (dist / 3.) * self.r.pose[:, time] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
-                inter_rp = (dist / 3.) * self.r.pose[:, ref_st] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
+                inter_rp = (dist / 3.) * self.r.pose[:, ref_st] + ((3. - dist) / 3.) * (self.r.pose[:, i] + disp)
             else:
                 inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, et] + disp)
                 #inter_rp = (dist / 3.) * self.r.pose[:, time] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
-                inter_rp = (dist / 3.) * self.r.pose[:, ref_et] + ((3. - dist) / 3.) * (self.r.pose[:, time] + disp)
+                inter_rp = (dist / 3.) * self.r.pose[:, ref_et] + ((3. - dist) / 3.) * (self.r.pose[:, i] + disp)
 
+            poses.append(inter_rp)
+            if len(poses) > 1:
+                newtheta = np.arctan2(*(poses[-1] - poses[-2]))
+                curtheta = self.r.theta[0,time]
+                opp_theta = opposite_angle(newtheta)
+                theta = newtheta
+                if np.abs(angle_diff(curtheta, newtheta)) > np.abs(angle_diff(opp_theta, curtheta)):
+                    theta = opp_theta
+                # add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', np.array([theta]))])
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
         return res, attr_inds
 
@@ -1210,7 +1233,7 @@ class Obstructs(CollisionPredicate):
 class WideObstructs(Obstructs):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.3
+        self.dsafe = 0.25
         self.check_aabb = False # True
 
 def sample_pose(plan, pose, robot, rs_scale):
@@ -1304,8 +1327,8 @@ class ObstructsHolding(CollisionPredicate):
         #f = lambda x: -self.distance_from_obj(x)[0]
         #grad = lambda x: -self.distance_from_obj(x)[1]
 
-        neg_coeff = 1e3
-        neg_grad_coeff = 1e-3
+        neg_coeff = 1e2 # 1e3
+        neg_grad_coeff = 1e-2 # 1e-3
         ## so we have an expr for the negated predicate
         #f_neg = lambda x: neg_coeff*self.distance_from_obj(x)[0]
         #grad_neg = lambda x: neg_grad_coeff*self.distance_from_obj(x)[1]
@@ -1319,15 +1342,20 @@ class ObstructsHolding(CollisionPredicate):
 
         def grad(x):
             if self.obstr.name == self.held.name:
-                return -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
+                grad = -twostep_f([x[:6], x[6:12]], self.distance_from_obj, 6, grad=True)
+                return grad
             else:
-                return -twostep_f([x[:8], x[8:16]], self.distance_from_obj, 8, grad=True)
+                grad = -twostep_f([x[:8], x[8:16]], self.distance_from_obj, 8, grad=True)
+                rotjac = np.arctan2(grad[:,0] - grad[:,8], grad[:,1] - grad[:,9])
+                grad[:,3] = -rotjac
+                return grad
 
         def f_neg(x):
             return -neg_coeff * f(x)
 
         def grad_neg(x):
-            return -neg_grad_coeff * grad(x)
+            gradneg = -neg_grad_coeff * grad(x)
+            return gradneg
 
 
         col_expr = Expr(f, grad)
@@ -1347,7 +1375,6 @@ class ObstructsHolding(CollisionPredicate):
 
     def resample(self, negated, time, plan):
         assert negated
-
         a = 0
         while a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
             a += 1
@@ -1374,7 +1401,7 @@ class ObstructsHolding(CollisionPredicate):
         long_disp = self.r.pose[:,et] - self.r.pose[:, st]
         long_disp /= np.linalg.norm(long_disp)
         d1, d2 = long_disp.dot(orth), long_disp.dot(-orth)
-
+        x = self.get_param_vector(time).flatten()
         if d1 > d2:
             w1, w2 = 0.1, 0.9
         else:
@@ -1408,17 +1435,28 @@ class ObstructsHolding(CollisionPredicate):
         ref_st = max(max(time-3,1), act.active_timesteps[0]+1)
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         ref_et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
+        poses = []
         for i in range(ref_st, ref_et):
             dist = float(np.abs(i - time))
             if i <= time:
-                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, time] + orth)
-                inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * (self.held.pose[:, time] + orth)
+                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * (self.r.pose[:, i] + orth)
+                #inter_hp = (dist / 3.) * self.held.pose[:, st] + ((3. - dist) / 3.) * (self.held.pose[:, time] + orth)
             else:
-                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, time] + orth)
-                inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * (self.held.pose[:, time] + orth)
-
+                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * (self.r.pose[:, i] + orth)
+                #inter_hp = (dist / 3.) * self.held.pose[:, et] + ((3. - dist) / 3.) * (self.held.pose[:, time] + orth)
+            theta = self.r.theta[0,i]
+            poses.append(inter_rp)
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
-            add_to_attr_inds_and_res(i, attr_inds, res, self.held, [('pose', inter_hp)])
+            if len(poses) > 1:
+                newtheta = np.arctan2(*(poses[-1] - poses[-2]))
+                curtheta = self.r.theta[0,i-1]
+                opp_theta = opposite_angle(newtheta)
+                theta = newtheta
+                if np.abs(angle_diff(curtheta, newtheta)) > np.abs(angle_diff(opp_theta, curtheta)):
+                    theta = opp_theta
+                inter_hp = poses[-2] + [(gripdist+dsafe) * -np.sin(theta), (gripdist+dsafe) * np.cos(theta)]
+                add_to_attr_inds_and_res(i-1, attr_inds, res, self.held, [('pose', inter_hp)])
+                # add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', np.array([theta]))])
         return res, attr_inds
 
     def get_expr(self, negated):
@@ -1452,7 +1490,7 @@ class ObstructsHolding(CollisionPredicate):
             col_val1 -= self.dsafe + 1e-3
             val = np.array(col_val1)
             jac = jac01
-
+            collisions = collisions1
         else:
             #if self.check_aabb:
             #    aabb_vals, aabb_jacs = self._check_robot_aabb(b0, b1)
@@ -1470,13 +1508,28 @@ class ObstructsHolding(CollisionPredicate):
             if np.max(col_val1) > np.max(col_val2):
                 val = np.array(col_val1)
                 jac = np.c_[jac01, np.zeros((N_COLS, 2))].reshape((N_COLS, 6))
+                collisions = collisions1
             else:
                 val = np.array(col_val2)
                 jac = np.c_[np.zeros((N_COLS, 2)), jac21[:, 2:], jac21[:, :2]].reshape((N_COLS, 6))
+                collisions = collisions2
             
-            if np.max(aabb_vals) > np.max(val):
-                val = aabb_vals
-                jac = aabb_jacs
+            #if np.max(aabb_vals) > np.max(val):
+            #    val = aabb_vals
+            #    jac = aabb_jacs
+        
+        if b0.isrobot():
+            if len(collisions):
+                pose0, pose1 = np.r_[pose0, [[0]]], np.r_[pose1, [[0]]]
+                colvec = np.array([c[5] for c in collisions])
+                axisvec = np.array([[0,0,1] for _ in collisions])
+                pos0vec = np.array([pose0.flatten() for _ in collisions])
+                crosstorque = np.cross(colvec-pos0vec, [0,0,1])
+                rotjac = np.dot(crosstorque, pose1-pose0)
+                rotjac = 0*np.r_[rotjac, np.zeros((len(jac)-len(collisions), 1))]
+            else:
+                rotjac = np.zeros((jac.shape[0], 1))
+            jac = np.c_[jac[:,:2], rotjac, np.zeros_like(rotjac), jac[:,2:]]
 
         return val, jac
 
@@ -1484,7 +1537,7 @@ class ObstructsHolding(CollisionPredicate):
 class WideObstructsHolding(ObstructsHolding):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
-        self.dsafe = 0.2
+        self.dsafe = 0.3
         self.check_aabb = False # True
 
 
@@ -1512,45 +1565,48 @@ class InGripper(ExprPredicate):
 class InGraspAngle(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.r, self.can = params
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
+        if self.r.is_symbol():
+            k = 'value'
+        else:
+            k = 'pose'
+        
+        attr_inds = OrderedDict([(self.r, [(k, np.array([0, 1], dtype=np.int)),
                                            ("theta", np.array([0], dtype=np.int))]),
                                  (self.can, [("pose", np.array([0, 1], dtype=np.int))]),
                                 ])
 
         def f(x):
             x = x.flatten()
-            dist = 0.65 + dsafe
-            rot = np.array([[np.cos(x[2]), -np.sin(x[2])],
-                            [np.sin(x[2]),  np.cos(x[2])]])
-            can_loc = np.dot(rot, [0, dist])
-            loc_delta = x[3:5] - x[:2] - can_loc
-            theta_delta = np.arctan2(*(x[3:5] - x[:2])) - x[2]
-            theta_delta = 0.
+            dist = gripdist + dsafe
+            rot = np.array([[np.cos(-x[2]), -np.sin(-x[2])],
+                            [np.sin(-x[2]),  np.cos(-x[2])]])
+            can_loc = np.dot(rot, [0, -dist])
+            loc_delta = (x[3:5] + can_loc) - x[:2]
+            xs, ys = x[3:5] - x[:2]
+            theta_delta = np.arctan2(xs, ys) - x[2]
+            theta_delta = 0*theta_delta
             return np.r_[loc_delta, theta_delta].reshape((-1,1))
 
         def grad(x):
             grad1 = np.eye(2)
             grad2 = np.zeros((1,2)) 
             grad3 = -np.eye(2)
-            grad4 = np.array([0, 0, 1., 0, 0]).reshape((5,1))
-            newgrad = 1e-1*np.c_[np.r_[grad1, grad2, grad3], grad4].T
+            grad4 = 0*np.array([0, 0, 1., 0, 0]).reshape((5,1))
+            newgrad = np.c_[np.r_[grad1, grad2, grad3], grad4].T
             return -np.c_[np.r_[grad1, grad2, grad3], grad4].T
 
-        A = np.c_[np.eye(2), np.zeros((2,1)), -np.eye(2)]
-        b = np.zeros((2,1))
-        c = np.array([[0], [0.66]])
-        e = EqExpr(AffExpr(A, c), b)
         angle_expr = Expr(f, grad)
         e = EqExpr(angle_expr, np.zeros((3,1)))
 
-        super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=0)
+        super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
 
 
     def resample(self, negated, time, plan):
         res = OrderedDict()
         attr_inds = OrderedDict()
         a = 0
-        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+        # while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] < time:
             a += 1
 
         if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
@@ -1558,55 +1614,66 @@ class InGraspAngle(ExprPredicate):
             
         act = plan.actions[a]
         x = self.get_param_vector(time).flatten()
-        rot = np.array([[np.cos(x[2]), -np.sin(x[2])],
-                        [np.sin(x[2]),  np.cos(x[2])]])
-        disp = rot.dot([0, -0.65-dsafe])
-        offset = x[3:5] + disp - x[:2]
+        theta = np.arctan2(*(x[3:5]-x[:2]))
+        rot = np.array([[np.cos(-x[2]), -np.sin(-x[2])],
+                        [np.sin(-x[2]),  np.cos(-x[2])]])
+        disp = rot.dot([0, -gripdist-dsafe])
+        offset = (x[3:5] + disp) - x[:2]
         new_robot_pose = x[:2] + offset / 2.
-        new_can_pose = x[3:5] - offset / 2.
+        new_can_pose = x[3:5] - offset #/ 2.
         # new_robot_pose = x[:2] + offset
         # new_can_pose = x[3:5]
-        st = max(max(time-3,1), act.active_timesteps[0]+1)
-        et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
-        ref_st = max(max(time-3,0), act.active_timesteps[0])
-        ref_et = min(min(time+3, plan.horizon-2), act.active_timesteps[1]-1)
-        for i in range(ref_st, et):
+        nsteps = 0
+        st = max(max(time-nsteps,1), act.active_timesteps[0]+1)
+        et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+        ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
+        ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+        add_to_attr_inds_and_res(time, attr_inds, res, self.can, [('pose', new_can_pose)])
+        # add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
+        for i in range(st, et):
             dist =float(np.abs(i - time))
             if i <= time:
-                inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * new_robot_pose
-                inter_cp = (dist / 3.) * self.can.pose[:, st] + ((3. - dist) / 3.) * new_can_pose
+                inter_rp = (dist / nsteps) * self.r.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_robot_pose
+                inter_cp = (dist / nsteps) * self.can.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_can_pose
             else:
-                inter_rp = (dist / 3.) * self.r.pose[:, et] + ((3. - dist) / 3.) * new_robot_pose
-                inter_cp = (dist / 3.) * self.can.pose[:, et] + ((3. - dist) / 3.) * new_can_pose
+                inter_rp = (dist / nsteps) * self.r.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_robot_pose
+                inter_cp = (dist / nsteps) * self.can.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_can_pose
+            inter_theta = np.array([np.arctan2(*(inter_cp - inter_rp))])
 
-            add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
+            # add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp),( 'theta', inter_theta)])
             add_to_attr_inds_and_res(i, attr_inds, res, self.can, [('pose', inter_cp)])
+        # print(new_robot_pose, new_can_pose, x)
         return res, attr_inds
 
 
 class NearGraspAngle(InGraspAngle):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.r, self.can = params
-        self.tol = 2e-1
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
+        self.tol = 5e-2
+        if self.r.is_symbol():
+            k = 'value'
+        else:
+            k = 'pose'
+        attr_inds = OrderedDict([(self.r, [(k, np.array([0, 1], dtype=np.int)),
                                            ("theta", np.array([0], dtype=np.int))]),
                                  (self.can, [("pose", np.array([0, 1], dtype=np.int))]),
                                 ])
 
         def f(x):
             x = x.flatten()
-            dist = 0.65 + dsafe
-            rot = np.array([[np.cos(x[2]), -np.sin(x[2])],
-                            [np.sin(x[2]),  np.cos(x[2])]])
-            can_loc = np.dot(rot, [0, dist])
-            loc_delta = x[3:5] - x[:2] - can_loc
-            theta_delta = np.arctan2(*(x[3:5] - x[:2])) - x[2]
+            dist = gripdist + dsafe
+            rot = np.array([[np.cos(-x[2]), -np.sin(-x[2])],
+                            [np.sin(-x[2]),  np.cos(-x[2])]])
+            can_loc = np.dot(rot, [0, -dist])
+            loc_delta = (x[3:5] + can_loc) - x[:2]
+            xs, ys = x[3:5] - x[:2]
+            theta_delta = np.arctan2(xs, ys) - x[2]
             return np.r_[loc_delta, theta_delta, -loc_delta, -theta_delta].reshape((-1,1))
 
         def grad(x):
             grad1 = np.eye(2)
             grad2 = np.zeros((1,2)) 
-            grad3 = -np.eye(2)
+            grad3 = -0*np.eye(2)
             grad4 = np.array([0, 0, 1., 0, 0]).reshape((5,1))
             fullgrad = np.c_[np.r_[grad1, grad2, grad3], grad4].T
             return np.r_[fullgrad, -fullgrad]
@@ -1614,7 +1681,45 @@ class NearGraspAngle(InGraspAngle):
         angle_expr = Expr(f, grad)
         e = LEqExpr(angle_expr, self.tol*np.ones((6,1)))
 
-        super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=0)
+        super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
+
+
+    def resample(self, negated, time, plan):
+        res = OrderedDict()
+        attr_inds = OrderedDict()
+        a = 0
+        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] < time:
+            a += 1
+
+        if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
+            return None, None
+            
+        act = plan.actions[a]
+        x = self.get_param_vector(time).flatten()
+        theta = np.arctan2(*(x[3:5]-x[:2]))
+        rot = np.array([[np.cos(-theta), -np.sin(-theta)],
+                        [np.sin(-theta),  np.cos(-theta)]])
+        disp = rot.dot([0, -gripdist-dsafe])
+        offset = (x[3:5] + disp) - x[:2]
+        new_robot_pose = x[:2] + offset
+        new_can_pose = x[3:5] - offset
+        nsteps = 0
+        st = max(max(time-nsteps,1), act.active_timesteps[0]+1)
+        et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+        ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
+        ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+        add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose), ('theta', np.array([theta]))])
+        for i in range(st, et):
+            dist =float(np.abs(i - time))
+            if i <= time:
+                inter_rp = (dist / nsteps) * self.r.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_robot_pose
+                inter_cp = (dist / nsteps) * self.can.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_can_pose
+            else:
+                inter_rp = (dist / nsteps) * self.r.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_robot_pose
+                inter_cp = (dist / nsteps) * self.can.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_can_pose
+
+            add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
+        return res, attr_inds
 
 
 class LinearRetreat(ExprPredicate):
@@ -1628,9 +1733,9 @@ class LinearRetreat(ExprPredicate):
 
         def f(x):
             x = x.flatten()
-            rot = np.array([[np.cos(x[2]), -np.sin(x[2])],
-                            [np.sin(x[2]),  np.cos(x[2])]])
-            # vel = np.linalg.norm(x[:2]-x[3:5])
+            rot = np.array([[np.cos(x[5]), -np.sin(x[5])],
+                            [np.sin(x[5]),  np.cos(x[5])]])
+            # vel = np.linalg.norm(x[:5]-x[3:5])
             disp = self.sign*rot.dot([[0], [-self.vel]])
             x = x.reshape((-1,1))
             return (x[3:5]-disp-x[:2])#.flatten()
@@ -1642,13 +1747,15 @@ class LinearRetreat(ExprPredicate):
         e = EqExpr(angle_expr, np.zeros((2,1)))
 
         super(LinearRetreat, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1, active_range=(0,1))
+        self.hl_include = True
 
 
     def resample(self, negated, time, plan):
         res = OrderedDict()
         attr_inds = OrderedDict()
         a = 0
-        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+        # while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] < time:
             a += 1
 
         if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
@@ -1657,8 +1764,8 @@ class LinearRetreat(ExprPredicate):
         act = plan.actions[a]
         x = self.get_param_vector(time).flatten()
         # vel = np.linalg.norm(x[:2]-x[3:5])
-        rot = np.array([[np.cos(x[2]), -np.sin(x[2])],
-                        [np.sin(x[2]),  np.cos(x[2])]])
+        rot = np.array([[np.cos(x[5]), -np.sin(x[5])],
+                        [np.sin(x[5]),  np.cos(x[5])]])
         disp = self.sign*rot.dot([0, -self.vel])
         offset = x[3:5] + disp - x[:2]
         new_robot_pose = x[:2] + offset
@@ -1666,7 +1773,7 @@ class LinearRetreat(ExprPredicate):
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
         ref_st = max(max(time-3,0), act.active_timesteps[0])
         ref_et = min(min(time+3, plan.horizon-2), act.active_timesteps[1]-1)
-        for i in range(ref_st, et):
+        for i in range(ref_st, et+1):
             dist =float(np.abs(i - time))
             if i <= time:
                 inter_rp = (dist / 3.) * self.r.pose[:, st] + ((3. - dist) / 3.) * new_robot_pose
@@ -1675,6 +1782,11 @@ class LinearRetreat(ExprPredicate):
 
             add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
         return res, attr_inds
+
+    def test(self, time, negated=False, tol=1e-4):
+        if time == 0:
+            return True
+        return super(LinearRetreat, self).test(time, negated, tol)
 
 
 class LinearApproach(LinearRetreat):
@@ -1750,6 +1862,10 @@ class RobotStationary(ExprPredicate):
         b = np.zeros((2, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((2, 1)))
         super(RobotStationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+        self.hl_include = True
+
+    def hl_test(self, time, negated=False, tol=None):
+        return True
 
 
 class Stationary(ExprPredicate):
@@ -1822,6 +1938,24 @@ class StationaryW(ExprPredicate):
         super(StationaryW, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
+#class IsMP(ExprPredicate):
+#
+#    # IsMP Robot
+#
+#    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+#        self.r, = params
+#        ## constraints  |x_t - x_{t+1}| < dmove
+#        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
+#        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))])])
+#        A = np.array([[1, 0, -1, 0],
+#                      [0, 1, 0, -1],
+#                      [-1, 0, 1, 0],
+#                      [0, -1, 0, 1]])
+#        b = np.zeros((4, 1))
+#        e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
+#        super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
+
 class IsMP(ExprPredicate):
 
     # IsMP Robot
@@ -1830,13 +1964,17 @@ class IsMP(ExprPredicate):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
-        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))])])
-        A = np.array([[1, 0, -1, 0],
-                      [0, 1, 0, -1],
-                      [-1, 0, 1, 0],
-                      [0, -1, 0, 1]])
-        b = np.zeros((4, 1))
-        e = LEqExpr(AffExpr(A, b), dmove*np.ones((4, 1)))
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int))])])
+        A = np.array([[1, 0, 0, -1, 0, 0],
+                      [0, 1, 0, 0, -1, 0],
+                      [0, 0, 1, 0, 0, -1],
+                      [-1, 0, 0, 1, 0, 0],
+                      [0, -1, 0, 0, 1, 0],
+                      [0, 0, -1, 0, 0, 1]])
+        b = np.zeros((6, 1))
+        drot = np.pi / 2.
+        e = LEqExpr(AffExpr(A, b), np.array([dmove, dmove, drot, dmove, dmove, drot]).reshape((6,1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
@@ -1945,5 +2083,143 @@ class AccValid(VelValid):
     def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
         super(AccValid, self).__init__(name, params, expected_param_types, env, debug, dmove)
         self.attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int)), ("acc", np.array([0, 1], dtype=np.int))]),])
+
+
+class ScalarVelValid(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.r, = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int)),
+                                           ("vel", np.array([0], dtype=np.int))]),
+                                ])
+        def f(x):
+            x = x.flatten()
+            curvel = np.linalg.norm(x[4:6]-x[:2])
+            curtheta = np.arctan2(*(x[4:6]-x[:2]))
+            if np.abs(angle_diff(curtheta, x[2])) > 3*np.pi/4:
+                curvel *= -1
+            return np.array([x[7]-curvel]).reshape((1,1))
+
+        def grad(x):
+            return np.array([0, 0, 0, 0, 0, 0, 0, 1]).reshape((1, 8))
+
+        angle_expr = Expr(f, grad)
+        e = EqExpr(angle_expr, np.zeros((1,1)))
+
+        super(ScalarVelValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority=3, active_range=(0,1))
+
+    def resample(self, negated, time, plan):
+        res = OrderedDict()
+        attr_inds = OrderedDict()
+        a = 0
+        # while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] < time:
+            a += 1
+
+        if a >= len(plan.actions) or time == plan.actions[a].active_timesteps[0]:
+            return None, None
+            
+        act = plan.actions[a]
+        x = self.get_param_vector(time).flatten()
+        disp = x[4:6] - x[:2]
+        curvel = np.linalg.norm(x[4:6]-x[:2])
+        curtheta = np.arctan2(*(x[4:6]-x[:2]))
+        if np.abs(angle_diff(curtheta, x[2])) > 3*np.pi/4:
+            curvel *= -1
+        add_to_attr_inds_and_res(time+1, attr_inds, res, self.r, [('vel', np.array([curvel]))])
+        return res, attr_inds
+
+
+class ThetaDirValid(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.r, = params
+        attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
+                                           ("theta", np.array([0], dtype=np.int)),
+                                           ("vel", np.array([0], dtype=np.int))]),
+                                ])
+
+        def f(x):
+            x = x.flatten()
+            curdisp = x[4:6] - x[:2]
+            if np.linalg.norm(curdisp) < 1e-3:
+                return np.zeros((3,1))
+            curtheta = np.arctan2(curdisp[0], curdisp[1])
+            theta = x[2]
+            opp_theta = opposite_angle(curtheta)
+            if np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+                curtheta = opp_theta
+            theta_off = angle_diff(theta, curtheta)
+            rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
+                            [np.sin(theta_off), np.cos(theta_off)]])
+            newdisp = rot.dot(curdisp)
+            pos_off = newdisp - curdisp
+            return np.r_[pos_off, [theta_off]].reshape((3,1))
+
+        def grad(x):
+            posgrad = np.c_[-np.eye(2), np.zeros((2,2)), np.eye(2), np.zeros((2,2))]
+            theta_grad = np.array([0, 0, 1, 0, 0, 0, 0, 0]).reshape((1,8))
+            return np.r_[posgrad, theta_grad].reshape((3,8))
+
+        angle_expr = Expr(f, grad)
+        e = EqExpr(angle_expr, np.zeros((1,1)))
+
+        super(ThetaDirValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority=2, active_range=(0,1))
+
+    def resample(self, negated, time, plan):
+        res = OrderedDict()
+        attr_inds = OrderedDict()
+        a = 0
+        while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] <= time:
+        # while  a < len(plan.actions) and plan.actions[a].active_timesteps[1] < time:
+            a += 1
+
+        if a >= len(plan.actions): # or time == plan.actions[a].active_timesteps[0]:
+            return None, None
+            
+        act = plan.actions[a]
+        x = self.get_param_vector(time).flatten()
+        theta = x[2]
+        disp = x[4:6] - x[:2]
+        cur_theta = np.arctan2(disp[0], disp[1])
+        opp_theta = opposite_angle(cur_theta)
+        if np.abs(angle_diff(cur_theta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+            cur_theta = opp_theta
+        #add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('theta', np.array([cur_theta]))])
+        #return res, attr_inds
+        theta_off = -angle_diff(theta, cur_theta)
+        rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
+                        [np.sin(theta_off), np.cos(theta_off)]])
+        new_disp = rot.dot(disp)
+        new_robot_pose_1 = x[:2] + new_disp
+        new_robot_pose_2 = x[4:6] - new_disp# (new_disp + disp) / 2.
+        new_theta = np.array([add_angle(cur_theta, theta_off/2.)])
+        #add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('pose', new_robot_pose)])
+        #add_to_attr_inds_and_res(time+1, attr_inds, res, self.r, [('theta', new_theta)])
+        nsteps = 1
+        st = max(max(time-nsteps,1), act.active_timesteps[0]+1)
+        et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+        ref_st = max(max(time-nsteps,0), act.active_timesteps[0])
+        ref_et = min(min(time+nsteps, plan.horizon-1), act.active_timesteps[1])
+        poses = []
+        for i in range(st, et+1):
+            if i <= time:
+                dist = float(np.abs(i - time))
+                inter_rp = (dist / nsteps) * self.r.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_robot_pose_2
+                inter_theta = (dist / nsteps) * self.r.pose[:, ref_st] + ((nsteps - dist) / nsteps) * new_theta
+            else:
+                dist = float(np.abs(i - time - 1))
+                inter_rp = (dist / nsteps) * self.r.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_robot_pose_1
+                inter_theta = (dist / nsteps) * self.r.pose[:, ref_et] + ((nsteps - dist) / nsteps) * new_theta
+            add_to_attr_inds_and_res(i, attr_inds, res, self.r, [('pose', inter_rp)])
+            poses.append(inter_rp)
+            if len(poses) > 1:
+                newtheta = np.arctan2(*(poses[-1] - poses[-2]))
+                curtheta = self.r.theta[0,time]
+                opp_theta = opposite_angle(newtheta)
+                theta = newtheta
+                if np.abs(angle_diff(curtheta, newtheta)) > np.abs(angle_diff(opp_theta, curtheta)):
+                    theta = opp_theta
+                if i-1 != time: add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', np.array([theta]))])
+        return res, attr_inds
 
 

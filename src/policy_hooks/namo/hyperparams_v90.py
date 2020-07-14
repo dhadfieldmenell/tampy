@@ -170,7 +170,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     prob.N_GRASPS = N_GRASPS
     prob.FIX_TARGETS = True
 
-    prob.domain_file = "../domains/namo_domain/currentgrip.domain"
+    prob.domain_file = "../domains/namo_domain/namo_current_grip.domain"
     prob.END_TARGETS = prob.END_TARGETS[:8]
     prob.n_aux = 0
     config = {
@@ -261,10 +261,10 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
         'obs_include': [#utils.LIDAR_ENUM,
                         utils.MJC_SENSOR_ENUM,
                         utils.TASK_ENUM,
-                        utils.OBJ_POSE_ENUM,
-                        utils.TARG_POSE_ENUM,
-                        #utils.END_POSE_ENUM,
-                        utils.GRASP_ENUM,
+                        #utils.OBJ_POSE_ENUM,
+                        #utils.TARG_POSE_ENUM,
+                        utils.END_POSE_ENUM,
+                        # utils.GRASP_ENUM,
                         #utils.TRAJ_HIST_ENUM,
                         # utils.DONE_ENUM,
                         ],
@@ -286,6 +286,8 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.EE_ENUM: 2,
                 utils.END_POSE_ENUM: 2,
                 utils.GRIPPER_ENUM: 1,
+                utils.VEL_ENUM: 1,
+                utils.THETA_ENUM: 1,
                 utils.GRASP_ENUM: N_GRASPS,
                 utils.GOAL_ENUM: 2*no,
                 utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + len(prob.END_TARGETS)),
@@ -311,6 +313,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     }
 
     config['prim_obs_include'].append(utils.EE_ENUM)
+    config['prim_obs_include'].append(utils.THETA_ENUM)
     config['val_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2

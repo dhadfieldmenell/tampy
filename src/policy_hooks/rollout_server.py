@@ -257,6 +257,8 @@ class RolloutServer(object):
         prc[np.where(prc < -1e10)] = -1e10
         wt[np.where(wt < -1e10)] = -1e10
         mu[np.where(np.abs(mu) > 1e10)] = 0
+        if np.any(np.isnan(obs)):
+            print(obs, task, np.isnan(obs))
         assert not np.any(np.isnan(obs))
         assert not np.any(np.isinf(obs))
         obs[np.where(np.abs(obs) > 1e10)] = 0
@@ -1127,7 +1129,7 @@ class RolloutServer(object):
         val, path = self.mcts[0].test_run(x0, targets, rlen, hl=True, soft=self.config['soft_eval'], check_cost=self.check_precond)
         true_disp = np.min([[self.agent.goal_f(0, step.get(STATE_ENUM, t), targets, cont=True) for t in range(step.T)] for step in path])
         true_val = np.max([[1-self.agent.goal_f(0, step.get(STATE_ENUM, t), targets) for t in range(step.T)] for step in path])
-        ncols = np.mean([sample.col_ts for sample in path])
+        ncols = np.mean([np.mean(sample.col_ts) for sample in path])
         if ckpt_ind is not None:
             s.append((val, len(path), true_disp, time.time()-self.start_t, self.config['num_objs'], n, self.policy_opt.N, true_val, ckpt_ind))
         else:
@@ -1398,6 +1400,8 @@ class RolloutServer(object):
             wt[0] *= self.prim_first_wt
             tgt_wt = np.concatenate((tgt_wt, wt))
             obs = sample.get_prim_obs()
+            if np.any(np.isnan(obs)):
+                 print(obs, sample.task, 'SAMPLE')
             obs_data = np.concatenate((obs_data, obs))
             prc = np.concatenate([self.agent.get_mask(sample, enum) for enum in self.config['prim_out_include']], axis=-1) # np.tile(np.eye(dP), (sample.T,1,1))
             if not self.config['hl_mask']:

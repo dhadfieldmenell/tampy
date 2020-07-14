@@ -672,58 +672,6 @@ def get_base_solver(parent_class):
             self.reset_variable()
             return success
 
-
-        def _add_policy_preds(self, plan):
-            for action in plan.actions:
-                for pred_dict in action.preds:
-                    if pred_dict['hl_info'] == 'policy':
-                        self._add_policy_pred_dict(pred_dict, effective_timesteps)
-
-
-        def _add_policy_pred_dict(self, pred_dict, effective_timesteps):
-            """
-                This function creates constraints for the predicate and added to
-                Prob class in sco.
-            """
-            start, end = pred_dict['active_timesteps']
-            active_range = range(start, end+1)
-            negated = pred_dict['negated']
-            pred = pred_dict['pred']
-
-            expr = pred.get_expr(negated)
-
-            if expr is not None:
-                for t in active_range:
-                    if t < effective_timesteps[0] or t > effective_timesteps[1]: continue
-                    var = self._spawn_sco_var_for_policy_pred(pred, t)
-                    bexpr = BoundExpr(expr, var)
-
-                    self._bexpr_to_pred[bexpr] = (negated, pred, t)
-                    groups = ['all']
-                    if self.early_converge:
-                        ## this will check for convergence per parameter
-                        ## this is good if e.g., a single trajectory quickly
-                        ## gets stuck
-                        groups.extend([param.name for param in pred.params])
-                    self._prob.add_cnt_expr(bexpr, groups)
-
-
-        def _spawn_sco_var_for_policy_pred(self, pred, t):
-            x = np.empty(pred.dU*(self.agent.hist_len+2), dtype=object)
-            v = np.empty(pred.dU*(self.agent.hist_len+2))
-            for i in range(t-pred.dU*self.agent.hist_len, t+2):
-                for param in pred.params:
-                    for attr in const.ATTR_MAP[param._type]:
-                        if (param.name, attr[0]) in pred.action_inds:
-                            ll_p = self._param_to_ll[param]
-                            x[t*pred.dU:(t+1)*pred.dU][pred.action_inds[(param.name, attr[0])]] = getattr(ll_p, attr[0])[attr[1], t-self.ll_start]
-                            v[t*pred.dU:(t+1)*pred.dU][pred.action_inds[(param.name, attr[0])]] = getattr(param, attr[0])[attr[1], t]
-
-            x = x.reshape((-1,1))
-            v = v.reshape((-1,1))
-
-            return Variable(x, v)
-
         def quick_solve(self, plan, callback=None, n_resamples=5, traj_mean=[], verbose=False, step=1, attr_dict=None):
             # plan.save_free_attrs()
             if len(traj_mean):

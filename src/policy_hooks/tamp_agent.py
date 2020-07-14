@@ -157,8 +157,8 @@ class TAMPAgent(Agent):
         self.prim_dims_keys = list(self.prim_dims.keys())
 
         self.solver = self._hyperparams['mp_solver_type'](self._hyperparams)
-        if 'll_solver_type' in self._hyperparams:
-            self.ll_solver = self._hyperparams['ll_solver_type'](self._hyperparams)
+        if 'll_solver_type' in self._hyperparams['master_config']:
+            self.ll_solver = self._hyperparams['master_config']['ll_solver_type'](self._hyperparams)
         else:
             self.ll_solver = self._hyperparams['mp_solver_type'](self._hyperparams)
         self.hl_solver = get_hl_solver(self.prob.domain_file)
@@ -904,11 +904,11 @@ class TAMPAgent(Agent):
         return out
 
 
-    def _backtrack_solve(self, plan, anum=0):
-        return self.backtrack_solve(plan, anum=anum)
+    def _backtrack_solve(self, plan, anum=0, n_resamples=5):
+        return self.backtrack_solve(plan, anum=anum, n_resamples=n_resamples)
 
 
-    def backtrack_solve(self, plan, anum=0):
+    def backtrack_solve(self, plan, anum=0, n_resamples=5):
         # Handle to make PR Graph integration easier
         start = anum
         plan.state_inds = self.state_inds
@@ -954,7 +954,7 @@ class TAMPAgent(Agent):
                 self.set_symbols(plan, x0, task, anum=a)
                 try:
                     #success = self.solver._backtrack_solve(plan, anum=a, amax=a, traj_mean=traj, n_resamples=5)
-                    success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=5)
+                    success = self.ll_solver._backtrack_solve(plan, anum=a, amax=a, n_resamples=n_resamples)
                 except Exception as e:
                     traceback.print_exception(*sys.exc_info())
                     print('Exception in full solve for', x0, task, plan.actions[a])
@@ -1041,6 +1041,11 @@ class TAMPAgent(Agent):
                         # sample.prim_use_ts[len(traj)-2] = 1.
             else:
                 sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj, targets=targets)
+                print(zip(sample.get_X(), opt_traj[:-1]))
+                print('END:', sample.end_state, opt_traj[-1], self.get_state())
+                print('ACT1:', sample.get(ACTION_ENUM, sample.T-2))
+                print('ACT2:', sample.get(ACTION_ENUM, sample.T-1))
+                print('\n\n')
                 # self.add_sample_batch([sample], task)
                 path.append(sample)
                 sample.discount = 1.

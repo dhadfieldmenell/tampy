@@ -183,9 +183,9 @@ class PolicyServer(object):
                     info = self.get_log_info()
                     pp_info = pprint.pformat(info, depth=60)
                     f.write(str(pp_info))
-            if not self.n_updates % 20:
-                with open(self.data_file, 'w+') as f:
-                    pickle.dump(self.policy_opt.get_data(), f)
+            # if not self.n_updates % 20:
+            #     with open(self.data_file, 'w+') as f:
+            #         pickle.dump(self.policy_opt.get_data(), f)
 
 
     def get_log_info(self):

@@ -7,6 +7,7 @@
 *.swp
 src/experiments/
 src/tf_saved/
+src/backup/*
 src/temp/*
 !src/temp/.gitkeep
 src/ros_utils/devel
