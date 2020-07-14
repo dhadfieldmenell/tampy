@@ -15,7 +15,8 @@ TDELTA = 300
 MIN_FRAME = 30
 nan = np.nan
 LOG_DIR = 'tf_saved/'
-SAVE_DIR = '/home/michaelmcdonald/Dropbox/'
+prefix = os.path.expanduser('~')
+SAVE_DIR = prefix+'/Dropbox/'
 X_VARS = ['time', 'n_opt_calls', 'n_runs', 'n_learning_iters']
 Y_VARS = ['n_success', 'opt_cost', 'tree_life']
 
