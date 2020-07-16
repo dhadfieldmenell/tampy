@@ -277,7 +277,7 @@ class CollisionPredicate(ExprPredicate):
             raise Exception('Should not call this without the robot!')
         pose0 = x[0:2]
         pose1 = x[4:6]
-        b0.set_dof({'left_grip': x[2], 'right_grip': x[2], 'robot_theta': -x[3], 'ypos': 0., 'xpos': 0.})
+        b0.set_dof({'left_grip': x[2], 'right_grip': x[2], 'robot_theta': x[3], 'ypos': 0., 'xpos': 0.})
         b0.set_pose(pose0)
         b1.set_pose(pose1)
         return pose0, pose1
@@ -1578,6 +1578,11 @@ class InGraspAngle(ExprPredicate):
         def f(x):
             x = x.flatten()
             dist = gripdist + dsafe
+            targ_loc = [-dist * np.sin(x[2]), dist * np.cos(x[2])]
+            can_loc = x[3:5]
+            return np.array([[((x[0]+targ_loc[0])-can_loc[0])**2 + ((x[1]+targ_loc[1])-can_loc[1])**2]])
+
+
             rot = np.array([[np.cos(-x[2]), -np.sin(-x[2])],
                             [np.sin(-x[2]),  np.cos(-x[2])]])
             can_loc = np.dot(rot, [0, -dist])
@@ -1588,6 +1593,22 @@ class InGraspAngle(ExprPredicate):
             return np.r_[loc_delta, theta_delta].reshape((-1,1))
 
         def grad(x):
+            x = x.flatten()
+            curdisp = x[3:5] - x[:2]
+            dist = gripdist + dsafe
+            theta = x[2]
+            targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
+            off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
+            (x1, y1), (x2, y2) = x[:2], x[3:5]
+            
+            x1_grad = -2 * ((x2-x1)+dist*np.sin(theta))
+            y1_grad = -2 * ((y2-y1)-dist*np.cos(theta))
+            theta_grad = 2 * dist * ((x2-x1)*np.cos(theta) + (y2-y1)*np.sin(theta))
+            x2_grad = 2 * ((x2-x1)+dist*np.sin(theta))
+            y2_grad = 2 * ((y2-y1)-dist*np.cos(theta))
+            return np.array([x1_grad, y1_grad, theta_grad, x2_grad, y2_grad]).reshape((1,5))
+
+
             grad1 = np.eye(2)
             grad2 = np.zeros((1,2)) 
             grad3 = -np.eye(2)
@@ -1595,8 +1616,11 @@ class InGraspAngle(ExprPredicate):
             newgrad = np.c_[np.r_[grad1, grad2, grad3], grad4].T
             return -np.c_[np.r_[grad1, grad2, grad3], grad4].T
 
+        self.f = f
+        self.grad = grad
         angle_expr = Expr(f, grad)
         e = EqExpr(angle_expr, np.zeros((3,1)))
+        e = EqExpr(angle_expr, np.zeros((1,1)))
 
         super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
 
@@ -1659,6 +1683,7 @@ class NearGraspAngle(InGraspAngle):
                                  (self.can, [("pose", np.array([0, 1], dtype=np.int))]),
                                 ])
 
+        '''
         def f(x):
             x = x.flatten()
             dist = gripdist + dsafe
@@ -1677,9 +1702,33 @@ class NearGraspAngle(InGraspAngle):
             grad4 = np.array([0, 0, 1., 0, 0]).reshape((5,1))
             fullgrad = np.c_[np.r_[grad1, grad2, grad3], grad4].T
             return np.r_[fullgrad, -fullgrad]
+        '''
+
+        def f(x):
+            x = x.flatten()
+            dist = gripdist + dsafe
+            targ_loc = [-dist * np.sin(x[2]), dist * np.cos(x[2])]
+            can_loc = x[3:5]
+            return np.array([[((x[0]+targ_loc[0])-can_loc[0])**2 + ((x[1]+targ_loc[1])-can_loc[1])**2]])
+
+        def grad(x):
+            x = x.flatten()
+            curdisp = x[3:5] - x[:2]
+            dist = gripdist + dsafe
+            theta = x[2]
+            targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
+            off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
+            (x1, y1), (x2, y2) = x[:2], x[3:5]
+            
+            x1_grad = -2 * ((x2-x1)+dist*np.sin(theta))
+            y1_grad = -2 * ((y2-y1)-dist*np.cos(theta))
+            theta_grad = 2 * dist * ((x2-x1)*np.cos(theta) + (y2-y1)*np.sin(theta))
+            x2_grad = 2 * ((x2-x1)+dist*np.sin(theta))
+            y2_grad = 2 * ((y2-y1)-dist*np.cos(theta))
+            return np.array([x1_grad, y1_grad, theta_grad, x2_grad, y2_grad]).reshape((1,5))
 
         angle_expr = Expr(f, grad)
-        e = LEqExpr(angle_expr, self.tol*np.ones((6,1)))
+        e = LEqExpr(angle_expr, self.tol*np.ones((1,1)))
 
         super(InGraspAngle, self).__init__(name, e, attr_inds, params, expected_param_types, priority=1)
 
@@ -1882,6 +1931,7 @@ class Stationary(ExprPredicate):
         super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
+'''
 class StationaryRot(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.c,  = params
@@ -1890,6 +1940,22 @@ class StationaryRot(ExprPredicate):
         b = np.zeros((1, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((1, 1)))
         super(StationaryRot, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+'''
+
+
+class StationaryRot(ExprPredicate):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        self.c,  = params
+        attr_inds = OrderedDict([(self.c, [("theta", np.array([0], dtype=np.int))])])
+        def f(x):
+            return angle_diff(x[1], x[0])
+
+        def grad(x):
+            return np.array([-1, 1]).reshape((1,2))
+
+        angleExpr = Expr(f, grad)
+        e = EqExpr(angleExpr, np.zeros((1,1)))
+        super(StationaryRot, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=0)
 
 
 class AtRot(ExprPredicate):
@@ -2133,6 +2199,7 @@ class ScalarVelValid(ExprPredicate):
 class ThetaDirValid(ExprPredicate):
     def __init__(self, name, params, expected_param_types, env=None, debug=False):
         self.r, = params
+        self.forward, self.reverse = False, False
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
                                            ("theta", np.array([0], dtype=np.int)),
                                            ("vel", np.array([0], dtype=np.int))]),
@@ -2141,21 +2208,73 @@ class ThetaDirValid(ExprPredicate):
         def f(x):
             x = x.flatten()
             curdisp = x[4:6] - x[:2]
+            dist = np.linalg.norm(curdisp)
+            theta = x[2]
+            targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
+            off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
+            opp_off = (curdisp[0]+targ_disp[0])**2 + (curdisp[1]+targ_disp[1])**2
+            if self.forward: return np.array([[off]])
+            if self.reverse: return 1e-3*np.array([[opp_off]])
+            return np.array([[min(off, opp_off)]])
+
             if np.linalg.norm(curdisp) < 1e-3:
+                return np.zeros((1,1))
                 return np.zeros((3,1))
             curtheta = np.arctan2(curdisp[0], curdisp[1])
             theta = x[2]
             opp_theta = opposite_angle(curtheta)
-            if np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+            if not self.forward and np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
                 curtheta = opp_theta
+            elif self.reverse:
+                curtheta = opp_theta
+
             theta_off = angle_diff(theta, curtheta)
             rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
                             [np.sin(theta_off), np.cos(theta_off)]])
             newdisp = rot.dot(curdisp)
             pos_off = newdisp - curdisp
+            return np.array([[pos_off[0]**2 + pos_off[1]**2]])
             return np.r_[pos_off, [theta_off]].reshape((3,1))
 
         def grad(x):
+            x = x.flatten()
+            curdisp = x[4:6] - x[:2]
+            dist = np.linalg.norm(curdisp)
+            theta = x[2]
+            targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
+            off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
+            opp_off = (curdisp[0]+targ_disp[0])**2 + (curdisp[1]+targ_disp[1])**2
+            if self.reverse or opp_off < off:
+                theta += np.pi
+            (x1, y1), (x2, y2) = x[:2], x[4:6]
+            
+            x1_grad = -2 * ((x2-x1)+dist*np.sin(theta))
+            y1_grad = -2 * ((y2-y1)-dist*np.cos(theta))
+            theta_grad = 2 * dist * ((x2-x1)*np.cos(theta) + (y2-y1)*np.sin(theta))
+            x2_grad = 2 * ((x2-x1)+dist*np.sin(theta))
+            y2_grad = 2 * ((y2-y1)-dist*np.cos(theta))
+            return np.array([x1_grad, y1_grad, theta_grad, 0, x2_grad, y2_grad, 0, 0]).reshape((1,8))
+
+            curtheta = np.arctan2(curdisp[0], curdisp[1])
+            theta = x[2]
+            opp_theta = opposite_angle(curtheta)
+            if not self.forward and np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+                curtheta = opp_theta
+            elif self.reverse:
+                curtheta = opp_theta
+
+            theta_off = angle_diff(theta, curtheta)
+            rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
+                            [np.sin(theta_off), np.cos(theta_off)]])
+            newdisp = rot.dot(curdisp)
+            pos_off = newdisp - curdisp
+
+            x1_grad = -2 * ((x2-x1)-xt)
+            y1_grad = -2 * ((y2-y1)-yt)
+            theta_grad =  2 * dist * np.cos(theta) * ((x2-x1)+dist*np.sin(theta)) + \
+                         -2 * dist * np.sin(theta) * ((x2-x1)-dist*np.cos(theta))
+            x2_grad = 2 * ((x2-x1)-xt)
+            y2_grad = 2 * ((y2-y1)-yt)
             posgrad = np.c_[-np.eye(2), np.zeros((2,2)), np.eye(2), np.zeros((2,2))]
             theta_grad = np.array([0, 0, 1, 0, 0, 0, 0, 0]).reshape((1,8))
             return np.r_[posgrad, theta_grad].reshape((3,8))
@@ -2180,12 +2299,20 @@ class ThetaDirValid(ExprPredicate):
         x = self.get_param_vector(time).flatten()
         theta = x[2]
         disp = x[4:6] - x[:2]
+        dist = np.linalg.norm(disp)
+        targ_disp = [-dist * np.sin(theta), dist*np.cos(theta)]
+        pose1 = x[4:6] - targ_disp
+        pose2 = x[:2] + targ_disp
         cur_theta = np.arctan2(disp[0], disp[1])
         opp_theta = opposite_angle(cur_theta)
-        if np.abs(angle_diff(cur_theta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+        if not self.forward and np.abs(angle_diff(cur_theta, theta)) > np.abs(angle_diff(opp_theta, theta)):
             cur_theta = opp_theta
-        #add_to_attr_inds_and_res(time, attr_inds, res, self.r, [('theta', np.array([cur_theta]))])
-        #return res, attr_inds
+        elif self.reverse:
+            cur_theta = opp_theta
+        add_to_attr_inds_and_res(time, attr_inds, res, self.r,   [('pose', pose1), ('theta', np.array([cur_theta]))])
+        add_to_attr_inds_and_res(time+1, attr_inds, res, self.r, [('pose', pose2)])
+
+        return res, attr_inds
         theta_off = -angle_diff(theta, cur_theta)
         rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
                         [np.sin(theta_off), np.cos(theta_off)]])
@@ -2217,9 +2344,21 @@ class ThetaDirValid(ExprPredicate):
                 curtheta = self.r.theta[0,time]
                 opp_theta = opposite_angle(newtheta)
                 theta = newtheta
-                if np.abs(angle_diff(curtheta, newtheta)) > np.abs(angle_diff(opp_theta, curtheta)):
+                if self.reverse or (not self.forward and np.abs(angle_diff(curtheta, newtheta)) > np.abs(angle_diff(opp_theta, curtheta))):
                     theta = opp_theta
                 if i-1 != time: add_to_attr_inds_and_res(i-1, attr_inds, res, self.r, [('theta', np.array([theta]))])
         return res, attr_inds
+
+
+class ForThetaDirValid(ThetaDirValid):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(ForThetaDirValid, self).__init__(name, params, expected_param_types, env, debug)
+        self.forward = True
+
+
+class RevThetaDirValid(ThetaDirValid):
+    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+        super(RevThetaDirValid, self).__init__(name, params, expected_param_types, env, debug)
+        self.reverse = True
 
 

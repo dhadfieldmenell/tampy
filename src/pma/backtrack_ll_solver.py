@@ -615,8 +615,8 @@ class BacktrackLLSolver(LLSolver):
             ## returns a vector of new values and an
             ## attr_inds (OrderedDict) that gives the mapping
             ## to parameter attributes
-            if pred_type.get(pred.get_type, False):
-                continue
+            # if pred_type.get(pred.get_type, False):
+            #     continue
             val, attr_inds = pred.resample(negated, t, plan)
             # if val is not None: pred_type[pred.get_type] = True
             ## if no resample defined for that pred, continue

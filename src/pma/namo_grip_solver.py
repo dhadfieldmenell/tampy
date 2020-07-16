@@ -68,11 +68,12 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif act.name == 'moveto' or act.name == 'new_quick_movetograsp' or act.name == 'quick_moveto':
                 target = act.params[2]
                 grasp = act.params[5]
-                target_rot = np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
                 # if np.abs(target_rot) > np.pi/2.:
                 #    target_rot = opposite_angle(target_rot)
                 dist = gripdist + dsafe
                 target_pos = target.value - [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
+                target_pos = target.value - [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[0.1]]), 'theta': np.array([[target_rot]])})
                 # robot_pose.append({'pose': target_pos + grasp.value, 'gripper': np.array([[-1.]])})
             elif act.name == 'transfer' or act.name == 'new_quick_place_at':
@@ -82,6 +83,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
                 target_rot = np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
                 dist = -gripdist - dsafe
                 target_pos = target.value + [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
+                target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
             elif act.name == 'place':
                 target = act.params[4]

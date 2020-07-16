@@ -16,7 +16,7 @@ Predicates Import Path: core.util_classes.namo_grip_predicates
 prim_pred_str = 'Primitive Predicates: geom, Can, RedCircle; pose, Can, Vector2d; geom, Target, BlueCircle; value, Target, Vector2d; value, RobotPose, Vector2d; gripper, RobotPose, Vector1d; geom, RobotPose, BlueCircle; geom, Robot, NAMO; pose, Robot, Vector2d; gripper, Robot, Vector1d; value, Grasp, Vector2d; geom, Obstacle, Wall; pose, Obstacle, Vector2d; value, Rotation, Vector1d; theta, Robot, Vector1d; theta, RobotPose, Vector1d; vel, RobotPose, Vector1d; acc, RobotPose, Vector1d; vel, Robot, Vector1d; acc, Robot, Vector1d'
 dom_str += prim_pred_str + '\n\n'
 
-der_pred_str = 'Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; Obstructs, Robot, RobotPose, RobotPose, Can; ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can; WideObstructsHolding, Robot, RobotPose, RobotPose, Can, Can; StationaryRot, Robot; Stationary, Can; RobotStationary, Robot; StationaryNEq, Can, Can; IsMP, Robot; StationaryW, Obstacle; Collides, Can, Obstacle; RCollides, Robot, Obstacle; GripperClosed, Robot; Near, Can, Target;  RobotAtGrasp, Robot, Can, Grasp; RobotWithinReach, Robot, Target; RobotNearGrasp, Robot, Can, Grasp; RobotWithinBounds, Robot; WideObstructs, Robot, RobotPose, RobotPose, Can; AtNEq, Can, Can, Target; PoseCollides, RobotPose, Obstacle; TargetCollides, Target, Obstacle; TargetGraspCollides, Target, Obstacle, Grasp; TargetCanGraspCollides, Target, Can, Grasp; CanGraspCollides, Can, Obstacle, Grasp; HLPoseUsed, RobotPose; HLAtGrasp, Robot, Can, Grasp; RobotPoseAtGrasp, RobotPose, Target, Grasp; HLPoseAtGrasp, RobotPose, Target, Grasp; RobotRetreat, Robot, Grasp; RobotApproach, Robot, Grasp; LinearRetreat, Robot; LinearApproach, Robot; InGraspAngle, Robot, Can; NearGraspAngle, Robot, Can; ThetaDirValid, Robot; ScalarVelValid, Robot'
+der_pred_str = 'Derived Predicates: At, Can, Target; RobotAt, Robot, RobotPose; InGripper, Robot, Can, Grasp; Obstructs, Robot, RobotPose, RobotPose, Can; ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can; WideObstructsHolding, Robot, RobotPose, RobotPose, Can, Can; StationaryRot, Robot; Stationary, Can; RobotStationary, Robot; StationaryNEq, Can, Can; IsMP, Robot; StationaryW, Obstacle; Collides, Can, Obstacle; RCollides, Robot, Obstacle; GripperClosed, Robot; Near, Can, Target;  RobotAtGrasp, Robot, Can, Grasp; RobotWithinReach, Robot, Target; RobotNearGrasp, Robot, Can, Grasp; RobotWithinBounds, Robot; WideObstructs, Robot, RobotPose, RobotPose, Can; AtNEq, Can, Can, Target; PoseCollides, RobotPose, Obstacle; TargetCollides, Target, Obstacle; TargetGraspCollides, Target, Obstacle, Grasp; TargetCanGraspCollides, Target, Can, Grasp; CanGraspCollides, Can, Obstacle, Grasp; HLPoseUsed, RobotPose; HLAtGrasp, Robot, Can, Grasp; RobotPoseAtGrasp, RobotPose, Target, Grasp; HLPoseAtGrasp, RobotPose, Target, Grasp; RobotRetreat, Robot, Grasp; RobotApproach, Robot, Grasp; LinearRetreat, Robot; LinearApproach, Robot; InGraspAngle, Robot, Can; NearGraspAngle, Robot, Can; ThetaDirValid, Robot; ForThetaDirValid, Robot; RevThetaDirValid, Robot; ScalarVelValid, Robot'
 dom_str += der_pred_str + '\n'
 
 dom_str += """
@@ -72,7 +72,7 @@ class MoveTo(Action):
                 ('(forall (?obj - Can) (not (ObstructsHolding ?robot ?sp ?gp ?obj ?can)))', '{0}:{1}'.format(et-2, et-1)),
                 ('(ThetaDirValid ?robot)', '{0}:{1}'.format(1, et-1)),
                 ('(RobotStationary ?robot)', '{0}:{1}'.format(0,0)),
-                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 # ('(LinearApproach ?robot)', '17:17'),
         ]
         self.eff = [\
@@ -119,7 +119,7 @@ class Transfer(Action):
                 ('(not (GripperClosed ?robot))', '{0}:{1}'.format(et, et-1)),
                 ('(ThetaDirValid ?robot)', '{0}:{1}'.format(1, et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(0)),
-                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 ]
         self.eff = [\
                 ('(At ?c ?t)', '{0}:{1}'.format(et-1, et)),
@@ -152,8 +152,8 @@ class Place(Action):
                 ('(forall (?w - Obstacle) (not (RCollides ?robot ?w)))', '0:{0}'.format(et-1)),
                 # ('(LinearRetreat ?robot)', '0:{0}'.format(et-1)),
                 ('(StationaryRot ?robot)', '0:{0}'.format(et-1)),
-                ('(ThetaDirValid ?robot)', '0:{0}'.format(et-1)),
-                ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
+                ('(RevThetaDirValid ?robot)', '0:{0}'.format(et-1)),
+                # ('(ScalarVelValid ?robot)', '0:{0}'.format(et-1)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(0)),
                 ('(RobotStationary ?robot)', '{0}:{0}'.format(et-1)),
                 ]

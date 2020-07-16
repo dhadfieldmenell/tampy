@@ -78,7 +78,7 @@ class optimal_pol:
         else:
             u[self.action_inds['pr2', 'gripper']] = self.opt_traj[-1, self.state_inds['pr2', 'gripper']]
         if np.any(np.isnan(u)):
-            print('NAN!', u)
+            print('NAN!', u, t)
             u[np.isnan(u)] = 0.
         return u
 
@@ -309,6 +309,8 @@ class NAMOGripAgent(NAMOSortingAgent):
             targets = self.target_vecs[cond].copy()
 
         sample.set(EE_ENUM, ee_pose, t)
+        sample.set(THETA_ENUM, mp_state[self.state_inds['pr2', 'theta']], t)
+        sample.set(VEL_ENUM, mp_state[self.state_inds['pr2', 'vel']], t)
         sample.set(STATE_ENUM, mp_state, t)
         sample.set(GRIPPER_ENUM, mp_state[self.state_inds['pr2', 'gripper']], t)
         if self.hist_len > 0:

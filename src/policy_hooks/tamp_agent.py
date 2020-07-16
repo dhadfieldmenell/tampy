@@ -1041,11 +1041,6 @@ class TAMPAgent(Agent):
                         # sample.prim_use_ts[len(traj)-2] = 1.
             else:
                 sample = self.sample_optimal_trajectory(x0, task, 0, opt_traj, targets=targets)
-                print(zip(sample.get_X(), opt_traj[:-1]))
-                print('END:', sample.end_state, opt_traj[-1], self.get_state())
-                print('ACT1:', sample.get(ACTION_ENUM, sample.T-2))
-                print('ACT2:', sample.get(ACTION_ENUM, sample.T-1))
-                print('\n\n')
                 # self.add_sample_batch([sample], task)
                 path.append(sample)
                 sample.discount = 1.
