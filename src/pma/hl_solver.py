@@ -292,12 +292,13 @@ class FFSolver(HLSolver):
         if plan_str == Plan.IMPOSSIBLE:
             return plan_str
         openrave_env = concr_prob.env
+        sess = concr_prob.sess
         plan_horizon = self._extract_horizon(plan_str, domain)
         params = self._spawn_plan_params(concr_prob, plan_horizon)
         actions = self._spawn_actions(plan_str, domain, params,
                                       plan_horizon, concr_prob, openrave_env,
                                       initial)
-        plan = Plan(params, actions, plan_horizon, openrave_env)
+        plan = Plan(params, actions, plan_horizon, openrave_env, sess=sess)
         plan.start_action = concr_prob.start_action
         plan.prob = concr_prob
         plan.domain = domain

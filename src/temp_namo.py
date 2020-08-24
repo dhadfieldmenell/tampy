@@ -14,8 +14,9 @@ from pma.hl_solver import *
 from pma.pr_graph import *
 from pma import backtrack_ll_solver as bt_ll
 from policy_hooks.utils.load_task_definitions import parse_state
+from core.util_classes.namo_grip_predicates import angle_diff
 
-plans = prob.get_plans()
+plans = prob.get_plans(use_tf=True)
 plan = plans[0][(1,0,6,3)]
 plan = plans[0][(0,0,7,2)]
 # plan = plans[0][(1,0,0,2)]
@@ -29,9 +30,9 @@ for p in plan.params.values():
 pr2_pose = [-1.3, -1.6]
 can0_pose = [-3.7, -3.6]
 can1_pose = [4.3, -4.]
-pr2_pose = [-0.1, -3.2]
-can0_pose = [-3.7, -3.2]
-can1_pose = [3.5, -3.8]
+pr2_pose = [0, -5.]
+can0_pose = [-4.5, -3.8]
+can1_pose = [2.5, -2.8]
 plan.params['pr2'].pose[:,0] = pr2_pose
 plan.params['pr2'].gripper[:,0] = -0.1
 plan.params['robot_init_pose'].value[:,0] = pr2_pose
@@ -94,7 +95,7 @@ items = []
 fname = fpath+'/robot_info/lidar_namo.xml'
 items.append({'name': 'can0', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.3, 0.4), 'mass': 5.})
 items.append({'name': 'can1', 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 1.5, 0.5), 'dimensions': (0.3, 0.4), 'mass': 5.})
-config = {'include_files': [fname], 'sim_freq': 100, 'include_items': items, 'act_jnts': act_jnts, 'step_mult': 1e1, 'view': view, 'timestep': 0.002}
+config = {'include_files': [fname], 'sim_freq': 50, 'include_items': items, 'act_jnts': act_jnts, 'step_mult': 1e1, 'view': view, 'timestep': 0.002, 'load_render':False}
 env = MJCEnv.load_config(config)
 xval, yval = pr2_pose
 grip = -0.1
@@ -107,23 +108,29 @@ pr2 = plan.params['pr2']
 act = 0
 for t in range(plan.horizon-1):
     cmdx, cmdy = pr2.pose[:,t+1] - pr2.pose[:,t]
-    theta = -env.get_joints(['robot_theta'])['robot_theta'][0]
+    theta = env.get_joints(['robot_theta'])['robot_theta'][0]
+    x, y, _ = env.get_item_pos('pr2')
+    vel = np.linalg.norm(pr2.pose[:,t+1]-[x,y])
+    if pr2.vel[0,t+1] < 0: vel *= -1
     cmdtheta = pr2.theta[0,t+1] - theta
-    cmdx, cmdy = pr2.vel[0,t+1]*np.sin(theta), pr2.vel[0,t+1]*np.cos(theta)
+    cmdtheta = angle_diff(pr2.theta[0,t+1], theta)
+    # cmdx, cmdy = -pr2.vel[0,t+1]*np.sin(theta), pr2.vel[0,t+1]*np.cos(theta)
+    cmdx, cmdy = -vel*np.sin(theta), vel*np.cos(theta)
     nsteps = int(max(abs(cmdx), abs(cmdy)) / 0.20) + 1
     grip = pr2.gripper[:,t] * 5
-    x, y = pr2.pose[:,t]
-    x, y, _ = env.get_item_pos('pr2')
+    # x, y = pr2.pose[:,t]
     for n in range(nsteps+1):
         curx = x + float(n)/nsteps * cmdx
         cury = y + float(n)/nsteps * cmdy
         curtheta = theta + float(n)/nsteps * cmdtheta
-        ctrl = [curx, cury, -curtheta, grip, grip]
+        ctrl = [curx, cury, curtheta, grip, grip]
         env.step(ctrl, mode='velocity')
+    env.step(ctrl, mode='velocity')
+    env.step(ctrl, mode='velocity')
     env.step(ctrl, mode='velocity')
     print(t, env.get_item_pos('can0'))
     print(t, env.get_item_pos('can1'))
-    print(t, env.get_item_pos('pr2'))
+    print(t, env.get_item_pos('pr2'), env.get_joints(['robot_theta']))
     print(t, (env.get_item_pos('left_finger')+env.get_item_pos('right_finger'))/2.)
     print('\n\n')
     if t == plan.actions[act].active_timesteps[1]:

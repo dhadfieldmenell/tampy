@@ -321,15 +321,15 @@ class CollisionPredicate(ExprPredicate):
                 else:
                     continue
             else:
-                linkA, linkB = c.linkIndexA, c.linkIndexB
-                linkAParent, linkBParent = c.bodyUniqueIdA, c.bodyUniqueIdB
+                linkA, linkB = c[3], c[4] # c.linkIndexA, c.linkIndexB
+                linkAParent, linkBParent = c[1], c[2] # c.bodyUniqueIdA, c.bodyUniqueIdB
                 sign = 0
                 if linkAParent == robot_body.body_id and linkBParent == obj_body.body_id:
-                    ptRobot, ptObj = c.positionOnA, c.positionOnB
+                    ptRobot, ptObj = c[5], c[6] # c.positionOnA, c.positionOnB
                     linkRobot, linkObj = linkA, linkB
                     sign = -1
                 elif linkBParent == robot_body.body_id and linkAParent == obj_body.body_id:
-                    ptRobot, ptObj = c.positionOnB, c.positionOnA
+                    ptRobot, ptObj = c[6], c[5] # c.positionOnB, c.positionOnA
                     linkRobot, linkObj = linkB, linkA
                     sign = 1
                 else:
@@ -347,8 +347,8 @@ class CollisionPredicate(ExprPredicate):
                 robot_link_ind = robot.GetLink(linkRobot).GetIndex()
                 robot_jac = robot.CalculateActiveJacobian(robot_link_ind, ptRobot)
             else:
-                distance = c.contactDistance
-                normal = c.contactNormalOnB # Pointing towards A
+                distance = c[8] # c.contactDistance
+                normal = c[7] # c.contactNormalOnB # Pointing towards A
                 n_jnts = p.getNumJoints(robot_body.body_id)
                 jnts = p.getJointStates(range(n_jnts))[0]
                 robot_jac, robot_ang_jac = p.calculateJacobian(robot_body.body_id, 

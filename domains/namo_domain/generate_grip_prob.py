@@ -37,8 +37,8 @@ def main():
                 s += "Grasp (name {}); ".format("grasp3")
                 s += "RobotPose (name %s); "%"robot_init_pose"
                 s += "RobotPose (name %s); "%"robot_end_pose"
-                for i in range(NUM_CANS):
-                    s += "RobotPose (name %s); "%"grasp_pose_{0}".format(i)
+                #for i in range(NUM_CANS):
+                #    s += "RobotPose (name %s); "%"grasp_pose_{0}".format(i)
 
                 for i in range(N_AUX):
                     s += "Target (name %s); "%"aux_target_{0}".format(i)
@@ -73,13 +73,13 @@ def main():
                 s += "(gripper %s undefined), "%("robot_init_pose")
                 s += "(vel %s undefined), "%("robot_end_pose")
                 s += "(acc %s undefined), "%("robot_end_pose")
-                for i in range(NUM_CANS):
-                    s += "(gripper %s undefined), "%("grasp_pose_{0}".format(i))
-                    s += "(vel %s undefined), "%("grasp_pose_{0}".format(i))
-                    s += "(acc %s undefined), "%("grasp_pose_{0}".format(i))
-                    s += "(value %s undefined), "%("grasp_pose_{0}".format(i))
-                    s += "(theta %s undefined), "%("grasp_pose_{0}".format(i))
-                    s += "(geom %s 0.3), "%("grasp_pose_{0}".format(i))
+                # for i in range(NUM_CANS):
+                #     # s += "(gripper %s undefined), "%("grasp_pose_{0}".format(i))
+                #     s += "(vel %s undefined), "%("grasp_pose_{0}".format(i))
+                #     s += "(acc %s undefined), "%("grasp_pose_{0}".format(i))
+                #     s += "(value %s undefined), "%("grasp_pose_{0}".format(i))
+                #     s += "(theta %s undefined), "%("grasp_pose_{0}".format(i))
+                #     s += "(geom %s 0.3), "%("grasp_pose_{0}".format(i))
 
                 for i in range(N_AUX):
                     s += "(value %s [0., 0.]), "%("aux_target_{0}".format(i))

@@ -114,6 +114,7 @@ class MultiProcessMain(object):
             utils.ACTION_ENUM: self.dU,
             utils.TRAJ_HIST_ENUM: int(self.dU*self.config['hist_len']),
             utils.STATE_DELTA_ENUM: int(self.symbolic_bound*self.config['hist_len']),
+            utils.STATE_HIST_ENUM: int((1+self.symbolic_bound)*self.config['hist_len']),
             utils.TASK_ENUM: len(self.task_list),
             utils.TARGETS_ENUM: self.target_dim,
             utils.ONEHOT_TASK_ENUM: len(plans.keys()),
@@ -560,8 +561,7 @@ class MultiProcessMain(object):
         hyperparams['id'] = 'test'
         hyperparams['check_precond'] = False
         self.create_server(RolloutServer, copy.copy(hyperparams))
-        hyperparams['check_precond'] = True
-        hyperparams['id'] = 'test_with_pre'
+        hyperparams['id'] = 'moretest'
         self.create_server(RolloutServer, copy.copy(hyperparams))
         hyperparams['run_hl_test'] = False
 

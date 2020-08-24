@@ -1,5 +1,9 @@
 from action import Action
 import numpy as np
+try:
+    import tensorflow as tf
+except:
+    pass
 
 MAX_PRIORITY = 3
 
@@ -15,8 +19,9 @@ class Plan(object):
     """
     IMPOSSIBLE = "Impossible"
 
-    def __init__(self, params, actions, horizon, env, determine_free=True):
+    def __init__(self, params, actions, horizon, env, determine_free=True, sess=None):
         self.params = params
+        self.backup = params
         self.actions = actions
         self.horizon = horizon
         self.time = np.zeros((1, horizon))
@@ -25,8 +30,19 @@ class Plan(object):
         self._free_attrs = {}
         self._saved_free_attrs = {}
         self.sampling_trace = []
+        self.sess = sess
         if determine_free:
             self._determine_free_attrs()
+        if sess is not None:
+            self.tf_vars = []
+            for act in self.actions:
+                for pred in act.preds:
+                    p = pred['pred']
+                    p.sess = sess
+                    self.tf_vars.extend(p.tf_vars)
+            self.init_op = tf.initialize_variables(self.tf_vars)
+            # sess.run(self.init_op)
+
 
     @staticmethod
     def create_plan_for_preds(preds, env):
@@ -67,6 +83,14 @@ class Plan(object):
                         print 'Nan found in', p.name, k, v
                         return True
         return False
+
+    def backup_params(self):
+        for p in self.params:
+            self.backup[p] = self.params[p].copy()
+
+    def restore_params(self):
+        for p in self.params:
+            self.params[p] = self.backup[p]
 
     def save_free_attrs(self):
         for p in self.params.itervalues():

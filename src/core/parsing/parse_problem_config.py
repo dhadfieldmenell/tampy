@@ -8,6 +8,12 @@ if USE_OPENRAVE:
 else:
     import pybullet as P
 
+import os
+try:
+    import tensorflow as tf
+except:
+    pass
+
 class ParseProblemConfig(object):
     """
     Read the problem configuration data and spawn the corresponding initial Problem object (see Problem class).
@@ -15,9 +21,18 @@ class ParseProblemConfig(object):
     Validation is performed against the schemas stored in the Domain object self.domain.
     """
     @staticmethod
-    def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None, initial=None):
+    def parse(problem_config, domain, env=None, openrave_bodies={}, reuse_params=None, initial=None, use_tf=False, sess=None):
         # create parameter objects
         params = {}
+        if use_tf and sess is None:
+            cuda_vis = os.environ["CUDA_VISIBLE_DEVICES"]
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
+            config = tf.ConfigProto(inter_op_parallelism_threads=1, \
+                                    intra_op_parallelism_threads=1, \
+                                    allow_soft_placement=True)
+            config.gpu_options.allow_growth = True
+            sess = tf.Session(config=config)
+            os.environ["CUDA_VISIBLE_DEVICES"] = cuda_vis
         if env is None:
             if USE_OPENRAVE:
                 env = Environment()
@@ -140,5 +155,5 @@ class ParseProblemConfig(object):
                                                                   expected_param_types=domain.pred_schemas[p_name].expected_params, env=env))
 
         # use initial state to create Problem object
-        initial_problem = problem.Problem(initial_state, goal_preds, env)
+        initial_problem = problem.Problem(initial_state, goal_preds, env, sess=sess)
         return initial_problem

@@ -138,7 +138,7 @@ def get_random_initial_state_vec(config, plans, dX, state_inds, conditions):
         while len(locs) < config['num_objs'] + 1:
             locs = []
             random.shuffle(can_locs)
-            pr2_loc = can_locs[0]
+            pr2_loc = [0,-5.5] # can_locs[0]
             locs.append(pr2_loc)
             valid = [1 for _ in range(len(can_locs))]
             valid[0] = 0
@@ -222,13 +222,15 @@ def parse_hl_plan(hl_plan):
         plan.append((task, next_params))
     return plan
 
-def get_plans():
+def get_plans(use_tf=False):
     tasks = get_tasks(mapping_file)
     prim_options = get_prim_choices()
     plans = {}
     openrave_bodies = {}
     env = None
     params = None
+    sess = None
+    st = time.time()
     for task in tasks:
         next_task_str = copy.deepcopy(tasks[task])
         for i in range(len(prim_options[utils.OBJ_ENUM])):
@@ -240,7 +242,7 @@ def get_plans():
                     new_task_str = []
                     for step in next_task_str:
                         new_task_str.append(step.format(obj, targ, grasp))
-                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params)
+                    plan = plan_from_str(new_task_str, prob_file(), domain_file, env, openrave_bodies, params=params, sess=sess, use_tf=use_tf)
                     params = plan.params
                     plans[(tasks.keys().index(task), i, j, k)] = plan
                     if env is None:
@@ -250,7 +252,7 @@ def get_plans():
                                 if not hasattr(param, 'openrave_body') or param.openrave_body is None:
                                     param.openrave_body = OpenRAVEBody(env, param.name, param.geom)
                                 openrave_bodies[param.name] = param.openrave_body
-
+                    sess = plan.sess
     return plans, openrave_bodies, env
 
 def get_end_targets(num_cans=NUM_OBJS, num_targs=NUM_OBJS, targs=None, randomize=False, possible_locs=END_TARGETS):

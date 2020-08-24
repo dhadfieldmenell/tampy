@@ -227,7 +227,6 @@ class AlgorithmIMPGPS(AlgorithmMDGPS):
 
     def _update_policy_no_cost(self, optimal_samples=[]):
         """ Compute the new policy. """
-        # print('Calling update policy without PI^2')
         if not len(self.cur): return
 
         dU, dO, T = self.dU, self.dO, self.T

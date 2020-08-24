@@ -95,7 +95,10 @@ class Baxter(Robot):
                               "left_wrist", "left_hand", "left_gripper_base", "left_gripper",
                               "left_gripper_l_finger", "left_gripper_r_finger", "left_gripper_l_finger_tip",
                               "left_gripper_r_finger_tip"])
-        self.dof_map = {"lArmPose": list(range(2,9)), "lGripper": [9], "rArmPose": list(range(10,17)), "rGripper":[17]}
+        if const.USE_OPENRAVE:
+            self.dof_map = {"lArmPose": list(range(2,9)), "lGripper": [9], "rArmPose": list(range(10,17)), "rGripper":[17]}
+        else:
+            self.dof_map = {"lArmPose": list(range(31,39)), "rArmPose": list(range(13,21))}
         super(Baxter, self).__init__(baxter_shape)
 
     def setup(self, robot):

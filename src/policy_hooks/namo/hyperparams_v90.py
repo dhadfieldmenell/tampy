@@ -288,6 +288,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
                 utils.GRIPPER_ENUM: 1,
                 utils.VEL_ENUM: 1,
                 utils.THETA_ENUM: 1,
+                utils.THETA_VEC_ENUM: 2,
                 utils.GRASP_ENUM: N_GRASPS,
                 utils.GOAL_ENUM: 2*no,
                 utils.ONEHOT_GOAL_ENUM: no*(prob.n_aux + len(prob.END_TARGETS)),
@@ -313,7 +314,7 @@ def refresh_config(no=NUM_OBJS, nt=NUM_TARGS):
     }
 
     config['prim_obs_include'].append(utils.EE_ENUM)
-    config['prim_obs_include'].append(utils.THETA_ENUM)
+    # config['prim_obs_include'].append(utils.THETA_ENUM)
     config['val_obs_include'].append(utils.EE_ENUM)
     for o in range(no):
         config['sensor_dims'][utils.OBJ_ENUMS[o]] = 2

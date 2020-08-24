@@ -9,14 +9,14 @@ def get_hl_solver(domain_fname):
     d_c = main.parse_file_to_dict(domain_fname)
     return FFSolver(d_c)
 
-def plan_from_str(ll_plan_str, prob, domain, env, openrave_bodies, params=None):
+def plan_from_str(ll_plan_str, prob, domain, env, openrave_bodies, params=None, sess=None, use_tf=False):
     '''Convert a plan string (low level) into a plan object.'''
     domain_fname = domain
     d_c = main.parse_file_to_dict(domain_fname)
     domain = parse_domain_config.ParseDomainConfig.parse(d_c)
     hls = FFSolver(d_c)
     p_c = main.parse_file_to_dict(prob)
-    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, openrave_bodies, reuse_params=params)
+    problem = parse_problem_config.ParseProblemConfig.parse(p_c, domain, env, openrave_bodies, reuse_params=params, use_tf=use_tf, sess=sess)
     plan = hls.get_plan(ll_plan_str, domain, problem)
     plan.d_c = d_c
     return plan

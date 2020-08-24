@@ -42,7 +42,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
         return rs_param
 
     def freeze_rs_param(self, act):
-        return True
+        return False #True
  
     def obj_pose_suggester(self, plan, anum, resample_size=1):
         robot_pose = []
@@ -79,8 +79,7 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif act.name == 'transfer' or act.name == 'new_quick_place_at':
                 target = act.params[4]
                 grasp = act.params[5]
-                target_rot = 0. # np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
-                target_rot = np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
+                target_rot = -np.arctan2(target.value[0,0] - oldx, target.value[1,0] - oldy)
                 dist = -gripdist - dsafe
                 target_pos = target.value + [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
                 target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
@@ -88,10 +87,10 @@ class NAMOSolver(backtrack_ll_solver.BacktrackLLSolver):
             elif act.name == 'place':
                 target = act.params[4]
                 grasp = act.params[5]
-                target_pos = target.value + grasp.value
                 target_rot = old_rot 
                 dist = -gripdist - dsafe - 1.
-                target_pos = target.value + [[-dist*np.sin(-target_rot)], [dist*np.cos(-target_rot)]]
+                dist = -gripdist - dsafe - 1.2
+                target_pos = target.value + [[-dist*np.sin(target_rot)], [dist*np.cos(target_rot)]]
                 robot_pose.append({'pose': target_pos, 'gripper': np.array([[-0.1]]), 'theta': np.array([[target_rot]])})
             else:
                 raise NotImplementedError

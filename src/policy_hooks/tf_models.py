@@ -27,7 +27,7 @@ def euclidean_loss_layer(a, b, precision, batch_size):
                     = (u-uhat)'*A*(u-uhat)"""
     scale_factor = tf.constant(2*batch_size, dtype='float')
     uP = batched_matrix_vector_multiply(a-b, precision)
-    uPu = tf.reduce_sum(uP*(a-b))  # this last dot product is then summed, so we just the sum all at once.
+    uPu = tf.reduce_sum(uP*(a-b), axis=0)  # this last dot product is then summed, so we just the sum all at once.
     return uPu/scale_factor
 
 

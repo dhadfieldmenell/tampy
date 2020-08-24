@@ -18,7 +18,7 @@ BASE_MOVE_COEFF = 1.
 TRAJOPT_COEFF=1e-2
 SAMPLE_SIZE = 5
 BASE_SAMPLE_SIZE = 5
-DEBUG = True
+DEBUG = False
 
 
 class BacktrackLLSolver(LLSolver):
@@ -27,12 +27,12 @@ class BacktrackLLSolver(LLSolver):
         # range of coefficeint within 1e9
         # (largest_coefficient/smallest_coefficient < 1e9)
         self.transfer_coeff = 1e-1
-        self.fixed_coeff = 1e2
+        self.fixed_coeff = 1e0# 1e2
         self.rs_coeff = 1e2# 5e1
-        self.trajopt_coeff = 1e-2#1e0
+        self.trajopt_coeff = 1e-1# 1e-3#1e0
         self.initial_trust_region_size = 1e-2 # 1e-2
         self.init_penalty_coeff = 1e0#4e3
-        self.smooth_penalty_coeff = 1e0#7e4
+        self.smooth_penalty_coeff = 1e2 # 1e0#7e4
         self.max_merit_coeff_increases = 5
         self._param_to_ll = {}
         self.early_converge=early_converge
@@ -886,4 +886,48 @@ class BacktrackLLSolver(LLSolver):
             raise NotImplemented
         return transfer_objs
 
+
+    def _get_fixed_transfer_obj(self, plan, norm, mean, coeff=None, active_ts=None):
+        if active_ts is None:
+            active_ts = (0, plan.horizon-1)
+        if not len(mean) or not hasattr(plan, 'state_inds'):
+            print('Cannot add fixed transfer; no data')
+            return []
+
+        if coeff is None:
+            coeff = self.transfer_coeff
+
+        transfer_objs = []
+        if norm == 'min-vel':
+            for p_name, attr_name in plan.state_inds:
+                param = plan.params[p_name]
+                if param.is_symbol(): continue
+                attr_type = param.get_attr_type(attr_name)
+                param_ll = self._param_to_ll[param]
+                attr_val = mean[param_ll.active_ts[0]:param_ll.active_ts[1]+1][:, plan.state_inds[p_name, attr_name]]
+                K = attr_type.dim
+                T = param_ll._horizon
+
+                if DEBUG: assert (K, T) == attr_val.shape
+                KT = K*T
+                v = -1 * np.ones((KT - K, 1))
+                d = np.vstack((np.ones((KT - K, 1)), np.zeros((K, 1))))
+                # [:,0] allows numpy to see v and d as one-dimensional so
+                # that numpy will create a diagonal matrix with v and d as a diagonal
+                P = np.diag(v[:, 0], K) + np.diag(d[:, 0])
+                # P = np.eye(KT)
+                Q = np.dot(np.transpose(P), P) if not param.is_symbol() else np.eye(KT)
+                cur_val = attr_val.reshape((KT, 1), order='F')
+                A = -2*cur_val.T.dot(Q)
+                b = cur_val.T.dot(Q.dot(cur_val))
+                transfer_coeff = coeff/float(plan.horizon)
+
+                # QuadExpr is 0.5*x^Tx + Ax + b
+                quad_expr = QuadExpr(2*transfer_coeff*Q,
+                                     transfer_coeff*A, transfer_coeff*b)
+                ll_attr_val = getattr(param_ll, attr_name)
+                param_ll_grb_vars = ll_attr_val.reshape((KT, 1), order='F')
+                sco_var = self.create_variable(param_ll_grb_vars, cur_val)
+                bexpr = BoundExpr(quad_expr, sco_var)
+                transfer_objs.append(bexpr)
 

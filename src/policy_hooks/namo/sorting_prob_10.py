@@ -225,7 +225,7 @@ def parse_hl_plan(hl_plan):
         plan.append((task, next_params))
     return plan
 
-def get_plans():
+def get_plans(use_tf=False):
     tasks = get_tasks(mapping_file)
     prim_options = get_prim_choices()
     plans = {}

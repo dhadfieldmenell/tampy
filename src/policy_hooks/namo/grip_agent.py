@@ -50,7 +50,7 @@ LIDAR_DIST = 2.
 # LIDAR_DIST = 1.5
 DSAFE = 5e-1
 MAX_STEP = max(1.5*dmove, 1)
-
+LOCAL_FRAME = True
 NAMO_XML = baxter_gym.__path__[0] + '/robot_info/lidar_namo.xml'
 
 
@@ -67,9 +67,20 @@ class optimal_pol:
             for param, attr in self.action_inds:
                 if attr == 'gripper':
                     u[self.action_inds[param, attr]] = self.opt_traj[t, self.state_inds[param, attr]]
+                elif attr == 'pose':
+                    x, y = self.opt_traj[t+1, self.state_inds['pr2', 'pose']]
+                    curx, cury = X[self.state_inds['pr2', 'pose']]
+                    theta = -self.opt_traj[t, self.state_inds['pr2', 'theta']][0]
+                    if LOCAL_FRAME:
+                        relpos = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]]).dot([x-curx, y-cury])
+                    else:
+                        relpos = [x-curx, y-cury]
+                    u[self.action_inds['pr2', 'pose']] = relpos
                 elif attr == 'vel':
-                    inds = self.state_inds['pr2', 'pose']
                     vel = self.opt_traj[t+1, self.state_inds['pr2', 'vel']] # np.linalg.norm(self.opt_traj[t+1, inds]-X[inds])
+                    vel = np.linalg.norm(self.opt_traj[t+1, self.state_inds['pr2', 'pose']] - X[self.state_inds['pr2', 'pose']])
+                    if self.opt_traj[t+1, self.state_inds['pr2', 'vel']] < 0:
+                        vel *= -1
                     u[self.action_inds[param, attr]] = vel 
                 elif attr == 'theta':
                     u[self.action_inds[param, attr]] = self.opt_traj[t+1, self.state_inds[param, attr]] - X[self.state_inds[param, attr]]
@@ -78,7 +89,6 @@ class optimal_pol:
         else:
             u[self.action_inds['pr2', 'gripper']] = self.opt_traj[-1, self.state_inds['pr2', 'gripper']]
         if np.any(np.isnan(u)):
-            print('NAN!', u, t)
             u[np.isnan(u)] = 0.
         return u
 
@@ -100,10 +110,10 @@ class NAMOGripAgent(NAMOSortingAgent):
             'include_files': [NAMO_XML],
             'include_items': [],
             'view': False,
-            'sim_freq': 100,
+            'sim_freq': 50,
             'timestep': 0.002,
             'image_dimensions': (hyperparams['image_width'], hyperparams['image_height']),
-            'step_mult': 1e1,
+            'step_mult': 5e0,
             'act_jnts': ['robot_x', 'robot_y', 'robot_theta', 'right_finger_joint', 'left_finger_joint']
         }
 
@@ -115,7 +125,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         for name in prim_options[OBJ_ENUM]:
             if name =='pr2': continue
             cur_color = colors.pop(0)
-            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 5.})
+            # items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.4), 'rgba': tuple(cur_color), 'mass': 10.})
+            items.append({'name': name, 'type': 'cylinder', 'is_fixed': False, 'pos': (0, 0, 0.5), 'dimensions': (0.3, 0.2), 'rgba': tuple(cur_color), 'mass': 10.})
         for i in range(len(wall_dims)):
             dim, next_trans = wall_dims[i]
             next_trans[0,3] -= 3.5
@@ -140,7 +151,10 @@ class NAMOGripAgent(NAMOSortingAgent):
             plan = self.plans[task]
         else:
             plan = self.plans[task[0]]
-        self.T = plan.horizon
+        if task_f is None:
+            self.T = plan.horizon
+        else:
+            self.T = max([p.horizon for p in self.plans.values()])
         sample = Sample(self)
         sample.init_t = 0
         col_ts = np.zeros(self.T)
@@ -167,14 +181,20 @@ class NAMOGripAgent(NAMOSortingAgent):
        
             X = cur_state.copy()
             U_full = policy.act(X, sample.get_obs(t=t).copy(), t, noise_full)
-            U_nogrip = U_full.copy()
-            U_nogrip[self.action_inds['pr2', 'gripper']] = 0.
-            if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_nogrip]]
+            if len(self._prev_U): self._prev_U = np.r_[self._prev_U[1:], [U_full]]
             sample.set(NOISE_ENUM, noise_full, t)
             # U_full = np.clip(U_full, -MAX_STEP, MAX_STEP)
-            sample.set(ACTION_ENUM, U_full, t)
             suc, col = self.run_policy_step(U_full, cur_state, plan, t, None, grasp=grasp)
             col_ts[t] = col
+            
+            if self.master_config['local_retime']:
+                dist = np.linalg.norm(U_full[self.action_inds['pr2', 'pose']])
+                if dist > self.master_config['velocity']:
+                    U_old = U_full
+                    U_full *= self.master_config['velocity'] / dist
+                    U_full[self.action_inds['pr2', 'gripper']] = U_old[self.action_inds['pr2', 'gripper']]
+
+            sample.set(ACTION_ENUM, U_full, t)
 
             new_state = self.get_state()
             if len(self._x_delta)-1: self._x_delta = np.r_[self._x_delta[1:], [new_state]]
@@ -253,11 +273,20 @@ class NAMOGripAgent(NAMOSortingAgent):
 
     def run_policy_step(self, u, x, plan, t, obj, grasp=None):
         cmd_theta = u[self.action_inds['pr2', 'theta']]
-        cmd_vel = u[self.action_inds['pr2', 'vel']]
-        self.mjc_env.set_user_data('vel', cmd_vel)
-        cur_theta = x[self.state_inds['pr2', 'theta']][0]
-        cmd_x, cmd_y = cmd_vel*np.sin(cur_theta), cmd_vel*np.cos(cur_theta)
-        vel = 0.20
+        if ('pr2', 'pose') not in self.action_inds:
+            cmd_vel = u[self.action_inds['pr2', 'vel']]
+            self.mjc_env.set_user_data('vel', cmd_vel)
+            cur_theta = x[self.state_inds['pr2', 'theta']][0]
+            cmd_x, cmd_y = -cmd_vel*np.sin(cur_theta), cmd_vel*np.cos(cur_theta)
+        else:
+            cur_theta = x[self.state_inds['pr2', 'theta']][0]
+            rel_x, rel_y = u[self.action_inds['pr2', 'pose']]
+            if LOCAL_FRAME:
+                cmd_x, cmd_y = np.array([[np.cos(cur_theta), -np.sin(cur_theta)], [np.sin(cur_theta), np.cos(cur_theta)]]).dot([rel_x, rel_y])
+            else:
+                cmd_x, cmd_y = rel_x, rel_y
+
+        vel = 0.05 # 0.10
         nsteps = int(max(abs(cmd_x), abs(cmd_y)) / vel) + 1
         gripper = u[self.action_inds['pr2', 'gripper']][0]
         if gripper < 0:
@@ -269,8 +298,11 @@ class NAMOGripAgent(NAMOSortingAgent):
             x = cur_x + float(n)/nsteps * cmd_x
             y = cur_y + float(n)/nsteps * cmd_y
             theta = cur_theta + float(n)/nsteps * cmd_theta
-            ctrl_vec = np.array([x, y, -theta, 5*gripper, 5*gripper])
+            ctrl_vec = np.array([x, y, theta, 5*gripper, 5*gripper])
             self.mjc_env.step(ctrl_vec, mode='velocity')
+        self.mjc_env.step(ctrl_vec, mode='velocity')
+        self.mjc_env.step(ctrl_vec, mode='velocity')
+        self.mjc_env.step(ctrl_vec, mode='velocity')
 
         return True, 0.
 
@@ -292,7 +324,7 @@ class NAMOGripAgent(NAMOSortingAgent):
                 x[self.state_inds[pname, attr]] = 0.1 if val > 0 else -0.1
             elif attr == 'theta':
                 val = self.mjc_env.get_joints(['robot_theta'])
-                x[self.state_inds[pname, 'theta']] = -val['robot_theta']
+                x[self.state_inds[pname, 'theta']] = val['robot_theta']
             elif attr == 'vel':
                 val = self.mjc_env.get_user_data('vel', 0.)
                 x[self.state_inds[pname, 'vel']] = val
@@ -309,7 +341,10 @@ class NAMOGripAgent(NAMOSortingAgent):
             targets = self.target_vecs[cond].copy()
 
         sample.set(EE_ENUM, ee_pose, t)
+        theta = mp_state[self.state_inds['pr2', 'theta']][0]
         sample.set(THETA_ENUM, mp_state[self.state_inds['pr2', 'theta']], t)
+        dirvec = np.array([-np.sin(theta), np.cos(theta)])
+        sample.set(THETA_VEC_ENUM, dirvec, t)
         sample.set(VEL_ENUM, mp_state[self.state_inds['pr2', 'vel']], t)
         sample.set(STATE_ENUM, mp_state, t)
         sample.set(GRIPPER_ENUM, mp_state[self.state_inds['pr2', 'gripper']], t)
@@ -317,6 +352,7 @@ class NAMOGripAgent(NAMOSortingAgent):
             sample.set(TRAJ_HIST_ENUM, self._prev_U.flatten(), t)
             x_delta = self._x_delta[1:] - self._x_delta[:1]
             sample.set(STATE_DELTA_ENUM, x_delta.flatten(), t)
+            sample.set(STATE_HIST_ENUM, self._x_delta.flatten(), t)
         onehot_task = np.zeros(self.sensor_dims[ONEHOT_TASK_ENUM])
         onehot_task[self.task_to_onehot[task]] = 1.
         sample.set(ONEHOT_TASK_ENUM, onehot_task, t)
@@ -366,10 +402,13 @@ class NAMOGripAgent(NAMOSortingAgent):
         else:
             obj_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
             targ_pose = label[1] - mp_state[self.state_inds['pr2', 'pose']]
-        rot = np.array([[np.cos(-theta), -np.sin(-theta)],
-                        [np.sin(-theta), np.cos(-theta)]])
-        obj_pose = rot.dot(obj_pose)
-        targ_pose = rot.dot(targ_pose)
+
+        if LOCAL_FRAME:
+            rot = np.array([[np.cos(-theta), -np.sin(-theta)],
+                            [np.sin(-theta), np.cos(-theta)]])
+            obj_pose = rot.dot(obj_pose)
+            targ_pose = rot.dot(targ_pose)
+            targ_off_pose = rot.dot(targ_off_pose)
         # if task[0] == 1:
         #     obj_pose = np.zeros_like(obj_pose)
         sample.set(OBJ_POSE_ENUM, obj_pose.copy(), t)
@@ -395,7 +434,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         if self.task_list[task[0]] == 'transfer':
             sample.set(END_POSE_ENUM, targ_pose, t)
             #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
-        if self.task_list[task[0]] == 'placee':
+        if self.task_list[task[0]] == 'place':
             sample.set(END_POSE_ENUM, targ_pose, t)
             #sample.set(END_POSE_ENUM, targ_pose.copy(), t)
         for i, obj in enumerate(prim_choices[OBJ_ENUM]):
@@ -418,8 +457,8 @@ class NAMOGripAgent(NAMOSortingAgent):
         if fill_obs:
             if LIDAR_ENUM in self._hyperparams['obs_include']:
                 plan = self.plans.values()[0]
-                set_params_attrs(plan.params, plan.state_inds, mp_state, t)
-                lidar = self.dist_obs(plan, t)
+                set_params_attrs(plan.params, plan.state_inds, mp_state, 0)
+                lidar = self.dist_obs(plan, 1)
                 sample.set(LIDAR_ENUM, lidar.flatten(), t)
 
             if MJC_SENSOR_ENUM in self._hyperparams['obs_include']:
@@ -450,7 +489,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         grip = x[self.state_inds['pr2', 'gripper']][0]
         theta = x[self.state_inds['pr2', 'theta']][0]
         self.mjc_env.set_user_data('vel', 0.)
-        self.mjc_env.set_joints({'robot_x': xval, 'robot_y': yval, 'left_finger_joint': grip, 'right_finger_joint': grip, 'robot_theta': -theta}, forward=False)
+        self.mjc_env.set_joints({'robot_x': xval, 'robot_y': yval, 'left_finger_joint': grip, 'right_finger_joint': grip, 'robot_theta': theta}, forward=False)
         for param_name, attr in self.state_inds:
             if param_name == 'pr2': continue
             if attr == 'pose':
@@ -503,24 +542,28 @@ class NAMOGripAgent(NAMOSortingAgent):
                 pos_2 = opt_traj[t+1][self.state_inds['pr2', 'pose']]
                 theta = opt_traj[t][self.state_inds['pr2', 'theta']]
                 theta_2 = opt_traj[t+1][self.state_inds['pr2', 'theta']]
+                vel = opt_traj[t+1][self.state_inds['pr2', 'vel']]
                 grip = opt_traj[t][self.state_inds['pr2', 'gripper']]
                 U = np.zeros(self.dU)
-                U[self.action_inds['pr2', 'pose']] = pos_2 - pos 
+                # U[self.action_inds['pr2', 'pose']] = pos_2 - pos 
+                U[self.action_inds['pr2', 'vel']] = vel
                 U[self.action_inds['pr2', 'theta']] = theta_2 - theta
                 U[self.action_inds['pr2', 'gripper']] = grip
                 sample.set(ACTION_ENUM, U, t=t)
                 self.reset_to_state(opt_traj[t])
                 self.fill_sample(condition, sample, opt_traj[t], t, task, fill_obs=True, targets=targets)
-            for j in range(len(opt_traj)-1, sample.T): 
-                sample.set(ACTION_ENUM, U, t=j)
-                self.reset_to_state(opt_traj[-1])
-                self.fill_sample(condition, sample, opt_traj[-1], j, task, fill_obs=True, targets=targets)
+            if len(opt_traj)-1 < sample.T:
+                for j in range(len(opt_traj)-1, sample.T): 
+                    sample.set(ACTION_ENUM, np.zeros_like(U), t=j)
+                    self.reset_to_state(opt_traj[-1])
+                    self.fill_sample(condition, sample, opt_traj[-1], j, task, fill_obs=True, targets=targets)
             sample.use_ts[-1] = 0.
+            sample.prim_use_ts[-1] = 0.
             sample.end_state = opt_traj[-1].copy()
             sample.set(NOISE_ENUM, np.zeros((sample.T, self.dU)))
             sample.task_cost = self.goal_f(condition, sample.end_state)
-            sample.prim_use_ts[len(opt_traj):] = 0.
-            sample.use_ts[len(opt_traj):] = 0.
+            sample.prim_use_ts[len(opt_traj)-1:] = 0.
+            sample.use_ts[len(opt_traj)-1:] = 0.
             sample.col_ts = np.zeros(sample.T)
         sample.set_ref_X(sample.get_X())
         sample.set_ref_U(sample.get_U())
@@ -536,7 +579,7 @@ class NAMOGripAgent(NAMOSortingAgent):
         return sample
 
 
-    def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=10, out_coeff=None, smoothing=False, attr_dict=None):
+    def solve_sample_opt_traj(self, state, task, condition, traj_mean=[], inf_f=None, mp_var=0, targets=[], x_only=False, t_limit=60, n_resamples=5, out_coeff=None, smoothing=False, attr_dict=None):
         success = False
         old_targets = self.target_vecs[condition]
         if not len(targets):
@@ -668,8 +711,9 @@ class NAMOGripAgent(NAMOSortingAgent):
             grippts= []
             d = 0
             if inds is None:
-                inds = np.r_[self.state_inds['pr2', 'pose'], \
-                             self.state_inds['pr2', 'gripper']]
+                inds = np.r_[self.state_inds['pr2', 'vel'], \
+                             self.state_inds['pr2', 'pose']]
+                inds = self.state_inds['pr2', 'pose']
             for t in range(len(step)):
                 xpts.append(d)
                 fpts.append(step[t])

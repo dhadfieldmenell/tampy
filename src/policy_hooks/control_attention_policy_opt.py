@@ -152,6 +152,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         self.average_error = []
         self.N = 0
         self.buffer_size = MAX_QUEUE_SIZE
+        self.lr_scale = 0.9975
+        self.lr_policy = 'fixed'
 
 
     def restore_ckpts(self, label=None):
@@ -363,6 +365,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         return [self.mu, self.obs, self.prc, self.wt, self.val_mu, self.val_obs, self.val_prc, self.val_wt]
 
 
+    def update_lr(self):
+        if self.method == 'linear':
+            self.cur_lr *= self.lr_scale
+            self.cur_hllr *= self.lr_scale
+
+
     def run_update(self, nets=None):
         if nets is None:
             nets = self.obs.keys()
@@ -404,7 +412,7 @@ class ControlAttentionPolicyOpt(PolicyOpt):
                 val_prc = np.concatenate(self.val_prc[net].values(), axis=0)
                 val_wt = np.concatenate(self.val_wt[net].values(), axis=0)
                 if len(val_mu) > 500:
-                    self.check_validation(val_obs, val_mu, val_prc, val_wt, net)
+                    self.update(val_obs, val_mu, val_prc, val_wt, net, check_val=True)
 
         return updated
 
@@ -526,10 +534,12 @@ class ControlAttentionPolicyOpt(PolicyOpt):
     def init_solver(self):
         """ Helper method to initialize the solver. """
         if self.scope is None or 'primitive' == self.scope:
+            self.cur_hllr = self._hyperparams['hllr']
+            self.hllr_tensor = tf.Variable(initial_value=self._hyperparams['hllr'], name='hllr')
             vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='primitive')
             self.primitive_solver = TfSolver(loss_scalar=self.primitive_loss_scalar,
                                                solver_name=self._hyperparams['solver_type'],
-                                               base_lr=self._hyperparams['hllr'],
+                                               base_lr=self.hllr_tensor,
                                                lr_policy=self._hyperparams['lr_policy'],
                                                momentum=self._hyperparams['momentum'],
                                                weight_decay=self._hyperparams['prim_weight_decay'],
@@ -572,12 +582,14 @@ class ControlAttentionPolicyOpt(PolicyOpt):
         #                                    last_conv_vars=self.distilled_last_conv_vars,
         #                                    vars_to_opt=vars_to_opt)
 
+        self.lr_tensor = tf.Variable(initial_value=self._hyperparams['lr'], name='lr')
+        self.cur_lr = self._hyperparams['lr']
         for scope in self.valid_scopes:
             if self.scope is None or scope == self.scope:
                 vars_to_opt = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
                 self.task_map[scope]['solver'] = TfSolver(loss_scalar=self.task_map[scope]['loss_scalar'],
                                                        solver_name=self._hyperparams['solver_type'],
-                                                       base_lr=self._hyperparams['lr'],
+                                                       base_lr=self.lr_tensor,
                                                        lr_policy=self._hyperparams['lr_policy'],
                                                        momentum=self._hyperparams['momentum'],
                                                        weight_decay=self._hyperparams['weight_decay'],
@@ -862,10 +874,11 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             idx_i = idx[np.random.choice(idx, batch_size, replace=False)]
             feed_dict = {self.task_map[task]['obs_tensor']: obs[idx_i],
                          self.task_map[task]['action_tensor']: tgt_mu[idx_i],
-                         self.task_map[task]['precision_tensor']: tgt_prc[idx_i]}
+                         self.task_map[task]['precision_tensor']: tgt_prc[idx_i],
+                         self.lr_tensor: self.cur_lr}
             train_loss = self.task_map[task]['solver'](feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
 
-            if np.isnan(train_loss) or np.isinf(train_loss):
+            if np.any(np.isnan(train_loss)) or np.any(np.isinf(train_loss)):
                 print('\n\nINVALID NETWORK UPDATE: RESTORING MODEL FROM CKPT (iteration {0})'.format(i))
                 self.restore_ckpt(task)
 
@@ -978,7 +991,8 @@ class ControlAttentionPolicyOpt(PolicyOpt):
             idx_i = idx[start_idx:start_idx+self.batch_size]
             feed_dict = {self.primitive_obs_tensor: obs[idx_i],
                          self.primitive_action_tensor: tgt_mu[idx_i],
-                         self.primitive_precision_tensor: tgt_prc[idx_i]}
+                         self.primitive_precision_tensor: tgt_prc[idx_i],
+                         self.hllr_tensor: self.cur_hllr}
             train_loss = self.primitive_solver(feed_dict, self.sess, device_string=self.device_string, train=(not check_val))
 
             average_loss += train_loss

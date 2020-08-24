@@ -160,7 +160,6 @@ def tf_classification_network(dim_input=27, dim_output=2, batch_size=25, network
     prediction = multi_sotfmax_prediction_layer(scaled_mlp_applied, boundaries)
     fc_vars = weights_FC + biases_FC
     loss_out = get_loss_layer(mlp_out=scaled_mlp_applied, task=action, boundaries=boundaries, precision=precision)
-
     return TfMap.init_from_lists([fc_input, action, precision], [prediction], [loss_out]), fc_vars, []
 
 

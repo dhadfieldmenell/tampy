@@ -413,8 +413,9 @@ class MCTS:
                 p = prob.init_state.params[targ]
                 getattr(p, attr)[:,0] = self.agent.target_vecs[0][self.agent.target_inds[targ, attr]].copy()
         if plan is None:
-            plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id, n_resamples=10)
+            plan, descr = p_mod_abs(self.agent.hl_solver, self.agent, domain, prob, initial=initial, goal=goal, label=self.agent.process_id, n_resamples=5)
         self.n_runs += 1
+        self.agent.n_hl_plan += 1
         success = 0
         if plan is not None:
             assert len(plan.get_failed_preds(tol=1e-3)) == 0
@@ -423,6 +424,7 @@ class MCTS:
             self.hl_suc += 1
             self.log_path(path, 10)
         else:
+            self.agent.n_hl_fail += 1
             self.hl_fail += 1
             print('No plan found for', state, goal, targets, self.agent.process_id)
             path = []
@@ -591,7 +593,7 @@ class MCTS:
             return self._select_from_explored(state, node, exclude_hl, label=p, debug=debug)
 
 
-    def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, fixed_path=None, debug=False, hl=False, hl_check=False):
+    def sample(self, task, cur_state, plan, num_samples, use_distilled=True, node=None, save=True, fixed_path=None, debug=False, hl=False, hl_check=False, skip_opt=False):
         if debug:
             print("SAMPLING")
         samples = []
@@ -627,7 +629,7 @@ class MCTS:
                     if hl:
                         task_f = lambda s, t: self.run_hl(s, t, s.targets, check_cost=hl_check)
                         # task_f = lambda o, t, task: self.prob_func(o, self._soft, self.eta, t, task)
-                    samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f))
+                    samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=(n > 0), task_f=task_f, skip_opt=skip_opt))
                     # samples.append(self.agent.sample_task(pol, self.condition, cur_state, task, noisy=True))
                     if success:
                         samples[-1].set_ref_X(s.get_ref_X())
@@ -695,7 +697,7 @@ class MCTS:
 
             next_sample, state = self.sample(label, state, plan, num_samples=1, save=True)
             T = next_sample.T - 1
-            post = self.agent.cost_f(state, label, self.condition, active_ts=(T,T))
+            post = 1. # self.agent.cost_f(state, label, self.condition, active_ts=(T,T))
 
             '''
             if post > 0:
@@ -884,10 +886,11 @@ class MCTS:
             l = self.iter_labels(state, l, targets=targets, debug=debug, check_cost=check_cost)
             if l is None: break
             plan = self.agent.plans[l]
-            s, _ = self.sample(l, state, plan, 1, hl=hl, hl_check=check_cost, save=False)
+            s, _ = self.sample(l, state, plan, 1, hl=hl, hl_check=check_cost, save=False, skip_opt=True)
             if debug:
                 print('Shiftd state {0} to {1}'.format(state, s.get_X(s.T-1)))
                 print('Ran {0} at step {1} for targets {2}'.format(l, t, targets))
+                print('Distrs:', self.prob_func(s.get_prim_obs(s.T-1), False, eta=1.))
             val = 1 - self.agent.goal_f(0, s.get_X(s.T-1), targets)
             t += 1
             state = s.end_state # s.get_X(s.T-1)
@@ -910,8 +913,8 @@ class MCTS:
     
     def run_hl(self, sample, t=0, targets=None, check_cost=False, debug=False):
         next_label, distr = self.eval_hl(sample, t, targets, debug, True)
-        if t== 0:
-            distrs = self.prob_func(sample.get_prim_obs(t=t), False, eta=1.)
+        # if t== 0:
+            # distrs = self.prob_func(sample.get_prim_obs(t=t), False, eta=1.)
             # print(distrs, sample.get(STATE_ENUM, t=t), sample.get(ONEHOT_GOAL_ENUM, t=t))
         if not check_cost: return next_label
         return self.iter_distr(next_label, distr, self.label_options, sample.get_X(t), sample)
@@ -967,7 +970,7 @@ class MCTS:
     
     def iter_distr(self, next_label, distr, labels, end_state, sample, debug=False):
         cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-        post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
+        post = 1. # self.agent.cost_f(end_state, next_label, self.condition, active_ts=(sample.T-1,sample.T-1), debug=debug)
         init_label = next_label
         T = self.agent.plans[next_label].horizon - 1
 
@@ -993,7 +996,7 @@ class MCTS:
                     next_label = tuple(labels[ind])
                 distr[ind] = -np.inf
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug)
-            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug)
+            post = 1. # self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug)
         if cost > 0:
             return init_label
         return next_label
@@ -1010,7 +1013,7 @@ class MCTS:
         if not check_cost: return tuple(next_label)
         T = self.agent.plans[next_label].horizon - 1
         cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug, targets=targets)
-        post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug, targets=targets)
+        post = 1. # self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug, targets=targets)
         
         for l in exclude:
             if self.onehot_task:
@@ -1043,7 +1046,7 @@ class MCTS:
                 distr[ind] = -np.inf
             T = self.agent.plans[next_label].horizon - 1
             cost = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(0,0), debug=debug, targets=targets)
-            post = self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug, targets=targets)
+            post = 1. # self.agent.cost_f(end_state, next_label, self.condition, active_ts=(T,T), debug=debug, targets=targets)
             if cost > 0:
                 bad.append(next_label)
                 next_label = None
@@ -1117,18 +1120,17 @@ class MCTS:
     def get_path_data(self, path, n_fixed=0, verbose=False):
         data = []
         for sample in path:
-            X = [{(pname, attr): sample.get_X(t=t)[self.agent.state_inds[pname, attr]].round(4) for pname, attr in self.agent.state_inds if self.agent.state_inds[pname, attr][-1] < self.agent.symbolic_bound} for t in range(sample.T)]
+            X = [{(pname, attr): sample.get_X(t=t)[self.agent.state_inds[pname, attr]].round(3) for pname, attr in self.agent.state_inds if self.agent.state_inds[pname, attr][-1] < self.agent.symbolic_bound} for t in range(sample.T)]
             if hasattr(sample, 'col_ts'):
                 U = [{(pname, attr): (sample.get_U(t=t)[self.agent.action_inds[pname, attr]].round(4), sample.col_ts[t]) for pname, attr in self.agent.action_inds} for t in range(sample.T)]
             else:
                 U = [{(pname, attr): sample.get_U(t=t)[self.agent.action_inds[pname, attr]].round(4) for pname, attr in self.agent.action_inds} for t in range(sample.T)]
-            info = {'X': X, 'task': sample.task, 'time_from_start': time.time() - self.start_t, 'n_runs': self.n_runs, 'n_resets': self.n_resets, 'value': 1.-sample.task_cost, 'fixed_samples': n_fixed, 'root_state': self.agent.x0[self.condition], 'opt_strength': sample.opt_strength if hasattr(sample, 'opt_strength') else 'N/A', 'act': U}
+            info = {'X': X, 'task': sample.task, 'time_from_start': time.time() - self.start_t, 'n_runs': self.n_runs, 'n_resets': self.n_resets, 'value': 1.-sample.task_cost, 'fixed_samples': n_fixed, 'root_state': self.agent.x0[self.condition], 'opt_strength': sample.opt_strength if hasattr(sample, 'opt_strength') else 'N/A'}
             if verbose:
-                info['obs'] = sample.get_obs().round(4)
+                info['obs'] = sample.get_obs().round(3)
+                info['prim_obs'] = sample.get_prim_obs().round(3)
                 info['targets'] = {tname: sample.targets[self.agent.target_inds[tname, attr]] for tname, attr in self.agent.target_inds}
                 info['cur_curric'] = self.cur_curric
-                info['max_depth'] = self.max_depth
-                info['eta'] = self.eta
                 info['opt_success'] = sample.opt_suc
                 info['tasks'] = sample.get(FACTOREDTASK_ENUM)
                 info['hl_suc'] = self.hl_suc

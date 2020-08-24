@@ -58,6 +58,7 @@ class ExprPredicate(Predicate):
         self.hl_info = False
         self.hl_ignore = False
         self.hl_include = False
+        self.tf_vars = []
 
     #@profile
     def lazy_spawn_or_body(self, param, name, geom):

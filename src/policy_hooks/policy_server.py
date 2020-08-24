@@ -43,6 +43,7 @@ class PolicyServer(object):
             hyperparams['dValObs'],
             hyperparams['prim_bounds']
         )
+        self.policy_opt.lr_policy = hyperparams['lr_policy']
         # self.policy_opt = policy_opt
         # self.policy_opt.hyperparams['scope'] = task
         self.stopped = False
@@ -154,7 +155,7 @@ class PolicyServer(object):
 
     def update_network(self):
         update = self.policy_opt.run_update([self.task])
-        # print 'Weights updated:', update, self.task
+        # print('Weights updated:', update, self.task)
         if update:
             self.n_updates += 1
             if not USE_ROS or self.policy_opt.share_buffers:

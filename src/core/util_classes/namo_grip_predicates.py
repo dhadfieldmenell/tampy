@@ -5,6 +5,7 @@ from core.util_classes.openrave_body import OpenRAVEBody
 from errors_exceptions import PredicateException
 from sco.expr import Expr, AffExpr, EqExpr, LEqExpr
 import numpy as np
+import tensorflow as tf
 import sys
 import traceback
 
@@ -54,6 +55,40 @@ ATTRMAP = {
     "Grasp":     (("value", np.array(range(2), dtype=np.int)),),
     "Rotation":     (("value", np.array(range(1), dtype=np.int)),),
 }
+
+
+USE_TF = True
+if USE_TF:
+    tf_cache = {}
+    def get_tf_graph(tf_name):
+        if tf_name not in tf_cache: init_tf_graph()
+        return tf_cache[tf_name]
+
+    def init_tf_graph():
+        thetadir_tf_in = tf.placeholder(float, (8,1), name='thetadir_in')
+        tf_cache['thetadir_tf_in'] = thetadir_tf_in
+        thetadir_tf_disp = thetadir_tf_in[4:6] - thetadir_tf_in[:2]
+        tf_cache['thetadir_tf_disp'] = thetadir_tf_disp
+        thetadir_tf_dist = tf.linalg.norm(thetadir_tf_disp)
+        tf_cache['thetadir_tf_dist'] = thetadir_tf_dist
+        thetadir_tf_theta = thetadir_tf_in[2]
+        tf_cache['thetadir_tf_theta'] = thetadir_tf_theta
+        thetadir_targ_x = -thetadir_tf_dist * tf.sin(thetadir_tf_theta)
+        tf_cache['thetadir_targ_x'] = thetadir_targ_x
+        thetadir_targ_y = thetadir_tf_dist * tf.cos(thetadir_tf_theta)
+        tf_cache['thetadir_targ_y'] = thetadir_targ_y
+        thetadir_tf_off = (thetadir_tf_disp[0]-thetadir_targ_x)**2 + (thetadir_tf_disp[1]-thetadir_targ_y)**2
+        tf_cache['thetadir_tf_off'] = thetadir_tf_off
+        thetadir_tf_opp = (thetadir_tf_disp[0]+thetadir_targ_x)**2 + (thetadir_tf_disp[1]+thetadir_targ_y)**2
+        tf_cache['thetadir_tf_opp'] = thetadir_tf_opp
+        thetadir_tf_both = tf.minimum(thetadir_tf_off, thetadir_tf_opp)
+        tf_cache['thetadir_tf_both'] = thetadir_tf_both
+        thetadir_tf_grads = tf.gradients(thetadir_tf_both, thetadir_tf_in)[0]
+        tf_cache['thetadir_tf_grads'] = thetadir_tf_grads
+        thetadir_tf_forgrads = tf.gradients(thetadir_tf_off, thetadir_tf_in)[0]
+        tf_cache['thetadir_tf_forgrads'] = thetadir_tf_forgrads
+        thetadir_tf_revgrads = tf.gradients(thetadir_tf_opp, thetadir_tf_in)[0]
+        tf_cache['thetadir_tf_revgrads'] = thetadir_tf_revgrads
 
 
 def add_to_attr_inds_and_res(t, attr_inds, res, param, attr_name_val_tuples):
@@ -454,7 +489,7 @@ class CollisionPredicate(ExprPredicate):
 
 
 class HLPoseUsed(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Can Target
         self.pose = params[0]
         if self.pose.is_symbol():
@@ -481,7 +516,7 @@ class HLPoseAtGrasp(HLPoseUsed):
 
     # RobotAt Robot Can Grasp
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.c, self.g = params
         k = "pose" if not self.r.is_symbol() else "value"
@@ -508,7 +543,7 @@ class HLPoseAtGrasp(HLPoseUsed):
 
 class At(ExprPredicate):
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Can Target
         self.can, self.targ = params
         attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]),
@@ -523,7 +558,7 @@ class At(ExprPredicate):
 
 class AtNEq(ExprPredicate):
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Can Target
         self.can, self.eq, self.targ = params
         attr_inds = OrderedDict([(self.can, [("pose", np.array([0,1], dtype=np.int))]),
@@ -546,7 +581,7 @@ class RobotAt(At):
 
     # RobotAt Robot RobotPose
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.rp = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
@@ -560,7 +595,7 @@ class RobotAt(At):
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class RobotAtRot(At):
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         self.r, self.rot = params
         attr_inds = OrderedDict([(self.r, [("theta", np.array([0], dtype=np.int))]),
                                  (self.rot, [("value", np.array([0], dtype=np.int))])])
@@ -576,7 +611,7 @@ class BoxAt(At):
     pass
 
 class Near(At):
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         self.r, self.c = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
                                  (self.c, [("value", np.array([0,1], dtype=np.int))])])
@@ -591,7 +626,7 @@ class Near(At):
 class RobotNearTarget(At):
 
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.t = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
@@ -608,7 +643,7 @@ class RobotNear(At):
 
     # RobotAt Robot Can
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.c = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
@@ -625,7 +660,7 @@ class NotRobotNear(At):
 
     # RobotAt Robot Can
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.c = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
@@ -642,7 +677,7 @@ class RobotWithinBounds(At):
 
     # RobotAt Robot Can
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.c = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))])])
@@ -658,7 +693,7 @@ class RobotNearGrasp(At):
 
     # RobotAt Robot Can Grasp
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.c, self.g = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
@@ -676,7 +711,7 @@ class RobotAtGrasp(At):
 
     # RobotAt Robot Can Grasp
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.c, self.g = params
         k = "pose" if not self.r.is_symbol() else "value"
@@ -701,7 +736,7 @@ class RobotWithinReach(At):
 
     # RobotAt Robot Target
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.t = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0,1], dtype=np.int))]),
@@ -715,7 +750,7 @@ class RobotWithinReach(At):
         super(At, self).__init__(name, e, attr_inds, params, expected_param_types)
 
 class GripperClosed(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         self.robot, = params
         attr_inds = OrderedDict([(self.robot, [("gripper", np.array([0], dtype=np.int))])])
         A = np.ones((1, 1))
@@ -741,7 +776,7 @@ class InContact(CollisionPredicate):
 
     # InContact, Robot, RobotPose, Target
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
         self.robot, self.rp, self.targ = params
         attr_inds = OrderedDict([(self.rp, [("value", np.array([0,1], dtype=np.int))]),
@@ -766,7 +801,7 @@ class Collides(CollisionPredicate):
 
     # Collides Can Obstacle (wall)
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
         self.c, self.w = params
         attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))]),
@@ -814,7 +849,7 @@ class Collides(CollisionPredicate):
             return None
 
 class TargetGraspCollides(Collides):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
         self.c, self.w, self.g = params
         if self.c.is_symbol():
@@ -878,7 +913,7 @@ class TargetGraspCollides(Collides):
 
 
 class RobotCanGraspCollides(Collides):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
         self.c, self.w, self.g = params
         if self.c.is_symbol():
@@ -944,7 +979,7 @@ class TargetCanGraspCollides(TargetGraspCollides):
     pass
 
 class TargetCollides(Collides):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
         self.c, self.w = params
         attr_inds = OrderedDict([(self.c, [("value", np.array([0, 1], dtype=np.int))]),
@@ -995,7 +1030,7 @@ class RCollides(CollisionPredicate):
 
     # RCollides Robot Obstacle (Wall)
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
         self.hl_ignore = True
         self.r, self.w = params
@@ -1065,7 +1100,7 @@ class RCollides(CollisionPredicate):
         
         jac = jac / (np.linalg.norm(jac) + 1e-3)
 
-        new_robot_pose = self.r.pose[:, time] + np.random.uniform(0.1, 0.4) * jac
+        new_robot_pose = self.r.pose[:, time] + np.random.uniform(0.1, 0.3) * jac
         st = max(max(time-3,0), act.active_timesteps[0])
         ref_st = max(max(time-3,1), act.active_timesteps[0]+1)
         et = min(min(time+3, plan.horizon-1), act.active_timesteps[1])
@@ -1090,7 +1125,7 @@ class Obstructs(CollisionPredicate):
 
     # Obstructs, Robot, RobotPose, RobotPose, Can;
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
         self.hl_ignore = True
         self.r, self.startp, self.endp, self.c = params
@@ -1189,8 +1224,9 @@ class Obstructs(CollisionPredicate):
         orth = orth / np.linalg.norm(orth)
 
         # rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 1e-1) * disp / np.linalg.norm(disp)
-        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + 3e-1) * disp / np.linalg.norm(disp)
-        orth = rdisp #+ np.random.uniform(0.2, 0.5) * orth
+        rdist = np.random.uniform(0, 0.2)
+        rdisp = -(self.c.geom.radius + self.r.geom.radius + self.dsafe + rdist) * disp / np.linalg.norm(disp)
+        orth = rdisp # + np.random.uniform(0.05, 0.2) * orth
         # orth *= np.random.uniform(0.7, 1.5) * (self.c.geom.radius + self.r.geom.radius + self.dsafe)
         # orth += np.random.uniform([-0.15, 0.15], [-0.15, 0.15])
 
@@ -1231,10 +1267,19 @@ class Obstructs(CollisionPredicate):
             return None
 
 class WideObstructs(Obstructs):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructs, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = 0.25
         self.check_aabb = False # True
+
+
+class ObstructsNoSym(Obstructs):
+    pass
+
+
+class WideObstructsNoSym(WideObstructs):
+    pass
+
 
 def sample_pose(plan, pose, robot, rs_scale):
     targets  = plan.get_param('InContact', 2, {0: robot, 1:pose})
@@ -1303,7 +1348,7 @@ def sample_pose(plan, pose, robot, rs_scale):
 class ObstructsHolding(CollisionPredicate):
 
     # ObstructsHolding, Robot, RobotPose, RobotPose, Can, Can;
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self._env = env
         r, startp, endp, obstr, held = params
         self.r = r
@@ -1535,17 +1580,25 @@ class ObstructsHolding(CollisionPredicate):
 
 
 class WideObstructsHolding(ObstructsHolding):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(WideObstructsHolding, self).__init__(name, params, expected_param_types, env, debug)
         self.dsafe = 0.3
         self.check_aabb = False # True
+
+
+class ObstructsHoldingNoSym(ObstructsHolding):
+    pass
+
+
+class WideObstructsHoldingNoSym(WideObstructsHolding):
+    pass
 
 
 class InGripper(ExprPredicate):
 
     # InGripper, Robot, Can, Grasp
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.can, self.grasp = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.can, [("pose", np.array([0, 1], dtype=np.int))]),
@@ -1563,8 +1616,9 @@ class InGripper(ExprPredicate):
 
 
 class InGraspAngle(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.can = params
+        self.dist = 0.
         if self.r.is_symbol():
             k = 'value'
         else:
@@ -1577,7 +1631,7 @@ class InGraspAngle(ExprPredicate):
 
         def f(x):
             x = x.flatten()
-            dist = gripdist + dsafe
+            dist = self.dist + gripdist + dsafe
             targ_loc = [-dist * np.sin(x[2]), dist * np.cos(x[2])]
             can_loc = x[3:5]
             return np.array([[((x[0]+targ_loc[0])-can_loc[0])**2 + ((x[1]+targ_loc[1])-can_loc[1])**2]])
@@ -1595,7 +1649,7 @@ class InGraspAngle(ExprPredicate):
         def grad(x):
             x = x.flatten()
             curdisp = x[3:5] - x[:2]
-            dist = gripdist + dsafe
+            dist = self.dist + gripdist + dsafe
             theta = x[2]
             targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
             off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
@@ -1669,9 +1723,13 @@ class InGraspAngle(ExprPredicate):
         # print(new_robot_pose, new_can_pose, x)
         return res, attr_inds
 
+class ApproachGraspAngle(InGraspAngle):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
+        super(ApproachGraspAngle, self).__init__(name, params, expected_param_types, env, sess, debug)
+        self.dist = 1.2
 
 class NearGraspAngle(InGraspAngle):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.can = params
         self.tol = 5e-2
         if self.r.is_symbol():
@@ -1772,7 +1830,7 @@ class NearGraspAngle(InGraspAngle):
 
 
 class LinearRetreat(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, = params
         self.vel = RETREAT_DIST
         self.sign = 1.
@@ -1839,13 +1897,13 @@ class LinearRetreat(ExprPredicate):
 
 
 class LinearApproach(LinearRetreat):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(LinearApproach, self).__init__(name, params, expected_param_types, env, debug)
         self.sign = -1.
 
 
 class RobotRetreat(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.grasp = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
                                            ("theta", np.array([0], dtype=np.int))]),
@@ -1862,7 +1920,7 @@ class RobotRetreat(ExprPredicate):
 
 
 class RobotApproach(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.grasp = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int))]),
                                  (self.grasp, [("value", np.array([0, 1], dtype=np.int))])
@@ -1882,7 +1940,7 @@ class GraspValid(ExprPredicate):
 
     # GraspValid RobotPose Target Grasp
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.rp, self.target,  self.grasp = params
         attr_inds = OrderedDict([(self.rp, [("value", np.array([0, 1], dtype=np.int))]),
                      (self.target, [("value", np.array([0, 1], dtype=np.int))]),
@@ -1903,7 +1961,7 @@ class RobotStationary(ExprPredicate):
 
     # Stationary, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.c,  = params
         attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))])])
         A = np.array([[1, 0, -1, 0],
@@ -1921,7 +1979,7 @@ class Stationary(ExprPredicate):
 
     # Stationary, Can
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.c,  = params
         attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))])])
         A = np.array([[1, 0, -1, 0],
@@ -1931,20 +1989,18 @@ class Stationary(ExprPredicate):
         super(Stationary, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
 
-'''
 class StationaryRot(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.c,  = params
         attr_inds = OrderedDict([(self.c, [("theta", np.array([0], dtype=np.int))])])
         A = np.array([[1, -1]])
         b = np.zeros((1, 1))
         e = EqExpr(AffExpr(A, b), np.zeros((1, 1)))
         super(StationaryRot, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
+
 '''
-
-
 class StationaryRot(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.c,  = params
         attr_inds = OrderedDict([(self.c, [("theta", np.array([0], dtype=np.int))])])
         def f(x):
@@ -1956,10 +2012,10 @@ class StationaryRot(ExprPredicate):
         angleExpr = Expr(f, grad)
         e = EqExpr(angleExpr, np.zeros((1,1)))
         super(StationaryRot, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=0)
-
+'''
 
 class AtRot(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, self.rot = params
         attr_inds = OrderedDict([(self.r, [("theta", np.array([0], dtype=np.int))]),
                                  (self.rot, [("value", np.array([0], dtype=np.int))])])
@@ -1976,7 +2032,7 @@ class StationaryNEq(ExprPredicate):
     # it checks whether the can in the first argument is stationary
     # if that first can is not the second can which robot is holding
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.c, self.c_held = params
         attr_inds = OrderedDict([(self.c, [("pose", np.array([0, 1], dtype=np.int))])])
         if self.c.name == self.c_held.name:
@@ -1994,7 +2050,7 @@ class StationaryW(ExprPredicate):
 
     # StationaryW, Wall(Obstacle)
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.w, = params
         attr_inds = OrderedDict([(self.w, [("pose", np.array([0, 1], dtype=np.int))])])
         A = np.array([[1, 0, -1, 0],
@@ -2008,7 +2064,7 @@ class StationaryW(ExprPredicate):
 #
 #    # IsMP Robot
 #
-#    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+#    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False, dmove=dmove):
 #        self.r, = params
 #        ## constraints  |x_t - x_{t+1}| < dmove
 #        ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
@@ -2026,7 +2082,7 @@ class IsMP(ExprPredicate):
 
     # IsMP Robot
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False, dmove=dmove):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
@@ -2039,7 +2095,7 @@ class IsMP(ExprPredicate):
                       [0, -1, 0, 0, 1, 0],
                       [0, 0, -1, 0, 0, 1]])
         b = np.zeros((6, 1))
-        drot = np.pi / 2.
+        drot = np.pi / 3.
         e = LEqExpr(AffExpr(A, b), np.array([dmove, dmove, drot, dmove, dmove, drot]).reshape((6,1)))
         super(IsMP, self).__init__(name, e, attr_inds, params, expected_param_types, active_range=(0,1), priority=-2)
 
@@ -2048,7 +2104,7 @@ class VelWithinBounds(At):
 
     # RobotAt Robot Can
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.c = params
         attr_inds = OrderedDict([(self.r, [("vel", np.array([0,1], dtype=np.int))])])
@@ -2065,7 +2121,7 @@ class AccWithinBounds(At):
 
     # RobotAt Robot Can
 
-    def __init__(self, name, params, expected_param_types, env=None):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None):
         ## At Robot RobotPose
         self.r, self.c = params
         attr_inds = OrderedDict([(self.r, [("acc", np.array([0,1], dtype=np.int))])])
@@ -2082,7 +2138,7 @@ class VelValid(ExprPredicate):
 
     # VelValid Robot
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False, dmove=dmove):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
@@ -2096,7 +2152,7 @@ class VelValid(ExprPredicate):
 
 
 class Decelerating(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False, dmove=dmove):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
@@ -2111,7 +2167,7 @@ class Decelerating(ExprPredicate):
 
 
 class Accelerating(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False, dmove=dmove):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
@@ -2129,7 +2185,7 @@ class VelValid(ExprPredicate):
 
     # VelValid Robot
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False, dmove=dmove):
         self.r, = params
         ## constraints  |x_t - x_{t+1}| < dmove
         ## ==> x_t - x_{t+1} < dmove, -x_t + x_{t+a} < dmove
@@ -2146,13 +2202,13 @@ class AccValid(VelValid):
 
     # AccValid Robot
 
-    def __init__(self, name, params, expected_param_types, env=None, debug=False, dmove=dmove):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False, dmove=dmove):
         super(AccValid, self).__init__(name, params, expected_param_types, env, debug, dmove)
         self.attr_inds = OrderedDict([(self.r, [("vel", np.array([0, 1], dtype=np.int)), ("acc", np.array([0, 1], dtype=np.int))]),])
 
 
 class ScalarVelValid(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, = params
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
                                            ("theta", np.array([0], dtype=np.int)),
@@ -2161,13 +2217,29 @@ class ScalarVelValid(ExprPredicate):
         def f(x):
             x = x.flatten()
             curvel = np.linalg.norm(x[4:6]-x[:2])
-            curtheta = np.arctan2(*(x[4:6]-x[:2]))
-            if np.abs(angle_diff(curtheta, x[2])) > 3*np.pi/4:
+            targ = [-curvel*np.sin(x[2]), curvel*np.cos(x[2])]
+            curdisp = x[4:6] - x[:2]
+            dist1 = (targ[0]-curdisp[0])**2 + (targ[1]-curdisp[1])**2
+            dist2 = (targ[0]+curdisp[0])**2 + (targ[1]+curdisp[1])**2
+            if dist2 < dist1:
                 curvel *= -1
             return np.array([x[7]-curvel]).reshape((1,1))
 
         def grad(x):
-            return np.array([0, 0, 0, 0, 0, 0, 0, 1]).reshape((1, 8))
+            curvel = np.linalg.norm(x[4:6]-x[:2])
+            targ = [-curvel*np.sin(x[2]), curvel*np.cos(x[2])]
+            curdisp = x[4:6] - x[:2]
+            dist1 = (targ[0]-curdisp[0])**2 + (targ[1]-curdisp[1])**2
+            dist2 = (targ[0]+curdisp[0])**2 + (targ[1]+curdisp[1])**2
+            if dist2 < dist1:
+                curvel *= -1
+            gradx1, grady1, gradx2, grady2 = 0, 0, 0, 0
+            if np.abs(curvel) > 1e-3:
+                gradx1 = (x[4]-x[0]) / curvel
+                grady1 = (x[5]-x[1]) / curvel
+                gradx2 = -(x[4]-x[0]) / curvel
+                grady2 = -(x[5]-x[1]) / curvel
+            return np.array([gradx1, grady1, 0, 0, gradx2, grady2, 0, 1]).reshape((1, 8))
 
         angle_expr = Expr(f, grad)
         e = EqExpr(angle_expr, np.zeros((1,1)))
@@ -2175,6 +2247,7 @@ class ScalarVelValid(ExprPredicate):
         super(ScalarVelValid, self).__init__(name, e, attr_inds, params, expected_param_types, priority=3, active_range=(0,1))
 
     def resample(self, negated, time, plan):
+        return None, None
         res = OrderedDict()
         attr_inds = OrderedDict()
         a = 0
@@ -2197,7 +2270,7 @@ class ScalarVelValid(ExprPredicate):
 
 
 class ThetaDirValid(ExprPredicate):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         self.r, = params
         self.forward, self.reverse = False, False
         attr_inds = OrderedDict([(self.r, [("pose", np.array([0, 1], dtype=np.int)),
@@ -2205,79 +2278,107 @@ class ThetaDirValid(ExprPredicate):
                                            ("vel", np.array([0], dtype=np.int))]),
                                 ])
 
-        def f(x):
-            x = x.flatten()
-            curdisp = x[4:6] - x[:2]
-            dist = np.linalg.norm(curdisp)
-            theta = x[2]
-            targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
-            off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
-            opp_off = (curdisp[0]+targ_disp[0])**2 + (curdisp[1]+targ_disp[1])**2
-            if self.forward: return np.array([[off]])
-            if self.reverse: return 1e-3*np.array([[opp_off]])
-            return np.array([[min(off, opp_off)]])
+        self.sess = sess
+        if USE_TF:
+            def f(x):
+                cur_tensor = get_tf_graph('thetadir_tf_both')
+                if self.forward: cur_tensor = get_tf_graph('thetadir_tf_off')
+                if self.reverse: cur_tensor = get_tf_graph('thetadir_tf_opp')
+                return np.array([self.sess.run(cur_tensor, feed_dict={get_tf_graph('thetadir_tf_in'): x})])
 
-            if np.linalg.norm(curdisp) < 1e-3:
-                return np.zeros((1,1))
-                return np.zeros((3,1))
-            curtheta = np.arctan2(curdisp[0], curdisp[1])
-            theta = x[2]
-            opp_theta = opposite_angle(curtheta)
-            if not self.forward and np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
-                curtheta = opp_theta
-            elif self.reverse:
-                curtheta = opp_theta
+            def grad(x):
+                cur_grads = get_tf_graph('thetadir_tf_grads')
+                if self.forward: cur_grads = get_tf_graph('thetadir_tf_forgrads')
+                if self.reverse: cur_grads = get_tf_graph('thetadir_tf_revgrads')
+                v = self.sess.run(cur_grads, feed_dict={get_tf_graph('thetadir_tf_in'): x}).T
+                v[np.isnan(v)] = 0.
+                v[np.isinf(v)] = 0.
+                return v
 
-            theta_off = angle_diff(theta, curtheta)
-            rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
-                            [np.sin(theta_off), np.cos(theta_off)]])
-            newdisp = rot.dot(curdisp)
-            pos_off = newdisp - curdisp
-            return np.array([[pos_off[0]**2 + pos_off[1]**2]])
-            return np.r_[pos_off, [theta_off]].reshape((3,1))
+        else:
+            def f(x):
+                x = x.flatten()
+                curdisp = x[4:6] - x[:2]
+                dist = np.linalg.norm(curdisp)
+                theta = x[2]
+                targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
+                off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
+                opp_off = (curdisp[0]+targ_disp[0])**2 + (curdisp[1]+targ_disp[1])**2
+                if self.forward: return np.array([[off]])
+                if self.reverse: return np.array([[opp_off]])
+                return np.array([[min(off, opp_off)]])
 
-        def grad(x):
-            x = x.flatten()
-            curdisp = x[4:6] - x[:2]
-            dist = np.linalg.norm(curdisp)
-            theta = x[2]
-            targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
-            off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
-            opp_off = (curdisp[0]+targ_disp[0])**2 + (curdisp[1]+targ_disp[1])**2
-            if self.reverse or opp_off < off:
-                theta += np.pi
-            (x1, y1), (x2, y2) = x[:2], x[4:6]
-            
-            x1_grad = -2 * ((x2-x1)+dist*np.sin(theta))
-            y1_grad = -2 * ((y2-y1)-dist*np.cos(theta))
-            theta_grad = 2 * dist * ((x2-x1)*np.cos(theta) + (y2-y1)*np.sin(theta))
-            x2_grad = 2 * ((x2-x1)+dist*np.sin(theta))
-            y2_grad = 2 * ((y2-y1)-dist*np.cos(theta))
-            return np.array([x1_grad, y1_grad, theta_grad, 0, x2_grad, y2_grad, 0, 0]).reshape((1,8))
+                if np.linalg.norm(curdisp) < 1e-3:
+                    return np.zeros((1,1))
+                    return np.zeros((3,1))
+                curtheta = np.arctan2(curdisp[0], curdisp[1])
+                theta = x[2]
+                opp_theta = opposite_angle(curtheta)
+                if not self.forward and np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+                    curtheta = opp_theta
+                elif self.reverse:
+                    curtheta = opp_theta
 
-            curtheta = np.arctan2(curdisp[0], curdisp[1])
-            theta = x[2]
-            opp_theta = opposite_angle(curtheta)
-            if not self.forward and np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
-                curtheta = opp_theta
-            elif self.reverse:
-                curtheta = opp_theta
+                theta_off = angle_diff(theta, curtheta)
+                rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
+                                [np.sin(theta_off), np.cos(theta_off)]])
+                newdisp = rot.dot(curdisp)
+                pos_off = newdisp - curdisp
+                return np.array([[pos_off[0]**2 + pos_off[1]**2]])
+                return np.r_[pos_off, [theta_off]].reshape((3,1))
 
-            theta_off = angle_diff(theta, curtheta)
-            rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
-                            [np.sin(theta_off), np.cos(theta_off)]])
-            newdisp = rot.dot(curdisp)
-            pos_off = newdisp - curdisp
+            def grad(x):
+                x = x.flatten()
+                curdisp = x[4:6] - x[:2]
+                dist = np.linalg.norm(curdisp)
+                theta = x[2]
+                targ_disp = [-dist * np.sin(theta), dist * np.cos(theta)]
+                off = (curdisp[0]-targ_disp[0])**2 + (curdisp[1]-targ_disp[1])**2
+                opp_off = (curdisp[0]+targ_disp[0])**2 + (curdisp[1]+targ_disp[1])**2
+                if not self.forward and (self.reverse or opp_off < off):
+                    theta += np.pi
+                (x1, y1), (x2, y2) = x[:2], x[4:6]
+                xdiff = x2 - x1
+                ydiff = y2 - y1
+                x1_grad, x2_grad, y1_grad, y2_grad, theta_grad = 0, 0, 0, 0, 0
+                if False and dist > 1e-4:
+                    x2_grad = 2 * (xdiff*np.sin(theta)/dist + 2*xdiff)*(np.sin(theta)*dist + xdiff**2) - 2*xdiff * np.cos(theta) * (ydiff**2 - np.cos(theta)*dist)/dist
+                    x1_grad = -x2_grad
+                    y2_grad = 2 * ydiff * np.sin(theta) * (np.sin(theta)*dist + xdiff**2) / dist + 2 * (ydiff**2 - np.cos(theta)*dist) * (2 * ydiff - ydiff * np.cos(theta) / dist)
+                    y1_grad = -y2_grad
+                    theta_grad = 2 * dist * (xdiff**2 * np.cos(theta) + ydiff**2 * np.sin(theta))
+                    return np.array([x1_grad, y1_grad, theta_grad, 0, x2_grad, y2_grad, 0, 0]).reshape((1,8))
 
-            x1_grad = -2 * ((x2-x1)-xt)
-            y1_grad = -2 * ((y2-y1)-yt)
-            theta_grad =  2 * dist * np.cos(theta) * ((x2-x1)+dist*np.sin(theta)) + \
-                         -2 * dist * np.sin(theta) * ((x2-x1)-dist*np.cos(theta))
-            x2_grad = 2 * ((x2-x1)-xt)
-            y2_grad = 2 * ((y2-y1)-yt)
-            posgrad = np.c_[-np.eye(2), np.zeros((2,2)), np.eye(2), np.zeros((2,2))]
-            theta_grad = np.array([0, 0, 1, 0, 0, 0, 0, 0]).reshape((1,8))
-            return np.r_[posgrad, theta_grad].reshape((3,8))
+                x1_grad = -2 * ((x2-x1)+dist*np.sin(theta))
+                y1_grad = -2 * ((y2-y1)-dist*np.cos(theta))
+                theta_grad = 2 * dist * ((x2-x1)*np.cos(theta) + (y2-y1)*np.sin(theta))
+                x2_grad = 2 * ((x2-x1)+dist*np.sin(theta))
+                y2_grad = 2 * ((y2-y1)-dist*np.cos(theta))
+                return np.array([x1_grad, y1_grad, theta_grad, 0, x2_grad, y2_grad, 0, 0]).reshape((1,8))
+
+                curtheta = np.arctan2(curdisp[0], curdisp[1])
+                theta = x[2]
+                opp_theta = opposite_angle(curtheta)
+                if not self.forward and np.abs(angle_diff(curtheta, theta)) > np.abs(angle_diff(opp_theta, theta)):
+                    curtheta = opp_theta
+                elif self.reverse:
+                    curtheta = opp_theta
+
+                theta_off = angle_diff(theta, curtheta)
+                rot = np.array([[np.cos(theta_off), -np.sin(theta_off)],
+                                [np.sin(theta_off), np.cos(theta_off)]])
+                newdisp = rot.dot(curdisp)
+                pos_off = newdisp - curdisp
+
+                x1_grad = -2 * ((x2-x1)-xt)
+                y1_grad = -2 * ((y2-y1)-yt)
+                theta_grad =  2 * dist * np.cos(theta) * ((x2-x1)+dist*np.sin(theta)) + \
+                             -2 * dist * np.sin(theta) * ((x2-x1)-dist*np.cos(theta))
+                x2_grad = 2 * ((x2-x1)-xt)
+                y2_grad = 2 * ((y2-y1)-yt)
+                posgrad = np.c_[-np.eye(2), np.zeros((2,2)), np.eye(2), np.zeros((2,2))]
+                theta_grad = np.array([0, 0, 1, 0, 0, 0, 0, 0]).reshape((1,8))
+                return np.r_[posgrad, theta_grad].reshape((3,8))
 
         angle_expr = Expr(f, grad)
         e = EqExpr(angle_expr, np.zeros((1,1)))
@@ -2351,13 +2452,13 @@ class ThetaDirValid(ExprPredicate):
 
 
 class ForThetaDirValid(ThetaDirValid):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(ForThetaDirValid, self).__init__(name, params, expected_param_types, env, debug)
         self.forward = True
 
 
 class RevThetaDirValid(ThetaDirValid):
-    def __init__(self, name, params, expected_param_types, env=None, debug=False):
+    def __init__(self, name, params, expected_param_types, env=None, sess=None, debug=False):
         super(RevThetaDirValid, self).__init__(name, params, expected_param_types, env, debug)
         self.reverse = True
 
